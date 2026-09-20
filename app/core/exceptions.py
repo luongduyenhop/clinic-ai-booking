@@ -66,7 +66,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
         logger.warning(f"Validation Error at {request.url.path}: {exc.errors()}")
         formatted_errors = []
         for err in exc.errors():
-            loc = " -> ".join(str(l) for l in err.get("loc", []))
+            loc = " -> ".join(str(loc_item) for loc_item in err.get("loc", []))
             formatted_errors.append({
                 "field": loc,
                 "detail": err.get("msg")

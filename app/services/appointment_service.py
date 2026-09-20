@@ -1,5 +1,5 @@
 import logging
-from datetime import date, time, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
@@ -10,7 +10,6 @@ from app.models.appointment import LichLamViec, LichKham, TrangThaiLichEnum
 from app.schemas.appointment import (
     AppointmentCreateRequest,
     AppointmentCancelRequest,
-    AppointmentRescheduleRequest,
     AppointmentResponse,
     DoctorScheduleSlotsResponse,
     TimeSlotResponse,
@@ -49,7 +48,7 @@ class AppointmentService:
             and_(
                 LichLamViec.bac_si_id == doctor_id,
                 LichLamViec.ngay_lam_viec == query_date,
-                LichLamViec.is_active == True
+                LichLamViec.is_active.is_(True)
             )
         )
         shifts = (await db.execute(stmt_llv)).scalars().all()

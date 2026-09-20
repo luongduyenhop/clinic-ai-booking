@@ -33,7 +33,7 @@ class AIService:
 
     async def scan_red_flags(self, text_normalized: str, db: AsyncSession) -> Tuple[bool, str]:
         """Chốt chặn an toàn số 1: Quét từ điển dấu hiệu cấp cứu nguy hiểm tính mạng"""
-        stmt = select(TuKhoaCapCuu).where(TuKhoaCapCuu.is_active == True)
+        stmt = select(TuKhoaCapCuu).where(TuKhoaCapCuu.is_active.is_(True))
         red_flag_rules = (await db.execute(stmt)).scalars().all()
 
         for rule in red_flag_rules:

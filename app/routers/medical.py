@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.core.response import ResponseEnvelope
 from app.models.user import ChuyenKhoa, BacSi, NguoiDung
-from app.models.medical import DichVu, KhaiNiem
+from app.models.medical import DichVu
 from app.schemas.appointment import DoctorBriefResponse
 from pydantic import BaseModel
 
@@ -71,7 +71,7 @@ async def get_doctors(
 
 @router.get("/services", response_model=ResponseEnvelope[List[ServiceItemResponse]], summary="Lấy danh mục dịch vụ cận lâm sàng")
 async def get_services(db: AsyncSession = Depends(get_db)):
-    stmt = select(DichVu).where(DichVu.is_active == True)
+    stmt = select(DichVu).where(DichVu.is_active.is_(True))
     services = (await db.execute(stmt)).scalars().all()
     data = [
         ServiceItemResponse(

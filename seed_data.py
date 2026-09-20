@@ -4,10 +4,8 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal, engine, Base
 from app.core.security import hash_password
 from app.models.user import ChuyenKhoa, NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
-from app.models.appointment import LichLamViec, LichKham, CaLamViecEnum, TrangThaiLichEnum, DanhSachCho, PhanTichAI
-from app.models.medical import TuKhoaCapCuu, DichVu, KhaiNiem, LuotKham, ChanDoan, ChiDinh, DonThuoc, ChiTietDonThuoc
-# Ensure all models are registered
-import app.models
+from app.models.appointment import LichLamViec, LichKham, CaLamViecEnum, TrangThaiLichEnum
+from app.models.medical import TuKhoaCapCuu, DichVu, KhaiNiem, LuotKham, ChanDoan, DonThuoc, ChiTietDonThuoc
 
 
 async def seed_database():
@@ -219,7 +217,7 @@ async def seed_database():
             mach_lan_phut=78,
             nhiet_do_c=36.8,
             huyet_ap_tam_thu=135,
-            huy_ap_tam_truong=85,
+            huyet_ap_tam_truong=85,
             ket_luan_dieu_tri="Theo dõi tăng huyết áp độ 1, rối loạn thần kinh tim",
             loi_dan_bac_si="Hạn chế ăn mặn, tập thể dục nhẹ nhàng, tái khám sau 2 tuần",
             ngay_hen_tai_kham=today + timedelta(days=12),

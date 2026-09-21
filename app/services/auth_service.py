@@ -154,8 +154,7 @@ class AuthService:
             ngay_sinh=nguoi_dung.ngay_sinh,
             gioi_tinh=nguoi_dung.gioi_tinh,
             dia_chi=nguoi_dung.dia_chi,
-            ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None,
-            so_bhyt=benh_nhan.so_bhyt if benh_nhan else None
+            ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None
         )
 
 

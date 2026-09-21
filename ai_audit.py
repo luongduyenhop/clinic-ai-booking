@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-           AI AUDIT CLI (GPT-4o) - Clinic AI Booking Backend
-  Tự động thu thập git log + diff + ruff -> Gọi thẳng OpenAI API -> Xuất báo cáo
+        AI AUDIT CLI (Google Gemini Pro) - Clinic AI Booking Backend
+  Tự động thu thập git log + diff + ruff -> Gọi thẳng Gemini API -> Xuất báo cáo
 ================================================================================
 
 Cách dùng:
-  py ai_audit.py                  # Tự động review commit gần nhất bằng GPT-4o
+  py ai_audit.py                  # Tự động review commit gần nhất bằng Gemini Pro
   py ai_audit.py --uncommitted    # Review các thay đổi chưa commit (WIP / Working Tree)
   py ai_audit.py --commits 5      # Review phạm vi 5 commit gần nhất
-  py ai_audit.py --model gpt-4o-mini  # Dùng model mini tiết kiệm chi phí
+  py ai_audit.py --model gemini-2.0-flash  # Dùng model flash siêu nhanh
   py ai_audit.py --export-only    # Chỉ xuất file audit_context.md (không gọi API)
 
 API Key:
-  Script tự động đọc OPENAI_API_KEY từ file .env hoặc biến môi trường hệ thống.
+  Script tự động đọc GEMINI_API_KEY từ file .env hoặc biến môi trường hệ thống.
   Nếu chưa có, script sẽ hỏi và tự động lưu vào .env để lần sau không phải nhập lại!
+  (Lấy API Key hoàn toàn miễn phí tại: https://aistudio.google.com/app/apikey)
 """
 
 import os
 import sys
-import json
 import argparse
 import subprocess
 from datetime import datetime
@@ -40,11 +40,12 @@ ENV_FILE = BASE_DIR / ".env"
 OUTPUT_REPORT_FILE = BASE_DIR / "audit_report.md"
 OUTPUT_CONTEXT_FILE = BASE_DIR / "audit_context.md"
 
-MAX_DIFF_CHARS = 40_000  # Giới hạn an toàn cho diff (~10k tokens)
-DEFAULT_MODEL = "gpt-4o"
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+MAX_DIFF_CHARS = 80_000  # Gemini hỗ trợ context tới >1 triệu tokens
+DEFAULT_MODEL = "gemini-2.5-pro"
+FALLBACK_MODELS = ["gemini-1.5-pro", "gemini-2.0-flash"]
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
-SYSTEM_PROMPT = """Bạn là **Senior Software Architect & Principal Security Reviewer** của dự án **Clinic AI Booking** (Phòng Khám AI).
+SYSTEM_PROMPT = """Bạn là **Lead Software Architect & Senior Security Reviewer** của dự án **Clinic AI Booking** (Phòng Khám AI).
 Stack kỹ thuật:
 - FastAPI + Python 3.11 + Pydantic v2
 - SQLAlchemy 2.0 Async + PostgreSQL 15 (OpenMRS Patient Pattern)
@@ -71,20 +72,19 @@ Hãy đọc kỹ toàn bộ Git Log, Git Diff và kết quả Linter được cu
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Quản lý OPENAI_API_KEY
+# Quản lý GEMINI_API_KEY
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_api_key_from_env_file() -> str:
-    """Đọc OPENAI_API_KEY từ file .env nếu có."""
+    """Đọc GEMINI_API_KEY từ file .env nếu có."""
     if not ENV_FILE.exists():
         return ""
     try:
         with open(ENV_FILE, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("OPENAI_API_KEY="):
+                if line.startswith("GEMINI_API_KEY="):
                     key = line.split("=", 1)[1].strip()
-                    # Loại bỏ dấu nháy đơn/kép nếu có
                     if (key.startswith('"') and key.endswith('"')) or (key.startswith("'") and key.endswith("'")):
                         key = key[1:-1]
                     return key
@@ -94,50 +94,46 @@ def get_api_key_from_env_file() -> str:
 
 
 def save_api_key_to_env_file(api_key: str):
-    """Lưu OPENAI_API_KEY vào file .env."""
+    """Lưu GEMINI_API_KEY vào file .env."""
     try:
         if ENV_FILE.exists():
             content = ENV_FILE.read_text(encoding="utf-8")
-            if "OPENAI_API_KEY=" in content:
+            if "GEMINI_API_KEY=" in content:
                 lines = [
-                    f"OPENAI_API_KEY={api_key}" if line.startswith("OPENAI_API_KEY=") else line
+                    f"GEMINI_API_KEY={api_key}" if line.startswith("GEMINI_API_KEY=") else line
                     for line in content.splitlines()
                 ]
                 content = "\n".join(lines) + "\n"
             else:
-                content += f"\n# OpenAI API Key (dùng cho AI Code Audit & Review)\nOPENAI_API_KEY={api_key}\n"
+                content += f"\n# Google Gemini API Key (dùng cho AI Code Audit & Review)\nGEMINI_API_KEY={api_key}\n"
             ENV_FILE.write_text(content, encoding="utf-8")
         else:
-            # Tạo .env mới từ .env.example hoặc tạo mới
             example_file = BASE_DIR / ".env.example"
             header = ""
             if example_file.exists():
                 header = example_file.read_text(encoding="utf-8") + "\n"
-            header += f"\n# OpenAI API Key (dùng cho AI Code Audit & Review)\nOPENAI_API_KEY={api_key}\n"
+            header += f"\n# Google Gemini API Key (dùng cho AI Code Audit & Review)\nGEMINI_API_KEY={api_key}\n"
             ENV_FILE.write_text(header, encoding="utf-8")
-        print("   [OK] Đã lưu OPENAI_API_KEY vào file .env!")
+        print("   [OK] Đã lưu GEMINI_API_KEY vào file .env!")
     except Exception as e:
         print(f"   [CẢNH BÁO] Không thể ghi vào .env: {e}")
 
 
 def resolve_api_key() -> str:
     """Tìm API key qua env var, .env hoặc hỏi người dùng trực tiếp."""
-    # 1. Biến môi trường hệ thống
-    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
     if key:
         return key
 
-    # 2. Đọc từ file .env
     key = get_api_key_from_env_file()
     if key:
         return key
 
-    # 3. Hỏi người dùng trên terminal
     print("\n" + "=" * 65)
-    print("  [?] CHƯA TÌM THẤY OPENAI_API_KEY")
+    print("  [?] CHƯA TÌM THẤY GEMINI_API_KEY")
     print("=" * 65)
-    print("  Để tự động gọi GPT-4o mà không cần copy/paste thủ công,")
-    print("  vui lòng nhập OpenAI API Key của bạn (bắt đầu bằng sk-...):")
+    print("  Lấy API Key miễn phí tại: https://aistudio.google.com/app/apikey")
+    print("  Vui lòng nhập Google Gemini API Key của bạn (bắt đầu bằng AIza...):")
     try:
         user_key = input("  > API Key: ").strip()
     except (EOFError, KeyboardInterrupt):
@@ -148,7 +144,6 @@ def resolve_api_key() -> str:
         print("[Lỗi] API Key không được để trống!")
         sys.exit(1)
 
-    # Hỏi có muốn lưu vào .env không
     try:
         save_choice = input("  > Bạn có muốn lưu vào .env để lần sau không cần nhập lại? (Y/n): ").strip().lower()
     except (EOFError, KeyboardInterrupt):
@@ -199,12 +194,10 @@ def collect_audit_data(n_commits: int = 1, uncommitted: bool = False) -> dict:
         changed_files = run_cmd(["git", "diff", target_ref, "HEAD", "--name-status"])
         git_log = run_cmd(["git", "log", "-n", str(n_commits), "--pretty=format:[%h] %ad | %an | %s", "--date=short"])
 
-    # Cắt ngắn diff nếu quá lớn để không tràn context
     if len(git_diff) > MAX_DIFF_CHARS:
         cut_len = len(git_diff) - MAX_DIFF_CHARS
-        git_diff = git_diff[:MAX_DIFF_CHARS] + f"\n\n... [Đã cắt bớt {cut_len:,} ký tự diff để tối ưu token] ..."
+        git_diff = git_diff[:MAX_DIFF_CHARS] + f"\n\n... [Đã cắt bớt {cut_len:,} ký tự diff để tối ưu] ..."
 
-    # Chạy Ruff check
     ruff_res = run_cmd(["py", "-m", "ruff", "check", ".", "--output-format=concise"])
     if not ruff_res:
         ruff_res = run_cmd(["python", "-m", "ruff", "check", ".", "--output-format=concise"])
@@ -213,7 +206,6 @@ def collect_audit_data(n_commits: int = 1, uncommitted: bool = False) -> dict:
     else:
         ruff_output = ruff_res
 
-    # Thống kê thành viên an toàn (truyền HEAD để không treo stdin)
     shortlog = run_cmd(["git", "shortlog", "-sn", "--no-merges", "HEAD"])
 
     return {
@@ -269,49 +261,60 @@ Hãy đánh giá mã nguồn trên theo đúng 4 mục yêu cầu. Trả lời b
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gọi OpenAI API (Hỗ trợ streaming hoặc request chuẩn)
+# Gọi Google Gemini API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_openai_api(api_key: str, prompt: str, model: str = DEFAULT_MODEL) -> str:
-    """Gọi OpenAI API sử dụng thư viện requests (hoặc urllib nếu requests thiếu)."""
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
-    }
-
+def call_gemini_api(api_key: str, prompt: str, primary_model: str = DEFAULT_MODEL) -> str:
+    """Gọi Gemini API với cơ chế tự động fallback giữa các model."""
     try:
         import requests
-        resp = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=120)
-        if not resp.ok:
-            try:
-                err_data = resp.json()
-                err_msg = err_data.get("error", {}).get("message", resp.text)
-            except Exception:
-                err_msg = resp.text
-            raise RuntimeError(f"OpenAI API trả về mã lỗi {resp.status_code}: {err_msg}")
-
-        result_json = resp.json()
-        return result_json["choices"][0]["message"]["content"]
     except ImportError:
-        # Fallback sang urllib chuẩn của Python
-        import urllib.request
-        req = urllib.request.Request(
-            OPENAI_API_URL,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data["choices"][0]["message"]["content"]
+        print("[LỖI] Thiếu thư viện requests. Hãy chạy: py -m pip install requests")
+        sys.exit(1)
+
+    candidate_models = [primary_model]
+    for fm in FALLBACK_MODELS:
+        if fm not in candidate_models:
+            candidate_models.append(fm)
+
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": SYSTEM_PROMPT}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 4096
+        }
+    }
+
+    last_error = None
+    for model in candidate_models:
+        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
+        print(f"      -> Đang thử gọi Google Gemini model '{model}'...")
+        try:
+            resp = requests.post(url, json=payload, timeout=120)
+            if resp.ok:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    review_text = "".join(p.get("text", "") for p in parts)
+                    if review_text.strip():
+                        return review_text
+            else:
+                last_error = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                print(f"      [WARN] Model '{model}' trả về: {last_error}")
+        except Exception as e:
+            last_error = str(e)
+            print(f"      [WARN] Model '{model}' lỗi mạng: {e}")
+
+    raise RuntimeError(f"Không thể kết nối tới Google Gemini API: {last_error}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -320,7 +323,7 @@ def call_openai_api(api_key: str, prompt: str, model: str = DEFAULT_MODEL) -> st
 
 def main():
     parser = argparse.ArgumentParser(
-        description="AI Audit CLI (GPT-4o) - Tự động review code không cần copy/paste thủ công",
+        description="AI Audit CLI (Gemini Pro) - Tự động review code không cần copy/paste thủ công",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
@@ -338,7 +341,7 @@ def main():
         "--model", "-m",
         type=str,
         default=DEFAULT_MODEL,
-        help=f"Model OpenAI sử dụng (mặc định: {DEFAULT_MODEL})"
+        help=f"Model Gemini sử dụng (mặc định: {DEFAULT_MODEL})"
     )
     parser.add_argument(
         "--export-only",
@@ -349,7 +352,7 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "=" * 65)
-    print("  🤖 AI CODE AUDITOR (GPT-4o) - Clinic AI Booking")
+    print("  🤖 AI CODE AUDITOR (Google Gemini Pro) - Clinic AI Booking")
     print("=" * 65)
 
     # 1. Thu thập dữ liệu
@@ -371,19 +374,19 @@ def main():
     # 2. Lấy API Key
     api_key = resolve_api_key()
 
-    # 3. Gọi GPT-4o
-    print(f"\n[2/3] Đang gửi dữ liệu tới OpenAI ({args.model}) để phân tích...")
+    # 3. Gọi Gemini Pro
+    print(f"\n[2/3] Đang gửi dữ liệu tới Google Gemini ({args.model}) để phân tích...")
     print("      (Vui lòng đợi vài giây để AI đọc toàn bộ diff và viết báo cáo...)")
 
     try:
-        review_result = call_openai_api(api_key, prompt_text, model=args.model)
+        review_result = call_gemini_api(api_key, prompt_text, primary_model=args.model)
     except Exception as e:
         print(f"\n[LỖI GỌI API] {e}")
         print(f"Bạn vẫn có thể mở file '{OUTPUT_CONTEXT_FILE.name}' để copy thủ công nếu cần.")
         sys.exit(1)
 
     # 4. Xuất kết quả
-    report_content = f"""# 🏥 BÁO CÁO AI CODE AUDIT ({args.model.upper()})
+    report_content = f"""# 🏥 BÁO CÁO AI CODE AUDIT (GEMINI PRO)
 > **Thời gian tạo:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
 > **Nhánh:** `{data['branch']}` | **Commit:** `{data['last_sha']}`  
 > **Phạm vi kiểm tra:** {data['mode_desc']}  
@@ -398,7 +401,7 @@ def main():
     OUTPUT_REPORT_FILE.write_text(report_content, encoding="utf-8")
 
     print("\n" + "=" * 65)
-    print("  [3/3] KẾT QUẢ REVIEW TỪ GPT-4o:")
+    print("  [3/3] KẾT QUẢ REVIEW TỪ GEMINI PRO:")
     print("=" * 65 + "\n")
     print(review_result)
     print("\n" + "=" * 65)

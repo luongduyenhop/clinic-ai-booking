@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-AI PR Gatekeeper & Reviewer (GPT-4o) — Clinic AI Booking Backend
-================================================================
+AI PR Gatekeeper & Reviewer (Gemini Pro) — Clinic AI Booking Backend
+====================================================================
 Script tự động kích hoạt qua GitHub Actions khi có Pull Request:
   1. Lấy toàn bộ PR info, commit messages và git diff từ GitHub API
-  2. Gửi dữ liệu tới GPT-4o với vai trò Lead Software Architect
+  2. Gửi dữ liệu tới Google Gemini Pro với vai trò Lead Software Architect
   3. Đánh giá tính đủ điều kiện: ĐẠT YÊU CẦU (PASSED) hay CHƯA ĐẠT (FAILED)
   4. Đăng Official Pull Request Review lên GitHub (APPROVE hoặc REQUEST_CHANGES)
   5. Nếu CHƯA ĐẠT: Thất bại CI (exit 1) để CHẶN MERGE trên GitHub cho đến khi tác giả sửa lại!
@@ -15,21 +15,17 @@ import sys
 import requests
 from datetime import datetime, timezone
 
-try:
-    from openai import OpenAI
-except ImportError:
-    print("[ERROR] Thieu thu vien openai. Hay chay: pip install openai")
-    sys.exit(1)
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cấu hình
 # ─────────────────────────────────────────────────────────────────────────────
 
-MODEL = "gpt-4o"
-MAX_DIFF_CHARS = 100_000   # ~25K tokens — GPT-4o context 128K
+PRIMARY_MODEL = "gemini-2.5-pro"
+FALLBACK_MODELS = ["gemini-1.5-pro", "gemini-2.0-flash"]
+MAX_DIFF_CHARS = 120_000   # Gemini context rất lớn (>1 triệu tokens)
 MAX_FILES_TO_SHOW = 40
 GITHUB_API = "https://api.github.com"
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -137,7 +133,7 @@ def get_env(key: str, required: bool = True) -> str:
 
 def load_context() -> dict:
     return {
-        "openai_key": get_env("OPENAI_API_KEY"),
+        "gemini_key": get_env("GEMINI_API_KEY"),
         "github_token": get_env("GITHUB_TOKEN"),
         "pr_number": get_env("PR_NUMBER"),
         "pr_title": get_env("PR_TITLE", required=False) or "(Không có tiêu đề)",
@@ -195,7 +191,7 @@ def get_pr_commits(repo: str, pr_number: str, token: str) -> list[dict]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Chuẩn bị Prompt cho GPT-4o
+# Chuẩn bị Prompt cho Gemini
 # ─────────────────────────────────────────────────────────────────────────────
 
 def summarize_files(files: list[dict]) -> str:
@@ -282,22 +278,53 @@ Nhớ bắt đầu dòng đầu tiên bằng: `MERGE_STATUS: PASSED` hoặc `MER
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gọi OpenAI API
+# Gọi Google Gemini API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_gpt4o(api_key: str, user_message: str) -> str:
-    client = OpenAI(api_key=api_key)
-    print(f"[...] Đang gửi {len(user_message):,} ký tự tới GPT-4o để đánh giá...")
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+def call_gemini_api(api_key: str, user_message: str) -> str:
+    """Gọi Gemini API với cơ chế tự động fallback nếu model bận hoặc không khả dụng."""
+    candidate_models = [PRIMARY_MODEL] + FALLBACK_MODELS
+
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": SYSTEM_PROMPT}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_message}]
+            }
         ],
-        max_tokens=4096,
-        temperature=0.1,  # Rất thấp để phán quyết nhất quán, logic chặt chẽ
-    )
-    return response.choices[0].message.content or ""
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 4096
+        }
+    }
+
+    last_error = None
+    for model in candidate_models:
+        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
+        print(f"[...] Đang gửi {len(user_message):,} ký tự tới Google Gemini ({model})...")
+        try:
+            resp = requests.post(url, json=payload, timeout=120)
+            if resp.ok:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    review_text = "".join(p.get("text", "") for p in parts)
+                    if review_text.strip():
+                        print(f"[OK] Nhận phản hồi thành công từ model '{model}'!")
+                        return review_text
+            else:
+                err_msg = f"{resp.status_code}: {resp.text[:300]}"
+                print(f"[WARN] Model '{model}' trả về lỗi: {err_msg}")
+                last_error = err_msg
+        except Exception as e:
+            print(f"[WARN] Gọi model '{model}' gặp lỗi: {e}")
+            last_error = str(e)
+
+    raise RuntimeError(f"Không thể kết nối tới các model Gemini: {last_error}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -306,7 +333,7 @@ def call_gpt4o(api_key: str, user_message: str) -> str:
 
 def parse_merge_verdict(raw_content: str) -> tuple[bool, str]:
     """
-    Phân tích dòng MERGE_STATUS từ GPT-4o:
+    Phân tích dòng MERGE_STATUS từ Gemini Pro:
     Trả về: (is_passed: bool, clean_markdown_body: str)
     """
     lines = raw_content.strip().splitlines()
@@ -368,11 +395,11 @@ def submit_official_pr_review(repo: str, pr_number: str, token: str, body: str, 
     badge = "🟢 **ĐẠT TIÊU CHUẨN MERGE**" if is_passed else "🔴 **CHƯA ĐẠT - YÊU CẦU SỬA LẠI**"
 
     full_body = (
-        f"> 🤖 **AI PR Gatekeeper (GPT-4o)** | {badge} | {now_str}\n"
+        f"> 🤖 **AI PR Gatekeeper (Gemini Pro)** | {badge} | {now_str}\n"
         f"> Đánh giá điều kiện gộp mã nguồn cho PR #{pr_number}\n\n"
         + body
         + "\n\n---\n"
-        + "*⚡ Đánh giá tự động bởi GPT-4o Quality Gate. Team Lead có thẩm quyền cao nhất để phê duyệt.*"
+        + "*⚡ Đánh giá tự động bởi Google Gemini Pro Quality Gate. Team Lead có thẩm quyền cao nhất để phê duyệt.*"
     )
 
     # 1. Thử gửi qua Official Pull Request Review API
@@ -412,7 +439,7 @@ def submit_official_pr_review(repo: str, pr_number: str, token: str, body: str, 
 
 def main():
     print("\n" + "=" * 65)
-    print("  AI PR Gatekeeper (GPT-4o) — Kiểm Tra Điều Kiện Merge")
+    print("  AI PR Gatekeeper (Gemini Pro) — Kiểm Tra Điều Kiện Merge")
     print("=" * 65 + "\n")
 
     # 1. Tải context
@@ -437,16 +464,16 @@ def main():
     # 4. Chuẩn bị prompt
     user_message = build_user_message(ctx, files, commits, diff)
 
-    # 5. Gọi GPT-4o
+    # 5. Gọi Gemini Pro
     print("\n[...] Đang phân tích mã nguồn và kiểm tra điều kiện merge...")
     try:
-        raw_review = call_gpt4o(ctx["openai_key"], user_message)
+        raw_review = call_gemini_api(ctx["gemini_key"], user_message)
     except Exception as e:
-        print(f"[ERROR] Lỗi gọi OpenAI: {e}")
+        print(f"[ERROR] Lỗi gọi Gemini: {e}")
         # Báo lỗi nhưng không làm sập CI nếu chỉ là lỗi mạng tạm thời
         err_msg = (
             "## ⚠️ AI PR Gatekeeper Tạm Thời Gián Đoạn\n\n"
-            "Không thể kết nối với OpenAI API để đánh giá tự động. "
+            "Không thể kết nối với Google Gemini API để đánh giá tự động. "
             "Team Lead vui lòng kiểm tra thủ công PR này."
         )
         submit_official_pr_review(ctx["repo"], ctx["pr_number"], ctx["github_token"], err_msg, is_passed=True)

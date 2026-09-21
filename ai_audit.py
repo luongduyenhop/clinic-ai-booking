@@ -41,8 +41,8 @@ OUTPUT_REPORT_FILE = BASE_DIR / "audit_report.md"
 OUTPUT_CONTEXT_FILE = BASE_DIR / "audit_context.md"
 
 MAX_DIFF_CHARS = 80_000  # Gemini hỗ trợ context tới >1 triệu tokens
-DEFAULT_MODEL = "gemini-2.5-pro"
-FALLBACK_MODELS = ["gemini-1.5-pro", "gemini-2.0-flash"]
+DEFAULT_MODEL = "gemini-1.5-flash"
+FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro"]
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 SYSTEM_PROMPT = """Bạn là **Lead Software Architect & Senior Security Reviewer** của dự án **Clinic AI Booking** (Phòng Khám AI).

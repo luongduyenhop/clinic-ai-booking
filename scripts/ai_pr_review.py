@@ -20,8 +20,8 @@ from datetime import datetime, timezone
 # Cấu hình
 # ─────────────────────────────────────────────────────────────────────────────
 
-PRIMARY_MODEL = "gemini-2.5-pro"
-FALLBACK_MODELS = ["gemini-1.5-pro", "gemini-2.0-flash"]
+PRIMARY_MODEL = "gemini-1.5-flash"
+FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro"]
 MAX_DIFF_CHARS = 120_000   # Gemini context rất lớn (>1 triệu tokens)
 MAX_FILES_TO_SHOW = 40
 GITHUB_API = "https://api.github.com"
@@ -124,7 +124,7 @@ Nếu có lỗi, với mỗi lỗi trình bày:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_env(key: str, required: bool = True) -> str:
-    value = os.environ.get(key, "").strip()
+    value = os.environ.get(key, "").strip().strip('"').strip("'").replace("\n", "").replace("\r", "")
     if required and not value:
         print(f"[ERROR] Thiếu biến môi trường: {key}")
         sys.exit(1)
@@ -283,7 +283,8 @@ Nhớ bắt đầu dòng đầu tiên bằng: `MERGE_STATUS: PASSED` hoặc `MER
 
 def call_gemini_api(api_key: str, user_message: str) -> str:
     """Gọi Gemini API với cơ chế tự động fallback nếu model bận hoặc không khả dụng."""
-    candidate_models = [PRIMARY_MODEL] + FALLBACK_MODELS
+    candidate_models = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
+    clean_key = api_key.strip().strip('"').strip("'").replace("\n", "").replace("\r", "")
 
     payload = {
         "systemInstruction": {
@@ -300,13 +301,14 @@ def call_gemini_api(api_key: str, user_message: str) -> str:
             "maxOutputTokens": 4096
         }
     }
+    headers = {"Content-Type": "application/json"}
 
-    last_error = None
+    errors = []
     for model in candidate_models:
-        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
+        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={clean_key}"
         print(f"[...] Đang gửi {len(user_message):,} ký tự tới Google Gemini ({model})...")
         try:
-            resp = requests.post(url, json=payload, timeout=120)
+            resp = requests.post(url, headers=headers, json=payload, timeout=90)
             if resp.ok:
                 data = resp.json()
                 candidates = data.get("candidates", [])
@@ -316,15 +318,22 @@ def call_gemini_api(api_key: str, user_message: str) -> str:
                     if review_text.strip():
                         print(f"[OK] Nhận phản hồi thành công từ model '{model}'!")
                         return review_text
+                    else:
+                        errors.append(f"Model '{model}': Trả về phản hồi rỗng.")
+                else:
+                    feedback = data.get("promptFeedback", {})
+                    errors.append(f"Model '{model}': Bị chặn bởi promptFeedback: {feedback}")
             else:
-                err_msg = f"{resp.status_code}: {resp.text[:300]}"
-                print(f"[WARN] Model '{model}' trả về lỗi: {err_msg}")
-                last_error = err_msg
+                err_msg = f"HTTP {resp.status_code} ({model}): {resp.text[:300]}"
+                print(f"[WARN] {err_msg}")
+                errors.append(err_msg)
         except Exception as e:
-            print(f"[WARN] Gọi model '{model}' gặp lỗi: {e}")
-            last_error = str(e)
+            err_msg = f"ConnectionError ({model}): {e}"
+            print(f"[WARN] {err_msg}")
+            errors.append(err_msg)
 
-    raise RuntimeError(f"Không thể kết nối tới các model Gemini: {last_error}")
+    combined_errors = "\n".join(f"- {e}" for e in errors)
+    raise RuntimeError(f"Tất cả các model Gemini đều thất bại:\n{combined_errors}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -470,11 +479,14 @@ def main():
         raw_review = call_gemini_api(ctx["gemini_key"], user_message)
     except Exception as e:
         print(f"[ERROR] Lỗi gọi Gemini: {e}")
-        # Báo lỗi nhưng không làm sập CI nếu chỉ là lỗi mạng tạm thời
         err_msg = (
             "## ⚠️ AI PR Gatekeeper Tạm Thời Gián Đoạn\n\n"
-            "Không thể kết nối với Google Gemini API để đánh giá tự động. "
-            "Team Lead vui lòng kiểm tra thủ công PR này."
+            "Không thể kết nối với Google Gemini API để đánh giá tự động.\n\n"
+            f"**Chi tiết lỗi từ Google API:**\n```text\n{e}\n```\n\n"
+            "> **Gợi ý khắc phục:**\n"
+            f"> 1. Kiểm tra lại `GEMINI_API_KEY` trong [GitHub Repository Secrets](https://github.com/{ctx['repo']}/settings/secrets/actions).\n"
+            "> 2. Đảm bảo key bắt đầu bằng `AIzaSy...` (lấy tại https://aistudio.google.com/app/apikey) và không chứa dấu nháy kép `\"` hoặc khoảng trắng thừa.\n"
+            "> 3. Team Lead có thể kiểm tra và duyệt thủ công PR này."
         )
         submit_official_pr_review(ctx["repo"], ctx["pr_number"], ctx["github_token"], err_msg, is_passed=True)
         sys.exit(0)

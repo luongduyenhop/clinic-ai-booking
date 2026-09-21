@@ -179,7 +179,6 @@ async def seed_database():
         bn_profile = BenhNhan(
             nguoi_dung_id=nd_patient.id,
             ma_dinh_danh_y_te="BN-2026-0001",
-            so_bhyt="DN4010123456789",
             nhom_mau="O+",
             tien_su_benh="Viêm dạ dày nhẹ",
             di_ung_thuoc="Dị ứng Penicillin",

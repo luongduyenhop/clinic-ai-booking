@@ -28,6 +28,13 @@ async def lifespan(app: FastAPI):
             # Tự động tạo bảng nếu chưa có (phục vụ môi trường dev chạy ngay)
             await conn.run_sync(Base.metadata.create_all)
             logger.info("✅ [DATABASE CONNECTED] Toàn bộ Entity Models đã được khởi tạo trên PostgreSQL.")
+
+        # Tự động nạp dữ liệu mẫu ban đầu nếu CSDL trống (Zero-Config / Out-of-the-box Docker startup)
+        try:
+            from seed_data import seed_database
+            await seed_database()
+        except Exception as seed_err:
+            logger.warning(f"⚠️ [AUTO SEED] Bỏ qua nạp dữ liệu mẫu: {str(seed_err)}")
     except Exception as e:
         logger.error(f"❌ [DATABASE ERROR] Không thể kết nối tới PostgreSQL: {str(e)}")
     

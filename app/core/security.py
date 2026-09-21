@@ -37,6 +37,11 @@ def create_access_token(subject: Any, role: str, expires_delta: Optional[timedel
 
 def decode_access_token(token: str) -> Optional[dict]:
     """Giải mã và xác thực chữ ký của JWT token"""
+    if not token:
+        return None
+    token = token.strip().strip('"').strip("'")
+    while token.lower().startswith("bearer "):
+        token = token[7:].strip().strip('"').strip("'")
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload

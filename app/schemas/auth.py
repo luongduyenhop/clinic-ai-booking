@@ -45,5 +45,4 @@ class UserProfileResponse(BaseModel):
     gioi_tinh: Optional[str] = None
     dia_chi: Optional[str] = None
     ma_dinh_danh_y_te: Optional[str] = None
-    so_bhyt: Optional[str] = None
     chuyen_khoa_id: Optional[int] = None

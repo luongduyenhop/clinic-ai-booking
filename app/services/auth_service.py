@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.security import hash_password, verify_password, create_access_token, generate_otp
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
 from app.core.config import settings
-from app.models.user import NguoiDung, TaiKhoan, BenhNhan, VaiTroEnum
+from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
 from app.schemas.auth import RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse, UserProfileResponse
 
 logger = logging.getLogger("clinic_backend")
@@ -145,6 +145,13 @@ class AuthService:
         stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
 
+        chuyen_khoa_id = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs:
+                chuyen_khoa_id = bs.chuyen_khoa_id
+
         return UserProfileResponse(
             id=user.id,
             ho_ten=nguoi_dung.ho_ten,
@@ -155,7 +162,7 @@ class AuthService:
             gioi_tinh=nguoi_dung.gioi_tinh,
             dia_chi=nguoi_dung.dia_chi,
             ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None,
-            so_bhyt=benh_nhan.so_bhyt if benh_nhan else None
+            chuyen_khoa_id=chuyen_khoa_id
         )
 
 

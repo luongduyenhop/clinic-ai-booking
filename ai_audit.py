@@ -277,19 +277,29 @@ def get_available_gemini_models(api_key: str) -> list[str]:
                 methods = m.get("supportedGenerationMethods", [])
                 if "generateContent" in methods:
                     name = m.get("name", "").replace("models/", "")
+                    if any(bad in name.lower() for bad in ["-tts", "embedding", "imagen", "aqa", "realtime"]):
+                        continue
                     if "gemini" in name.lower():
                         models.append(name)
             if models:
                 def priority(name: str) -> int:
                     score = 0
-                    if "2.5" in name:
-                        score += 10
-                    elif "3" in name:
-                        score += 8
-                    if "pro" in name:
-                        score += 5
+                    if "3.6-flash" in name:
+                        score += 100
+                    elif "3.1-pro" in name:
+                        score += 90
+                    elif "3.0-flash" in name:
+                        score += 80
+                    elif "3.0-pro" in name:
+                        score += 70
+                    elif "3" in name and "flash" in name:
+                        score += 60
+                    elif "3" in name and "pro" in name:
+                        score += 50
                     elif "flash" in name:
-                        score += 3
+                        score += 30
+                    elif "pro" in name:
+                        score += 20
                     return -score
 
                 models.sort(key=priority)
@@ -297,7 +307,7 @@ def get_available_gemini_models(api_key: str) -> list[str]:
     except Exception as e:
         print(f"[WARN] Không thể lấy danh sách model tự động: {e}")
 
-    return ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
+    return ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash", "gemini-1.5-flash"]
 
 
 def call_gemini_api(api_key: str, prompt: str, primary_model: str = DEFAULT_MODEL) -> str:

@@ -1,9 +1,9 @@
-name: "AI PR Gatekeeper (Gemini Pro)"
+name: "Multi-Agent AI Gatekeeper (Copilot + Gemini)"
 
 # ============================================================
 # TRIGGER: Kích hoạt khi có Pull Request vào develop hoặc main
-# Gemini Pro sẽ đọc toàn bộ diff, kiểm tra tiêu chuẩn và quyết định
-# cho phép gộp (APPROVE) hay chặn merge (REQUEST_CHANGES)
+# Hội đồng AI (GitHub Copilot + Google Gemini Pro) tranh biện,
+# thẩm định chéo và đúc kết phán quyết cho phép gộp hay chặn merge
 # ============================================================
 on:
   pull_request:
@@ -17,8 +17,11 @@ on:
 
 jobs:
   ai-code-review:
-    name: "AI Review - Gemini Pro"
+    name: "AI Consensus - Copilot & Gemini Pro"
     runs-on: ubuntu-latest
+
+    # Bảo mật: Chỉ chạy cho PR nội bộ trong repo để bảo vệ secrets khỏi PR fork
+    if: github.event.pull_request.head.repo.full_name == github.repository
 
     # Cần quyền đọc PR diff và ghi comment review vào PR
     permissions:

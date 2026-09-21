@@ -1,358 +1,409 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-            AI AUDIT SCRIPT - Clinic AI Booking Backend
-  Gom context git log + diff + ruff -> audit_context.md -> paste vao ChatGPT
+           AI AUDIT CLI (GPT-4o) - Clinic AI Booking Backend
+  Tự động thu thập git log + diff + ruff -> Gọi thẳng OpenAI API -> Xuất báo cáo
 ================================================================================
 
-Cach dung:
-  py ai_audit.py               # Xuat context cua 5 commit gan nhat
-  py ai_audit.py --commits 10  # Xuat context cua 10 commit gan nhat
-  py ai_audit.py --full        # Them full diff tung file vao context
+Cách dùng:
+  py ai_audit.py                  # Tự động review commit gần nhất bằng GPT-4o
+  py ai_audit.py --uncommitted    # Review các thay đổi chưa commit (WIP / Working Tree)
+  py ai_audit.py --commits 5      # Review phạm vi 5 commit gần nhất
+  py ai_audit.py --model gpt-4o-mini  # Dùng model mini tiết kiệm chi phí
+  py ai_audit.py --export-only    # Chỉ xuất file audit_context.md (không gọi API)
 
-Sau khi chay:
-  -> File audit_context.md duoc tao trong thu muc hien tai
-  -> Copy toan bo noi dung file do va paste vao ChatGPT
+API Key:
+  Script tự động đọc OPENAI_API_KEY từ file .env hoặc biến môi trường hệ thống.
+  Nếu chưa có, script sẽ hỏi và tự động lưu vào .env để lần sau không phải nhập lại!
 """
 
 import os
-import subprocess
 import sys
+import json
 import argparse
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
-# Bat UTF-8 mode cho Python tren Windows
+# Bật UTF-8 cho terminal Windows
 os.environ.setdefault("PYTHONUTF8", "1")
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
+# Thư mục gốc backend
+BASE_DIR = Path(__file__).resolve().parent
+ENV_FILE = BASE_DIR / ".env"
+OUTPUT_REPORT_FILE = BASE_DIR / "audit_report.md"
+OUTPUT_CONTEXT_FILE = BASE_DIR / "audit_context.md"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Cau hinh
-# ─────────────────────────────────────────────────────────────────────────────
-OUTPUT_FILE = "audit_context.md"
-MAX_DIFF_CHARS = 8000  # Gioi han ky tu cho git diff (tranh token overflow)
-MAX_LOG_ENTRIES = 5    # Mac dinh lay 5 commit gan nhat
+MAX_DIFF_CHARS = 40_000  # Giới hạn an toàn cho diff (~10k tokens)
+DEFAULT_MODEL = "gpt-4o"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
+SYSTEM_PROMPT = """Bạn là **Senior Software Architect & Principal Security Reviewer** của dự án **Clinic AI Booking** (Phòng Khám AI).
+Stack kỹ thuật:
+- FastAPI + Python 3.11 + Pydantic v2
+- SQLAlchemy 2.0 Async + PostgreSQL 15 (OpenMRS Patient Pattern)
+- Kiến trúc phân tầng: Router -> Service -> Model -> Database
+- Domain: Quản lý bệnh nhân, lịch hẹn khám, AI sàng lọc triệu chứng & Red Flags cấp cứu
 
-SYSTEM_PROMPT = """
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                    SYSTEM PROMPT - DÁN VÀO GEMINI/CHATGPT                   ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+Hãy đọc kỹ toàn bộ Git Log, Git Diff và kết quả Linter được cung cấp, sau đó đánh giá chi tiết theo format Markdown (bằng tiếng Việt):
 
-**Role:** Bạn là Principal Software Architect và Senior Security Reviewer của dự án
-Phòng Khám AI (Clinic AI Booking) - hệ thống FastAPI + PostgreSQL + Async SQLAlchemy.
+## 1. 🔴 Lỗ Hổng & Rủi Ro Tiềm Ẩn (Bắt Buộc Sửa)
+- Lỗi cú pháp, logic, bug tiềm ẩn, ngoại lệ chưa xử lý
+- Rủi ro an ninh: SQL injection, hardcode credentials, bypass auth/role
+- Bất đồng bộ dữ liệu: sai lệch giữa Pydantic Schemas, SQLAlchemy Models và DB
 
-**Nhiệm vụ:** Tôi sẽ cung cấp cho bạn:
-1. Tóm tắt lịch sử commit gần nhất.
-2. Git diff chi tiết của đợt cập nhật này.
-3. Output của Ruff linter.
-4. Thống kê file đã thay đổi.
+## 2. 🟡 Đánh Giá Phân Tầng Kiến Trúc & Clean Code
+- Có vi phạm ranh giới phân tầng (Router -> Service -> Model) không?
+- Đặt tên biến, tái sử dụng code, xử lý session database async chuẩn chưa?
 
-**Hãy đánh giá theo đúng cấu trúc sau (trả lời bằng tiếng Việt):**
+## 3. 🟢 Điểm Tốt Đã Làm Được
+- Những thiết kế, refactor hoặc quy chuẩn đã tuân thủ tốt, nên phát huy.
 
-### 1. 🔴 Lỗ hổng & Rủi ro tiềm ẩn
-Chỉ ra lỗi logic, rủi ro bảo mật, nguy cơ bất đồng bộ dữ liệu
-(giữa SQLAlchemy Model và DB Schema / API Response).
-
-### 2. 🟡 Phân tích kiến trúc
-Code mới có vi phạm tính đóng gói, phân tầng (Router → Service → Model) không?
-Có dependency cycle, business logic rò rỉ vào tầng sai không?
-
-### 3. 🟢 Điểm tốt trong commit này
-Những gì được thực hiện đúng chuẩn, nên duy trì.
-
-### 4. 🚀 3 Hành động tiếp theo quan trọng nhất (Next Steps)
-3 việc cụ thể, ưu tiên nhất cần làm trong commit tiếp theo.
-Ghi rõ: tên file/module cần sửa, lý do, mức độ ưu tiên (CRITICAL / HIGH / MEDIUM).
-
----
-**Context dự án:**
-- FastAPI + SQLAlchemy 2.0 Async + PostgreSQL 15
-- Kiến trúc: Router → Service Layer → SQLAlchemy Models
-- Domain: Phòng khám AI (đặt lịch, AI phân loại triệu chứng, hồ sơ bệnh nhân)
-- Chuẩn: OpenMRS Patient Pattern, Pydantic v2, Python 3.11
+## 4. 🚀 3 Việc Cần Làm Tiếp Theo (Next Steps)
+- 3 đầu việc quan trọng và cấp thiết nhất cần làm ở commit/sprint tiếp theo, nêu rõ file và lý do.
 """
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helpers
+# Quản lý OPENAI_API_KEY
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_cmd(cmd: list[str], capture_stderr: bool = False) -> str:
-    """Chạy command và trả về stdout. Trả về chuỗi rỗng nếu lỗi."""
+def get_api_key_from_env_file() -> str:
+    """Đọc OPENAI_API_KEY từ file .env nếu có."""
+    if not ENV_FILE.exists():
+        return ""
     try:
-        result = subprocess.run(
+        with open(ENV_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("OPENAI_API_KEY="):
+                    key = line.split("=", 1)[1].strip()
+                    # Loại bỏ dấu nháy đơn/kép nếu có
+                    if (key.startswith('"') and key.endswith('"')) or (key.startswith("'") and key.endswith("'")):
+                        key = key[1:-1]
+                    return key
+    except Exception:
+        pass
+    return ""
+
+
+def save_api_key_to_env_file(api_key: str):
+    """Lưu OPENAI_API_KEY vào file .env."""
+    try:
+        if ENV_FILE.exists():
+            content = ENV_FILE.read_text(encoding="utf-8")
+            if "OPENAI_API_KEY=" in content:
+                lines = [
+                    f"OPENAI_API_KEY={api_key}" if line.startswith("OPENAI_API_KEY=") else line
+                    for line in content.splitlines()
+                ]
+                content = "\n".join(lines) + "\n"
+            else:
+                content += f"\n# OpenAI API Key (dùng cho AI Code Audit & Review)\nOPENAI_API_KEY={api_key}\n"
+            ENV_FILE.write_text(content, encoding="utf-8")
+        else:
+            # Tạo .env mới từ .env.example hoặc tạo mới
+            example_file = BASE_DIR / ".env.example"
+            header = ""
+            if example_file.exists():
+                header = example_file.read_text(encoding="utf-8") + "\n"
+            header += f"\n# OpenAI API Key (dùng cho AI Code Audit & Review)\nOPENAI_API_KEY={api_key}\n"
+            ENV_FILE.write_text(header, encoding="utf-8")
+        print("   [OK] Đã lưu OPENAI_API_KEY vào file .env!")
+    except Exception as e:
+        print(f"   [CẢNH BÁO] Không thể ghi vào .env: {e}")
+
+
+def resolve_api_key() -> str:
+    """Tìm API key qua env var, .env hoặc hỏi người dùng trực tiếp."""
+    # 1. Biến môi trường hệ thống
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if key:
+        return key
+
+    # 2. Đọc từ file .env
+    key = get_api_key_from_env_file()
+    if key:
+        return key
+
+    # 3. Hỏi người dùng trên terminal
+    print("\n" + "=" * 65)
+    print("  [?] CHƯA TÌM THẤY OPENAI_API_KEY")
+    print("=" * 65)
+    print("  Để tự động gọi GPT-4o mà không cần copy/paste thủ công,")
+    print("  vui lòng nhập OpenAI API Key của bạn (bắt đầu bằng sk-...):")
+    try:
+        user_key = input("  > API Key: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n[Huỷ bỏ] Không có API Key. Thoát.")
+        sys.exit(1)
+
+    if not user_key:
+        print("[Lỗi] API Key không được để trống!")
+        sys.exit(1)
+
+    # Hỏi có muốn lưu vào .env không
+    try:
+        save_choice = input("  > Bạn có muốn lưu vào .env để lần sau không cần nhập lại? (Y/n): ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        save_choice = "y"
+
+    if save_choice in ("", "y", "yes"):
+        save_api_key_to_env_file(user_key)
+
+    return user_key
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Thu thập thông tin Git & Ruff
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_cmd(cmd: list[str]) -> str:
+    """Chạy command an toàn, không treo stdin."""
+    try:
+        res = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             encoding="utf-8",
-            errors="replace"
+            errors="replace",
+            cwd=BASE_DIR
         )
-        output = result.stdout
-        if capture_stderr and result.stderr:
-            output += result.stderr
-        return output.strip()
-    except FileNotFoundError:
-        return f"[ERROR] Không tìm thấy lệnh: {' '.join(cmd)}"
+        return res.stdout.strip()
     except Exception as e:
-        return f"[ERROR] {e}"
+        return f"[Lỗi lệnh {' '.join(cmd)}: {e}]"
 
 
-def truncate(text: str, max_chars: int, label: str = "") -> str:
-    """Cắt bớt nội dung quá dài để tránh tràn token."""
-    if len(text) <= max_chars:
-        return text
-    truncated = text[:max_chars]
-    lines_cut = text[max_chars:].count('\n')
-    return truncated + f"\n\n... [Đã cắt bớt {len(text) - max_chars:,} ký tự / ~{lines_cut} dòng để tránh tràn token] ..."
-
-
-def section(title: str, content: str, lang: str = "") -> str:
-    """Tạo một section markdown chuẩn."""
-    if not content:
-        content = "_Không có dữ liệu_"
-    code_block = f"```{lang}\n{content}\n```" if lang else content
-    return f"\n## {title}\n\n{code_block}\n"
-
-
-def check_git_repo() -> bool:
-    """Kiểm tra có đang trong git repo không."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"],
-        capture_output=True
-    )
-    return result.returncode == 0
-
-
-def check_ruff_available() -> bool:
-    """Kiểm tra ruff đã được cài chưa."""
-    result = subprocess.run(
-        ["python", "-m", "ruff", "--version"],
-        capture_output=True
-    )
-    if result.returncode != 0:
-        result = subprocess.run(
-            ["py", "-m", "ruff", "--version"],
-            capture_output=True
-        )
-    return result.returncode == 0
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Thu thập dữ liệu
-# ─────────────────────────────────────────────────────────────────────────────
-
-def get_branch_info() -> dict:
-    """Lấy thông tin branch hiện tại."""
+def collect_audit_data(n_commits: int = 1, uncommitted: bool = False) -> dict:
+    """Gom toàn bộ dữ liệu Git diff, log và linter."""
     branch = run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-    remote = run_cmd(["git", "remote", "get-url", "origin"])
-    last_commit_hash = run_cmd(["git", "rev-parse", "--short", "HEAD"])
+    last_sha = run_cmd(["git", "rev-parse", "--short", "HEAD"])
+
+    if uncommitted:
+        mode_desc = "Thay đổi chưa commit (Uncommitted Working Tree & Staged)"
+        git_diff_stat = run_cmd(["git", "diff", "HEAD", "--stat"])
+        git_diff = run_cmd(["git", "diff", "HEAD", "-U3"])
+        changed_files = run_cmd(["git", "diff", "HEAD", "--name-status"])
+        git_log = run_cmd(["git", "log", "-n", "3", "--pretty=format:[%h] %ad | %an | %s", "--date=short"])
+    else:
+        mode_desc = f"{n_commits} commit gần nhất trên nhánh '{branch}'"
+        target_ref = f"HEAD~{n_commits}"
+        git_diff_stat = run_cmd(["git", "diff", target_ref, "HEAD", "--stat"])
+        git_diff = run_cmd(["git", "diff", target_ref, "HEAD", "-U3"])
+        changed_files = run_cmd(["git", "diff", target_ref, "HEAD", "--name-status"])
+        git_log = run_cmd(["git", "log", "-n", str(n_commits), "--pretty=format:[%h] %ad | %an | %s", "--date=short"])
+
+    # Cắt ngắn diff nếu quá lớn để không tràn context
+    if len(git_diff) > MAX_DIFF_CHARS:
+        cut_len = len(git_diff) - MAX_DIFF_CHARS
+        git_diff = git_diff[:MAX_DIFF_CHARS] + f"\n\n... [Đã cắt bớt {cut_len:,} ký tự diff để tối ưu token] ..."
+
+    # Chạy Ruff check
+    ruff_res = run_cmd(["py", "-m", "ruff", "check", ".", "--output-format=concise"])
+    if not ruff_res:
+        ruff_res = run_cmd(["python", "-m", "ruff", "check", ".", "--output-format=concise"])
+    if not ruff_res or "All checks passed" in ruff_res:
+        ruff_output = "All checks passed! (Không phát hiện lỗi cú pháp hay linting)"
+    else:
+        ruff_output = ruff_res
+
+    # Thống kê thành viên an toàn (truyền HEAD để không treo stdin)
+    shortlog = run_cmd(["git", "shortlog", "-sn", "--no-merges", "HEAD"])
+
     return {
         "branch": branch,
-        "remote": remote,
-        "last_commit": last_commit_hash
+        "last_sha": last_sha,
+        "mode_desc": mode_desc,
+        "git_log": git_log,
+        "changed_files": changed_files,
+        "git_diff_stat": git_diff_stat,
+        "git_diff": git_diff,
+        "ruff_output": ruff_output,
+        "shortlog": shortlog,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
 
-def get_git_log(n: int) -> str:
-    """Lấy n commit gần nhất theo format ngắn gọn."""
-    return run_cmd([
-        "git", "log", f"-n{n}",
-        "--pretty=format:[%h] %ad | %an | %s",
-        "--date=short"
-    ])
-
-
-def get_git_diff(full: bool = False) -> str:
-    """Lấy git diff giữa HEAD~1 và HEAD."""
-    if full:
-        diff = run_cmd(["git", "diff", "HEAD~1", "HEAD"])
-    else:
-        # Chỉ lấy diff ngắn gọn (stat + diff của từng file)
-        diff = run_cmd(["git", "diff", "HEAD~1", "HEAD", "--stat"])
-        diff += "\n\n" + run_cmd(["git", "diff", "HEAD~1", "HEAD", "-U3"])  # Context 3 dòng thay vì 10
-
-    return truncate(diff, MAX_DIFF_CHARS)
-
-
-def get_changed_files() -> str:
-    """Lấy danh sách file đã thay đổi trong commit cuối."""
-    return run_cmd(["git", "diff", "HEAD~1", "HEAD", "--name-status"])
-
-
-def get_ruff_output() -> str:
-    """Chạy ruff check và lấy kết quả."""
-    # Thử python trước, nếu không được thì thử py
-    for python_cmd in [["python", "-m", "ruff"], ["py", "-m", "ruff"]]:
-        result = subprocess.run(
-            python_cmd + ["check", ".", "--output-format=concise"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
-        )
-        if result.returncode in [0, 1]:  # 0 = clean, 1 = co loi (binh thuong)
-            output = result.stdout.strip()
-            if not output:
-                return "All checks passed! (Ruff: Khong co loi nao)"
-            return output
-
-    return "[WARNING] Khong the chay ruff. Hay chay: py -m pip install ruff"
-
-
-def get_project_stats() -> str:
-    """Thống kê nhanh về codebase."""
-    stats = []
-
-    # Đếm số file Python
-    py_files = run_cmd(["git", "ls-files", "*.py"])
-    py_count = len(py_files.splitlines()) if py_files else 0
-    stats.append(f"- Tổng file Python được track bởi git: **{py_count} file**")
-
-    # Tổng commit
-    total_commits = run_cmd(["git", "rev-list", "--count", "HEAD"])
-    stats.append(f"- Tổng số commit trong branch: **{total_commits}**")
-
-    # Contributor
-    contributors = run_cmd(["git", "shortlog", "-sn", "--no-merges"])
-    if contributors:
-        stats.append(f"\n**Đóng góp theo thành viên:**\n```\n{contributors}\n```")
-
-    return "\n".join(stats)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tổng hợp và xuất ra file
-# ─────────────────────────────────────────────────────────────────────────────
-
-def generate_audit_context(n_commits: int = 5, full_diff: bool = False) -> Path:
-    """Tong hop toan bo context va ghi ra file markdown."""
-
-    print("[...] Dang thu thap du lieu tu Git...")
-
-    if not check_git_repo():
-        print("[ERR] Thu muc hien tai khong phai Git repository!")
-        print("      Hay chay script nay tu thu muc goc cua du an backend/")
-        sys.exit(1)
-
-    # Thu thập dữ liệu
-    branch_info = get_branch_info()
-    print(f"   Branch: {branch_info['branch']} | Commit: {branch_info['last_commit']}")
-
-    git_log = get_git_log(n_commits)
-    print(f"   Git log: {n_commits} commit gan nhat")
-
-    changed_files = get_changed_files()
-    print(f"   File thay doi: {len(changed_files.splitlines())} file")
-
-    git_diff = get_git_diff(full=full_diff)
-    diff_size = len(git_diff)
-    print(f"   Git diff: {diff_size:,} ky tu {'(full)' if full_diff else '(rut gon)'}")
-
-    print("[...] Dang chay Ruff linter...")
-    ruff_output = get_ruff_output()
-    ruff_clean = "SACH" if "All checks passed" in ruff_output or "Khong co loi" in ruff_output else "CO CANH BAO"
-    print(f"   Ruff: {ruff_clean}")
-
-    project_stats = get_project_stats()
-
-    # Tổng hợp nội dung markdown
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    content = f"""# 🏥 AI Audit Context – Clinic AI Booking Backend
-> Được tạo tự động lúc: `{timestamp}`
-> Branch: `{branch_info['branch']}` | Commit cuối: `{branch_info['last_commit']}`
-> Repository: {branch_info['remote']}
+def build_audit_prompt(data: dict) -> str:
+    """Ghép context thành prompt gửi cho AI."""
+    return f"""# THÔNG TIN MÃ NGUỒN CẦN AUDIT
+- **Dự án**: Clinic AI Booking (FastAPI Backend)
+- **Thời gian**: {data['timestamp']}
+- **Nhánh**: `{data['branch']}` | **Commit**: `{data['last_sha']}`
+- **Phạm vi**: {data['mode_desc']}
 
 ---
+## 1. LỊCH SỬ COMMIT GẦN NHẤT
+```text
+{data['git_log'] or 'Không có commit nào'}
+```
 
-> **📌 Cách dùng file này:**
-> 1. Copy System Prompt in ra terminal sau khi chạy script
-> 2. Dán vào Gemini (ai.google.dev) hoặc ChatGPT
-> 3. Dán tiếp toàn bộ nội dung file này vào
-> 4. Nhấn Enter và đọc phân tích
+## 2. FILE THAY ĐỔI & THỐNG KÊ
+```text
+{data['changed_files'] or 'Không có file thay đổi'}
+```
+**Diff Stat:**
+```text
+{data['git_diff_stat'] or 'Không có thay đổi'}
+```
+
+## 3. CHI TIẾT GIT DIFF
+```diff
+{data['git_diff'] or 'Diff rỗng'}
+```
+
+## 4. KẾT QUẢ RUFF LINTER
+```text
+{data['ruff_output']}
+```
 
 ---
-{section("📜 Lịch Sử Commit Gần Nhất", git_log, "text")}
-{section("📁 Danh Sách File Thay Đổi (Commit Cuối)", changed_files, "diff")}
-{section("🔍 Git Diff Chi Tiết (Commit Cuối)", git_diff, "diff")}
-{section("⚡ Kết Quả Ruff Linter", ruff_output, "text")}
-{section("📊 Thống Kê Dự Án", project_stats)}
-
----
-
-## 🎯 Yêu Cầu Phân Tích
-
-Dựa trên context trên, hãy:
-1. Chỉ ra các **lỗ hổng bảo mật** và **lỗi logic** trong code vừa thay đổi
-2. Phân tích xem commit này có **vi phạm kiến trúc phân tầng** không
-3. Phát hiện nguy cơ **bất đồng bộ** giữa SQLAlchemy Model và DB Schema
-4. Đề xuất **3 việc ưu tiên nhất** cho commit tiếp theo
-
-> **Context kiến trúc:** FastAPI + SQLAlchemy 2.0 Async + PostgreSQL 15
-> **Domain:** Phòng khám AI (đặt lịch, AI phân loại triệu chứng, hồ sơ bệnh nhân)
-> **Chuẩn:** OpenMRS Patient Pattern, Pydantic v2, Python 3.11
+Hãy đánh giá mã nguồn trên theo đúng 4 mục yêu cầu. Trả lời bằng tiếng Việt.
 """
 
-    # Ghi ra file
-    output_path = Path(OUTPUT_FILE)
-    output_path.write_text(content, encoding="utf-8")
 
-    return output_path
+# ─────────────────────────────────────────────────────────────────────────────
+# Gọi OpenAI API (Hỗ trợ streaming hoặc request chuẩn)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def call_openai_api(api_key: str, prompt: str, model: str = DEFAULT_MODEL) -> str:
+    """Gọi OpenAI API sử dụng thư viện requests (hoặc urllib nếu requests thiếu)."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2
+    }
+
+    try:
+        import requests
+        resp = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=120)
+        if not resp.ok:
+            try:
+                err_data = resp.json()
+                err_msg = err_data.get("error", {}).get("message", resp.text)
+            except Exception:
+                err_msg = resp.text
+            raise RuntimeError(f"OpenAI API trả về mã lỗi {resp.status_code}: {err_msg}")
+
+        result_json = resp.json()
+        return result_json["choices"][0]["message"]["content"]
+    except ImportError:
+        # Fallback sang urllib chuẩn của Python
+        import urllib.request
+        req = urllib.request.Request(
+            OPENAI_API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Entry point
+# Main
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Tạo AI Audit Context cho Clinic AI Booking Backend",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Ví dụ:
-  py ai_audit.py                 # 5 commit gần nhất (mặc định)
-  py ai_audit.py --commits 10   # 10 commit gần nhất
-  py ai_audit.py --full          # Full git diff (nhiều token hơn)
-        """
+        description="AI Audit CLI (GPT-4o) - Tự động review code không cần copy/paste thủ công",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
         "--commits", "-n",
         type=int,
-        default=MAX_LOG_ENTRIES,
-        help=f"Số commit gần nhất cần lấy (mặc định: {MAX_LOG_ENTRIES})"
+        default=1,
+        help="Số lượng commit gần nhất cần review (mặc định: 1)"
     )
     parser.add_argument(
-        "--full",
+        "--uncommitted", "-u",
         action="store_true",
-        help="Lấy full git diff thay vì rút gọn (cẩn thận tràn token)"
+        help="Review toàn bộ các thay đổi chưa commit trong thư mục làm việc"
     )
+    parser.add_argument(
+        "--model", "-m",
+        type=str,
+        default=DEFAULT_MODEL,
+        help=f"Model OpenAI sử dụng (mặc định: {DEFAULT_MODEL})"
+    )
+    parser.add_argument(
+        "--export-only",
+        action="store_true",
+        help="Chỉ xuất context ra file audit_context.md, không gọi API"
+    )
+
     args = parser.parse_args()
 
-    print("\n" + "=" * 60)
-    print("  [AI AUDIT] Clinic AI Booking Backend")
-    print("=" * 60 + "\n")
+    print("\n" + "=" * 65)
+    print("  🤖 AI CODE AUDITOR (GPT-4o) - Clinic AI Booking")
+    print("=" * 65)
 
-    output_path = generate_audit_context(n_commits=args.commits, full_diff=args.full)
-    file_size = output_path.stat().st_size
+    # 1. Thu thập dữ liệu
+    print("\n[1/3] Đang thu thập Git diff, logs và kiểm tra linter...")
+    data = collect_audit_data(n_commits=args.commits, uncommitted=args.uncommitted)
+    prompt_text = build_audit_prompt(data)
 
-    print(f"\n[OK] Da tao: {output_path.absolute()}")
-    print(f"     Kich thuoc: {file_size:,} bytes (~{file_size // 4:,} tokens uoc tinh)")
+    # Lưu context ra file dự phòng
+    OUTPUT_CONTEXT_FILE.write_text(prompt_text, encoding="utf-8")
+    print(f"   ✓ Nhánh: {data['branch']} | Commit: {data['last_sha']}")
+    print(f"   ✓ Phạm vi: {data['mode_desc']}")
+    print(f"   ✓ Kích thước diff: {len(data['git_diff']):,} ký tự")
+    print(f"   ✓ Đã lưu context dự phòng: {OUTPUT_CONTEXT_FILE.name}")
 
-    print("\n" + "=" * 60)
-    print("  SYSTEM PROMPT -- DAN VAO CHATGPT TRUOC KHI PASTE CONTEXT")
-    print("=" * 60)
-    print(SYSTEM_PROMPT)
+    if args.export_only:
+        print("\n[OK] Chế độ --export-only: Đã lưu context, không gọi API.")
+        return
 
-    print("=" * 60)
-    print("  BUOC TIEP THEO")
-    print("=" * 60)
-    print(f"""
-1. Mo file: {output_path.absolute()}
-2. Copy toan bo noi dung file
-3. Mo ChatGPT (chat.openai.com)
-4. Dan System Prompt o tren -> Nhan Enter
-5. Dan noi dung file -> Nhan Enter -> Doc phan tich!
-""")
+    # 2. Lấy API Key
+    api_key = resolve_api_key()
+
+    # 3. Gọi GPT-4o
+    print(f"\n[2/3] Đang gửi dữ liệu tới OpenAI ({args.model}) để phân tích...")
+    print("      (Vui lòng đợi vài giây để AI đọc toàn bộ diff và viết báo cáo...)")
+
+    try:
+        review_result = call_openai_api(api_key, prompt_text, model=args.model)
+    except Exception as e:
+        print(f"\n[LỖI GỌI API] {e}")
+        print(f"Bạn vẫn có thể mở file '{OUTPUT_CONTEXT_FILE.name}' để copy thủ công nếu cần.")
+        sys.exit(1)
+
+    # 4. Xuất kết quả
+    report_content = f"""# 🏥 BÁO CÁO AI CODE AUDIT ({args.model.upper()})
+> **Thời gian tạo:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+> **Nhánh:** `{data['branch']}` | **Commit:** `{data['last_sha']}`  
+> **Phạm vi kiểm tra:** {data['mode_desc']}  
+
+---
+
+{review_result}
+
+---
+*Báo cáo được tạo tự động bởi `py ai_audit.py` (Clinic AI Booking System).*
+"""
+    OUTPUT_REPORT_FILE.write_text(report_content, encoding="utf-8")
+
+    print("\n" + "=" * 65)
+    print("  [3/3] KẾT QUẢ REVIEW TỪ GPT-4o:")
+    print("=" * 65 + "\n")
+    print(review_result)
+    print("\n" + "=" * 65)
+    print(f"  [XONG] Toàn bộ báo cáo đã được lưu vào: {OUTPUT_REPORT_FILE.name}")
+    print("=" * 65 + "\n")
 
 
 if __name__ == "__main__":

@@ -278,13 +278,53 @@ Nhớ bắt đầu dòng đầu tiên bằng: `MERGE_STATUS: PASSED` hoặc `MER
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gọi Google Gemini API
+# Gọi Google Gemini API (Tự động nhận diện model khả dụng)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def get_available_gemini_models(api_key: str) -> list[str]:
+    """Truy vấn trực tiếp Google API để lấy danh sách các model khả dụng cho API Key này."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.ok:
+            data = resp.json()
+            models = []
+            for m in data.get("models", []):
+                methods = m.get("supportedGenerationMethods", [])
+                if "generateContent" in methods:
+                    name = m.get("name", "").replace("models/", "")
+                    if "gemini" in name.lower():
+                        models.append(name)
+            if models:
+                # Sắp xếp ưu tiên: đưa model 2.5 hoặc pro hoặc flash lên trước
+                def priority(name: str) -> int:
+                    score = 0
+                    if "2.5" in name:
+                        score += 10
+                    elif "3" in name:
+                        score += 8
+                    if "pro" in name:
+                        score += 5
+                    elif "flash" in name:
+                        score += 3
+                    return -score
+
+                models.sort(key=priority)
+                print(f"[INFO] Google trả về {len(models)} model Gemini khả dụng: {models[:6]}")
+                return models
+        else:
+            print(f"[WARN] ListModels trả về {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"[WARN] Không thể lấy danh sách model tự động: {e}")
+
+    # Fallback danh sách mặc định nếu ListModels không kết nối được
+    return ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
+
+
 def call_gemini_api(api_key: str, user_message: str) -> str:
-    """Gọi Gemini API với cơ chế tự động fallback nếu model bận hoặc không khả dụng."""
-    candidate_models = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
+    """Gọi Gemini API với cơ chế tự động nhận diện model khả dụng của Google."""
     clean_key = api_key.strip().strip('"').strip("'").replace("\n", "").replace("\r", "")
+    candidate_models = get_available_gemini_models(clean_key)
 
     payload = {
         "systemInstruction": {
@@ -304,7 +344,8 @@ def call_gemini_api(api_key: str, user_message: str) -> str:
     headers = {"Content-Type": "application/json"}
 
     errors = []
-    for model in candidate_models:
+    # Thử tối đa 4 model hàng đầu
+    for model in candidate_models[:4]:
         url = f"{GEMINI_API_BASE}/{model}:generateContent?key={clean_key}"
         print(f"[...] Đang gửi {len(user_message):,} ký tự tới Google Gemini ({model})...")
         try:

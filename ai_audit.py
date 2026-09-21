@@ -261,21 +261,57 @@ Hãy đánh giá mã nguồn trên theo đúng 4 mục yêu cầu. Trả lời b
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gọi Google Gemini API
+# Gọi Google Gemini API (Tự động nhận diện model khả dụng)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def get_available_gemini_models(api_key: str) -> list[str]:
+    """Truy vấn trực tiếp Google API để lấy danh sách các model khả dụng cho API Key này."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        import requests
+        resp = requests.get(url, timeout=15)
+        if resp.ok:
+            data = resp.json()
+            models = []
+            for m in data.get("models", []):
+                methods = m.get("supportedGenerationMethods", [])
+                if "generateContent" in methods:
+                    name = m.get("name", "").replace("models/", "")
+                    if "gemini" in name.lower():
+                        models.append(name)
+            if models:
+                def priority(name: str) -> int:
+                    score = 0
+                    if "2.5" in name:
+                        score += 10
+                    elif "3" in name:
+                        score += 8
+                    if "pro" in name:
+                        score += 5
+                    elif "flash" in name:
+                        score += 3
+                    return -score
+
+                models.sort(key=priority)
+                return models
+    except Exception as e:
+        print(f"[WARN] Không thể lấy danh sách model tự động: {e}")
+
+    return ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
+
+
 def call_gemini_api(api_key: str, prompt: str, primary_model: str = DEFAULT_MODEL) -> str:
-    """Gọi Gemini API với cơ chế tự động fallback giữa các model."""
+    """Gọi Gemini API với cơ chế tự động nhận diện model khả dụng của Google."""
     try:
         import requests
     except ImportError:
         print("[LỖI] Thiếu thư viện requests. Hãy chạy: py -m pip install requests")
         sys.exit(1)
 
-    candidate_models = [primary_model]
-    for fm in FALLBACK_MODELS:
-        if fm not in candidate_models:
-            candidate_models.append(fm)
+    clean_key = api_key.strip().strip('"').strip("'").replace("\n", "").replace("\r", "")
+    candidate_models = get_available_gemini_models(clean_key)
+    if primary_model not in candidate_models:
+        candidate_models.insert(0, primary_model)
 
     payload = {
         "systemInstruction": {
@@ -292,13 +328,14 @@ def call_gemini_api(api_key: str, prompt: str, primary_model: str = DEFAULT_MODE
             "maxOutputTokens": 4096
         }
     }
+    headers = {"Content-Type": "application/json"}
 
-    last_error = None
-    for model in candidate_models:
-        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
-        print(f"      -> Đang thử gọi Google Gemini model '{model}'...")
+    errors = []
+    for model in candidate_models[:4]:
+        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={clean_key}"
+        print(f"      -> Đang gửi dữ liệu tới Google Gemini ({model})...")
         try:
-            resp = requests.post(url, json=payload, timeout=120)
+            resp = requests.post(url, headers=headers, json=payload, timeout=90)
             if resp.ok:
                 data = resp.json()
                 candidates = data.get("candidates", [])
@@ -307,14 +344,22 @@ def call_gemini_api(api_key: str, prompt: str, primary_model: str = DEFAULT_MODE
                     review_text = "".join(p.get("text", "") for p in parts)
                     if review_text.strip():
                         return review_text
+                    else:
+                        errors.append(f"Model '{model}': Trả về phản hồi rỗng.")
+                else:
+                    feedback = data.get("promptFeedback", {})
+                    errors.append(f"Model '{model}': Bị chặn bởi promptFeedback: {feedback}")
             else:
-                last_error = f"HTTP {resp.status_code}: {resp.text[:300]}"
-                print(f"      [WARN] Model '{model}' trả về: {last_error}")
+                err_msg = f"HTTP {resp.status_code} ({model}): {resp.text[:300]}"
+                print(f"      [WARN] {err_msg}")
+                errors.append(err_msg)
         except Exception as e:
-            last_error = str(e)
-            print(f"      [WARN] Model '{model}' lỗi mạng: {e}")
+            err_msg = f"ConnectionError ({model}): {e}"
+            print(f"      [WARN] {err_msg}")
+            errors.append(err_msg)
 
-    raise RuntimeError(f"Không thể kết nối tới Google Gemini API: {last_error}")
+    combined_errors = "\n".join(f"- {e}" for e in errors)
+    raise RuntimeError(f"Tất cả các model Gemini đều thất bại:\n{combined_errors}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -59,3 +59,7 @@ postgres_data/
 *~
 .DS_Store
 Thumbs.db
+
+# AI Audit (file tạm, không cần commit lên repo)
+audit_context.md
+.ruff_cache/

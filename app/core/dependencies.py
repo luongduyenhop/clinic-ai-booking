@@ -15,11 +15,13 @@ async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> TaiKhoan:
-    """Xác thực token JWT từ Header (Bearer Token) và lấy đối tượng tài khoản hiện tại từ PostgreSQL"""
     if not credentials or not credentials.credentials:
         raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hợp lệ")
     
-    token = credentials.credentials
+    token = credentials.credentials.strip().strip('"').strip("'")
+    while token.lower().startswith("bearer "):
+        token = token[7:].strip().strip('"').strip("'")
+        
     payload = decode_access_token(token)
     if not payload:
         raise UnauthorizedException("Mã Token không hợp lệ hoặc đã hết hạn sử dụng")

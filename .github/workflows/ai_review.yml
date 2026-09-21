@@ -1,0 +1,59 @@
+name: "AI PR Gatekeeper (Gemini Pro)"
+
+# ============================================================
+# TRIGGER: Kích hoạt khi có Pull Request vào develop hoặc main
+# Gemini Pro sẽ đọc toàn bộ diff, kiểm tra tiêu chuẩn và quyết định
+# cho phép gộp (APPROVE) hay chặn merge (REQUEST_CHANGES)
+# ============================================================
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    types:
+      - opened       # PR mới được tạo
+      - synchronize  # Có commit mới được push vào PR
+      - reopened     # PR được mở lại
+
+jobs:
+  ai-code-review:
+    name: "AI Review - Gemini Pro"
+    runs-on: ubuntu-latest
+
+    # Cần quyền đọc PR diff và ghi comment review vào PR
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: "1. Checkout code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Lấy toàn bộ history để so sánh diff
+
+      - name: "2. Cài đặt Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: "3. Cài đặt dependencies cho script AI Review"
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests==2.32.3
+
+      - name: "4. Chạy AI Code Review & Merge Gatekeeper"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python scripts/ai_pr_review.py

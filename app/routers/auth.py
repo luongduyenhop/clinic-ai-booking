@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -22,8 +22,8 @@ router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package
     status_code=status.HTTP_201_CREATED,
     summary="Đăng ký tài khoản người bệnh mới và gửi mã OTP (UC-A01)"
 )
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    result = await auth_service.register_user(payload, db)
+async def register(payload: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    result = await auth_service.register_user(payload, db, background_tasks)
     return ResponseEnvelope.success_response(
         data=result,
         message="Đăng ký tài khoản thành công. Mã OTP đã được gửi đến hòm thư!",

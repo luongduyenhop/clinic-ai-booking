@@ -135,7 +135,6 @@ CREATE TABLE IF NOT EXISTS benh_nhan (
     id SERIAL PRIMARY KEY,
     nguoi_dung_id INTEGER UNIQUE NOT NULL REFERENCES nguoi_dung(id) ON DELETE CASCADE,
     ma_dinh_danh_y_te VARCHAR(50) UNIQUE NOT NULL, -- VD: BN-2026-0001
-    so_bhyt VARCHAR(30),
     nhom_mau VARCHAR(10),
     tien_su_benh TEXT,
     di_ung_thuoc TEXT,

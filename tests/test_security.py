@@ -41,3 +41,19 @@ def test_jwt_token_invalid():
     invalid_token = "eyJhGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalidpayload.invalidsignature"
     payload = decode_access_token(invalid_token)
     assert payload is None
+
+
+def test_jwt_token_sanitization():
+    """Kiểm tra tự động làm sạch tiền tố 'Bearer ', dấu ngoặc kép và khoảng trắng thừa"""
+    token = create_access_token(subject=100, role="benh_nhan")
+    
+    # 1. Có tiền tố Bearer
+    assert decode_access_token(f"Bearer {token}") is not None
+    # 2. Có tiền tố bearer chữ thường
+    assert decode_access_token(f"bearer {token}") is not None
+    # 3. Kèm ngoặc kép
+    assert decode_access_token(f'"{token}"') is not None
+    # 4. Kèm cả Bearer và ngoặc kép
+    assert decode_access_token(f'"Bearer {token}"') is not None
+    # 5. Kèm khoảng trắng
+    assert decode_access_token(f"  Bearer   {token}  ") is not None

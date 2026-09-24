@@ -22,7 +22,7 @@ Kế thừa 4 mẫu thiết kế quốc tế cốt lõi từ **OpenMRS 3.0** và
 1. `chuyen_khoa`: Danh mục khoa phòng (`KHOA_TIM_MACH`, `KHOA_NOI`...).
 2. `nguoi_dung`: Thông tin nhân khẩu học (Họ tên, ngày sinh, giới tính, SĐT, CCCD).
 3. `tai_khoan`: Mật khẩu băm BCrypt, vai trò `vai_tro_enum` ('benh_nhan', 'bac_si', 'admin'), OTP và thời hạn.
-4. `benh_nhan`: Mã y tế `BN-2026-XXXX`, BHYT, nhóm máu, tiền sử bệnh, điểm tín nhiệm, số lần no-show.
+4. `benh_nhan`: Mã y tế `BN-2026-XXXX`, nhóm máu, tiền sử bệnh, dị ứng thuốc, điểm tín nhiệm, số lần no-show.
 5. `bac_si`: Học vị, chứng chỉ hành nghề, số năm kinh nghiệm, giá khám mặc định.
 
 ### Phân hệ 2: Lịch trực, Đặt lịch & Chống Overbooking (Package B)

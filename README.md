@@ -185,7 +185,7 @@ Sau khi chạy `seed_data.py`, hệ thống tự động nạp sẵn các tài k
 | **Quản trị viên (ADMIN)** | `admin@clinic.com` | `Admin@123456` | Toàn quyền quản trị hệ thống, danh mục khoa phòng |
 | **Bác sĩ (DOCTOR)** | `an.doctor@clinic.com` | `Doctor@123456` | BSCKI. Nguyễn Văn An (Khoa Tim mạch, phòng 201) |
 | **Bác sĩ (DOCTOR)** | `bich.doctor@clinic.com` | `Doctor@123456` | ThS.BS. Trần Thị Bích (Khoa Tiêu hóa, phòng 202) |
-| **Bệnh nhân (PATIENT)**| `patient@test.com` | `Patient@123456` | Nguyễn Thị Bệnh Nhân (Mã: BN-2026-0001, BHYT có sẵn) |
+| **Bệnh nhân (PATIENT)**| `patient@test.com` | `Patient@123456` | Nguyễn Thị Bệnh Nhân (Mã y tế: BN-2026-0001, O+) |
 
 *Ngoài ra, hệ thống đã nạp sẵn **lịch làm việc 14 ngày tới** cho 4 bác sĩ mẫu và **1 ca khám mẫu hoàn chỉnh** gồm chẩn đoán ICD-10 và đơn thuốc.*
 

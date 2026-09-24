@@ -55,11 +55,13 @@ backend/
 │   │   ├── common.py            # ResponseEnvelope, PaginationParams, PaginationMeta
 │   │   ├── auth.py              # RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse...
 │   │   ├── appointment.py       # DoctorScheduleSlotsResponse, AppointmentCreateRequest...
-│   │   └── ai.py                # SymptomTriageRequest, SymptomTriageResponse...
+│   │   ├── ai.py                # SymptomTriageRequest, SymptomTriageResponse...
+│   │   └── medical.py           # SpecialtyResponse, DoctorResponse, AcademicDegreeResponse
 │   ├── services/                # CONTROL LAYER: Logic nghiệp vụ & Giao dịch Database
 │   │   ├── auth_service.py      # Đăng ký, gửi OTP, xác thực BCrypt, kích hoạt tài khoản
 │   │   ├── appointment_service.py # Thuật toán tính slot 30 phút, Khóa SELECT FOR UPDATE, Waitlist
-│   │   └── ai_service.py        # 3 chốt chặn y tế: Red Flags 115 -> Model AI -> Ngưỡng 60%
+│   │   ├── ai_service.py        # 3 chốt chặn y tế: Red Flags 115 -> Model AI -> Ngưỡng 60%
+│   │   └── medical_service.py   # Danh mục chuyên khoa, tra cứu bác sĩ lọc theo khoa/học vị (UC-B01)
 │   └── routers/                 # BOUNDARY LAYER: REST API Endpoints (/api/v1)
 │       ├── api_v1.py            # Tập hợp các router con
 │       ├── auth.py              # /api/v1/auth
@@ -78,7 +80,8 @@ backend/
 │   ├── test_security.py         # Test BCrypt, JWT, sinh OTP
 │   ├── test_ai_red_flags.py     # Test bộ lọc Red Flags cấp cứu y tế
 │   ├── test_appointment_rules.py# Test thuật toán chia 8 slot 30 phút, quy tắc hủy 2 tiếng
-│   └── test_api_smoke.py        # Test Response Envelope và validation lỗi 422
+│   ├── test_api_smoke.py        # Test Response Envelope và validation lỗi 422
+│   └── test_medical_catalog.py  # Test danh mục khoa/bác sĩ: lọc, phân trang (tích hợp PostgreSQL)
 ├── .env.example                 # Biến môi trường mẫu
 ├── Dockerfile                   # Build image backend Python 3.11
 ├── docker-compose.yml           # Khởi chạy PostgreSQL 15 + FastAPI

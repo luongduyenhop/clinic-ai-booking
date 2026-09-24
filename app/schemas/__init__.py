@@ -19,6 +19,11 @@ from app.schemas.ai import (
     SpecialtySuggestion,
     SymptomTriageResponse
 )
+from app.schemas.medical import (
+    SpecialtyResponse,
+    DoctorResponse,
+    AcademicDegreeResponse
+)
 
 __all__ = [
     "ResponseEnvelope",
@@ -37,5 +42,8 @@ __all__ = [
     "AppointmentResponse",
     "SymptomTriageRequest",
     "SpecialtySuggestion",
-    "SymptomTriageResponse"
+    "SymptomTriageResponse",
+    "SpecialtyResponse",
+    "DoctorResponse",
+    "AcademicDegreeResponse"
 ]

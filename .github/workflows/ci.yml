@@ -42,6 +42,8 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
+          # Đảm bảo các công cụ kiểm tra chất lượng mã nguồn luôn sẵn sàng
+          pip install ruff pytest pytest-asyncio
 
       - name: 4. Kiểm tra Linter & Cú pháp (Ruff)
         run: |

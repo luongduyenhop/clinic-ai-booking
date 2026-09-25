@@ -81,7 +81,10 @@ backend/
 │   ├── test_ai_red_flags.py     # Test bộ lọc Red Flags cấp cứu y tế
 │   ├── test_appointment_rules.py# Test thuật toán chia 8 slot 30 phút, quy tắc hủy 2 tiếng
 │   ├── test_api_smoke.py        # Test Response Envelope và validation lỗi 422
-│   └── test_medical_catalog.py  # Test danh mục khoa/bác sĩ: lọc, phân trang (tích hợp PostgreSQL)
+│   ├── conftest.py              # Fixture dùng chung: phiên PostgreSQL rollback sau mỗi test, HTTP client
+│   ├── test_medical_catalog.py  # Test danh mục khoa/bác sĩ: lọc, phân trang (tích hợp PostgreSQL)
+│   ├── test_appointment_cancel.py # Test hủy lịch: quyền, trạng thái, quy tắc 2 tiếng theo giờ VN (UC-B05)
+│   └── test_clinic_time.py      # Test slot "đã qua" và chặn đặt lịch quá khứ theo giờ phòng khám (UC-B02, B03)
 ├── .env.example                 # Biến môi trường mẫu
 ├── Dockerfile                   # Build image backend Python 3.11
 ├── docker-compose.yml           # Khởi chạy PostgreSQL 15 + FastAPI

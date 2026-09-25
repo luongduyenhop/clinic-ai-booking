@@ -1,6 +1,6 @@
-from datetime import date, time
-from typing import Optional, List
-from pydantic import BaseModel, Field
+from datetime import date, datetime, time
+from typing import Annotated, Optional, List
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class TimeSlotResponse(BaseModel):
@@ -30,7 +30,20 @@ class AppointmentCreateRequest(BaseModel):
 
 class AppointmentCancelRequest(BaseModel):
     """Yêu cầu hủy lịch hẹn khám (UC-B05)"""
-    ly_do_huy: str = Field(..., min_length=5, max_length=255, description="Lý do hủy lịch khám")
+    # Cắt khoảng trắng trước khi kiểm tra độ dài để chặn lý do toàn dấu cách
+    ly_do_huy: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=255)] = Field(
+        ..., description="Lý do hủy lịch khám"
+    )
+
+
+class AppointmentCancelResponse(BaseModel):
+    """Kết quả hủy lịch hẹn khám (UC-B05)"""
+    appointment_id: int
+    ma_lich_kham: str
+    trang_thai: str
+    ly_do_huy: str
+    thoi_gian_huy: datetime
+    nguoi_huy_vai_tro: str = Field(..., description="Vai trò người hủy: benh_nhan, bac_si, admin")
 
 
 class AppointmentRescheduleRequest(BaseModel):

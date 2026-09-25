@@ -11,6 +11,7 @@ from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
     AppointmentCancelRequest,
+    AppointmentCancelResponse,
     AppointmentRescheduleRequest,
     AppointmentResponse
 )
@@ -38,6 +39,7 @@ __all__ = [
     "DoctorScheduleSlotsResponse",
     "AppointmentCreateRequest",
     "AppointmentCancelRequest",
+    "AppointmentCancelResponse",
     "AppointmentRescheduleRequest",
     "AppointmentResponse",
     "SymptomTriageRequest",

@@ -7,10 +7,6 @@ from app.core.exceptions import ConflictException, NotFoundException, Unauthoriz
 from app.core.config import settings
 from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
 from app.schemas.auth import RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse, UserProfileResponse
-from fastapi import BackgroundTasks
-from app.services.email_service import EmailService
-
-email_service = EmailService()
 
 logger = logging.getLogger("clinic_backend")
 
@@ -18,7 +14,7 @@ logger = logging.getLogger("clinic_backend")
 class AuthService:
     """Tầng Control điều phối toàn bộ nghiệp vụ xác thực và tài khoản (Package A)"""
 
-    async def register_user(self, payload: RegisterRequest, db: AsyncSession, background_tasks: BackgroundTasks) -> dict:
+    async def register_user(self, payload: RegisterRequest, db: AsyncSession) -> dict:
         """Đăng ký tài khoản người bệnh mới và gửi mã xác thực OTP (UC-A01)"""
         # 1. Kiểm tra Email đã tồn tại hay chưa
         stmt_check = select(TaiKhoan).where(TaiKhoan.email == payload.email)
@@ -54,16 +50,8 @@ class AuthService:
         db.add(tai_khoan)
         await db.commit()
 
-        # 5. Gửi OTP qua Email
+        # 5. Gửi OTP qua Email (Giả lập console log an toàn cho dev/test)
         logger.info(f"🔑 [OTP GENERATED] Email: {payload.email} | Code: {otp_code} | Hết hạn lúc: {otp_expired_at}")
-        
-        # Gửi email ngầm dưới nền (background) để API phản hồi ngay lập tức
-        background_tasks.add_task(
-            email_service.send_otp_email,
-            recipient_email=payload.email,
-            otp_code=otp_code,
-            expires_minutes=5
-        )
 
         return {
             "email": payload.email,

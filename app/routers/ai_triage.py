@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, Header
+from typing import Optional
+from fastapi import APIRouter, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.core.dependencies import security
 from app.core.security import decode_access_token
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan
@@ -18,13 +21,12 @@ router = APIRouter(prefix="/ai", tags=["3. Trí Tuệ Nhân Tạo & Red Flags (P
 )
 async def analyze_symptoms(
     payload: SymptomTriageRequest,
-    authorization: str = Header(None, description="Optional: Bearer <token>"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
     current_user = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
-        decoded = decode_access_token(token)
+    if credentials and credentials.credentials:
+        decoded = decode_access_token(credentials.credentials)
         if decoded and "sub" in decoded:
             stmt = select(TaiKhoan).where(TaiKhoan.id == int(decoded["sub"]))
             current_user = (await db.execute(stmt)).scalar_one_or_none()

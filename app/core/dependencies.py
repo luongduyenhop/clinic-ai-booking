@@ -1,5 +1,6 @@
-from typing import List
-from fastapi import Depends, Header
+from typing import List, Optional
+from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -7,16 +8,20 @@ from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
 from app.models.user import TaiKhoan, VaiTroEnum
 
+security = HTTPBearer(auto_error=False)
+
 
 async def get_current_user(
-    authorization: str = Header(None, description="Bearer <token>"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> TaiKhoan:
-    """Xác thực token JWT từ Header và lấy đối tượng tài khoản hiện tại từ PostgreSQL"""
-    if not authorization or not authorization.startswith("Bearer "):
+    if not credentials or not credentials.credentials:
         raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hợp lệ")
     
-    token = authorization.split(" ")[1]
+    token = credentials.credentials.strip().strip('"').strip("'")
+    while token.lower().startswith("bearer "):
+        token = token[7:].strip().strip('"').strip("'")
+        
     payload = decode_access_token(token)
     if not payload:
         raise UnauthorizedException("Mã Token không hợp lệ hoặc đã hết hạn sử dụng")

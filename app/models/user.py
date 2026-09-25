@@ -66,7 +66,6 @@ class BenhNhan(BaseModelWithTimestamp):
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
     ma_dinh_danh_y_te = Column(String(50), unique=True, nullable=False, index=True)  # BN-2026-XXXX
-    so_bhyt = Column(String(30), nullable=True)
     nhom_mau = Column(String(10), nullable=True)
     tien_su_benh = Column(Text, nullable=True)
     di_ung_thuoc = Column(Text, nullable=True)

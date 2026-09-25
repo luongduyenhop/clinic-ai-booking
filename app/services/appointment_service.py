@@ -1,11 +1,11 @@
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException
 from app.core.config import settings
-from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa
+from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa, VaiTroEnum
 from app.models.appointment import LichLamViec, LichKham, TrangThaiLichEnum
 from app.schemas.appointment import (
     AppointmentCreateRequest,
@@ -233,6 +233,18 @@ class AppointmentService:
         if lich.trang_thai == TrangThaiLichEnum.DA_KHAM.value:
             raise ForbiddenException("Không thể hủy ca khám đã hoàn thành!")
 
+        # Ràng buộc quyền hạn: Bệnh nhân chỉ hủy lịch của mình, Bác sĩ chỉ hủy lịch mình phụ trách, Admin có toàn quyền
+        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+            stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+            bn = (await db.execute(stmt_bn)).scalar_one_or_none()
+            if not bn or lich.benh_nhan_id != bn.id:
+                raise ForbiddenException("Bạn không có quyền hủy lịch hẹn của người khác!")
+        elif user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if not bs or lich.bac_si_id != bs.id:
+                raise ForbiddenException("Bạn chỉ có thể hủy lịch khám thuộc trách nhiệm phụ trách của mình!")
+
         # Ràng buộc thời gian: chỉ được hủy trước tối thiểu 02 tiếng
         appointment_dt = datetime.combine(lich.ngay_kham, lich.gio_kham)
         diff_hours = (appointment_dt - datetime.now()).total_seconds() / 3600.0
@@ -244,7 +256,9 @@ class AppointmentService:
             )
 
         lich.trang_thai = TrangThaiLichEnum.DA_HUY.value
-        lich.ghi_chu_huy = payload.ly_do_huy
+        lich.ly_do_huy = payload.ly_do_huy
+        lich.thoi_gian_huy = datetime.now(timezone.utc)
+        lich.nguoi_huy_vai_tro = user.vai_tro
         await db.commit()
 
         logger.info(f"🚫 [APPOINTMENT CANCELLED] ID: {appointment_id} | Lý do: {payload.ly_do_huy}")

@@ -12,6 +12,8 @@ from app.schemas.auth import (
     UserProfileResponse
 )
 from app.services.auth_service import auth_service
+from app.core.rate_limit import limiter
+from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package A)"])
 
@@ -22,7 +24,8 @@ router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package
     status_code=status.HTTP_201_CREATED,
     summary="Đăng ký tài khoản người bệnh mới và gửi mã OTP (UC-A01)"
 )
-async def register(payload: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute")
+async def register(request: Request, payload: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     result = await auth_service.register_user(payload, db, background_tasks)
     return ResponseEnvelope.success_response(
         data=result,
@@ -36,7 +39,8 @@ async def register(payload: RegisterRequest, background_tasks: BackgroundTasks, 
     response_model=ResponseEnvelope[TokenResponse],
     summary="Xác thực OTP kích hoạt tài khoản và nhận JWT Token (UC-A01)"
 )
-async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def verify_otp(request: Request, payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
     token = await auth_service.verify_otp(payload, db)
     return ResponseEnvelope.success_response(
         data=token,
@@ -49,7 +53,8 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
     response_model=ResponseEnvelope[TokenResponse],
     summary="Đăng nhập hệ thống bằng Email và Mật khẩu (UC-A03)"
 )
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     token = await auth_service.login_user(payload, db)
     return ResponseEnvelope.success_response(
         data=token,

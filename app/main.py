@@ -60,6 +60,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from app.core.rate_limit import limiter
+
+# Thêm state limiter cho ứng dụng
+app.state.limiter = limiter
+
 # 1. Cấu hình CORS cho phép ứng dụng Next.js kết nối an toàn
 app.add_middleware(
     CORSMiddleware,

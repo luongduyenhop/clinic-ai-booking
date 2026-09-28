@@ -1,6 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException
@@ -267,6 +267,75 @@ class AppointmentService:
             "ma_lich_kham": lich.ma_lich_kham,
             "message": "Đã hủy lịch hẹn khám thành công và giải phóng khung giờ cho người bệnh khác."
         }
+
+    async def get_patient_appointments(
+        self,
+        user: TaiKhoan,
+        db: AsyncSession,
+        trang_thai: Optional[str] = None
+    ) -> List[AppointmentResponse]:
+        """Bệnh nhân tra cứu lịch sử và danh sách lịch hẹn của bản thân kèm số thứ tự (UC-B04)"""
+        # 1. Xác định hồ sơ bệnh nhân từ tài khoản hiện tại
+        stmt_bn = select(BenhNhan, NguoiDung).join(
+            NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id
+        ).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+        bn_row = (await db.execute(stmt_bn)).first()
+
+        if not bn_row:
+            return []
+
+        benh_nhan, bn_info = bn_row
+
+        # 2. Xây dựng câu truy vấn danh sách lịch hẹn kèm thông tin Bác sĩ và Chuyên khoa
+        stmt_lk = (
+            select(LichKham, BacSi, NguoiDung, ChuyenKhoa)
+            .join(BacSi, LichKham.bac_si_id == BacSi.id)
+            .join(NguoiDung, BacSi.nguoi_dung_id == NguoiDung.id)
+            .outerjoin(ChuyenKhoa, BacSi.chuyen_khoa_id == ChuyenKhoa.id)
+            .where(LichKham.benh_nhan_id == benh_nhan.id)
+        )
+
+        # Hỗ trợ lọc theo trạng thái nếu có
+        if trang_thai:
+            stmt_lk = stmt_lk.where(LichKham.trang_thai == trang_thai)
+
+        # Sắp xếp lịch hẹn theo ngày và giờ mới nhất
+        stmt_lk = stmt_lk.order_by(LichKham.ngay_kham.desc(), LichKham.gio_kham.desc())
+
+        rows = (await db.execute(stmt_lk)).all()
+
+        # 3. Ánh xạ sang danh sách DTO AppointmentResponse kèm số thứ tự khám (so_thu_tu)
+        appointments: List[AppointmentResponse] = []
+        for lk, bs, bs_info, ck in rows:
+            appointments.append(
+                AppointmentResponse(
+                    id=lk.id,
+                    ma_lich_kham=lk.ma_lich_kham,
+                    ngay_kham=lk.ngay_kham,
+                    gio_kham=lk.gio_kham,
+                    so_thu_tu=lk.so_thu_tu,
+                    trang_thai=lk.trang_thai,
+                    ly_do_kham=lk.ly_do_kham,
+                    trieu_chung_ban_dau=lk.trieu_chung_ban_dau,
+                    bac_si=DoctorBriefResponse(
+                        id=bs.id,
+                        ho_ten=bs_info.ho_ten,
+                        chuyen_khoa=ck.ten_chuyen_khoa if ck else "Nội khoa",
+                        hoc_vi=bs.hoc_vi
+                    ),
+                    benh_nhan=PatientBriefResponse(
+                        id=benh_nhan.id,
+                        ho_ten=bn_info.ho_ten,
+                        so_dien_thoai=bn_info.so_dien_thoai
+                    )
+                )
+            )
+
+        logger.info(
+            f"📋 [PATIENT APPOINTMENTS] Bệnh nhân ID: {benh_nhan.id} | "
+            f"Số lịch tìm thấy: {len(appointments)}"
+        )
+        return appointments
 
 
 appointment_service = AppointmentService()

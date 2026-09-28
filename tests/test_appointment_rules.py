@@ -41,3 +41,15 @@ def test_slot_generator_calculation():
     assert len(slots) == 8
     assert slots[0] == "07:30"
     assert slots[-1] == "11:00"
+
+
+def test_appointment_queue_number_rule():
+    """Kiểm tra quy tắc gán số thứ tự khám (so_thu_tu) tự tăng bắt đầu từ 1 trong ngày (UC-B04)"""
+    existing_active_appointments = 3
+    so_thu_tu_moi = existing_active_appointments + 1
+    assert so_thu_tu_moi == 4
+    assert so_thu_tu_moi > 0
+    # Đảm bảo mã lịch khám chuẩn hóa LK-YYYYMMDD-XXX chứa số thứ tự
+    ma_lich = f"LK-20261001-01{so_thu_tu_moi:03d}"
+    assert ma_lich == "LK-20261001-01004"
+

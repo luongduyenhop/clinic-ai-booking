@@ -38,3 +38,14 @@ def test_unauthorized_access_to_protected_route():
     assert body["success"] is False
     assert body["code"] == 401
     assert "message" in body
+
+
+def test_my_appointments_requires_auth():
+    """Kiểm tra endpoint tra cứu lịch hẹn cá nhân (UC-B04) bắt buộc phải có Authorization Bearer Token"""
+    response = client.get("/api/v1/appointments/my-appointments")
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["code"] == 401
+    assert "Authorization Bearer Token" in body["message"]
+

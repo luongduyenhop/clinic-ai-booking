@@ -1,6 +1,17 @@
 from datetime import date, datetime, time
 from typing import Annotated, Optional, List
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
+
+
+def _ensure_clinic_local_time(value: time) -> time:
+    """Giờ khám luôn là giờ địa phương của phòng khám (naive); giờ kèm múi giờ (VD 09:00+07:00)
+    không so sánh được với clinic_now() và không bao giờ khớp slot nên bị từ chối (422)"""
+    if value.tzinfo is not None:
+        raise ValueError("Giờ khám không được kèm múi giờ, vui lòng gửi theo giờ phòng khám (HH:MM:SS)")
+    return value
+
+
+ClinicLocalTime = Annotated[time, AfterValidator(_ensure_clinic_local_time)]
 
 
 class TimeSlotResponse(BaseModel):
@@ -23,7 +34,7 @@ class AppointmentCreateRequest(BaseModel):
     """Dữ liệu yêu cầu đặt lịch khám trực tuyến (UC-B03)"""
     bac_si_id: int = Field(..., description="Mã bác sĩ muốn khám")
     ngay_kham: date = Field(..., description="Ngày hẹn khám (YYYY-MM-DD)")
-    gio_kham: time = Field(..., description="Khung giờ khám được chọn (HH:MM:SS)")
+    gio_kham: ClinicLocalTime = Field(..., description="Khung giờ khám được chọn (HH:MM:SS)")
     ly_do_kham: Optional[str] = Field(None, max_length=255, description="Lý do khám bệnh sơ bộ")
     trieu_chung_ban_dau: Optional[str] = Field(None, description="Triệu chứng người bệnh tự nhập hoặc từ gợi ý AI")
 
@@ -49,7 +60,7 @@ class AppointmentCancelResponse(BaseModel):
 class AppointmentRescheduleRequest(BaseModel):
     """Yêu cầu đổi sang khung giờ hoặc ngày khám mới (UC-B05)"""
     ngay_kham_moi: date = Field(..., description="Ngày khám mới")
-    gio_kham_moi: time = Field(..., description="Giờ khám mới")
+    gio_kham_moi: ClinicLocalTime = Field(..., description="Giờ khám mới")
 
 
 class DoctorBriefResponse(BaseModel):

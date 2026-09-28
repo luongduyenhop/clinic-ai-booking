@@ -40,9 +40,17 @@ async def test_slot_status_uses_clinic_time(api_client, db_session, booking, hou
 
 
 @pytest.mark.parametrize("hours_from_now, expected_code", [(-1, 400), (24, 201)])
-async def test_booking_past_check_uses_clinic_time(api_client, booking, hours_from_now, expected_code):
+async def test_booking_past_check_uses_clinic_time(api_client, db_session, booking, hours_from_now, expected_code):
     """Không đặt được lịch đã qua theo giờ Việt Nam; lịch ngày mai đặt bình thường (UC-B03)"""
-    thoi_diem = (clinic_now() + timedelta(hours=hours_from_now)).replace(second=0, microsecond=0)
+    # Giờ đặt phải là 1 slot trong ca làm việc của bác sĩ
+    thoi_diem = _floor_30_minutes(clinic_now() + timedelta(hours=hours_from_now))
+    db_session.add(LichLamViec(
+        bac_si_id=booking.bs_x.id,
+        ngay_lam_viec=thoi_diem.date(),
+        gio_bat_dau=thoi_diem.time(),
+        gio_ket_thuc=(thoi_diem + timedelta(minutes=30)).time()
+    ))
+    await db_session.flush()
     payload = {
         "bac_si_id": booking.bs_x.id,
         "ngay_kham": thoi_diem.date().isoformat(),

@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime, timedelta, time
 from app.core.config import settings
 
@@ -52,4 +53,25 @@ def test_appointment_queue_number_rule():
     # Đảm bảo mã lịch khám chuẩn hóa LK-YYYYMMDD-XXX chứa số thứ tự
     ma_lich = f"LK-20261001-01{so_thu_tu_moi:03d}"
     assert ma_lich == "LK-20261001-01004"
+
+
+@pytest.mark.asyncio
+async def test_get_patient_appointments_forbidden_for_non_patient():
+    """Kiểm tra service ném ForbiddenException nếu tài khoản không mang vai trò Bệnh nhân (UC-B04)"""
+    from app.core.exceptions import ForbiddenException
+    from app.models.user import TaiKhoan, VaiTroEnum
+    from app.services.appointment_service import appointment_service
+
+    # Trường hợp 1: Tài khoản có vai trò Bác sĩ
+    doctor_user = TaiKhoan(id=99, email="doctor@clinic.com", vai_tro=VaiTroEnum.BAC_SI.value, is_active=True)
+    with pytest.raises(ForbiddenException) as exc_doctor:
+        await appointment_service.get_patient_appointments(doctor_user, db=None)
+    assert "chỉ dành riêng cho Bệnh nhân" in str(exc_doctor.value.message)
+
+    # Trường hợp 2: Tài khoản có vai trò Admin
+    admin_user = TaiKhoan(id=1, email="admin@clinic.com", vai_tro=VaiTroEnum.ADMIN.value, is_active=True)
+    with pytest.raises(ForbiddenException) as exc_admin:
+        await appointment_service.get_patient_appointments(admin_user, db=None)
+    assert "chỉ dành riêng cho Bệnh nhân" in str(exc_admin.value.message)
+
 

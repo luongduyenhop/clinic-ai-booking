@@ -9,6 +9,8 @@ from app.core.config import settings
 from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa, VaiTroEnum
 from app.models.appointment import LichLamViec, LichKham, TrangThaiLichEnum, CANCELLED_STATUSES
 from app.services.medical_service import DEFAULT_SPECIALTY_NAME, medical_service
+
+# Schemas & DTOs for Appointment Domain (Data Transfer Objects)
 from app.schemas.appointment import (
     AppointmentCreateRequest,
     AppointmentCancelRequest,
@@ -17,9 +19,10 @@ from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     TimeSlotResponse,
     DoctorBriefResponse,
-    PatientBriefResponse
+    PatientBriefResponse,
 )
 
+# Logger instance for Appointment Service
 logger = logging.getLogger("clinic_backend")
 
 # Chỉ lịch chưa diễn ra mới được hủy; các trạng thái còn lại đã kết thúc hoặc bệnh nhân đã tới phòng khám
@@ -379,14 +382,18 @@ class AppointmentService:
         trang_thai: Optional[str] = None
     ) -> List[AppointmentResponse]:
         """Bệnh nhân tra cứu lịch sử và danh sách lịch hẹn của bản thân kèm số thứ tự (UC-B04)"""
-        # 1. Xác định hồ sơ bệnh nhân từ tài khoản hiện tại
+        # 1. Ràng buộc phân quyền RBAC: Chức năng chỉ dành riêng cho vai trò Bệnh nhân
+        if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Chức năng tra cứu lịch hẹn cá nhân chỉ dành riêng cho Bệnh nhân!")
+
+        # 2. Xác định hồ sơ bệnh nhân từ tài khoản hiện tại
         stmt_bn = select(BenhNhan, NguoiDung).join(
             NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id
         ).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         bn_row = (await db.execute(stmt_bn)).first()
 
         if not bn_row:
-            return []
+            raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bệnh nhân hợp lệ!")
 
         benh_nhan, bn_info = bn_row
 

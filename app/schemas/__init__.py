@@ -11,6 +11,7 @@ from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
     AppointmentCancelRequest,
+    AppointmentCancelResponse,
     AppointmentRescheduleRequest,
     AppointmentResponse
 )
@@ -18,6 +19,11 @@ from app.schemas.ai import (
     SymptomTriageRequest,
     SpecialtySuggestion,
     SymptomTriageResponse
+)
+from app.schemas.medical import (
+    SpecialtyResponse,
+    DoctorResponse,
+    AcademicDegreeResponse
 )
 
 __all__ = [
@@ -33,9 +39,13 @@ __all__ = [
     "DoctorScheduleSlotsResponse",
     "AppointmentCreateRequest",
     "AppointmentCancelRequest",
+    "AppointmentCancelResponse",
     "AppointmentRescheduleRequest",
     "AppointmentResponse",
     "SymptomTriageRequest",
     "SpecialtySuggestion",
-    "SymptomTriageResponse"
+    "SymptomTriageResponse",
+    "SpecialtyResponse",
+    "DoctorResponse",
+    "AcademicDegreeResponse"
 ]

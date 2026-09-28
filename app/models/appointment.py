@@ -1,5 +1,7 @@
 from enum import Enum
-from sqlalchemy import Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric
+from sqlalchemy import (
+    Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric, UniqueConstraint, text
+)
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModelWithTimestamp
 
@@ -18,6 +20,13 @@ class TrangThaiLichEnum(str, Enum):
     DA_HUY = "da_huy"
     TU_DONG_HUY = "tu_dong_huy"
     NO_SHOW = "no_show"
+
+
+# Lịch đã hủy (bệnh nhân/bác sĩ hủy hoặc hệ thống tự hủy) không còn chiếm slot
+CANCELLED_STATUSES = {TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value}
+_ACTIVE_BOOKING_CONDITION = text(
+    "trang_thai NOT IN (" + ", ".join(f"'{status}'" for status in sorted(CANCELLED_STATUSES)) + ")"
+)
 
 
 class TrangThaiWaitlistEnum(str, Enum):
@@ -43,6 +52,11 @@ class LichLamViec(BaseModelWithTimestamp):
 
     # Quan hệ
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_lam_viec")
+
+    # Khớp database/schema_postgresql.sql: mỗi bác sĩ chỉ có 1 ca sáng và 1 ca chiều mỗi ngày
+    __table_args__ = (
+        UniqueConstraint("bac_si_id", "ngay_lam_viec", "ca_lam_viec", name="uq_doctor_shift"),
+    )
 
 
 class LichKham(BaseModelWithTimestamp):
@@ -74,6 +88,16 @@ class LichKham(BaseModelWithTimestamp):
     # Đánh chỉ mục Index phục vụ truy vấn slot nhanh
     __table_args__ = (
         Index("ix_doctor_schedule_date", "bac_si_id", "ngay_kham"),
+        # Chốt chặn cuối cấp CSDL (khớp database/schema_postgresql.sql): không bao giờ có 2 lịch còn hiệu lực
+        # trùng giờ của cùng 1 bác sĩ hoặc cùng 1 bệnh nhân
+        Index(
+            "uq_active_doctor_slot", "bac_si_id", "ngay_kham", "gio_kham",
+            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION
+        ),
+        Index(
+            "uq_active_patient_slot", "benh_nhan_id", "ngay_kham", "gio_kham",
+            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION
+        ),
     )
 
 

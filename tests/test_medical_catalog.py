@@ -1,13 +1,9 @@
-import os
 import uuid
 import httpx
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
 from app.core.config import settings
-from app.core.database import Base, get_db
 from app.core.response import PaginationMeta
 from app.main import app
 from app.models.user import ChuyenKhoa, NguoiDung, BacSi
@@ -59,58 +55,8 @@ def test_invalid_query_params_return_422(path):
 
 
 # ------------------------------------------------------------------------------
-# 2. Kiểm thử tích hợp trên PostgreSQL thật - rollback toàn bộ sau mỗi test
+# 2. Kiểm thử tích hợp trên PostgreSQL thật (fixture db_session/api_client ở tests/conftest.py)
 # ------------------------------------------------------------------------------
-
-# Ghi nhớ lần kết nối thất bại đầu tiên để các test sau skip ngay, không phải chờ kết nối lại
-_skip_integration_reason = None
-
-
-# Các fixture async ghim loop_scope="function" để chạy chung event loop với test: kết nối asyncpg không dùng
-# chéo được giữa 2 loop (pytest.ini đặt asyncio_default_fixture_loop_scope = session cho fixture mặc định)
-@pytest_asyncio.fixture(loop_scope="function")
-async def db_session():
-    """Phiên CSDL bọc trong 1 transaction được rollback khi kết thúc nên không để lại dữ liệu test.
-    Máy local chưa bật PostgreSQL thì bỏ qua (skip); trên CI bắt buộc phải kết nối được."""
-    global _skip_integration_reason
-    if _skip_integration_reason:
-        pytest.skip(_skip_integration_reason)
-
-    engine = create_async_engine(settings.async_database_url, poolclass=NullPool, connect_args={"timeout": 5})
-    try:
-        conn = await engine.connect()
-    except Exception as exc:
-        await engine.dispose()
-        if os.getenv("CI"):
-            raise
-        _skip_integration_reason = f"Không kết nối được PostgreSQL, bỏ qua test tích hợp: {exc}"
-        pytest.skip(_skip_integration_reason)
-
-    transaction = await conn.begin()
-    await conn.run_sync(Base.metadata.create_all)
-    session = AsyncSession(bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint")
-    try:
-        yield session
-    finally:
-        await session.close()
-        await transaction.rollback()
-        await conn.close()
-        await engine.dispose()
-
-
-@pytest_asyncio.fixture(loop_scope="function")
-async def api_client(db_session):
-    """HTTP client gọi thẳng vào app FastAPI, dùng chung phiên CSDL của test"""
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as async_client:
-            yield async_client
-    finally:
-        app.dependency_overrides.pop(get_db, None)
-
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def catalog(db_session):

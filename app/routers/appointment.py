@@ -12,6 +12,7 @@ from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
     AppointmentCancelRequest,
+    AppointmentCancelResponse,
     AppointmentResponse,
     DoctorBriefResponse,
     PatientBriefResponse
@@ -59,7 +60,7 @@ async def create_booking(
 
 @router.post(
     "/{appointment_id}/cancel",
-    response_model=ResponseEnvelope[dict],
+    response_model=ResponseEnvelope[AppointmentCancelResponse],
     summary="Hủy lịch hẹn khám - Ràng buộc an toàn y tế tối thiểu 02 tiếng (UC-B05)"
 )
 async def cancel_booking(
@@ -71,7 +72,7 @@ async def cancel_booking(
     result = await appointment_service.cancel_booking(appointment_id, payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
-        message=result["message"]
+        message="Đã hủy lịch hẹn khám thành công và giải phóng khung giờ cho người bệnh khác."
     )
 
 

@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     AI_CONFIDENCE_THRESHOLD: float = 0.60
     SLOT_DURATION_MINUTES: int = 30
     CANCELLATION_MINIMUM_HOURS: int = 2
+    # Giờ khám lưu theo giờ Việt Nam (UTC+7, không có giờ mùa hè), độc lập với múi giờ của server/Docker
+    CLINIC_UTC_OFFSET_HOURS: int = 7
 
 
 settings = Settings()

@@ -203,6 +203,13 @@ class AppointmentService:
         if not bn_row:
             raise ForbiddenException("Tài khoản chưa có hồ sơ Bệnh nhân hợp lệ!")
         benh_nhan, bn_info = bn_row
+        # Bệnh nhân bị khóa đặt online (vắng mặt không báo trước nhiều lần - module No-show) chỉ đặt qua Hotline.
+        # Đọc sau khi đã khóa dòng nên không lọt qua được khi cờ vừa được bật
+        if benh_nhan.is_blocked_booking:
+            raise ForbiddenException(
+                "Tài khoản của bạn đang bị tạm khóa đặt lịch trực tuyến do vắng mặt không báo trước nhiều lần. "
+                "Vui lòng liên hệ Hotline phòng khám để được hỗ trợ!"
+            )
 
         # 2. Bác sĩ phải tồn tại và còn hoạt động (404 thay vì lỗi khóa ngoại 500)
         bac_si, bs_info, specialty_name = await self._get_active_doctor(payload.bac_si_id, db)

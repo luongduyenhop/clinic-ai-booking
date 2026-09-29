@@ -135,6 +135,29 @@ async def test_doctor_hidden_from_catalogue_cannot_be_booked(api_client, db_sess
     assert response.status_code == 404, response.text
 
 
+async def test_patient_blocked_for_no_show_cannot_book(api_client, db_session, booking):
+    """Bệnh nhân bị khóa đặt online (is_blocked_booking do vắng mặt nhiều lần) nhận 403, slot vẫn còn trống"""
+    ngay = _ngay()
+    await _add_morning_shift(db_session, booking.bs_x, ngay)
+    booking.bn_a.is_blocked_booking = True
+    await db_session.flush()
+
+    response = await _book(api_client, booking.tokens["bn_a"], booking.bs_x.id, ngay, time(9, 0))
+
+    assert response.status_code == 403, response.text
+    assert await _slot_status(api_client, booking.bs_x.id, ngay, "09:00") == "available"
+
+
+async def test_account_without_patient_profile_cannot_book(api_client, db_session, booking):
+    """Tài khoản Bác sĩ/Admin không có hồ sơ bệnh nhân thì không đặt lịch trực tuyến được"""
+    ngay = _ngay()
+    await _add_morning_shift(db_session, booking.bs_x, ngay)
+
+    response = await _book(api_client, booking.tokens["admin"], booking.bs_x.id, ngay, time(9, 0))
+
+    assert response.status_code == 403, response.text
+
+
 async def test_time_with_timezone_offset_returns_422(api_client, db_session, booking):
     """Giờ kèm múi giờ (09:00+07:00) bị từ chối ở tầng kiểm tra dữ liệu thay vì lỗi 500 khi so với giờ phòng khám"""
     ngay = _ngay()

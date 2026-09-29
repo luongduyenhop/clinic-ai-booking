@@ -84,7 +84,8 @@ backend/
 │   ├── conftest.py              # Fixture dùng chung: phiên PostgreSQL rollback sau mỗi test, HTTP client
 │   ├── test_medical_catalog.py  # Test danh mục khoa/bác sĩ: lọc, phân trang (tích hợp PostgreSQL)
 │   ├── test_appointment_cancel.py # Test hủy lịch: quyền, trạng thái, quy tắc 2 tiếng theo giờ VN (UC-B05)
-│   └── test_clinic_time.py      # Test slot "đã qua" và chặn đặt lịch quá khứ theo giờ phòng khám (UC-B02, B03)
+│   ├── test_clinic_time.py      # Test slot "đã qua" và chặn đặt lịch quá khứ theo giờ phòng khám (UC-B02, B03)
+│   └── test_appointment_locking.py # Test khóa dòng SELECT FOR UPDATE: request đặt lịch song song thật trên PostgreSQL (UC-B03)
 ├── .env.example                 # Biến môi trường mẫu
 ├── Dockerfile                   # Build image backend Python 3.11
 ├── docker-compose.yml           # Khởi chạy PostgreSQL 15 + FastAPI

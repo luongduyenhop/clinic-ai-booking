@@ -1,8 +1,10 @@
 from enum import Enum
 from sqlalchemy import (
-    Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric, UniqueConstraint, text
+    CheckConstraint, Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric,
+    UniqueConstraint, text
 )
 from sqlalchemy.orm import relationship
+from app.core.config import ALLOWED_SLOT_DURATIONS
 from app.models.base import BaseModelWithTimestamp
 
 
@@ -88,6 +90,14 @@ class LichKham(BaseModelWithTimestamp):
     # Đánh chỉ mục Index phục vụ truy vấn slot nhanh
     __table_args__ = (
         Index("ix_doctor_schedule_date", "bac_si_id", "ngay_kham"),
+        # Kiểm tra lịch trùng giờ của chính bệnh nhân khi đặt lịch (UC-B03)
+        Index("idx_lich_kham_benh_nhan", "benh_nhan_id", "ngay_kham"),
+        # Khớp các ràng buộc CHECK của database/schema_postgresql.sql
+        CheckConstraint(
+            f"thoi_luong_phut IN ({', '.join(str(minutes) for minutes in ALLOWED_SLOT_DURATIONS)})",
+            name="ck_lich_kham_thoi_luong_phut"
+        ),
+        CheckConstraint("so_thu_tu > 0", name="ck_lich_kham_so_thu_tu"),
         # Chốt chặn cuối cấp CSDL (khớp database/schema_postgresql.sql): không bao giờ có 2 lịch còn hiệu lực
         # trùng giờ của cùng 1 bác sĩ hoặc cùng 1 bệnh nhân
         Index(

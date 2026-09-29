@@ -25,6 +25,16 @@ from app.schemas.medical import (
     DoctorResponse,
     AcademicDegreeResponse
 )
+from app.schemas.clinical import (
+    EncounterCreateRequest,
+    EncounterCompleteRequest,
+    EncounterResponse,
+    DiagnosisCreateRequest,
+    DiagnosisResponse,
+    OrderCreateRequest,
+    OrderResponse,
+    VitalSignsSchema
+)
 
 __all__ = [
     "ResponseEnvelope",
@@ -47,5 +57,14 @@ __all__ = [
     "SymptomTriageResponse",
     "SpecialtyResponse",
     "DoctorResponse",
-    "AcademicDegreeResponse"
+    "AcademicDegreeResponse",
+    "EncounterCreateRequest",
+    "EncounterCompleteRequest",
+    "EncounterResponse",
+    "DiagnosisCreateRequest",
+    "DiagnosisResponse",
+    "OrderCreateRequest",
+    "OrderResponse",
+    "VitalSignsSchema"
 ]
+

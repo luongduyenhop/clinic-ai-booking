@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from slowapi.errors import RateLimitExceeded
 from app.core.response import ResponseEnvelope
 
 logger = logging.getLogger("clinic_backend")
@@ -77,6 +78,15 @@ def setup_exception_handlers(app: FastAPI) -> None:
             errors=formatted_errors
         )
         return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=envelope.model_dump())
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+        logger.warning(f"Rate limit exceeded at {request.url.path}")
+        envelope = ResponseEnvelope.error_response(
+            message="Quá nhiều yêu cầu, vui lòng thử lại sau.",
+            code=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+        return JSONResponse(status_code=status.HTTP_429_TOO_MANY_REQUESTS, content=envelope.model_dump())
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):

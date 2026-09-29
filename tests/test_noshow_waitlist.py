@@ -1,6 +1,7 @@
 import pytest
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 from app.models.appointment import TrangThaiLichEnum, TrangThaiWaitlistEnum, CaLamViecEnum, DanhSachCho
+from app.models.user import VaiTroEnum, BenhNhan
 from app.services.appointment_service import clinic_now
 
 
@@ -241,3 +242,147 @@ async def test_auto_process_unconfirmed_appointments(api_client, booking, db_ses
 
     await db_session.refresh(lich)
     assert lich.trang_thai == TrangThaiLichEnum.TU_DONG_HUY.value
+
+
+@pytest.mark.asyncio
+async def test_auto_process_unconfirmed_forbidden_for_non_admin(api_client, booking):
+    """Bệnh nhân không có quyền gọi endpoint tự động hủy unconfirmed (403 Forbidden)"""
+    token_patient = booking.tokens["bn_a"]
+    response = await api_client.post(
+        "/api/v1/appointments/process-unconfirmed?hours_threshold=2.0",
+        headers=token_patient
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_accept_waitlist_slot_success(api_client, booking, db_session):
+    """Bệnh nhân nhận slot khám được cấp từ Waitlist thành công trong thời hạn 30 phút"""
+    target_date = (clinic_now() + timedelta(days=3)).date()
+    target_time = time(8, 0)
+    target_dt = datetime.combine(target_date, target_time)
+
+    # 1. Lịch cũ bị hủy
+    lich_cu = await booking.tao_lich(booking.bn_a, booking.bs_x, target_dt, trang_thai=TrangThaiLichEnum.DA_HUY.value)
+
+    # 2. Entry danh sách chờ của Bệnh nhân B ở trạng thái da_thong_bao, còn hạn 25 phút
+    now_utc = datetime.now(timezone.utc)
+    entry = DanhSachCho(
+        benh_nhan_id=booking.bn_b.id,
+        bac_si_id=booking.bs_x.id,
+        ngay_mong_muon=target_date,
+        ca_mong_muon=CaLamViecEnum.SANG.value,
+        trieu_chung="Cần khám sớm",
+        thu_tu_uu_tien=1,
+        trang_thai=TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+        slot_duoc_cap_id=lich_cu.id,
+        thoi_gian_thong_bao=now_utc,
+        thoi_gian_het_han_giu_slot=now_utc + timedelta(minutes=25)
+    )
+    db_session.add(entry)
+    await db_session.flush()
+
+    # 3. Bệnh nhân B gọi nhận slot
+    token_b = booking.tokens["bn_b"]
+    response = await api_client.post(
+        f"/api/v1/appointments/waitlist/{entry.id}/accept",
+        headers=token_b
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["trang_thai"] == TrangThaiLichEnum.DA_XAC_NHAN.value
+    assert data["ngay_kham"] == str(target_date)
+    assert data["gio_kham"] == str(target_time)
+
+    # 4. Kiểm tra trạng thái entry chuyển sang da_nhan_slot
+    await db_session.refresh(entry)
+    assert entry.trang_thai == TrangThaiWaitlistEnum.DA_NHAN_SLOT.value
+    assert entry.slot_duoc_cap_id == data["id"]
+
+
+@pytest.mark.asyncio
+async def test_accept_waitlist_slot_forbidden_for_other_patient(api_client, booking, db_session):
+    """Bệnh nhân khác không thể nhận slot trong waitlist của người khác (403 Forbidden)"""
+    target_date = (clinic_now() + timedelta(days=3)).date()
+    target_dt = datetime.combine(target_date, time(8, 30))
+    lich_cu = await booking.tao_lich(booking.bn_a, booking.bs_x, target_dt, trang_thai=TrangThaiLichEnum.DA_HUY.value)
+
+    entry = DanhSachCho(
+        benh_nhan_id=booking.bn_b.id,
+        bac_si_id=booking.bs_x.id,
+        ngay_mong_muon=target_date,
+        ca_mong_muon=CaLamViecEnum.SANG.value,
+        thu_tu_uu_tien=1,
+        trang_thai=TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+        slot_duoc_cap_id=lich_cu.id,
+        thoi_gian_het_han_giu_slot=datetime.now(timezone.utc) + timedelta(minutes=20)
+    )
+    db_session.add(entry)
+    await db_session.flush()
+
+    # Bệnh nhân A gọi accept slot của B -> Bị 403
+    token_a = booking.tokens["bn_a"]
+    response = await api_client.post(
+        f"/api/v1/appointments/waitlist/{entry.id}/accept",
+        headers=token_a
+    )
+    assert response.status_code == 403
+    assert "không có quyền nhận slot của người khác" in response.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_accept_waitlist_slot_expired_promotes_next(api_client, booking, db_session):
+    """Khi quá hạn 30 phút giữ slot, accept trả về 409, entry chuyển sang da_bo_qua và tự động đôn người kế tiếp"""
+    target_date = (clinic_now() + timedelta(days=3)).date()
+    target_dt = datetime.combine(target_date, time(9, 30))
+    lich_cu = await booking.tao_lich(booking.bn_a, booking.bs_x, target_dt, trang_thai=TrangThaiLichEnum.DA_HUY.value)
+
+    # Entry B: đã hết hạn giữ slot (thời gian hết hạn ở quá khứ)
+    expired_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    entry_b = DanhSachCho(
+        benh_nhan_id=booking.bn_b.id,
+        bac_si_id=booking.bs_x.id,
+        ngay_mong_muon=target_date,
+        ca_mong_muon=CaLamViecEnum.SANG.value,
+        thu_tu_uu_tien=1,
+        trang_thai=TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+        slot_duoc_cap_id=lich_cu.id,
+        thoi_gian_het_han_giu_slot=expired_time
+    )
+    db_session.add(entry_b)
+
+    # Tạo thêm bệnh nhân C đang chờ kế tiếp (ưu tiên 2)
+    nguoi_dung_c = await booking.tao_tai_khoan("bn_c", VaiTroEnum.BENH_NHAN.value)
+    bn_c = BenhNhan(nguoi_dung_id=nguoi_dung_c.id, ma_dinh_danh_y_te=f"BN-TEST-bn_c-{booking.suffix}")
+    db_session.add(bn_c)
+    await db_session.flush()
+
+    entry_c = DanhSachCho(
+        benh_nhan_id=bn_c.id,
+        bac_si_id=booking.bs_x.id,
+        ngay_mong_muon=target_date,
+        ca_mong_muon=CaLamViecEnum.SANG.value,
+        thu_tu_uu_tien=2,
+        trang_thai=TrangThaiWaitlistEnum.DANG_CHO.value
+    )
+    db_session.add(entry_c)
+    await db_session.flush()
+
+    # Bệnh nhân B cố accept khi đã hết hạn -> 409 Conflict
+    token_b = booking.tokens["bn_b"]
+    response = await api_client.post(
+        f"/api/v1/appointments/waitlist/{entry_b.id}/accept",
+        headers=token_b
+    )
+    assert response.status_code == 409
+    assert "hết hạn" in response.json()["message"]
+
+    # Entry B bị đổi sang da_bo_qua
+    await db_session.refresh(entry_b)
+    assert entry_b.trang_thai == TrangThaiWaitlistEnum.DA_BO_QUA.value
+
+    # Entry C tự động được đôn lên da_thong_bao và nhận slot_duoc_cap_id
+    await db_session.refresh(entry_c)
+    assert entry_c.trang_thai == TrangThaiWaitlistEnum.DA_THONG_BAO.value
+    assert entry_c.slot_duoc_cap_id == lich_cu.id
+

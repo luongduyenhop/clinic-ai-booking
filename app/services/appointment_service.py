@@ -507,7 +507,7 @@ class AppointmentService:
         """Bệnh nhân xác nhận lịch hẹn trước 24h để giữ slot khám (Reconfirmation Flow)"""
         stmt = select(LichKham).where(LichKham.id == appointment_id).with_for_update()
         lich = (await db.execute(stmt)).scalar_one_or_none()
-        if not lich:  
+        if not lich:
             raise NotFoundException("Không tìm thấy thông tin lịch hẹn yêu cầu!")
 
         # Bệnh nhân chỉ xác nhận lịch của mình; Bác sĩ/Admin được xác nhận thay qua hotline
@@ -732,12 +732,142 @@ class AppointmentService:
             )
         return results
 
+    async def accept_waitlist_slot(
+        self,
+        waitlist_id: int,
+        user: TaiKhoan,
+        db: AsyncSession
+    ) -> AppointmentResponse:
+        """Bệnh nhân xác nhận nhận slot được cấp từ danh sách chờ (Waitlist Accept Slot)"""
+        if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Chức năng nhận slot danh sách chờ chỉ dành riêng cho Bệnh nhân!")
+
+        stmt_bn = select(BenhNhan, NguoiDung).join(
+            NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id
+        ).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+        bn_row = (await db.execute(stmt_bn)).first()
+        if not bn_row:
+            raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bệnh nhân hợp lệ!")
+        benh_nhan, bn_info = bn_row
+
+        stmt_wl = select(DanhSachCho).where(DanhSachCho.id == waitlist_id).with_for_update()
+        entry = (await db.execute(stmt_wl)).scalar_one_or_none()
+        if not entry:
+            raise NotFoundException("Không tìm thấy thông tin yêu cầu trong danh sách chờ!")
+
+        # 1. Chỉ bệnh nhân sở hữu entry mới được nhận
+        if entry.benh_nhan_id != benh_nhan.id:
+            raise ForbiddenException("Bạn không có quyền nhận slot của người khác!")
+
+        # 2. Kiểm tra trạng thái
+        if entry.trang_thai == TrangThaiWaitlistEnum.DA_NHAN_SLOT.value:
+            raise ConflictException("Bạn đã nhận slot cho yêu cầu này trước đó rồi!")
+
+        if entry.trang_thai != TrangThaiWaitlistEnum.DA_THONG_BAO.value or not entry.slot_duoc_cap_id:
+            raise ConflictException(
+                f"Yêu cầu đang ở trạng thái '{entry.trang_thai}', chưa có slot sẵn sàng để nhận!"
+            )
+
+        # 3. Lấy thông tin slot được cấp (từ lịch hẹn cũ đã bị hủy)
+        lich_cu = await db.get(LichKham, entry.slot_duoc_cap_id)
+        if not lich_cu:
+            raise NotFoundException("Không tìm thấy thông tin khung giờ khám được cấp!")
+
+        # 4. Kiểm tra thời hạn 30 phút
+        now = datetime.now(timezone.utc)
+        if entry.thoi_gian_het_han_giu_slot:
+            expiry = entry.thoi_gian_het_han_giu_slot
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry < now:
+                # Đã hết hạn -> Chuyển sang da_bo_qua và đôn người tiếp theo
+                entry.trang_thai = TrangThaiWaitlistEnum.DA_BO_QUA.value
+                next_candidate = await self._promote_waitlist_candidate(lich_cu, db)
+                await db.commit()
+                if next_candidate:
+                    logger.info(f"⏭️ [WAITLIST TIMEOUT] Đã chuyển slot cho người tiếp theo (Waitlist ID: {next_candidate.id}).")
+                raise ConflictException("Thời gian giữ chỗ 30 phút cho khung giờ này đã hết hạn. Slot đã được chuyển cho người chờ tiếp theo!")
+
+        # 5. Bác sĩ của slot phải đang active
+        bac_si, bs_info, specialty_name = await self._get_active_doctor(lich_cu.bac_si_id, db)
+
+        # 6. Kiểm tra bệnh nhân không bị trùng giờ khác
+        slot_minutes = settings.SLOT_DURATION_MINUTES
+        booking_dt = datetime.combine(lich_cu.ngay_kham, lich_cu.gio_kham)
+        booking_end = booking_dt + timedelta(minutes=slot_minutes)
+        patient_ranges = await self._get_occupied_ranges(LichKham.benh_nhan_id == benh_nhan.id, lich_cu.ngay_kham, db)
+        if overlaps_any(booking_dt, booking_end, patient_ranges):
+            raise ConflictException("Bạn đã có một lịch hẹn khám khác trong khung giờ này!")
+
+        # 7. Tính số thứ tự khám tự tăng và mã lịch hẹn mới
+        stmt_count = select(
+            func.count(LichKham.id),
+            func.coalesce(func.max(LichKham.so_thu_tu), 0)
+        ).where(
+            and_(
+                LichKham.bac_si_id == lich_cu.bac_si_id,
+                LichKham.ngay_kham == lich_cu.ngay_kham
+            )
+        )
+        total_count, max_so_thu_tu = (await db.execute(stmt_count)).one()
+        so_thu_tu = max_so_thu_tu + 1
+        ma_lich = f"LK-{lich_cu.ngay_kham.strftime('%Y%m%d')}-{lich_cu.bac_si_id:02d}{total_count + 1:03d}"
+
+        # 8. Tạo bản ghi LichKham mới cho bệnh nhân vừa nhận slot
+        new_lich = LichKham(
+            ma_lich_kham=ma_lich,
+            benh_nhan_id=benh_nhan.id,
+            bac_si_id=lich_cu.bac_si_id,
+            ngay_kham=lich_cu.ngay_kham,
+            gio_kham=lich_cu.gio_kham,
+            thoi_luong_phut=slot_minutes,
+            so_thu_tu=so_thu_tu,
+            ly_do_kham=entry.trieu_chung or "Nhận slot từ danh sách chờ (Waitlist)",
+            trieu_chung_ban_dau=entry.trieu_chung,
+            trang_thai=TrangThaiLichEnum.DA_XAC_NHAN.value,
+            is_reconfirmed_24h=True,
+            thoi_gian_xac_nhan=now
+        )
+        db.add(new_lich)
+        await db.flush()
+
+        # 9. Cập nhật entry trong DanhSachCho sang DA_NHAN_SLOT
+        entry.trang_thai = TrangThaiWaitlistEnum.DA_NHAN_SLOT.value
+        entry.slot_duoc_cap_id = new_lich.id
+
+        await db.commit()
+        await db.refresh(new_lich)
+
+        logger.info(f"🎉 [WAITLIST ACCEPTED] Bệnh nhân {benh_nhan.id} đã nhận slot thành công: {ma_lich}")
+        return AppointmentResponse(
+            id=new_lich.id,
+            ma_lich_kham=new_lich.ma_lich_kham,
+            ngay_kham=new_lich.ngay_kham,
+            gio_kham=new_lich.gio_kham,
+            so_thu_tu=new_lich.so_thu_tu,
+            trang_thai=new_lich.trang_thai,
+            ly_do_kham=new_lich.ly_do_kham,
+            trieu_chung_ban_dau=new_lich.trieu_chung_ban_dau,
+            bac_si=DoctorBriefResponse(
+                id=bac_si.id,
+                ho_ten=bs_info.ho_ten,
+                chuyen_khoa=specialty_name,
+                hoc_vi=bac_si.hoc_vi
+            ),
+            benh_nhan=PatientBriefResponse(
+                id=benh_nhan.id,
+                ho_ten=bn_info.ho_ten,
+                so_dien_thoai=bn_info.so_dien_thoai
+            )
+        )
+
     async def auto_process_unconfirmed_and_waitlist(
         self,
         db: AsyncSession,
-        hours_threshold: float = 2.0
+        hours_threshold: float = 2.0,
+        admin_user: Optional[TaiKhoan] = None
     ) -> AutoProcessNoShowResponse:
-        """Tự động hủy các lịch hẹn chưa xác nhận trước giờ khám và đôn người trong Waitlist lên"""
+        """Tự động hủy các lịch hẹn chưa xác nhận trước giờ khám và đôn người trong Waitlist lên (Có Audit Log)"""
         now = clinic_now()
         stmt = (
             select(LichKham)
@@ -773,7 +903,13 @@ class AppointmentService:
 
         if cancelled_codes:
             await db.commit()
-            logger.info(f"🤖 [AUTO CANCEL] Đã tự động hủy {len(cancelled_codes)} lịch chưa xác nhận, đôn {promoted_count} người từ Waitlist.")
+
+        caller_info = f"Admin ID: {admin_user.id} ({admin_user.email})" if admin_user else "Scheduler/System"
+        logger.warning(
+            f"🛡️ [AUDIT LOG] {caller_info} kích hoạt quét tự động lúc {datetime.now(timezone.utc).isoformat()} | "
+            f"Ngưỡng: {hours_threshold}h | Số lịch bị hủy: {len(cancelled_codes)} | Danh sách mã: {cancelled_codes} | "
+            f"Số ứng viên Waitlist được đôn lên: {promoted_count}"
+        )
 
         return AutoProcessNoShowResponse(
             so_lich_tu_dong_huy=len(cancelled_codes),
@@ -782,5 +918,5 @@ class AppointmentService:
         )
 
 
-
 appointment_service = AppointmentService()
+

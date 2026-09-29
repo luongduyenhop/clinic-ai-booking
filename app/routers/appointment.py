@@ -3,9 +3,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
@@ -171,18 +171,38 @@ async def get_my_waitlist(
 
 
 @router.post(
-    "/process-unconfirmed",
-    response_model=ResponseEnvelope[AutoProcessNoShowResponse],
-    summary="Kích hoạt tự động hủy các lịch hẹn chưa xác nhận trước 2 tiếng và đôn danh sách chờ"
+    "/waitlist/{waitlist_id}/accept",
+    response_model=ResponseEnvelope[AppointmentResponse],
+    summary="Bệnh nhân nhận slot khám đã được thông báo từ danh sách chờ (Waitlist Accept Slot)"
 )
-async def process_unconfirmed_appointments(
-    hours_threshold: float = Query(2.0, ge=0.5, le=24.0, description="Ngưỡng giờ trước giờ khám để tự động hủy"),
+async def accept_waitlist_slot(
+    waitlist_id: int,
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    result = await appointment_service.auto_process_unconfirmed_and_waitlist(db, hours_threshold=hours_threshold)
+    result = await appointment_service.accept_waitlist_slot(waitlist_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Nhận slot khám thành công! Lịch hẹn mới đã được tạo và xác nhận."
+    )
+
+
+@router.post(
+    "/process-unconfirmed",
+    response_model=ResponseEnvelope[AutoProcessNoShowResponse],
+    summary="Kích hoạt tự động hủy các lịch hẹn chưa xác nhận trước 2 tiếng và đôn danh sách chờ (Chỉ dành cho ADMIN)"
+)
+async def process_unconfirmed_appointments(
+    hours_threshold: float = Query(2.0, ge=0.5, le=24.0, description="Ngưỡng giờ trước giờ khám để tự động hủy"),
+    current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.ADMIN])),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.auto_process_unconfirmed_and_waitlist(
+        db, hours_threshold=hours_threshold, admin_user=current_user
+    )
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Xử lý tự động hoàn tất: {result.so_lich_tu_dong_huy} lịch bị hủy, đôn {result.so_nguoi_don_waitlist} người từ Waitlist."
     )
+
 

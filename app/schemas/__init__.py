@@ -13,7 +13,13 @@ from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentCancelResponse,
     AppointmentRescheduleRequest,
-    AppointmentResponse
+    AppointmentResponse,
+    AppointmentConfirmResponse,
+    NoShowMarkRequest,
+    NoShowMarkResponse,
+    WaitlistCreateRequest,
+    WaitlistResponse,
+    AutoProcessNoShowResponse
 )
 from app.schemas.ai import (
     SymptomTriageRequest,
@@ -52,6 +58,12 @@ __all__ = [
     "AppointmentCancelResponse",
     "AppointmentRescheduleRequest",
     "AppointmentResponse",
+    "AppointmentConfirmResponse",
+    "NoShowMarkRequest",
+    "NoShowMarkResponse",
+    "WaitlistCreateRequest",
+    "WaitlistResponse",
+    "AutoProcessNoShowResponse",
     "SymptomTriageRequest",
     "SpecialtySuggestion",
     "SymptomTriageResponse",
@@ -67,4 +79,5 @@ __all__ = [
     "OrderResponse",
     "VitalSignsSchema"
 ]
+
 

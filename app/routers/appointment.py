@@ -12,6 +12,12 @@ from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentCancelResponse,
     AppointmentResponse,
+    AppointmentConfirmResponse,
+    NoShowMarkRequest,
+    NoShowMarkResponse,
+    WaitlistCreateRequest,
+    WaitlistResponse,
+    AutoProcessNoShowResponse,
 )
 from app.services.appointment_service import appointment_service
 
@@ -91,3 +97,92 @@ async def get_my_appointments(
         data=appointments,
         message="Lấy danh sách lịch hẹn thành công"
     )
+
+
+@router.post(
+    "/{appointment_id}/confirm",
+    response_model=ResponseEnvelope[AppointmentConfirmResponse],
+    summary="Bệnh nhân xác nhận lịch hẹn trước 24h để giữ slot khám (Reconfirmation Flow)"
+)
+async def confirm_appointment(
+    appointment_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.confirm_appointment(appointment_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
+    )
+
+
+@router.post(
+    "/{appointment_id}/no-show",
+    response_model=ResponseEnvelope[NoShowMarkResponse],
+    summary="Bác sĩ hoặc Quản trị viên đánh dấu bệnh nhân vắng mặt (No-show)"
+)
+async def mark_no_show(
+    appointment_id: int,
+    payload: Optional[NoShowMarkRequest] = None,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    req_payload = payload or NoShowMarkRequest()
+    result = await appointment_service.mark_no_show(appointment_id, req_payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đã ghi nhận người bệnh vắng mặt (No-show) thành công"
+    )
+
+
+@router.post(
+    "/waitlist",
+    response_model=ResponseEnvelope[WaitlistResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Bệnh nhân đăng ký vào danh sách chờ khi ca khám hết slot (OpenMRS Smart Waitlist)"
+)
+async def register_waitlist(
+    payload: WaitlistCreateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.register_waitlist(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Đăng ký danh sách chờ thành công! Vị trí ưu tiên của bạn là #{result.thu_tu_uu_tien}.",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.get(
+    "/my-waitlist",
+    response_model=ResponseEnvelope[List[WaitlistResponse]],
+    summary="Bệnh nhân tra cứu danh sách các ca khám đang chờ slot của mình"
+)
+async def get_my_waitlist(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.get_my_waitlist(current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy danh sách chờ khám thành công"
+    )
+
+
+@router.post(
+    "/process-unconfirmed",
+    response_model=ResponseEnvelope[AutoProcessNoShowResponse],
+    summary="Kích hoạt tự động hủy các lịch hẹn chưa xác nhận trước 2 tiếng và đôn danh sách chờ"
+)
+async def process_unconfirmed_appointments(
+    hours_threshold: float = Query(2.0, ge=0.5, le=24.0, description="Ngưỡng giờ trước giờ khám để tự động hủy"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.auto_process_unconfirmed_and_waitlist(db, hours_threshold=hours_threshold)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Xử lý tự động hoàn tất: {result.so_lich_tu_dong_huy} lịch bị hủy, đôn {result.so_nguoi_don_waitlist} người từ Waitlist."
+    )
+

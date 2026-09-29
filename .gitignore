@@ -64,5 +64,3 @@ Thumbs.db
 audit_context.md
 audit_report.md
 .ruff_cache/
-# vscode
-.devcontainer/

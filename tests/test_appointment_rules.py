@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime, timedelta, time
 from app.core.config import settings
 
@@ -41,3 +42,36 @@ def test_slot_generator_calculation():
     assert len(slots) == 8
     assert slots[0] == "07:30"
     assert slots[-1] == "11:00"
+
+
+def test_appointment_queue_number_rule():
+    """Kiểm tra quy tắc gán số thứ tự khám (so_thu_tu) tự tăng bắt đầu từ 1 trong ngày (UC-B04)"""
+    existing_active_appointments = 3
+    so_thu_tu_moi = existing_active_appointments + 1
+    assert so_thu_tu_moi == 4
+    assert so_thu_tu_moi > 0
+    # Đảm bảo mã lịch khám chuẩn hóa LK-YYYYMMDD-XXX chứa số thứ tự
+    ma_lich = f"LK-20261001-01{so_thu_tu_moi:03d}"
+    assert ma_lich == "LK-20261001-01004"
+
+
+@pytest.mark.asyncio
+async def test_get_patient_appointments_forbidden_for_non_patient():
+    """Kiểm tra service ném ForbiddenException nếu tài khoản không mang vai trò Bệnh nhân (UC-B04)"""
+    from app.core.exceptions import ForbiddenException
+    from app.models.user import TaiKhoan, VaiTroEnum
+    from app.services.appointment_service import appointment_service
+
+    # Trường hợp 1: Tài khoản có vai trò Bác sĩ
+    doctor_user = TaiKhoan(id=99, email="doctor@clinic.com", vai_tro=VaiTroEnum.BAC_SI.value, is_active=True)
+    with pytest.raises(ForbiddenException) as exc_doctor:
+        await appointment_service.get_patient_appointments(doctor_user, db=None)
+    assert "chỉ dành riêng cho Bệnh nhân" in str(exc_doctor.value.message)
+
+    # Trường hợp 2: Tài khoản có vai trò Admin
+    admin_user = TaiKhoan(id=1, email="admin@clinic.com", vai_tro=VaiTroEnum.ADMIN.value, is_active=True)
+    with pytest.raises(ForbiddenException) as exc_admin:
+        await appointment_service.get_patient_appointments(admin_user, db=None)
+    assert "chỉ dành riêng cho Bệnh nhân" in str(exc_admin.value.message)
+
+

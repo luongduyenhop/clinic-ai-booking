@@ -1,3 +1,4 @@
+import math
 from typing import Generic, TypeVar, Optional, Any, List
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,19 @@ class PaginationMeta(BaseModel):
     total_pages: int = Field(..., description="Tổng số trang")
     has_next: bool = Field(..., description="Có trang tiếp theo hay không")
     has_prev: bool = Field(..., description="Có trang trước đó hay không")
+
+    @classmethod
+    def create(cls, page: int, page_size: int, total_items: int) -> "PaginationMeta":
+        """Tính toán metadata phân trang từ trang hiện tại và tổng số bản ghi"""
+        total_pages = math.ceil(total_items / page_size)
+        return cls(
+            page=page,
+            page_size=page_size,
+            total_items=total_items,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_prev=page > 1
+        )
 
 
 class ResponseEnvelope(BaseModel, Generic[T]):

@@ -409,22 +409,21 @@ def get_available_gemini_models(api_key: str) -> list[str]:
             if models:
                 def priority(name: str) -> int:
                     score = 0
-                    if "3.6-flash" in name:
+                    # Ưu tiên các model flash ổn định cao, quota lớn, không bị 503/429
+                    if "2.5-flash" in name:
                         score += 100
-                    elif "3.1-pro" in name:
+                    elif "2.0-flash" in name:
+                        score += 95
+                    elif "1.5-flash" in name:
                         score += 90
-                    elif "3.0-flash" in name:
+                    elif "3.6-flash" in name:
                         score += 80
-                    elif "3.0-pro" in name:
-                        score += 70
-                    elif "3" in name and "flash" in name:
-                        score += 60
-                    elif "3" in name and "pro" in name:
-                        score += 50
                     elif "flash" in name:
-                        score += 30
+                        score += 70
+                    elif "1.5-pro" in name:
+                        score += 60
                     elif "pro" in name:
-                        score += 20
+                        score += 40
                     return -score
 
                 models.sort(key=priority)
@@ -432,7 +431,7 @@ def get_available_gemini_models(api_key: str) -> list[str]:
     except Exception as e:
         print(f"[WARN] Không thể lấy danh sách model tự động: {e}")
 
-    return ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash", "gemini-1.5-flash"]
+    return ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-3.6-flash"]
 
 
 def call_gemini_api(api_key: str, user_message: str) -> str:
@@ -458,7 +457,8 @@ def call_gemini_api(api_key: str, user_message: str) -> str:
     headers = {"Content-Type": "application/json"}
 
     errors = []
-    for model in candidate_models[:4]:
+    # Thử tối đa 8 model để tránh gián đoạn khi 1-2 model preview bị 503 hoặc 429
+    for model in candidate_models[:8]:
         url = f"{GEMINI_API_BASE}/{model}:generateContent?key={clean_key}"
         print(f"[...] Đang gửi dữ liệu thẩm định tới Google Gemini ({model})...")
         try:
@@ -481,10 +481,12 @@ def call_gemini_api(api_key: str, user_message: str) -> str:
                 err_msg = f"HTTP {resp.status_code} ({model}): {resp.text[:300]}"
                 print(f"[WARN] {err_msg}")
                 errors.append(err_msg)
+                time.sleep(2)  # Nghỉ 2 giây trước khi thử model tiếp theo để hạ nhiệt rate-limit
         except Exception as e:
             err_msg = f"ConnectionError ({model}): {e}"
             print(f"[WARN] {err_msg}")
             errors.append(err_msg)
+            time.sleep(2)
 
     combined_errors = "\n".join(f"- {e}" for e in errors)
     raise RuntimeError(f"Tất cả các model Gemini đều thất bại:\n{combined_errors}")

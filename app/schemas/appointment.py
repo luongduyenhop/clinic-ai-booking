@@ -88,3 +88,62 @@ class AppointmentResponse(BaseModel):
     trieu_chung_ban_dau: Optional[str] = None
     bac_si: DoctorBriefResponse
     benh_nhan: PatientBriefResponse
+
+
+class AppointmentConfirmResponse(BaseModel):
+    """Kết quả xác nhận lịch hẹn trước 24h"""
+    appointment_id: int
+    ma_lich_kham: str
+    trang_thai: str
+    is_reconfirmed_24h: bool
+    thoi_gian_xac_nhan: datetime
+    message: str
+
+
+class NoShowMarkRequest(BaseModel):
+    """Yêu cầu đánh dấu bệnh nhân vắng mặt (No-show)"""
+    ghi_chu: Optional[str] = Field(None, max_length=255, description="Ghi chú về việc vắng mặt của bệnh nhân")
+
+
+class NoShowMarkResponse(BaseModel):
+    """Kết quả đánh dấu No-show và cảnh báo vi phạm"""
+    appointment_id: int
+    ma_lich_kham: str
+    trang_thai: str
+    benh_nhan_id: int
+    so_lan_no_show: int
+    canh_bao_khoa_tai_khoan: bool
+
+
+class WaitlistCreateRequest(BaseModel):
+    """Dữ liệu đăng ký vào danh sách chờ khám khi ca làm việc hết slot (OpenMRS Waitlist)"""
+    bac_si_id: int = Field(..., description="ID bác sĩ muốn đăng ký chờ")
+    ngay_mong_muon: date = Field(..., description="Ngày mong muốn khám (YYYY-MM-DD)")
+    ca_mong_muon: str = Field("sang", description="Ca khám mong muốn: 'sang' hoặc 'chieu'")
+    trieu_chung: Optional[str] = Field(None, max_length=500, description="Mô tả triệu chứng hoặc lý do khám")
+
+
+class WaitlistResponse(BaseModel):
+    """Thông tin vị trí trong danh sách chờ khám"""
+    id: int
+    benh_nhan_id: int
+    bac_si_id: int
+    bac_si_ho_ten: Optional[str] = None
+    chuyen_khoa: Optional[str] = None
+    ngay_mong_muon: date
+    ca_mong_muon: str
+    trieu_chung: Optional[str] = None
+    thu_tu_uu_tien: int
+    trang_thai: str
+    thoi_gian_thong_bao: Optional[datetime] = None
+    thoi_gian_het_han_giu_slot: Optional[datetime] = None
+    slot_duoc_cap_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class AutoProcessNoShowResponse(BaseModel):
+    """Kết quả quét tự động giải phóng slot và đôn danh sách chờ"""
+    so_lich_tu_dong_huy: int
+    so_nguoi_don_waitlist: int
+    danh_sach_ma_lich_huy: List[str]
+

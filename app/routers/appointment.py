@@ -1,21 +1,23 @@
 from datetime import date
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa
-from app.models.appointment import LichKham
+from app.models.user import TaiKhoan
 from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
     AppointmentCancelRequest,
     AppointmentCancelResponse,
     AppointmentResponse,
-    DoctorBriefResponse,
-    PatientBriefResponse
+    AppointmentConfirmResponse,
+    NoShowMarkRequest,
+    NoShowMarkResponse,
+    WaitlistCreateRequest,
+    WaitlistResponse,
+    AutoProcessNoShowResponse,
 )
 from app.services.appointment_service import appointment_service
 
@@ -79,59 +81,108 @@ async def cancel_booking(
 @router.get(
     "/my-appointments",
     response_model=ResponseEnvelope[List[AppointmentResponse]],
-    summary="Bệnh nhân tra cứu lịch sử và danh sách lịch hẹn của bản thân (UC-B04)"
+    summary="Bệnh nhân tra cứu lịch sử và danh sách lịch hẹn của bản thân kèm số thứ tự (UC-B04)"
 )
 async def get_my_appointments(
+    trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái lịch (cho_xac_nhan, da_kham, da_huy...)"),
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Lấy thông tin Bệnh nhân
-    stmt_bn = select(BenhNhan, NguoiDung).join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id).where(
-        BenhNhan.nguoi_dung_id == current_user.nguoi_dung_id
+    appointments = await appointment_service.get_patient_appointments(
+        user=current_user,
+        db=db,
+        trang_thai=trang_thai
     )
-    bn_row = (await db.execute(stmt_bn)).first()
-    if not bn_row:
-        return ResponseEnvelope.success_response(data=[], message="Chưa có lịch hẹn nào")
-    benh_nhan, bn_info = bn_row
-
-    # Truy vấn danh sách lịch hẹn sắp xếp theo ngày giờ mới nhất
-    stmt_lk = (
-        select(LichKham, BacSi, NguoiDung, ChuyenKhoa)
-        .join(BacSi, LichKham.bac_si_id == BacSi.id)
-        .join(NguoiDung, BacSi.nguoi_dung_id == NguoiDung.id)
-        .outerjoin(ChuyenKhoa, BacSi.chuyen_khoa_id == ChuyenKhoa.id)
-        .where(LichKham.benh_nhan_id == benh_nhan.id)
-        .order_by(LichKham.ngay_kham.desc(), LichKham.gio_kham.desc())
-    )
-    rows = (await db.execute(stmt_lk)).all()
-
-    appointments = []
-    for lk, bs, bs_info, ck in rows:
-        appointments.append(
-            AppointmentResponse(
-                id=lk.id,
-                ma_lich_kham=lk.ma_lich_kham,
-                ngay_kham=lk.ngay_kham,
-                gio_kham=lk.gio_kham,
-                so_thu_tu=lk.so_thu_tu,
-                trang_thai=lk.trang_thai,
-                ly_do_kham=lk.ly_do_kham,
-                trieu_chung_ban_dau=lk.trieu_chung_ban_dau,
-                bac_si=DoctorBriefResponse(
-                    id=bs.id,
-                    ho_ten=bs_info.ho_ten,
-                    chuyen_khoa=ck.ten_chuyen_khoa if ck else "Nội khoa",
-                    hoc_vi=bs.hoc_vi
-                ),
-                benh_nhan=PatientBriefResponse(
-                    id=benh_nhan.id,
-                    ho_ten=bn_info.ho_ten,
-                    so_dien_thoai=bn_info.so_dien_thoai
-                )
-            )
-        )
-
     return ResponseEnvelope.success_response(
         data=appointments,
         message="Lấy danh sách lịch hẹn thành công"
     )
+
+
+@router.post(
+    "/{appointment_id}/confirm",
+    response_model=ResponseEnvelope[AppointmentConfirmResponse],
+    summary="Bệnh nhân xác nhận lịch hẹn trước 24h để giữ slot khám (Reconfirmation Flow)"
+)
+async def confirm_appointment(
+    appointment_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.confirm_appointment(appointment_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
+    )
+
+
+@router.post(
+    "/{appointment_id}/no-show",
+    response_model=ResponseEnvelope[NoShowMarkResponse],
+    summary="Bác sĩ hoặc Quản trị viên đánh dấu bệnh nhân vắng mặt (No-show)"
+)
+async def mark_no_show(
+    appointment_id: int,
+    payload: Optional[NoShowMarkRequest] = None,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    req_payload = payload or NoShowMarkRequest()
+    result = await appointment_service.mark_no_show(appointment_id, req_payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đã ghi nhận người bệnh vắng mặt (No-show) thành công"
+    )
+
+
+@router.post(
+    "/waitlist",
+    response_model=ResponseEnvelope[WaitlistResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Bệnh nhân đăng ký vào danh sách chờ khi ca khám hết slot (OpenMRS Smart Waitlist)"
+)
+async def register_waitlist(
+    payload: WaitlistCreateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.register_waitlist(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Đăng ký danh sách chờ thành công! Vị trí ưu tiên của bạn là #{result.thu_tu_uu_tien}.",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.get(
+    "/my-waitlist",
+    response_model=ResponseEnvelope[List[WaitlistResponse]],
+    summary="Bệnh nhân tra cứu danh sách các ca khám đang chờ slot của mình"
+)
+async def get_my_waitlist(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.get_my_waitlist(current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy danh sách chờ khám thành công"
+    )
+
+
+@router.post(
+    "/process-unconfirmed",
+    response_model=ResponseEnvelope[AutoProcessNoShowResponse],
+    summary="Kích hoạt tự động hủy các lịch hẹn chưa xác nhận trước 2 tiếng và đôn danh sách chờ"
+)
+async def process_unconfirmed_appointments(
+    hours_threshold: float = Query(2.0, ge=0.5, le=24.0, description="Ngưỡng giờ trước giờ khám để tự động hủy"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.auto_process_unconfirmed_and_waitlist(db, hours_threshold=hours_threshold)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Xử lý tự động hoàn tất: {result.so_lich_tu_dong_huy} lịch bị hủy, đôn {result.so_nguoi_don_waitlist} người từ Waitlist."
+    )
+

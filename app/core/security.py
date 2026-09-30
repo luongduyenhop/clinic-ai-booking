@@ -1,4 +1,5 @@
 import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from passlib.context import CryptContext
@@ -29,10 +30,17 @@ def create_access_token(subject: Any, role: str, expires_delta: Optional[timedel
     to_encode = {
         "exp": expire,
         "sub": str(subject),
-        "role": role
+        "role": role,
+        "type": "access"
     }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+
+def create_refresh_token(length: int = 64) -> str:
+    """Phát hành Refresh Token dưới dạng chuỗi hỗn hợp chữ và số an toàn"""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def decode_access_token(token: str) -> Optional[dict]:

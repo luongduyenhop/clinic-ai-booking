@@ -25,6 +25,9 @@ async def get_current_user(
     payload = decode_access_token(token)
     if not payload:
         raise UnauthorizedException("Mã Token không hợp lệ hoặc đã hết hạn sử dụng")
+        
+    if payload.get("type") == "refresh":
+        raise UnauthorizedException("Không thể sử dụng Refresh Token để truy cập tài nguyên")
     
     user_id = payload.get("sub")
     if not user_id:

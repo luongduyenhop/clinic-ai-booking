@@ -2,11 +2,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.security import hash_password, verify_password, create_access_token, generate_otp
+from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_access_token, generate_otp
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
 from app.core.config import settings
 from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
-from app.schemas.auth import RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse, UserProfileResponse
+from app.schemas.auth import RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse, UserProfileResponse, RefreshTokenRequest
 from fastapi import BackgroundTasks
 from app.services.email_service import EmailService
 
@@ -93,10 +93,14 @@ class AuthService:
         if tai_khoan.otp_code != payload.otp_code:
             raise UnauthorizedException("Mã OTP nhập vào không chính xác!")
 
-        # Kích hoạt tài khoản
+        # Kích hoạt tài khoản và gán token
         tai_khoan.is_active = True
         tai_khoan.otp_code = None
         tai_khoan.otp_expired_at = None
+
+        refresh_token = create_refresh_token()
+        tai_khoan.refresh_token = refresh_token
+        tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
         # Tự động khởi tạo hồ sơ BenhNhan nếu chưa có
         stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == tai_khoan.nguoi_dung_id)
@@ -116,6 +120,7 @@ class AuthService:
 
         return TokenResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             vai_tro=tai_khoan.vai_tro,
             expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -138,11 +143,17 @@ class AuthService:
         if not tai_khoan.is_active:
             raise ForbiddenException("Tài khoản chưa được kích hoạt OTP. Vui lòng xác thực tài khoản!")
 
-        # Phát hành Token
+        # Phát hành Token và lưu DB
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+        refresh_token = create_refresh_token()
+        
+        tai_khoan.refresh_token = refresh_token
+        tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        await db.commit()
 
         return TokenResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             vai_tro=tai_khoan.vai_tro,
             expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -175,6 +186,34 @@ class AuthService:
             dia_chi=nguoi_dung.dia_chi,
             ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None,
             chuyen_khoa_id=chuyen_khoa_id
+        )
+
+    async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
+        """Cấp lại Access Token mới dựa trên Refresh Token lưu trong Database"""
+        stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token)
+        tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
+        
+        if not tai_khoan or not tai_khoan.is_active:
+            raise UnauthorizedException("Refresh token không hợp lệ hoặc tài khoản đã bị khóa")
+            
+        now_utc = datetime.now(timezone.utc)
+        if not tai_khoan.refresh_token_expired_at or now_utc > tai_khoan.refresh_token_expired_at:
+            raise UnauthorizedException("Refresh token đã hết hạn, vui lòng đăng nhập lại")
+            
+        access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+        new_refresh_token = create_refresh_token()
+        
+        tai_khoan.refresh_token = new_refresh_token
+        tai_khoan.refresh_token_expired_at = now_utc + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        await db.commit()
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            vai_tro=tai_khoan.vai_tro,
+            expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            user_id=tai_khoan.id
         )
 
 

@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Python virtual environment & bytecode
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testing & Linting cache
+.pytest_cache/
+.ruff_cache/
+
+# Sensitive environment files
+.env
+
+# Documentation & IDE
+docs/
+.idea/
+.vscode/
+*.md

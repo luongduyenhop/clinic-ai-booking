@@ -25,8 +25,8 @@ router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package
     summary="Đăng ký tài khoản người bệnh mới và gửi mã OTP (UC-A01)"
 )
 @limiter.limit("3/minute")
-async def register(request: Request, payload: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
-    result = await auth_service.register_user(payload, db, background_tasks)
+async def register(request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await auth_service.register_user(payload, db)
     return ResponseEnvelope.success_response(
         data=result,
         message="Đăng ký tài khoản thành công. Mã OTP đã được gửi đến hòm thư!",

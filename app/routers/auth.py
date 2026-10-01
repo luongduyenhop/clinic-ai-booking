@@ -9,7 +9,8 @@ from app.schemas.auth import (
     VerifyOtpRequest, 
     LoginRequest, 
     TokenResponse, 
-    UserProfileResponse
+    UserProfileResponse,
+    RefreshTokenRequest
 )
 from app.services.auth_service import auth_service
 from app.core.rate_limit import limiter
@@ -59,6 +60,20 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
     return ResponseEnvelope.success_response(
         data=token,
         message="Đăng nhập thành công!"
+    )
+
+
+@router.post(
+    "/refresh", 
+    response_model=ResponseEnvelope[TokenResponse],
+    summary="Cấp lại Access Token bằng Refresh Token"
+)
+@limiter.limit("5/minute")
+async def refresh_token(request: Request, payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+    token = await auth_service.refresh_access_token(payload, db)
+    return ResponseEnvelope.success_response(
+        data=token,
+        message="Làm mới phiên đăng nhập thành công!"
     )
 
 

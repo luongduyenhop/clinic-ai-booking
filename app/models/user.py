@@ -55,6 +55,8 @@ class TaiKhoan(BaseModelWithTimestamp):
     otp_code = Column(String(10), nullable=True)
     otp_expired_at = Column(DateTime(timezone=True), nullable=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
+    refresh_token = Column(String(255), unique=True, nullable=True, index=True)
+    refresh_token_expired_at = Column(DateTime(timezone=True), nullable=True)
 
     # Quan hệ
     nguoi_dung = relationship("NguoiDung", back_populates="tai_khoan")

@@ -40,7 +40,8 @@ class Settings(BaseSettings):
     # JWT Authentication
     SECRET_KEY: str = "super_secret_clinic_jwt_key_project_1_change_in_production_2026"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 2  # 2 hours
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # Email Service (OTP)
     SMTP_TLS: bool = True

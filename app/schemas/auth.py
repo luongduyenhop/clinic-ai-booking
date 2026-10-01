@@ -28,10 +28,16 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     """Dữ liệu trả về sau khi xác thực thành công"""
     access_token: str = Field(..., description="JWT Bearer token")
+    refresh_token: str = Field(..., description="JWT Refresh token")
     token_type: str = Field("bearer", description="Loại token")
     vai_tro: str = Field(..., description="Vai trò: benh_nhan, bac_si, admin")
     expires_in_minutes: int = Field(..., description="Thời gian token tồn tại")
     user_id: int = Field(..., description="Mã định danh tài khoản")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Dữ liệu yêu cầu làm mới Access Token"""
+    refresh_token: str = Field(..., description="Chuỗi Refresh Token")
 
 
 class UserProfileResponse(BaseModel):

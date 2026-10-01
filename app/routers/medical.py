@@ -4,19 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
 from app.core.response import ResponseEnvelope
-from app.models.user import ChuyenKhoa, BacSi, NguoiDung
 from app.models.medical import DichVu
-from app.schemas.appointment import DoctorBriefResponse
+from app.schemas.medical import SpecialtyResponse, DoctorResponse, AcademicDegreeResponse
+from app.services.medical_service import medical_service
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/medical", tags=["4. Danh Mục & Y Tế Lâm Sàng (Package D, E)"])
-
-
-class SpecialtyResponse(BaseModel):
-    id: int
-    ten_chuyen_khoa: str
-    mo_ta: Optional[str] = None
-    vi_tri_phong: Optional[str] = None
 
 
 class ServiceItemResponse(BaseModel):
@@ -27,46 +20,53 @@ class ServiceItemResponse(BaseModel):
     don_vi_tinh: str
 
 
-@router.get("/specialties", response_model=ResponseEnvelope[List[SpecialtyResponse]], summary="Lấy danh mục chuyên khoa")
+@router.get(
+    "/specialties",
+    response_model=ResponseEnvelope[List[SpecialtyResponse]],
+    summary="Lấy danh mục chuyên khoa đang hoạt động kèm số lượng bác sĩ (UC-B01)"
+)
 async def get_specialties(db: AsyncSession = Depends(get_db)):
-    stmt = select(ChuyenKhoa).order_by(ChuyenKhoa.ten_chuyen_khoa)
-    specialties = (await db.execute(stmt)).scalars().all()
-    data = [
-        SpecialtyResponse(
-            id=s.id,
-            ten_chuyen_khoa=s.ten_chuyen_khoa,
-            mo_ta=s.mo_ta,
-            vi_tri_phong=s.vi_tri_phong
-        )
-        for s in specialties
-    ]
+    data = await medical_service.get_specialties(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh mục chuyên khoa thành công")
 
 
-@router.get("/doctors", response_model=ResponseEnvelope[List[DoctorBriefResponse]], summary="Lấy danh sách bác sĩ")
+@router.get(
+    "/doctors",
+    response_model=ResponseEnvelope[List[DoctorResponse]],
+    summary="Tra cứu danh sách bác sĩ lọc theo chuyên khoa/học vị, có phân trang (UC-B01)"
+)
 async def get_doctors(
-    specialty_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa ID"),
+    specialty_id: Optional[int] = Query(None, ge=1, description="Lọc theo chuyên khoa ID"),
+    hoc_vi: Optional[List[str]] = Query(
+        None,
+        description="Lọc theo học vị (giá trị lấy từ /medical/academic-degrees), "
+                    "lặp lại tham số để chọn nhiều giá trị (VD: ?hoc_vi=ThS.BS&hoc_vi=PGS.TS)"
+    ),
+    page: int = Query(1, ge=1, description="Số thứ tự trang (bắt đầu từ 1)"),
+    page_size: int = Query(10, ge=1, le=100, description="Số bác sĩ trên mỗi trang"),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = (
-        select(BacSi, NguoiDung, ChuyenKhoa)
-        .join(NguoiDung, BacSi.nguoi_dung_id == NguoiDung.id)
-        .outerjoin(ChuyenKhoa, BacSi.chuyen_khoa_id == ChuyenKhoa.id)
+    doctors, meta = await medical_service.get_doctors(
+        specialty_id=specialty_id,
+        hoc_vi=hoc_vi,
+        page=page,
+        page_size=page_size,
+        db=db
     )
-    if specialty_id:
-        stmt = stmt.where(BacSi.chuyen_khoa_id == specialty_id)
-    
-    rows = (await db.execute(stmt)).all()
-    data = [
-        DoctorBriefResponse(
-            id=bs.id,
-            ho_ten=nd.ho_ten,
-            chuyen_khoa=ck.ten_chuyen_khoa if ck else "Đa khoa",
-            hoc_vi=bs.hoc_vi
-        )
-        for bs, nd, ck in rows
-    ]
-    return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bác sĩ thành công")
+    return ResponseEnvelope.success_response(data=doctors, meta=meta, message="Lấy danh sách bác sĩ thành công")
+
+
+@router.get(
+    "/academic-degrees",
+    response_model=ResponseEnvelope[List[AcademicDegreeResponse]],
+    summary="Lấy danh mục học vị của bác sĩ để dựng bộ lọc (UC-B01)"
+)
+async def get_academic_degrees(
+    specialty_id: Optional[int] = Query(None, ge=1, description="Chỉ lấy học vị của bác sĩ thuộc chuyên khoa này"),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await medical_service.get_academic_degrees(specialty_id, db)
+    return ResponseEnvelope.success_response(data=data, message="Lấy danh mục học vị thành công")
 
 
 @router.get("/services", response_model=ResponseEnvelope[List[ServiceItemResponse]], summary="Lấy danh mục dịch vụ cận lâm sàng")

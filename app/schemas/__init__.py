@@ -11,13 +11,35 @@ from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
     AppointmentCancelRequest,
+    AppointmentCancelResponse,
     AppointmentRescheduleRequest,
-    AppointmentResponse
+    AppointmentResponse,
+    AppointmentConfirmResponse,
+    NoShowMarkRequest,
+    NoShowMarkResponse,
+    WaitlistCreateRequest,
+    WaitlistResponse,
+    AutoProcessNoShowResponse
 )
 from app.schemas.ai import (
     SymptomTriageRequest,
     SpecialtySuggestion,
     SymptomTriageResponse
+)
+from app.schemas.medical import (
+    SpecialtyResponse,
+    DoctorResponse,
+    AcademicDegreeResponse
+)
+from app.schemas.clinical import (
+    EncounterCreateRequest,
+    EncounterCompleteRequest,
+    EncounterResponse,
+    DiagnosisCreateRequest,
+    DiagnosisResponse,
+    OrderCreateRequest,
+    OrderResponse,
+    VitalSignsSchema
 )
 
 __all__ = [
@@ -33,9 +55,29 @@ __all__ = [
     "DoctorScheduleSlotsResponse",
     "AppointmentCreateRequest",
     "AppointmentCancelRequest",
+    "AppointmentCancelResponse",
     "AppointmentRescheduleRequest",
     "AppointmentResponse",
+    "AppointmentConfirmResponse",
+    "NoShowMarkRequest",
+    "NoShowMarkResponse",
+    "WaitlistCreateRequest",
+    "WaitlistResponse",
+    "AutoProcessNoShowResponse",
     "SymptomTriageRequest",
     "SpecialtySuggestion",
-    "SymptomTriageResponse"
+    "SymptomTriageResponse",
+    "SpecialtyResponse",
+    "DoctorResponse",
+    "AcademicDegreeResponse",
+    "EncounterCreateRequest",
+    "EncounterCompleteRequest",
+    "EncounterResponse",
+    "DiagnosisCreateRequest",
+    "DiagnosisResponse",
+    "OrderCreateRequest",
+    "OrderResponse",
+    "VitalSignsSchema"
 ]
+
+

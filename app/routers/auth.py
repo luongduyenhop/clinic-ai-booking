@@ -10,7 +10,8 @@ from app.schemas.auth import (
     LoginRequest, 
     TokenResponse, 
     UserProfileResponse,
-    RefreshTokenRequest
+    RefreshTokenRequest,
+    UpdateUserProfileRequest
 )
 from app.services.auth_service import auth_service
 from app.core.rate_limit import limiter
@@ -91,3 +92,21 @@ async def get_me(
         data=profile,
         message="Lấy thông tin hồ sơ thành công"
     )
+
+
+@router.put(
+    "/me", 
+    response_model=ResponseEnvelope[UserProfileResponse],
+    summary="Cập nhật thông tin hồ sơ người dùng đang đăng nhập (UC-A04)"
+)
+async def update_me(
+    payload: UpdateUserProfileRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    profile = await auth_service.update_user_profile(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=profile,
+        message="Cập nhật thông tin hồ sơ thành công!"
+    )
+

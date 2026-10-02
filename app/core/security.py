@@ -6,8 +6,8 @@ from passlib.context import CryptContext
 from jose import jwt, JWTError
 from app.core.config import settings
 
-# Cấu hình Bcrypt hashing với rounds chuẩn
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Cấu hình Bcrypt hashing với rounds chuẩn 12
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 
 
 def hash_password(password: str) -> str:

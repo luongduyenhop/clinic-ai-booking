@@ -126,9 +126,12 @@ CREATE TABLE IF NOT EXISTS tai_khoan (
     otp_code VARCHAR(10),
     otp_expired_at TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
+    refresh_token VARCHAR(255) UNIQUE,
+    refresh_token_expired_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_tai_khoan_refresh_token ON tai_khoan (refresh_token);
 
 -- Bảng 4: Hồ sơ Bệnh nhân (OpenMRS Patient Pattern)
 CREATE TABLE IF NOT EXISTS benh_nhan (

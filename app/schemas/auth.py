@@ -40,6 +40,19 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Chuỗi Refresh Token")
 
 
+class UpdateUserProfileRequest(BaseModel):
+    """Dữ liệu cập nhật hồ sơ người dùng (UC-A04) theo chuẩn OpenMRS Person & Patient"""
+    ho_ten: Optional[str] = Field(None, description="Họ và tên")
+    so_dien_thoai: Optional[str] = Field(None, description="Số điện thoại liên lạc")
+    ngay_sinh: Optional[date] = Field(None, description="Ngày tháng năm sinh")
+    gioi_tinh: Optional[str] = Field(None, description="Giới tính: Nam, Nữ, Khác")
+    dia_chi: Optional[str] = Field(None, description="Địa chỉ nơi ở")
+    # Thông tin lâm sàng (dành riêng cho bệnh nhân)
+    nhom_mau: Optional[str] = Field(None, description="Nhóm máu: A+, B+, O+, AB+...")
+    tien_su_benh: Optional[str] = Field(None, description="Tiền sử bệnh lý")
+    di_ung_thuoc: Optional[str] = Field(None, description="Dị ứng thuốc/thức ăn")
+
+
 class UserProfileResponse(BaseModel):
     """Thông tin hồ sơ người dùng trả về"""
     id: int
@@ -51,4 +64,8 @@ class UserProfileResponse(BaseModel):
     gioi_tinh: Optional[str] = None
     dia_chi: Optional[str] = None
     ma_dinh_danh_y_te: Optional[str] = None
+    nhom_mau: Optional[str] = None
+    tien_su_benh: Optional[str] = None
+    di_ung_thuoc: Optional[str] = None
     chuyen_khoa_id: Optional[int] = None
+

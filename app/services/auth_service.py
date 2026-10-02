@@ -1,16 +1,21 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_access_token, generate_otp
+from sqlalchemy import select, and_
+from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, generate_otp
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
 from app.core.config import settings
 from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
-from app.schemas.auth import RegisterRequest, VerifyOtpRequest, LoginRequest, TokenResponse, UserProfileResponse, RefreshTokenRequest
-from fastapi import BackgroundTasks
-from app.services.email_service import EmailService
-
-email_service = EmailService()
+from app.schemas.auth import (
+    RegisterRequest, 
+    VerifyOtpRequest, 
+    LoginRequest, 
+    TokenResponse, 
+    UserProfileResponse, 
+    RefreshTokenRequest,
+    UpdateUserProfileRequest
+)
+from app.services.email_service import email_service
 
 logger = logging.getLogger("clinic_backend")
 
@@ -54,8 +59,12 @@ class AuthService:
         db.add(tai_khoan)
         await db.commit()
 
-        # 5. Gửi OTP qua Email (Giả lập console log an toàn cho dev/test)
+        # 5. Gửi OTP qua Email (log console và gọi SMTP nếu có cấu hình)
         logger.info(f"🔑 [OTP GENERATED] Email: {payload.email} | Code: {otp_code} | Hết hạn lúc: {otp_expired_at}")
+        try:
+            await email_service.send_otp_email(recipient_email=payload.email, otp_code=otp_code)
+        except Exception as exc:
+            logger.warning(f"⚠️ [EMAIL FAILED] Không thể gửi OTP qua email: {exc}")
 
         return {
             "email": payload.email,
@@ -177,8 +186,63 @@ class AuthService:
             gioi_tinh=nguoi_dung.gioi_tinh,
             dia_chi=nguoi_dung.dia_chi,
             ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None,
+            nhom_mau=benh_nhan.nhom_mau if benh_nhan else None,
+            tien_su_benh=benh_nhan.tien_su_benh if benh_nhan else None,
+            di_ung_thuoc=benh_nhan.di_ung_thuoc if benh_nhan else None,
             chuyen_khoa_id=chuyen_khoa_id
         )
+
+    async def update_user_profile(
+        self,
+        payload: UpdateUserProfileRequest,
+        user: TaiKhoan,
+        db: AsyncSession
+    ) -> UserProfileResponse:
+        """Cập nhật thông tin hồ sơ cá nhân theo chuẩn OpenMRS Person & Patient (UC-A04)"""
+        # 1. Lấy thông tin Person (NguoiDung) với Pessimistic Locking
+        stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id).with_for_update()
+        nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
+
+        # 2. Kiểm tra tính duy nhất của số điện thoại nếu người dùng thay đổi SĐT
+        if payload.so_dien_thoai and payload.so_dien_thoai != nguoi_dung.so_dien_thoai:
+            stmt_phone = select(NguoiDung).where(
+                and_(
+                    NguoiDung.so_dien_thoai == payload.so_dien_thoai,
+                    NguoiDung.id != user.nguoi_dung_id
+                )
+            )
+            phone_exists = (await db.execute(stmt_phone)).scalar_one_or_none()
+            if phone_exists:
+                raise ConflictException(f"Số điện thoại '{payload.so_dien_thoai}' đã được sử dụng bởi người dùng khác!")
+            nguoi_dung.so_dien_thoai = payload.so_dien_thoai
+
+        # 3. Cập nhật thông tin nhân khẩu học (OpenMRS Person Pattern)
+        if payload.ho_ten is not None:
+            nguoi_dung.ho_ten = payload.ho_ten
+        if payload.ngay_sinh is not None:
+            nguoi_dung.ngay_sinh = payload.ngay_sinh
+        if payload.gioi_tinh is not None:
+            nguoi_dung.gioi_tinh = payload.gioi_tinh
+        if payload.dia_chi is not None:
+            nguoi_dung.dia_chi = payload.dia_chi
+
+        # 4. Cập nhật thông tin y tế lâm sàng nếu là bệnh nhân (OpenMRS Patient Pattern)
+        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+            stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id).with_for_update()
+            benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+            if benh_nhan:
+                if payload.nhom_mau is not None:
+                    benh_nhan.nhom_mau = payload.nhom_mau
+                if payload.tien_su_benh is not None:
+                    benh_nhan.tien_su_benh = payload.tien_su_benh
+                if payload.di_ung_thuoc is not None:
+                    benh_nhan.di_ung_thuoc = payload.di_ung_thuoc
+
+        await db.commit()
+        await db.refresh(nguoi_dung)
+
+        logger.info(f"👤 [PROFILE UPDATED] User ID: {user.id} | Họ tên: {nguoi_dung.ho_ten}")
+        return await self.get_user_profile(user, db)
 
     async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
         """Cấp lại Access Token mới dựa trên Refresh Token lưu trong Database"""

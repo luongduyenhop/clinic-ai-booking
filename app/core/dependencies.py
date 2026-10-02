@@ -46,6 +46,17 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[TaiKhoan]:
+    """Như get_current_user nhưng cho phép khách vãng lai khi KHÔNG gửi token. Đã gửi token thì phải hợp lệ:
+    token hết hạn/sai trả 401 để client làm mới token, thay vì âm thầm coi là khách và mất liên kết hồ sơ bệnh nhân"""
+    if not credentials or not credentials.credentials:
+        return None
+    return await get_current_user(credentials, db)
+
+
 def require_roles(allowed_roles: List[VaiTroEnum]):
     """Kiểm tra quyền truy cập theo vai trò (Role-Based Access Control - RBAC)"""
     async def role_checker(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKhoan:

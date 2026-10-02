@@ -12,7 +12,7 @@ class SymptomTriageRequest(BaseModel):
 
 class SpecialtySuggestion(BaseModel):
     """Gợi ý chuyên khoa phù hợp kèm độ tin cậy và danh sách bác sĩ"""
-    chuyen_khoa_id: int
+    chuyen_khoa_id: Optional[int] = Field(None, description="Mã chuyên khoa, null nếu chuyên khoa gợi ý chưa có trong hệ thống")
     ten_chuyen_khoa: str
     do_tin_cay: float = Field(..., description="Độ tin cậy từ mô hình AI (0.0 - 1.0)")
     ly_do_de_xuat: str = Field(..., description="Giải thích căn cứ y khoa tóm tắt")

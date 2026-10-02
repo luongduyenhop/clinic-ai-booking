@@ -1,11 +1,12 @@
 import re
 import unicodedata
 import logging
-from typing import List, Tuple
+from functools import lru_cache
+from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from app.core.config import settings
-from app.models.user import ChuyenKhoa, BacSi, NguoiDung, TaiKhoan
+from app.models.user import ChuyenKhoa, BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.models.medical import TuKhoaCapCuu
 from app.models.appointment import PhanTichAI
 from app.schemas.ai import (
@@ -17,59 +18,116 @@ from app.schemas.appointment import DoctorBriefResponse
 
 logger = logging.getLogger("clinic_backend")
 
+# Cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
+BUILT_IN_EMERGENCY = [
+    "đau ngực dữ dội", "khó thở cấp", "ngất xỉu", "hôn mê",
+    "co giật", "liệt nửa người", "sốt co giật", "nôn ra máu"
+]
+
+
+def _normalize_vietnamese(text: str) -> str:
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFC", text)
+    text = text.lower()
+    text = re.sub(r"[^\w\s\u00C0-\u024F]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _remove_diacritics(text: str) -> str:
+    decomposed = unicodedata.normalize("NFD", text)
+    without_marks = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    return without_marks.replace("đ", "d").replace("Đ", "D")
+
+
+@lru_cache(maxsize=1024)
+def _keyword_tokens(keyword: str) -> Tuple[Tuple[str, str], ...]:
+    """Tách từ khóa thành từng tiếng kèm dạng bỏ dấu; cache vì từ khóa lặp lại ở mọi request"""
+    return tuple((word, _remove_diacritics(word)) for word in _normalize_vietnamese(keyword).split())
+
 
 class AIService:
     """Tầng Control xử lý Trí tuệ nhân tạo phân tích triệu chứng và Bộ lọc Red Flags y tế (Package C)"""
 
     def normalize_vietnamese(self, text: str) -> str:
         """Chuẩn hóa chuỗi văn bản tiếng Việt sang dạng Unicode dựng sẵn NFC và chữ thường"""
-        if not text:
-            return ""
-        text = unicodedata.normalize("NFC", text)
-        text = text.lower()
-        text = re.sub(r"[^\w\s\u00C0-\u024F]", " ", text)
-        text = re.sub(r"\s+", " ", text).strip()
-        return text
+        return _normalize_vietnamese(text)
 
-    async def scan_red_flags(self, text_normalized: str, db: AsyncSession) -> Tuple[bool, str]:
-        """Chốt chặn an toàn số 1: Quét từ điển dấu hiệu cấp cứu nguy hiểm tính mạng"""
+    def remove_diacritics(self, text: str) -> str:
+        """Bỏ dấu tiếng Việt ('đau ngực' -> 'dau nguc') để nhận diện cả khi người bệnh gõ không dấu"""
+        return _remove_diacritics(text)
+
+    def tokenize(self, text_normalized: str) -> List[Tuple[str, str]]:
+        """Tách văn bản đã chuẩn hóa thành từng tiếng kèm dạng bỏ dấu; làm 1 lần mỗi request rồi dùng cho cả 2 chốt chặn"""
+        return [(word, _remove_diacritics(word)) for word in text_normalized.split()]
+
+    def contains_phrase(self, tokens: List[Tuple[str, str]], keyword: str) -> bool:
+        """So khớp cụm từ theo nguyên tiếng. Tiếng gõ có dấu phải khớp đúng dấu ('có giật', 'cơ giật' khác 'co giật');
+        chỉ tiếng gõ không dấu mới so với dạng bỏ dấu của từ khóa ('co giat' vẫn khớp 'co giật')"""
+        phrase = _keyword_tokens(keyword)
+        if not phrase or len(phrase) > len(tokens):
+            return False
+        for start in range(len(tokens) - len(phrase) + 1):
+            if all(
+                word == kw or (word == plain and plain == kw_plain)
+                for (word, plain), (kw, kw_plain) in zip(tokens[start:start + len(phrase)], phrase)
+            ):
+                return True
+        return False
+
+    def contains_red_flag(self, text_normalized: str, keyword: str) -> bool:
+        """Kiểm tra 1 cụm từ cấp cứu trong văn bản đã chuẩn hóa"""
+        return self.contains_phrase(self.tokenize(text_normalized), keyword)
+
+    async def scan_red_flags(
+        self, tokens: List[Tuple[str, str]], db: AsyncSession
+    ) -> Tuple[bool, str, Optional[str]]:
+        """Chốt chặn an toàn số 1: Quét từ điển dấu hiệu cấp cứu nguy hiểm tính mạng.
+        Trả về (có cấp cứu, hướng dẫn xử trí, từ khóa đã bắt trúng) để ghi vết phục vụ hậu kiểm"""
         stmt = select(TuKhoaCapCuu).where(TuKhoaCapCuu.is_active.is_(True))
         red_flag_rules = (await db.execute(stmt)).scalars().all()
 
         for rule in red_flag_rules:
-            pattern = self.normalize_vietnamese(rule.tu_khoa)
-            if pattern in text_normalized:
+            if self.contains_phrase(tokens, rule.tu_khoa):
                 logger.critical(f"🚨 [RED FLAG DETECTED] Bắt trúng từ khóa nguy hiểm: '{rule.tu_khoa}'")
-                return True, rule.huong_dan_xu_tri
+                return True, rule.huong_dan_xu_tri, rule.tu_khoa
 
         # Kiểm tra thêm một số cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
-        built_in_emergency = [
-            "đau ngực dữ dội", "khó thở cấp", "ngất xỉu", "hôn mê", 
-            "co giật", "liệt nửa người", "sốt co giật", "nôn ra máu"
-        ]
-        for emg in built_in_emergency:
-            if emg in text_normalized:
-                return True, "CẢNH BÁO NGUY CƠ NGUY HIỂM TÍNH MẠNG! Đề nghị liên hệ 115 hoặc đến phòng cấp cứu gần nhất."
+        for emg in BUILT_IN_EMERGENCY:
+            if self.contains_phrase(tokens, emg):
+                logger.critical(f"🚨 [RED FLAG DETECTED] Bắt trúng từ khóa nguy hiểm (built-in): '{emg}'")
+                return True, "CẢNH BÁO NGUY CƠ NGUY HIỂM TÍNH MẠNG! Đề nghị liên hệ 115 hoặc đến phòng cấp cứu gần nhất.", emg
 
-        return False, ""
+        return False, "", None
+
+    async def _get_patient_id(self, user: Optional[TaiKhoan], db: AsyncSession) -> Optional[int]:
+        """Mã hồ sơ bệnh nhân của người gọi để gắn vào nhật ký suy luận; khách vãng lai/bác sĩ/admin -> None"""
+        if not user or user.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            return None
+        stmt = select(BenhNhan.id).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+        return (await db.execute(stmt)).scalar_one_or_none()
 
     async def analyze_symptoms(
         self, 
         payload: SymptomTriageRequest, 
-        user: TaiKhoan = None, 
+        user: Optional[TaiKhoan] = None,
         db: AsyncSession = None
     ) -> SymptomTriageResponse:
         """Quy trình 3 chốt chặn suy luận phân loại chuyên khoa và gợi ý bác sĩ"""
         raw_text = payload.trieu_chung
-        text_normalized = self.normalize_vietnamese(raw_text)
+        # Chuẩn hóa + tách tiếng 1 lần, dùng chung cho chốt chặn 1 và 2 (cùng nhận diện được văn bản gõ không dấu)
+        tokens = self.tokenize(self.normalize_vietnamese(raw_text))
+        benh_nhan_id = await self._get_patient_id(user, db)
 
         # 1. CHỐT CHẶN 1: Quét dấu hiệu cấp cứu Red Flags
-        is_emergency, alert_msg = await self.scan_red_flags(text_normalized, db)
+        is_emergency, alert_msg, tu_khoa = await self.scan_red_flags(tokens, db)
         if is_emergency:
-            # Ghi vết nhật ký cấp cứu
+            # Ghi vết nhật ký cấp cứu kèm từ khóa đã bắt trúng để hậu kiểm báo động
             log_ai = PhanTichAI(
+                benh_nhan_id=benh_nhan_id,
                 trieu_chung_nhap=raw_text,
                 co_dau_hieu_cap_cuu=True,
+                tu_khoa_cap_cuu_phat_hien=tu_khoa[:100],
                 do_tin_cay=1.0
             )
             db.add(log_ai)
@@ -123,7 +181,7 @@ class AIService:
 
         scored_specialties = []
         for kb in knowledge_base:
-            match_count = sum(1 for kw in kb["keywords"] if kw in text_normalized)
+            match_count = sum(1 for kw in kb["keywords"] if self.contains_phrase(tokens, kw))
             if match_count > 0:
                 confidence = min(0.60 + (match_count * 0.12), 0.95)
                 scored_specialties.append((kb["specialty_name"], confidence, kb["reason"]))
@@ -153,6 +211,7 @@ class AIService:
         # 4. Ghi nhận vết suy luận vào CSDL
         top_suggestion = suggestions[0]
         log_ai = PhanTichAI(
+            benh_nhan_id=benh_nhan_id,
             trieu_chung_nhap=raw_text,
             chuyen_khoa_goi_y_id=top_suggestion.chuyen_khoa_id,
             do_tin_cay=top_suggestion.do_tin_cay,
@@ -176,11 +235,23 @@ class AIService:
         db: AsyncSession
     ) -> SpecialtySuggestion:
         """Helper tìm kiếm chuyên khoa và danh sách bác sĩ tương ứng trong CSDL"""
-        stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.ten_chuyen_khoa.ilike(f"%{specialty_name}%"))
-        ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+        # Nhiều khoa có thể cùng chứa tên gợi ý ('Tim mạch', 'Tim mạch nhi'): ưu tiên khớp đúng tên, sau đó tên ngắn nhất
+        stmt_ck = (
+            select(ChuyenKhoa)
+            .where(ChuyenKhoa.ten_chuyen_khoa.ilike(f"%{specialty_name}%"), ChuyenKhoa.is_active.is_(True))
+            .order_by(
+                (func.lower(ChuyenKhoa.ten_chuyen_khoa) == specialty_name.lower()).desc(),
+                func.length(ChuyenKhoa.ten_chuyen_khoa),
+                ChuyenKhoa.id
+            )
+            .limit(1)
+        )
+        ck = (await db.execute(stmt_ck)).scalars().first()
 
         doctor_briefs = []
-        ck_id = 0
+        # None (không phải 0) khi khoa gợi ý chưa có trong CSDL (chưa seed/đổi tên): 0 là ID không tồn tại,
+        # vừa gây lỗi khóa ngoại khi ghi nhật ký vừa khiến frontend lọc/đặt lịch theo khoa ma
+        ck_id = None
         display_name = specialty_name
 
         if ck:

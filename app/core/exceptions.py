@@ -43,6 +43,12 @@ class ForbiddenException(AppException):
         super().__init__(message=message, code=status.HTTP_403_FORBIDDEN)
 
 
+class UnprocessableEntityException(AppException):
+    """Dữ liệu đúng định dạng nhưng không thỏa ràng buộc nghiệp vụ (tách biệt với 404 không tìm thấy tài nguyên)"""
+    def __init__(self, message: str = "Dữ liệu không thỏa mãn ràng buộc nghiệp vụ"):
+        super().__init__(message=message, code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
 class EmergencyAlertException(AppException):
     """Lỗi đặc thù y tế khi phát hiện dấu hiệu cấp cứu cần ngắt luồng đặt lịch"""
     def __init__(self, message: str = "Phát hiện dấu hiệu cấp cứu! Đề nghị gọi 115 ngay lập tức."):

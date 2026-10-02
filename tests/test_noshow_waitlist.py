@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 from datetime import datetime, timedelta, time
 from app.models.appointment import TrangThaiLichEnum, TrangThaiWaitlistEnum, CaLamViecEnum, DanhSachCho
 from app.services.appointment_service import clinic_now
@@ -22,6 +23,13 @@ def test_waitlist_create_request_schema():
     )
     assert req.bac_si_id == 1
     assert req.ca_mong_muon == "sang"
+
+
+@pytest.mark.parametrize("ca_mong_muon", ["toi", "ca_toi_ngoai_gio_lam_viec"])
+def test_waitlist_rejects_unknown_shift(ca_mong_muon):
+    """Ca ngoài sang/chieu không bao giờ được đôn slot (và chuỗi dài hơn VARCHAR(20) từng gây lỗi 500)"""
+    with pytest.raises(ValidationError):
+        WaitlistCreateRequest(bac_si_id=1, ngay_mong_muon=clinic_now().date(), ca_mong_muon=ca_mong_muon)
 
 
 def test_noshow_warning_threshold_rule():

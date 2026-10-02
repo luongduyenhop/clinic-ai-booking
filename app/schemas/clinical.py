@@ -1,6 +1,6 @@
 from datetime import date, datetime
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, List, Literal, Optional
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints
 
 
 class VitalSignsSchema(BaseModel):
@@ -34,9 +34,17 @@ class EncounterCreateRequest(BaseModel):
 
 class DiagnosisCreateRequest(BaseModel):
     """Yêu cầu thêm kết luận chẩn đoán bệnh theo mã ICD-10"""
-    ma_icd10: str = Field(..., max_length=50, description="Mã bệnh chuẩn WHO ICD-10 (VD: I10, K29, J00)")
-    ten_benh_chan_doan: str = Field(..., max_length=255, description="Tên bệnh chẩn đoán")
-    loai_chan_doan: str = Field("chinh", description="Phân loại: 'chinh' (chẩn đoán chính) hoặc 'phu' (chẩn đoán kèm theo)")
+    # Định dạng ICD-10: chữ cái + 2 ký tự nhóm bệnh, mã con tùy chọn sau dấu chấm (I10, K29.7, S72.001)
+    # (chuẩn hóa ' k29.7 ' -> 'K29.7' ở BeforeValidator vì pattern của StringConstraints chạy trước strip/to_upper)
+    ma_icd10: Annotated[
+        str,
+        BeforeValidator(lambda v: v.strip().upper() if isinstance(v, str) else v),
+        StringConstraints(max_length=50, pattern=r"^[A-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$"),
+    ] = Field(..., description="Mã bệnh chuẩn WHO ICD-10 (VD: I10, K29.7, J20)")
+    ten_benh_chan_doan: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]] = Field(
+        None, description="Tên bệnh chẩn đoán; bỏ trống để dùng tên chuẩn trong từ điển ICD-10 (bắt buộc nếu mã chưa có trong từ điển)"
+    )
+    loai_chan_doan: Literal["chinh", "phu"] = Field("chinh", description="Phân loại: 'chinh' (chẩn đoán chính) hoặc 'phu' (chẩn đoán kèm theo)")
     ghi_chu_chuyen_mon: Optional[str] = Field(None, description="Ghi chú chi tiết chuyên môn của bác sĩ")
 
 

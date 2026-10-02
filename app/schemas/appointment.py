@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import Annotated, Optional, List
+from typing import Annotated, Literal, Optional, List
 from pydantic import AfterValidator, BaseModel, Field, StringConstraints
 
 
@@ -119,7 +119,8 @@ class WaitlistCreateRequest(BaseModel):
     """Dữ liệu đăng ký vào danh sách chờ khám khi ca làm việc hết slot (OpenMRS Waitlist)"""
     bac_si_id: int = Field(..., description="ID bác sĩ muốn đăng ký chờ")
     ngay_mong_muon: date = Field(..., description="Ngày mong muốn khám (YYYY-MM-DD)")
-    ca_mong_muon: str = Field("sang", description="Ca khám mong muốn: 'sang' hoặc 'chieu'")
+    # Chỉ nhận đúng 2 ca làm việc: giá trị khác không bao giờ được đôn slot (_promote_waitlist_candidate chỉ tìm sang/chieu)
+    ca_mong_muon: Literal["sang", "chieu"] = Field("sang", description="Ca khám mong muốn: 'sang' hoặc 'chieu'")
     trieu_chung: Optional[str] = Field(None, max_length=500, description="Mô tả triệu chứng hoặc lý do khám")
 
 

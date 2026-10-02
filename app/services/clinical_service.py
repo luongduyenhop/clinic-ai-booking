@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException
+from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
 from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES
-from app.models.medical import LuotKham, ChanDoan, ChiDinh, DichVu
+from app.models.medical import LuotKham, ChanDoan, ChiDinh, DichVu, KhaiNiem
 from app.models.user import TaiKhoan, BacSi, BenhNhan, VaiTroEnum
 from app.schemas.clinical import (
     EncounterCreateRequest,
@@ -35,6 +35,19 @@ class ClinicalService:
         if not bac_si:
             raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bác sĩ hợp lệ!")
         return bac_si
+
+    async def _find_icd10_concept(self, ma_icd10: str, db: AsyncSession) -> Optional[KhaiNiem]:
+        """Tra từ điển ICD-10: ưu tiên khớp đúng mã, không có thì lùi về nhóm bệnh cha (K29.7 -> K29)"""
+        candidates = [ma_icd10]
+        if "." in ma_icd10:
+            candidates.append(ma_icd10.split(".", 1)[0])
+        stmt = select(KhaiNiem).where(
+            KhaiNiem.ma_khai_niem.in_(candidates),
+            KhaiNiem.loai_khai_niem == "benh_icd10",
+            KhaiNiem.is_active.is_(True)
+        )
+        concepts = {kn.ma_khai_niem: kn for kn in (await db.execute(stmt)).scalars().all()}
+        return next((concepts[ma] for ma in candidates if ma in concepts), None)
 
     async def _get_encounter_with_relations(
         self,
@@ -221,10 +234,21 @@ class ClinicalService:
                 "Hồ sơ bệnh án đã hoàn tất và bị khóa (Read-only theo TT 32/2023/TT-BYT), không thể bổ sung chẩn đoán!"
             )
 
+        # Concept Dictionary (OpenMRS): liên kết mã chẩn đoán với từ điển ICD-10 nếu có. Từ điển mới seed vài nhóm bệnh
+        # nên không bắt buộc mã phải có sẵn (định dạng đã kiểm ở schema); mã con (K29.7) gắn về nhóm cha (K29)
+        khai_niem = await self._find_icd10_concept(payload.ma_icd10, db)
+        ten_benh = payload.ten_benh_chan_doan or (khai_niem.ten_khai_niem if khai_niem else None)
+        if not ten_benh:
+            raise UnprocessableEntityException(
+                f"Mã ICD-10 '{payload.ma_icd10}' chưa có trong danh mục bệnh chuẩn, vui lòng nhập tên bệnh chẩn đoán!"
+            )
+
         chan_doan = ChanDoan(
             luot_kham_id=encounter_id,
-            ma_icd10=payload.ma_icd10.strip().upper(),
-            ten_benh_chan_doan=payload.ten_benh_chan_doan.strip(),
+            khai_niem_id=khai_niem.id if khai_niem else None,
+            ma_icd10=payload.ma_icd10,
+            # Bác sĩ có thể ghi tên chi tiết hơn; bỏ trống thì lấy tên chuẩn trong từ điển để bệnh án luôn có tên bệnh
+            ten_benh_chan_doan=ten_benh,
             loai_chan_doan=payload.loai_chan_doan,
             ghi_chu_chuyen_mon=payload.ghi_chu_chuyen_mon
         )

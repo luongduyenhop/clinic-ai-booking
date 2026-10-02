@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
@@ -171,6 +172,23 @@ async def get_my_waitlist(
 
 
 @router.post(
+    "/waitlist/{waitlist_id}/accept",
+    response_model=ResponseEnvelope[AppointmentResponse],
+    summary="Bệnh nhân xác nhận nhận slot khám được ưu tiên từ Danh sách chờ (Waitlist Acceptance)"
+)
+async def accept_waitlist_slot(
+    waitlist_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await appointment_service.accept_waitlist_slot(waitlist_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Nhận slot khám thành công! Lịch hẹn của bạn đã được khởi tạo chính thức."
+    )
+
+
+@router.post(
     "/process-unconfirmed",
     response_model=ResponseEnvelope[AutoProcessNoShowResponse],
     summary="Kích hoạt tự động hủy các lịch hẹn chưa xác nhận trước 2 tiếng và đôn danh sách chờ"
@@ -180,9 +198,12 @@ async def process_unconfirmed_appointments(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    if current_user.vai_tro != VaiTroEnum.ADMIN.value:
+        raise ForbiddenException("Chỉ Quản trị viên hệ thống (Admin) mới có quyền kích hoạt tiến trình tự động hủy lịch!")
     result = await appointment_service.auto_process_unconfirmed_and_waitlist(db, hours_threshold=hours_threshold)
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Xử lý tự động hoàn tất: {result.so_lich_tu_dong_huy} lịch bị hủy, đôn {result.so_nguoi_don_waitlist} người từ Waitlist."
     )
+
 

@@ -220,6 +220,21 @@ async def test_cancellation_promotes_waitlist_candidate(api_client, booking, db_
     assert waitlist_entry.slot_duoc_cap_id == lich.id
     assert waitlist_entry.thoi_gian_het_han_giu_slot is not None
 
+    # 5. Bệnh nhân B bấm xác nhận nhận slot khám (Waitlist Acceptance Flow)
+    token_b = booking.tokens["bn_b"]
+    res_accept = await api_client.post(
+        f"/api/v1/appointments/waitlist/{waitlist_entry.id}/accept",
+        headers=token_b
+    )
+    assert res_accept.status_code == 200
+    acc_data = res_accept.json()["data"]
+    assert acc_data["trang_thai"] == TrangThaiLichEnum.DA_XAC_NHAN.value
+    assert acc_data["benh_nhan"]["id"] == booking.bn_b.id
+
+    # 6. Kiểm tra trạng thái waitlist chuyển sang 'da_nhan_slot'
+    await db_session.refresh(waitlist_entry)
+    assert waitlist_entry.trang_thai == TrangThaiWaitlistEnum.DA_NHAN_SLOT.value
+
 
 @pytest.mark.asyncio
 async def test_auto_process_unconfirmed_appointments(api_client, booking, db_session):
@@ -241,3 +256,16 @@ async def test_auto_process_unconfirmed_appointments(api_client, booking, db_ses
 
     await db_session.refresh(lich)
     assert lich.trang_thai == TrangThaiLichEnum.TU_DONG_HUY.value
+
+
+@pytest.mark.asyncio
+async def test_auto_process_unconfirmed_forbidden_for_non_admin(api_client, booking):
+    """Bệnh nhân hoặc người dùng không phải Admin không được phép kích hoạt tự hủy lịch hẹn (403 Forbidden)"""
+    token_patient = booking.tokens["bn_a"]
+    response = await api_client.post(
+        "/api/v1/appointments/process-unconfirmed?hours_threshold=2.0",
+        headers=token_patient
+    )
+    assert response.status_code == 403
+    assert "Chỉ Quản trị viên" in response.json()["message"]
+

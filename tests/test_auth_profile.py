@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from app.schemas.auth import UpdateUserProfileRequest, UserProfileResponse
+from app.schemas.auth import UpdateUserProfileRequest
 
 
 def test_update_profile_schema_validation():

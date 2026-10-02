@@ -739,7 +739,120 @@ class AppointmentService:
             )
         return results
 
+    async def accept_waitlist_slot(
+        self,
+        waitlist_id: int,
+        user: TaiKhoan,
+        db: AsyncSession
+    ) -> AppointmentResponse:
+        """Bệnh nhân xác nhận nhận slot được cấp từ danh sách chờ (Waitlist Acceptance Flow)"""
+        # 1. Ràng buộc quyền: Chỉ Bệnh nhân mới có quyền nhận slot của mình
+        if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Chỉ Bệnh nhân mới có quyền xác nhận nhận slot từ danh sách chờ!")
+
+        stmt_bn = select(BenhNhan, NguoiDung).join(
+            NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id
+        ).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+        bn_row = (await db.execute(stmt_bn)).first()
+        if not bn_row:
+            raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bệnh nhân hợp lệ!")
+        benh_nhan, bn_info = bn_row
+
+        # 2. Khóa dòng bản ghi danh sách chờ để chống Race Condition
+        stmt_entry = select(DanhSachCho).where(DanhSachCho.id == waitlist_id).with_for_update()
+        entry = (await db.execute(stmt_entry)).scalar_one_or_none()
+        if not entry:
+            raise NotFoundException("Không tìm thấy thông tin lượt đăng ký trong danh sách chờ!")
+
+        if entry.benh_nhan_id != benh_nhan.id:
+            raise ForbiddenException("Bạn không có quyền thao tác trên lượt đăng ký chờ của người khác!")
+
+        if entry.trang_thai == TrangThaiWaitlistEnum.DA_NHAN_SLOT.value:
+            raise ConflictException("Bạn đã xác nhận nhận slot khám này trước đó rồi!")
+
+        if entry.trang_thai != TrangThaiWaitlistEnum.DA_THONG_BAO.value:
+            raise ConflictException(
+                f"Lượt đăng ký đang ở trạng thái '{entry.trang_thai}', chưa có slot trống được thông báo để nhận!"
+            )
+
+        # 3. Kiểm tra thời hạn 30 phút giữ slot
+        now = datetime.now(timezone.utc)
+        if entry.thoi_gian_het_han_giu_slot and now > entry.thoi_gian_het_han_giu_slot:
+            entry.trang_thai = TrangThaiWaitlistEnum.DA_BO_QUA.value
+            await db.commit()
+            raise ConflictException("Rất tiếc! Đã quá thời hạn 30 phút giữ chỗ. Khung giờ này đã được chuyển cho người tiếp theo.")
+
+        # 4. Lấy thông tin slot cũ đã bị hủy
+        stmt_slot = select(LichKham).where(LichKham.id == entry.slot_duoc_cap_id).with_for_update()
+        freed_slot = (await db.execute(stmt_slot)).scalar_one_or_none()
+        if not freed_slot:
+            raise NotFoundException("Không tìm thấy thông tin khung giờ khám được cấp!")
+
+        # 5. Kiểm tra Bác sĩ còn hoạt động
+        bac_si, bs_info, specialty_name = await self._get_active_doctor(entry.bac_si_id, db)
+
+        # 6. Tính số thứ tự khám tiếp theo
+        stmt_count = select(
+            func.count(LichKham.id),
+            func.coalesce(func.max(LichKham.so_thu_tu), 0)
+        ).where(
+            and_(
+                LichKham.bac_si_id == entry.bac_si_id,
+                LichKham.ngay_kham == freed_slot.ngay_kham
+            )
+        )
+        total_count, max_so_thu_tu = (await db.execute(stmt_count)).one()
+        so_thu_tu = max_so_thu_tu + 1
+        ma_lich = f"LK-{freed_slot.ngay_kham.strftime('%Y%m%d')}-{entry.bac_si_id:02d}{total_count + 1:03d}"
+
+        # 7. Khởi tạo lịch khám chính thức đã xác nhận cho người bệnh
+        new_booking = LichKham(
+            ma_lich_kham=ma_lich,
+            benh_nhan_id=benh_nhan.id,
+            bac_si_id=entry.bac_si_id,
+            ngay_kham=freed_slot.ngay_kham,
+            gio_kham=freed_slot.gio_kham,
+            thoi_luong_phut=freed_slot.thoi_luong_phut,
+            so_thu_tu=so_thu_tu,
+            ly_do_kham=f"Đặt từ Danh sách chờ #{entry.id} (OpenMRS Waitlist)",
+            trieu_chung_ban_dau=entry.trieu_chung,
+            trang_thai=TrangThaiLichEnum.DA_XAC_NHAN.value,
+            is_reconfirmed_24h=True,
+            thoi_gian_xac_nhan=now
+        )
+        db.add(new_booking)
+
+        # 8. Cập nhật trạng thái waitlist
+        entry.trang_thai = TrangThaiWaitlistEnum.DA_NHAN_SLOT.value
+        await db.commit()
+        await db.refresh(new_booking)
+
+        logger.info(f"🎉 [WAITLIST ACCEPTED] Bệnh nhân: {bn_info.ho_ten} đã nhận slot thành công: {ma_lich}")
+
+        return AppointmentResponse(
+            id=new_booking.id,
+            ma_lich_kham=new_booking.ma_lich_kham,
+            ngay_kham=new_booking.ngay_kham,
+            gio_kham=new_booking.gio_kham,
+            so_thu_tu=new_booking.so_thu_tu,
+            trang_thai=new_booking.trang_thai,
+            ly_do_kham=new_booking.ly_do_kham,
+            trieu_chung_ban_dau=new_booking.trieu_chung_ban_dau,
+            bac_si=DoctorBriefResponse(
+                id=bac_si.id,
+                ho_ten=bs_info.ho_ten,
+                chuyen_khoa=specialty_name,
+                hoc_vi=bac_si.hoc_vi
+            ),
+            benh_nhan=PatientBriefResponse(
+                id=benh_nhan.id,
+                ho_ten=bn_info.ho_ten,
+                so_dien_thoai=bn_info.so_dien_thoai
+            )
+        )
+
     async def auto_process_unconfirmed_and_waitlist(
+
         self,
         db: AsyncSession,
         hours_threshold: float = 2.0

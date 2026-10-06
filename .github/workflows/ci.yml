@@ -1,4 +1,4 @@
-name: Clinic AI Booking - Backend CI Pipeline
+name: Clinic AI Booking - Monorepo CI Pipeline
 
 on:
   push:
@@ -7,8 +7,11 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
+  # ==============================================================================
+  # Job 1: Backend Linting & Pytest Suite (219 Tests)
+  # ==============================================================================
   backend-quality-and-test:
-    name: Linting & Automated Testing
+    name: Backend Linting & Automated Testing
     runs-on: ubuntu-latest
 
     services:
@@ -35,8 +38,10 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: "backend/requirements.txt"
 
-      - name: 3. Cài đặt Dependencies
+      - name: 3. Cài đặt Dependencies Backend
+        working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then
@@ -44,10 +49,12 @@ jobs:
           fi
 
       - name: 4. Kiểm tra Linter & Cú pháp (Ruff)
+        working-directory: ./backend
         run: |
           python -m ruff check .
 
       - name: 5. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
+        working-directory: ./backend
         env:
           PYTHONPATH: .
           DATABASE_URL: postgresql+asyncpg://clinic_user:clinic_password@localhost:5432/clinic_db
@@ -57,3 +64,34 @@ jobs:
           if [ -d tests ]; then
             python -m pytest tests -v
           fi
+
+  # ==============================================================================
+  # Job 2: Frontend Linting & Production Build (Next.js 14)
+  # ==============================================================================
+  frontend-quality-and-build:
+    name: Frontend Linting & Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Mã Nguồn
+        uses: actions/checkout@v4
+
+      - name: 2. Cài đặt môi trường Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "fe/package-lock.json"
+
+      - name: 3. Cài đặt Dependencies Frontend
+        working-directory: ./fe
+        run: |
+          npm ci
+
+      - name: 4. Kiểm tra Linter & Build Production (Next.js)
+        working-directory: ./fe
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_ENABLE_ROLE_SWITCHER: "true"
+        run: |
+          npm run build

@@ -1,14 +1,13 @@
 import logging
 from datetime import date, datetime, time, timezone
 from typing import List, Optional
-from sqlalchemy import func, select, and_, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
     BadRequestException,
     ConflictException,
-    ForbiddenException,
     NotFoundException,
 )
 from app.core.security import get_password_hash
@@ -35,7 +34,6 @@ from app.schemas.admin import (
     ReassignQueueResponse,
     PostponeAndCancelResponse,
     ServiceCreateRequest,
-    ServiceUpdateRequest,
     ServiceItemAdminResponse,
     AdminDashboardStatsResponse,
 )

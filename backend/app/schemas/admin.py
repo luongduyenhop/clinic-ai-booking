@@ -1,6 +1,6 @@
 from datetime import date, time
-from typing import Annotated, Literal, Optional, List
-from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from typing import Literal, Optional
+from pydantic import BaseModel, EmailStr, Field
 
 
 class DoctorAdminCreateRequest(BaseModel):

@@ -200,7 +200,7 @@ async def test_booking_conflict_with_occupying_statuses(api_client, db_session, 
     """Mọi trạng thái trong OCCUPYING_SLOT_STATUSES (da_xac_nhan, da_tiep_nhan, dang_kham) đều chiếm slot và trả về 409 khi đặt trùng"""
     ngay = _ngay()
     await _add_morning_shift(db_session, booking.bs_x, ngay)
-    lich = await booking.tao_lich(booking.bn_b, booking.bs_x, datetime.combine(ngay, time(9, 0)), trang_thai=status)
+    await booking.tao_lich(booking.bn_b, booking.bs_x, datetime.combine(ngay, time(9, 0)), trang_thai=status)
     await db_session.flush()
 
     response = await _book(api_client, booking.tokens["bn_a"], booking.bs_x.id, ngay, time(9, 0))

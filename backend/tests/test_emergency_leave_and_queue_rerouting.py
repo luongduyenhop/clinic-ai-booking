@@ -1,9 +1,8 @@
 import pytest
 from datetime import date, datetime, time, timezone
-from sqlalchemy import select
 from app.models.appointment import LichLamViec, HangDoiKham, LichKham, CaLamViecEnum, TrangThaiHangDoiEnum, TrangThaiLichEnum
 from app.models.medical import LuotKham
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, VaiTroEnum
+from app.models.user import ChuyenKhoa
 
 
 @pytest.mark.asyncio

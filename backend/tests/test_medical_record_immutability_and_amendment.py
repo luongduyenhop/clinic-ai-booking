@@ -1,8 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from sqlalchemy import select
-from app.models.medical import DichVu, KhaiNiem, BienBanDinhChinh, LuotKham
-from app.models.user import VaiTroEnum
+from app.models.medical import DichVu, BienBanDinhChinh, LuotKham
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
 
 

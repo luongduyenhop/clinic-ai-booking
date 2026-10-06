@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
     BadRequestException,
-    ConflictException,
     ForbiddenException,
     NotFoundException,
 )

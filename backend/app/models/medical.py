@@ -2,7 +2,6 @@ import enum
 from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModelWithTimestamp
-from app.models.user import ChuyenKhoa
 
 
 class AmendmentStatus(str, enum.Enum):

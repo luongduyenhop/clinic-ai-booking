@@ -1,7 +1,7 @@
 import pytest
-from datetime import date, time, datetime, timedelta, timezone
+from datetime import date, time, datetime, timedelta
 from app.models.user import VaiTroEnum, NguoiDung, TaiKhoan, BenhNhan, BacSi
-from app.models.appointment import LichKham, LichLamViec, CaLamViecEnum, TrangThaiLichEnum, HangDoiKham, TrangThaiHangDoiEnum
+from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.schemas.queue import CheckInRequest, WalkInQuickRequest
 from app.services.queue_service import queue_service
 from app.services.appointment_service import build_day_slots
@@ -148,7 +148,6 @@ async def test_walk_in_without_fake_email_and_reuse_profile(db_session):
     - Khi cùng bệnh nhân đến khám lần 2: Tái sử dụng hồ sơ, không sinh NguoiDung hay BenhNhan trùng lặp.
     - Khi 2 người trong gia đình dùng chung số điện thoại nhưng khác họ tên: Tạo đúng hồ sơ riêng cho từng người.
     """
-    today = date.today()
     nd_bs = NguoiDung(ho_ten="BS Walkin Test", email="bs.walkin@clinic.com")
     db_session.add(nd_bs)
     await db_session.flush()

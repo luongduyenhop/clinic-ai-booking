@@ -1,17 +1,11 @@
 from datetime import date, time
-import pytest
-from app.models.appointment import CaLamViecEnum, LichLamViec
+from app.models.appointment import CaLamViecEnum
 from app.models.user import VaiTroEnum
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
     ShiftCreateRequest,
-    ShiftToggleLockRequest,
     ServiceCreateRequest,
 )
-from app.schemas.queue import CheckInRequest, WalkInQuickRequest
-from app.services.admin_service import admin_service
-from app.services.queue_service import queue_service
+from app.schemas.queue import WalkInQuickRequest
 
 
 def test_admin_schemas_and_roles():

@@ -1,0 +1,19 @@
+from fastapi import APIRouter
+from app.routers.auth import router as auth_router
+from app.routers.appointment import router as appointment_router
+from app.routers.ai_triage import router as ai_triage_router
+from app.routers.medical import router as medical_router
+from app.routers.clinical import router as clinical_router
+from app.routers.reception import router as reception_router
+from app.routers.admin import router as admin_router
+
+api_router = APIRouter()
+
+api_router.include_router(auth_router)
+api_router.include_router(appointment_router)
+api_router.include_router(ai_triage_router)
+api_router.include_router(medical_router)
+api_router.include_router(clinical_router)
+api_router.include_router(reception_router)
+api_router.include_router(admin_router)
+

@@ -1,5 +1,7 @@
 services:
-  # 1. Database Tier: PostgreSQL 15
+  # ==============================================================================
+  # 1. Database Tier: PostgreSQL 15 (OpenMRS Concept Dictionary & BCE Entity Schema)
+  # ==============================================================================
   db:
     image: postgres:15-alpine
     container_name: clinic_postgres
@@ -17,11 +19,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - clinic_network
 
-  # 2. Application Tier: FastAPI Backend
+  # ==============================================================================
+  # 2. Application Tier: FastAPI Backend (Multi-stage Build: builder -> runner)
+  # ==============================================================================
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: clinic_backend
     restart: unless-stopped
@@ -32,11 +38,49 @@ services:
       - DATABASE_URL=postgresql+asyncpg://clinic_user:clinic_password@db:5432/clinic_db
       - DEBUG=True
       - SECRET_KEY=super_secret_clinic_jwt_key_project_1_change_in_production_2026
+      - ACCESS_TOKEN_EXPIRE_MINUTES=120
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - clinic_network
+
+  # ==============================================================================
+  # 3. Presentation Tier: Next.js Frontend (Multi-stage Build: deps -> builder -> runner)
+  # ==============================================================================
+  frontend:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
+    container_name: clinic_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
+    ports:
+      - "3000:3000"
+    networks:
+      - clinic_network
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  clinic_network:
+    driver: bridge

@@ -152,9 +152,15 @@ export default function ReceptionDesk() {
     try {
       const ticket = await ApiService.checkInPatient(appointmentId);
       setRecentCheckedInTicket(ticket);
+      const arrivalDesc = ticket.loai_hang_doi === 'dung_hen' ? 'Đúng hẹn (Ưu tiên 2)' :
+        ticket.loai_hang_doi === 'den_som' ? 'Đến sớm > 30p (Ưu tiên 4)' :
+        ticket.loai_hang_doi === 'den_muon' ? 'Đến muộn > 15p (Ưu tiên 5)' :
+        ticket.loai_hang_doi === 'vang_lai' ? 'Khách vãng lai (Ưu tiên 5)' :
+        ticket.loai_hang_doi === 'cap_cuu' ? 'Cấp cứu (Ưu tiên 1)' : 'Tiêu chuẩn';
+
       setAlertMsg({
         type: 'success',
-        text: `Check-in thành công! Bệnh nhân được cấp số thứ tự khám #${ticket.so_thu_tu_kham} tại phòng ${ticket.phong_kham || 'khám'}.`
+        text: `Check-in thành công! Cấp số thứ tự khám #${ticket.so_thu_tu_kham} [Phân loại: ${arrivalDesc}] tại phòng ${ticket.phong_kham || 'khám'}.`
       });
       // Cập nhật lại kết quả tìm kiếm & Flow Board
       if (searchQuery) handleSearch();
@@ -683,6 +689,16 @@ export default function ReceptionDesk() {
                   <span className="text-gray-500">Ca tiếp nhận:</span>
                   <span className="font-semibold">Ca {recentCheckedInTicket.ca_kham === 'sang' ? 'Sáng' : 'Chiều'}</span>
                 </div>
+                <div className="flex justify-between items-center pt-1 border-t border-gray-200">
+                  <span className="text-gray-500">Phân loại hàng đợi:</span>
+                  <span className="font-bold text-[#1F6F5C]">
+                    {recentCheckedInTicket.loai_hang_doi === 'dung_hen' ? 'Đúng hẹn (Ưu tiên 2)' :
+                     recentCheckedInTicket.loai_hang_doi === 'den_som' ? 'Đến sớm > 30p (Ưu tiên 4)' :
+                     recentCheckedInTicket.loai_hang_doi === 'den_muon' ? 'Đến muộn > 15p (Ưu tiên 5)' :
+                     recentCheckedInTicket.loai_hang_doi === 'vang_lai' ? 'Khách vãng lai (Ưu tiên 5)' :
+                     recentCheckedInTicket.loai_hang_doi === 'cap_cuu' ? 'Cấp cứu (Ưu tiên 1)' : 'Tiêu chuẩn (Ưu tiên 2)'}
+                  </span>
+                </div>
               </div>
 
               {/* Barcode Mockup */}
@@ -896,7 +912,23 @@ export default function ReceptionDesk() {
                           </span>
                         </span>
                       </div>
-                      <div className="font-semibold text-[#1C1B19]">{ticket.ten_benh_nhan}</div>
+                      <div className="font-semibold text-[#1C1B19] flex items-center justify-between">
+                        <span>{ticket.ten_benh_nhan}</span>
+                        {ticket.loai_hang_doi && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium border ${
+                            ticket.loai_hang_doi === 'dung_hen' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                            ticket.loai_hang_doi === 'den_som' ? 'bg-sky-50 text-sky-800 border-sky-200' :
+                            ticket.loai_hang_doi === 'den_muon' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                            ticket.loai_hang_doi === 'cap_cuu' ? 'bg-rose-50 text-rose-800 border-rose-200 font-bold' :
+                            'bg-gray-100 text-gray-700 border-gray-200'
+                          }`}>
+                            {ticket.loai_hang_doi === 'dung_hen' ? 'Đúng hẹn' :
+                             ticket.loai_hang_doi === 'den_som' ? 'Đến sớm' :
+                             ticket.loai_hang_doi === 'den_muon' ? 'Đến muộn' :
+                             ticket.loai_hang_doi === 'cap_cuu' ? 'Cấp cứu' : 'Vãng lai'}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-[#6B6A65]">{ticket.ten_bac_si} — {ticket.phong_kham || 'P.Khám'}</div>
                     </div>
                   );
@@ -921,7 +953,14 @@ export default function ReceptionDesk() {
                       <span className="text-[#1F6F5C]">STT #{ticket.so_thu_tu_kham}</span>
                       <span className="text-xs text-[#1F6F5C] font-semibold">Trong phòng</span>
                     </div>
-                    <div className="font-medium text-[#1C1B19]">{ticket.ten_benh_nhan}</div>
+                    <div className="font-medium text-[#1C1B19] flex items-center justify-between">
+                      <span>{ticket.ten_benh_nhan}</span>
+                      {ticket.loai_hang_doi && (
+                        <span className="text-[10px] text-gray-500 font-normal">
+                          {ticket.loai_hang_doi === 'vang_lai' ? 'Vãng lai' : 'Có hẹn'}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-[#6B6A65]">{ticket.ten_bac_si} — {ticket.phong_kham || 'P.Khám'}</div>
                   </div>
                 ))}

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
-from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES
+from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum
 from app.models.medical import (
     LuotKham,
     ChanDoan,
@@ -551,7 +551,29 @@ class ClinicalService:
         # INV_DIAG: đặt SAU is_locked để hồ sơ đã khóa luôn trả 409 thay vì 422
         self._assert_completion_diagnosis_invariant(luot_kham)
 
-        # Cập nhật kết luận điều trị và khóa hồ sơ
+        # Pha 1 (chỉ đọc + validate): khóa mọi vé hàng đợi của lịch trong cùng transaction,
+        # sau LuotKham (global lock order). Hàng đợi chỉ là lớp điều phối; LuotKham là nguồn sự thật.
+        tickets: list = []
+        active_ticket = None
+        if luot_kham.lich_kham_id is not None:
+            stmt_queue = (
+                select(HangDoiKham)
+                .where(HangDoiKham.lich_kham_id == luot_kham.lich_kham_id)
+                .with_for_update()
+            )
+            tickets = list((await db.execute(stmt_queue)).scalars().all())
+            active_tickets = [
+                t for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value
+            ]
+            if len(active_tickets) > 1:
+                # Lỗi dữ liệu: không được chọn bừa một vé -> từ chối trước khi sửa bất cứ thứ gì
+                raise ConflictException(
+                    "Dữ liệu hàng đợi không nhất quán: lịch khám có nhiều vé đang khám. "
+                    "Vui lòng liên hệ quản trị viên."
+                )
+            active_ticket = active_tickets[0] if active_tickets else None
+
+        # Pha 2 (ghi): cập nhật kết luận điều trị, khóa hồ sơ, lịch khám và vé hàng đợi
         now = datetime.now(timezone.utc)
         luot_kham.ket_luan_dieu_tri = payload.ket_luan_dieu_tri
         luot_kham.loi_dan_bac_si = payload.loi_dan_bac_si
@@ -566,6 +588,18 @@ class ClinicalService:
         lich_kham = (await db.execute(stmt_lich)).scalar_one_or_none()
         if lich_kham:
             lich_kham.trang_thai = TrangThaiLichEnum.DA_KHAM.value
+
+        # Chỉ DANG_KHAM -> DA_KHAM; các trạng thái vé khác không bị sửa
+        if active_ticket is not None:
+            active_ticket.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
+            active_ticket.thoi_gian_ket_thuc = now
+        else:
+            logger.warning(
+                f"[QUEUE_SYNC_SKIPPED] encounter_id={encounter_id} "
+                f"lich_kham_id={luot_kham.lich_kham_id} "
+                f"ticket_states={[t.trang_thai for t in tickets]}"
+            )
+
 
         # Kiểm tra và ghi vết kiểm toán (Audit Trail) các chỉ định cận lâm sàng còn treo tại thời điểm khóa ca
         pending_orders = [

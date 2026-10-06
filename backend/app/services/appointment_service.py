@@ -3,6 +3,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterable, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException
 from app.core.config import settings
@@ -267,6 +268,35 @@ class AppointmentService:
             raise ConflictException("Rất tiếc! Khung giờ này vừa được người bệnh khác giữ chỗ trước.")
         if chosen_slot.status != "available":
             raise AppException("Không thể đặt lịch khám trong quá khứ!")
+
+        # 5b. Kiểm tra giới hạn số lượng người bệnh trong ca (gioi_han_ca_kham):
+        stmt_active_shift = select(LichLamViec).where(
+            and_(
+                LichLamViec.bac_si_id == payload.bac_si_id,
+                LichLamViec.ngay_lam_viec == payload.ngay_kham,
+                LichLamViec.gio_bat_dau <= payload.gio_kham,
+                LichLamViec.gio_ket_thuc >= booking_end.time(),
+                LichLamViec.is_active.is_(True),
+            )
+        )
+        active_shift = (await db.execute(stmt_active_shift)).scalar_one_or_none()
+        if active_shift and active_shift.gioi_han_ca_kham:
+            stmt_shift_bookings = select(func.count(LichKham.id)).where(
+                and_(
+                    LichKham.bac_si_id == payload.bac_si_id,
+                    LichKham.ngay_kham == payload.ngay_kham,
+                    LichKham.gio_kham >= active_shift.gio_bat_dau,
+                    LichKham.gio_kham < active_shift.gio_ket_thuc,
+                    LichKham.trang_thai.in_(OCCUPYING_SLOT_STATUSES),
+                )
+            )
+            booked_in_shift = (await db.execute(stmt_shift_bookings)).scalar() or 0
+            if booked_in_shift >= active_shift.gioi_han_ca_kham:
+                raise ConflictException(
+                    f"Ca khám này của Bác sĩ đã đạt giới hạn tiếp nhận tối đa ({active_shift.gioi_han_ca_kham} người bệnh). "
+                    "Vui lòng chọn ca khám khác!"
+                )
+
 
         # 6. Số thứ tự khám = số lớn nhất đã cấp + 1 (tính cả lịch đã hủy) để không trùng số của lịch còn hiệu lực;
         # mã lịch đếm cả lịch đã hủy để không trùng mã đã cấp (lịch không bao giờ bị xóa, chỉ đổi trạng thái)
@@ -1104,6 +1134,108 @@ class AppointmentService:
             danh_sach_ma_lich_huy=cancelled_codes
         )
 
+    async def get_doctor_shift_appointments(
+        self,
+        date_str: Optional[str],
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> List[dict]:
+        """Lấy danh sách ca khám và lịch hẹn trong ngày phục vụ Doctor Portal Workstation"""
+        bac_si = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
+        elif user.vai_tro == VaiTroEnum.ADMIN.value:
+            stmt_bs = select(BacSi).order_by(BacSi.id.asc()).limit(1)
+            bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
+
+        if not bac_si:
+            return []
+
+        target_date = date.today()
+        if date_str:
+            try:
+                target_date = date.fromisoformat(date_str)
+            except ValueError:
+                target_date = date.today()
+
+        stmt = (
+            select(LichKham)
+            .options(
+                selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(LichKham.luot_kham),
+            )
+            .where(
+                LichKham.bac_si_id == bac_si.id,
+                LichKham.ngay_kham == target_date,
+            )
+            .order_by(LichKham.gio_kham.asc())
+        )
+        appointments = (await db.execute(stmt)).scalars().all()
+
+        stmt_tickets = select(HangDoiKham).where(
+            HangDoiKham.bac_si_id == bac_si.id,
+            HangDoiKham.ngay_kham == target_date,
+        )
+        tickets = (await db.execute(stmt_tickets)).scalars().all()
+        ticket_map = {t.lich_kham_id: t for t in tickets if t.lich_kham_id}
+
+        priority_labels = {
+            1: "Cấp cứu",
+            2: "Đúng hẹn",
+            3: "Trả kết quả CLS",
+            4: "Đến sớm",
+            5: "Vãng lai / Muộn",
+        }
+
+        results = []
+        for apt in appointments:
+            bn = apt.benh_nhan
+            nd = bn.nguoi_dung if bn else None
+            enc = apt.luot_kham
+            ticket = ticket_map.get(apt.id)
+
+            start_t = apt.gio_kham.strftime("%H:%M") if apt.gio_kham else "08:00"
+            duration = apt.thoi_luong_phut or 30
+            end_dt = datetime.combine(apt.ngay_kham, apt.gio_kham) + timedelta(minutes=duration)
+            end_t = end_dt.strftime("%H:%M")
+
+            vitals = None
+            if enc:
+                vitals = {
+                    "mach": enc.mach_lan_phut or 75,
+                    "nhiet_do": float(enc.nhiet_do_c) if enc.nhiet_do_c else 36.8,
+                    "huyet_ap_tam_thu": enc.huyet_ap_tam_thu or 120,
+                    "huyet_ap_tam_truong": enc.huyet_ap_tam_truong or 80,
+                    "nhip_tho": enc.nhip_tho_lan_phut or 18,
+                    "spo2": 98,
+                    "can_nang": float(enc.can_nang_kg) if enc.can_nang_kg else 60.0,
+                    "chieu_cao": float(enc.chieu_cao_cm) if enc.chieu_cao_cm else 165.0,
+                }
+
+            priority = ticket.muc_do_uu_tien if ticket else 4
+
+            results.append({
+                "id": apt.id,
+                "appointment_code": apt.ma_lich_kham,
+                "patient_name": nd.ho_ten if nd else "Bệnh nhân",
+                "patient_phone": nd.so_dien_thoai if nd else "",
+                "patient_gender": nd.gioi_tinh if nd else "Nam",
+                "patient_birth_year": nd.ngay_sinh.year if nd and nd.ngay_sinh else 1990,
+                "appointment_date": apt.ngay_kham.isoformat(),
+                "start_time": start_t,
+                "end_time": end_t,
+                "symptoms_text": apt.trieu_chung_ban_dau or apt.ly_do_kham or "",
+                "status": apt.trang_thai,
+                "queue_priority": priority,
+                "priority_label": priority_labels.get(priority, "Đúng hẹn"),
+                "is_locked": enc.is_locked if enc else (apt.trang_thai == "da_kham"),
+                "encounter_id": enc.id if enc else None,
+                "vitals": vitals,
+            })
+
+        return results
 
 
 appointment_service = AppointmentService()
+

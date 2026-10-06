@@ -99,6 +99,27 @@ async def reschedule_booking(
 
 
 @router.get(
+    "/doctor-shift",
+    response_model=ResponseEnvelope[List[dict]],
+    summary="Bác sĩ lấy danh sách ca khám và lịch hẹn trong ngày phục vụ Doctor Portal Workstation"
+)
+async def get_doctor_shift_appointments(
+    date_str: Optional[str] = Query(None, description="Ngày tra cứu (YYYY-MM-DD)"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    appointments = await appointment_service.get_doctor_shift_appointments(
+        date_str=date_str,
+        user=current_user,
+        db=db
+    )
+    return ResponseEnvelope.success_response(
+        data=appointments,
+        message="Lấy danh sách ca khám bác sĩ thành công"
+    )
+
+
+@router.get(
     "/my-appointments",
     response_model=ResponseEnvelope[List[AppointmentResponse]],
     summary="Bệnh nhân tra cứu lịch sử và danh sách lịch hẹn của bản thân kèm số thứ tự (UC-B04)"

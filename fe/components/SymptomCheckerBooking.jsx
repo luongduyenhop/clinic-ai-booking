@@ -407,7 +407,8 @@ export default function SymptomCheckerBooking({ initialTab = 'checker', hideLand
         department_name: doctor.department_name,
         appointment_date: selectedDate,
         start_time: targetSlot.start_time,
-        end_time: targetSlot.end_time
+        end_time: targetSlot.end_time,
+        so_thu_tu: createdApt?.so_thu_tu || 1
       });
 
       // Cuộn mượt đến thẻ thành công
@@ -1059,26 +1060,35 @@ export default function SymptomCheckerBooking({ initialTab = 'checker', hideLand
                     {loadingSlots ? (
                       <p className="text-xs text-[#6B6A65]">Đang kiểm tra khung giờ khả dụng...</p>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        {(availableSlots.length > 0 ? availableSlots : defaultSlots).map((slot, idx) => {
-                          const isSlotSelected = selectedSlot?.start_time === slot.start_time;
-                          return (
-                            <button
-                              key={idx}
-                              disabled={!slot.is_available}
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`py-2.5 px-3 rounded-sm text-xs font-semibold border transition text-center ${
-                                !slot.is_available
-                                  ? 'bg-[#F7F5F0] text-[#9CA3AF] border-[#E4E1D8] cursor-not-allowed line-through'
-                                  : isSlotSelected
-                                  ? 'bg-[#1F6F5C] text-white border-[#1F6F5C]'
-                                  : 'bg-[#FFFFFF] text-[#1C1B19] border-[#E4E1D8] hover:border-[#1F6F5C]'
-                              }`}
-                            >
-                              {slot.start_time} - {slot.end_time}
-                            </button>
-                          );
-                        })}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-[#6B6A65] pb-1 border-b border-[#E4E1D8]/50">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-[#1F6F5C]" />
+                            <span>Khung giờ khám dự kiến (Tối ưu đón tiếp & hạn chế tối đa chờ đợi tại bệnh viện)</span>
+                          </span>
+                          <span className="text-[11px] text-[#1F6F5C] font-semibold hidden sm:inline">Cấp số thứ tự ưu tiên trong ca</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {(availableSlots.length > 0 ? availableSlots : defaultSlots).map((slot, idx) => {
+                            const isSlotSelected = selectedSlot?.start_time === slot.start_time;
+                            return (
+                              <button
+                                key={idx}
+                                disabled={!slot.is_available}
+                                onClick={() => setSelectedSlot(slot)}
+                                className={`py-2.5 px-3 rounded-sm text-xs font-semibold border transition text-center ${
+                                  !slot.is_available
+                                    ? 'bg-[#F7F5F0] text-[#9CA3AF] border-[#E4E1D8] cursor-not-allowed line-through'
+                                    : isSlotSelected
+                                    ? 'bg-[#1F6F5C] text-white border-[#1F6F5C]'
+                                    : 'bg-[#FFFFFF] text-[#1C1B19] border-[#E4E1D8] hover:border-[#1F6F5C]'
+                                }`}
+                              >
+                                {slot.start_time} - {slot.end_time}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -1194,20 +1204,55 @@ export default function SymptomCheckerBooking({ initialTab = 'checker', hideLand
                   </div>
                 )}
 
-                {/* Booking Success Banner */}
+                {/* Hospital E-Appointment Slip (Phiếu Hẹn Khám Điện Tử Chuẩn Bệnh Viện) */}
                 {bookingSuccess && (
-                  <div className="bg-[#E6F4EA] border border-[#2F8F5B] rounded-md p-5 space-y-3">
+                  <div id="booking-confirmed-card" className="bg-[#E6F4EA] border border-[#2F8F5B] rounded-xl p-5 space-y-4 shadow-sm animate-in fade-in">
                     <div className="flex items-center space-x-3 text-[#2F8F5B]">
                       <CheckCircle className="w-6 h-6 flex-shrink-0" />
                       <div>
-                        <h3 className="text-base font-semibold text-[#1C1B19]">Đặt lịch khám thành công</h3>
-                        <p className="text-xs text-[#6B6A65]">Mã lịch hẹn: <span className="font-mono font-bold text-[#1F6F5C]">{bookingSuccess.appointment_code}</span></p>
+                        <h3 className="text-base font-bold text-[#1C1B19]">Đặt lịch khám thành công • Phiếu hẹn điện tử</h3>
+                        <p className="text-xs text-[#6B6A65]">Mã tiếp nhận trực tuyến: <span className="font-mono font-bold text-[#1F6F5C]">{bookingSuccess.appointment_code}</span></p>
                       </div>
                     </div>
-                    <div className="text-xs text-[#1C1B19] space-y-1 bg-[#FFFFFF] p-3 rounded-sm border border-[#E4E1D8]">
-                      <p><strong>Bác sĩ:</strong> {bookingSuccess.doctor_name} ({bookingSuccess.department_name})</p>
-                      <p><strong>Thời gian:</strong> {bookingSuccess.start_time} - {bookingSuccess.end_time} ngày {bookingSuccess.appointment_date}</p>
-                      <p><strong>Trạng thái:</strong> <span className="text-[#1F6F5C] font-semibold">Đã xác nhận</span></p>
+
+                    <div className="text-xs text-[#1C1B19] bg-[#FFFFFF] p-4 rounded-lg border border-[#E4E1D8] space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-gray-100">
+                        <div>
+                          <span className="text-gray-500 block text-[11px]">Bác sĩ & Chuyên khoa:</span>
+                          <strong className="text-sm text-gray-900">{bookingSuccess.doctor_name}</strong>
+                          <span className="text-xs text-[#1F6F5C] block font-medium">({bookingSuccess.department_name})</span>
+                        </div>
+                        <div className="sm:text-right">
+                          <span className="text-gray-500 block text-[11px]">Số thứ tự dự kiến:</span>
+                          <span className="text-2xl font-black text-[#1F6F5C]">#{bookingSuccess.so_thu_tu || 1}</span>
+                          <span className="text-[10px] text-gray-500 block">Trong ca khám của Bác sĩ</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 font-medium">Giờ khám dự kiến:</span>
+                          <strong className="font-mono text-[#1F6F5C] text-sm">{bookingSuccess.start_time} - {bookingSuccess.end_time}</strong>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 font-medium">Ngày hẹn khám:</span>
+                          <strong className="text-gray-900">{bookingSuccess.appointment_date}</strong>
+                        </div>
+                        <div className="flex justify-between items-center text-amber-900 bg-amber-50 px-3 py-2 rounded border border-amber-200">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-amber-700" />
+                            <span>Khuyến nghị có mặt:</span>
+                          </span>
+                          <strong className="font-bold">Trước {bookingSuccess.start_time} (15 phút)</strong>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100 text-[11px] text-gray-600 space-y-1 bg-[#F7F5F0]/60 p-2.5 rounded">
+                        <p className="font-bold text-gray-800">💡 Quy trình tiếp đón thuận tiện theo chuẩn bệnh viện:</p>
+                        <p>1. Quý khách xuất trình mã <strong>{bookingSuccess.appointment_code}</strong> tại Quầy tiếp đón để đo sinh hiệu.</p>
+                        <p>2. Đặt lịch trước giúp bạn nhận số thứ tự ưu tiên, hệ thống sẽ gọi số tự động vào buồng khám đúng hẹn.</p>
+                        <p className="italic text-[10px] text-gray-500">* Thời gian khám thực tế có thể chênh lệch 5-10 phút tùy theo độ phức tạp của ca khám trước.</p>
+                      </div>
                     </div>
                   </div>
                 )}

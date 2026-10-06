@@ -579,24 +579,19 @@ export default function DoctorPortal() {
     try {
       const res = await ApiService.callNextPatient(currentDoctor?.id);
       const called = res?.data || res;
-      setNextPatientResult(called);
-      setShowCallNextModal(true);
-      loadInitialData();
-    } catch (e) {
-      // Demo simulate call next
-      const pending = appointments.find(a => a.status !== 'da_kham' && a.id !== selectedApt?.id);
-      if (pending) {
-        setNextPatientResult({
-          so_thu_tu: pending.id,
-          ma_so: pending.appointment_code,
-          ho_ten_benh_nhan: pending.patient_name,
-          phong_kham: 'Phòng khám 102 - Nội tổng quát',
-          muc_do_uu_tien: pending.queue_priority || 3
-        });
+      if (called?.ticket) {
+        setNextPatientResult(called.ticket);
         setShowCallNextModal(true);
       } else {
-        alert('Hiện không còn bệnh nhân nào đang chờ trong hàng đợi!');
+        alert(called?.message || 'Hàng đợi hiện tại không còn bệnh nhân nào đang chờ!');
       }
+      loadInitialData();
+    } catch (e) {
+      setStatusMsg({
+        type: 'error',
+        text: `Không thể gọi bệnh nhân tiếp theo: ${e.message || 'Lỗi hàng đợi'}`
+      });
+      alert(`Không thể gọi bệnh nhân tiếp theo: ${e.message || 'Vui lòng kiểm tra trạng thái hàng đợi'}`);
     } finally {
       setCallNextLoading(false);
     }
@@ -761,8 +756,9 @@ export default function DoctorPortal() {
   };
 
   const handleOpenResultInput = (order) => {
-    if (isLocked) {
-      alert('Bệnh án đã khóa theo Thông tư 32/2023/TT-BYT. Không thể cập nhật kết quả cận lâm sàng!');
+    const isAlreadyResulted = order.status === 'da_co_ket_qua' || order.trang_thai === 'da_co_ket_qua';
+    if (isLocked && isAlreadyResulted) {
+      alert('Kết quả cận lâm sàng này đã được ghi nhận trước đó trên bệnh án đã khóa. Theo Thông tư 32/2023/TT-BYT, việc sửa đổi trực tiếp bị cấm (cần lập biên bản đính chính Four-Eyes)!');
       return;
     }
     setSelectedOrderForInput(order);
@@ -931,7 +927,8 @@ export default function DoctorPortal() {
         ngay_hen_tai_kham: followUpDate || null
       };
 
-      await ApiService.completeEncounter(selectedApt.id, payload);
+      const targetEncId = selectedApt.encounter_id || selectedApt.id;
+      await ApiService.completeEncounter(targetEncId, payload);
       setIsLocked(true);
       setShowLockModal(false);
       setStatusMsg({
@@ -940,19 +937,11 @@ export default function DoctorPortal() {
       });
       loadInitialData();
     } catch (e) {
-      // Fallback
-      await ApiService.doctorCompleteAppointment(selectedApt.id, {
-        diagnosis: diagnosisPrimary,
-        prescription: prescriptionItems.map(p => `${p.medicine_name} (${p.quantity} ${p.unit}) - ${p.usage}`).join('\n')
-      }).catch(() => {});
-
-      setIsLocked(true);
-      setShowLockModal(false);
       setStatusMsg({
-        type: 'success',
-        text: `🔒 Bệnh án ca ${selectedApt.appointment_code} đã hoàn tất và KHÓA VĨNH VIỄN theo TT 32/2023/TT-BYT.`
+        type: 'error',
+        text: `Không thể khóa bệnh án: ${e.message || 'Lỗi kiểm tra quy chuẩn chuyên môn'}`
       });
-      loadInitialData();
+      alert(`Không thể khóa bệnh án: ${e.message || 'Vui lòng kiểm tra lại chẩn đoán ICD-10 và trạng thái ca khám!'}`);
     } finally {
       setLockingLoading(false);
     }
@@ -985,22 +974,24 @@ export default function DoctorPortal() {
     }
   };
 
-  // Helper Priority Badge
-  const renderPriorityBadge = (p = 4) => {
-    switch (p) {
-      case 1:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">P1: CẤP CỨU</span>;
-      case 2:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">P2: Ưu tiên (Trẻ em/Người già)</span>;
-      case 3:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">P3: Tái khám CLS</span>;
-      case 4:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">P4: Đúng hẹn</span>;
-      case 5:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">P5: Đến trễ</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">Thường</span>;
+  // Helper Priority Badge (Chuẩn hóa 5 cấp độ hàng đợi y tế thực tế)
+  const renderPriorityBadge = (p = 2, queueType = null) => {
+    if (queueType === 'cap_cuu' || p === 1) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-300">P1: CẤP CỨU</span>;
     }
+    if (queueType === 'dung_hen' || p === 2) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">P2: ĐÚNG HẸN</span>;
+    }
+    if (queueType === 'tai_kham' || p === 3) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">P3: TÁI KHÁM / CLS</span>;
+    }
+    if (queueType === 'den_som' || p === 4) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-sky-100 text-sky-800 border border-sky-300">P4: ĐẾN SỚM (&gt;30P)</span>;
+    }
+    if (queueType === 'den_muon' || queueType === 'vang_lai' || p === 5) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-300">P5: {queueType === 'vang_lai' ? 'VÃNG LAI' : 'ĐẾN MUỘN'}</span>;
+    }
+    return <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 border border-gray-300">P2: ĐÚNG HẸN</span>;
   };
 
   return (
@@ -1322,7 +1313,7 @@ export default function DoctorPortal() {
                           <Clock className="w-3 h-3" />
                           {apt.start_time} - {apt.end_time}
                         </span>
-                        {renderPriorityBadge(apt.queue_priority)}
+                        {renderPriorityBadge(apt.queue_priority, apt.loai_hang_doi || apt.queue_type)}
                       </div>
 
                       <div className="text-[11px] text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 line-clamp-1 italic">
@@ -2392,7 +2383,7 @@ export default function DoctorPortal() {
               <p>Mã số lượt khám: <strong className="font-mono text-emerald-800">{nextPatientResult.ma_so || nextPatientResult.so_thu_tu}</strong></p>
               <p>Phòng tiếp nhận: <strong>{nextPatientResult.phong_kham || 'Phòng khám chuyên khoa'}</strong></p>
               <div>
-                Cấp độ ưu tiên: {renderPriorityBadge(nextPatientResult.muc_do_uu_tien || 4)}
+                Cấp độ ưu tiên: {renderPriorityBadge(nextPatientResult.muc_do_uu_tien || 2, nextPatientResult.loai_hang_doi)}
               </div>
             </div>
 

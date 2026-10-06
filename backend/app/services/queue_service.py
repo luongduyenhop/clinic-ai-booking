@@ -1,18 +1,21 @@
 import logging
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timezone, timedelta
 from typing import List, Optional
 from sqlalchemy import func, select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.exceptions import (
     BadRequestException,
     ForbiddenException,
     NotFoundException,
+    ConflictException,
 )
 from app.models.appointment import (
     HangDoiKham,
     LichKham,
+    LichLamViec,
     CaLamViecEnum,
     LoaiHangDoiEnum,
     TrangThaiHangDoiEnum,
@@ -177,13 +180,26 @@ class QueueService:
             return self._to_ticket_response(existing_ticket)
 
         now = datetime.now(timezone.utc)
-        # 4. Xác định loại hàng đợi và độ ưu tiên (Arrival Window Logic)
+        # 4. Xác định loại hàng đợi và độ ưu tiên (Arrival Window Logic - Bahmni / OpenMRS):
         ca_kham = self._determine_shift(lich.gio_kham)
 
-        # Tính toán đến sớm / đúng hẹn / đến muộn (ngưỡng 30 phút)
-        # Giả định ca khám diễn ra trong ngày khám
-        loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
-        muc_do_uu_tien = 2  # Mặc định đúng hẹn: ưu tiên bậc 2
+        clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
+        now_clinic = datetime.now(clinic_tz).replace(tzinfo=None)
+        appointment_dt = datetime.combine(lich.ngay_kham, lich.gio_kham)
+        diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
+
+        if diff_minutes > 30:
+            # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
+            loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
+            muc_do_uu_tien = 4
+        elif diff_minutes < -15:
+            # Đến muộn hơn 15 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
+            loai_hang_doi = LoaiHangDoiEnum.DEN_MUON.value
+            muc_do_uu_tien = 5
+        else:
+            # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 15p) -> ưu tiên 2 tiêu chuẩn
+            loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
+            muc_do_uu_tien = 2
 
         # 5. Tính số thứ tự khám tiếp theo trong ca của Bác sĩ hôm đó
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
@@ -243,6 +259,32 @@ class QueueService:
         today = date.today()
         now = datetime.now(timezone.utc)
 
+        # Kiểm tra ca làm việc và giới hạn công suất ca (gioi_han_ca_kham)
+        stmt_shift = (
+            select(LichLamViec)
+            .where(
+                LichLamViec.bac_si_id == payload.bac_si_id,
+                LichLamViec.ngay_lam_viec == today,
+                LichLamViec.ca_lam_viec == payload.ca_kham,
+                LichLamViec.is_active.is_(True),
+            )
+            .with_for_update()
+        )
+        shift = (await db.execute(stmt_shift)).scalar_one_or_none()
+        if shift and shift.gioi_han_ca_kham:
+            stmt_count_shift = select(func.count(HangDoiKham.id)).where(
+                HangDoiKham.bac_si_id == payload.bac_si_id,
+                HangDoiKham.ngay_kham == today,
+                HangDoiKham.ca_kham == payload.ca_kham,
+                HangDoiKham.trang_thai != TrangThaiHangDoiEnum.BO_KHAM.value,
+            )
+            count_shift = (await db.execute(stmt_count_shift)).scalar() or 0
+            if count_shift >= shift.gioi_han_ca_kham:
+                raise ConflictException(
+                    f"Ca khám này của Bác sĩ đã đạt giới hạn tiếp nhận tối đa ({shift.gioi_han_ca_kham} người bệnh). "
+                    "Không thể tiếp nhận thêm bệnh nhân vãng lai!"
+                )
+
         # Tính số thứ tự tiếp theo
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
             HangDoiKham.bac_si_id == payload.bac_si_id,
@@ -252,8 +294,33 @@ class QueueService:
         max_stt = (await db.execute(stmt_max_stt)).scalar()
         next_stt = max_stt + 1
 
+        # Tự động khởi tạo bản ghi LichKham tại chỗ để bảo toàn tính toàn vẹn EMR (Package D)
+        # Offset giây và microsecond để không bao giờ trùng slot đặt hẹn cố định (08:00:00) hay trùng ca vãng lai khác
+        base_time = now.time()
+        gio_kham_tai_cho = time(
+            base_time.hour,
+            base_time.minute,
+            (next_stt * 7) % 60,
+            microsecond=min(999999, next_stt * 1000)
+        )
+        ma_lich = f"LK-{today.strftime('%Y%m%d')}-WLK{payload.bac_si_id:02d}{next_stt:03d}"
+        lich_tai_cho = LichKham(
+            ma_lich_kham=ma_lich,
+            benh_nhan_id=payload.benh_nhan_id,
+            bac_si_id=payload.bac_si_id,
+            ngay_kham=today,
+            gio_kham=gio_kham_tai_cho,
+            thoi_luong_phut=settings.SLOT_DURATION_MINUTES,
+            so_thu_tu=next_stt,
+            ly_do_kham=payload.ly_do_kham or "Tiếp đón vãng lai tại phòng khám",
+            trieu_chung_ban_dau=payload.ly_do_kham,
+            trang_thai=TrangThaiLichEnum.DA_TIEP_NHAN.value,
+        )
+        db.add(lich_tai_cho)
+        await db.flush()
+
         ticket = HangDoiKham(
-            lich_kham_id=None,  # Khách vãng lai không có lịch hẹn trước
+            lich_kham_id=lich_tai_cho.id,  # Gắn kết với lịch tại chỗ
             benh_nhan_id=payload.benh_nhan_id,
             bac_si_id=payload.bac_si_id,
             ngay_kham=today,
@@ -294,6 +361,25 @@ class QueueService:
         doctor_id = bac_si.id if bac_si else 1
         today = date.today()
         now = datetime.now(timezone.utc)
+
+        # 0. Guard A4 (Concurrency & Khám đè):
+        # Bác sĩ chỉ được phép khám đúng 1 bệnh nhân tại 1 thời điểm.
+        # Nếu đang có ca 'dang_kham', bác sĩ phải hoàn tất hoặc tạm hoãn ca này trước khi gọi tiếp.
+        stmt_current_active = (
+            select(HangDoiKham)
+            .where(
+                HangDoiKham.bac_si_id == doctor_id,
+                HangDoiKham.ngay_kham == today,
+                HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
+            )
+            .with_for_update()
+        )
+        current_active = (await db.execute(stmt_current_active)).scalars().first()
+        if current_active:
+            raise ConflictException(
+                f"Bác sĩ hiện đang có một ca khám chưa hoàn tất (STT #{current_active.so_thu_tu_kham}). "
+                f"Vui lòng hoàn tất hoặc tạm hoãn ca hiện tại trước khi gọi bệnh nhân tiếp theo!"
+            )
 
         # 1. Tìm ứng viên ưu tiên cao nhất đang ở trạng thái 'cho_kham'
         stmt_candidate = (
@@ -356,6 +442,24 @@ class QueueService:
             so_nguoi_con_lai=remaining,
         )
 
+    async def _get_ticket_entity(
+        self, ticket_id: int, db: AsyncSession, for_update: bool = False
+    ) -> Optional[HangDoiKham]:
+        """Lấy thực thể ORM HangDoiKham kèm eager loading quan hệ đầy đủ"""
+        stmt = (
+            select(HangDoiKham)
+            .options(
+                selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(HangDoiKham.lich_kham),
+            )
+            .where(HangDoiKham.id == ticket_id)
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        return (await db.execute(stmt)).scalar_one_or_none()
+
     async def postpone_ticket(
         self,
         ticket_id: int,
@@ -363,7 +467,7 @@ class QueueService:
         db: AsyncSession,
     ) -> QueueTicketResponse:
         """Bác sĩ chuyển ca khám sang Tạm hoãn (sau 3 lần gọi không có mặt)"""
-        ticket = await self._get_ticket_with_relations(ticket_id, db)
+        ticket = await self._get_ticket_entity(ticket_id, db, for_update=True)
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
@@ -383,7 +487,7 @@ class QueueService:
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền phục hồi vé tạm hoãn!")
 
-        ticket = await self._get_ticket_with_relations(ticket_id, db)
+        ticket = await self._get_ticket_entity(ticket_id, db, for_update=True)
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 

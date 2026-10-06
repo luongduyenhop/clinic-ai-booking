@@ -597,14 +597,17 @@ export default function PatientPortal() {
                             Chuyên khoa: <strong className="text-[#1C1B19]">{upcoming.ten_chuyen_khoa || upcoming.department_name || 'Khoa khám bệnh'}</strong>
                           </p>
                           <p className="text-xs text-[#6B6A65]">
-                            Khung giờ: <strong className="text-[#1F6F5C]">{upcoming.gio_kham || `${upcoming.start_time || ''} - ${upcoming.end_time || ''}`}</strong> • Ngày: <strong>{upcoming.ngay_kham || upcoming.appointment_date}</strong>
+                            Giờ khám dự kiến: <strong className="text-[#1F6F5C]">{upcoming.gio_kham || `${upcoming.start_time || ''} - ${upcoming.end_time || ''}`}</strong> • Ngày: <strong>{upcoming.ngay_kham || upcoming.appointment_date}</strong>
+                          </p>
+                          <p className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block font-medium">
+                            ⏱️ Khuyến nghị: Có mặt trước 15 phút tại Quầy tiếp đón để đo sinh hiệu
                           </p>
                         </div>
 
                         {upcoming.so_thu_tu && (
-                          <div className="text-center bg-[#DCEAE6]/60 border border-[#1F6F5C]/30 p-2 rounded-xl shrink-0">
-                            <span className="text-[10px] text-[#1F6F5C] font-semibold block">SỐ THỨ TỰ</span>
-                            <span className="text-xl font-black text-[#1F6F5C]">#{upcoming.so_thu_tu}</span>
+                          <div className="text-center bg-[#DCEAE6]/60 border border-[#1F6F5C]/30 p-2.5 rounded-xl shrink-0">
+                            <span className="text-[10px] text-[#1F6F5C] font-semibold block uppercase">STT Dự kiến</span>
+                            <span className="text-2xl font-black text-[#1F6F5C]">#{upcoming.so_thu_tu}</span>
                           </div>
                         )}
                       </div>
@@ -734,8 +737,8 @@ export default function PatientPortal() {
                                 {apt.ma_lich_kham || apt.appointment_code}
                               </span>
                               {apt.so_thu_tu && (
-                                <span className="bg-[#1F6F5C] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                                  STT: #{apt.so_thu_tu}
+                                <span className="bg-[#1F6F5C] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  STT dự kiến: #{apt.so_thu_tu}
                                 </span>
                               )}
                             </div>
@@ -753,7 +756,7 @@ export default function PatientPortal() {
                                 {apt.ngay_kham || apt.appointment_date}
                               </div>
                               <div className="text-[#6B6A65] text-[11px]">
-                                {apt.gio_kham || `${apt.start_time || ''} - ${apt.end_time || ''}`}
+                                Giờ dự kiến: {apt.gio_kham || `${apt.start_time || ''} - ${apt.end_time || ''}`}
                               </div>
                             </div>
                             {getStatusBadge(apt.trang_thai || apt.status)}

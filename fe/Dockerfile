@@ -17,6 +17,8 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Đảm bảo thư mục public luôn tồn tại ngay cả khi clone repo rỗng
+RUN mkdir -p /app/public
 
 # Tắt telemetry thu thập dữ liệu của Next.js
 ENV NEXT_TELEMETRY_DISABLED=1

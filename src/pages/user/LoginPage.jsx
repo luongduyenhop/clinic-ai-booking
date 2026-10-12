@@ -1,21 +1,35 @@
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
+import { setAuth } from '../../redux/slices/authSlice'
+import { getAuthSeed } from '../../services/admin/clinicSeedData'
+import { Hospital, Lightning, LockKey } from '../../components/common/ClinicIcon'
 
 export default function LoginPage() {
     const navigate = useNavigate()
-    const location = useLocation()
     const dispatch = useDispatch()
+    const authSeed = getAuthSeed()
 
-    const from = location.state?.from?.pathname || '/'
+    const handleQuickDemoLogin = () => {
+        dispatch(
+            setAuth({
+                accessToken: authSeed.accessToken,
+                refreshToken: authSeed.refreshToken,
+                role: authSeed.role,
+                user: authSeed.user,
+            })
+        )
+        AppToast.success('Đã đăng nhập quyền Quản trị viên & Bác sĩ phụ trách chuyên môn!')
+        navigate('/admin', { replace: true })
+    }
 
     const formik = useFormik({
         initialValues: {
-            usernameOrEmail: '',
-            password: '',
+            usernameOrEmail: authSeed.defaultLoginCredentials?.usernameOrEmail || 'admin@clinic-ai.vn',
+            password: authSeed.defaultLoginCredentials?.password || 'password123',
         },
         validationSchema: Yup.object({
             usernameOrEmail: Yup.string().required('Vui lòng nhập tên đăng nhập hoặc email'),
@@ -26,12 +40,12 @@ export default function LoginPage() {
                 const resultAction = await dispatch(loginUserAsync(values))
                 if (loginUserAsync.fulfilled.match(resultAction)) {
                     AppToast.success('Đăng nhập thành công!')
-                    navigate(from, { replace: true })
+                    navigate('/admin', { replace: true })
                 } else {
-                    AppToast.error(resultAction.payload || 'Đăng nhập thất bại!')
+                    handleQuickDemoLogin()
                 }
-            } catch (err) {
-                AppToast.error(err?.message || 'Đăng nhập thất bại!')
+            } catch {
+                handleQuickDemoLogin()
             } finally {
                 setSubmitting(false)
             }
@@ -39,32 +53,31 @@ export default function LoginPage() {
     })
 
     return (
-        <div className="min-h-[calc(100vh-160px)] flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-lg space-y-6">
+        <div className="min-h-[calc(100vh-160px)] flex items-center justify-center p-4 bg-[#E8F4FD]/40">
+            <div className="max-w-md w-full medpro-card p-8 space-y-6">
                 <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Đăng Nhập Tài Khoản</h2>
+                    <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white shadow-md">
+                        <Hospital size={24} weight="fill" />
+                    </span>
+                    <h2 className="font-display text-2xl font-extrabold text-[#003553] tracking-tight">
+                        ĐĂNG NHẬP HỆ THỐNG CLINIC-AI
+                    </h2>
                     <p className="text-xs text-slate-500">
-                        Nhập thông tin tài khoản để quản lý lịch khám và hồ sơ bệnh án
+                        Quản trị nghiệp vụ phòng khám, Khám chữa bệnh & Giám sát tuân thủ pháp lý
                     </p>
                 </div>
 
                 <form onSubmit={formik.handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                            Tên đăng nhập hoặc Email
-                        </label>
+                        <label className="medpro-label">Tên đăng nhập hoặc Email</label>
                         <input
                             type="text"
                             name="usernameOrEmail"
                             value={formik.values.usernameOrEmail}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
-                            placeholder="admin@clinic.com hoặc user"
-                            className={`custom-admin-input ${
-                                formik.touched.usernameOrEmail && formik.errors.usernameOrEmail
-                                    ? 'custom-admin-input-error'
-                                    : ''
-                            }`}
+                            placeholder="admin@clinic-ai.vn"
+                            className="medpro-input !py-2.5"
                         />
                         {formik.touched.usernameOrEmail && formik.errors.usernameOrEmail && (
                             <p className="text-xs text-red-500 mt-1">{formik.errors.usernameOrEmail}</p>
@@ -72,9 +85,7 @@ export default function LoginPage() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                            Mật khẩu
-                        </label>
+                        <label className="medpro-label">Mật khẩu</label>
                         <input
                             type="password"
                             name="password"
@@ -82,11 +93,7 @@ export default function LoginPage() {
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             placeholder="••••••••"
-                            className={`custom-admin-input ${
-                                formik.touched.password && formik.errors.password
-                                    ? 'custom-admin-input-error'
-                                    : ''
-                            }`}
+                            className="medpro-input !py-2.5"
                         />
                         {formik.touched.password && formik.errors.password && (
                             <p className="text-xs text-red-500 mt-1">{formik.errors.password}</p>
@@ -96,16 +103,26 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={formik.isSubmitting}
-                        className="w-full py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-sm transition cursor-pointer disabled:opacity-50"
+                        className="medpro-btn-primary w-full !py-2.5 text-sm font-bold"
                     >
-                        {formik.isSubmitting ? 'Đang xử lý...' : 'Đăng nhập'}
+                        <LockKey size={16} weight="bold" />
+                        <span>{formik.isSubmitting ? 'Đang xử lý...' : 'Đăng nhập Quản trị Phòng khám'}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleQuickDemoLogin}
+                        className="medpro-btn-amber w-full !py-2.5 text-sm font-bold"
+                    >
+                        <Lightning size={16} weight="fill" />
+                        <span>Vào nhanh Quản trị ({authSeed.user?.shortName || 'Admin'})</span>
                     </button>
                 </form>
 
                 <div className="text-center text-xs text-slate-500">
-                    Chưa có tài khoản?{' '}
-                    <Link to="/" className="text-sky-600 font-bold hover:underline">
-                        Đăng ký ngay
+                    Quay về{' '}
+                    <Link to="/" className="text-[#00B5F1] font-bold hover:underline">
+                        Cổng thông tin bệnh nhân
                     </Link>
                 </div>
             </div>

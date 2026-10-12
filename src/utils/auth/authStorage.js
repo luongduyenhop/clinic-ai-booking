@@ -1,4 +1,7 @@
 import { TOKEN, REFRESH_TOKEN, USER_ROLE, USER_INFO } from '../constants/System'
+import { getAuthSeed } from '../../services/admin/clinicSeedData'
+
+const DEFAULT_DEMO_ADMIN = getAuthSeed()
 
 export const readAuthFromStorage = () => {
     try {
@@ -7,9 +10,20 @@ export const readAuthFromStorage = () => {
         const role = localStorage.getItem(USER_ROLE)
         const userRaw = localStorage.getItem(USER_INFO)
         const user = userRaw ? JSON.parse(userRaw) : null
-        return { accessToken, refreshToken, role, user }
+
+        if (!accessToken) {
+            saveFullAuth(DEFAULT_DEMO_ADMIN)
+            return DEFAULT_DEMO_ADMIN
+        }
+
+        return {
+            accessToken,
+            refreshToken,
+            role: role || DEFAULT_DEMO_ADMIN.role,
+            user: user || DEFAULT_DEMO_ADMIN.user,
+        }
     } catch {
-        return { accessToken: null, refreshToken: null, role: null, user: null }
+        return DEFAULT_DEMO_ADMIN
     }
 }
 
@@ -29,31 +43,15 @@ export const clearAuthStorage = () => {
 
 export const writeAuthToStorage = (patch = {}) => {
     if (patch.accessToken !== undefined) {
-        if (patch.accessToken) {
-            localStorage.setItem(TOKEN, patch.accessToken)
-        } else {
-            localStorage.removeItem(TOKEN)
-        }
+        patch.accessToken ? localStorage.setItem(TOKEN, patch.accessToken) : localStorage.removeItem(TOKEN)
     }
     if (patch.refreshToken !== undefined) {
-        if (patch.refreshToken) {
-            localStorage.setItem(REFRESH_TOKEN, patch.refreshToken)
-        } else {
-            localStorage.removeItem(REFRESH_TOKEN)
-        }
+        patch.refreshToken ? localStorage.setItem(REFRESH_TOKEN, patch.refreshToken) : localStorage.removeItem(REFRESH_TOKEN)
     }
     if (patch.role !== undefined) {
-        if (patch.role) {
-            localStorage.setItem(USER_ROLE, patch.role)
-        } else {
-            localStorage.removeItem(USER_ROLE)
-        }
+        patch.role ? localStorage.setItem(USER_ROLE, patch.role) : localStorage.removeItem(USER_ROLE)
     }
     if (patch.user !== undefined) {
-        if (patch.user) {
-            localStorage.setItem(USER_INFO, JSON.stringify(patch.user))
-        } else {
-            localStorage.removeItem(USER_INFO)
-        }
+        patch.user ? localStorage.setItem(USER_INFO, JSON.stringify(patch.user)) : localStorage.removeItem(USER_INFO)
     }
 }

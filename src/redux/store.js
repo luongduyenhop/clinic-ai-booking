@@ -7,6 +7,7 @@ import adminReducer from './slices/admin/adminSlice'
 const appReducer = combineReducers({
     auth: authReducer,
     ui: uiReducer,
+    admin: adminReducer,
 })
 
 const userAppReducer = combineReducers({

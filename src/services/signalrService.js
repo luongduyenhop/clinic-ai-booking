@@ -5,6 +5,10 @@ let hubConnection = null
 
 export const startSignalRConnection = async (onMessageReceived) => {
     try {
+        if (!SIGNALR_HUB) {
+            return null
+        }
+
         if (hubConnection && hubConnection.state === signalR.HubConnectionState.Connected) {
             return hubConnection
         }
@@ -22,10 +26,8 @@ export const startSignalRConnection = async (onMessageReceived) => {
         }
 
         await hubConnection.start()
-        console.log('SignalR connected successfully.')
         return hubConnection
-    } catch (error) {
-        console.error('SignalR connection error:', error)
+    } catch {
         return null
     }
 }
@@ -34,9 +36,8 @@ export const stopSignalRConnection = async () => {
     if (hubConnection) {
         try {
             await hubConnection.stop()
-            console.log('SignalR disconnected.')
-        } catch (error) {
-            console.error('SignalR stop error:', error)
+        } catch {
+            // ignore stop errors
         }
     }
 }

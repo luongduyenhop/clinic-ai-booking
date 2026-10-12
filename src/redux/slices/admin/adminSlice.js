@@ -1,8 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { getDashboardStatsAsync } from '../../actions/admin/adminAction'
+import {
+    getDashboardStatsAsync,
+    loadClinicDataAsync,
+    updateClinicCollectionAsync,
+    updateCatalogSubCollectionAsync,
+    resetClinicDemoDataAsync,
+} from '../../actions/admin/adminAction'
+import { INITIAL_CLINIC_DATA } from '../../../services/admin/clinicSeedData'
 
 const initialState = {
     stats: null,
+    clinicData: INITIAL_CLINIC_DATA,
     loading: false,
     error: null,
 }
@@ -23,11 +31,26 @@ const adminSlice = createSlice({
             })
             .addCase(getDashboardStatsAsync.fulfilled, (state, action) => {
                 state.loading = false
-                state.stats = action.payload
+                state.stats = action.payload?.backendCompliance || null
+                if (action.payload?.storeData) {
+                    state.clinicData = action.payload.storeData
+                }
             })
             .addCase(getDashboardStatsAsync.rejected, (state, action) => {
                 state.loading = false
                 state.error = action.payload
+            })
+            .addCase(loadClinicDataAsync.fulfilled, (state, action) => {
+                state.clinicData = action.payload
+            })
+            .addCase(updateClinicCollectionAsync.fulfilled, (state, action) => {
+                state.clinicData = action.payload
+            })
+            .addCase(updateCatalogSubCollectionAsync.fulfilled, (state, action) => {
+                state.clinicData = action.payload
+            })
+            .addCase(resetClinicDemoDataAsync.fulfilled, (state, action) => {
+                state.clinicData = action.payload
             })
     },
 })

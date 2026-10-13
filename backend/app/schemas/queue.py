@@ -130,3 +130,5 @@ class WalkInQuickRequest(BaseModel):
     bac_si_id: int = Field(..., description="Bác sĩ tiếp nhận khám")
     ca_kham: Literal["sang", "chieu"] = Field("sang", description="Ca khám")
     ly_do_kham: Optional[str] = Field("Khám bệnh vãng lai", max_length=255)
+    nguoi_lien_he: Optional[str] = Field(None, max_length=100, description="Họ tên người liên hệ / thân nhân khẩn cấp")
+    sdt_nguoi_lien_he: Optional[str] = Field(None, max_length=20, description="SĐT người liên hệ / thân nhân")

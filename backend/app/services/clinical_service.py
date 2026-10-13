@@ -115,6 +115,7 @@ class ClinicalService:
             luot_kham_id=dt.luot_kham_id,
             bac_si_ke_don_id=dt.bac_si_ke_don_id,
             ngay_ke_don=dt.ngay_ke_don,
+            so_ngay_dung=getattr(dt, "so_ngay_dung", 5) or 5,
             loi_dan_uong_thuoc=dt.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=dt.ghi_chu_duoc_lam_sang,
             trang_thai=dt.trang_thai or "DRAFT",
@@ -140,6 +141,10 @@ class ClinicalService:
                     ham_luong=item.ham_luong,
                     don_vi_tinh=item.don_vi_tinh,
                     so_luong=item.so_luong,
+                    lieu_sang=item.lieu_sang or "",
+                    lieu_trua=item.lieu_trua or "",
+                    lieu_chieu=item.lieu_chieu or "",
+                    lieu_toi=item.lieu_toi or "",
                     cach_dung=item.cach_dung,
                     so_ngay_dung=item.so_ngay_dung,
                     ghi_chu=item.ghi_chu
@@ -171,6 +176,8 @@ class ClinicalService:
                 ten_dich_vu=order.dich_vu.ten_dich_vu if order.dich_vu else None,
                 so_luong=order.so_luong,
                 don_gia_tai_thoi_diem=float(order.don_gia_tai_thoi_diem),
+                giam_gia=float(getattr(order, "giam_gia", 0.0) or 0.0),
+                thanh_tien=float(getattr(order, "thanh_tien", 0.0) or 0.0),
                 trang_thai=order.trang_thai,
                 bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
                 ket_qua_chi_tiet=order.ket_qua_chi_tiet,
@@ -185,12 +192,16 @@ class ClinicalService:
         return EncounterResponse(
             id=lk.id,
             lich_kham_id=lk.lich_kham_id,
+            ma_kcb=getattr(lk, "ma_kcb", None),
             bac_si_id=lk.bac_si_id,
             benh_nhan_id=lk.benh_nhan_id,
             thoi_gian_bat_dau=lk.thoi_gian_bat_dau,
             thoi_gian_ket_thuc=lk.thoi_gian_ket_thuc,
             ly_do_vao_kham=lk.ly_do_vao_kham,
             benh_su=lk.benh_su,
+            trieu_chung=getattr(lk, "trieu_chung", None),
+            chan_doan_so_bo=getattr(lk, "chan_doan_so_bo", None),
+            tien_su_di_ung=getattr(lk, "tien_su_di_ung", None),
             mach_lan_phut=lk.mach_lan_phut,
             nhiet_do_c=float(lk.nhiet_do_c) if lk.nhiet_do_c is not None else None,
             huyet_ap_tam_thu=lk.huyet_ap_tam_thu,
@@ -198,10 +209,13 @@ class ClinicalService:
             nhip_tho_lan_phut=lk.nhip_tho_lan_phut,
             can_nang_kg=float(lk.can_nang_kg) if lk.can_nang_kg is not None else None,
             chieu_cao_cm=float(lk.chieu_cao_cm) if lk.chieu_cao_cm is not None else None,
+            spo2=float(lk.spo2) if getattr(lk, "spo2", None) is not None else None,
+            bmi=float(lk.bmi) if getattr(lk, "bmi", None) is not None else None,
             kham_lam_sang_bo_phan=lk.kham_lam_sang_bo_phan,
             ket_luan_dieu_tri=lk.ket_luan_dieu_tri,
             loi_dan_bac_si=lk.loi_dan_bac_si,
             ngay_hen_tai_kham=lk.ngay_hen_tai_kham,
+            loi_dan_tai_kham=getattr(lk, "loi_dan_tai_kham", None),
             is_locked=lk.is_locked,
             thoi_gian_khoa=lk.thoi_gian_khoa,
             nguoi_khoa_id=lk.nguoi_khoa_id,
@@ -242,13 +256,22 @@ class ClinicalService:
             raise ConflictException("Lịch hẹn này đã được tạo lượt khám trước đó!")
 
         # 3. Tạo bản ghi LuotKham mới
+        ma_kcb = payload.ma_kcb
+        if not ma_kcb:
+            now_str = datetime.now(timezone.utc).strftime("%y%m%d")
+            ma_kcb = f"KCB-{now_str}-{str(lich_kham.id).zfill(4)}"
+
         luot_kham = LuotKham(
             lich_kham_id=lich_kham.id,
+            ma_kcb=ma_kcb,
             bac_si_id=bac_si.id,
             benh_nhan_id=lich_kham.benh_nhan_id,
             thoi_gian_bat_dau=datetime.now(timezone.utc),
             ly_do_vao_kham=payload.ly_do_vao_kham or lich_kham.ly_do_kham,
             benh_su=payload.benh_su or lich_kham.trieu_chung_ban_dau,
+            trieu_chung=payload.trieu_chung,
+            chan_doan_so_bo=payload.chan_doan_so_bo,
+            tien_su_di_ung=payload.tien_su_di_ung,
             mach_lan_phut=payload.mach_lan_phut,
             nhiet_do_c=payload.nhiet_do_c,
             huyet_ap_tam_thu=payload.huyet_ap_tam_thu,
@@ -256,6 +279,8 @@ class ClinicalService:
             nhip_tho_lan_phut=payload.nhip_tho_lan_phut,
             can_nang_kg=payload.can_nang_kg,
             chieu_cao_cm=payload.chieu_cao_cm,
+            spo2=payload.spo2,
+            bmi=payload.bmi,
             kham_lam_sang_bo_phan=payload.kham_lam_sang_bo_phan,
             is_locked=False
         )
@@ -602,6 +627,7 @@ class ClinicalService:
         luot_kham.ket_luan_dieu_tri = payload.ket_luan_dieu_tri
         luot_kham.loi_dan_bac_si = payload.loi_dan_bac_si
         luot_kham.ngay_hen_tai_kham = payload.ngay_hen_tai_kham
+        luot_kham.loi_dan_tai_kham = payload.loi_dan_tai_kham
         luot_kham.thoi_gian_ket_thuc = now
         luot_kham.is_locked = True
         luot_kham.thoi_gian_khoa = now
@@ -683,6 +709,7 @@ class ClinicalService:
             luot_kham_id=encounter_id,
             bac_si_ke_don_id=bac_si.id,
             ngay_ke_don=now,
+            so_ngay_dung=payload.so_ngay_dung,
             loi_dan_uong_thuoc=payload.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=payload.ghi_chu_duoc_lam_sang
         )
@@ -697,6 +724,10 @@ class ClinicalService:
                 ham_luong=item.ham_luong,
                 don_vi_tinh=item.don_vi_tinh,
                 so_luong=item.so_luong,
+                lieu_sang=item.lieu_sang or "",
+                lieu_trua=item.lieu_trua or "",
+                lieu_chieu=item.lieu_chieu or "",
+                lieu_toi=item.lieu_toi or "",
                 cach_dung=item.cach_dung,
                 so_ngay_dung=item.so_ngay_dung,
                 ghi_chu=item.ghi_chu

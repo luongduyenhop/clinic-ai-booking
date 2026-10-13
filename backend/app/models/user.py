@@ -90,6 +90,8 @@ class BenhNhan(BaseModelWithTimestamp):
     nhom_mau = Column(String(10), nullable=True)
     tien_su_benh = Column(Text, nullable=True)
     di_ung_thuoc = Column(Text, nullable=True)
+    nguoi_lien_he = Column(String(100), nullable=True)
+    sdt_nguoi_lien_he = Column(String(20), nullable=True)
     diem_tin_nhiem = Column(Integer, default=100, nullable=False)
     so_lan_no_show = Column(Integer, default=0, nullable=False)
     is_blocked_booking = Column(Boolean, default=False, nullable=False)

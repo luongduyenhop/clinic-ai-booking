@@ -72,6 +72,7 @@ class LuotKham(BaseModelWithTimestamp):
     __tablename__ = "luot_kham"
 
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=False)
+    ma_kcb = Column(String(50), nullable=True, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False)
     thoi_gian_bat_dau = Column(DateTime(timezone=True), nullable=False)
@@ -79,6 +80,11 @@ class LuotKham(BaseModelWithTimestamp):
     ly_do_vao_kham = Column(Text, nullable=True)
     benh_su = Column(Text, nullable=True)
     
+    # Lâm sàng & Tiền sử
+    trieu_chung = Column(Text, nullable=True)
+    chan_doan_so_bo = Column(String(255), nullable=True)
+    tien_su_di_ung = Column(Text, nullable=True)
+
     # Chỉ số sinh hiệu (Vital Signs)
     mach_lan_phut = Column(Integer, nullable=True)
     nhiet_do_c = Column(Numeric(4, 1), nullable=True)
@@ -87,11 +93,14 @@ class LuotKham(BaseModelWithTimestamp):
     nhip_tho_lan_phut = Column(Integer, nullable=True)
     can_nang_kg = Column(Numeric(5, 2), nullable=True)
     chieu_cao_cm = Column(Numeric(5, 2), nullable=True)
+    spo2 = Column(Numeric(4, 1), nullable=True)
+    bmi = Column(Numeric(4, 1), nullable=True)
     
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
     ket_luan_dieu_tri = Column(Text, nullable=True)
     loi_dan_bac_si = Column(Text, nullable=True)
     ngay_hen_tai_kham = Column(Date, nullable=True)
+    loi_dan_tai_kham = Column(Text, nullable=True)
     
     # Khóa hồ sơ bệnh án theo Thông tư 32/2023/TT-BYT (chống sửa hồi tố)
     is_locked = Column(Boolean, default=False, nullable=False)
@@ -143,6 +152,8 @@ class ChiDinh(BaseModelWithTimestamp):
     dich_vu_id = Column(Integer, ForeignKey("dich_vu.id", ondelete="RESTRICT"), nullable=False)
     so_luong = Column(Integer, default=1, nullable=False)
     don_gia_tai_thoi_diem = Column(Numeric(12, 2), default=0.00, nullable=False)
+    giam_gia = Column(Numeric(12, 2), default=0.00, nullable=False)
+    thanh_tien = Column(Numeric(12, 2), default=0.00, nullable=False)
     trang_thai = Column(String(30), default="da_chi_dinh", nullable=False)  # 'da_chi_dinh', 'dang_thuc_hien', 'da_co_ket_qua', 'da_huy'
     bac_si_chi_dinh_id = Column(Integer, ForeignKey("bac_si.id"), nullable=True)
     ket_qua_chi_tiet = Column(Text, nullable=True)
@@ -170,6 +181,7 @@ class DonThuoc(BaseModelWithTimestamp):
     luot_kham_id = Column(Integer, ForeignKey("luot_kham.id", ondelete="CASCADE"), index=True, nullable=False)
     bac_si_ke_don_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
     ngay_ke_don = Column(DateTime(timezone=True), nullable=False)
+    so_ngay_dung = Column(Integer, default=5, nullable=False)
     loi_dan_uong_thuoc = Column(Text, nullable=True)
     ghi_chu_duoc_lam_sang = Column(Text, nullable=True)
 
@@ -216,6 +228,13 @@ class ChiTietDonThuoc(BaseModelWithTimestamp):
     ham_luong = Column(String(50), nullable=True)  # 500mg, 10ml
     don_vi_tinh = Column(String(30), nullable=False)  # Viên, Gói, Chai
     so_luong = Column(Integer, default=1, nullable=False)
+    
+    # Liều dùng 4 cữ chuẩn tClinic (Sáng - Trưa - Chiều - Tối)
+    lieu_sang = Column(String(20), default="", nullable=True)
+    lieu_trua = Column(String(20), default="", nullable=True)
+    lieu_chieu = Column(String(20), default="", nullable=True)
+    lieu_toi = Column(String(20), default="", nullable=True)
+    
     cach_dung = Column(Text, nullable=False)  # Sáng 1 viên, Tối 1 viên sau ăn
     so_ngay_dung = Column(Integer, default=5, nullable=False)
     ghi_chu = Column(Text, nullable=True)

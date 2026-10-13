@@ -3,48 +3,6 @@ from sqlalchemy.orm import relationship
 from app.models.base import BaseModelWithTimestamp
 
 
-class HopDongKhamDoan(BaseModelWithTimestamp):
-    """Bảng quản lý hợp đồng khám sức khỏe đoàn doanh nghiệp B2B"""
-    __tablename__ = "hop_dong_kham_doan"
-
-    ma_hop_dong = Column(String(50), unique=True, nullable=False, index=True)
-    ten_cong_ty = Column(String(255), nullable=False, index=True)
-    ma_so_thue = Column(String(50), nullable=True)
-    nguoi_dai_dien = Column(String(150), nullable=False)
-    so_dien_thoai = Column(String(30), nullable=False)
-    so_luong_nhan_vien = Column(Integer, default=1, nullable=False)
-    ngay_bat_dau = Column(Date, nullable=False)
-    ngay_ket_thuc = Column(Date, nullable=False)
-    gia_tri_hop_dong = Column(Numeric(15, 2), default=0.00, nullable=False)
-    trang_thai = Column(String(30), default="CHO_THUC_HIEN", nullable=False)  # 'CHO_THUC_HIEN', 'DANG_THUC_HIEN', 'HOAN_THANH', 'DA_THANH_LY'
-    ghi_chu = Column(Text, nullable=True)
-
-    # Quan hệ
-    danh_sach_nhan_vien = relationship("NhanVienKhamDoan", back_populates="hop_dong", cascade="all, delete-orphan", lazy="selectin")
-
-
-class NhanVienKhamDoan(BaseModelWithTimestamp):
-    """Bảng danh sách nhân viên thuộc đoàn khám sức khỏe doanh nghiệp"""
-    __tablename__ = "nhan_vien_kham_doan"
-
-    hop_dong_id = Column(Integer, ForeignKey("hop_dong_kham_doan.id", ondelete="CASCADE"), nullable=False, index=True)
-    ma_nhan_vien = Column(String(50), nullable=False)
-    ho_ten = Column(String(150), nullable=False, index=True)
-    ngay_sinh = Column(Date, nullable=True)
-    gioi_tinh = Column(String(10), nullable=True)
-    phong_ban = Column(String(100), nullable=True)
-    so_dien_thoai = Column(String(30), nullable=True)
-    cccd_so = Column(String(20), nullable=True)
-    benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="SET NULL"), nullable=True)
-    phan_loai_suc_khoe = Column(String(20), nullable=True)  # 'LOAI_I' -> 'LOAI_V'
-    trang_thai_kham = Column(String(30), default="CHUA_KHAM", nullable=False)  # 'CHUA_KHAM', 'DANG_KHAM', 'DA_KHAM'
-    ket_luan = Column(Text, nullable=True)
-
-    # Quan hệ
-    hop_dong = relationship("HopDongKhamDoan", back_populates="danh_sach_nhan_vien")
-    benh_nhan = relationship("BenhNhan")
-
-
 class GoiDichVu(BaseModelWithTimestamp):
     """Bảng danh mục các gói khám sức khỏe tổng quát và chuyên sâu"""
     __tablename__ = "goi_dich_vu"

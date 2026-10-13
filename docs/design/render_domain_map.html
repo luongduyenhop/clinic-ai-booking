@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Clinic-AI Domain Map</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap');
+    body {
+      margin: 0;
+      padding: 30px;
+      background: #0f172a;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 {
+      color: #38bdf8;
+      font-size: 24px;
+      margin-bottom: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .diagram-box {
+      background: #0b1120;
+      padding: 30px;
+      border-radius: 16px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <h2>SƠ ĐỒ TỔNG THỂ 9 PHÂN VÙNG DỮ LIỆU CLINIC-AI (42 BẢNG)</h2>
+  <div class="diagram-box">
+    <div class="mermaid">
+flowchart TD
+    IAM["1. Định Danh & Người Dùng<br/>(nguoi_dung, tai_khoan, bac_si, benh_nhan, ho_so_nguoi_than)"]
+    FAC["2. Cơ Cấu Khoa Phòng<br/>(chuyen_khoa, phong_kham)"]
+    SCH["3. Lịch Trực & Hàng Đợi<br/>(lich_lam_viec, lich_kham, danh_sach_cho, hang_doi_kham, lich_dinh_ky, nghi_phep, phan_tich_ai, danh_gia_ai)"]
+    ENC["4. Khám Lâm Sàng & EMR<br/>(luot_kham, chan_doan, luot_kham_the_luc, bien_ban_dinh_chinh, danh_gia_dich_vu)"]
+    ORD["5. Cận Lâm Sàng & Đơn Thuốc<br/>(dich_vu, chi_dinh, don_thuoc, chi_tiet_don_thuoc)"]
+    BIL["6. Viện Phí & Thu Ngân<br/>(hoa_don, chi_tiet_hoa_don, phieu_thu_chi, khoa_so_ca_truc)"]
+    PKG["7. Gói Khám & Liệu Trình<br/>(goi_dich_vu, chi_tiet_goi_dich_vu, dang_ky_goi_kham, lieu_trinh_dieu_tri, buoi_dieu_tri)"]
+    COM["8. Tuân Thủ & Pháp Lý Y Tế<br/>(giay_phep_co_so, lich_su_giay_phep_bac_si, nhat_ky_truy_cap_y_te)"]
+    KNO["9. Tri Thức AI & Nội Dung<br/>(khai_niem, tu_khoa_cap_cuu, thong_bao, mau_bieu, bai_viet)"]
+
+    IAM --> SCH
+    FAC --> SCH
+    FAC --> IAM
+    SCH --> ENC
+    ENC --> ORD
+    ENC --> BIL
+    ORD --> BIL
+    IAM --> PKG
+    ORD --> PKG
+    IAM --> COM
+    KNO --> SCH
+    KNO --> ENC
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0b1120',
+        primaryColor: '#0284c7',
+        primaryTextColor: '#ffffff',
+        primaryBorderColor: '#38bdf8',
+        lineColor: '#38bdf8',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#0f172a'
+      }
+    });
+  </script>
+</body>
+</html>

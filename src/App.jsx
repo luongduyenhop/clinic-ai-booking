@@ -6,6 +6,7 @@ import ApiErrorModal from './components/error/ApiErrorModal'
 import RealtimeNotificationHandler from './components/notification/RealtimeNotificationHandler'
 import UserTemplate from './layouts/UserTemplate'
 import AdminTemplate from './layouts/AdminTemplate'
+import DoctorTemplate from './layouts/DoctorTemplate'
 import ProtectedRoute from './utils/route/ProtectedRoute'
 import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
 
@@ -32,6 +33,7 @@ import TreatmentCoursePage from './pages/admin/TreatmentCoursePage'
 import SettingClinicPage from './pages/admin/SettingClinicPage'
 import DownloadAppPage from './pages/admin/DownloadAppPage'
 import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
+import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
 
 function App() {
     return (
@@ -132,6 +134,11 @@ function App() {
                         {/* Tải ứng dụng Mobile */}
                         <Route path="tai-ung-dung" element={<DownloadAppPage />} />
                     </Route>
+                </Route>
+
+                {/* Doctor Routes (Phân hệ Bác sĩ) */}
+                <Route path="/doctor" element={<DoctorTemplate />}>
+                    <Route index element={<DoctorDashboardPage />} />
                 </Route>
             </Routes>
         </>

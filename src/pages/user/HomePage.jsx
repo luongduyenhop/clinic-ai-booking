@@ -26,17 +26,24 @@ export default function HomePage() {
                         <div className="flex flex-wrap gap-3 pt-2">
                             <Link
                                 to="/admin"
-                                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFB54A] hover:bg-[#FBA342] text-[#003553] font-extrabold text-sm shadow-lg transition"
+                                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#FFB54A] hover:bg-[#FBA342] text-[#003553] font-extrabold text-sm shadow-lg transition"
                             >
                                 <Hospital size={18} weight="bold" />
-                                <span>Truy cập Bảng điều khiển Quản lý Phòng khám</span>
+                                <span>Bảng điều khiển Quản lý (Admin)</span>
                             </Link>
                             <Link
-                                to="/admin/dang-ky-kham"
-                                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-[#003553] hover:bg-[#E8F4FD] font-bold text-sm shadow-md transition"
+                                to="/reception/dashboard"
+                                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#00B5F1] hover:bg-[#009fd4] text-white font-extrabold text-sm shadow-lg transition"
                             >
-                                <ClipboardText size={18} weight="duotone" className="text-[#00B5F1]" />
-                                <span>Mở ngay Quầy Tiếp đón & Đăng ký khám</span>
+                                <span>🏥</span>
+                                <span>Cổng Lễ Tân (Reception Portal)</span>
+                            </Link>
+                            <Link
+                                to="/doctor"
+                                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white text-[#003553] hover:bg-[#E8F4FD] font-bold text-sm shadow-md transition"
+                            >
+                                <span>👨‍⚕️</span>
+                                <span>Cổng Bác sĩ (Doctor Portal)</span>
                             </Link>
                         </div>
                     </div>

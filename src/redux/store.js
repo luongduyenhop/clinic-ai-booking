@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice'
 import uiReducer from './slices/uiSlice'
 import userReducer from './slices/user/userSlice'
 import adminReducer from './slices/admin/adminSlice'
+import receptionReducer from './slices/reception/receptionSlice'
 
 const appReducer = combineReducers({
     auth: authReducer,
@@ -23,5 +24,6 @@ export const store = configureStore({
         app: appReducer,
         user: userAppReducer,
         admin: adminAppReducer,
+        reception: receptionReducer,
     },
 })

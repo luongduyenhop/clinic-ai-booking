@@ -15,7 +15,7 @@ function isPublicAuthPath(url) {
     return (
         u.includes('auth/login') ||
         u.includes('auth/register') ||
-        u.includes('auth/refresh-token')
+        u.includes('auth/refresh')
     )
 }
 
@@ -149,18 +149,18 @@ http.interceptors.response.use(
 
         try {
             const { data: body } = await axios.post(
-                `${DOMAIN}/api/auth/refresh-token`,
-                { accessToken, refreshToken },
+                `${DOMAIN}/api/v1/auth/refresh`,
+                { accessToken, refreshToken, refresh_token: refreshToken },
                 { headers: { 'Content-Type': 'application/json' } }
             )
 
             const payload = body?.data ?? body
-            const newAccess = payload?.token ?? payload?.accessToken
+            const newAccess = payload?.token ?? payload?.accessToken ?? payload?.access_token
             if (body?.success === false || !newAccess) {
                 throw new Error(body?.message || 'Làm mới phiên đăng nhập thất bại')
             }
 
-            const newRefresh = payload?.refreshToken ?? refreshToken
+            const newRefresh = payload?.refreshToken ?? payload?.refresh_token ?? refreshToken
             const newRole = resolveRoleFromAuth(payload, newAccess)
 
             dispatchHydrateTokens({

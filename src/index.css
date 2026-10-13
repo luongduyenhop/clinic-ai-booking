@@ -1,20 +1,335 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: "Montserrat", "Roboto", sans-serif;
+
+  /* Medpro Design System Tokens (medpro.vn-DESIGN.md) */
+  --color-medpro-cyan: #00B5F1;
+  --color-medpro-cyan-hover: #009FD4;
+  --color-medpro-navy: #003553;
+  --color-medpro-navy-dark: #00263D;
+  --color-medpro-surface-alt: #E8F4FD;
+  --color-medpro-amber: #FFB54A;
+  --color-medpro-orange: #FBA342;
+  --color-medpro-label: #12263F;
+  --color-medpro-border: #D9D9D9;
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased selection:bg-sky-200 selection:text-sky-900;
+    @apply bg-[#F4F8FB] text-[#0F172A] antialiased selection:bg-[#E8F4FD] selection:text-[#003553];
     font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  h1, h2, .font-display {
+    font-family: var(--font-display);
+  }
+
+  /* Custom subtle scrollbars for clinical tables & sidebars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #F1F5F9;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00B5F1;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: #00B5F1;
+    cursor: pointer;
   }
 }
 
 @layer components {
+  /* Medpro Elevated Card (medpro.vn-DESIGN.md Section 4) */
+  .medpro-card {
+    background-color: #FFFFFF;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px -2px rgba(0, 53, 83, 0.06), 0 2px 6px -1px rgba(0, 181, 241, 0.04);
+    border: 1px solid #E2EDF5;
+  }
+
+  /* Medpro Pill CTA Button */
+  .medpro-btn-primary {
+    background-color: #00B5F1;
+    color: #FFFFFF;
+    border-radius: 9999px;
+    padding: 6px 15px;
+    font-family: "Roboto", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    box-shadow: 0 3px 10px rgba(0, 181, 241, 0.24);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .medpro-btn-primary:hover {
+    background-color: #009ED4;
+    box-shadow: 0 5px 14px rgba(0, 181, 241, 0.32);
+    transform: translateY(-1px);
+  }
+  .medpro-btn-primary:active {
+    transform: translateY(0);
+  }
+  .medpro-btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Medpro Warm Accent CTA Button */
+  .medpro-btn-amber {
+    background-color: #FFB54A;
+    color: #003553;
+    border-radius: 9999px;
+    padding: 6px 15px;
+    font-family: "Roboto", sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(255, 181, 74, 0.25);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .medpro-btn-amber:hover {
+    background-color: #FBA342;
+    transform: translateY(-1px);
+  }
+  .medpro-btn-amber:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Medpro Danger Action Button */
+  .medpro-btn-danger {
+    background-color: #FFF1F2;
+    color: #E11D48;
+    border: 1px solid #FECDD3;
+    border-radius: 9999px;
+    padding: 6px 14px;
+    font-family: "Roboto", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: all 0.18s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .medpro-btn-danger:hover {
+    background-color: #E11D48;
+    border-color: #E11D48;
+    color: #FFFFFF;
+  }
+
+  /* Medpro Secondary Outline Button */
+  .medpro-btn-outline {
+    background-color: #FFFFFF;
+    color: #003553;
+    border: 1px solid #CBD5E1;
+    border-radius: 9999px;
+    padding: 6px 14px;
+    font-family: "Roboto", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: all 0.18s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .medpro-btn-outline:hover {
+    border-color: #00B5F1;
+    color: #00B5F1;
+    background-color: #E8F4FD;
+  }
+  .medpro-btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Medpro Compact Clinical Input (medpro.vn-DESIGN.md Section 4 - Input Fields) */
+  .medpro-input {
+    width: 100%;
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    color: #0F172A;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+  .medpro-input::placeholder {
+    color: #94A3B8;
+  }
+  .medpro-input:hover:not(:disabled) {
+    border-color: #00B5F1;
+  }
+  .medpro-input:focus {
+    border-color: #00B5F1;
+    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.14);
+  }
+  .medpro-input:disabled,
+  .medpro-input[readonly] {
+    background-color: #F1F5F9;
+    color: #475569;
+    border-color: #E2E8F0;
+  }
+
+  .medpro-label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #12263F;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+  }
+
+  .medpro-section-title {
+    font-family: "Montserrat", "Roboto", sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #003553;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    border-bottom: 1.5px solid #E8F4FD;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Medpro Enterprise Clinical Data Table (UI/UX Pro Max) */
+  .medpro-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    text-align: left;
+  }
+  .medpro-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #F0F7FC;
+    color: #003553;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px 10px;
+    border-bottom: 1.5px solid #CBE9FA;
+    white-space: nowrap;
+  }
+  .medpro-table tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #F1F5F9;
+    color: #1E293B;
+    vertical-align: middle;
+  }
+  .medpro-table tbody tr {
+    transition: background-color 0.12s ease;
+  }
+  .medpro-table tbody tr:hover {
+    background-color: #F8FCFF;
+  }
+
+  /* Semantic Status Badges (Medpro + WCAG) */
+  .medpro-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .medpro-badge-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #E8F4FD;
+    color: #003553;
+    border: 1px solid #B8E5FA;
+  }
+  .medpro-badge-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+  }
+  .medpro-badge-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #FFFBEB;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+  }
+  .medpro-badge-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: #FEF2F2;
+    color: #BE123C;
+    border: 1px solid #FECDD3;
+  }
+
   /* Reusable Status Badge Component */
   .status-badge {
-    @apply inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs;
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold;
   }
   .status-dot {
     @apply w-1.5 h-1.5 rounded-full;
@@ -22,21 +337,21 @@
 
   /* Admin Action Buttons */
   .admin-action-btn {
-    @apply inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-xl border whitespace-nowrap text-xs font-bold shadow-2xs transition-all cursor-pointer;
+    @apply inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-full border whitespace-nowrap text-xs font-bold transition-all cursor-pointer;
   }
   .admin-action-btn-edit {
-    @apply border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-amber-600 hover:border-amber-300;
+    @apply border-[#FFB54A] bg-[#FFF8EB] text-[#D97706] hover:bg-[#FFB54A] hover:text-white;
   }
   .admin-action-btn-delete {
-    @apply border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300;
+    @apply border-red-200 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white;
   }
 
-  /* Form Inputs */
+  /* Form Inputs (legacy compatibility) */
   .custom-admin-input {
-    @apply w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-200;
+    @apply w-full rounded-[6px] border border-[#CBD5E1] bg-white px-3 py-2 text-[13px] font-normal text-black outline-none transition hover:border-[#00A5EC] focus:border-[#11A2F3] focus:ring-2 focus:ring-[#00B5F1]/20;
   }
   .custom-admin-input-error {
-    @apply border-red-300 focus:border-red-500 focus:ring-red-200;
+    @apply border-red-400 focus:border-red-500 focus:ring-red-200;
   }
 }
 

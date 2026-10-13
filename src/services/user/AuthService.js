@@ -1,13 +1,13 @@
 import { BaseServices } from '../BaseService'
 
 export class AuthService extends BaseServices {
-    login = (body) => this.post('/api/Auth/login', body)
+    login = (body) => this.post('/api/v1/auth/login', body)
 
-    register = (body) => this.post('/api/Auth/register', body)
+    register = (body) => this.post('/api/v1/auth/register', body)
 
-    refreshTokens = (body) => this.post('/api/Auth/refresh-token', body)
+    refreshTokens = (body) => this.post('/api/v1/auth/refresh', body)
 
-    getCurrentUser = () => this.get('/api/Auth/me')
+    getCurrentUser = () => this.get('/api/v1/auth/me')
 }
 
 export const authService = new AuthService()

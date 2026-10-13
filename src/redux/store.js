@@ -8,6 +8,7 @@ import receptionReducer from './slices/reception/receptionSlice'
 const appReducer = combineReducers({
     auth: authReducer,
     ui: uiReducer,
+    admin: adminReducer,
 })
 
 const userAppReducer = combineReducers({

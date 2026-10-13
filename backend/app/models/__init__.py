@@ -2,20 +2,26 @@ from app.models.base import BaseModelWithTimestamp
 from app.models.user import (
     VaiTroEnum,
     ChuyenKhoa,
+    PhongKham,
     NguoiDung,
     TaiKhoan,
     BenhNhan,
-    BacSi
+    BacSi,
+    HoSoNguoiThan,
 )
 from app.models.appointment import (
     CaLamViecEnum,
     TrangThaiLichEnum,
     TrangThaiWaitlistEnum,
+    LoaiNghiPhepEnum,
+    TrangThaiNghiPhepEnum,
     LichLamViec,
     LichKham,
     DanhSachCho,
     PhanTichAI,
-    DanhGiaAI
+    DanhGiaAI,
+    LichDinhKyBacSi,
+    NghiPhepBacSi
 )
 from app.models.medical import (
     KhaiNiem,
@@ -28,17 +34,49 @@ from app.models.medical import (
     ChiTietDonThuoc,
     BienBanDinhChinh,
     AmendmentStatus,
-    AmendmentEntityType
+    AmendmentEntityType,
+    HoaDon,
+    ChiTietHoaDon,
+    PhieuThuChi,
+    LuotKhamTheLuc,
+    KhoaSoCaTruc,
+    DanhGiaDichVu,
 )
+from app.models.compliance import (
+    TrangThaiGiayPhep,
+    GiayPhepCoSo,
+    LichSuGiayPhepBacSi,
+    HealthDataAccessAction,
+    HealthDataResourceType,
+    NhatKyTruyCapDuLieuYTe,
+)
+from app.models.specialized import (
+    HopDongKhamDoan,
+    NhanVienKhamDoan,
+    GoiDichVu,
+    ChiTietGoiDichVu,
+    DangKyGoiKham,
+    LieuTrinhDieuTri,
+    BuoiDieuTri
+)
+from app.models.content import (
+    MauBieuYTe,
+    CauHoiYKhoa,
+    BaiVietTinTuc,
+    ThongBao,
+)
+from app.models.bff_store import HeThongTrangThaiBff
 
 __all__ = [
     "BaseModelWithTimestamp",
     "VaiTroEnum",
     "ChuyenKhoa",
+    "PhongKham",
     "NguoiDung",
     "TaiKhoan",
     "BenhNhan",
     "BacSi",
+    "HoSoNguoiThan",
     "CaLamViecEnum",
     "TrangThaiLichEnum",
     "TrangThaiWaitlistEnum",
@@ -57,6 +95,34 @@ __all__ = [
     "ChiTietDonThuoc",
     "BienBanDinhChinh",
     "AmendmentStatus",
-    "AmendmentEntityType"
+    "AmendmentEntityType",
+    "LoaiNghiPhepEnum",
+    "TrangThaiNghiPhepEnum",
+    "LichDinhKyBacSi",
+    "NghiPhepBacSi",
+    "TrangThaiGiayPhep",
+    "GiayPhepCoSo",
+    "LichSuGiayPhepBacSi",
+    "HealthDataAccessAction",
+    "HealthDataResourceType",
+    "NhatKyTruyCapDuLieuYTe",
+    "HoaDon",
+    "ChiTietHoaDon",
+    "PhieuThuChi",
+    "LuotKhamTheLuc",
+    "KhoaSoCaTruc",
+    "DanhGiaDichVu",
+    "HopDongKhamDoan",
+    "NhanVienKhamDoan",
+    "GoiDichVu",
+    "ChiTietGoiDichVu",
+    "DangKyGoiKham",
+    "LieuTrinhDieuTri",
+    "BuoiDieuTri",
+    "MauBieuYTe",
+    "CauHoiYKhoa",
+    "BaiVietTinTuc",
+    "ThongBao",
+    "HeThongTrangThaiBff",
 ]
 

@@ -1,6 +1,6 @@
 from enum import Enum
-from sqlalchemy import Column, String, Date, Boolean, Integer, ForeignKey, Text, Numeric, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Date, Boolean, Integer, ForeignKey, Text, Numeric, DateTime, JSON
+from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
 
@@ -21,8 +21,26 @@ class ChuyenKhoa(BaseModelWithTimestamp):
     vi_tri_phong = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # Quan hệ 1 - N với Bác Sĩ
+    # Quan hệ 1 - N với Bác Sĩ & Buồng Khám
     danh_sach_bac_si = relationship("BacSi", back_populates="chuyen_khoa")
+    danh_sach_phong_kham = relationship("PhongKham", back_populates="chuyen_khoa")
+
+
+class PhongKham(BaseModelWithTimestamp):
+    """Bảng buồng khám vật lý và phòng kỹ thuật cận lâm sàng (OpenMRS / FHIR Location)"""
+    __tablename__ = "phong_kham"
+
+    ma_phong = Column(String(50), unique=True, nullable=False, index=True)
+    ten_phong = Column(String(100), nullable=False)
+    chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="SET NULL"), nullable=True, index=True)
+    tang = Column(String(20), default="Tầng 1", nullable=False)
+    loai_phong = Column(String(30), default="kham_benh", nullable=False)  # 'kham_benh', 'xet_nghiem', 'chan_doan_hinh_anh', 'thu_thuat'
+    thiet_bi_chinh = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Quan hệ
+    chuyen_khoa = relationship("ChuyenKhoa", back_populates="danh_sach_phong_kham")
+    danh_sach_lich_lam_viec = relationship("LichLamViec", back_populates="phong_kham")
 
 
 class NguoiDung(BaseModelWithTimestamp):
@@ -80,6 +98,7 @@ class BenhNhan(BaseModelWithTimestamp):
     nguoi_dung = relationship("NguoiDung", back_populates="benh_nhan")
     danh_sach_lich_kham = relationship("LichKham", back_populates="benh_nhan")
     danh_sach_cho = relationship("DanhSachCho", back_populates="benh_nhan")
+    danh_sach_nguoi_than = relationship("HoSoNguoiThan", back_populates="benh_nhan_chinh", cascade="all, delete-orphan")
 
 
 class BacSi(BaseModelWithTimestamp):
@@ -90,13 +109,51 @@ class BacSi(BaseModelWithTimestamp):
     chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="SET NULL"), nullable=True)
     hoc_vi = Column(String(50), nullable=False)  # ThS.BS, BSCKI, PGS.TS
     chung_chi_hanh_nghe = Column(String(100), unique=True, nullable=False)
+    so_cchn = synonym("chung_chi_hanh_nghe")
     nam_kinh_nghiem = Column(Integer, default=0, nullable=False)
     mo_ta_chuyen_sau = Column(Text, nullable=True)
     gia_kham_mac_dinh = Column(Numeric(12, 2), default=200000.00, nullable=False)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # Vòng đời giấy phép hành nghề (Credentialing & License Lifecycle - INT-05)
+    ngay_cap = Column(DateTime(timezone=True), nullable=True)
+    ngay_het_han = Column(DateTime(timezone=True), nullable=True, index=True)
+    pham_vi_chuyen_mon = Column(JSON, default=list, nullable=True)
+    trang_thai_giay_phep = Column(String(50), default="ACTIVE", nullable=False, index=True)
+    tep_dinh_kem_url = Column(String(500), nullable=True)
+
+    def __init__(self, **kwargs):
+        if "trang_thai_giay_phep" not in kwargs:
+            kwargs["trang_thai_giay_phep"] = "ACTIVE"
+        if "pham_vi_chuyen_mon" not in kwargs:
+            kwargs["pham_vi_chuyen_mon"] = []
+        super().__init__(**kwargs)
 
     # Quan hệ
     nguoi_dung = relationship("NguoiDung", back_populates="bac_si")
     chuyen_khoa = relationship("ChuyenKhoa", back_populates="danh_sach_bac_si")
+    phong_kham = relationship("PhongKham", foreign_keys=[phong_kham_id], lazy="joined")
     danh_sach_lich_lam_viec = relationship("LichLamViec", back_populates="bac_si")
     danh_sach_lich_kham = relationship("LichKham", back_populates="bac_si")
+
+
+class HoSoNguoiThan(BaseModelWithTimestamp):
+    """Bảng hồ sơ sức khỏe thành viên gia đình (Con cái, Bố mẹ, Vợ chồng) liên kết với tài khoản Bệnh nhân"""
+    __tablename__ = "ho_so_nguoi_than"
+
+    benh_nhan_chinh_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
+    ho_ten = Column(String(150), nullable=False, index=True)
+    quan_he = Column(String(50), default="CON", nullable=False)  # 'CON', 'VO_CHONG', 'CHA_ME', 'NGUOI_THAN'
+    ngay_sinh = Column(Date, nullable=False)
+    gioi_tinh = Column(String(10), default="Nam", nullable=False)
+    so_dien_thoai = Column(String(20), nullable=True)
+    cccd_so = Column(String(20), nullable=True)
+    tien_su_benh = Column(Text, nullable=True)
+    di_ung_thuoc = Column(Text, nullable=True)
+    nhom_mau = Column(String(10), nullable=True)
+    ghi_chu = Column(Text, nullable=True)
+
+    # Quan hệ
+    benh_nhan_chinh = relationship("BenhNhan", back_populates="danh_sach_nguoi_than")
+

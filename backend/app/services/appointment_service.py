@@ -241,6 +241,10 @@ class AppointmentService:
         # 2. Bác sĩ phải tồn tại và còn hoạt động (404 thay vì lỗi khóa ngoại 500)
         bac_si, bs_info, specialty_name = await self._get_active_doctor(payload.bac_si_id, db)
 
+        # 2b. Kiểm tra giấy phép hành nghề bác sĩ (INT-05 Credential Guard: chặn EXPIRED/SUSPENDED)
+        from app.services.credential_service import credential_service
+        await credential_service.check_doctor_license_valid(db, payload.bac_si_id)
+
         # 3. Không cho phép đặt ngày trong quá khứ (so theo giờ phòng khám)
         slot_minutes = settings.SLOT_DURATION_MINUTES
         booking_dt = datetime.combine(payload.ngay_kham, payload.gio_kham)
@@ -1010,10 +1014,14 @@ class AppointmentService:
 
         # 3. Kiểm tra thời hạn 30 phút giữ slot
         now = datetime.now(timezone.utc)
-        if entry.thoi_gian_het_han_giu_slot and now > entry.thoi_gian_het_han_giu_slot:
-            entry.trang_thai = TrangThaiWaitlistEnum.DA_BO_QUA.value
-            await db.commit()
-            raise ConflictException("Rất tiếc! Đã quá thời hạn 30 phút giữ chỗ. Khung giờ này đã được chuyển cho người tiếp theo.")
+        expire_time = entry.thoi_gian_het_han_giu_slot
+        if expire_time:
+            if expire_time.tzinfo is None:
+                expire_time = expire_time.replace(tzinfo=timezone.utc)
+            if now > expire_time:
+                entry.trang_thai = TrangThaiWaitlistEnum.DA_BO_QUA.value
+                await db.commit()
+                raise ConflictException("Rất tiếc! Đã quá thời hạn 30 phút giữ chỗ. Khung giờ này đã được chuyển cho người tiếp theo.")
 
         # 4. Lấy thông tin slot cũ đã bị hủy
         stmt_slot = select(LichKham).where(LichKham.id == entry.slot_duoc_cap_id).with_for_update()

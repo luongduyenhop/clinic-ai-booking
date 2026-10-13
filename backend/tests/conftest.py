@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import create_access_token
@@ -26,27 +26,28 @@ def _new_engine():
 
 
 async def _connect_or_skip(engine):
-    """Máy local chưa bật PostgreSQL thì bỏ qua (skip); trên CI bắt buộc phải kết nối được."""
-    global _skip_integration_reason
-    if _skip_integration_reason:
-        pytest.skip(_skip_integration_reason)
+    """Thử kết nối PostgreSQL; nếu máy local chưa bật PostgreSQL thì fallback sang SQLite in-memory để chạy test."""
     try:
-        return await engine.connect()
-    except Exception as exc:
-        await engine.dispose()
+        conn = await engine.connect()
+        return conn, engine
+    except Exception:
         if os.getenv("CI"):
             raise
-        _skip_integration_reason = f"Không kết nối được PostgreSQL, bỏ qua test tích hợp: {exc}"
-        pytest.skip(_skip_integration_reason)
+        sqlite_engine = create_async_engine(
+            "sqlite+aiosqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool
+        )
+        conn = await sqlite_engine.connect()
+        return conn, sqlite_engine
 
 
-# Các fixture async ghim loop_scope="function" để chạy chung event loop với test: kết nối asyncpg không dùng
-# chéo được giữa 2 loop (pytest.ini đặt asyncio_default_fixture_loop_scope = session cho fixture mặc định)
+# Các fixture async ghim loop_scope="function" để chạy chung event loop với test
 @pytest_asyncio.fixture(loop_scope="function")
 async def db_session():
     """Phiên CSDL bọc trong 1 transaction được rollback khi kết thúc nên không để lại dữ liệu test."""
     engine = _new_engine()
-    conn = await _connect_or_skip(engine)
+    conn, actual_engine = await _connect_or_skip(engine)
 
     transaction = await conn.begin()
     await conn.run_sync(Base.metadata.create_all)
@@ -58,7 +59,9 @@ async def db_session():
         await session.close()
         await transaction.rollback()
         await conn.close()
-        await engine.dispose()
+        await actual_engine.dispose()
+        if actual_engine != engine:
+            await engine.dispose()
 
 
 @pytest_asyncio.fixture(loop_scope="function")
@@ -147,12 +150,18 @@ async def committed_booking():
     """Dữ liệu mẫu giống fixture booking nhưng đã commit; data.session_factory mở phiên mới trên kết nối riêng.
     Tự xóa toàn bộ dữ liệu của test khi kết thúc (lọc theo hậu tố email riêng của lần chạy)."""
     engine = _new_engine()
-    conn = await _connect_or_skip(engine)
+    conn, actual_engine = await _connect_or_skip(engine)
+    if actual_engine.dialect.name == "sqlite":
+        await conn.close()
+        await actual_engine.dispose()
+        if actual_engine != engine:
+            await engine.dispose()
+        pytest.skip("Test khóa dòng PostgreSQL yêu cầu CSDL PostgreSQL thật, bỏ qua khi PostgreSQL offline.")
     await conn.run_sync(Base.metadata.create_all)
     await conn.commit()
     await conn.close()
 
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    session_factory = async_sessionmaker(actual_engine, expire_on_commit=False)
     async with session_factory() as session:
         data = await _seed_booking(session)
         await session.commit()
@@ -161,7 +170,7 @@ async def committed_booking():
     try:
         yield data
     finally:
-        async with engine.begin() as cleanup:
+        async with actual_engine.begin() as cleanup:
             bac_si_ids = [data.bs_x.id, data.bs_y.id]
             benh_nhan_ids = [data.bn_a.id, data.bn_b.id]
             # lich_kham tham chiếu RESTRICT nên xóa trước; ca làm việc/hồ sơ/tài khoản xóa theo CASCADE của nguoi_dung
@@ -169,7 +178,9 @@ async def committed_booking():
                 or_(LichKham.bac_si_id.in_(bac_si_ids), LichKham.benh_nhan_id.in_(benh_nhan_ids))
             ))
             await cleanup.execute(delete(NguoiDung).where(NguoiDung.email.like(f"%.{data.suffix}@test.local")))
-        await engine.dispose()
+        await actual_engine.dispose()
+        if actual_engine != engine:
+            await engine.dispose()
 
 
 @pytest_asyncio.fixture(loop_scope="function")

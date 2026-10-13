@@ -88,6 +88,26 @@ async def seed_database():
         )
         session.add(tk_admin)
 
+        # 6a2. Seed Tài khoản Admin mặc định của Frontend (admin@clinic-ai.vn / password123)
+        nd_fe_admin = NguoiDung(
+            ho_ten="BS.CKII Nguyễn Minh Hoàng (Admin)",
+            email="admin@clinic-ai.vn",
+            so_dien_thoai="0988999001",
+            ngay_sinh=date(1985, 6, 15),
+            gioi_tinh="Nam"
+        )
+        session.add(nd_fe_admin)
+        await session.flush()
+
+        tk_fe_admin = TaiKhoan(
+            nguoi_dung_id=nd_fe_admin.id,
+            email="admin@clinic-ai.vn",
+            mat_khau_hash=hash_password("password123"),
+            vai_tro=VaiTroEnum.ADMIN.value,
+            is_active=True
+        )
+        session.add(tk_fe_admin)
+
         # 6b. Seed Tài khoản Tiếp đón / Điều dưỡng (Receptionist)
         nd_letan = NguoiDung(
             ho_ten="Điều Dưỡng Lê Tân",

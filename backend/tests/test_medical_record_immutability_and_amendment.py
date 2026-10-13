@@ -157,20 +157,36 @@ async def test_amendment_request_lifecycle_and_four_eyes_principle(api_client, b
     amend_id = amend_data["id"]
     assert amend_data["trang_thai"] == "CHO_PHE_DUYET"
     assert amend_data["requested_by_id"] == booking.bs_x.nguoi_dung_id
+    # Kiểm tra snapshot dữ liệu cũ và phân loại rủi ro lâm sàng tự động (Gói 2)
+    assert amend_data["muc_do_nghiem_trong"] == "CAO"
+    assert amend_data["noi_dung_cu_json"] is not None
+    assert amend_data["noi_dung_cu_json"]["ma_icd10"] == "K29.7"
 
     # 3. Four-Eyes Principle: Chính bác sĩ tạo yêu cầu tự bấm Duyệt -> 409 Conflict
     res_self_approve = await api_client.post(
         f"/api/v1/clinical/amendments/{amend_id}/approve",
-        json={"ghi_chu": "Tôi tự duyệt cho mình"},
+        json={"ghi_chu": "Tôi tự duyệt cho mình", "ma_kiem_thao": "BBKT-2026/01"},
         headers=token_bs
     )
     assert res_self_approve.status_code == 409
     assert "Four-Eyes Principle" in res_self_approve.json()["message"]
 
-    # 4. Người thứ hai (Admin / Trưởng khoa) phê duyệt -> 200 Thành công
+    # 3b. Mức độ CAO: Thử duyệt nhưng thiếu Biên bản kiểm thảo y khoa -> 422 Unprocessable Entity
+    res_missing_audit = await api_client.post(
+        f"/api/v1/clinical/amendments/{amend_id}/approve",
+        json={"ghi_chu": "Duyệt nhanh không biên bản"},
+        headers=token_admin
+    )
+    assert res_missing_audit.status_code == 422
+    assert "kiểm thảo" in res_missing_audit.json()["message"].lower()
+
+    # 4. Người thứ hai (Admin / Trưởng khoa) phê duyệt có Biên bản kiểm thảo -> 200 Thành công
     res_approved = await api_client.post(
         f"/api/v1/clinical/amendments/{amend_id}/approve",
-        json={"ghi_chu": "Đồng ý bổ sung chẩn đoán phụ theo đề xuất bác sĩ"},
+        json={
+            "ghi_chu": "Đồng ý bổ sung chẩn đoán phụ theo đề xuất bác sĩ",
+            "ma_kiem_thao": "BBKT-2026/01-CM"
+        },
         headers=token_admin
     )
     assert res_approved.status_code == 200
@@ -179,6 +195,7 @@ async def test_amendment_request_lifecycle_and_four_eyes_principle(api_client, b
     assert approved_data["approved_by_id"] is not None
     assert approved_data["approved_by_id"] != booking.bs_x.nguoi_dung_id
     assert approved_data["approved_at"] is not None
+    assert approved_data["ma_kiem_thao"] == "BBKT-2026/01-CM"
 
     # 5. Tra cứu danh sách đính chính của ca khám
     res_list = await api_client.get(
@@ -190,6 +207,17 @@ async def test_amendment_request_lifecycle_and_four_eyes_principle(api_client, b
     assert len(items) == 1
     assert items[0]["id"] == amend_id
     assert items[0]["trang_thai"] == "DA_PHE_DUYET"
+    assert items[0]["noi_dung_cu_json"]["ma_icd10"] == "K29.7"
+    assert items[0]["ma_kiem_thao"] == "BBKT-2026/01-CM"
+
+    # 6. Admin tra cứu toàn bộ biên bản toàn viện qua Admin Portal API
+    res_admin_list = await api_client.get(
+        "/api/v1/admin/amendments?trang_thai=DA_PHE_DUYET",
+        headers=token_admin
+    )
+    assert res_admin_list.status_code == 200
+    admin_items = res_admin_list.json()["data"]
+    assert any(it["id"] == amend_id for it in admin_items)
 
 
 @pytest.mark.asyncio

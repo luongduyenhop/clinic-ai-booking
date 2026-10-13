@@ -63,6 +63,20 @@ class TrangThaiHangDoiEnum(str, Enum):
     BO_KHAM = "bo_kham"              # Bỏ về không khám
 
 
+class LoaiNghiPhepEnum(str, Enum):
+    """Phân loại hình thức nghỉ của Bác sĩ chuẩn OpenMRS/Bahmni Absence"""
+    NGHI_PHEP = "NGHI_PHEP"          # Nghỉ phép năm / Kế hoạch báo trước
+    NGHI_DOT_XUAT = "NGHI_DOT_XUAT"  # Nghỉ đột xuất trong ngày (cần chuyển tuyến/hoãn)
+
+
+class TrangThaiNghiPhepEnum(str, Enum):
+    """Trạng thái duyệt đơn nghỉ phép của bác sĩ"""
+    CHO_DUYET = "CHO_DUYET"
+    DA_DUYET = "DA_DUYET"
+    TU_CHOI = "TU_CHOI"
+    DA_XU_LY = "DA_XU_LY"
+
+
 class LichLamViec(BaseModelWithTimestamp):
     """Bảng cấu hình ca làm việc định kỳ của Bác sĩ (OpenMRS Appointment Block)"""
     __tablename__ = "lich_lam_viec"
@@ -73,15 +87,25 @@ class LichLamViec(BaseModelWithTimestamp):
     gio_bat_dau = Column(Time, nullable=False)
     gio_ket_thuc = Column(Time, nullable=False)
     gioi_han_ca_kham = Column(Integer, default=8, nullable=False)  # Tối đa 8 bệnh nhân/ca
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
+    han_muc_dat_truoc = Column(Integer, default=6, nullable=False)  # Mặc định ~75% dành cho đặt hẹn online
+    han_muc_vang_lai = Column(Integer, default=2, nullable=False)   # Mặc định ~25% dành cho tiếp đón vãng lai/khẩn
     is_active = Column(Boolean, default=True, nullable=False)      # False nếu nghỉ đột xuất
     ghi_chu_nghi = Column(Text, nullable=True)
 
     # Quan hệ
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_lam_viec")
+    phong_kham = relationship("PhongKham", back_populates="danh_sach_lich_lam_viec")
 
-    # Khớp database/schema_postgresql.sql: mỗi bác sĩ chỉ có 1 ca sáng và 1 ca chiều mỗi ngày
+    # Khớp database: mỗi bác sĩ chỉ có 1 ca sáng và 1 ca chiều mỗi ngày; buồng khám không được trùng ca
     __table_args__ = (
         UniqueConstraint("bac_si_id", "ngay_lam_viec", "ca_lam_viec", name="uq_doctor_shift"),
+        Index(
+            "uq_room_shift",
+            "phong_kham_id", "ngay_lam_viec", "ca_lam_viec",
+            unique=True,
+            postgresql_where=text("phong_kham_id IS NOT NULL AND is_active = true")
+        ),
     )
 
 
@@ -126,11 +150,13 @@ class LichKham(BaseModelWithTimestamp):
         # trùng giờ của cùng 1 bác sĩ hoặc cùng 1 bệnh nhân
         Index(
             "uq_active_doctor_slot", "bac_si_id", "ngay_kham", "gio_kham",
-            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION
+            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION,
+            sqlite_where=_ACTIVE_BOOKING_CONDITION
         ),
         Index(
             "uq_active_patient_slot", "benh_nhan_id", "ngay_kham", "gio_kham",
-            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION
+            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION,
+            sqlite_where=_ACTIVE_BOOKING_CONDITION
         ),
     )
 
@@ -224,3 +250,47 @@ class HangDoiKham(BaseModelWithTimestamp):
     __table_args__ = (
         Index("idx_queue_doctor_date_status", "bac_si_id", "ngay_kham", "trang_thai", "muc_do_uu_tien"),
     )
+
+
+class LichDinhKyBacSi(BaseModelWithTimestamp):
+    """Khuôn mẫu phân ca trực định kỳ theo tuần của Bác sĩ (Bahmni Provider Weekly Roster Template)"""
+    __tablename__ = "lich_dinh_ky_bac_si"
+
+    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    thu_trong_tuan = Column(Integer, nullable=False, index=True)  # 2: Thứ 2, 3: Thứ 3, ..., 7: Thứ 7, 8: Chủ Nhật
+    ca_lam_viec = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
+    gio_bat_dau = Column(Time, nullable=False)
+    gio_ket_thuc = Column(Time, nullable=False)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
+    thoi_luong_slot_phut = Column(Integer, default=20, nullable=False)
+    gioi_han_ca_kham = Column(Integer, default=12, nullable=False)
+    han_muc_dat_truoc = Column(Integer, default=10, nullable=False)
+    han_muc_vang_lai = Column(Integer, default=2, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
+
+    __table_args__ = (
+        UniqueConstraint("bac_si_id", "thu_trong_tuan", "ca_lam_viec", name="uq_doctor_roster_shift"),
+    )
+
+
+class NghiPhepBacSi(BaseModelWithTimestamp):
+    """Quản lý ngày nghỉ phép và lịch nghỉ đột xuất của Bác sĩ (OpenMRS / Bahmni Absence Management)"""
+    __tablename__ = "nghi_phep_bac_si"
+
+    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    loai_nghi = Column(String(30), default=LoaiNghiPhepEnum.NGHI_PHEP.value, nullable=False)
+    tu_ngay = Column(Date, nullable=False, index=True)
+    den_ngay = Column(Date, nullable=False, index=True)
+    ca_lam_viec = Column(String(20), nullable=True)  # None = Cả ngày, hoặc 'sang', 'chieu'
+    ly_do = Column(Text, nullable=False)
+    trang_thai = Column(String(30), default=TrangThaiNghiPhepEnum.CHO_DUYET.value, nullable=False)
+    nguoi_duyet_id = Column(Integer, ForeignKey("tai_khoan.id", ondelete="SET NULL"), nullable=True)
+    ghi_chu_duyet = Column(Text, nullable=True)
+    so_ca_anh_huong = Column(Integer, default=0, nullable=False)
+    so_lich_anh_huong = Column(Integer, default=0, nullable=False)
+
+    bac_si = relationship("BacSi")
+    nguoi_duyet = relationship("TaiKhoan")

@@ -22,14 +22,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 2. Import Base và TẤT CẢ Models để Alembic "nhìn thấy" các bảng
-#    (nếu không import model, Alembic sẽ không phát hiện bảng mới khi autogenerate)
-# ──────────────────────────────────────────────────────────────────────────────
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from app.core.database import Base          # noqa: E402
-import app.models.user                      # noqa: E402, F401 - NguoiDung, TaiKhoan, BenhNhan, BacSi
-import app.models.appointment               # noqa: E402, F401 - LichLamViec, LichKham
-import app.models.medical                   # noqa: E402, F401 - TuKhoaCapCuu, DichVu, LuotKham...
+import app.models                           # noqa: E402, F401 - Import all registered models
 
 target_metadata = Base.metadata
 
@@ -38,9 +36,8 @@ target_metadata = Base.metadata
 # ──────────────────────────────────────────────────────────────────────────────
 from app.core.config import settings        # noqa: E402
 
-# Alembic cần URL dạng SYNC (psycopg2/psycopg), không phải asyncpg
-# Vì Alembic tự quản lý kết nối riêng khi chạy migration
-config.set_main_option("sqlalchemy.url", settings.sync_database_url)
+# Sử dụng async_database_url (postgresql+asyncpg) vì env.py dùng async_engine_from_config
+config.set_main_option("sqlalchemy.url", settings.async_database_url)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

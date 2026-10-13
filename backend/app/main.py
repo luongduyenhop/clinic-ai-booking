@@ -77,8 +77,18 @@ app.add_middleware(
 # 2. Đăng ký bộ xử lý lỗi toàn cục (Global Exception Handler)
 setup_exception_handlers(app)
 
-# 3. Đăng ký Routers API v1
+# 3. Đăng ký Routers API v1 và Alias tương thích ngược cho Frontend (/api/auth/*, /api/Auth/*)
+from app.routers.auth import router as auth_router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(auth_router, prefix="/api", include_in_schema=False)
+
+
+@app.middleware("http")
+async def normalize_fe_auth_case(request, call_next):
+    path = request.scope.get("path", "")
+    if path.startswith("/api/Auth/"):
+        request.scope["path"] = "/api/auth/" + path[len("/api/Auth/"):]
+    return await call_next(request)
 
 
 @app.get("/", tags=["Health Check"])

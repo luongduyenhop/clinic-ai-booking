@@ -13,6 +13,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     UpdateUserProfileRequest
 )
+from app.schemas.patient import PatientRegisterRequest
 from app.services.auth_service import auth_service
 from app.core.rate_limit import limiter
 from fastapi import Request
@@ -32,6 +33,22 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
     return ResponseEnvelope.success_response(
         data=result,
         message="Đăng ký tài khoản thành công. Mã OTP đã được gửi đến hòm thư!",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.post(
+    "/register-patient",
+    response_model=ResponseEnvelope[TokenResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Đăng ký tài khoản Bệnh nhân nhanh cho Cổng Bệnh nhân (UC-PAT-01)"
+)
+@limiter.limit("5/minute")
+async def register_patient(request: Request, payload: PatientRegisterRequest, db: AsyncSession = Depends(get_db)):
+    token = await auth_service.register_patient(payload, db)
+    return ResponseEnvelope.success_response(
+        data=token,
+        message="Đăng ký tài khoản bệnh nhân thành công! Đã tự động kích hoạt phiên đăng nhập.",
         code=status.HTTP_201_CREATED
     )
 
@@ -69,7 +86,12 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
     response_model=ResponseEnvelope[TokenResponse],
     summary="Cấp lại Access Token bằng Refresh Token"
 )
-@limiter.limit("5/minute")
+@router.post(
+    "/refresh-token",
+    response_model=ResponseEnvelope[TokenResponse],
+    include_in_schema=False,
+)
+@limiter.limit("10/minute")
 async def refresh_token(request: Request, payload: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     token = await auth_service.refresh_access_token(payload, db)
     return ResponseEnvelope.success_response(

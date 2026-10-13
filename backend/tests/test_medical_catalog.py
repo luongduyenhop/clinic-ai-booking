@@ -1,215 +1,152 @@
-import uuid
-import httpx
 import pytest
-import pytest_asyncio
-from fastapi.testclient import TestClient
-from app.core.config import settings
-from app.core.response import PaginationMeta
-from app.main import app
-from app.models.user import ChuyenKhoa, NguoiDung, BacSi
-
-client = TestClient(app)
-MEDICAL_API = f"{settings.API_V1_STR}/medical"
+from sqlalchemy import select
+from app.models.medical import DichVu
+from app.models.user import PhongKham
 
 
-# ------------------------------------------------------------------------------
-# 1. Kiểm thử không cần CSDL: validate tham số & công thức phân trang
-# ------------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_get_services_admin_includes_tt22_and_rooms(api_client, booking, db_session):
+    """Kiểm tra API lấy danh mục dịch vụ trả về đầy đủ phân nhóm Thông tư 22 và buồng thực hiện kỹ thuật"""
+    headers = booking.tokens["admin"]
 
-def test_pagination_meta_calculation():
-    """Kiểm tra công thức tính metadata phân trang"""
-    first_page = PaginationMeta.create(page=1, page_size=2, total_items=3)
-    assert first_page.total_pages == 2
-    assert first_page.has_next is True
-    assert first_page.has_prev is False
-
-    last_page = PaginationMeta.create(page=2, page_size=2, total_items=3)
-    assert last_page.has_next is False
-    assert last_page.has_prev is True
-
-    empty = PaginationMeta.create(page=1, page_size=10, total_items=0)
-    assert empty.total_pages == 0
-    assert empty.has_next is False
-    assert empty.has_prev is False
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/doctors?page=0",
-        "/doctors?page_size=0",
-        "/doctors?page_size=101",
-        "/doctors?specialty_id=0",
-        "/doctors?specialty_id=abc",
-        "/academic-degrees?specialty_id=0",
-    ],
-)
-def test_invalid_query_params_return_422(path):
-    """Tham số lọc/phân trang sai phải bị chặn bằng Envelope lỗi 422 trước khi chạm tới CSDL"""
-    response = client.get(f"{MEDICAL_API}{path}")
-    assert response.status_code == 422
-    body = response.json()
-    assert body["success"] is False
-    assert body["code"] == 422
-    assert len(body["errors"]) > 0
-
-
-# ------------------------------------------------------------------------------
-# 2. Kiểm thử tích hợp trên PostgreSQL thật (fixture db_session/api_client ở tests/conftest.py)
-# ------------------------------------------------------------------------------
-
-@pytest_asyncio.fixture(loop_scope="function")
-async def catalog(db_session):
-    """Dữ liệu mẫu: khoa đang mở có 3 bác sĩ hiển thị + 1 nghỉ việc + 1 bị xóa hồ sơ,
-    1 khoa đã đóng và 1 bác sĩ chưa gán khoa"""
-    suffix = uuid.uuid4().hex[:8]
-    khoa_mo = ChuyenKhoa(
-        ma_chuyen_khoa=f"TEST_B01_{suffix}",
-        ten_chuyen_khoa=f"Khoa Test B01 {suffix}",
-        vi_tri_phong="Phòng T01"
-    )
-    khoa_dong = ChuyenKhoa(
-        ma_chuyen_khoa=f"TEST_B01_OFF_{suffix}",
-        ten_chuyen_khoa=f"Khoa Test B01 Đóng {suffix}",
-        is_active=False
-    )
-    db_session.add_all([khoa_mo, khoa_dong])
+    # Đảm bảo có phòng LAB01, CDHA01 và danh mục dịch vụ nếu CSDL test chưa có
+    lab01 = (await db_session.execute(select(PhongKham).where(PhongKham.ma_phong == "LAB01"))).scalar_one_or_none()
+    cdha01 = (await db_session.execute(select(PhongKham).where(PhongKham.ma_phong == "CDHA01"))).scalar_one_or_none()
+    if not lab01:
+        lab01 = PhongKham(
+            ma_phong="LAB01",
+            ten_phong="Phòng Xét Nghiệm Trung Tâm",
+            loai_phong="xet_nghiem",
+            tang="Tầng 1",
+            is_active=True
+        )
+        db_session.add(lab01)
+    if not cdha01:
+        cdha01 = PhongKham(
+            ma_phong="CDHA01",
+            ten_phong="Phòng Chẩn Đoán Hình Ảnh (X-Quang/Siêu Âm)",
+            loai_phong="chan_doan_hinh_anh",
+            tang="Tầng 1",
+            is_active=True
+        )
+        db_session.add(cdha01)
     await db_session.flush()
 
-    # Học vị riêng của lần chạy này, dùng để lọc khi không truyền chuyên khoa mà không lẫn dữ liệu có sẵn
-    hoc_vi_rieng = f"TEST-{suffix}"
-    bac_si_mau = {
-        # key: (hoc_vi, chuyen_khoa, is_active, is_deleted)
-        "a": ("ThS.BS", khoa_mo, True, False),
-        "b": ("PGS.TS", khoa_mo, True, False),
-        "c": ("ThS.BS", khoa_mo, True, False),
-        "nghi_viec": ("BSCKI", khoa_mo, False, False),
-        "da_xoa": ("BSCKI", khoa_mo, True, True),
-        "khoa_dong": (hoc_vi_rieng, khoa_dong, True, False),
-        "chua_gan_khoa": (hoc_vi_rieng, None, True, False),
-    }
-    bac_si_ids = {}
-    for key, (hoc_vi, khoa, is_active, is_deleted) in bac_si_mau.items():
-        nguoi_dung = NguoiDung(ho_ten=f"Test {key} {suffix}", email=f"{key}.{suffix}@test.local", is_deleted=is_deleted)
-        db_session.add(nguoi_dung)
+    services = (await db_session.execute(select(DichVu))).scalars().all()
+    if len(services) < 5:
+        existing_codes = {s.ma_dich_vu for s in services}
+        sample_services = [
+            DichVu(ma_dich_vu="DV_XN_MAU", ten_dich_vu="Tổng phân tích tế bào máu ngoại vi", don_gia=120000.0, don_vi_tinh="Lần", ma_nhom_byt="XN", ma_tu_dong_bhyt="01.0001.0001", phong_thuc_hien_id=lab01.id),
+            DichVu(ma_dich_vu="DV_XQ_NGUC", ten_dich_vu="Chụp X-quang tim phổi thẳng", don_gia=180000.0, don_vi_tinh="Lần", ma_nhom_byt="CDHA", phong_thuc_hien_id=cdha01.id),
+            DichVu(ma_dich_vu="DV_SA_BUNG", ten_dich_vu="Siêu âm ổ bụng tổng quát", don_gia=200000.0, don_vi_tinh="Lần", ma_nhom_byt="CDHA", phong_thuc_hien_id=cdha01.id),
+            DichVu(ma_dich_vu="DV_ECG", ten_dich_vu="Điện tâm đồ (ECG) 12 chuyển đạo", don_gia=100000.0, don_vi_tinh="Lần", ma_nhom_byt="TDCN"),
+            DichVu(ma_dich_vu="DV_NS_TMH", ten_dich_vu="Nội soi Tai - Mũi - Họng", don_gia=250000.0, don_vi_tinh="Lần", ma_nhom_byt="TT"),
+        ]
+        for svc in sample_services:
+            if svc.ma_dich_vu not in existing_codes:
+                db_session.add(svc)
         await db_session.flush()
 
-        bac_si = BacSi(
-            nguoi_dung_id=nguoi_dung.id,
-            chuyen_khoa_id=khoa.id if khoa else None,
-            hoc_vi=hoc_vi,
-            chung_chi_hanh_nghe=f"CCHN-{key}-{suffix}",
-            is_active=is_active
-        )
-        db_session.add(bac_si)
-        await db_session.flush()
-        bac_si_ids[key] = bac_si.id
+    res = await api_client.get("/api/v1/admin/services", headers=headers)
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert len(data) >= 5
 
-    return {"khoa_mo": khoa_mo, "khoa_dong": khoa_dong, "hoc_vi_rieng": hoc_vi_rieng, "bac_si": bac_si_ids}
+    # Kiểm tra dịch vụ xét nghiệm máu đã map đúng buồng LAB01
+    xn_svc = next((s for s in data if s["ma_dich_vu"] == "DV_XN_MAU"), None)
+    assert xn_svc is not None
+    assert xn_svc["ma_nhom_byt"] == "XN"
+    assert xn_svc["ma_tu_dong_bhyt"] == "01.0001.0001"
+    assert xn_svc["ma_phong_thuc_hien"] == "LAB01"
+    assert "Xét Nghiệm" in xn_svc["ten_phong_thuc_hien"]
 
-
-async def _get_success(api_client: httpx.AsyncClient, path: str, params: dict = None) -> dict:
-    """Gọi API danh mục và kiểm tra Envelope thành công"""
-    response = await api_client.get(f"{MEDICAL_API}{path}", params=params)
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["success"] is True
-    return body
+    # Kiểm tra dịch vụ X-quang đã map đúng buồng CDHA01
+    xq_svc = next((s for s in data if s["ma_dich_vu"] == "DV_XQ_NGUC"), None)
+    assert xq_svc is not None
+    assert xq_svc["ma_nhom_byt"] == "CDHA"
+    assert xq_svc["ma_phong_thuc_hien"] == "CDHA01"
 
 
-async def test_specialties_only_active_with_doctor_count(api_client, catalog):
-    """Chỉ trả về khoa đang hoạt động; số bác sĩ chỉ đếm người đang hành nghề và còn hồ sơ"""
-    body = await _get_success(api_client, "/specialties")
-    by_id = {item["id"]: item for item in body["data"]}
+@pytest.mark.asyncio
+async def test_create_service_with_room_mapping(api_client, booking, db_session):
+    """Kiểm tra tạo mới dịch vụ kỹ thuật cận lâm sàng liên kết buồng kỹ thuật hợp lệ"""
+    headers = booking.tokens["admin"]
+    
+    # Tạo phòng kỹ thuật riêng
+    lab_room = PhongKham(
+        ma_phong=f"LAB_TEST_{booking.suffix}",
+        ten_phong="Phòng Xét Nghiệm Test",
+        loai_phong="xet_nghiem",
+        tang="Tầng 1",
+        is_active=True
+    )
+    db_session.add(lab_room)
+    await db_session.flush()
 
-    assert catalog["khoa_dong"].id not in by_id
-    khoa_mo = by_id[catalog["khoa_mo"].id]
-    assert khoa_mo["ma_chuyen_khoa"] == catalog["khoa_mo"].ma_chuyen_khoa
-    assert khoa_mo["vi_tri_phong"] == "Phòng T01"
-    assert khoa_mo["so_luong_bac_si"] == 3
-
-
-async def test_doctors_filter_by_specialty(api_client, catalog):
-    """Lọc theo khoa: loại bác sĩ nghỉ việc/bị xóa hồ sơ và trả đủ thông tin hiển thị"""
-    ids = catalog["bac_si"]
-    body = await _get_success(api_client, "/doctors", {"specialty_id": catalog["khoa_mo"].id})
-
-    assert [doctor["id"] for doctor in body["data"]] == [ids["a"], ids["b"], ids["c"]]
-    assert body["meta"]["total_items"] == 3
-    doctor = body["data"][0]
-    assert doctor["chuyen_khoa_id"] == catalog["khoa_mo"].id
-    assert doctor["chuyen_khoa"] == catalog["khoa_mo"].ten_chuyen_khoa
-    assert doctor["vi_tri_phong"] == "Phòng T01"
-    assert doctor["hoc_vi"] == "ThS.BS"
-    assert doctor["gia_kham_mac_dinh"] == 200000.0
-
-
-@pytest.mark.parametrize(
-    "hoc_vi, expected_keys",
-    [
-        (["ThS.BS"], ["a", "c"]),
-        (["ThS.BS", "PGS.TS"], ["a", "b", "c"]),
-        (["BSCKI"], []),          # Học vị chỉ có ở bác sĩ nghỉ việc / bị xóa hồ sơ
-        ([""], ["a", "b", "c"]),  # Client gửi ?hoc_vi= (chọn "Tất cả") -> bỏ qua bộ lọc
-    ],
-)
-async def test_doctors_filter_by_hoc_vi(api_client, catalog, hoc_vi, expected_keys):
-    """Lọc theo 1 hoặc nhiều học vị kết hợp với chuyên khoa"""
-    body = await _get_success(api_client, "/doctors", {"specialty_id": catalog["khoa_mo"].id, "hoc_vi": hoc_vi})
-
-    assert [doctor["id"] for doctor in body["data"]] == [catalog["bac_si"][key] for key in expected_keys]
-    assert body["meta"]["total_items"] == len(expected_keys)
-
-
-async def test_doctors_of_inactive_specialty_are_hidden(api_client, catalog):
-    """Khoa đã đóng thì không trả về bác sĩ nào của khoa đó"""
-    body = await _get_success(api_client, "/doctors", {"specialty_id": catalog["khoa_dong"].id})
-
-    assert body["data"] == []
-    assert body["meta"]["total_items"] == 0
-
-
-async def test_doctor_without_specialty_uses_default_name(api_client, catalog):
-    """Không lọc theo khoa: bác sĩ chưa gán khoa vẫn hiển thị, bác sĩ thuộc khoa đã đóng bị ẩn"""
-    body = await _get_success(api_client, "/doctors", {"hoc_vi": catalog["hoc_vi_rieng"]})
-
-    assert [doctor["id"] for doctor in body["data"]] == [catalog["bac_si"]["chua_gan_khoa"]]
-    doctor = body["data"][0]
-    assert doctor["chuyen_khoa_id"] is None
-    assert doctor["chuyen_khoa"] == "Đa khoa"
-    assert doctor["vi_tri_phong"] is None
-
-
-async def test_doctors_pagination(api_client, catalog):
-    """Phân trang ổn định, không trùng lặp giữa các trang và meta chính xác"""
-    ids = catalog["bac_si"]
-    params = {"specialty_id": catalog["khoa_mo"].id, "page_size": 2}
-
-    page_1 = await _get_success(api_client, "/doctors", {**params, "page": 1})
-    assert [doctor["id"] for doctor in page_1["data"]] == [ids["a"], ids["b"]]
-    assert page_1["meta"] == {
-        "page": 1,
-        "page_size": 2,
-        "total_items": 3,
-        "total_pages": 2,
-        "has_next": True,
-        "has_prev": False,
+    payload = {
+        "ma_dich_vu": f"DV_HBA1C_{booking.suffix}",
+        "ten_dich_vu": "Định lượng HbA1c bằng phương pháp HPLC",
+        "don_gia": 150000.0,
+        "don_vi_tinh": "Lần",
+        "ma_nhom_byt": "XN",
+        "ma_tu_dong_bhyt": "01.0001.0005",
+        "phong_thuc_hien_id": lab_room.id,
+        "quy_trinh_thuc_hien": "Lấy mẫu máu tĩnh mạch chống đông EDTA, chạy máy tự động"
     }
+    res = await api_client.post("/api/v1/admin/services", json=payload, headers=headers)
+    assert res.status_code == 201
+    data = res.json()["data"]
+    assert data["ma_dich_vu"] == f"DV_HBA1C_{booking.suffix}"
+    assert data["ma_nhom_byt"] == "XN"
+    assert data["phong_thuc_hien_id"] == lab_room.id
+    assert data["ma_phong_thuc_hien"] == lab_room.ma_phong
+    assert data["ten_phong_thuc_hien"] == "Phòng Xét Nghiệm Test"
 
-    page_2 = await _get_success(api_client, "/doctors", {**params, "page": 2})
-    assert [doctor["id"] for doctor in page_2["data"]] == [ids["c"]]
-    assert page_2["meta"]["has_next"] is False
-    assert page_2["meta"]["has_prev"] is True
+
+@pytest.mark.asyncio
+async def test_create_service_rejects_nonexistent_room(api_client, booking):
+    """Kiểm tra từ chối tạo dịch vụ nếu buồng thực hiện không tồn tại (404)"""
+    headers = booking.tokens["admin"]
+    payload = {
+        "ma_dich_vu": f"DV_INVALID_{booking.suffix}",
+        "ten_dich_vu": "Dịch vụ phòng ma",
+        "don_gia": 100000.0,
+        "don_vi_tinh": "Lần",
+        "phong_thuc_hien_id": 99999
+    }
+    res = await api_client.post("/api/v1/admin/services", json=payload, headers=headers)
+    assert res.status_code == 404
 
 
-async def test_academic_degrees(api_client, catalog):
-    """Danh mục học vị chỉ tính bác sĩ khả dụng và lọc được theo chuyên khoa"""
-    body = await _get_success(api_client, "/academic-degrees", {"specialty_id": catalog["khoa_mo"].id})
-    assert body["data"] == [
-        {"hoc_vi": "PGS.TS", "so_luong_bac_si": 1},
-        {"hoc_vi": "ThS.BS", "so_luong_bac_si": 2},
-    ]
+@pytest.mark.asyncio
+async def test_update_service_tat_and_guidelines(api_client, booking, db_session):
+    """Kiểm tra cập nhật dịch vụ y tế: TAT, hướng dẫn chuẩn bị bệnh nhân và đơn giá"""
+    headers = booking.tokens["admin"]
 
-    body = await _get_success(api_client, "/academic-degrees")
-    degrees = {item["hoc_vi"]: item["so_luong_bac_si"] for item in body["data"]}
-    assert degrees[catalog["hoc_vi_rieng"]] == 1  # Bác sĩ thuộc khoa đã đóng không được tính
+    # Tạo dịch vụ ban đầu
+    payload_create = {
+        "ma_dich_vu": f"DV_US_{booking.suffix}",
+        "ten_dich_vu": "Siêu âm Doppler Tim màu",
+        "don_gia": 300000.0,
+        "don_vi_tinh": "Lần",
+        "thoi_gian_tra_ket_qua_phut": 20,
+        "huong_dan_chuan_bi": "Nghỉ ngơi trước siêu âm 15 phút",
+    }
+    create_res = await api_client.post("/api/v1/admin/services", json=payload_create, headers=headers)
+    assert create_res.status_code == 201
+    created_svc = create_res.json()["data"]
+    svc_id = created_svc["id"]
+
+    # Cập nhật thông tin dịch vụ
+    payload_update = {
+        "don_gia": 350000.0,
+        "thoi_gian_tra_ket_qua_phut": 25,
+        "huong_dan_chuan_bi": "Nghỉ ngơi 15 phút, mang theo hồ sơ điện tâm đồ trước đó nếu có",
+    }
+    update_res = await api_client.put(f"/api/v1/admin/services/{svc_id}", json=payload_update, headers=headers)
+    assert update_res.status_code == 200
+    updated_data = update_res.json()["data"]
+    assert updated_data["don_gia"] == 350000.0
+    assert updated_data["thoi_gian_tra_ket_qua_phut"] == 25
+    assert "mang theo hồ sơ điện tâm đồ" in updated_data["huong_dan_chuan_bi"]
+

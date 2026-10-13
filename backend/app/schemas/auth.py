@@ -1,7 +1,7 @@
 import unicodedata
 from datetime import date
 from typing import Annotated, Literal, Optional
-from pydantic import BaseModel, BeforeValidator, EmailStr, Field, StringConstraints
+from pydantic import BaseModel, BeforeValidator, EmailStr, Field, StringConstraints, model_validator
 
 SO_DIEN_THOAI_PATTERN = r"^[0-9]{10,11}$"
 
@@ -39,13 +39,25 @@ class VerifyOtpRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Dữ liệu yêu cầu đăng nhập hệ thống (UC-A03)"""
-    email: EmailStr = Field(..., description="Email đăng nhập")
-    mat_khau: str = Field(..., description="Mật khẩu tài khoản")
+    """Dữ liệu yêu cầu đăng nhập hệ thống (UC-A03) - Tương thích cả email/mat_khau và usernameOrEmail/password"""
+    email: str = Field(..., min_length=3, max_length=100, description="Email hoặc tên đăng nhập")
+    mat_khau: str = Field(..., min_length=1, description="Mật khẩu tài khoản")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_fe_login(cls, data):
+        if isinstance(data, dict):
+            out = dict(data)
+            if "email" not in out and "usernameOrEmail" in out:
+                out["email"] = out.pop("usernameOrEmail")
+            if "mat_khau" not in out and "password" in out:
+                out["mat_khau"] = out.pop("password")
+            return out
+        return data
 
 
 class TokenResponse(BaseModel):
-    """Dữ liệu trả về sau khi xác thực thành công"""
+    """Dữ liệu trả về sau khi xác thực thành công (Hỗ trợ song song snake_case & camelCase cho FE)"""
     access_token: str = Field(..., description="JWT Bearer token")
     refresh_token: str = Field(..., description="JWT Refresh token")
     token_type: str = Field("bearer", description="Loại token")
@@ -53,11 +65,26 @@ class TokenResponse(BaseModel):
     role: Optional[str] = Field(None, description="Chuẩn hóa vai trò: PATIENT, DOCTOR, RECEPTIONIST, ADMIN")
     expires_in_minutes: int = Field(..., description="Thời gian token tồn tại")
     user_id: int = Field(..., description="Mã định danh tài khoản")
+    # Các trường tương thích trực tiếp với Frontend React (AuthService / BaseService / authAction)
+    accessToken: Optional[str] = Field(None, description="JWT Bearer token (camelCase cho FE)")
+    refreshToken: Optional[str] = Field(None, description="Refresh token (camelCase cho FE)")
+    user: Optional[dict] = Field(None, description="Thông tin hồ sơ người dùng rút gọn cho FE")
 
 
 class RefreshTokenRequest(BaseModel):
     """Dữ liệu yêu cầu làm mới Access Token"""
     refresh_token: str = Field(..., description="Chuỗi Refresh Token")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_fe_refresh(cls, data):
+        if isinstance(data, dict):
+            out = dict(data)
+            if "refresh_token" not in out and "refreshToken" in out:
+                out["refresh_token"] = out.pop("refreshToken")
+            out.pop("accessToken", None)
+            return out
+        return data
 
 
 class UpdateUserProfileRequest(BaseModel):

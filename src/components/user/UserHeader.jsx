@@ -25,10 +25,9 @@ export default function UserHeader() {
 
                 <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-[#003553]">
                     <Link to="/" className="hover:text-[#00B5F1] transition">Trang chủ</Link>
-                    <Link to="/admin/dang-ky-kham" className="hover:text-[#00B5F1] transition">Tiếp đón & Đăng ký</Link>
-                    <Link to="/admin/kham-benh" className="hover:text-[#00B5F1] transition">Khám bệnh</Link>
-                    <Link to="/admin/lich-hen" className="hover:text-[#00B5F1] transition">Quản lý lịch hẹn</Link>
-                    <Link to="/admin/tuan-thu" className="hover:text-[#00B5F1] transition">Tuân thủ pháp lý</Link>
+                    <Link to="/reception/dashboard" className="hover:text-[#00B5F1] transition">Cổng Lễ Tân</Link>
+                    <Link to="/doctor" className="hover:text-[#00B5F1] transition">Cổng Bác Sĩ</Link>
+                    <Link to="/admin" className="hover:text-[#00B5F1] transition">Quản Trị (Admin)</Link>
                 </nav>
 
                 <div className="flex items-center gap-2.5">

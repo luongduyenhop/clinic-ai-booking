@@ -13,17 +13,41 @@ export default function LoginPage() {
     const dispatch = useDispatch()
     const authSeed = getAuthSeed()
 
-    const handleQuickDemoLogin = () => {
+    const handleRoleDemoLogin = (targetRole = 'ADMIN') => {
+        let userProfile = { ...authSeed.user }
+        let redirectPath = '/admin'
+        if (targetRole === 'RECEPTIONIST') {
+            userProfile = {
+                id: 'USER_RECEPTION_01',
+                fullName: 'Nguyễn Thị Thu Cúc',
+                shortName: 'Lễ tân Cúc',
+                role: 'LE_TAN',
+                email: 'letan@clinic-ai.vn',
+            }
+            redirectPath = '/reception/dashboard'
+        } else if (targetRole === 'DOCTOR') {
+            userProfile = {
+                id: 'USER_DOC_01',
+                fullName: 'BS. CKII Trần Quốc Huy',
+                shortName: 'BS. Huy',
+                role: 'BAC_SI',
+                room: 'Phòng 102',
+                specialty: 'Răng Hàm Mặt',
+                email: 'bshuy@clinic-ai.vn',
+            }
+            redirectPath = '/doctor'
+        }
+
         dispatch(
             setAuth({
                 accessToken: authSeed.accessToken,
                 refreshToken: authSeed.refreshToken,
-                role: authSeed.role,
-                user: authSeed.user,
+                role: userProfile.role,
+                user: userProfile,
             })
         )
-        AppToast.success('Đã đăng nhập quyền Quản trị viên & Bác sĩ phụ trách chuyên môn!')
-        navigate('/admin', { replace: true })
+        AppToast.success(`Đã đăng nhập vai trò: ${userProfile.shortName}!`)
+        navigate(redirectPath, { replace: true })
     }
 
     const formik = useFormik({
@@ -39,13 +63,20 @@ export default function LoginPage() {
             try {
                 const resultAction = await dispatch(loginUserAsync(values))
                 if (loginUserAsync.fulfilled.match(resultAction)) {
+                    const userRole = resultAction.payload?.role || resultAction.payload?.user?.role || ''
                     AppToast.success('Đăng nhập thành công!')
-                    navigate('/admin', { replace: true })
+                    if (userRole === 'LE_TAN' || userRole === 'RECEPTIONIST') {
+                        navigate('/reception/dashboard', { replace: true })
+                    } else if (userRole === 'BAC_SI' || userRole === 'DOCTOR') {
+                        navigate('/doctor', { replace: true })
+                    } else {
+                        navigate('/admin', { replace: true })
+                    }
                 } else {
-                    handleQuickDemoLogin()
+                    handleRoleDemoLogin('ADMIN')
                 }
             } catch {
-                handleQuickDemoLogin()
+                handleRoleDemoLogin('ADMIN')
             } finally {
                 setSubmitting(false)
             }
@@ -109,14 +140,37 @@ export default function LoginPage() {
                         <span>{formik.isSubmitting ? 'Đang xử lý...' : 'Đăng nhập Quản trị Phòng khám'}</span>
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={handleQuickDemoLogin}
-                        className="medpro-btn-amber w-full !py-2.5 text-sm font-bold"
-                    >
-                        <Lightning size={16} weight="fill" />
-                        <span>Vào nhanh Quản trị ({authSeed.user?.shortName || 'Admin'})</span>
-                    </button>
+                    <div className="pt-2 border-t border-slate-100">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
+                            Đăng nhập nhanh theo từng phân hệ (Role-Based Demo)
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => handleRoleDemoLogin('ADMIN')}
+                                className="px-2.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#003553] text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                            >
+                                <span>🏛️ Quản lý</span>
+                                <span className="text-[10px] text-amber-700 font-semibold">Admin Portal</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleRoleDemoLogin('RECEPTIONIST')}
+                                className="px-2.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                            >
+                                <span>👩‍💼 Lễ tân</span>
+                                <span className="text-[10px] text-teal-700 font-semibold">Reception Portal</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleRoleDemoLogin('DOCTOR')}
+                                className="px-2.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                            >
+                                <span>👨‍⚕️ Bác sĩ</span>
+                                <span className="text-[10px] text-sky-700 font-semibold">Doctor Portal</span>
+                            </button>
+                        </div>
+                    </div>
                 </form>
 
                 <div className="text-center text-xs text-slate-500">

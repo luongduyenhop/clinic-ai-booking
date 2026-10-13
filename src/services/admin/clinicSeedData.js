@@ -65,7 +65,7 @@ export function buildClinicSeedState(seedSource = rawSeed) {
         treatmentCourses: seedSource.treatmentCourses || [],
         corporateCheckups: seedSource.corporateCheckups || [],
         healthCheckupClassifications: seedSource.healthCheckupClassifications || [],
-        inventoryBatches: seedSource.inventoryBatches || [],
+        inventoryBatches: [],
         cashierClosings: seedSource.cashierClosings || [],
         nationalDrugSync: seedSource.nationalDrugSync || [],
         nationalEhrSync: seedSource.nationalEhrSync || [],

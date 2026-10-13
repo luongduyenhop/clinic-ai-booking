@@ -183,7 +183,17 @@ export default function CorporateHealthPage() {
         }
 
         const updated = [newCorp, ...corporateCheckups]
-        dispatch(updateClinicCollectionAsync('corporateCheckups', updated))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'corporateCheckups',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'CREATE_CORPORATE_CONTRACT',
+                    doiTuong: `${newCorp.soHopDong} - ${newCorp.tenDoan}`,
+                    mucDich: `Tạo hợp đồng khám đoàn (${newCorp.soLuongNhanVien} NV)`,
+                },
+            })
+        )
         setSelectedCorp(newCorp)
         setIsAddModalOpen(false)
         AppToast.success(`Tạo hợp đồng khám đoàn ${newCorp.tenDoan} thành công!`)

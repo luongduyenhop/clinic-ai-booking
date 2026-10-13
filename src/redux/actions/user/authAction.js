@@ -11,8 +11,8 @@ export const loginUserAsync = createAsyncThunk(
             const body = response.data || {}
             const data = body.data ?? body
 
-            const accessToken = data.accessToken || data.token
-            const refreshToken = data.refreshToken
+            const accessToken = data.accessToken || data.token || data.access_token
+            const refreshToken = data.refreshToken || data.refresh_token
             const role = resolveRoleFromAuth(data, accessToken) || (credentials.usernameOrEmail?.toLowerCase().includes('admin') ? 'ADMIN' : 'USER')
             
             let user = data.user || null

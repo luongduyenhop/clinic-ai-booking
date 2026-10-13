@@ -144,7 +144,17 @@ export default function ServicePackagesPage() {
             thanhToan: 'Đã thu tiền',
         }
         const updated = [newReg, ...servicePackages]
-        dispatch(updateClinicCollectionAsync('servicePackageRegistrations', updated))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'servicePackageRegistrations',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'REGISTER_SERVICE_PACKAGE',
+                    doiTuong: `${newReg.maLH} - ${newReg.tenBN}`,
+                    mucDich: `Kích hoạt gói khám ${newReg.tenGoi}`,
+                },
+            })
+        )
         setIsRegisterModalOpen(false)
         AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}!`)
     }

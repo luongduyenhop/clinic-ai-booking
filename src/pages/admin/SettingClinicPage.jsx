@@ -105,7 +105,17 @@ export default function SettingClinicPage() {
                 hoaDonDienTu: form.hoaDonDienTu,
             },
         }
-        dispatch(updateClinicCollectionAsync('clinicSettings', updated))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'clinicSettings',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'UPDATE_CLINIC_SETTINGS',
+                    doiTuong: updated.tenPhongKham || 'Cấu hình phòng khám',
+                    mucDich: 'Cập nhật tham số hệ thống & liên thông Bộ Y Tế',
+                },
+            })
+        )
         AppToast.success('Lưu cấu hình hệ thống phòng khám thành công!')
     }
 

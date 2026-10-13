@@ -19,11 +19,16 @@ export const ADMIN_ROLES = [
     ROLE_ADMIN,
     ROLE_ADMINISTRATOR,
     ROLE_DOCTOR,
+    'DOCTOR',
     ROLE_RECEPTIONIST,
+    'RECEPTIONIST',
     ROLE_CASHIER,
+    'CASHIER',
 ]
 export const CUSTOMER_ROLES = [
     ROLE_CUSTOMER,
     ROLE_USER,
+    'PATIENT',
+    'BENH_NHAN',
     ...ADMIN_ROLES,
 ]

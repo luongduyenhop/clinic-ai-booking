@@ -12,6 +12,10 @@ import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
 // Import User Pages
 import HomePage from './pages/user/HomePage'
 import LoginPage from './pages/user/LoginPage'
+import BookingWizardPage from './pages/user/BookingWizardPage'
+import PatientProfilePage from './pages/user/PatientProfilePage'
+import PatientMedicalRecordsPage from './pages/user/PatientMedicalRecordsPage'
+import PatientBillingPage from './pages/user/PatientBillingPage'
 import NotFoundPage from './pages/error/NotFoundPage'
 
 // Import 10 Clinic Management Modules (Admin / Staff HIS)
@@ -45,6 +49,12 @@ function App() {
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    
+                    {/* Patient Portal Routes (Medpro & tClinic standard) */}
+                    <Route path="/dat-lich" element={<BookingWizardPage />} />
+                    <Route path="/benh-nhan/ho-so" element={<PatientProfilePage />} />
+                    <Route path="/benh-nhan/benh-an" element={<PatientMedicalRecordsPage />} />
+                    <Route path="/benh-nhan/hoa-don" element={<PatientBillingPage />} />
 
                     {/* Protected User Routes */}
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>

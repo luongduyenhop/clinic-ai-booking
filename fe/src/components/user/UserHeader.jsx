@@ -23,12 +23,14 @@ export default function UserHeader() {
                     <span className="text-[#00B5F1]">CLINIC<span className="text-[#003553]">-AI</span></span>
                 </Link>
 
-                <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-[#003553]">
+                <nav className="hidden lg:flex items-center gap-5 text-sm font-bold text-[#003553]">
                     <Link to="/" className="hover:text-[#00B5F1] transition">Trang chủ</Link>
-                    <Link to="/admin/dang-ky-kham" className="hover:text-[#00B5F1] transition">Tiếp đón & Đăng ký</Link>
-                    <Link to="/admin/kham-benh" className="hover:text-[#00B5F1] transition">Khám bệnh</Link>
-                    <Link to="/admin/lich-hen" className="hover:text-[#00B5F1] transition">Quản lý lịch hẹn</Link>
-                    <Link to="/admin/tuan-thu" className="hover:text-[#00B5F1] transition">Tuân thủ pháp lý</Link>
+                    <Link to="/dat-lich" className="hover:text-[#00B5F1] transition text-[#00B5F1] flex items-center gap-1">
+                        <span>Đặt khám ngay</span>
+                    </Link>
+                    <Link to="/benh-nhan/ho-so" className="hover:text-[#00B5F1] transition">Hồ sơ sức khỏe</Link>
+                    <Link to="/benh-nhan/benh-an" className="hover:text-[#00B5F1] transition">Sổ bệnh án EMR</Link>
+                    <Link to="/benh-nhan/hoa-don" className="hover:text-[#00B5F1] transition">Viện phí & VietQR</Link>
                 </nav>
 
                 <div className="flex items-center gap-2.5">

@@ -1,8 +1,11 @@
 import {
     HouseLine,
+    User,
     Users,
     UserPlus,
     UserList,
+    ArrowLeft,
+    Copy,
     Newspaper,
     BookOpenText,
     Folders,
@@ -96,9 +99,12 @@ import {
 
 const ICON_MAP = {
     HouseLine,
+    User,
     Users,
     UserPlus,
     UserList,
+    ArrowLeft,
+    Copy,
     Bell,
     ArrowsOut,
     ArrowsIn,
@@ -315,9 +321,12 @@ export function EmptyState({
 
 export {
     HouseLine,
+    User,
     Users,
     UserPlus,
     UserList,
+    ArrowLeft,
+    Copy,
     Newspaper,
     BookOpenText,
     Folders,

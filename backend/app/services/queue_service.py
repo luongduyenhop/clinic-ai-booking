@@ -793,9 +793,16 @@ class QueueService:
             benh_nhan = BenhNhan(
                 nguoi_dung_id=nguoi_dung.id,
                 ma_dinh_danh_y_te=f"BN-{datetime.now().strftime('%Y%m')}-{nguoi_dung.id:04d}",
+                nguoi_lien_he=payload.nguoi_lien_he,
+                sdt_nguoi_lien_he=payload.sdt_nguoi_lien_he,
             )
             db.add(benh_nhan)
             await db.flush()
+        else:
+            if payload.nguoi_lien_he:
+                benh_nhan.nguoi_lien_he = payload.nguoi_lien_he
+            if payload.sdt_nguoi_lien_he:
+                benh_nhan.sdt_nguoi_lien_he = payload.sdt_nguoi_lien_he
 
         # 3. Tạo vé vãng lai
         walk_in_req = WalkInCheckInRequest(

@@ -51,8 +51,6 @@ from app.models.compliance import (
     NhatKyTruyCapDuLieuYTe,
 )
 from app.models.specialized import (
-    HopDongKhamDoan,
-    NhanVienKhamDoan,
     GoiDichVu,
     ChiTietGoiDichVu,
     DangKyGoiKham,
@@ -61,7 +59,6 @@ from app.models.specialized import (
 )
 from app.models.content import (
     MauBieuYTe,
-    CauHoiYKhoa,
     BaiVietTinTuc,
     ThongBao,
 )
@@ -112,15 +109,12 @@ __all__ = [
     "LuotKhamTheLuc",
     "KhoaSoCaTruc",
     "DanhGiaDichVu",
-    "HopDongKhamDoan",
-    "NhanVienKhamDoan",
     "GoiDichVu",
     "ChiTietGoiDichVu",
     "DangKyGoiKham",
     "LieuTrinhDieuTri",
     "BuoiDieuTri",
     "MauBieuYTe",
-    "CauHoiYKhoa",
     "BaiVietTinTuc",
     "ThongBao",
     "HeThongTrangThaiBff",

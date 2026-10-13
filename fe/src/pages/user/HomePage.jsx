@@ -25,21 +25,93 @@ export default function HomePage() {
                         </p>
                         <div className="flex flex-wrap gap-3 pt-2">
                             <Link
-                                to="/admin"
+                                to="/dat-lich"
                                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFB54A] hover:bg-[#FBA342] text-[#003553] font-extrabold text-sm shadow-lg transition"
                             >
                                 <Hospital size={18} weight="bold" />
-                                <span>Truy cập Bảng điều khiển Quản lý Phòng khám</span>
+                                <span>Đặt lịch khám bệnh trực tuyến</span>
                             </Link>
                             <Link
-                                to="/admin/dang-ky-kham"
+                                to="/benh-nhan/benh-an"
+                                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/15 hover:bg-white/25 text-white font-bold text-sm border border-white/30 backdrop-blur-xs transition"
+                            >
+                                <ClipboardText size={18} weight="duotone" className="text-[#8FE2FF]" />
+                                <span>Tra cứu sổ bệnh án & Đơn thuốc</span>
+                            </Link>
+                            <Link
+                                to="/admin"
                                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-[#003553] hover:bg-[#E8F4FD] font-bold text-sm shadow-md transition"
                             >
-                                <ClipboardText size={18} weight="duotone" className="text-[#00B5F1]" />
-                                <span>Mở ngay Quầy Tiếp đón & Đăng ký khám</span>
+                                <Hospital size={18} weight="duotone" className="text-[#00B5F1]" />
+                                <span>Vào Quản lý Phòng khám (HIS)</span>
                             </Link>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            {/* 4 Core Patient Portal Quick Access Cards */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Link
+                        to="/dat-lich"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#00B5F1] shadow-2xs hover:shadow-md transition group"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center text-xl font-bold mb-3 group-hover:bg-[#00B5F1] group-hover:text-white transition">
+                            🩺
+                        </div>
+                        <h3 className="font-bold text-sm text-[#003553] group-hover:text-[#00B5F1] transition">
+                            Đặt khám Chuyên khoa
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Chọn bác sĩ, chọn giờ hẹn trong ngày và phân luồng AI triệu chứng thông minh.
+                        </p>
+                    </Link>
+
+                    <Link
+                        to="/benh-nhan/ho-so"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#00B5F1] shadow-2xs hover:shadow-md transition group"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl font-bold mb-3 group-hover:bg-purple-600 group-hover:text-white transition">
+                            👨‍👩‍👧‍👦
+                        </div>
+                        <h3 className="font-bold text-sm text-[#003553] group-hover:text-[#00B5F1] transition">
+                            Hồ sơ Sức khỏe Gia đình
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Lưu thông tin cá nhân, dị ứng, nhóm máu và hồ sơ người thân (con cái, bố mẹ).
+                        </p>
+                    </Link>
+
+                    <Link
+                        to="/benh-nhan/benh-an"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#00B5F1] shadow-2xs hover:shadow-md transition group"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold mb-3 group-hover:bg-emerald-600 group-hover:text-white transition">
+                            📋
+                        </div>
+                        <h3 className="font-bold text-sm text-[#003553] group-hover:text-[#00B5F1] transition">
+                            Bệnh án & Đơn thuốc 4 Cữ
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Xem chẩn đoán ICD-10, kết quả xét nghiệm cận lâm sàng và hướng dẫn uống thuốc.
+                        </p>
+                    </Link>
+
+                    <Link
+                        to="/benh-nhan/hoa-don"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#00B5F1] shadow-2xs hover:shadow-md transition group"
+                    >
+                        <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold mb-3 group-hover:bg-amber-600 group-hover:text-white transition">
+                            💳
+                        </div>
+                        <h3 className="font-bold text-sm text-[#003553] group-hover:text-[#00B5F1] transition">
+                            Viện phí & VietQR
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Bảng kê chi tiết tiền khám, thuốc, xét nghiệm kèm mã VietQR Napas 247 thanh toán tức thì.
+                        </p>
+                    </Link>
                 </div>
             </section>
 

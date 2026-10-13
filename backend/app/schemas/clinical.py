@@ -18,8 +18,12 @@ class VitalSignsSchema(BaseModel):
 class EncounterCreateRequest(BaseModel):
     """Yêu cầu bắt đầu lượt khám lâm sàng thực tế (OpenMRS Encounter)"""
     lich_kham_id: int = Field(..., description="ID lịch hẹn khám cần tiếp nhận")
+    ma_kcb: Optional[str] = Field(None, max_length=50, description="Mã đợt khám chữa bệnh (Format: KCB-YYMMDD-xxxx)")
     ly_do_vao_kham: Optional[str] = Field(None, description="Lý do vào khám của người bệnh")
     benh_su: Optional[str] = Field(None, description="Bệnh sử / tiền sử bệnh")
+    trieu_chung: Optional[str] = Field(None, description="Triệu chứng cơ năng người bệnh kể")
+    chan_doan_so_bo: Optional[str] = Field(None, description="Chẩn đoán sơ bộ ban đầu của bác sĩ")
+    tien_su_di_ung: Optional[str] = Field(None, description="Tiền sử dị ứng thuốc / thức ăn")
 
     # Chỉ số sinh hiệu (Vital Signs)
     mach_lan_phut: Optional[int] = Field(None, ge=30, le=250, description="Mạch (nhịp/phút)")
@@ -29,6 +33,8 @@ class EncounterCreateRequest(BaseModel):
     nhip_tho_lan_phut: Optional[int] = Field(None, ge=5, le=80, description="Nhịp thở (lần/phút)")
     can_nang_kg: Optional[float] = Field(None, ge=0.5, le=500.0, description="Cân nặng (kg)")
     chieu_cao_cm: Optional[float] = Field(None, ge=20.0, le=250.0, description="Chiều cao (cm)")
+    spo2: Optional[float] = Field(None, ge=50.0, le=100.0, description="Độ bão hòa oxy SpO2 (%)")
+    bmi: Optional[float] = Field(None, ge=5.0, le=80.0, description="Chỉ số khối cơ thể BMI (Kg/m2)")
 
     kham_lam_sang_bo_phan: Optional[str] = Field(None, description="Khám lâm sàng các cơ quan/bộ phận")
 
@@ -78,6 +84,8 @@ class OrderResponse(BaseModel):
     ten_dich_vu: Optional[str] = None
     so_luong: int
     don_gia_tai_thoi_diem: float
+    giam_gia: float = 0.0
+    thanh_tien: float = 0.0
     trang_thai: str
     bac_si_chi_dinh_id: Optional[int] = None
     ket_qua_chi_tiet: Optional[str] = None
@@ -127,6 +135,10 @@ class PrescriptionItemCreateRequest(BaseModel):
         ..., description="Đơn vị tính (Viên, Gói, Chai, Lọ, Ống, Tuýp)"
     )
     so_luong: int = Field(..., gt=0, le=1000, description="Số lượng cấp phát")
+    lieu_sang: Optional[str] = Field("", max_length=20, description="Liều sáng (VD: 1, 2 viên, 5ml)")
+    lieu_trua: Optional[str] = Field("", max_length=20, description="Liều trưa")
+    lieu_chieu: Optional[str] = Field("", max_length=20, description="Liều chiều")
+    lieu_toi: Optional[str] = Field("", max_length=20, description="Liều tối")
     cach_dung: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)] = Field(
         ..., description="Hướng dẫn liều lượng và cách dùng (VD: Sáng 1 viên sau ăn, tối 1 viên)"
     )
@@ -136,6 +148,7 @@ class PrescriptionItemCreateRequest(BaseModel):
 
 class PrescriptionCreateRequest(BaseModel):
     """Yêu cầu kê đơn thuốc ngoại trú cho ca khám (OpenMRS Drug Order Header)"""
+    so_ngay_dung: int = Field(5, gt=0, le=90, description="Số ngày dùng thuốc tổng thể của đơn")
     loi_dan_uong_thuoc: Optional[str] = Field(None, description="Lời dặn chung của bác sĩ khi uống thuốc")
     ghi_chu_duoc_lam_sang: Optional[str] = Field(None, description="Ghi chú lưu ý tương tác thuốc hoặc dược lâm sàng")
     danh_sach_thuoc: List[PrescriptionItemCreateRequest] = Field(
@@ -154,6 +167,10 @@ class PrescriptionItemResponse(BaseModel):
     ham_luong: Optional[str] = None
     don_vi_tinh: str
     so_luong: int
+    lieu_sang: Optional[str] = ""
+    lieu_trua: Optional[str] = ""
+    lieu_chieu: Optional[str] = ""
+    lieu_toi: Optional[str] = ""
     cach_dung: str
     so_ngay_dung: int
     ghi_chu: Optional[str] = None
@@ -161,6 +178,7 @@ class PrescriptionItemResponse(BaseModel):
 
 class PrescriptionUpdateRequest(BaseModel):
     """Yêu cầu cập nhật nội dung đơn thuốc (chỉ cho phép khi ở DRAFT hoặc VALIDATED)"""
+    so_ngay_dung: Optional[int] = Field(None, gt=0, le=90, description="Số ngày dùng thuốc của đơn")
     loi_dan_uong_thuoc: Optional[str] = Field(None, description="Lời dặn chung của bác sĩ khi uống thuốc")
     ghi_chu_duoc_lam_sang: Optional[str] = Field(None, description="Ghi chú lưu ý tương tác thuốc hoặc dược lâm sàng")
     danh_sach_thuoc: Optional[List[PrescriptionItemCreateRequest]] = Field(
@@ -176,6 +194,7 @@ class PrescriptionResponse(BaseModel):
     luot_kham_id: int
     bac_si_ke_don_id: int
     ngay_ke_don: datetime
+    so_ngay_dung: int = 5
     loi_dan_uong_thuoc: Optional[str] = None
     ghi_chu_duoc_lam_sang: Optional[str] = None
     danh_sach_chi_tiet: List[PrescriptionItemResponse] = []
@@ -203,6 +222,7 @@ class EncounterCompleteRequest(BaseModel):
     ket_luan_dieu_tri: Optional[str] = Field(None, description="Kết luận điều trị y khoa")
     loi_dan_bac_si: Optional[str] = Field(None, description="Lời dặn của bác sĩ")
     ngay_hen_tai_kham: Optional[date] = Field(None, description="Ngày hẹn tái khám (nếu có)")
+    loi_dan_tai_kham: Optional[str] = Field(None, description="Lời dặn chi tiết khi tái khám")
 
 
 class EncounterResponse(BaseModel):
@@ -211,12 +231,16 @@ class EncounterResponse(BaseModel):
 
     id: int
     lich_kham_id: int
+    ma_kcb: Optional[str] = None
     bac_si_id: int
     benh_nhan_id: int
     thoi_gian_bat_dau: datetime
     thoi_gian_ket_thuc: Optional[datetime] = None
     ly_do_vao_kham: Optional[str] = None
     benh_su: Optional[str] = None
+    trieu_chung: Optional[str] = None
+    chan_doan_so_bo: Optional[str] = None
+    tien_su_di_ung: Optional[str] = None
 
     # Sinh hiệu
     mach_lan_phut: Optional[int] = None
@@ -226,11 +250,14 @@ class EncounterResponse(BaseModel):
     nhip_tho_lan_phut: Optional[int] = None
     can_nang_kg: Optional[float] = None
     chieu_cao_cm: Optional[float] = None
+    spo2: Optional[float] = None
+    bmi: Optional[float] = None
 
     kham_lam_sang_bo_phan: Optional[str] = None
     ket_luan_dieu_tri: Optional[str] = None
     loi_dan_bac_si: Optional[str] = None
     ngay_hen_tai_kham: Optional[date] = None
+    loi_dan_tai_kham: Optional[str] = None
 
     # Khóa bệnh án
     is_locked: bool

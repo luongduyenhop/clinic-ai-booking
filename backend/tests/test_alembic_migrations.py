@@ -59,7 +59,7 @@ async def test_full_45_tables_schema_metadata_integrity(db_session):
     metadata = Base.metadata
     table_names = set(metadata.tables.keys())
 
-    # Danh sách 45 bảng cốt lõi của Clinic-AI
+    # Danh sách 42 bảng cốt lõi của Clinic-AI
     expected_tables = {
         # 1. Người dùng & Phân quyền
         "nguoi_dung", "tai_khoan", "bac_si", "benh_nhan", "ho_so_nguoi_than",
@@ -75,14 +75,13 @@ async def test_full_45_tables_schema_metadata_integrity(db_session):
         "hoa_don", "chi_tiet_hoa_don", "phieu_thu_chi", "khoa_so_ca_truc",
         # 7. Tuân thủ y tế & Giấy phép hành nghề
         "giay_phep_co_so", "lich_su_giay_phep_bac_si", "nhat_ky_truy_cap_y_te",
-        # 8. Chuyên sâu B2B & Gói khám & Liệu trình
-        "hop_dong_kham_doan", "nhan_vien_kham_doan", "goi_dich_vu", "chi_tiet_goi_dich_vu",
-        "dang_ky_goi_kham", "lieu_trinh_dieu_tri", "buoi_dieu_tri",
+        # 8. Gói khám cá nhân & Liệu trình phục hồi
+        "goi_dich_vu", "chi_tiet_goi_dich_vu", "dang_ky_goi_kham", "lieu_trinh_dieu_tri", "buoi_dieu_tri",
         # 9. Danh mục y tế & Kiến thức AI & Nội dung
-        "khai_niem", "tu_khoa_cap_cuu", "thong_bao", "mau_bieu_y_te", "cau_hoi_y_khoa", "bai_viet_tin_tuc", "he_thong_trang_thai_bff"
+        "khai_niem", "tu_khoa_cap_cuu", "thong_bao", "mau_bieu_y_te", "bai_viet_tin_tuc", "he_thong_trang_thai_bff"
     }
 
-    assert len(expected_tables) == 45, f"Tổng số bảng kỳ vọng phải là 45, hiện là {len(expected_tables)}"
+    assert len(expected_tables) == 42, f"Tổng số bảng kỳ vọng phải là 42, hiện là {len(expected_tables)}"
     missing_tables = expected_tables - table_names
     assert not missing_tables, f"Thiếu các bảng sau trong CSDL: {missing_tables}"
 

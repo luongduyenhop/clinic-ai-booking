@@ -3,68 +3,14 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from sqlalchemy import select
 from app.models.specialized import (
-    HopDongKhamDoan,
-    NhanVienKhamDoan,
     GoiDichVu,
     ChiTietGoiDichVu,
     DangKyGoiKham,
     LieuTrinhDieuTri,
     BuoiDieuTri
 )
-from app.models.content import MauBieuYTe, CauHoiYKhoa, BaiVietTinTuc
+from app.models.content import MauBieuYTe, BaiVietTinTuc
 from app.models.medical import DichVu, KhoaSoCaTruc
-
-
-@pytest.mark.asyncio
-async def test_corporate_health_contract_and_employee_classification(db_session, booking):
-    """
-    Kiểm tra CSDL phân hệ Khám sức khỏe Đoàn / Doanh nghiệp B2B:
-    - Tạo hợp đồng khám đoàn
-    - Thêm danh sách nhân viên công ty
-    - Phân loại sức khỏe Loại I - V theo TT 32/2023
-    - Kiểm tra ràng buộc Cascade Delete khi xóa hợp đồng
-    """
-    corp = HopDongKhamDoan(
-        ma_hop_dong=f"HD-TEST-{booking.suffix}",
-        ten_cong_ty="Tập đoàn Công nghệ Viễn thông ABC",
-        ma_so_thue="0109988776",
-        nguoi_dai_dien="Nguyễn Văn Đại Diện",
-        so_dien_thoai="0901234567",
-        so_luong_nhan_vien=2,
-        ngay_bat_dau=date(2026, 10, 1),
-        ngay_ket_thuc=date(2026, 10, 31),
-        gia_tri_hop_dong=Decimal("30000000.00"),
-        trang_thai="DANG_THUC_HIEN"
-    )
-    db_session.add(corp)
-    await db_session.flush()
-
-    nv1 = NhanVienKhamDoan(
-        hop_dong_id=corp.id,
-        ma_nhan_vien="NV001",
-        ho_ten="Trần Văn Nhân Viên 1",
-        phan_loai_suc_khoe="LOAI_I",
-        trang_thai_kham="DA_KHAM",
-        ket_luan="Đủ điều kiện sức khỏe làm việc"
-    )
-    nv2 = NhanVienKhamDoan(
-        hop_dong_id=corp.id,
-        ma_nhan_vien="NV002",
-        ho_ten="Lê Thị Nhân Viên 2",
-        phan_loai_suc_khoe="LOAI_II",
-        trang_thai_kham="DA_KHAM",
-        ket_luan="Viêm xoang nhẹ, đủ điều kiện làm việc"
-    )
-    db_session.add_all([nv1, nv2])
-    await db_session.commit()
-
-    # Tra cứu lại
-    stmt = select(HopDongKhamDoan).where(HopDongKhamDoan.id == corp.id)
-    saved_corp = (await db_session.execute(stmt)).scalar_one()
-    assert saved_corp.ten_cong_ty == "Tập đoàn Công nghệ Viễn thông ABC"
-    assert len(saved_corp.danh_sach_nhan_vien) == 2
-
-
 @pytest.mark.asyncio
 async def test_service_package_and_registration_lifecycle(db_session, booking):
     """
@@ -187,11 +133,11 @@ async def test_cashier_shift_closing_ledger(db_session, booking):
 
 
 @pytest.mark.asyncio
-async def test_clinical_templates_and_qa_content(db_session, booking):
+async def test_clinical_templates_and_articles(db_session, booking):
     """
-    Kiểm tra CSDL phân hệ Mẫu biểu y tế và Hỏi đáp Q&A:
+    Kiểm tra CSDL phân hệ Mẫu biểu y tế và Bài viết tin tức:
     - Lưu mẫu chỉ định CLS nhanh
-    - Lưu câu hỏi thường gặp và bài viết tin tức
+    - Lưu bài viết y học thường thức
     """
     mau = MauBieuYTe(
         ma_mau=f"MAU-XQ-{booking.suffix}",
@@ -200,13 +146,6 @@ async def test_clinical_templates_and_qa_content(db_session, booking):
         noi_dung_text="Chụp X-quang tim phổi thẳng + Điện tâm đồ ECG 12 cần",
         is_public=True
     )
-    qa = CauHoiYKhoa(
-        tieu_de="Uống nước trước khi siêu âm bụng có cần thiết không?",
-        chuyen_muc="CHAN_DOAN_HINH_ANH",
-        cau_hoi="Tôi đi khám siêu âm ổ bụng thì có cần nhịn tiểu không?",
-        cau_tra_loi="Nên nhịn tiểu để bàng quang căng giúp quan sát rõ hệ tiết niệu và tử cung/buồng trứng.",
-        is_published=True
-    )
     tin_tuc = BaiVietTinTuc(
         tieu_de=f"Lợi ích của việc khám sức khỏe định kỳ {booking.suffix}",
         slug=f"loi-ich-kham-dinh-ky-{booking.suffix}",
@@ -214,13 +153,13 @@ async def test_clinical_templates_and_qa_content(db_session, booking):
         noi_dung_html="<p>Khám sức khỏe giúp phát hiện sớm các bệnh lý mạn tính...</p>",
         is_published=True
     )
-    db_session.add_all([mau, qa, tin_tuc])
+    db_session.add_all([mau, tin_tuc])
     await db_session.commit()
 
     stmt_m = select(MauBieuYTe).where(MauBieuYTe.id == mau.id)
     saved_m = (await db_session.execute(stmt_m)).scalar_one()
     assert saved_m.ten_mau == "Chỉ định X-quang và ECG thường quy"
 
-    stmt_q = select(CauHoiYKhoa).where(CauHoiYKhoa.id == qa.id)
-    saved_q = (await db_session.execute(stmt_q)).scalar_one()
-    assert saved_q.chuyen_muc == "CHAN_DOAN_HINH_ANH"
+    stmt_t = select(BaiVietTinTuc).where(BaiVietTinTuc.id == tin_tuc.id)
+    saved_t = (await db_session.execute(stmt_t)).scalar_one()
+    assert saved_t.chuyen_muc == "Y_HOC_THUONG_THUC"

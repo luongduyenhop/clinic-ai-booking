@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.appointment import LichKham
 from app.models.bff_store import HeThongTrangThaiBff
 from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
-from app.models.content import BaiVietTinTuc, CauHoiYKhoa, MauBieuYTe
+from app.models.content import BaiVietTinTuc, MauBieuYTe
 from app.models.medical import (
     ChiDinh,
     ChiTietHoaDon,
@@ -25,7 +25,6 @@ from app.models.medical import (
 from app.models.specialized import (
     DangKyGoiKham,
     GoiDichVu,
-    HopDongKhamDoan,
     LieuTrinhDieuTri,
 )
 from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham
@@ -469,23 +468,7 @@ class BffAdminService:
                     ))
 
         elif collection_key == "qaList":
-            for qa in items:
-                question_text = str(qa.get("cauHoi") or "").strip()
-                if not question_text:
-                    continue
-                title = f"Hỏi đáp: {str(qa.get('nguoiHoi') or 'Bệnh nhân')} - {question_text[:60]}"
-                stmt = select(CauHoiYKhoa).where(CauHoiYKhoa.tieu_de == title[:255])
-                existing = (await db.execute(stmt)).scalar_one_or_none()
-                if existing:
-                    existing.cau_tra_loi = str(qa.get("traLoi") or existing.cau_tra_loi or "")
-                else:
-                    db.add(CauHoiYKhoa(
-                        tieu_de=title[:255],
-                        chuyen_muc=str(qa.get("chuyenKhoa") or "NOI_KHOA")[:50],
-                        cau_hoi=question_text,
-                        cau_tra_loi=str(qa.get("traLoi") or ""),
-                        is_published=True,
-                    ))
+            pass  # Đã gỡ bỏ phân hệ hỏi đáp y khoa theo kiến trúc mới
 
         elif collection_key == "registrations":
             first_user, first_bn, first_bs, first_lk = await self._ensure_default_entities(db)
@@ -691,29 +674,7 @@ class BffAdminService:
                     ))
 
         elif collection_key == "corporateCheckups":
-            for cc in items:
-                code = str(cc.get("soHopDong") or cc.get("maDoan") or cc.get("id") or "").strip()
-                if not code:
-                    continue
-                stmt = select(HopDongKhamDoan).where(HopDongKhamDoan.ma_hop_dong == code[:50])
-                existing = (await db.execute(stmt)).scalar_one_or_none()
-                if existing:
-                    existing.so_luong_nhan_vien = int(cc.get("soLuongNhanVien") or existing.so_luong_nhan_vien)
-                    existing.gia_tri_hop_dong = _parse_decimal_safe(cc.get("tongTien") or existing.gia_tri_hop_dong)
-                else:
-                    start_d = _parse_date_safe(cc.get("ngayHopDong"))
-                    db.add(HopDongKhamDoan(
-                        ma_hop_dong=code[:50],
-                        ten_cong_ty=str(cc.get("tenDoan") or "Doanh nghiệp khám đoàn")[:255],
-                        ma_so_thue=str(cc.get("maSoThue") or "")[:50],
-                        nguoi_dai_dien=str(cc.get("nguoiLienHe") or "Đại diện nhân sự")[:150],
-                        so_dien_thoai=str(cc.get("dienThoai") or "0901234567")[:30],
-                        so_luong_nhan_vien=int(cc.get("soLuongNhanVien") or 50),
-                        ngay_bat_dau=start_d,
-                        ngay_ket_thuc=start_d + timedelta(days=30),
-                        gia_tri_hop_dong=_parse_decimal_safe(cc.get("tongTien") or 0),
-                        trang_thai="DANG_THUC_HIEN",
-                    ))
+            pass  # Đã gỡ bỏ phân hệ khám đoàn B2B theo kiến trúc mới
 
     async def _sync_catalog_relational_tables(self, db: AsyncSession, sub_key: str, items: Any) -> None:
         """Đồng bộ các bảng danh mục (khoaPhong -> phong_kham, dichVu -> dich_vu, danhMucBenh/thuocVatTu -> khai_niem)"""

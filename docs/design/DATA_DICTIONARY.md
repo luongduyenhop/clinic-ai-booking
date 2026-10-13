@@ -80,3 +80,52 @@
 | `phan_loai_the_luc` | `VARCHAR(20)` | NULLABLE | `LOAI_1`, `LOAI_2`, `LOAI_3`, `LOAI_4`, `LOAI_5` |
 | `ket_luan_suc_khoe` | `TEXT` | NULLABLE | Đủ sức khỏe làm việc / lái xe / học tập |
 | `created_at` | `TIMESTAMP WITH TIME ZONE` | DEFAULT NOW() | Thời điểm ghi nhận |
+
+---
+
+## 5. Chuẩn hóa Khám Bệnh & Kê Đơn theo Demo tClinic (Migration 007)
+
+### 5.1 Bảng `luot_kham` (Bổ sung chỉ số lâm sàng & sinh hiệu)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `spo2` | `FLOAT` | NULLABLE | Nồng độ oxy bão hòa trong máu (%) |
+| `bmi` | `FLOAT` | NULLABLE | Chỉ số khối cơ thể ($kg/m^2$) |
+| `trieu_chung` | `TEXT` | NULLABLE | Triệu chứng cơ năng khi vào khám |
+| `chan_doan_so_bo` | `TEXT` | NULLABLE | Chẩn đoán sơ bộ ban đầu của bác sĩ |
+| `tien_su_di_ung` | `TEXT` | NULLABLE | Tiền sử dị ứng thuốc / thức ăn / hóa chất |
+| `loi_dan_tai_kham` | `TEXT` | NULLABLE | Hướng dẫn chuyên biệt khi bệnh nhân quay lại tái khám |
+
+### 5.2 Bảng `don_thuoc` (Bổ sung liệu trình tổng thể)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `so_ngay_dung` | `INTEGER` | NULLABLE, DEFAULT 1 | Tổng số ngày dùng thuốc của đơn |
+
+### 5.3 Bảng `chi_tiet_don_thuoc` (Bổ sung liều 4 cữ chuẩn)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `lieu_sang` | `VARCHAR(50)` | NULLABLE | Liều lượng dùng buổi sáng (ví dụ: "1 viên", "5ml") |
+| `lieu_trua` | `VARCHAR(50)` | NULLABLE | Liều lượng dùng buổi trưa |
+| `lieu_chieu` | `VARCHAR(50)` | NULLABLE | Liều lượng dùng buổi chiều |
+| `lieu_toi` | `VARCHAR(50)` | NULLABLE | Liều lượng dùng buổi tối |
+
+### 5.4 Bảng `chi_dinh_dich_vu` (Bổ sung tài chính dịch vụ CLS)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `giam_gia` | `NUMERIC(14, 2)` | NOT NULL, DEFAULT 0 | Mức giảm trừ / chiết khấu trực tiếp trên dịch vụ |
+| `thanh_tien` | `NUMERIC(14, 2)` | NULLABLE | Thành tiền dịch vụ sau giảm giá (`don_gia * so_luong - giam_gia`) |
+
+---
+
+## 6. Chuẩn hóa Khẩn cấp & Mã Đợt KCB theo tClinic (Migration 008)
+
+### 6.1 Bảng `benh_nhan` (Thông tin thân nhân & liên hệ khẩn cấp)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `nguoi_lien_he` | `VARCHAR(100)` | NULLABLE | Họ tên thân nhân / người đưa đi khám (dành cho nhi & người cao tuổi) |
+| `sdt_nguoi_lien_he` | `VARCHAR(20)` | NULLABLE | Số điện thoại liên hệ khẩn cấp của thân nhân |
+
+### 6.2 Bảng `luot_kham` (Đồng bộ mã đợt khám chữa bệnh)
+| Tên Cột Bổ Sung | Kiểu Dữ Liệu | Ràng Buộc / Thuộc Tính | Diễn Giải Nghiệp Vụ theo tClinic |
+|---|---|---|---|
+| `ma_kcb` | `VARCHAR(50)` | NULLABLE, INDEX | Mã đợt khám chữa bệnh thống nhất (Format: `KCB-YYMMDD-xxxx`) |
+

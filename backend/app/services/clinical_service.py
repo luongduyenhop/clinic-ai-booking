@@ -115,7 +115,7 @@ class ClinicalService:
             luot_kham_id=dt.luot_kham_id,
             bac_si_ke_don_id=dt.bac_si_ke_don_id,
             ngay_ke_don=dt.ngay_ke_don,
-            so_ngay_dung=getattr(dt, "so_ngay_dung", 5) or 5,
+            so_ngay_dung=dt.so_ngay_dung or 5,
             loi_dan_uong_thuoc=dt.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=dt.ghi_chu_duoc_lam_sang,
             trang_thai=dt.trang_thai or "DRAFT",
@@ -176,8 +176,8 @@ class ClinicalService:
                 ten_dich_vu=order.dich_vu.ten_dich_vu if order.dich_vu else None,
                 so_luong=order.so_luong,
                 don_gia_tai_thoi_diem=float(order.don_gia_tai_thoi_diem),
-                giam_gia=float(getattr(order, "giam_gia", 0.0) or 0.0),
-                thanh_tien=float(getattr(order, "thanh_tien", 0.0) or 0.0),
+                giam_gia=float(order.giam_gia or 0.0),
+                thanh_tien=float(order.thanh_tien or 0.0),
                 trang_thai=order.trang_thai,
                 bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
                 ket_qua_chi_tiet=order.ket_qua_chi_tiet,
@@ -192,16 +192,16 @@ class ClinicalService:
         return EncounterResponse(
             id=lk.id,
             lich_kham_id=lk.lich_kham_id,
-            ma_kcb=getattr(lk, "ma_kcb", None),
+            ma_kcb=lk.ma_kcb,
             bac_si_id=lk.bac_si_id,
             benh_nhan_id=lk.benh_nhan_id,
             thoi_gian_bat_dau=lk.thoi_gian_bat_dau,
             thoi_gian_ket_thuc=lk.thoi_gian_ket_thuc,
             ly_do_vao_kham=lk.ly_do_vao_kham,
             benh_su=lk.benh_su,
-            trieu_chung=getattr(lk, "trieu_chung", None),
-            chan_doan_so_bo=getattr(lk, "chan_doan_so_bo", None),
-            tien_su_di_ung=getattr(lk, "tien_su_di_ung", None),
+            trieu_chung=lk.trieu_chung,
+            chan_doan_so_bo=lk.chan_doan_so_bo,
+            tien_su_di_ung=lk.tien_su_di_ung,
             mach_lan_phut=lk.mach_lan_phut,
             nhiet_do_c=float(lk.nhiet_do_c) if lk.nhiet_do_c is not None else None,
             huyet_ap_tam_thu=lk.huyet_ap_tam_thu,
@@ -209,13 +209,13 @@ class ClinicalService:
             nhip_tho_lan_phut=lk.nhip_tho_lan_phut,
             can_nang_kg=float(lk.can_nang_kg) if lk.can_nang_kg is not None else None,
             chieu_cao_cm=float(lk.chieu_cao_cm) if lk.chieu_cao_cm is not None else None,
-            spo2=float(lk.spo2) if getattr(lk, "spo2", None) is not None else None,
-            bmi=float(lk.bmi) if getattr(lk, "bmi", None) is not None else None,
+            spo2=float(lk.spo2) if lk.spo2 is not None else None,
+            bmi=float(lk.bmi) if lk.bmi is not None else None,
             kham_lam_sang_bo_phan=lk.kham_lam_sang_bo_phan,
             ket_luan_dieu_tri=lk.ket_luan_dieu_tri,
             loi_dan_bac_si=lk.loi_dan_bac_si,
             ngay_hen_tai_kham=lk.ngay_hen_tai_kham,
-            loi_dan_tai_kham=getattr(lk, "loi_dan_tai_kham", None),
+            loi_dan_tai_kham=lk.loi_dan_tai_kham,
             is_locked=lk.is_locked,
             thoi_gian_khoa=lk.thoi_gian_khoa,
             nguoi_khoa_id=lk.nguoi_khoa_id,
@@ -321,6 +321,23 @@ class ClinicalService:
             bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
             if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
                 raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
+
+        # INT-03 Health Data Access Audit Logging (NĐ 102/2025/NĐ-CP)
+        from app.services.audit_trail_service import audit_trail_service
+        try:
+            await audit_trail_service.log_access(
+                db=db,
+                user_id=user.id,
+                user_role=user.vai_tro,
+                patient_id=luot_kham.benh_nhan_id,
+                action="VIEW",
+                resource_type="ENCOUNTER",
+                resource_id=luot_kham.id,
+                purpose="Kham chua benh va theo doi ho so benh an",
+                client_ip="127.0.0.1",
+            )
+        except Exception as audit_err:
+            logger.warning(f"⚠️ [AUDIT_LOG_EXCEPTION] {audit_err}")
 
         return self._to_encounter_response(luot_kham)
 

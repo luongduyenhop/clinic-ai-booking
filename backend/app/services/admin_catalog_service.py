@@ -108,8 +108,8 @@ class AdminCatalogService:
                 phong_thuc_hien_id=item.phong_thuc_hien_id,
                 ten_phong_thuc_hien=item.phong_thuc_hien.ten_phong if item.phong_thuc_hien else None,
                 ma_phong_thuc_hien=item.phong_thuc_hien.ma_phong if item.phong_thuc_hien else None,
-                thoi_gian_tra_ket_qua_phut=getattr(item, "thoi_gian_tra_ket_qua_phut", 30) or 30,
-                huong_dan_chuan_bi=getattr(item, "huong_dan_chuan_bi", None),
+                thoi_gian_tra_ket_qua_phut=item.thoi_gian_tra_ket_qua_phut or 30,
+                huong_dan_chuan_bi=item.huong_dan_chuan_bi,
             )
             for item in items
         ]
@@ -257,8 +257,8 @@ class AdminCatalogService:
             phong_thuc_hien_id=service.phong_thuc_hien_id,
             ten_phong_thuc_hien=service.phong_thuc_hien.ten_phong if service.phong_thuc_hien else None,
             ma_phong_thuc_hien=service.phong_thuc_hien.ma_phong if service.phong_thuc_hien else None,
-            thoi_gian_tra_ket_qua_phut=getattr(service, "thoi_gian_tra_ket_qua_phut", 30) or 30,
-            huong_dan_chuan_bi=getattr(service, "huong_dan_chuan_bi", None),
+            thoi_gian_tra_ket_qua_phut=service.thoi_gian_tra_ket_qua_phut or 30,
+            huong_dan_chuan_bi=service.huong_dan_chuan_bi,
         )
 
 

@@ -23,8 +23,12 @@ All tests run without facade or dummy bypasses, executing against genuine domain
 | 2 | `tests/test_compliance_prescription_fsm.py` | Prescription FSM (11 states), Signing Immutability, Superseding Protocol, Gateway Timeout (504), Idempotency Key, Receipt Validation | T1, T2, T3, T4 | 23 | **PASSED** (23/23) |
 | 3 | `tests/test_compliance_audit_trail.py` | Health Data Access Audit Log (Append-only), View/Export Interceptors, Four-Eyes Amendment Protocol, Committee Protocol `ma_kiem_thao` | T1, T2, T3, T4 | 11 | **PASSED** (11/11) |
 | 4 | `tests/test_compliance_dashboard.py` | Medical Director Compliance Dashboard, License Expiry KPIs, Gateway Queues, EMR Locked Completion Rate, Statutory CSV & JSON Export | T1, T2, T3, T4 | 14 | **PASSED** (14/14) |
-| **TOTAL** | **4 Comprehensive Suites** | **Complete Compliance Management Layer** | **All 4 Tiers** | **76** | **100% PASSED (76/76)** |
+| 5 | `tests/test_tclinic_aligned_encounter.py` | Complete tClinic Encounter Lifecycle with Vital Signs, ICD-10 Diagnosis, 4-dosage Prescriptions | T1, T4 | 1 | **PASSED** (1/1) |
+| **TOTAL** | **5 Comprehensive Suites** | **Complete Compliance & Clinical Encounter** | **All 4 Tiers** | **77** | **100% PASSED (77/77)** |
 | **FULL REPO**| **Entire Backend Test Suite** | **Zero Regressions Across All Modules** | **All Modules**| **359** | **359 PASSED, 4 SKIPPED, 1 XFAIL, 0 FAIL** |
+
+> [!NOTE]
+> **Hội đồng Thẩm định & PR Context:** Chi tiết giải trình minh chứng kiến trúc về các bảng ORM, dịch vụ Audit Trail và câu trả lời phản biện Hội đồng xem tại [AUDIT_COMPLIANCE_EVIDENCE.md](file:///d:/dowload/tailieu/clinic-ai/AUDIT_COMPLIANCE_EVIDENCE.md). Tất cả các file kiểm thử trên nằm thực tế tại thư mục `backend/tests/`.
 
 ---
 

@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -16,13 +16,26 @@ from app.schemas.clinical import (
     OrderResponse,
     OrderResultUpdateRequest,
     PrescriptionCreateRequest,
+    PrescriptionUpdateRequest,
     PrescriptionResponse,
     AmendmentCreateRequest,
     AmendmentResponse,
     AmendmentApproveRequest,
 )
+from app.schemas.compliance import (
+    PrescriptionSignRequest,
+    PrescriptionIssueRequest,
+    PrescriptionGatewaySubmitRequest,
+    GatewaySubmissionResult,
+    PrescriptionGatewayRetryRequest,
+    PrescriptionSupersedeRequest,
+    PrescriptionSupersedeResponse,
+)
+from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.queue import CallNextResponse, QueueTicketResponse
 from app.services.clinical_service import clinical_service
+from app.services.national_gateway_service import national_gateway_service
+from app.services.prescription_fsm_service import prescription_fsm_service
 from app.services.queue_service import queue_service
 
 router = APIRouter(prefix="/clinical", tags=["5. Khám Lâm Sàng & Bệnh Án Điện Tử (Package D)"])
@@ -227,6 +240,190 @@ async def get_prescription(
     )
 
 
+# ==============================================================================
+# QUẢN LÝ VÒNG ĐỜI MÁY TRẠNG THÁI ĐƠN THUỐC & CỔNG QUỐC GIA (INT-04 / R3)
+# ==============================================================================
+
+@router.get(
+    "/prescriptions/{prescription_id}",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    summary="Xem chi tiết đơn thuốc điện tử theo ID (OpenMRS Drug Order)"
+)
+async def get_prescription_by_id(
+    prescription_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    rx = await prescription_fsm_service.get_prescription_or_404(db, prescription_id)
+    result = clinical_service._to_prescription_response(rx)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy thông tin đơn thuốc thành công"
+    )
+
+
+@router.put(
+    "/prescriptions/{prescription_id}",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    summary="Chỉnh sửa đơn thuốc (Khóa bất biến nếu đơn đã SIGNED, ISSUED, ACCEPTED, SUPERSEDED)"
+)
+async def update_prescription(
+    prescription_id: int,
+    payload: PrescriptionUpdateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    rx = await prescription_fsm_service.update_prescription_db(
+        db=db,
+        prescription_id=prescription_id,
+        user=current_user,
+        payload=payload,
+    )
+    return ResponseEnvelope.success_response(
+        data=clinical_service._to_prescription_response(rx),
+        message="Cập nhật đơn thuốc thành công"
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/validate",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    summary="Thẩm định chuyên môn đơn thuốc trước khi ký số (DRAFT -> VALIDATED)"
+)
+async def validate_prescription(
+    prescription_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    rx = await prescription_fsm_service.validate_prescription(db, prescription_id, current_user)
+    return ResponseEnvelope.success_response(
+        data=clinical_service._to_prescription_response(rx),
+        message="Thẩm định đơn thuốc thành công"
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/sign",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    summary="Bác sĩ ký số đơn thuốc điện tử bằng chữ ký số cá nhân (VALIDATED -> SIGNED)"
+)
+async def sign_prescription(
+    prescription_id: int,
+    payload: PrescriptionSignRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    rx = await prescription_fsm_service.sign_prescription_db(
+        db=db,
+        prescription_id=prescription_id,
+        user=current_user,
+        signature_data=payload.chu_ky_so,
+    )
+    return ResponseEnvelope.success_response(
+        data=clinical_service._to_prescription_response(rx),
+        message="Ký số đơn thuốc thành công, nội dung thuốc đã bị khóa bất biến"
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/issue",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    summary="Ban hành đơn thuốc điện tử ra hệ thống ngoại trú (SIGNED -> ISSUED)"
+)
+async def issue_prescription(
+    prescription_id: int,
+    payload: Optional[PrescriptionIssueRequest] = None,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    rx = await prescription_fsm_service.issue_prescription_db(db, prescription_id, current_user)
+    return ResponseEnvelope.success_response(
+        data=clinical_service._to_prescription_response(rx),
+        message="Ban hành đơn thuốc thành công"
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/submit-gateway",
+    response_model=ResponseEnvelope[GatewaySubmissionResult],
+    summary="Liên thông đơn thuốc lên Cổng đơn thuốc quốc gia (ISSUED -> SUBMISSION_PENDING -> SUBMITTED -> ACCEPTED)"
+)
+async def submit_gateway(
+    prescription_id: int,
+    payload: Optional[PrescriptionGatewaySubmitRequest] = None,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    key = idempotency_key_header or (payload.idempotency_key if payload else None)
+    facility_code = payload.facility_code if payload else None
+    practitioner_code = payload.practitioner_code if payload else None
+    result = await national_gateway_service.submit_to_gateway(
+        db=db,
+        prescription_id=prescription_id,
+        user=current_user,
+        idempotency_key=key,
+        facility_code=facility_code,
+        practitioner_code=practitioner_code,
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/retry-gateway",
+    response_model=ResponseEnvelope[GatewaySubmissionResult],
+    summary="Gửi lại đơn thuốc gặp sự cố kết nối/timeout với nguyên vẹn Idempotency-Key"
+)
+async def retry_gateway(
+    prescription_id: int,
+    payload: Optional[PrescriptionGatewayRetryRequest] = None,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    key = idempotency_key_header or (payload.idempotency_key if payload else None)
+    result = await national_gateway_service.retry_gateway(
+        db=db,
+        prescription_id=prescription_id,
+        user=current_user,
+        idempotency_key=key,
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
+    )
+
+
+@router.post(
+    "/prescriptions/{prescription_id}/supersede",
+    response_model=ResponseEnvelope[PrescriptionSupersedeResponse],
+    summary="Quy trình thay thế đơn thuốc: Khóa đơn cũ SUPERSEDED và tạo đơn mới DRAFT"
+)
+async def supersede_prescription(
+    prescription_id: int,
+    payload: PrescriptionSupersedeRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    old_rx, new_rx = await prescription_fsm_service.supersede_prescription_db(
+        db=db,
+        prescription_id=prescription_id,
+        user=current_user,
+        payload=payload,
+    )
+    return ResponseEnvelope.success_response(
+        data=PrescriptionSupersedeResponse(
+            old_prescription=clinical_service._to_prescription_response(old_rx).model_dump(),
+            new_prescription=clinical_service._to_prescription_response(new_rx).model_dump(),
+            message=f"Đơn thuốc #{old_rx.id} đã được thay thế thành công bởi đơn mới #{new_rx.id}"
+        ),
+        message="Thay thế đơn thuốc thành công"
+    )
+
+
 @router.post(
     "/queue/call-next",
     response_model=ResponseEnvelope[CallNextResponse],
@@ -330,5 +527,40 @@ async def reject_amendment(
     return ResponseEnvelope.success_response(
         data=result,
         message="Đã từ chối biên bản đính chính"
+    )
+
+
+@router.post(
+    "/encounters/{encounter_id}/physical-exam",
+    response_model=ResponseEnvelope[PhysicalExamResponse],
+    summary="Ghi nhận hoặc cập nhật kết quả khám thể lực chuyên khoa theo Thông tư 32/2023/TT-BYT"
+)
+async def save_physical_exam(
+    encounter_id: int,
+    payload: PhysicalExamRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await clinical_service.save_physical_exam(encounter_id, payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Cập nhật khám thể lực thành công"
+    )
+
+
+@router.get(
+    "/encounters/{encounter_id}/physical-exam",
+    response_model=ResponseEnvelope[Optional[PhysicalExamResponse]],
+    summary="Xem chi tiết kết quả khám thể lực của lượt khám"
+)
+async def get_physical_exam(
+    encounter_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await clinical_service.get_physical_exam(encounter_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy thông tin khám thể lực thành công"
     )
 

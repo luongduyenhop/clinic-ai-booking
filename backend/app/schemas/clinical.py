@@ -159,6 +159,15 @@ class PrescriptionItemResponse(BaseModel):
     ghi_chu: Optional[str] = None
 
 
+class PrescriptionUpdateRequest(BaseModel):
+    """Yêu cầu cập nhật nội dung đơn thuốc (chỉ cho phép khi ở DRAFT hoặc VALIDATED)"""
+    loi_dan_uong_thuoc: Optional[str] = Field(None, description="Lời dặn chung của bác sĩ khi uống thuốc")
+    ghi_chu_duoc_lam_sang: Optional[str] = Field(None, description="Ghi chú lưu ý tương tác thuốc hoặc dược lâm sàng")
+    danh_sach_thuoc: Optional[List[PrescriptionItemCreateRequest]] = Field(
+        None, min_length=1, description="Danh sách các loại thuốc mới thay thế"
+    )
+
+
 class PrescriptionResponse(BaseModel):
     """Đơn thuốc điều trị ngoại trú đầy đủ của ca khám"""
     model_config = ConfigDict(from_attributes=True)
@@ -171,6 +180,22 @@ class PrescriptionResponse(BaseModel):
     ghi_chu_duoc_lam_sang: Optional[str] = None
     danh_sach_chi_tiet: List[PrescriptionItemResponse] = []
     created_at: Optional[datetime] = None
+
+    # Quản lý Tuân thủ Pháp lý & Liên thông Cổng Quốc gia (INT-04 / R3)
+    trang_thai: str = "DRAFT"
+    ma_don_quoc_gia: Optional[str] = None
+    chu_ky_so: Optional[str] = None
+    ngay_ky: Optional[datetime] = None
+    idempotency_key: Optional[str] = None
+    bien_nhan_giao_dich: Optional[str] = None
+    thoi_gian_gui_cong: Optional[datetime] = None
+    ma_ket_qua_cong: Optional[str] = None
+    thong_diep_cong: Optional[str] = None
+    superseded_by_id: Optional[int] = None
+    thay_the_cho_don_id: Optional[int] = None
+    ly_do_thay_the: Optional[str] = None
+    nguoi_ky_id: Optional[int] = None
+    du_lieu_don_thuoc_hash: Optional[str] = None
 
 
 class EncounterCompleteRequest(BaseModel):
@@ -240,6 +265,7 @@ class AmendmentCreateRequest(BaseModel):
     ly_do_ma: Optional[str] = Field(None, max_length=50, description="Mã phân loại lý do đính chính")
     ly_do_text: str = Field(..., min_length=5, description="Mô tả lý do đính chính")
     noi_dung_moi_json: dict = Field(..., description="Nội dung mới dưới dạng JSON có cấu trúc")
+    muc_do_nghiem_trong: Optional[str] = Field(None, description="Mức độ nghiêm trọng lâm sàng: THAP, TRUNG_BINH, CAO")
     ghi_chu: Optional[str] = Field(None, description="Ghi chú bổ sung")
 
 
@@ -253,7 +279,11 @@ class AmendmentResponse(BaseModel):
     thuc_the_id: int
     ly_do_ma: Optional[str] = None
     ly_do_text: str
+    noi_dung_cu_json: Optional[dict] = None
     noi_dung_moi_json: dict
+    muc_do_nghiem_trong: str = "TRUNG_BINH"
+    ma_kiem_thao: Optional[str] = None
+    thoi_gian_kiem_thao: Optional[datetime] = None
     requested_by_id: int
     approved_by_id: Optional[int] = None
     approved_at: Optional[datetime] = None
@@ -266,4 +296,6 @@ class AmendmentResponse(BaseModel):
 class AmendmentApproveRequest(BaseModel):
     """Schema trưởng khoa / admin gửi khi phê duyệt hoặc từ chối đính chính"""
     ghi_chu: Optional[str] = Field(None, description="Ghi chú của người phê duyệt/từ chối")
+    ma_kiem_thao: Optional[str] = Field(None, description="Số biên bản kiểm thảo chuyên môn (bắt buộc với mức CAO theo Điều 69 Luật KCB 2023)")
+    thoi_gian_kiem_thao: Optional[datetime] = Field(None, description="Thời gian họp kiểm thảo chuyên môn")
 

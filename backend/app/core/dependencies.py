@@ -21,6 +21,14 @@ async def get_current_user(
     token = credentials.credentials.strip().strip('"').strip("'")
     while token.lower().startswith("bearer "):
         token = token[7:].strip().strip('"').strip("'")
+
+    # Hỗ trợ token Demo nhanh từ Frontend (LoginPage.jsx -> handleQuickDemoLogin)
+    if token == "demo-clinic-ai-admin-token":
+        from app.services.auth_service import auth_service
+        admin_user = await auth_service._ensure_default_fe_admin("admin@clinic-ai.vn", "password123", db)
+        if admin_user:
+            await db.commit()
+            return admin_user
         
     payload = decode_access_token(token)
     if not payload:

@@ -20,7 +20,7 @@
   body {
     @apply bg-[#F4F8FB] text-[#0F172A] antialiased selection:bg-[#E8F4FD] selection:text-[#003553];
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
   }
 
@@ -179,9 +179,9 @@
     width: 100%;
     background-color: #FFFFFF;
     border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 12.5px;
+    border-radius: 3px;
+    padding: 11px 12px;
+    font-size: 14px;
     color: #0F172A;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
@@ -211,6 +211,22 @@
     margin-bottom: 4px;
     letter-spacing: 0.01em;
   }
+  .auth-label { display: block; margin-bottom: 8px; color: #12263F; font-size: 14px; font-weight: 700; }
+
+  .public-container {
+    width: 100%;
+    max-width: 1225px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  .public-section-heading { max-width: 680px; margin-inline: auto; text-align: center; }
+  .public-section-heading > span { color: #008EC2; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  .public-section-heading h2 { margin-top: 10px; color: #003553; font-size: clamp(25px, 3vw, 31px); line-height: 1.25; font-weight: 800; }
+  .public-section-heading p { margin-top: 10px; color: #64748B; font-size: 15px; }
+  .public-section-heading-dark > span { color: #68D5FA; }
+  .public-section-heading-dark h2 { color: #FFFFFF; }
+  .public-section-heading-dark p { color: #BAE6F7; }
+  @media (min-width: 640px) { .public-container { padding-inline: 24px; } }
 
   .medpro-section-title {
     font-family: "Montserrat", "Roboto", sans-serif;

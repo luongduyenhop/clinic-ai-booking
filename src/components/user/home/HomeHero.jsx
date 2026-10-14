@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarCheck, CheckCircle, ShieldCheck, Sparkle, Stethoscope } from '../../common/ClinicIcon'
 
 export default function HomeHero() {
@@ -15,9 +16,9 @@ export default function HomeHero() {
                         Tìm đúng chuyên khoa, chọn bác sĩ phù hợp và đặt lịch khám chỉ trong vài phút. Clinic-AI đồng hành cùng bạn trước, trong và sau buổi khám.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                        <a href="#chuyen-khoa" className="medpro-btn-primary min-h-12 !px-6 !text-sm">
+                        <Link to="/dat-lich" className="medpro-btn-primary min-h-12 !px-6 !text-sm">
                             <CalendarCheck size={19} weight="bold" /> Đặt lịch khám <ArrowRight size={17} weight="bold" />
-                        </a>
+                        </Link>
                         <a href="#tro-ly-ai" className="medpro-btn-outline min-h-12 !px-6 !text-sm">
                             <Sparkle size={18} weight="fill" className="text-[#FBA342]" /> Tư vấn chuyên khoa với AI
                         </a>

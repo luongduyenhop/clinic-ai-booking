@@ -14,6 +14,7 @@ import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
 // Import User Pages
 import HomePage from './pages/user/HomePage'
 import LoginPage from './pages/user/LoginPage'
+import RegisterPage from './pages/user/RegisterPage'
 import NotFoundPage from './pages/error/NotFoundPage'
 
 // Import 10 Clinic Management Modules (Admin / Staff HIS)
@@ -73,6 +74,7 @@ function App() {
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
 
                     {/* Protected User Routes */}
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>

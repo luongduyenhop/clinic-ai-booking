@@ -78,26 +78,26 @@ export default function ReceptionSidebar() {
 
     return (
         <aside
-            className={`transition-all duration-300 ease-in-out bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none z-20 ${
+            className={`transition-all duration-300 ease-in-out bg-[#002B42] text-slate-200 flex flex-col shrink-0 border-r border-[#003E5E]/40 select-none z-20 ${
                 collapsed ? 'w-20' : 'w-64'
             }`}
         >
             {/* Header Clinic Logo */}
-            <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800">
+            <div className="h-16 px-4 flex items-center justify-between border-b border-[#003E5E]/40">
                 <Link to="/reception/dashboard" className="flex items-center gap-3 overflow-hidden">
-                    <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-teal-500 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                    <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
                         ✚
                     </span>
                     {!collapsed && (
                         <div className="truncate">
                             <span className="font-bold text-white text-base block leading-tight tracking-tight">Lễ Tân Y Tế</span>
-                            <span className="text-[11px] text-teal-400 font-medium">Clinic Reception Portal</span>
+                            <span className="text-[11px] text-[#00B5F1] font-semibold">Clinic Reception Portal</span>
                         </div>
                     )}
                 </Link>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer text-xs"
+                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer text-xs"
                     title={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
                 >
                     {collapsed ? <RightOutlined /> : <LeftOutlined />}
@@ -113,8 +113,8 @@ export default function ReceptionSidebar() {
                         className={({ isActive }) =>
                             `flex items-center gap-3 px-3 py-2.5 rounded-xl transition duration-150 group relative ${
                                 isActive
-                                    ? 'bg-sky-600 text-white font-semibold shadow-sm'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                                    ? 'bg-[#00B5F1] text-white font-bold shadow-md'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
                             } ${collapsed ? 'justify-center' : ''}`
                         }
                         title={collapsed ? item.label : undefined}
@@ -139,10 +139,10 @@ export default function ReceptionSidebar() {
             </nav>
 
             {/* Bottom links */}
-            <div className="p-3 border-t border-slate-800 space-y-2">
+            <div className="p-3 border-t border-[#003E5E]/40 space-y-2">
                 <Link
                     to="/"
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition text-xs ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition text-xs font-semibold ${
                         collapsed ? 'justify-center' : ''
                     }`}
                     title="Về Trang Chủ"

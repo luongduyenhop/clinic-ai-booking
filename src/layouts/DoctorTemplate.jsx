@@ -49,8 +49,26 @@ export default function DoctorTemplate() {
                             </div>
                         </div>
 
-                        {/* Top corner: Hồ sơ Bác Sĩ */}
-                        <div className="flex items-center gap-3">
+                        {/* Top corner: Chuyển cổng & Hồ sơ Bác Sĩ */}
+                        <div className="flex items-center gap-2.5">
+                            <div className="hidden md:flex items-center gap-1.5 pr-2 border-r border-slate-200">
+                                <Link
+                                    to="/reception/dashboard"
+                                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 text-slate-700 hover:text-teal-700 text-xs font-bold transition flex items-center gap-1"
+                                    title="Chuyển sang Cổng Lễ Tân"
+                                >
+                                    <span>👩‍💼</span>
+                                    <span>Cổng Lễ Tân</span>
+                                </Link>
+                                <Link
+                                    to="/admin"
+                                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 text-xs font-bold transition flex items-center gap-1"
+                                    title="Chuyển sang Cổng Quản Lý"
+                                >
+                                    <span>🏛️</span>
+                                    <span>Quản Trị</span>
+                                </Link>
+                            </div>
                             <DoctorHeaderProfile />
                         </div>
                     </div>

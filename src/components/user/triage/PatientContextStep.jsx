@@ -1,0 +1,8 @@
+import { associatedSymptoms, redFlagOptions } from '../../../data/user/triageQuestionData'
+import SymptomToggle from './SymptomToggle'
+import toggleSelection from './toggleSelection'
+import { WarningCircle } from '../../common/ClinicIcon'
+
+export default function PatientContextStep({ formik }) {
+    return <div><h2 className="booking-title">Có thêm dấu hiệu nào cần lưu ý?</h2><p className="booking-description">Hãy chọn chính xác để hệ thống nhận diện trường hợp cần cấp cứu.</p><div className="mt-6"><p className="auth-label">Triệu chứng đi kèm</p><div className="flex flex-wrap gap-2">{associatedSymptoms.map((item)=><SymptomToggle key={item} label={item} selected={formik.values.associated.includes(item)} onClick={()=>toggleSelection(formik,'associated',item)}/>)}</div></div><div className="mt-7 rounded-2xl border border-rose-200 bg-rose-50/60 p-4"><p className="flex items-center gap-2 font-bold text-rose-800"><WarningCircle size={20} weight="fill"/>Bạn có dấu hiệu nguy hiểm nào dưới đây không?</p><p className="mt-1 text-xs text-rose-700">Nếu có, hệ thống sẽ dừng luồng thông thường và hướng dẫn cấp cứu.</p><div className="mt-4 flex flex-wrap gap-2">{redFlagOptions.map((item)=><SymptomToggle key={item.id} label={item.label} danger selected={formik.values.redFlags.includes(item.id)} onClick={()=>toggleSelection(formik,'redFlags',item.id)}/>)}</div></div><div className="mt-6"><label className="auth-label" htmlFor="medicalContext">Tiền sử, thuốc đang dùng hoặc thai kỳ (không bắt buộc)</label><textarea id="medicalContext" name="medicalContext" rows={3} value={formik.values.medicalContext} onChange={formik.handleChange} className="medpro-input resize-none" placeholder="Ví dụ: tăng huyết áp, đang dùng thuốc chống đông, đang mang thai..."/></div></div>
+}

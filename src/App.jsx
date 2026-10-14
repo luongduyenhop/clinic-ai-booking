@@ -16,6 +16,7 @@ import HomePage from './pages/user/HomePage'
 import LoginPage from './pages/user/LoginPage'
 import RegisterPage from './pages/user/RegisterPage'
 import BookingPage from './pages/user/BookingPage'
+import SymptomSurveyPage from './pages/user/SymptomSurveyPage'
 import NotFoundPage from './pages/error/NotFoundPage'
 
 // Import 10 Clinic Management Modules (Admin / Staff HIS)
@@ -77,6 +78,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/dat-lich" element={<BookingPage />} />
+                    <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
 
                     {/* Protected User Routes */}
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>

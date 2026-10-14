@@ -460,6 +460,26 @@ export default function AdminHeader() {
                     <span>{currentLang}</span>
                 </button>
 
+                {/* Chuyển nhanh sang Cổng Lễ Tân & Bác Sĩ */}
+                <div className="hidden xl:flex items-center gap-1.5 pl-1.5 border-l border-slate-200">
+                    <Link
+                        to="/reception/dashboard"
+                        className="px-2 py-1 rounded-full bg-[#E8F4FD] hover:bg-teal-50 text-[#003553] hover:text-teal-700 text-[11px] font-bold border border-[#B8E5FA] transition flex items-center gap-1"
+                        title="Chuyển sang Cổng Lễ Tân"
+                    >
+                        <span>👩‍💼</span>
+                        <span>Cổng Lễ Tân</span>
+                    </Link>
+                    <Link
+                        to="/doctor"
+                        className="px-2 py-1 rounded-full bg-[#E8F4FD] hover:bg-sky-50 text-[#003553] hover:text-[#00B5F1] text-[11px] font-bold border border-[#B8E5FA] transition flex items-center gap-1"
+                        title="Chuyển sang Cổng Bác Sĩ"
+                    >
+                        <span>👨‍⚕️</span>
+                        <span>Cổng Bác Sĩ</span>
+                    </Link>
+                </div>
+
                 {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
                 <div className="relative pl-1.5 border-l border-slate-200">
                     <button

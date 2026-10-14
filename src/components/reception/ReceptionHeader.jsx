@@ -97,6 +97,26 @@ export default function ReceptionHeader() {
                     </button>
                 </Tooltip>
 
+                {/* Quick Portal Switcher */}
+                <div className="hidden md:flex items-center gap-1.5">
+                    <Link
+                        to="/doctor"
+                        className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition flex items-center gap-1"
+                        title="Chuyển sang Cổng Bác Sĩ"
+                    >
+                        <span>👨‍⚕️</span>
+                        <span className="hidden xl:inline">Bác Sĩ</span>
+                    </Link>
+                    <Link
+                        to="/admin"
+                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition flex items-center gap-1"
+                        title="Chuyển sang Cổng Quản Lý"
+                    >
+                        <span>🏛️</span>
+                        <span className="hidden xl:inline">Quản Trị</span>
+                    </Link>
+                </div>
+
                 {/* Notifications badge for tasks */}
                 <Link
                     to="/reception/tasks"

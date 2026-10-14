@@ -1,5 +1,6 @@
 import { doctors } from '../../../data/user/publicPortalData'
 import { CalendarCheck, SealCheck, Star } from '@phosphor-icons/react'
+import { Link } from 'react-router-dom'
 
 export default function DoctorSection() {
     return (
@@ -14,7 +15,7 @@ export default function DoctorSection() {
                             <p className="mt-1 text-sm font-semibold text-[#008EC2]">{doctor.specialty}</p>
                             <p className="mt-2 text-xs text-slate-500 flex items-center gap-1"><Star size={14} weight="fill" className="text-[#FFB54A]" />{doctor.experience}</p>
                             <div className="mt-4 pt-4 border-t border-slate-100"><p className="text-[11px] text-slate-400">Lịch gần nhất</p><p className="mt-1 text-xs font-bold text-[#003553] flex items-center gap-1.5"><CalendarCheck size={15} className="text-[#00B5F1]" />{doctor.nextSlot}</p></div>
-                            <button className="medpro-btn-primary w-full min-h-10 mt-4">Xem lịch khám</button>
+                            <Link to={`/dat-lich?specialty=${doctor.specialtyId}&doctor=${doctor.id}`} className="medpro-btn-primary w-full min-h-10 mt-4">Xem lịch khám</Link>
                         </div>
                     </article>)}
                 </div>

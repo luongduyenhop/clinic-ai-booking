@@ -212,6 +212,8 @@
     letter-spacing: 0.01em;
   }
   .auth-label { display: block; margin-bottom: 8px; color: #12263F; font-size: 14px; font-weight: 700; }
+  .booking-title { font-family: "Montserrat", "Roboto", sans-serif; font-size: 18px; line-height: 1.35; font-weight: 800; color: #003553; }
+  .booking-description { margin-top: 4px; color: #64748B; font-size: 13px; }
 
   .public-container {
     width: 100%;

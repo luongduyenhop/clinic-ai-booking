@@ -34,6 +34,8 @@ import SettingClinicPage from './pages/admin/SettingClinicPage'
 import DownloadAppPage from './pages/admin/DownloadAppPage'
 import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
 import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
+import ExamWorkstationPage from './pages/doctor/ExamWorkstationPage'
+import ParaclinicalWorkPage from './pages/doctor/ParaclinicalWorkPage'
 
 function App() {
     return (
@@ -139,6 +141,8 @@ function App() {
                 {/* Doctor Routes (Phân hệ Bác sĩ) */}
                 <Route path="/doctor" element={<DoctorTemplate />}>
                     <Route index element={<DoctorDashboardPage />} />
+                    <Route path="kham-benh" element={<ExamWorkstationPage />} />
+                    <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
                 </Route>
             </Routes>
         </>

@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice'
 import uiReducer from './slices/uiSlice'
 import userReducer from './slices/user/userSlice'
 import adminReducer from './slices/admin/adminSlice'
+import clinicalReducer from './slices/doctor/clinicalSlice'
 
 const appReducer = combineReducers({
     auth: authReducer,
@@ -18,10 +19,15 @@ const adminAppReducer = combineReducers({
     admin: adminReducer,
 })
 
+const doctorAppReducer = combineReducers({
+    clinical: clinicalReducer,
+})
+
 export const store = configureStore({
     reducer: {
         app: appReducer,
         user: userAppReducer,
         admin: adminAppReducer,
+        doctor: doctorAppReducer,
     },
 })

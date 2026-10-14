@@ -30,7 +30,7 @@ export default function UserHeader() {
                     <Link to="/" className="hover:text-[#00B5F1] transition">Trang chủ</Link>
                     <a href="/#chuyen-khoa" className="hover:text-[#00B5F1] transition">Chuyên khoa</a>
                     <a href="/#bac-si" className="hover:text-[#00B5F1] transition">Bác sĩ</a>
-                    <a href="/#tro-ly-ai" className="hover:text-[#00B5F1] transition">Trợ lý AI</a>
+                    <Link to="/khao-sat-trieu-chung" className="hover:text-[#00B5F1] transition">Trợ lý AI</Link>
                 </nav>
 
                 <div className="flex items-center gap-2.5">
@@ -54,7 +54,7 @@ export default function UserHeader() {
                     <button type="button" onClick={() => setMobileOpen((value) => !value)} className="lg:hidden w-10 h-10 rounded-full border border-slate-200 text-[#003553] flex items-center justify-center" aria-label="Mở menu">{mobileOpen ? <X size={20} /> : <List size={20} />}</button>
                 </div>
             </div>
-            {mobileOpen && <nav className="lg:hidden public-container pb-4 grid gap-1 text-sm font-bold text-[#003553] bg-white"><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/">Trang chủ</Link><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#chuyen-khoa">Chuyên khoa</a><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#bac-si">Bác sĩ</a><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#tro-ly-ai">Trợ lý AI</a></nav>}
+            {mobileOpen && <nav className="lg:hidden public-container pb-4 grid gap-1 text-sm font-bold text-[#003553] bg-white"><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/">Trang chủ</Link><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#chuyen-khoa">Chuyên khoa</a><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#bac-si">Bác sĩ</a><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/khao-sat-trieu-chung">Trợ lý AI</Link></nav>}
         </header>
     )
 }

@@ -96,3 +96,31 @@ Xây dựng giao diện đặt lịch khám trực tuyến theo chuyên khoa, b�
 - Dữ liệu và slot đang được mô phỏng phía frontend do chưa có API contract.
 - Lịch đặt phía bệnh nhân chưa đồng bộ sang dữ liệu của cổng lễ tân.
 - Cần thay phần lưu localStorage trong `BookingService` khi backend cung cấp API chính thức.
+
+---
+
+## Task 3 — PJ2026-83
+
+### Phạm vi
+
+Xây dựng khảo sát triệu chứng ban đầu và widget AI gợi ý chuyên khoa.
+
+### Những phần đã thực hiện
+
+- Tạo route public `/khao-sat-trieu-chung`.
+- Xây dựng khảo sát 3 bước ngắn: triệu chứng chính, đặc điểm và thông tin bổ sung.
+- Kết hợp ô nhập tự do với các lựa chọn nhanh về vị trí, thời điểm, mức độ, tính chất và triệu chứng đi kèm.
+- Xây dựng service phân luồng demo theo đúng boundary Service → Redux Action → Slice → UI.
+- Phát hiện Red Flag từ lựa chọn trực tiếp và nội dung nhập tự do.
+- Dừng luồng gợi ý thông thường khi có Red Flag và hiển thị cảnh báo gọi `115`.
+- Xử lý confidence dưới 60% bằng khuyến nghị Nội tổng quát hoặc liên hệ nhân viên y tế.
+- Confidence từ 60% trở lên hiển thị tối đa hai chuyên khoa cùng lý do gợi ý.
+- Nối kết quả AI sang trang đặt lịch bằng query parameter chuyên khoa.
+- Không lưu nội dung khảo sát vào localStorage.
+- Bổ sung disclaimer AI không chẩn đoán và không kê thuốc.
+
+### Giới hạn hiện tại
+
+- Phân tích AI và confidence đang được mô phỏng bằng luật từ khóa phía frontend.
+- Red Flag demo không thay thế đánh giá của nhân viên y tế hoặc dịch vụ cấp cứu.
+- Cần thay `AiTriageService` bằng API chính thức khi backend Task 98 hoàn thành.

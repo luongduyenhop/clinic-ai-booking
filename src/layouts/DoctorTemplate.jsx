@@ -1,6 +1,12 @@
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
+
+const DOCTOR_NAV = [
+    { to: '/doctor', label: 'Tổng quan', end: true },
+    { to: '/doctor/kham-benh', label: 'Bàn khám' },
+    { to: '/doctor/can-lam-sang', label: 'Cận lâm sàng' },
+]
 
 export default function DoctorTemplate() {
     const { user } = useSelector((state) => state.app.auth)
@@ -48,6 +54,24 @@ export default function DoctorTemplate() {
                                 </span>
                             </div>
                         </div>
+
+                        {/* Điều hướng các màn làm việc của bác sĩ */}
+                        <nav aria-label="Điều hướng bác sĩ" className="flex flex-1 flex-wrap items-center justify-center gap-1">
+                            {DOCTOR_NAV.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    end={item.end}
+                                    className={({ isActive }) =>
+                                        `rounded-full px-4 py-2 text-[13px] font-semibold transition ${
+                                            isActive ? 'bg-[#00B5F1] text-[#003553]' : 'text-slate-600 hover:bg-[#E8F4FD] hover:text-[#003553]'
+                                        }`
+                                    }
+                                >
+                                    {item.label}
+                                </NavLink>
+                            ))}
+                        </nav>
 
                         {/* Top corner: Chuyển cổng & Hồ sơ Bác Sĩ */}
                         <div className="flex items-center gap-2.5">

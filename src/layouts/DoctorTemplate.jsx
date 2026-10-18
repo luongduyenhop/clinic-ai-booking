@@ -55,24 +55,6 @@ export default function DoctorTemplate() {
                             </div>
                         </div>
 
-                        {/* Điều hướng các màn làm việc của bác sĩ */}
-                        <nav aria-label="Điều hướng bác sĩ" className="flex flex-1 flex-wrap items-center justify-center gap-1">
-                            {DOCTOR_NAV.map((item) => (
-                                <NavLink
-                                    key={item.to}
-                                    to={item.to}
-                                    end={item.end}
-                                    className={({ isActive }) =>
-                                        `rounded-full px-4 py-2 text-[13px] font-semibold transition ${
-                                            isActive ? 'bg-[#00B5F1] text-[#003553]' : 'text-slate-600 hover:bg-[#E8F4FD] hover:text-[#003553]'
-                                        }`
-                                    }
-                                >
-                                    {item.label}
-                                </NavLink>
-                            ))}
-                        </nav>
-
                         {/* Top corner: Chuyển cổng & Hồ sơ Bác Sĩ */}
                         <div className="flex items-center gap-2.5">
                             <div className="hidden md:flex items-center gap-1.5 pr-2 border-r border-slate-200">
@@ -96,6 +78,26 @@ export default function DoctorTemplate() {
                             <DoctorHeaderProfile />
                         </div>
                     </div>
+
+                    {/* Điều hướng các màn làm việc của bác sĩ (hàng riêng để không chen với nút chuyển cổng) */}
+                    <nav aria-label="Điều hướng bác sĩ" className="-mb-px flex gap-1 overflow-x-auto no-scrollbar">
+                        {DOCTOR_NAV.map((item) => (
+                            <NavLink
+                                key={item.to}
+                                to={item.to}
+                                end={item.end}
+                                className={({ isActive }) =>
+                                    `whitespace-nowrap border-b-2 px-4 py-2.5 text-[13px] font-semibold transition ${
+                                        isActive
+                                            ? 'border-[#00B5F1] text-[#003553]'
+                                            : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-[#003553]'
+                                    }`
+                                }
+                            >
+                                {item.label}
+                            </NavLink>
+                        ))}
+                    </nav>
                 </div>
             </header>
 

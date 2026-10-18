@@ -14,6 +14,16 @@ import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
 // Import User Pages
 import HomePage from './pages/user/HomePage'
 import LoginPage from './pages/user/LoginPage'
+import RegisterPage from './pages/user/RegisterPage'
+import BookingPage from './pages/user/BookingPage'
+import SymptomSurveyPage from './pages/user/SymptomSurveyPage'
+import PatientPortalLayout from './layouts/PatientPortalLayout'
+import PatientDashboardPage from './pages/user/patient/PatientDashboardPage'
+import PatientAppointmentsPage from './pages/user/patient/PatientAppointmentsPage'
+import MedicalHistoryPage from './pages/user/patient/MedicalHistoryPage'
+import PrescriptionsPage from './pages/user/patient/PrescriptionsPage'
+import LabResultsPage from './pages/user/patient/LabResultsPage'
+import DoctorSchedulesPage from './pages/user/patient/DoctorSchedulesPage'
 import NotFoundPage from './pages/error/NotFoundPage'
 
 // Import 10 Clinic Management Modules (Admin / Staff HIS)
@@ -75,10 +85,20 @@ function App() {
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/dat-lich" element={<BookingPage />} />
+                    <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
 
                     {/* Protected User Routes */}
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>
-                        {/* User profile routes */}
+                        <Route path="/benh-nhan" element={<PatientPortalLayout />}>
+                            <Route index element={<PatientDashboardPage />} />
+                            <Route path="lich-hen" element={<PatientAppointmentsPage />} />
+                            <Route path="lich-su-kham" element={<MedicalHistoryPage />} />
+                            <Route path="don-thuoc" element={<PrescriptionsPage />} />
+                            <Route path="ket-qua-can-lam-sang" element={<LabResultsPage />} />
+                            <Route path="lich-bac-si" element={<DoctorSchedulesPage />} />
+                        </Route>
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>

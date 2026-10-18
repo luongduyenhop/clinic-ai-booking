@@ -1,8 +1,4 @@
 import { TOKEN, REFRESH_TOKEN, USER_ROLE, USER_INFO } from '../constants/System'
-import { getAuthSeed } from '../../services/admin/clinicSeedData'
-
-const DEFAULT_DEMO_ADMIN = getAuthSeed()
-
 export const readAuthFromStorage = () => {
     try {
         const accessToken = localStorage.getItem(TOKEN)
@@ -11,27 +7,34 @@ export const readAuthFromStorage = () => {
         const userRaw = localStorage.getItem(USER_INFO)
         const user = userRaw ? JSON.parse(userRaw) : null
 
-        if (!accessToken) {
-            saveFullAuth(DEFAULT_DEMO_ADMIN)
-            return DEFAULT_DEMO_ADMIN
-        }
-
         return {
             accessToken,
             refreshToken,
-            role: role || DEFAULT_DEMO_ADMIN.role,
-            user: user || DEFAULT_DEMO_ADMIN.user,
+            role,
+            user,
         }
     } catch {
-        return DEFAULT_DEMO_ADMIN
+        return { accessToken: null, refreshToken: null, role: null, user: null }
     }
 }
 
 export const saveFullAuth = ({ accessToken, refreshToken, role, user }) => {
-    if (accessToken) localStorage.setItem(TOKEN, accessToken)
-    if (refreshToken) localStorage.setItem(REFRESH_TOKEN, refreshToken)
-    if (role) localStorage.setItem(USER_ROLE, role)
-    if (user) localStorage.setItem(USER_INFO, JSON.stringify(user))
+    if (accessToken !== undefined) {
+        if (accessToken) localStorage.setItem(TOKEN, accessToken)
+        else localStorage.removeItem(TOKEN)
+    }
+    if (refreshToken !== undefined) {
+        if (refreshToken) localStorage.setItem(REFRESH_TOKEN, refreshToken)
+        else localStorage.removeItem(REFRESH_TOKEN)
+    }
+    if (role !== undefined) {
+        if (role) localStorage.setItem(USER_ROLE, role)
+        else localStorage.removeItem(USER_ROLE)
+    }
+    if (user !== undefined) {
+        if (user) localStorage.setItem(USER_INFO, JSON.stringify(user))
+        else localStorage.removeItem(USER_INFO)
+    }
 }
 
 export const clearAuthStorage = () => {
@@ -43,15 +46,19 @@ export const clearAuthStorage = () => {
 
 export const writeAuthToStorage = (patch = {}) => {
     if (patch.accessToken !== undefined) {
-        patch.accessToken ? localStorage.setItem(TOKEN, patch.accessToken) : localStorage.removeItem(TOKEN)
+        if (patch.accessToken) localStorage.setItem(TOKEN, patch.accessToken)
+        else localStorage.removeItem(TOKEN)
     }
     if (patch.refreshToken !== undefined) {
-        patch.refreshToken ? localStorage.setItem(REFRESH_TOKEN, patch.refreshToken) : localStorage.removeItem(REFRESH_TOKEN)
+        if (patch.refreshToken) localStorage.setItem(REFRESH_TOKEN, patch.refreshToken)
+        else localStorage.removeItem(REFRESH_TOKEN)
     }
     if (patch.role !== undefined) {
-        patch.role ? localStorage.setItem(USER_ROLE, patch.role) : localStorage.removeItem(USER_ROLE)
+        if (patch.role) localStorage.setItem(USER_ROLE, patch.role)
+        else localStorage.removeItem(USER_ROLE)
     }
     if (patch.user !== undefined) {
-        patch.user ? localStorage.setItem(USER_INFO, JSON.stringify(patch.user)) : localStorage.removeItem(USER_INFO)
+        if (patch.user) localStorage.setItem(USER_INFO, JSON.stringify(patch.user))
+        else localStorage.removeItem(USER_INFO)
     }
 }

@@ -2,11 +2,21 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '../../../services/user/AuthService'
 import { resolveRoleFromAuth } from '../../../utils/auth/authRole'
 import { jwtDecode } from 'jwt-decode'
+import { DEMO_PATIENT_ACCOUNT, isDemoPatientCredentials } from '../../../data/user/demoPatientAccount'
 
 export const loginUserAsync = createAsyncThunk(
     'auth/loginUser',
     async (credentials, { rejectWithValue }) => {
         try {
+            if (isDemoPatientCredentials(credentials)) {
+                return {
+                    accessToken: 'demo-patient-access-token',
+                    refreshToken: null,
+                    role: DEMO_PATIENT_ACCOUNT.role,
+                    user: DEMO_PATIENT_ACCOUNT.user,
+                }
+            }
+
             const response = await authService.login(credentials)
             const body = response.data || {}
             const data = body.data ?? body

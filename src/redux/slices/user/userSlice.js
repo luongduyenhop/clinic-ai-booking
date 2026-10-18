@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { createPatientBookingAsync, fetchAvailableSlotsAsync } from '../../actions/user/bookingAction'
 import { analyzeSymptomsAsync } from '../../actions/user/aiTriageAction'
+import { fetchPatientPortalAsync } from '../../actions/user/patientPortalAction'
 
 const initialState = {
     appointments: [],
@@ -13,6 +14,9 @@ const initialState = {
     triageLoading: false,
     triageError: null,
     triageResult: null,
+    portalData: { appointments: [], medicalHistory: [], prescriptions: [], labResults: [], doctorSchedules: [] },
+    portalLoading: false,
+    portalError: null,
 }
 
 const userSlice = createSlice({
@@ -45,6 +49,9 @@ const userSlice = createSlice({
             .addCase(analyzeSymptomsAsync.pending, (state) => { state.triageLoading = true; state.triageError = null; state.triageResult = null })
             .addCase(analyzeSymptomsAsync.fulfilled, (state, action) => { state.triageLoading = false; state.triageResult = action.payload })
             .addCase(analyzeSymptomsAsync.rejected, (state, action) => { state.triageLoading = false; state.triageError = action.payload || 'Không thể phân tích triệu chứng' })
+            .addCase(fetchPatientPortalAsync.pending, (state) => { state.portalLoading = true; state.portalError = null })
+            .addCase(fetchPatientPortalAsync.fulfilled, (state, action) => { state.portalLoading = false; state.portalData = action.payload })
+            .addCase(fetchPatientPortalAsync.rejected, (state, action) => { state.portalLoading = false; state.portalError = action.payload || 'Không thể tải dữ liệu bệnh nhân' })
     },
 })
 

@@ -124,3 +124,37 @@ Xây dựng khảo sát triệu chứng ban đầu và widget AI gợi ý chuyê
 - Phân tích AI và confidence đang được mô phỏng bằng luật từ khóa phía frontend.
 - Red Flag demo không thay thế đánh giá của nhân viên y tế hoặc dịch vụ cấp cứu.
 - Cần thay `AiTriageService` bằng API chính thức khi backend Task 98 hoàn thành.
+
+---
+
+## Bổ sung Cổng bệnh nhân
+
+### Phạm vi
+
+Xây dựng khu vực bảo vệ sau đăng nhập để bệnh nhân quản lý hành trình khám chữa bệnh.
+
+### Những phần đã thực hiện
+
+- Tạo dashboard tổng quan cho bệnh nhân với lịch hẹn và hồ sơ gần nhất.
+- Tạo màn hình lịch hẹn, hỗ trợ lọc lịch sắp tới, đã khám và đã hủy.
+- Tạo màn hình lịch sử khám, chẩn đoán và lời dặn của bác sĩ.
+- Tạo màn hình đơn thuốc với thuốc, liều dùng, tần suất và thời gian sử dụng.
+- Tạo màn hình kết quả cận lâm sàng cho xét nghiệm và chẩn đoán hình ảnh.
+- Tạo màn hình lịch làm việc bác sĩ trong 7 ngày và liên kết sang luồng đặt lịch.
+- Bảo vệ toàn bộ hồ sơ y tế bằng `ProtectedRoute` và nhóm vai trò bệnh nhân.
+- Tái sử dụng lịch hẹn được lưu bởi `BookingService`; không tạo nguồn lưu lịch hẹn thứ hai.
+- Bổ sung loading, error và empty state cho các trang.
+
+### Giới hạn hiện tại
+
+- Hồ sơ khám, đơn thuốc, kết quả cận lâm sàng và lịch bác sĩ đang dùng dữ liệu demo vì chưa có API contract.
+- Lịch làm việc hiển thị là lịch dự kiến; slot thực tế được kiểm tra lại trong luồng đặt lịch.
+
+### Tài khoản kiểm thử
+
+- Bổ sung tài khoản bệnh nhân demo cố định cho môi trường frontend.
+- Số điện thoại: `0901234567`.
+- Mật khẩu: `Patient@123`.
+- Vai trò: `PATIENT`.
+- Chỉ cặp thông tin demo được xử lý cục bộ; các tài khoản khác vẫn gọi API đăng nhập backend.
+- Mật khẩu demo không được lưu vào `localStorage`.

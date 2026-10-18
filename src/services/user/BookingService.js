@@ -13,6 +13,11 @@ function writeBookings(bookings) {
 function delay(ms = 180) { return new Promise((resolve) => window.setTimeout(resolve, ms)) }
 
 class BookingService {
+    async getBookings() {
+        await delay(60)
+        return readBookings()
+    }
+
     async getAvailableSlots({ doctorId, appointmentDate }) {
         await delay(80)
         const booked = readBookings().filter((item) => item.doctorId === doctorId && item.appointmentDate === appointmentDate && item.status !== 'CANCELLED')

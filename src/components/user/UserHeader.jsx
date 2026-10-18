@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { List } from '@phosphor-icons/react'
 import { logout } from '../../redux/slices/authSlice'
-import { Hospital, ShieldCheck, SignOut, X } from '../common/ClinicIcon'
+import { Hospital, SignOut, UserCheck, X } from '../common/ClinicIcon'
 
 export default function UserHeader() {
     const dispatch = useDispatch()
@@ -36,10 +36,10 @@ export default function UserHeader() {
                 <div className="flex items-center gap-2.5">
                     {isAuthenticated ? (
                         <div className="hidden sm:flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003553] max-w-[160px] truncate bg-[#E8F4FD] px-2.5 py-1.5 rounded-full border border-[#B8E5FA]">
-                                <ShieldCheck size={15} weight="duotone" className="text-[#00B5F1]" />
+                            <Link to="/benh-nhan" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003553] max-w-[180px] truncate bg-[#E8F4FD] px-2.5 py-1.5 rounded-full border border-[#B8E5FA] hover:border-[#00B5F1]">
+                                <UserCheck size={15} weight="duotone" className="text-[#00B5F1]" />
                                 <span className="truncate">{user?.shortName || user?.fullName || 'Bệnh nhân'}</span>
-                            </span>
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
@@ -54,7 +54,7 @@ export default function UserHeader() {
                     <button type="button" onClick={() => setMobileOpen((value) => !value)} className="lg:hidden w-10 h-10 rounded-full border border-slate-200 text-[#003553] flex items-center justify-center" aria-label="Mở menu">{mobileOpen ? <X size={20} /> : <List size={20} />}</button>
                 </div>
             </div>
-            {mobileOpen && <nav className="lg:hidden public-container pb-4 grid gap-1 text-sm font-bold text-[#003553] bg-white"><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/">Trang chủ</Link><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#chuyen-khoa">Chuyên khoa</a><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#bac-si">Bác sĩ</a><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/khao-sat-trieu-chung">Trợ lý AI</Link></nav>}
+            {mobileOpen && <nav className="lg:hidden public-container pb-4 grid gap-1 text-sm font-bold text-[#003553] bg-white"><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/">Trang chủ</Link>{isAuthenticated && <Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg bg-[#E8F4FD] text-[#008EC2]" to="/benh-nhan">Cổng bệnh nhân</Link>}<a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#chuyen-khoa">Chuyên khoa</a><a onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#bac-si">Bác sĩ</a><Link onClick={()=>setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/khao-sat-trieu-chung">Trợ lý AI</Link></nav>}
         </header>
     )
 }

@@ -25,5 +25,5 @@ export const quickActions = [
     { title: 'Đặt lịch khám', description: 'Chọn chuyên khoa, bác sĩ và giờ khám phù hợp', icon: 'CalendarPlus', href: '/dat-lich' },
     { title: 'Tìm bác sĩ', description: 'Xem hồ sơ và lịch làm việc của đội ngũ bác sĩ', icon: 'Stethoscope', href: '#bac-si' },
     { title: 'Khảo sát triệu chứng AI', description: 'Nhận gợi ý chuyên khoa trước khi đặt lịch', icon: 'Robot', href: '/khao-sat-trieu-chung' },
-    { title: 'Tra cứu lịch khám', description: 'Theo dõi lịch hẹn và trạng thái xác nhận', icon: 'ClipboardText', href: '/login' },
+    { title: 'Tra cứu lịch khám', description: 'Theo dõi lịch hẹn và trạng thái xác nhận', icon: 'ClipboardText', href: '/benh-nhan/lich-hen' },
 ]

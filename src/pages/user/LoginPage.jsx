@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
 import { Hospital, LockKey, PhoneCall, ShieldCheck } from '../../components/common/ClinicIcon'
+import { DEMO_PATIENT_ACCOUNT } from '../../data/user/demoPatientAccount'
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -21,7 +22,7 @@ export default function LoginPage() {
             const result = await dispatch(loginUserAsync({ usernameOrEmail: values.phone, password: values.password }))
             if (loginUserAsync.fulfilled.match(result)) {
                 AppToast.success('Đăng nhập thành công')
-                navigate(location.state?.from?.pathname || '/', { replace: true })
+                navigate(location.state?.from?.pathname || '/benh-nhan', { replace: true })
             }
         },
     })
@@ -30,6 +31,11 @@ export default function LoginPage() {
         <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
             <Field label="Số điện thoại" name="phone" type="tel" placeholder="0901 234 567" formik={formik} icon={<PhoneCall size={18} />} />
             <Field label="Mật khẩu" name="password" type="password" placeholder="Nhập mật khẩu" formik={formik} icon={<LockKey size={18} />} />
+            <div className="rounded-xl border border-[#B8E5FA] bg-[#E8F4FD] p-3 text-xs leading-5 text-[#36566B]">
+                <p className="font-bold text-[#003553]">Tài khoản bệnh nhân demo</p>
+                <p>Số điện thoại: <strong>{DEMO_PATIENT_ACCOUNT.phone}</strong></p>
+                <p>Mật khẩu: <strong>{DEMO_PATIENT_ACCOUNT.password}</strong></p>
+            </div>
             <div className="flex items-center justify-between text-xs"><label className="flex items-center gap-2 text-slate-600"><input type="checkbox" /> Ghi nhớ đăng nhập</label><button type="button" className="font-bold text-[#008EC2]">Quên mật khẩu?</button></div>
             {authError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{authError}</p>}
             <button type="submit" disabled={formik.isSubmitting} className="medpro-btn-primary w-full min-h-12 !text-sm">{formik.isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}</button>

@@ -8,8 +8,9 @@ import UserTemplate from './layouts/UserTemplate'
 import AdminTemplate from './layouts/AdminTemplate'
 import ReceptionLayout from './layouts/ReceptionLayout'
 import DoctorTemplate from './layouts/DoctorTemplate'
+import StaffLayout from './layouts/staff/StaffLayout'
 import ProtectedRoute from './utils/route/ProtectedRoute'
-import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
+import { ADMIN_ROLES, CUSTOMER_ROLES, STAFF_ROLES } from './utils/constants/System'
 
 // Import User Pages
 import HomePage from './pages/user/HomePage'
@@ -189,6 +190,36 @@ function App() {
                     <Route index element={<DoctorDashboardPage />} />
                     <Route path="kham-benh" element={<ExamWorkstationPage />} />
                     <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
+                </Route>
+
+                {/* Unified Staff Portal Routes (Cổng Nhân Viên Hợp Nhất - Bước 1) */}
+                <Route path="/staff" element={<StaffLayout />}>
+                    <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                    <Route path="dashboard" element={<DashboardAdminPage />} />
+                    <Route path="reception-dashboard" element={<ReceptionDashboardPage />} />
+                    <Route path="doctor-dashboard" element={<DoctorDashboardPage />} />
+                    <Route path="check-in" element={<CheckInPage />} />
+                    <Route path="queue" element={<QueueManagementPage />} />
+                    <Route path="appointments" element={<AppointmentsPage />} />
+                    <Route path="patients" element={<PatientManagementPage />} />
+                    <Route path="exam-workstation" element={<ExamWorkstationPage />} />
+                    <Route path="specialty-exam" element={<SpecialtyExamPage />} />
+                    <Route path="specialty-exam/:deptKey" element={<SpecialtyExamPage />} />
+                    <Route path="paraclinical-work" element={<ParaclinicalWorkPage />} />
+                    <Route path="paraclinical" element={<ParaclinicalPage />} />
+                    <Route path="cashier" element={<CashierManagementPage />} />
+                    <Route path="schedule" element={<ClinicSchedulePage />} />
+                    <Route path="catalogs" element={<Navigate to="/staff/catalogs/chung" replace />} />
+                    <Route path="catalogs/:loaiDanhMuc" element={<CatalogManagementPage />} />
+                    <Route path="permissions" element={<RolePermissionPage />} />
+                    <Route path="templates" element={<Navigate to="/staff/templates/mau-in" replace />} />
+                    <Route path="templates/:loaiMau" element={<TemplateManagementPage />} />
+                    <Route path="compliance" element={<ComplianceAndAuditPage />} />
+                    <Route path="service-packages" element={<ServicePackagesPage />} />
+                    <Route path="treatment-courses" element={<TreatmentCoursePage />} />
+                    <Route path="settings" element={<SettingClinicPage />} />
+                    <Route path="reports" element={<ReportsPage />} />
+                    <Route path="reception" element={<ReceptionRegistrationPage />} />
                 </Route>
             </Routes>
         </>

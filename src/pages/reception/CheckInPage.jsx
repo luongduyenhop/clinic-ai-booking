@@ -13,7 +13,7 @@ import { checkInAppointmentAsync, registerWalkInAsync } from '../../redux/slices
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
-import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
+import { APPOINTMENT_STATUS, MISSING_DOC_LABELS } from '../../utils/constants/receptionConstants'
 
 export default function CheckInPage() {
     const location = useLocation()
@@ -278,12 +278,12 @@ export default function CheckInPage() {
                         {/* Missing documents (RC-12) */}
                         {selectedPatient.missingDocs && selectedPatient.missingDocs.length > 0 && (
                             <Alert
-                                message="Giấy tờ hành chính còn thiếu (RC-12)"
+                                message="Giấy tờ hành chính cần bổ sung (RC-12)"
                                 description={
-                                    <div className="mt-1 flex flex-wrap gap-1">
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
                                         {selectedPatient.missingDocs.map((doc, idx) => (
-                                            <Tag key={idx} color="warning">
-                                                {doc}
+                                            <Tag key={idx} color="warning" className="font-medium text-xs py-0.5">
+                                                ⚠️ {MISSING_DOC_LABELS[doc] || doc}
                                             </Tag>
                                         ))}
                                     </div>

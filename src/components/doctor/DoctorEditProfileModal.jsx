@@ -34,9 +34,9 @@ export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, o
 
     return createPortal(
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto relative">
+            <div className="bg-white rounded-3xl max-w-lg w-full flex flex-col max-h-[85vh] border border-slate-200 shadow-2xl relative overflow-hidden">
                 {/* Header Modal */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
                     <div className="flex items-center gap-2.5">
                         <span className="w-9 h-9 rounded-xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center text-lg font-bold">
                             ✏️
@@ -60,7 +60,8 @@ export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, o
                 </div>
 
                 {/* Form cập nhật */}
-                <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+                <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 text-xs">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div>
                         <label className="block font-bold text-slate-700 mb-1">
                             Họ và tên Bác sĩ <span className="text-red-500">*</span>
@@ -176,8 +177,10 @@ export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, o
                         />
                     </div>
 
+                    </div>
+
                     {/* Footer Buttons */}
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <div className="flex items-center justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
                         <button
                             type="button"
                             onClick={onClose}

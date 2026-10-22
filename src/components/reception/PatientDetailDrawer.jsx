@@ -9,7 +9,7 @@ import {
     WarningOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { APPOINTMENT_STATUS_LABELS, QUEUE_STATUS_LABELS } from '../../utils/constants/receptionConstants'
+import { APPOINTMENT_STATUS_LABELS, QUEUE_STATUS_LABELS, MISSING_DOC_LABELS } from '../../utils/constants/receptionConstants'
 
 export default function PatientDetailDrawer({ patientId, open, onClose, onEditClick, onNewAppointmentClick }) {
     const { patients, appointments, queueEntries, departments, doctors, services } = useSelector((state) => state.reception)
@@ -37,7 +37,7 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
             }
             open={open}
             onClose={onClose}
-            width={640}
+            size={640}
             extra={
                 <div className="flex gap-2">
                     <Button
@@ -77,12 +77,12 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                 {/* Missing documents alert */}
                 {patient.missingDocs && patient.missingDocs.length > 0 && (
                     <Alert
-                        message="Giấy tờ hành chính còn thiếu"
+                        message="Giấy tờ hành chính cần bổ sung"
                         description={
                             <div className="flex gap-1.5 flex-wrap mt-1">
                                 {patient.missingDocs.map((doc, idx) => (
-                                    <Tag key={idx} color="warning">
-                                        {doc === 'BHYT' ? 'Thẻ BHYT' : doc === 'GIAY_CHUYEN_TUYEN' ? 'Giấy chuyển tuyến viện' : doc}
+                                    <Tag key={idx} color="warning" className="font-medium text-xs py-0.5">
+                                        ⚠️ {MISSING_DOC_LABELS[doc] || doc}
                                     </Tag>
                                 ))}
                             </div>

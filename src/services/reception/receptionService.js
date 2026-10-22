@@ -42,13 +42,13 @@ class ReceptionService {
     async fetchAllData() {
         await delay()
         this.data = loadAllReceptionData()
-        return { ...this.data }
+        return JSON.parse(JSON.stringify(this.data))
     }
 
     async resetAllData() {
         await delay()
         this.data = resetReceptionData()
-        return { ...this.data }
+        return JSON.parse(JSON.stringify(this.data))
     }
 
     async switchRole(newRole) {
@@ -450,30 +450,40 @@ class ReceptionService {
     // ==================== TASKS & ADMINISTRATION ====================
     async resolveTask(taskId, resolutionNote, actor) {
         await delay()
-        const task = this.data.tasks.find((t) => t.id === taskId)
-        if (!task) throw new Error('Không tìm thấy sự cố')
+        const index = this.data.tasks.findIndex((t) => t.id === taskId)
+        if (index === -1) throw new Error('Không tìm thấy sự cố')
 
-        task.status = 'RESOLVED'
-        task.resolvedAt = getTimestamp()
-        task.resolutionNote = resolutionNote
+        const current = this.data.tasks[index]
+        const updatedTask = {
+            ...current,
+            status: 'RESOLVED',
+            resolvedAt: getTimestamp(),
+            resolutionNote,
+        }
 
-        this._logAudit(actor, 'TASK_RESOLVE', 'TASK', taskId, `Xử lý sự cố: ${task.title}. Ghi chú: ${resolutionNote}`, { resolutionNote })
+        this.data.tasks[index] = updatedTask
+        this._logAudit(actor, 'TASK_RESOLVE', 'TASK', taskId, `Xử lý sự cố: ${updatedTask.title}. Ghi chú: ${resolutionNote}`, { resolutionNote })
         this._persist()
-        return task
+        return updatedTask
     }
 
     async updateInvoiceStatus(invoiceId, { status, paymentMethod, transactionRef }, actor) {
         await delay()
-        const invoice = this.data.invoices.find((i) => i.id === invoiceId)
-        if (!invoice) throw new Error('Không tìm thấy hóa đơn')
+        const index = this.data.invoices.findIndex((i) => i.id === invoiceId)
+        if (index === -1) throw new Error('Không tìm thấy hóa đơn')
 
-        invoice.status = status
-        if (paymentMethod) invoice.paymentMethod = paymentMethod
-        if (transactionRef) invoice.transactionRef = transactionRef
+        const current = this.data.invoices[index]
+        const updatedInvoice = {
+            ...current,
+            status: status || current.status,
+            paymentMethod: paymentMethod || current.paymentMethod,
+            transactionRef: transactionRef || current.transactionRef || `REF-${Date.now().toString().slice(-6)}`,
+        }
 
-        this._logAudit(actor, 'INVOICE_UPDATE', 'INVOICE', invoiceId, `Cập nhật thanh toán hóa đơn ${invoice.invoiceCode} -> ${status}`, { status, paymentMethod })
+        this.data.invoices[index] = updatedInvoice
+        this._logAudit(actor, 'INVOICE_UPDATE', 'INVOICE', invoiceId, `Cập nhật thanh toán hóa đơn ${updatedInvoice.invoiceCode} -> ${status}`, { status, paymentMethod })
         this._persist()
-        return invoice
+        return updatedInvoice
     }
 }
 

@@ -85,11 +85,11 @@ export default function DoctorHeaderProfile() {
                 <button
                     type="button"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="flex items-center gap-3.5 p-1.5 pr-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/90 transition shadow-2xs cursor-pointer text-left"
+                    className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/90 transition shadow-2xs cursor-pointer text-left shrink-0 select-none"
                     aria-expanded={isMenuOpen}
                 >
                     {/* Doctor Avatar */}
-                    <div className="relative">
+                    <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#003553] text-white flex items-center justify-center font-bold text-sm shadow-sm">
                             🩺
                         </div>
@@ -103,23 +103,23 @@ export default function DoctorHeaderProfile() {
                     </div>
 
                     {/* Name & Specialty Info */}
-                    <div className="hidden sm:block">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-[#003553] tracking-tight">
+                    <div className="hidden sm:block text-left shrink-0">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="text-xs font-bold text-[#003553] tracking-tight whitespace-nowrap">
                                 {doctorInfo.name}
                             </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#E8F4FD] text-[#00B5F1] font-semibold border border-sky-100">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#E8F4FD] text-[#00B5F1] font-bold border border-sky-100 shrink-0">
                                 {doctorInfo.code}
                             </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 font-medium">
+                        <p className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
                             {doctorInfo.specialty}
                         </p>
                     </div>
 
                     {/* Dropdown chevron */}
                     <svg
-                        className={`w-4 h-4 text-slate-400 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
+                        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

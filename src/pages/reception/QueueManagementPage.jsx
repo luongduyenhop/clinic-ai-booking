@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Table, Tabs, Input, Select, Button, Tag, Space, Modal, Timeline, message, Tooltip } from 'antd'
+import { Table, Tabs, Input, Select, Button, Tag, Space, Modal, Timeline, message, Tooltip, Dropdown } from 'antd'
 import {
     SearchOutlined,
     ClockCircleOutlined,
@@ -12,6 +12,8 @@ import {
     HistoryOutlined,
     SoundOutlined,
     ArrowUpOutlined,
+    MoreOutlined,
+    UserDeleteOutlined,
 } from '@ant-design/icons'
 import {
     callQueueEntryAsync,
@@ -198,7 +200,7 @@ export default function QueueManagementPage() {
         {
             title: 'Thao tác điều phối',
             key: 'actions',
-            width: 250,
+            width: 170,
             align: 'right',
             render: (_, record) => {
                 const isFinished = record.status === QUEUE_STATUS.COMPLETED || record.status === QUEUE_STATUS.CANCELLED
@@ -206,118 +208,103 @@ export default function QueueManagementPage() {
 
                 if (isFinished) {
                     return (
-                        <Button size="small" onClick={() => setHistoryModal({ open: true, entry: record })}>
-                            Xem lịch sử
+                        <Button size="small" onClick={() => setHistoryModal({ open: true, entry: record })} className="text-xs">
+                            Lịch sử
                         </Button>
                     )
                 }
 
+                const menuItems = [
+                    {
+                        key: 'transfer',
+                        label: 'Chuyển phòng khám (RC-07)',
+                        icon: <SwapOutlined />,
+                        disabled: isInConsult,
+                        onClick: () => setActionModal({ open: true, entry: record, mode: 'TRANSFER' }),
+                    },
+                    {
+                        key: 'defer',
+                        label: 'Tạm hoãn lượt khám',
+                        icon: <PauseCircleOutlined />,
+                        disabled: isInConsult || record.status === QUEUE_STATUS.DEFERRED,
+                        onClick: () => setActionModal({ open: true, entry: record, mode: 'DEFER' }),
+                    },
+                    {
+                        key: 'reorder',
+                        label: 'Điều phối ưu tiên (RC-22)',
+                        icon: <ArrowUpOutlined />,
+                        disabled: isInConsult,
+                        onClick: () => setActionModal({ open: true, entry: record, mode: 'REORDER' }),
+                    },
+                    {
+                        key: 'absent',
+                        label: 'Ghi nhận vắng mặt (RC-05)',
+                        icon: <UserDeleteOutlined />,
+                        disabled: record.status !== QUEUE_STATUS.CALLED || record.isAbsent,
+                        onClick: () => handleMarkAbsent(record),
+                    },
+                    {
+                        key: 'history',
+                        label: 'Xem lịch sử chặng',
+                        icon: <HistoryOutlined />,
+                        onClick: () => setHistoryModal({ open: true, entry: record }),
+                    },
+                    {
+                        type: 'divider',
+                    },
+                    {
+                        key: 'cancel',
+                        label: 'Hủy lượt khám (RC-28)',
+                        icon: <CloseCircleOutlined />,
+                        danger: true,
+                        disabled: isInConsult,
+                        onClick: () => setActionModal({ open: true, entry: record, mode: 'CANCEL' }),
+                    },
+                ]
+
                 return (
-                    <Space size={4} wrap className="justify-end">
-                        {/* Gọi số / Gọi lại */}
-                        <Tooltip title={record.status === QUEUE_STATUS.CALLED ? 'Phát loa gọi lại (Recall)' : 'Gọi số vào khám'}>
-                            <Button
-                                size="small"
-                                type="primary"
-                                icon={<SoundOutlined />}
-                                className="bg-sky-600 text-xs"
-                                onClick={() => handleCallNumber(record)}
-                            >
-                                {record.callCount > 0 ? `Gọi lại (${record.callCount})` : 'Gọi số'}
-                            </Button>
-                        </Tooltip>
-
-                        {/* Ghi nhận vắng mặt */}
-                        {record.status === QUEUE_STATUS.CALLED && !record.isAbsent && (
-                            <Tooltip title="Ghi nhận đã gọi nhưng không có mặt (RC-05)">
-                                <Button
-                                    size="small"
-                                    danger
-                                    className="text-xs"
-                                    onClick={() => handleMarkAbsent(record)}
-                                >
-                                    Vắng mặt
-                                </Button>
-                            </Tooltip>
-                        )}
-
-                        {/* Tạm hoãn hoặc Tiếp tục */}
+                    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                        {/* Primary Action Button */}
                         {record.status === QUEUE_STATUS.DEFERRED ? (
                             <Button
                                 size="small"
                                 type="primary"
-                                className="bg-emerald-600 hover:bg-emerald-700 text-xs"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
                                 icon={<PlayCircleOutlined />}
                                 onClick={() => handleResume(record)}
                             >
                                 Tiếp tục
                             </Button>
                         ) : (
-                            !isInConsult && (
-                                <Tooltip title="Tạm hoãn lượt khám kèm lý do">
-                                    <Button
-                                        size="small"
-                                        icon={<PauseCircleOutlined />}
-                                        className="text-xs"
-                                        onClick={() => setActionModal({ open: true, entry: record, mode: 'DEFER' })}
-                                    >
-                                        Hoãn
-                                    </Button>
-                                </Tooltip>
-                            )
-                        )}
-
-                        {/* Chuyển phòng */}
-                        {!isInConsult && (
-                            <Tooltip title="Chuyển phòng / đổi bác sĩ (RC-07, RC-16)">
-                                <Button
-                                    size="small"
-                                    icon={<SwapOutlined />}
-                                    className="text-xs"
-                                    onClick={() => setActionModal({ open: true, entry: record, mode: 'TRANSFER' })}
-                                >
-                                    Chuyển
-                                </Button>
-                            </Tooltip>
-                        )}
-
-                        {/* Điều phối ưu tiên */}
-                        {!isInConsult && (
-                            <Tooltip title="Điều phối thứ tự / Mức ưu tiên (RC-22)">
-                                <Button
-                                    size="small"
-                                    icon={<ArrowUpOutlined />}
-                                    className="text-xs"
-                                    onClick={() => setActionModal({ open: true, entry: record, mode: 'REORDER' })}
-                                >
-                                    Ưu tiên
-                                </Button>
-                            </Tooltip>
-                        )}
-
-                        {/* Xem lịch sử chặng */}
-                        <Tooltip title="Xem lịch sử thay đổi & các chặng khám">
                             <Button
                                 size="small"
-                                icon={<HistoryOutlined />}
-                                className="text-xs"
-                                onClick={() => setHistoryModal({ open: true, entry: record })}
-                            />
-                        </Tooltip>
-
-                        {/* Hủy lượt */}
-                        {!isInConsult && (
-                            <Tooltip title="Hủy lượt khám (RC-28)">
-                                <Button
-                                    size="small"
-                                    danger
-                                    icon={<CloseCircleOutlined />}
-                                    className="text-xs"
-                                    onClick={() => setActionModal({ open: true, entry: record, mode: 'CANCEL' })}
-                                />
-                            </Tooltip>
+                                type="primary"
+                                icon={<SoundOutlined />}
+                                className="bg-sky-600 text-xs font-bold"
+                                onClick={() => handleCallNumber(record)}
+                            >
+                                {record.callCount > 0 ? `Gọi lại (${record.callCount})` : 'Gọi số'}
+                            </Button>
                         )}
-                    </Space>
+
+                        {/* Quick Transfer Button */}
+                        {!isInConsult && (
+                            <Button
+                                size="small"
+                                icon={<SwapOutlined />}
+                                className="text-xs"
+                                onClick={() => setActionModal({ open: true, entry: record, mode: 'TRANSFER' })}
+                                title="Chuyển phòng"
+                            >
+                                Chuyển
+                            </Button>
+                        )}
+
+                        {/* More Actions Dropdown */}
+                        <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+                            <Button size="small" icon={<MoreOutlined />} className="text-xs text-slate-500" title="Thao tác khác" />
+                        </Dropdown>
+                    </div>
                 )
             },
         },
@@ -347,7 +334,7 @@ export default function QueueManagementPage() {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-2.5">
                     {rooms.map((room) => {
                         const isSelected = selectedRoom === room.id
                         const isOverloaded = room.currentWaiting >= room.capacity || room.status === 'OVERLOAD'
@@ -357,6 +344,7 @@ export default function QueueManagementPage() {
                             <button
                                 key={room.id}
                                 onClick={() => setSelectedRoom(isSelected ? '' : room.id)}
+                                title={room.name}
                                 className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
                                     isSelected
                                         ? 'border-sky-500 bg-sky-50 ring-2 ring-sky-200'
@@ -367,7 +355,7 @@ export default function QueueManagementPage() {
                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                 }`}
                             >
-                                <div className="text-[11px] font-bold text-slate-800 truncate">{room.name}</div>
+                                <div className="text-[11px] font-bold text-slate-800 truncate" title={room.name}>{room.name}</div>
                                 <div className="flex items-baseline justify-between mt-1">
                                     <span
                                         className={`text-lg font-black ${

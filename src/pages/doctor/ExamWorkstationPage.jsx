@@ -380,7 +380,7 @@ export default function ExamWorkstationPage() {
                 {encounter && !encounterError && <ClsResultRail encounter={encounter} />}
             </div>
 
-            <Drawer title="Lịch sử bệnh án" open={historyOpen} onClose={() => setHistoryOpen(false)} width={420}>
+            <Drawer title="Lịch sử bệnh án" open={historyOpen} onClose={() => setHistoryOpen(false)} size={420}>
                 {(encounter?.lich_su || []).length === 0 ? (
                     <EmptyBlock icon="Clock" title="Chưa có lần khám trước" />
                 ) : (

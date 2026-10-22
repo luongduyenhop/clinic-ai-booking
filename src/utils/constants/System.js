@@ -15,6 +15,7 @@ export const ROLE_DOCTOR = 'BAC_SI'
 export const ROLE_RECEPTIONIST = 'LE_TAN'
 export const ROLE_RECEPTION_SUPERVISOR = 'RECEPTION_SUPERVISOR'
 export const ROLE_CASHIER = 'THU_NGAN'
+export const ROLE_TECHNICIAN = 'KTV_CLS'
 
 export const ADMIN_ROLES = [
     ROLE_ADMIN,
@@ -25,6 +26,24 @@ export const ADMIN_ROLES = [
     'RECEPTIONIST',
     ROLE_CASHIER,
     'CASHIER',
+    ROLE_TECHNICIAN,
+    'TECHNICIAN',
+    'KTV_CLS',
+]
+
+export const STAFF_ROLES = [
+    ROLE_ADMIN,
+    ROLE_ADMINISTRATOR,
+    ROLE_DOCTOR,
+    'DOCTOR',
+    ROLE_RECEPTIONIST,
+    'RECEPTIONIST',
+    ROLE_RECEPTION_SUPERVISOR,
+    ROLE_CASHIER,
+    'CASHIER',
+    ROLE_TECHNICIAN,
+    'TECHNICIAN',
+    'KTV_CLS',
 ]
 
 export const RECEPTIONIST_ROLES = [

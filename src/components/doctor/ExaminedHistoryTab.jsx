@@ -201,24 +201,27 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
             {selectedRecord &&
                 createPortal(
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto relative">
-                            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                            <div>
-                                <h3 className="text-base font-extrabold text-[#003553]">
-                                    Hồ Sơ Bệnh Án Điện Tử
-                                </h3>
-                                <p className="text-xs text-slate-400">
-                                    Mã bệnh án: <span className="font-bold text-slate-700">{selectedRecord.patientCode}</span> | Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
-                                </p>
+                        <div className="bg-white rounded-3xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200 shadow-2xl relative overflow-hidden">
+                            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
+                                <div>
+                                    <h3 className="text-base font-extrabold text-[#003553]">
+                                        Hồ Sơ Bệnh Án Điện Tử
+                                    </h3>
+                                    <p className="text-xs text-slate-400">
+                                        Mã bệnh án: <span className="font-bold text-slate-700">{selectedRecord.patientCode}</span> | Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedRecord(null)}
+                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm cursor-pointer transition"
+                                >
+                                    ✕
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRecord(null)}
-                                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm cursor-pointer transition"
-                            >
-                                ✕
-                            </button>
-                        </div>
+
+                            {/* Modal Body */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
                         {/* Thông tin bệnh nhân */}
                         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -303,27 +306,29 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             <p>{selectedRecord.doctorNotes || 'Ăn uống hợp lý, hạn chế mỡ động vật. Tái khám sau 14 ngày.'}</p>
                         </div>
 
-                        {/* Modal Footer */}
-                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => handlePrintPrescription(selectedRecord)}
-                                className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer"
-                            >
-                                🖨 In hồ sơ bệnh án
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRecord(null)}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
-                            >
-                                Đóng
-                            </button>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handlePrintPrescription(selectedRecord)}
+                                    className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+                                >
+                                    🖨 In hồ sơ bệnh án
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedRecord(null)}
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                                >
+                                    Đóng
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )}
         </div>
     )
 }

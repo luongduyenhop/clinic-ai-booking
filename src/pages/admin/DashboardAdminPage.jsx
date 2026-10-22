@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
 import { getNavigationConfig } from '../../services/admin/clinicSeedData'
+import { adminService } from '../../services/admin/AdminService'
 import {
     ClinicIcon,
     StatusBadge,
@@ -34,9 +35,47 @@ export default function DashboardAdminPage() {
     const [activeRoleTab, setActiveRoleTab] = useState('QUAN_LY')
     const [timeFilter, setTimeFilter] = useState('week')
 
+    // ── 4 Executive Analytics Endpoints (/api/v1/admin/analytics/*) ───
+    const [topDiseases, setTopDiseases] = useState([])
+    const [topServices, setTopServices] = useState([])
+    const [doctorPerformance, setDoctorPerformance] = useState([])
+    const [roomWorkload, setRoomWorkload] = useState([])
+    const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
     useEffect(() => {
         dispatch(getDashboardStatsAsync())
     }, [dispatch])
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            setAnalyticsLoading(true)
+            try {
+                const [diseasesRes, servicesRes, docPerfRes, roomRes] = await Promise.allSettled([
+                    adminService.getTopIcd10Diseases(),
+                    adminService.getTopServicesAnalytics(),
+                    adminService.getDoctorPerformanceAnalytics(),
+                    adminService.getRoomWorkloadAnalytics(),
+                ])
+                if (diseasesRes.status === 'fulfilled' && diseasesRes.value?.danh_sach_benh) {
+                    setTopDiseases(diseasesRes.value.danh_sach_benh)
+                }
+                if (servicesRes.status === 'fulfilled' && servicesRes.value?.danh_sach_dich_vu) {
+                    setTopServices(servicesRes.value.danh_sach_dich_vu)
+                }
+                if (docPerfRes.status === 'fulfilled' && docPerfRes.value?.danh_sach_hieu_suat) {
+                    setDoctorPerformance(docPerfRes.value.danh_sach_hieu_suat)
+                }
+                if (roomRes.status === 'fulfilled' && roomRes.value?.danh_sach_tai_trong) {
+                    setRoomWorkload(roomRes.value.danh_sach_tai_trong)
+                }
+            } catch (err) {
+                console.warn('Analytics loading error:', err)
+            } finally {
+                setAnalyticsLoading(false)
+            }
+        }
+        fetchAnalytics()
+    }, [])
 
     const patients = clinicData?.patients || []
     const appointments = clinicData?.appointments || []
@@ -224,57 +263,111 @@ export default function DashboardAdminPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
-                                <span>ĐĂNG KÝ THEO BÁC SĨ (WORKLOAD BÁC SĨ)</span>
-                                <span className="text-xs text-slate-400">Số ca khám phân bổ</span>
+                                <span>HIỆU SUẤT BÁC SĨ & NĂNG SUẤT LÂM SÀNG (/analytics/doctor-performance)</span>
+                                <span className="text-xs text-slate-400">Doanh thu & KPI</span>
                             </div>
                             <div className="space-y-3 mt-3">
-                                {doctorSchedules.map((doc, idx) => (
-                                    <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-xs font-bold text-[#003553]">{doc.bacSi}</div>
-                                            <div className="text-[11px] text-slate-500">{doc.phong} &bull; Ca trực: {doc.caTruc}</div>
+                                {(doctorPerformance.length > 0 ? doctorPerformance : doctorSchedules).map((doc, idx) => {
+                                    const docName = doc.ten_bac_si || doc.bacSi
+                                    const dept = doc.chuyen_khoa || doc.phong
+                                    const totalRevenue = doc.tong_doanh_thu || 0
+                                    const rating = doc.danh_gia_sao || 5.0
+                                    const count = doc.so_ca_kham !== undefined ? doc.so_ca_kham : (doc.soCaDaKham + doc.soCaCho)
+                                    return (
+                                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs font-bold text-[#003553] flex items-center gap-1.5">
+                                                    <span>{docName}</span>
+                                                    <span className="text-[10px] text-amber-500 font-bold">⭐ {rating}</span>
+                                                </div>
+                                                <div className="text-[11px] text-slate-500">{dept}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-extrabold text-[#00B5F1]">{count} ca khám</div>
+                                                {totalRevenue > 0 && (
+                                                    <div className="text-[10px] text-emerald-600 font-bold">
+                                                        {Number(totalRevenue).toLocaleString('vi-VN')} đ
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xs font-extrabold text-[#00B5F1]">{doc.soCaDaKham + doc.soCaCho} ca</div>
-                                            <div className="text-[10px] text-slate-400">({doc.soCaCho} ca chờ khám)</div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
 
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
-                                <span>LỊCH HẸN THEO TRẠNG THÁI</span>
-                                <Link to="/admin/lich-hen" className="text-xs font-bold text-[#00B5F1] hover:underline">
-                                    Xem lịch hẹn
-                                </Link>
+                                <span>TẢI TRỌNG CÔNG SUẤT BUỒNG KHÁM (/analytics/room-workload)</span>
+                                <span className="text-xs text-slate-400">Tỷ lệ sử dụng (%)</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2.5 mt-3">
-                                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
-                                    <div className="text-xl font-extrabold text-emerald-700">
-                                        {appointments.filter((a) => a.trangThai === 'Xác nhận').length}
+                            <div className="space-y-3 mt-3">
+                                {(roomWorkload.length > 0
+                                    ? roomWorkload
+                                    : [
+                                          { ma_phong: 'PK01', ten_phong: 'Phòng khám Nội 1', chuyen_khoa: 'Nội tổng quát', tong_ca_truc_phan_bo: 14, ty_le_su_dung_phan_tram: 77.8 },
+                                          { ma_phong: 'PK02', ten_phong: 'Phòng Tai Mũi Họng', chuyen_khoa: 'Tai Mũi Họng', tong_ca_truc_phan_bo: 12, ty_le_su_dung_phan_tram: 66.7 },
+                                          { ma_phong: 'PK03', ten_phong: 'Phòng Cơ Xương Khớp', chuyen_khoa: 'Cơ xương khớp', tong_ca_truc_phan_bo: 10, ty_le_su_dung_phan_tram: 55.6 },
+                                      ]
+                                ).map((room, idx) => (
+                                    <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                                        <div className="flex justify-between text-xs font-bold text-[#003553]">
+                                            <span>{room.ma_phong} - {room.ten_phong}</span>
+                                            <span className="text-[#00B5F1] font-mono">{room.ty_le_su_dung_phan_tram}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[11px] text-slate-500">
+                                            <span>Chuyên khoa: {room.chuyen_khoa || 'Đa khoa'}</span>
+                                            <span>{room.tong_ca_truc_phan_bo} ca trực/tuần</span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                                className={`h-1.5 rounded-full ${
+                                                    room.ty_le_su_dung_phan_tram >= 75
+                                                        ? 'bg-emerald-500'
+                                                        : room.ty_le_su_dung_phan_tram >= 50
+                                                        ? 'bg-[#00B5F1]'
+                                                        : 'bg-amber-500'
+                                                }`}
+                                                style={{ width: `${Math.min(100, room.ty_le_su_dung_phan_tram)}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="text-[11px] font-bold text-emerald-600 mt-0.5">Đã xác nhận</div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="medpro-card p-4">
+                        <div className="medpro-section-title">
+                            <span>LỊCH HẸN THEO TRẠNG THÁI</span>
+                            <Link to="/admin/lich-hen" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                Xem lịch hẹn
+                            </Link>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-3">
+                            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                                <div className="text-xl font-extrabold text-emerald-700">
+                                    {appointments.filter((a) => a.trangThai === 'Xác nhận').length}
                                 </div>
-                                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
-                                    <div className="text-xl font-extrabold text-amber-700">
-                                        {appointments.filter((a) => a.trangThai === 'Chờ xác nhận').length}
-                                    </div>
-                                    <div className="text-[11px] font-bold text-amber-600 mt-0.5">Chờ tiếp đón</div>
+                                <div className="text-[11px] font-bold text-emerald-600 mt-0.5">Đã xác nhận</div>
+                            </div>
+                            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                                <div className="text-xl font-extrabold text-amber-700">
+                                    {appointments.filter((a) => a.trangThai === 'Chờ xác nhận').length}
                                 </div>
-                                <div className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-center">
-                                    <div className="text-xl font-extrabold text-sky-700">
-                                        {appointments.filter((a) => a.khamTuXa).length || 2}
-                                    </div>
-                                    <div className="text-[11px] font-bold text-sky-600 mt-0.5">Khám từ xa</div>
+                                <div className="text-[11px] font-bold text-amber-600 mt-0.5">Chờ tiếp đón</div>
+                            </div>
+                            <div className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-center">
+                                <div className="text-xl font-extrabold text-sky-700">
+                                    {appointments.filter((a) => a.khamTuXa).length || 2}
                                 </div>
-                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                                    <div className="text-xl font-extrabold text-slate-700">
-                                        {clinicData?.servicePackageRegistrations?.length || 3}
-                                    </div>
-                                    <div className="text-[11px] font-bold text-slate-600 mt-0.5">Gói dịch vụ</div>
+                                <div className="text-[11px] font-bold text-sky-600 mt-0.5">Khám từ xa</div>
+                            </div>
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                                <div className="text-xl font-extrabold text-slate-700">
+                                    {clinicData?.servicePackageRegistrations?.length || 3}
                                 </div>
+                                <div className="text-[11px] font-bold text-slate-600 mt-0.5">Gói dịch vụ</div>
                             </div>
                         </div>
                     </div>
@@ -647,27 +740,41 @@ export default function DashboardAdminPage() {
                                 </Link>
                             </div>
                             <div className="overflow-x-auto mt-3">
-                                <table className="medpro-table">
+                                <table className="medpro-table text-xs">
                                     <thead>
                                         <tr>
                                             <th>Mã ICD-10</th>
                                             <th>Tên bệnh tật</th>
                                             <th>Chương bệnh</th>
-                                            <th>Số ca ghi nhận</th>
-                                            <th>Báo cáo dịch bệnh</th>
+                                            <th className="text-center">Số ca ghi nhận</th>
+                                            <th className="text-center">Tỷ lệ (%)</th>
+                                            <th>Phân loại dịch tễ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(clinicData?.catalogs?.danhMucBenh || []).map((b) => (
-                                            <tr key={b.id}>
-                                                <td className="font-mono font-bold text-[#003553]">{b.maICD}</td>
-                                                <td className="font-bold text-[#12263F]">{b.tenBenh}</td>
-                                                <td className="text-xs text-slate-500">{b.chuongBenh}</td>
-                                                <td className="font-mono font-extrabold text-[#00B5F1]">
-                                                    {b.maICD === 'I10' ? 42 : b.maICD === 'J00' ? 29 : b.maICD === 'M54.5' ? 18 : 6} ca
+                                        {(topDiseases.length > 0
+                                            ? topDiseases
+                                            : (clinicData?.catalogs?.danhMucBenh || []).map((b) => ({
+                                                  ma_icd10: b.maICD,
+                                                  ten_benh: b.tenBenh,
+                                                  chuong_benh: b.chuongBenh,
+                                                  so_ca: b.maICD === 'I10' ? 42 : b.maICD === 'J00' ? 29 : b.maICD === 'M54.5' ? 18 : 6,
+                                                  ty_le_phan_tram: b.maICD === 'I10' ? 44.2 : b.maICD === 'J00' ? 30.5 : 18.9,
+                                                  truyen_nhiem: b.truyenNhiem,
+                                              }))
+                                        ).map((b, idx) => (
+                                            <tr key={idx}>
+                                                <td className="font-mono font-bold text-[#003553]">{b.ma_icd10}</td>
+                                                <td className="font-bold text-[#12263F]">{b.ten_benh}</td>
+                                                <td className="text-xs text-slate-500">{b.chuong_benh || 'Ngoại trú'}</td>
+                                                <td className="font-mono font-extrabold text-[#00B5F1] text-center">
+                                                    {b.so_ca} ca
+                                                </td>
+                                                <td className="text-center font-bold text-slate-700">
+                                                    {b.ty_le_phan_tram || 0}%
                                                 </td>
                                                 <td>
-                                                    {b.truyenNhiem ? (
+                                                    {b.truyen_nhiem ? (
                                                         <span className="medpro-badge-danger">Nhóm B (Báo cáo Sở)</span>
                                                     ) : (
                                                         <span className="medpro-badge-success">Ngoại trú thường</span>
@@ -678,6 +785,58 @@ export default function DashboardAdminPage() {
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* TOP SERVICES REVENUE ANALYTICS */}
+                    <div className="medpro-card p-4">
+                        <div className="medpro-section-title">
+                            <span>TOP DỊCH VỤ CẬN LÂM SÀNG & THỦ THUẬT DOANH THU CAO NHẤT (/analytics/top-services)</span>
+                            <span className="text-xs text-slate-400">Doanh thu & Số lượt chỉ định</span>
+                        </div>
+                        <div className="overflow-x-auto mt-3">
+                            <table className="medpro-table text-xs">
+                                <thead>
+                                    <tr>
+                                        <th>Mã DV</th>
+                                        <th>Tên dịch vụ kỹ thuật</th>
+                                        <th>Nhóm dịch vụ</th>
+                                        <th className="text-right">Đơn giá niêm yết</th>
+                                        <th className="text-center">Số lượt chỉ định</th>
+                                        <th className="text-right">Tổng doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(topServices.length > 0
+                                        ? topServices
+                                        : [
+                                              { ma_dich_vu: 'DV001', ten_dich_vu: 'Khám chuyên khoa Nội Tim mạch', nhom_dich_vu: 'Khám bệnh', don_gia: 200000, so_luong_chi_dinh: 45, tong_doanh_thu: 9000000 },
+                                              { ma_dich_vu: 'CLS01', ten_dich_vu: 'Chụp X-quang Tim phổi thẳng', nhom_dich_vu: 'CĐHA', don_gia: 150000, so_luong_chi_dinh: 38, tong_doanh_thu: 5700000 },
+                                              { ma_dich_vu: 'XN01', ten_dich_vu: 'Tổng phân tích tế bào máu ngoại vi', nhom_dich_vu: 'Xét nghiệm', don_gia: 120000, so_luong_chi_dinh: 42, tong_doanh_thu: 5040000 },
+                                              { ma_dich_vu: 'SA01', ten_dich_vu: 'Siêu âm Doppler tim màu', nhom_dich_vu: 'Siêu âm', don_gia: 350000, so_luong_chi_dinh: 14, tong_doanh_thu: 4900000 },
+                                          ]
+                                    ).map((srv, sIdx) => (
+                                        <tr key={sIdx}>
+                                            <td className="font-mono font-bold text-[#003553]">{srv.ma_dich_vu}</td>
+                                            <td className="font-bold text-[#12263F]">{srv.ten_dich_vu}</td>
+                                            <td>
+                                                <span className="px-2 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-semibold border border-sky-100 text-[11px]">
+                                                    {srv.nhom_dich_vu || 'Dịch vụ'}
+                                                </span>
+                                            </td>
+                                            <td className="text-right font-mono font-bold text-slate-700">
+                                                {Number(srv.don_gia).toLocaleString('vi-VN')} đ
+                                            </td>
+                                            <td className="text-center font-bold text-[#003553]">
+                                                {srv.so_luong_chi_dinh} lượt
+                                            </td>
+                                            <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                {Number(srv.tong_doanh_thu).toLocaleString('vi-VN')} đ
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

@@ -1,14 +1,247 @@
 import { useState } from 'react'
 import DoctorShiftRequestModal from './DoctorShiftRequestModal'
 
+const CURRENT_WEEK_ROSTER = [
+    {
+        dayOfWeek: 'Thứ Hai',
+        date: '12/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 's1',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 14,
+                maxCapacity: 15,
+                note: 'Khám chuyên khoa Răng Hàm Mặt định kỳ',
+            },
+            {
+                id: 's2',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 10,
+                maxCapacity: 12,
+                note: 'Tiểu phẫu răng khôn & cấy ghép Implant',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Ba',
+        date: '13/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 's3',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 15,
+                maxCapacity: 15,
+                note: 'Khám chỉnh nha & niềng răng chuyên sâu',
+            },
+            {
+                id: 's4',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'OFF',
+                room: 'Nghỉ ca',
+                bookedPatients: 0,
+                maxCapacity: 0,
+                note: 'Đã bố trí BS. CKI Phan Thanh Tùng trực thay',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Tư',
+        date: '14/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 's5',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 12,
+                maxCapacity: 15,
+                note: 'Nội nha chữa tủy & phục hình sứ thẩm mỹ',
+            },
+            {
+                id: 's6',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 8,
+                maxCapacity: 12,
+                note: 'Hội chẩn liên khoa TMH - RHM',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Năm',
+        date: '15/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 's7',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 13,
+                maxCapacity: 15,
+                note: 'Khám răng trẻ em & nha chu định kỳ',
+            },
+            {
+                id: 's8',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 9,
+                maxCapacity: 12,
+                note: 'Tái khám sau phẫu thuật nhổ răng',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Sáu',
+        date: '16/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 's9',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 14,
+                maxCapacity: 15,
+                note: 'Khám theo yêu cầu & chuyên gia',
+            },
+            {
+                id: 's10',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'OFF',
+                room: 'Nghỉ ca',
+                bookedPatients: 0,
+                maxCapacity: 0,
+                note: 'Tham gia tập huấn chuyên môn TT32 BYT',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Bảy',
+        date: '17/10/2026',
+        isToday: true,
+        shifts: [
+            {
+                id: 's11',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'IN_PROGRESS',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 15,
+                maxCapacity: 15,
+                note: 'Ca trực hiện tại - Đang đón tiếp bệnh nhân',
+            },
+            {
+                id: 's12',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 11,
+                maxCapacity: 12,
+                note: 'Khám cấp cứu nha khoa & theo hẹn',
+            },
+        ],
+    },
+]
+
+const NEXT_WEEK_ROSTER = [
+    {
+        dayOfWeek: 'Thứ Hai',
+        date: '19/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 'nw1',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 10,
+                maxCapacity: 15,
+                note: 'Lịch khám thường kỳ tuần mới',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Ba',
+        date: '20/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 'nw2',
+                type: 'MORNING',
+                name: 'Ca Sáng',
+                time: '07:30 - 11:30',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 12,
+                maxCapacity: 15,
+                note: 'Khám phục hình & răng sứ',
+            },
+        ],
+    },
+    {
+        dayOfWeek: 'Thứ Tư',
+        date: '21/10/2026',
+        isToday: false,
+        shifts: [
+            {
+                id: 'nw3',
+                type: 'AFTERNOON',
+                name: 'Ca Chiều',
+                time: '13:30 - 17:00',
+                status: 'UPCOMING',
+                room: 'Phòng 102 - Khám Răng Hàm Mặt',
+                bookedPatients: 7,
+                maxCapacity: 12,
+                note: 'Hội chẩn ca khó chuyên khoa',
+            },
+        ],
+    },
+]
+
 export default function DoctorScheduleTab() {
     const [selectedWeek, setSelectedWeek] = useState('CURRENT') // CURRENT | NEXT
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
 
-    // Danh sách ca trực của Bác sĩ (sẵn sàng nhận dữ liệu từ Backend)
-    const [scheduleData, _setScheduleData] = useState([])
+    const scheduleData = selectedWeek === 'CURRENT' ? CURRENT_WEEK_ROSTER : NEXT_WEEK_ROSTER
 
-    const totalShifts = scheduleData.reduce((acc, d) => acc + (d.shifts?.length || 0), 0)
+    const totalShifts = scheduleData.reduce((acc, d) => acc + (d.shifts?.filter((s) => s.status !== 'OFF').length || 0), 0)
     const totalBooked = scheduleData.reduce(
         (acc, d) => acc + (d.shifts?.reduce((sAcc, s) => sAcc + (s.bookedPatients || 0), 0) || 0),
         0
@@ -60,7 +293,9 @@ export default function DoctorScheduleTab() {
                                 Lịch Phân Ca & Công Tác Bác Sĩ
                             </h3>
                             <p className="text-xs text-slate-500">
-                                Tuần 42: Từ ngày 12/10/2026 đến ngày 18/10/2026
+                                {selectedWeek === 'CURRENT'
+                                    ? 'Tuần 42: Từ ngày 12/10/2026 đến ngày 18/10/2026 (Tuần hiện tại)'
+                                    : 'Tuần 43: Từ ngày 19/10/2026 đến ngày 25/10/2026 (Tuần tiếp theo)'}
                             </p>
                         </div>
                     </div>

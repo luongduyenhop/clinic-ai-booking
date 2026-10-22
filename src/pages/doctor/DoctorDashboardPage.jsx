@@ -87,12 +87,19 @@ export default function DoctorDashboardPage() {
                     completedAt: '09:15',
                     completedDate: new Date().toLocaleDateString('vi-VN'),
                     finalDiagnosis: idx === 0 ? 'I10 - Tăng huyết áp vô căn (nguyên phát)' : 'K02.1 - Sâu ngà răng hàm trên',
-                    labTests: ['Điện tâm đồ (ECG 12 chuyển đạo)', 'Xét nghiệm công thức máu toàn phần (CBC)'],
-                    prescriptions: [
+                    labTests: idx === 0 
+                        ? ['Điện tâm đồ (ECG 12 chuyển đạo)', 'Xét nghiệm công thức máu toàn phần (CBC)']
+                        : ['Chụp X-quang quanh chóp răng hàm trên', 'Thử tủy định lượng nhiệt độ'],
+                    prescriptions: idx === 0 ? [
                         { id: 1, name: 'Amlodipine 5mg', dosage: 'Uống 1 viên vào buổi sáng sau ăn', quantity: '30 Viên' },
                         { id: 2, name: 'Panadol Extra', dosage: 'Uống 1 viên khi đau đầu nhiều', quantity: '10 Viên' },
+                    ] : [
+                        { id: 1, name: 'Rodogyl (Spiramycin + Metronidazol)', dosage: 'Uống 2 viên/ngày chia 2 lần sau ăn', quantity: '20 Viên' },
+                        { id: 2, name: 'Efferalgan 500mg', dosage: 'Uống 1 viên khi đau buốt nhiều', quantity: '10 Viên' },
                     ],
-                    doctorNotes: 'Huyết áp kiểm soát tốt. Ăn nhạt, hạn chế mỡ động vật. Tái khám sau 30 ngày.',
+                    doctorNotes: idx === 0
+                        ? 'Huyết áp kiểm soát tốt. Ăn nhạt, hạn chế mỡ động vật. Tái khám sau 30 ngày.'
+                        : 'Đã trám xoang ngà sâu. Vệ sinh răng miệng sạch sẽ, tránh nhai đồ quá cứng trong 48h tới. Tái khám sau 6 tháng.',
                 }
             })
 

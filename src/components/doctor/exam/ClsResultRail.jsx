@@ -61,7 +61,7 @@ export default function ClsResultRail({ encounter }) {
                 ))}
             </div>
 
-            <Drawer title={viewing?.ten_dich_vu} open={Boolean(viewing)} onClose={() => setViewing(null)} width={560}>
+            <Drawer title={viewing?.ten_dich_vu} open={Boolean(viewing)} onClose={() => setViewing(null)} size={560}>
                 <ResultView order={viewing} />
             </Drawer>
         </aside>

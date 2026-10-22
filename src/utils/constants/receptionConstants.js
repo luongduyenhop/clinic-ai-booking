@@ -66,3 +66,11 @@ export const RECEPTION_ROLES_OPTIONS = [
     { value: 'RECEPTIONIST', label: 'Lễ tân (Receptionist)' },
     { value: 'RECEPTION_SUPERVISOR', label: 'Giám sát lễ tân (Reception Supervisor)' },
 ]
+
+export const MISSING_DOC_LABELS = {
+    BHYT: 'Thẻ BHYT (chưa xuất trình bản chính)',
+    CCCD_CHUA_CONG_CHUNG: 'Bản sao CCCD chưa công chứng / Thiếu CCCD gắn chip',
+    GIAY_CHUYEN_TUYEN: 'Giấy chuyển tuyến đúng tuyến BHYT',
+    SO_KHAM_BENH: 'Sổ theo dõi khám bệnh',
+    GIAY_HEN_TAI_KHAM: 'Giấy hẹn tái khám',
+}

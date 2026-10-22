@@ -389,13 +389,24 @@ export default function WaitingQueueTab({
                                     {currentPatient.aiClinicalInsight ||
                                         'Khuyến nghị thực hiện điện tâm đồ ECG và xét nghiệm men tim để loại trừ cơn đau thắt ngực không ổn định.'}
                                 </p>
-                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
                                     <span className="text-[11px] bg-white text-slate-600 px-2.5 py-1 rounded-lg border border-sky-100 font-semibold">
                                         Tiền sử: {currentPatient.medicalHistory || 'Tăng huyết áp 3 năm'}
                                     </span>
-                                    <span className="text-[11px] bg-red-50 text-red-700 px-2.5 py-1 rounded-lg border border-red-200 font-semibold">
-                                        Dị ứng: {currentPatient.allergies || 'Không ghi nhận'}
-                                    </span>
+                                    <div className="inline-flex items-center gap-1.5 flex-wrap bg-red-50/80 px-2.5 py-1 rounded-lg border border-red-200">
+                                        <span className="text-[11px] font-bold text-red-700">Dị ứng:</span>
+                                        {Array.isArray(currentPatient.allergies) && currentPatient.allergies.length > 0 ? (
+                                            currentPatient.allergies.map((alg, aIdx) => (
+                                                <span key={aIdx} className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded-md border border-red-300 font-bold">
+                                                    ⚠️ {alg}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-[11px] text-slate-600 font-medium">
+                                                {currentPatient.allergies || 'Không ghi nhận'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

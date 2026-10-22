@@ -5,6 +5,7 @@ import { logout } from '../../redux/slices/authSlice'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
 import { getNavigationConfig, getAuthSeed } from '../../services/admin/clinicSeedData'
+import QuickPortalSwitcher from '../common/QuickPortalSwitcher'
 import {
     ClinicIcon,
     ArrowsClockwise,
@@ -460,28 +461,13 @@ export default function AdminHeader() {
                     <span>{currentLang}</span>
                 </button>
 
-                {/* Chuyển nhanh sang Cổng Lễ Tân & Bác Sĩ */}
-                <div className="hidden xl:flex items-center gap-1.5 pl-1.5 border-l border-slate-200">
-                    <Link
-                        to="/reception/dashboard"
-                        className="px-2 py-1 rounded-full bg-[#E8F4FD] hover:bg-teal-50 text-[#003553] hover:text-teal-700 text-[11px] font-bold border border-[#B8E5FA] transition flex items-center gap-1"
-                        title="Chuyển sang Cổng Lễ Tân"
-                    >
-                        <span>👩‍💼</span>
-                        <span>Cổng Lễ Tân</span>
-                    </Link>
-                    <Link
-                        to="/doctor"
-                        className="px-2 py-1 rounded-full bg-[#E8F4FD] hover:bg-sky-50 text-[#003553] hover:text-[#00B5F1] text-[11px] font-bold border border-[#B8E5FA] transition flex items-center gap-1"
-                        title="Chuyển sang Cổng Bác Sĩ"
-                    >
-                        <span>👨‍⚕️</span>
-                        <span>Cổng Bác Sĩ</span>
-                    </Link>
+                {/* Chuyển nhanh sang các Cổng vai trò */}
+                <div className="hidden xl:flex items-center pl-1.5 border-l border-slate-200">
+                    <QuickPortalSwitcher size="xs" />
                 </div>
 
                 {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
-                <div className="relative pl-1.5 border-l border-slate-200">
+                <div className="relative pl-1.5 border-l border-slate-200 shrink-0">
                     <button
                         type="button"
                         onClick={() => {
@@ -489,12 +475,12 @@ export default function AdminHeader() {
                             setIsNotifOpen(false)
                             setIsUserMenuOpen(!isUserMenuOpen)
                         }}
-                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer"
+                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20 shrink-0">
                             BS
                         </div>
-                        <div className="text-left hidden lg:block leading-tight">
+                        <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
                             <div className="text-[11.5px] font-bold text-[#003553] max-w-[130px] truncate">
                                 {user?.shortName || user?.fullName || defaultUser.shortName}
                             </div>
@@ -505,7 +491,7 @@ export default function AdminHeader() {
                         <CaretDown
                             size={11}
                             weight="bold"
-                            className={`text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
+                            className={`text-slate-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
                         />
                     </button>
 

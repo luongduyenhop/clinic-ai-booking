@@ -65,10 +65,102 @@ const findOrder = (orderId) => {
 }
 
 export class ClinicalService extends BaseServices {
+    syncWithReceptionQueue = () => {
+        try {
+            const rawQueue = localStorage.getItem('clinic_reception_queue_v1')
+            const rawPatients = localStorage.getItem('clinic_reception_patients_v1')
+            if (!rawQueue || !rawPatients) return
+
+            const receptionQueue = JSON.parse(rawQueue)
+            const receptionPatients = JSON.parse(rawPatients)
+            if (!Array.isArray(receptionQueue) || !Array.isArray(receptionPatients)) return
+
+            // Tìm những bệnh nhân lễ tân vừa check-in chưa có trong queue của bác sĩ
+            receptionQueue.forEach((entry) => {
+                const ticketKey = entry.ticketNumber || entry.id
+                const exists = db.queue.some(
+                    (q) => q.ticket_code === ticketKey || q.so_thu_tu_kham === ticketKey || (entry.patientId && q.patient_id === entry.patientId)
+                )
+                if (!exists && entry.status === 'WAITING') {
+                    const pat = receptionPatients.find((p) => p.id === entry.patientId) || {}
+                    const birthYear = pat.dateOfBirth ? parseInt(pat.dateOfBirth.slice(0, 4), 10) : 1990
+                    const currentYear = new Date().getFullYear()
+                    const age = !isNaN(birthYear) ? currentYear - birthYear : 35
+
+                    const newEncounterId = 6000 + (db.queue.length + 1)
+                    const newTicketId = 400 + (db.queue.length + 1)
+
+                    const patientObj = {
+                        id: pat.id || entry.patientId,
+                        ma: pat.patientCode || `BN-2026-${String(newTicketId).padStart(4, '0')}`,
+                        ho_ten: pat.fullName || 'Bệnh nhân Tiếp đón',
+                        gioi_tinh: pat.gender === 'MALE' ? 'Nam' : 'Nữ',
+                        tuoi: age,
+                        di_ung_thuoc: pat.allergies || '',
+                        so_lan_kham: pat.visitCount || 1,
+                    }
+
+                    db.encounters[newEncounterId] = {
+                        id: newEncounterId,
+                        lich_kham_id: entry.appointmentId || newTicketId,
+                        ma_lich_kham: `LK-${ticketKey}`,
+                        benh_nhan: patientObj,
+                        ai_triage: {
+                            trieu_chung_nhap: entry.notes || 'Khám tổng quát và sàng lọc theo chỉ định',
+                            ten_chuyen_khoa: 'Nội tổng quát',
+                            ma_chuyen_khoa: 'NOI_CHUNG',
+                            do_tin_cay: 0.85,
+                            co_dau_hieu_cap_cuu: entry.priority === 'EMERGENCY',
+                        },
+                        chuyen_khoa_kham: 'NOI_CHUNG',
+                        kham_chuyen_khoa: null,
+                        thoi_gian_bat_dau: null,
+                        ly_do_vao_kham: entry.notes || 'Khám theo lịch hẹn hoặc đăng ký tiếp đón tại Lễ tân',
+                        benh_su: '',
+                        kham_lam_sang_bo_phan: '',
+                        nhiet_do_c: '36.8',
+                        mach_lan_phut: '76',
+                        huyet_ap_tam_thu: '120',
+                        huyet_ap_tam_truong: '80',
+                        nhip_tho_lan_phut: '18',
+                        can_nang_kg: '',
+                        chieu_cao_cm: '',
+                        ket_luan_dieu_tri: '',
+                        loi_dan_bac_si: '',
+                        ngay_hen_tai_kham: '',
+                        danh_sach_chan_doan: [],
+                        danh_sach_chi_dinh: [],
+                        don_thuoc: { loi_dan_uong_thuoc: '', danh_sach_thuoc: [] },
+                        danh_gia_ai: null,
+                        is_locked: false,
+                        thoi_gian_khoa: null,
+                        lich_su: [],
+                    }
+
+                    db.queue.push({
+                        ticket_id: newTicketId,
+                        encounter_id: newEncounterId,
+                        ticket_code: ticketKey,
+                        patient_id: entry.patientId,
+                        so_thu_tu_kham: ticketKey,
+                        muc_do_uu_tien: entry.priority === 'EMERGENCY' ? 1 : entry.priority === 'PRIORITY' ? 2 : 4,
+                        trang_thai: 'cho_kham',
+                        so_lan_goi: 0,
+                        ghi_chu: `Check-in Lễ tân lúc ${entry.checkInTime || 'hôm nay'} · ${ticketKey}`,
+                        benh_nhan: patientObj,
+                    })
+                }
+            })
+        } catch (e) {
+            console.warn('Sync reception queue error:', e)
+        }
+    }
+
     // ── Hàng đợi ──────────────────────────────────────────────────────────
     getMyQueue = () => {
         // TODO (Backend Integration): this.get('/api/v1/clinical/queue/my-today')
         if (!USE_MOCK) return this.get('/api/v1/reception/flow-board')
+        this.syncWithReceptionQueue()
         return delay(db.queue.map(ticketToQueueItem))
     }
 

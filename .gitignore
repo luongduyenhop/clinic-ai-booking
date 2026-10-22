@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Workspace local tools & untracked directories
+backend/
+backend.zip
+fe-clinic-ai-booking/
+.ai-tasks/
+.agents/
+*.puml

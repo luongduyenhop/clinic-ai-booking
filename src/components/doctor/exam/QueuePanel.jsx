@@ -19,7 +19,8 @@ export default function QueuePanel({ queue, loading, error, selectedEncounterId,
         .sort((a, b) => {
             if (a.trang_thai === 'dang_kham') return -1
             if (b.trang_thai === 'dang_kham') return 1
-            return a.muc_do_uu_tien - b.muc_do_uu_tien || a.so_thu_tu_kham - b.so_thu_tu_kham
+            if (a.muc_do_uu_tien !== b.muc_do_uu_tien) return a.muc_do_uu_tien - b.muc_do_uu_tien
+            return String(a.so_thu_tu_kham).localeCompare(String(b.so_thu_tu_kham), undefined, { numeric: true })
         })
 
     return (

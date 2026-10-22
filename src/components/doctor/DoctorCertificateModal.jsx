@@ -10,9 +10,9 @@ export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) 
 
     return createPortal(
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto relative">
+            <div className="bg-white rounded-3xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200 shadow-2xl relative overflow-hidden">
                 {/* Header Modal */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
                     <div className="flex items-center gap-2.5">
                         <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold border border-amber-200">
                             📜
@@ -34,6 +34,9 @@ export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) 
                         ✕
                     </button>
                 </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
                 {/* ═══════════════════════════════════════════════════════════════════
                     KHUNG BẢN MÔ PHỎNG CHỨNG CHỈ HÀNH NGHỀ CHÍNH THỨC
@@ -144,8 +147,10 @@ export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) 
                     )}
                 </div>
 
+                </div>
+
                 {/* Footer Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
                     <button
                         type="button"
                         onClick={handlePrint}

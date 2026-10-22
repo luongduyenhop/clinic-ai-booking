@@ -1,6 +1,7 @@
 import { Outlet, Link, NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
+import QuickPortalSwitcher from '../components/common/QuickPortalSwitcher'
 
 const DOCTOR_NAV = [
     { to: '/doctor', label: 'Tổng quan', end: true },
@@ -23,15 +24,15 @@ export default function DoctorTemplate() {
                 TOP NAVIGATION BAR DÀNH CHO BÁC SĨ (MEDPRO PALETTE)
             ═══════════════════════════════════════════════════════════════════ */}
             <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="h-18 flex items-center justify-between gap-4">
                         {/* Logo & Sub-Brand Bác Sĩ */}
-                        <div className="flex items-center gap-3">
-                            <Link to="/doctor" className="flex items-center gap-2.5 group">
-                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#003553] via-[#00B5F1] to-[#00B5F1] text-white flex items-center justify-center font-extrabold text-lg shadow-md group-hover:scale-105 transition transform">
+                        <div className="flex items-center gap-3 shrink-0">
+                            <Link to="/doctor" className="flex items-center gap-2.5 group shrink-0">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#003553] via-[#00B5F1] to-[#00B5F1] text-white flex items-center justify-center font-extrabold text-lg shadow-md group-hover:scale-105 transition transform shrink-0">
                                     ✚
                                 </div>
-                                <div>
+                                <div className="shrink-0 whitespace-nowrap">
                                     <span className="font-extrabold text-base tracking-tight text-[#003553] block leading-tight">
                                         ClinicAI <span className="text-[#00B5F1]">Doctor</span>
                                     </span>
@@ -41,22 +42,22 @@ export default function DoctorTemplate() {
                                 </div>
                             </Link>
 
-                            <div className="hidden lg:block h-6 w-px bg-slate-200 mx-2" />
+                            <div className="hidden lg:block h-6 w-px bg-slate-200 mx-2 shrink-0" />
 
                             {/* Thông tin phòng trực & ngày giờ */}
-                            <div className="hidden lg:flex items-center gap-3 text-xs">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8F4FD] text-[#003553] font-bold border border-sky-100">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <div className="hidden 2xl:flex items-center gap-2.5 text-xs shrink-0 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F4FD] text-[#003553] font-bold border border-sky-100 whitespace-nowrap shrink-0">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                                     {user?.room ? `${user.room} • ${user?.specialty || ''}` : 'Bàn Khám Bác Sĩ'}
                                 </span>
-                                <span className="text-slate-500 font-medium">
+                                <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">
                                     🗓 {todayFormatted}
                                 </span>
                             </div>
                         </div>
 
                         {/* Điều hướng các màn làm việc của bác sĩ */}
-                        <nav aria-label="Điều hướng bác sĩ" className="flex flex-1 flex-wrap items-center justify-center gap-1">
+                        <nav aria-label="Điều hướng bác sĩ" className="flex items-center justify-center gap-1 shrink-0">
                             {DOCTOR_NAV.map((item) => (
                                 <NavLink
                                     key={item.to}
@@ -74,24 +75,9 @@ export default function DoctorTemplate() {
                         </nav>
 
                         {/* Top corner: Chuyển cổng & Hồ sơ Bác Sĩ */}
-                        <div className="flex items-center gap-2.5">
-                            <div className="hidden md:flex items-center gap-1.5 pr-2 border-r border-slate-200">
-                                <Link
-                                    to="/reception/dashboard"
-                                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 text-slate-700 hover:text-teal-700 text-xs font-bold transition flex items-center gap-1"
-                                    title="Chuyển sang Cổng Lễ Tân"
-                                >
-                                    <span>👩‍💼</span>
-                                    <span>Cổng Lễ Tân</span>
-                                </Link>
-                                <Link
-                                    to="/admin"
-                                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 text-xs font-bold transition flex items-center gap-1"
-                                    title="Chuyển sang Cổng Quản Lý"
-                                >
-                                    <span>🏛️</span>
-                                    <span>Quản Trị</span>
-                                </Link>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                            <div className="hidden xl:flex items-center pr-2 border-r border-slate-200">
+                                <QuickPortalSwitcher size="xs" />
                             </div>
                             <DoctorHeaderProfile />
                         </div>

@@ -238,6 +238,130 @@ export class AdminService extends BaseServices {
         saveClinicStore(current)
         return { data: current }
     }
+
+    // ── 1. Ma trận Lịch trực Bác sĩ & Slot Trống (tClinic standard) ───
+    getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, chuyenKhoaId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (bacSiId) params.append('bac_si_id', bacSiId)
+            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            const res = await this.get(`/api/v1/admin/shifts/schedule-matrix?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback schedule-matrix:', error)
+            return null
+        }
+    }
+
+    // ── 2. Báo cáo Chấm công & Tỷ lệ lấp đầy ca khám (Timesheet) ───
+    exportDoctorTimesheetReport = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            const res = await this.get(`/api/v1/admin/shifts/export-report?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback timesheet report:', error)
+            return null
+        }
+    }
+
+    // ── 3. Xuất Danh mục Dịch vụ Kỹ thuật Chuẩn Y tế (Catalog Export) ───
+    exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (nhomDichVu) params.append('nhom_dich_vu', nhomDichVu)
+            if (trangThai !== undefined && trangThai !== null) params.append('trang_thai', trangThai)
+            const res = await this.get(`/api/v1/admin/services/export?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback services export:', error)
+            return null
+        }
+    }
+
+    // ── 4. Phân tích Mô hình Bệnh tật ICD-10 (Top 10 Diseases) ───
+    getTopIcd10Diseases = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-diseases?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-diseases:', error)
+            return null
+        }
+    }
+
+    // ── 5. Doanh thu Top Dịch vụ Kỹ thuật (Top Services) ───
+    getTopServicesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-services?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-services:', error)
+            return null
+        }
+    }
+
+    // ── 6. Đánh giá Hiệu suất & Năng suất Bác sĩ (Doctor KPI) ───
+    getDoctorPerformanceAnalytics = async ({ tuNgay, denNgay } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            const res = await this.get(`/api/v1/admin/analytics/doctor-performance?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback doctor-performance:', error)
+            return null
+        }
+    }
+
+    // ── 7. Đo lường Tải trọng Buồng khám (Room Workload) ───
+    getRoomWorkloadAnalytics = async ({ tuNgay, denNgay } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            const res = await this.get(`/api/v1/admin/analytics/room-workload?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback room-workload:', error)
+            return null
+        }
+    }
 }
 
 export const adminService = new AdminService()

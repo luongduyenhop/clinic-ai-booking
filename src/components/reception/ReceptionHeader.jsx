@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons'
 import { switchReceptionRoleAsync, resetReceptionDataAsync } from '../../redux/slices/reception/receptionSlice'
 import { RECEPTION_ROLES_OPTIONS } from '../../utils/constants/receptionConstants'
+import QuickPortalSwitcher from '../common/QuickPortalSwitcher'
 
 const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan Dashboard',
@@ -65,23 +66,23 @@ export default function ReceptionHeader() {
     return (
         <header className="h-16 bg-white border-b border-slate-200/90 px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 shadow-xs">
             {/* Left: Breadcrumb & Title */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
                 <div className="flex flex-col">
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 font-medium whitespace-nowrap">
                         <Link to="/reception/dashboard" className="hover:text-sky-600 transition">
                             Lễ tân
                         </Link>
                         <span>/</span>
                         <span className="text-slate-600 font-semibold">{pageTitle}</span>
                     </div>
-                    <h1 className="text-base font-bold text-slate-800 leading-tight mt-0.5">{pageTitle}</h1>
+                    <h1 className="text-base font-bold text-slate-800 leading-tight mt-0.5 whitespace-nowrap">{pageTitle}</h1>
                 </div>
             </div>
 
             {/* Right: Actions, Clock, Role switcher, User badge */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 {/* Working Clock */}
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600">
+                <div className="hidden 2xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600 shrink-0 whitespace-nowrap">
                     <ClockCircleOutlined className="text-sky-500" />
                     <span className="tabular-nums">{formattedTime}</span>
                 </div>
@@ -90,7 +91,7 @@ export default function ReceptionHeader() {
                 <Tooltip title="Đặt lại toàn bộ dữ liệu mẫu (Seed Data) về ban đầu">
                     <button
                         onClick={() => setIsResetModalOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 text-xs font-semibold transition cursor-pointer shadow-2xs"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 text-xs font-semibold transition cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
                     >
                         <ReloadOutlined className="text-amber-600" />
                         <span className="hidden sm:inline">Reset Demo</span>
@@ -98,29 +99,14 @@ export default function ReceptionHeader() {
                 </Tooltip>
 
                 {/* Quick Portal Switcher */}
-                <div className="hidden md:flex items-center gap-1.5">
-                    <Link
-                        to="/doctor"
-                        className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition flex items-center gap-1"
-                        title="Chuyển sang Cổng Bác Sĩ"
-                    >
-                        <span>👨‍⚕️</span>
-                        <span className="hidden xl:inline">Bác Sĩ</span>
-                    </Link>
-                    <Link
-                        to="/admin"
-                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition flex items-center gap-1"
-                        title="Chuyển sang Cổng Quản Lý"
-                    >
-                        <span>🏛️</span>
-                        <span className="hidden xl:inline">Quản Trị</span>
-                    </Link>
+                <div className="hidden xl:flex items-center shrink-0">
+                    <QuickPortalSwitcher size="xs" />
                 </div>
 
                 {/* Notifications badge for tasks */}
                 <Link
                     to="/reception/tasks"
-                    className="relative w-9 h-9 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-900 transition"
+                    className="relative w-9 h-9 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-900 transition shrink-0"
                     title={`${pendingTasks.length} sự cố hành chính cần xử lý`}
                 >
                     <BellOutlined className="text-base" />
@@ -136,30 +122,30 @@ export default function ReceptionHeader() {
                 </Link>
 
                 {/* Role Switcher */}
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                    <span className="text-xs text-slate-400 hidden xl:inline font-medium">Vai trò demo:</span>
+                <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
+                    <span className="text-xs text-slate-400 hidden xl:inline font-medium whitespace-nowrap">Vai trò demo:</span>
                     <Select
                         value={activeRole}
                         onChange={handleRoleChange}
                         options={RECEPTION_ROLES_OPTIONS}
-                        className="w-44 text-xs font-semibold"
+                        className="w-44 text-xs font-semibold shrink-0"
                         size="middle"
                     />
                 </div>
 
                 {/* Current Staff Badge */}
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                    <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs border border-sky-200">
+                <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs border border-sky-200 shrink-0">
                         <UserOutlined />
                     </div>
-                    <div className="hidden sm:block text-left text-xs">
-                        <div className="font-bold text-slate-800 flex items-center gap-1 leading-tight">
+                    <div className="hidden sm:block text-left text-xs shrink-0 whitespace-nowrap">
+                        <div className="font-bold text-slate-800 flex items-center gap-1 leading-tight whitespace-nowrap">
                             {activeRole === 'RECEPTION_SUPERVISOR' ? 'Trần Đình Nam' : 'Nguyễn Thị Hoa'}
                             {activeRole === 'RECEPTION_SUPERVISOR' && (
                                 <SafetyCertificateOutlined className="text-teal-600" title="Giám sát ca trực" />
                             )}
                         </div>
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
                             {activeRole === 'RECEPTION_SUPERVISOR' ? 'Giám sát lễ tân' : 'Lễ tân chính'}
                         </span>
                     </div>

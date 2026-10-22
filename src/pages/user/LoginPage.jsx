@@ -36,6 +36,15 @@ export default function LoginPage() {
                 email: 'bshuy@clinic-ai.vn',
             }
             redirectPath = '/doctor'
+        } else if (targetRole === 'PATIENT') {
+            userProfile = {
+                id: 'USER_PATIENT_01',
+                fullName: 'Nguyễn Văn Minh',
+                shortName: 'Văn Minh',
+                role: 'BENH_NHAN',
+                email: 'benhnhan@clinic-ai.vn',
+            }
+            redirectPath = '/'
         }
 
         dispatch(
@@ -144,30 +153,38 @@ export default function LoginPage() {
                         <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
                             Đăng nhập nhanh theo từng phân hệ (Role-Based Demo)
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <button
                                 type="button"
                                 onClick={() => handleRoleDemoLogin('ADMIN')}
-                                className="px-2.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#003553] text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                                className="px-2 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#003553] text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
                             >
                                 <span>🏛️ Quản lý</span>
-                                <span className="text-[10px] text-amber-700 font-semibold">Admin Portal</span>
+                                <span className="text-[10px] text-amber-700 font-semibold">Admin</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleRoleDemoLogin('RECEPTIONIST')}
-                                className="px-2.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                                className="px-2 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
                             >
                                 <span>👩‍💼 Lễ tân</span>
-                                <span className="text-[10px] text-teal-700 font-semibold">Reception Portal</span>
+                                <span className="text-[10px] text-teal-700 font-semibold">Lễ tân</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleRoleDemoLogin('DOCTOR')}
-                                className="px-2.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                                className="px-2 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
                             >
                                 <span>👨‍⚕️ Bác sĩ</span>
-                                <span className="text-[10px] text-sky-700 font-semibold">Doctor Portal</span>
+                                <span className="text-[10px] text-sky-700 font-semibold">Bác sĩ</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleRoleDemoLogin('PATIENT')}
+                                className="px-2 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
+                            >
+                                <span>🏠 Bệnh nhân</span>
+                                <span className="text-[10px] text-indigo-700 font-semibold">Bệnh nhân</span>
                             </button>
                         </div>
                     </div>

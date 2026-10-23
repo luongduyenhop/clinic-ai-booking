@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, time, datetime, timezone
+from datetime import date, time
 from decimal import Decimal
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.models.medical import DichVu
@@ -7,7 +7,6 @@ from app.schemas.clinical import (
     EncounterCreateRequest,
     EncounterCompleteRequest,
     DiagnosisCreateRequest,
-    OrderCreateRequest,
     PrescriptionCreateRequest,
     PrescriptionItemCreateRequest,
 )

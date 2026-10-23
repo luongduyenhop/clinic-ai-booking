@@ -1,7 +1,6 @@
 import logging
-from datetime import date, datetime, time, timezone
 from typing import Any, Dict, List, Optional
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,53 +9,18 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.core.security import get_password_hash
 from app.models.appointment import (
-    LichLamViec,
     LichKham,
-    HangDoiKham,
-    CaLamViecEnum,
     TrangThaiLichEnum,
-    TrangThaiHangDoiEnum,
-    LichDinhKyBacSi,
-    NghiPhepBacSi,
-    TrangThaiNghiPhepEnum,
     PhanTichAI,
     DanhGiaAI,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
-from app.schemas.clinical import AmendmentResponse
+from app.models.medical import DichVu, KhaiNiem, TuKhoaCapCuu
+from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
-    RoomCreateRequest,
-    RoomResponse,
-    ShiftCreateRequest,
-    ShiftToggleLockRequest,
-    ShiftResponse,
-    EmergencyLeaveDeclareRequest,
-    EmergencyLeaveSummaryResponse,
-    ReassignQueueRequest,
-    ReassignQueueResponse,
-    PostponeAndCancelResponse,
     ServiceCreateRequest,
     ServiceUpdateRequest,
     ServiceItemAdminResponse,
-    AdminDashboardStatsResponse,
-    DepartmentCreateRequest,
-    DepartmentUpdateRequest,
-    DepartmentAdminResponse,
-    RosterTemplateCreateRequest,
-    RosterTemplateUpdateRequest,
-    RosterTemplateResponse,
-    RosterBatchGenerateRequest,
-    RosterBatchGenerateResponse,
-    DoctorLeaveCreateRequest,
-    DoctorLeaveResponse,
-    DoctorLeaveApproveRequest,
-    AffectedBookingItem,
     ConceptCreateRequest,
     ConceptUpdateRequest,
     ConceptAdminResponse,
@@ -65,13 +29,6 @@ from app.schemas.admin import (
     RedFlagAdminResponse,
     AIAccuracyReportResponse,
     AIAccuracySpecialtyItem,
-    AdminAnalyticsReportResponse,
-    CancellationReasonBreakdown,
-    SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,6 @@
 import importlib.util
 from pathlib import Path
 import pytest
-from sqlalchemy import inspect
 from app.core.database import Base
 
 

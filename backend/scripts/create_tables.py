@@ -2,7 +2,6 @@ import asyncio
 import sqlite3
 from app.core.database import engine
 from app.models.base import Base
-import app.models
 
 async def main():
     async with engine.begin() as conn:

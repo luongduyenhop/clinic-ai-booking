@@ -34,8 +34,19 @@ logger = logging.getLogger(__name__)
 class DoctorLicenseInvalidException(ForbiddenException, HTTPException):
     """Lỗi giấy phép bác sĩ hết hạn, tạm đình chỉ hoặc bị thu hồi (403 Forbidden)"""
     def __init__(self, message: str = "Doctor license is EXPIRED or SUSPENDED", code: int = status.HTTP_403_FORBIDDEN):
-        ForbiddenException.__init__(self, message=message)
-        HTTPException.__init__(self, status_code=code, detail=message)
+        # FIX: khong goi ForbiddenException.__init__ / HTTPException.__init__ theo
+        # chuoi super() thong thuong. Voi da ke thua (AppException + HTTPException),
+        # AppException.__init__ se goi tiep super().__init__(self.message) va MRO
+        # day call do vao HTTPException.__init__ -> chuoi message bi coi la
+        # status_code -> ValueError: '...' is not a valid HTTPStatus.
+        # Khoi tao truc tiep cac thuoc tinh cua ca hai lop cha:
+        Exception.__init__(self, message)
+        self.message = message
+        self.code = code
+        self.errors = []
+        self.status_code = code
+        self.detail = message
+        self.headers = None
 
 
 class ScopeMismatchException(ConflictException, HTTPException):
@@ -45,8 +56,15 @@ class ScopeMismatchException(ConflictException, HTTPException):
         message: str = "Service specialty outside doctor licensed scope of practice",
         code: int = status.HTTP_409_CONFLICT,
     ):
-        ConflictException.__init__(self, message=message)
-        HTTPException.__init__(self, status_code=code, detail=message)
+        # Xem ghi chu tai DoctorLicenseInvalidException: tranh chuoi super()
+        # cua da ke thua, khoi tao truc tiep cac thuoc tinh cua hai lop cha.
+        Exception.__init__(self, message)
+        self.message = message
+        self.code = code
+        self.errors = []
+        self.status_code = code
+        self.detail = message
+        self.headers = None
 
 
 class CredentialService:

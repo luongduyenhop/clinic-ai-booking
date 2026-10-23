@@ -1,9 +1,8 @@
 import asyncio
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import settings
 from app.core.database import Base
-import app.models  # load all models
 
 async def sync():
     engine = create_async_engine(settings.async_database_url)

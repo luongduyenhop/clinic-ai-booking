@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from app.models.appointment import LichKham, TrangThaiLichEnum
 
@@ -18,8 +18,17 @@ async def test_arrival_window_early_on_time_and_late(api_client, booking, db_ses
     - Đến muộn > 15p -> den_muon, ưu tiên 5
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
     now_clinic = _get_clinic_now()
+    # FIX (flaky luc nua dem): ca 3 lich hen deu phai nam trong CUNG NGAY clinic
+    # voi thoi diem check-in (server chan check-in lich ngay mai). Khi chay sau
+    # ~23:15, ca "+45 phut" tran qua nua dem -> kich ban khong dung duoc.
+    # Skip minh bach trong cua so do thay vi fail gia.
+    if (now_clinic + timedelta(minutes=45)).date() != now_clinic.date() or \
+       (now_clinic - timedelta(minutes=25)).date() != now_clinic.date():
+        pytest.skip("Bo qua: chay qua gan nua dem, kich ban arrival-window khong dung duoc trong ngay clinic")
+    # Ngay kham lay theo gio clinic (truoc day dung date.today() cua he thong,
+    # lech ngay voi gio clinic khi server chay khac mui gio).
+    today = now_clinic.date()
 
     # 1. Ca đến sớm: hẹn sau bây giờ 45 phút
     gio_som = (now_clinic + timedelta(minutes=45)).time()

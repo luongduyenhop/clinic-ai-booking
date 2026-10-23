@@ -1,6 +1,5 @@
 import pytest
 from datetime import datetime, timezone
-from decimal import Decimal
 from app.models.medical import DichVu
 
 

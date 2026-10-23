@@ -1,7 +1,7 @@
 import logging
-from datetime import date, datetime, time, timezone
-from typing import Any, Dict, List, Optional
-from sqlalchemy import func, select, or_
+from datetime import date, time
+from typing import List, Optional
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,7 +10,6 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.core.security import get_password_hash
 from app.models.appointment import (
     LichLamViec,
     LichKham,
@@ -21,18 +20,10 @@ from app.models.appointment import (
     LichDinhKyBacSi,
     NghiPhepBacSi,
     TrangThaiNghiPhepEnum,
-    PhanTichAI,
-    DanhGiaAI,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
-from app.schemas.clinical import AmendmentResponse
+from app.models.medical import LuotKham
+from app.models.user import BacSi, PhongKham, TaiKhoan, BenhNhan
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
-    RoomCreateRequest,
-    RoomResponse,
     ShiftCreateRequest,
     ShiftToggleLockRequest,
     ShiftResponse,
@@ -41,13 +32,6 @@ from app.schemas.admin import (
     ReassignQueueRequest,
     ReassignQueueResponse,
     PostponeAndCancelResponse,
-    ServiceCreateRequest,
-    ServiceUpdateRequest,
-    ServiceItemAdminResponse,
-    AdminDashboardStatsResponse,
-    DepartmentCreateRequest,
-    DepartmentUpdateRequest,
-    DepartmentAdminResponse,
     RosterTemplateCreateRequest,
     RosterTemplateUpdateRequest,
     RosterTemplateResponse,
@@ -57,21 +41,6 @@ from app.schemas.admin import (
     DoctorLeaveResponse,
     DoctorLeaveApproveRequest,
     AffectedBookingItem,
-    ConceptCreateRequest,
-    ConceptUpdateRequest,
-    ConceptAdminResponse,
-    RedFlagCreateRequest,
-    RedFlagUpdateRequest,
-    RedFlagAdminResponse,
-    AIAccuracyReportResponse,
-    AIAccuracySpecialtyItem,
-    AdminAnalyticsReportResponse,
-    CancellationReasonBreakdown,
-    SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
 )
 
 logger = logging.getLogger(__name__)
@@ -225,7 +194,7 @@ class AdminShiftService:
                 LichLamViec.phong_kham_id == target_room_id,
                 LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
                 LichLamViec.ca_lam_viec == payload.ca_lam_viec,
-                LichLamViec.is_active == True,
+                LichLamViec.is_active.is_(True),
             )
             conflict_shift = (await db.execute(stmt_conflict_room)).scalar_one_or_none()
             if conflict_shift:
@@ -801,7 +770,7 @@ class AdminShiftService:
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu!")
 
-        stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active == True)
+        stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active.is_(True))
         if payload.bac_si_ids:
             stmt = stmt.where(LichDinhKyBacSi.bac_si_id.in_(payload.bac_si_ids))
         templates = (await db.execute(stmt)).scalars().all()
@@ -849,7 +818,7 @@ class AdminShiftService:
                             LichLamViec.phong_kham_id == t.phong_kham_id,
                             LichLamViec.ngay_lam_viec == cur,
                             LichLamViec.ca_lam_viec == t.ca_lam_viec,
-                            LichLamViec.is_active == True
+                            LichLamViec.is_active.is_(True)
                         )
                     )).scalar_one_or_none()
                     if room_conflict:
@@ -944,7 +913,7 @@ class AdminShiftService:
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec >= payload.tu_ngay,
             LichLamViec.ngay_lam_viec <= payload.den_ngay,
-            LichLamViec.is_active == True
+            LichLamViec.is_active.is_(True)
         )
         if payload.ca_lam_viec:
             shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == payload.ca_lam_viec)
@@ -986,7 +955,7 @@ class AdminShiftService:
             await db.commit()
 
         leaves = await self.get_leaves_admin(db, doctor_id=payload.bac_si_id)
-        return [l for l in leaves if l.id == leave.id][0]
+        return [item for item in leaves if item.id == leave.id][0]
 
     async def approve_leave_admin(
         self,
@@ -1010,7 +979,7 @@ class AdminShiftService:
                 LichLamViec.bac_si_id == leave.bac_si_id,
                 LichLamViec.ngay_lam_viec >= leave.tu_ngay,
                 LichLamViec.ngay_lam_viec <= leave.den_ngay,
-                LichLamViec.is_active == True
+                LichLamViec.is_active.is_(True)
             )
             if leave.ca_lam_viec:
                 stmt = stmt.where(LichLamViec.ca_lam_viec == leave.ca_lam_viec)
@@ -1022,7 +991,7 @@ class AdminShiftService:
         await db.commit()
         await db.refresh(leave)
         leaves = await self.get_leaves_admin(db, doctor_id=leave.bac_si_id)
-        return [l for l in leaves if l.id == leave.id][0]
+        return [item for item in leaves if item.id == leave.id][0]
 
     async def get_leave_affected_bookings(self, leave_id: int, db: AsyncSession) -> List[AffectedBookingItem]:
         """Lấy danh sách các lịch hẹn bị ảnh hưởng để nhân viên hỗ trợ dời lịch cho bệnh nhân"""

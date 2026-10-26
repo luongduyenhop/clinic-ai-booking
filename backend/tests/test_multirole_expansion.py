@@ -16,11 +16,12 @@ async def test_patient_registration_and_auth_flow(api_client):
     - Tự động kích hoạt tài khoản và cấp JWT Tokens
     - Kiểm tra đăng nhập lại bằng số điện thoại vừa đăng ký
     """
+    sfx = uuid.uuid4().hex[:6]
     payload = {
         "ho_ten": "Nguyễn Văn An",
-        "so_dien_thoai": "0988776655",
+        "so_dien_thoai": f"0988{sfx[:6]}",
         "mat_khau": "SecurePass@123",
-        "email": "nguyenvanan@gmail.com",
+        "email": f"an_{sfx}@gmail.com",
         "ngay_sinh": "1995-05-15",
         "gioi_tinh": "Nam",
         "dia_chi": "123 Đường Cầu Giấy, Hà Nội",
@@ -40,12 +41,12 @@ async def test_patient_registration_and_auth_flow(api_client):
     # 2. Đăng nhập lại với email vừa đăng ký
     login_resp = await api_client.post(
         "/api/v1/auth/login",
-        json={"usernameOrEmail": "nguyenvanan@gmail.com", "password": "SecurePass@123"}
+        json={"usernameOrEmail": payload["email"], "password": "SecurePass@123"}
     )
     assert login_resp.status_code == 200
     login_data = login_resp.json()["data"]
     assert login_data["role"] == "PATIENT"
-    assert login_data["user"]["email"] == "nguyenvanan@gmail.com"
+    assert login_data["user"]["email"] == payload["email"]
 
 
 @pytest.mark.asyncio
@@ -58,11 +59,12 @@ async def test_patient_profile_and_family_members(api_client):
     - Xem danh sách người thân
     """
     # 1. Đăng ký một bệnh nhân mới
+    sfx2 = uuid.uuid4().hex[:6]
     payload = {
         "ho_ten": "Trần Thị Mai",
-        "so_dien_thoai": "0912345678",
+        "so_dien_thoai": f"0912{sfx2[:6]}",
         "mat_khau": "MaiPass@2026",
-        "email": "maitt@example.com",
+        "email": f"mai_{sfx2}@example.com",
         "ngay_sinh": "1990-10-20",
         "gioi_tinh": "Nữ",
         "dia_chi": "Quận Ba Đình, Hà Nội"

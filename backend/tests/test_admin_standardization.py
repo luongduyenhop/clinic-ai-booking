@@ -224,3 +224,22 @@ async def test_admin_standardization_rbac_forbidden(api_client: AsyncClient, boo
     )
     assert res2.status_code == 403
 
+
+
+@pytest.mark.asyncio
+async def test_analytics_top_medicines(api_client: AsyncClient, booking):
+    """Kiểm tra API thống kê Top thuốc kê đơn nhiều nhất (/analytics/top-medicines)"""
+    admin_headers = booking.tokens["admin"]
+    res = await api_client.get(
+        "/api/v1/admin/analytics/top-medicines?limit=5",
+        headers=admin_headers,
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert "items" in data
+    assert len(data["items"]) > 0
+    assert "ten_thuoc" in data["items"][0]
+    assert "so_luot_ke" in data["items"][0]
+    assert "tong_so_luong" in data["items"][0]

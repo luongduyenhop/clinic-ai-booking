@@ -122,6 +122,7 @@ class ClinicalService:
             luot_kham_id=dt.luot_kham_id,
             bac_si_ke_don_id=dt.bac_si_ke_don_id,
             ngay_ke_don=dt.ngay_ke_don,
+            so_ngay_dung=dt.so_ngay_dung,
             loi_dan_uong_thuoc=dt.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=dt.ghi_chu_duoc_lam_sang,
             trang_thai=dt.trang_thai or "DRAFT",
@@ -147,6 +148,10 @@ class ClinicalService:
                     ham_luong=item.ham_luong,
                     don_vi_tinh=item.don_vi_tinh,
                     so_luong=item.so_luong,
+                    lieu_sang=item.lieu_sang or "",
+                    lieu_trua=item.lieu_trua or "",
+                    lieu_chieu=item.lieu_chieu or "",
+                    lieu_toi=item.lieu_toi or "",
                     cach_dung=item.cach_dung,
                     so_ngay_dung=item.so_ngay_dung,
                     ghi_chu=item.ghi_chu
@@ -189,9 +194,12 @@ class ClinicalService:
             for order in (lk.danh_sach_chi_dinh or [])
         ]
         prescription_dto = self._to_prescription_response(lk.don_thuoc) if lk.don_thuoc else None
+        dt_str = lk.thoi_gian_bat_dau.strftime('%y%m%d') if lk.thoi_gian_bat_dau else date.today().strftime('%y%m%d')
+        ma_kcb = f"KCB-{dt_str}-{lk.id:04d}"
         return EncounterResponse(
             id=lk.id,
             lich_kham_id=lk.lich_kham_id,
+            ma_kcb=ma_kcb,
             bac_si_id=lk.bac_si_id,
             benh_nhan_id=lk.benh_nhan_id,
             thoi_gian_bat_dau=lk.thoi_gian_bat_dau,
@@ -205,10 +213,16 @@ class ClinicalService:
             nhip_tho_lan_phut=lk.nhip_tho_lan_phut,
             can_nang_kg=float(lk.can_nang_kg) if lk.can_nang_kg is not None else None,
             chieu_cao_cm=float(lk.chieu_cao_cm) if lk.chieu_cao_cm is not None else None,
+            spo2=float(lk.spo2) if lk.spo2 is not None else None,
+            bmi=float(lk.bmi) if lk.bmi is not None else None,
+            trieu_chung=lk.trieu_chung,
+            chan_doan_so_bo=lk.chan_doan_so_bo,
+            tien_su_di_ung=lk.tien_su_di_ung,
             kham_lam_sang_bo_phan=lk.kham_lam_sang_bo_phan,
             ket_luan_dieu_tri=lk.ket_luan_dieu_tri,
             loi_dan_bac_si=lk.loi_dan_bac_si,
             ngay_hen_tai_kham=lk.ngay_hen_tai_kham,
+            loi_dan_tai_kham=lk.loi_dan_tai_kham,
             is_locked=lk.is_locked,
             thoi_gian_khoa=lk.thoi_gian_khoa,
             nguoi_khoa_id=lk.nguoi_khoa_id,
@@ -263,6 +277,11 @@ class ClinicalService:
             nhip_tho_lan_phut=payload.nhip_tho_lan_phut,
             can_nang_kg=payload.can_nang_kg,
             chieu_cao_cm=payload.chieu_cao_cm,
+            spo2=payload.spo2,
+            bmi=payload.bmi,
+            trieu_chung=payload.trieu_chung,
+            chan_doan_so_bo=payload.chan_doan_so_bo,
+            tien_su_di_ung=payload.tien_su_di_ung,
             kham_lam_sang_bo_phan=payload.kham_lam_sang_bo_phan,
             is_locked=False
         )
@@ -609,6 +628,7 @@ class ClinicalService:
         luot_kham.ket_luan_dieu_tri = payload.ket_luan_dieu_tri
         luot_kham.loi_dan_bac_si = payload.loi_dan_bac_si
         luot_kham.ngay_hen_tai_kham = payload.ngay_hen_tai_kham
+        luot_kham.loi_dan_tai_kham = payload.loi_dan_tai_kham
         luot_kham.thoi_gian_ket_thuc = now
         luot_kham.is_locked = True
         luot_kham.thoi_gian_khoa = now
@@ -690,6 +710,7 @@ class ClinicalService:
             luot_kham_id=encounter_id,
             bac_si_ke_don_id=bac_si.id,
             ngay_ke_don=now,
+            so_ngay_dung=payload.so_ngay_dung or 5,
             loi_dan_uong_thuoc=payload.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=payload.ghi_chu_duoc_lam_sang
         )
@@ -704,6 +725,10 @@ class ClinicalService:
                 ham_luong=item.ham_luong,
                 don_vi_tinh=item.don_vi_tinh,
                 so_luong=item.so_luong,
+                lieu_sang=item.lieu_sang or "",
+                lieu_trua=item.lieu_trua or "",
+                lieu_chieu=item.lieu_chieu or "",
+                lieu_toi=item.lieu_toi or "",
                 cach_dung=item.cach_dung,
                 so_ngay_dung=item.so_ngay_dung,
                 ghi_chu=item.ghi_chu

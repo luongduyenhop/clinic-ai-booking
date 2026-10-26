@@ -742,3 +742,21 @@ class RoomWorkloadResponse(BaseModel):
     den_ngay: date
     items: List[RoomWorkloadStatItem]
 
+
+
+class TopMedicineStatItem(BaseModel):
+    """Thống kê thuốc kê đơn nhiều nhất"""
+    ten_thuoc: str
+    hoat_chat: Optional[str] = None
+    don_vi_tinh: str
+    so_luot_ke: int
+    tong_so_luong: int
+    nhom: Optional[str] = None
+
+
+class TopMedicinesResponse(BaseModel):
+    """Top thuốc kê đơn theo số lượt kê và số lượng"""
+    tu_ngay: date
+    den_ngay: date
+    tong_so_luot_ke: int
+    items: List[TopMedicineStatItem]

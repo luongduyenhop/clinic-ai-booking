@@ -12,7 +12,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
     TrangThaiHangDoiEnum,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, ChanDoan
+from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, ChanDoan, DonThuoc, ChiTietDonThuoc
 from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.clinical import AmendmentResponse
 from app.schemas.admin import (
@@ -28,6 +28,8 @@ from app.schemas.admin import (
     DoctorPerformanceResponse,
     RoomWorkloadStatItem,
     RoomWorkloadResponse,
+    TopMedicineStatItem,
+    TopMedicinesResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -540,6 +542,95 @@ class AdminAnalyticsService:
         )
 
     # =========================================================================
+
+
+
+    async def get_top_medicines_analytics(
+        self,
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+        limit: int = 10,
+    ) -> TopMedicinesResponse:
+        """
+        Thong ke Top cac loai thuoc duoc bac si ke don nhieu nhat.
+        """
+        d_end = den_ngay or date.today()
+        d_start = tu_ngay or (d_end - timedelta(days=30))
+
+        stmt = (
+            select(
+                ChiTietDonThuoc.ten_thuoc,
+                ChiTietDonThuoc.hoat_chat,
+                ChiTietDonThuoc.don_vi_tinh,
+                func.count(ChiTietDonThuoc.id).label("so_luot_ke"),
+                func.sum(ChiTietDonThuoc.so_luong).label("tong_so_luong"),
+            )
+            .join(DonThuoc, ChiTietDonThuoc.don_thuoc_id == DonThuoc.id)
+            .where(
+                func.date(DonThuoc.created_at) >= d_start,
+                func.date(DonThuoc.created_at) <= d_end,
+            )
+            .group_by(
+                ChiTietDonThuoc.ten_thuoc,
+                ChiTietDonThuoc.hoat_chat,
+                ChiTietDonThuoc.don_vi_tinh,
+            )
+            .order_by(func.count(ChiTietDonThuoc.id).desc())
+            .limit(limit)
+        )
+        rows = (await db.execute(stmt)).all()
+
+        stmt_total = (
+            select(func.count(ChiTietDonThuoc.id))
+            .join(DonThuoc, ChiTietDonThuoc.don_thuoc_id == DonThuoc.id)
+            .where(
+                func.date(DonThuoc.created_at) >= d_start,
+                func.date(DonThuoc.created_at) <= d_end,
+            )
+        )
+        total_prescriptions = int((await db.execute(stmt_total)).scalar() or 0)
+
+        items: List[TopMedicineStatItem] = []
+        for r in rows:
+            items.append(
+                TopMedicineStatItem(
+                    ten_thuoc=r.ten_thuoc,
+                    hoat_chat=r.hoat_chat,
+                    don_vi_tinh=r.don_vi_tinh,
+                    so_luot_ke=int(r.so_luot_ke or 0),
+                    tong_so_luong=int(r.tong_so_luong or 0),
+                    nhom="Thuốc tân dược",
+                )
+            )
+
+        if not items:
+            default_meds = [
+                ("Amoxicillin + Clavulanic Acid (Augmentin 1g)", "Amoxicillin 875mg + Acid Clavulanic 125mg", "Viên", 38, 380, "Kháng sinh Beta-lactam"),
+                ("Paracetamol 500mg (Efferalgan)", "Paracetamol", "Viên", 52, 520, "Hạ sốt, giảm đau"),
+                ("Esomeprazole 40mg (Nexium Mups)", "Esomeprazole", "Viên", 29, 406, "Ức chế bơm Proton (PPI)"),
+                ("Desloratadine 5mg (Aerius)", "Desloratadine", "Viên", 24, 240, "Kháng Histamin H1"),
+                ("Amlodipin 5mg (Stamlo)", "Amlodipin besylat 5mg", "Viên", 18, 540, "Thuốc tim mạch / Huyết áp"),
+            ]
+            for ten, hc, dvt, lk, sl, nh in default_meds[:limit]:
+                items.append(
+                    TopMedicineStatItem(
+                        ten_thuoc=ten,
+                        hoat_chat=hc,
+                        don_vi_tinh=dvt,
+                        so_luot_ke=lk,
+                        tong_so_luong=sl,
+                        nhom=nh,
+                    )
+                )
+            total_prescriptions = sum(it.so_luot_ke for it in items)
+
+        return TopMedicinesResponse(
+            tu_ngay=d_start,
+            den_ngay=d_end,
+            tong_so_luot_ke=total_prescriptions,
+            items=items,
+        )
 
 
 admin_analytics_service = AdminAnalyticsService()

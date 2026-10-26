@@ -112,6 +112,8 @@ class BenhNhan(BaseModelWithTimestamp):
     diem_tin_nhiem = Column(Integer, default=100, nullable=False)
     so_lan_no_show = Column(Integer, default=0, nullable=False)
     is_blocked_booking = Column(Boolean, default=False, nullable=False)
+    nguoi_lien_he = Column(String(100), nullable=True)
+    sdt_nguoi_lien_he = Column(String(20), nullable=True)
 
     # Quan hệ
     nguoi_dung = relationship("NguoiDung", back_populates="benh_nhan")

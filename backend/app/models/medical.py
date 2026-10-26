@@ -90,6 +90,13 @@ class LuotKham(BaseModelWithTimestamp):
     chieu_cao_cm = Column(Numeric(5, 2), nullable=True)
     
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
+    ma_kcb = Column(String(50), nullable=True, index=True)
+    trieu_chung = Column(Text, nullable=True)
+    chan_doan_so_bo = Column(String(255), nullable=True)
+    tien_su_di_ung = Column(Text, nullable=True)
+    spo2 = Column(Numeric(4, 1), nullable=True)
+    bmi = Column(Numeric(4, 1), nullable=True)
+    loi_dan_tai_kham = Column(Text, nullable=True)
     ket_luan_dieu_tri = Column(Text, nullable=True)
     loi_dan_bac_si = Column(Text, nullable=True)
     ngay_hen_tai_kham = Column(Date, nullable=True)
@@ -223,6 +230,7 @@ class DonThuoc(BaseModelWithTimestamp):
     ngay_ke_don = Column(DateTime(timezone=True), nullable=False)
     loi_dan_uong_thuoc = Column(Text, nullable=True)
     ghi_chu_duoc_lam_sang = Column(Text, nullable=True)
+    so_ngay_dung = Column(Integer, default=5, nullable=False)
 
     # Quản lý Tuân thủ Pháp lý & Liên thông Cổng Quốc gia (INT-04 / R3)
     trang_thai = Column(String(50), default="DRAFT", nullable=False)
@@ -283,6 +291,10 @@ class ChiTietDonThuoc(BaseModelWithTimestamp):
     so_luong = Column(Integer, default=1, nullable=False)
     cach_dung = Column(Text, nullable=False)  # Sáng 1 viên, Tối 1 viên sau ăn
     so_ngay_dung = Column(Integer, default=5, nullable=False)
+    lieu_sang = Column(String(20), nullable=True, default="")
+    lieu_trua = Column(String(20), nullable=True, default="")
+    lieu_chieu = Column(String(20), nullable=True, default="")
+    lieu_toi = Column(String(20), nullable=True, default="")
     ghi_chu = Column(Text, nullable=True)
 
     # Quan hệ

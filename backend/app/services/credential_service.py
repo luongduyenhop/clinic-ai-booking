@@ -31,22 +31,24 @@ from app.schemas.compliance import (
 logger = logging.getLogger(__name__)
 
 
-class DoctorLicenseInvalidException(ForbiddenException, HTTPException):
+class DoctorLicenseInvalidException(ForbiddenException):
     """Lỗi giấy phép bác sĩ hết hạn, tạm đình chỉ hoặc bị thu hồi (403 Forbidden)"""
     def __init__(self, message: str = "Doctor license is EXPIRED or SUSPENDED", code: int = status.HTTP_403_FORBIDDEN):
-        ForbiddenException.__init__(self, message=message)
-        HTTPException.__init__(self, status_code=code, detail=message)
+        super().__init__(message=message)
+        self.status_code = code
+        self.detail = message
 
 
-class ScopeMismatchException(ConflictException, HTTPException):
+class ScopeMismatchException(ConflictException):
     """Lỗi dịch vụ y tế nằm ngoài phạm vi hoạt động chuyên môn của bác sĩ (409 Conflict)"""
     def __init__(
         self,
         message: str = "Service specialty outside doctor licensed scope of practice",
         code: int = status.HTTP_409_CONFLICT,
     ):
-        ConflictException.__init__(self, message=message)
-        HTTPException.__init__(self, status_code=code, detail=message)
+        super().__init__(message=message)
+        self.status_code = code
+        self.detail = message
 
 
 class CredentialService:

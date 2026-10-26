@@ -56,6 +56,7 @@ from app.schemas.admin import (
     TopServicesResponse,
     DoctorPerformanceResponse,
     RoomWorkloadResponse,
+    TopMedicinesResponse,
 )
 from app.schemas.clinical import AmendmentResponse
 from app.services.admin_service import admin_service
@@ -819,6 +820,23 @@ async def get_room_workload(
 ):
     data = await admin_service.get_room_workload_analytics(db, tu_ngay, den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê phụ tải buồng khám thành công")
+
+
+@router.get(
+    "/analytics/top-medicines",
+    response_model=ResponseEnvelope[TopMedicinesResponse],
+    summary="Top thuốc kê đơn theo số lượt kê và số lượng (tClinic /dashboard/donthuoc)"
+)
+async def get_top_medicines(
+    tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
+    limit: int = Query(10, ge=1, le=50, description="Số lượng thuốc trả về"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_top_medicines_analytics(db, tu_ngay, den_ngay, limit)
+    return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top thuốc kê đơn thành công")
+
 
 
 

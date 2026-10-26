@@ -437,12 +437,36 @@ export default function AppointmentManagementPage() {
                         {/* Patient info form */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
-                                <label className="medpro-label">Mã lịch hẹn</label>
-                                <input type="text" value={form.maLH || ''} readOnly className="medpro-input font-mono font-bold" />
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã lịch hẹn</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={form.maLH || ''}
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã lịch hẹn do hệ thống tự sinh, không thể chỉnh sửa"
+                                />
                             </div>
                             <div>
-                                <label className="medpro-label">Mã bệnh nhân</label>
-                                <input type="text" value={form.maBN || ''} readOnly className="medpro-input font-mono" />
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã bệnh nhân</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={form.maBN || ''}
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã bệnh nhân liên kết từ hồ sơ bệnh nhân, không thể chỉnh sửa"
+                                />
                             </div>
                             <div className="sm:col-span-2">
                                 <label className="medpro-label">Họ tên người bệnh *</label>

@@ -314,25 +314,7 @@ export default function SettingClinicPage() {
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-slate-600 font-bold mb-1">URL Cổng Dược Quốc gia:</label>
-                            <input
-                                type="text"
-                                value={form.duocQuocGiaUrl}
-                                onChange={(e) => setForm({ ...form, duocQuocGiaUrl: e.target.value })}
-                                className="w-full p-2.5 rounded-lg border border-slate-200 font-mono text-slate-700"
-                            />
-                        </div>
 
-                        <div>
-                            <label className="block text-slate-600 font-bold mb-1">Mã liên thông Dược:</label>
-                            <input
-                                type="text"
-                                value={form.maCoSoDuoc}
-                                onChange={(e) => setForm({ ...form, maCoSoDuoc: e.target.value })}
-                                className="w-full p-2.5 rounded-lg border border-slate-200 font-mono text-slate-700"
-                            />
-                        </div>
 
                         <div className="md:col-span-2">
                             <label className="block text-slate-600 font-bold mb-1">Giải pháp Chữ ký số Y tế (HSM SmartCA):</label>

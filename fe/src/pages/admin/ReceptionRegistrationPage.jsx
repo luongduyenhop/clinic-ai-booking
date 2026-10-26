@@ -513,13 +513,20 @@ export default function ReceptionRegistrationPage() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div>
-                                        <label className="medpro-label">Mã bệnh nhân</label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="medpro-label mb-0">Mã bệnh nhân</label>
+                                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                                Hệ thống tự sinh
+                                            </span>
+                                        </div>
                                         <input
                                             type="text"
                                             value={form.maBN || ''}
-                                            onChange={(e) => setForm({ ...form, maBN: e.target.value })}
-                                            placeholder="Tự động sinh (VD: BN00011549)"
-                                            className="medpro-input font-mono"
+                                            readOnly
+                                            disabled
+                                            placeholder="Tự động sinh theo chuẩn BNxxxxxxx"
+                                            className="medpro-input font-mono bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                            title="Mã bệnh nhân do hệ thống tự sinh, không thể chỉnh sửa"
                                         />
                                     </div>
                                     <div className="sm:col-span-2">
@@ -684,8 +691,20 @@ export default function ReceptionRegistrationPage() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div>
-                                        <label className="medpro-label">Mã khám (Mã KCB)</label>
-                                        <input type="text" value={form.maKCB || ''} readOnly className="medpro-input font-mono font-bold" />
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="medpro-label mb-0">Mã khám (Mã KCB)</label>
+                                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                                Hệ thống tự sinh
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={form.maKCB || ''}
+                                            readOnly
+                                            disabled
+                                            className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                            title="Mã khám bệnh do hệ thống tự sinh theo ngày tiếp đón, không thể chỉnh sửa"
+                                        />
                                     </div>
                                     <div>
                                         <label className="medpro-label">Số thứ tự (STT)</label>

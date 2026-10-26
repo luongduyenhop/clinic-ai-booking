@@ -528,12 +528,19 @@ export default function ServicePackagesPage() {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Mã bệnh nhân:</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-slate-600 font-bold mb-0">Mã bệnh nhân:</label>
+                                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                            Hệ thống tự sinh
+                                        </span>
+                                    </div>
                                     <input
                                         type="text"
-                                        value={regForm.maBN}
-                                        onChange={(e) => setRegForm({ ...regForm, maBN: e.target.value })}
-                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                        value={regForm.maBN || ''}
+                                        readOnly
+                                        disabled
+                                        className="w-full p-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed select-none"
+                                        title="Mã bệnh nhân do hệ thống cấp phát, không được sửa"
                                     />
                                 </div>
                                 <div>

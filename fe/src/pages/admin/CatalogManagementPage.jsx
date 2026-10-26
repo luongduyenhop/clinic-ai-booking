@@ -18,6 +18,19 @@ import {
     MagnifyingGlass,
 } from '../../components/common/ClinicIcon'
 
+const getNextCode = (list, prefix, pad = 3) => {
+    let max = 0
+    ;(list || []).forEach((item) => {
+        const val = item.ma || item.maPhong || item.maThuoc || item.maDV || item.id || ''
+        const m = String(val).match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return prefix + String(max + 1).padStart(pad, '0')
+}
+
 export default function CatalogManagementPage() {
 
     const fileInputRef = useRef(null)
@@ -192,7 +205,7 @@ export default function CatalogManagementPage() {
         } else if (activeCatalogKey === 'dichVu') {
             setForm({
                 id: '',
-                maDV: `DV0${15 + listData.length}`,
+                maDV: getNextCode(listData, 'DV', 3),
                 tenDV: '',
                 nhomDV: 'Khám bệnh',
                 dvt: 'Lần',
@@ -636,12 +649,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'khoaPhong' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã phòng khám</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã phòng khám</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maPhong || ''}
-                                    onChange={(e) => setForm({ ...form, maPhong: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã phòng khám do hệ thống tự sinh, không thể sửa"
                                 />
                             </div>
                             <div>
@@ -730,57 +750,75 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'thuocVatTu' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã thuốc / Vật tư *</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã thuốc kê đơn *</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maThuoc || ''}
-                                    onChange={(e) => setForm({ ...form, maThuoc: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã thuốc do hệ thống tự sinh theo chuẩn THxxx, không thể sửa"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Nhóm dược lý / Vật tư</label>
+                                <label className="medpro-label">Nhóm dược lý / Phân loại</label>
                                 <input
                                     type="text"
                                     value={form.nhomThuoc || ''}
                                     onChange={(e) => setForm({ ...form, nhomThuoc: e.target.value })}
+                                    placeholder="VD: Kháng sinh, Hạ sốt..."
                                     className="medpro-input"
                                 />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="medpro-label">Tên thương mại thuốc / Vật tư *</label>
+                                <label className="medpro-label">Tên biệt dược / Thuốc thương mại *</label>
                                 <input
                                     type="text"
                                     value={form.tenThuoc || ''}
                                     onChange={(e) => setForm({ ...form, tenThuoc: e.target.value })}
+                                    placeholder="VD: Augmentin 1g, Efferalgan 500mg..."
                                     className="medpro-input font-semibold"
                                 />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="medpro-label">Hoạt chất & Hàm lượng (Chuẩn Liên thông Đơn thuốc QG)</label>
+                                <label className="medpro-label">Hoạt chất & Hàm lượng (Chuẩn Cổng Đơn thuốc QG)</label>
                                 <input
                                     type="text"
                                     value={form.hoatChat || ''}
                                     onChange={(e) => setForm({ ...form, hoatChat: e.target.value })}
-                                    className="medpro-input"
+                                    placeholder="VD: Amoxicillin 875mg + Acid Clavulanic 125mg"
+                                    className="medpro-input font-mono"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Đơn vị tính</label>
-                                <input
-                                    type="text"
-                                    value={form.dvt || ''}
+                                <label className="medpro-label">Đơn vị tính (DVT)</label>
+                                <select
+                                    value={form.dvt || 'Viên'}
                                     onChange={(e) => setForm({ ...form, dvt: e.target.value })}
                                     className="medpro-input"
-                                />
+                                >
+                                    <option value="Viên">Viên</option>
+                                    <option value="Gói">Gói</option>
+                                    <option value="Lọ">Lọ</option>
+                                    <option value="Chai">Chai</option>
+                                    <option value="Ống">Ống</option>
+                                    <option value="Tuýp">Tuýp</option>
+                                    <option value="Hộp">Hộp</option>
+                                </select>
                             </div>
                             <div>
-                                <label className="medpro-label">Đơn giá (VNĐ)</label>
+                                <label className="medpro-label">Đường dùng & Hướng dẫn mặc định</label>
                                 <input
-                                    type="number"
-                                    value={form.donGia || 0}
-                                    onChange={(e) => setForm({ ...form, donGia: Number(e.target.value) })}
-                                    className="medpro-input tabular-nums font-bold"
+                                    type="text"
+                                    value={form.duongDung || form.huongDan || ''}
+                                    onChange={(e) => setForm({ ...form, duongDung: e.target.value, huongDan: e.target.value })}
+                                    placeholder="VD: Uống sau ăn, Bôi ngoài da..."
+                                    className="medpro-input"
                                 />
                             </div>
                         </div>
@@ -789,12 +827,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'dichVu' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã dịch vụ kỹ thuật *</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã dịch vụ kỹ thuật *</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maDV || ''}
-                                    onChange={(e) => setForm({ ...form, maDV: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã dịch vụ do hệ thống tự sinh, không thể sửa"
                                 />
                             </div>
                             <div>

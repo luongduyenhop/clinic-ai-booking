@@ -19,6 +19,18 @@ import {
     Funnel,
 } from '../../components/common/ClinicIcon'
 
+const getNextVoucherCode = (list) => {
+    let max = 0
+    ;(list || []).forEach((v) => {
+        const m = String(v.maPhieu || v.id || '').match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return 'PT' + String(max + 1).padStart(8, '0')
+}
+
 export default function CashierManagementPage() {
     const dispatch = useDispatch()
     const location = useLocation()
@@ -56,7 +68,7 @@ export default function CashierManagementPage() {
 
     const buildEmptyVoucher = () => ({
         id: '',
-        maPhieu: `PT26092200${vouchers.length + 1}`,
+        maPhieu: getNextVoucherCode(vouchers),
         loaiPhieu: 'Phiếu thu',
         tenPhieu: '',
         maBN: '',
@@ -112,7 +124,6 @@ export default function CashierManagementPage() {
             ngayKhoaSo: now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN'),
             nguoiKhoaSo: defaults.defaultCashier || 'Trần Thu Ngân',
             tongThuDichVu: totalThu,
-            tongThuThuoc: 0,
             tongChi: 0,
             tonQuyCuoiNgay: totalThu,
             cheDo: 'Chốt ca trực tiếp',
@@ -310,7 +321,6 @@ export default function CashierManagementPage() {
                                     <th>Thời điểm khóa sổ</th>
                                     <th>Thu ngân phụ trách</th>
                                     <th>Thu dịch vụ kỹ thuật</th>
-                                    <th>Thu tiền thuốc</th>
                                     <th>Tổng doanh thu ca</th>
                                     <th>Cơ chế</th>
                                     <th>Trạng thái</th>
@@ -323,7 +333,6 @@ export default function CashierManagementPage() {
                                         <td className="tabular-nums text-xs font-semibold">{ks.ngayKhoaSo}</td>
                                         <td className="font-bold text-[#003553]">{ks.nguoiKhoaSo}</td>
                                         <td className="tabular-nums font-mono">{(ks.tongThuDichVu || 0).toLocaleString('vi-VN')} đ</td>
-                                        <td className="tabular-nums font-mono">{(ks.tongThuThuoc || 0).toLocaleString('vi-VN')} đ</td>
                                         <td className="tabular-nums font-mono font-black text-[#003553]">
                                             {(ks.tonQuyCuoiNgay ?? ks.tongThuDichVu ?? 0).toLocaleString('vi-VN')} đ
                                         </td>
@@ -519,12 +528,19 @@ export default function CashierManagementPage() {
                                 </div>
                             </div>
                             <div>
-                                <label className="medpro-label">Mã phiếu thu</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã phiếu thu</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maPhieu || ''}
-                                    onChange={(e) => setForm({ ...form, maPhieu: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã phiếu thu do hệ thống tự sinh, không thể chỉnh sửa"
                                 />
                             </div>
                             <div>

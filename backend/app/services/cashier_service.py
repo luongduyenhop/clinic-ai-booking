@@ -125,21 +125,8 @@ class CashierService:
                         "ghi_chu": None,
                     })
 
-            # 3. Thuốc từ đơn thuốc hợp lệ (không SUPERSEDED)
-            active_prescriptions = [dt for dt in (luot_kham.danh_sach_don_thuoc or []) if dt.trang_thai != "SUPERSEDED"]
-            for dt in active_prescriptions:
-                for ct in (dt.danh_sach_chi_tiet or []):
-                    # Giả định đơn giá thuốc chuẩn 5,000 VND / đơn vị tính nếu chưa có bảng giá thuốc
-                    don_gia_thuoc = Decimal("5000.00")
-                    line_items_data.append({
-                        "loai_muc": "thuoc",
-                        "muc_tham_chieu_id": ct.id,
-                        "ten_khoan_thu": f"{ct.ten_thuoc} ({ct.ham_luong or ''})",
-                        "so_luong": ct.so_luong or 1,
-                        "don_gia": don_gia_thuoc,
-                        "thanh_tien": Decimal(ct.so_luong or 1) * don_gia_thuoc,
-                        "ghi_chu": ct.cach_dung,
-                    })
+            # Nghiệp vụ phòng khám: Phòng khám chỉ kê đơn thuốc, không bán thuốc hay thu tiền thuốc.
+            # Thu ngân chỉ thu tiền công khám và các chỉ định dịch vụ kỹ thuật / cận lâm sàng.
 
         tong_tien = sum((item["thanh_tien"] for item in line_items_data), Decimal("0.00"))
         mien_giam = Decimal(str(payload.mien_giam or 0.00))

@@ -378,7 +378,7 @@
                 "path": "/admin/danh-muc/benh"
               },
               {
-                "label": "Thuốc kê đơn BYT",
+                "label": "Thuốc kê đơn (BYT)",
                 "path": "/admin/danh-muc/thuoc-vat-tu"
               },
               {
@@ -2130,10 +2130,9 @@
         "tenThuoc": "Amlodipin 5mg (Stamlo)",
         "hoatChat": "Amlodipin besylat 5mg",
         "dvt": "Viên",
-        "donGia": 3500,
-        "tonKho": 1200,
         "nhomThuoc": "Thuốc Tim mạch - Huyết áp",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH002",
@@ -2141,10 +2140,9 @@
         "tenThuoc": "Magne-B6 Corbière",
         "hoatChat": "Magnesium lactat 470mg + Vitamin B6 5mg",
         "dvt": "Viên",
-        "donGia": 2800,
-        "tonKho": 850,
         "nhomThuoc": "Vitamin & Khoáng chất",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH003",
@@ -2152,10 +2150,9 @@
         "tenThuoc": "Augmentin 1g",
         "hoatChat": "Amoxicillin 875mg + Acid Clavulanic 125mg",
         "dvt": "Viên",
-        "donGia": 18500,
-        "tonKho": 420,
         "nhomThuoc": "Kháng sinh kê đơn",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH004",
@@ -2163,10 +2160,9 @@
         "tenThuoc": "Alphachymotrypsin 4.2mg",
         "hoatChat": "Chymotrypsin 4200 IU",
         "dvt": "Viên",
-        "donGia": 1500,
-        "tonKho": 2000,
         "nhomThuoc": "Kháng viêm - Giảm phù nề",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH005",
@@ -2174,10 +2170,9 @@
         "tenThuoc": "Myonal 50mg",
         "hoatChat": "Eperison HCl 50mg",
         "dvt": "Viên",
-        "donGia": 6200,
-        "tonKho": 540,
         "nhomThuoc": "Thuốc Giãn cơ xương khớp",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH006",
@@ -2185,10 +2180,9 @@
         "tenThuoc": "Nexium Mups 40mg",
         "hoatChat": "Esomeprazol 40mg",
         "dvt": "Viên",
-        "donGia": 22000,
-        "tonKho": 630,
         "nhomThuoc": "Thuốc Dạ dày - Tiêu hóa",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       }
     ],
     "dichVu": [
@@ -3111,76 +3105,6 @@
       "phanLoai": "Loại I"
     }
   ],
-  "inventoryBatches": [
-    {
-      "id": "KHO-01",
-      "maHangHoa": "DQG0001024",
-      "maThuocNoiBo": "TH001",
-      "tenThuoc": "Amlodipin 5mg (Stamlo)",
-      "soLo": "LOT-202508A",
-      "hanSuDung": "2028-08-15",
-      "dvt": "Viên",
-      "hamLuong": "5mg",
-      "nhaCungCap": "Công ty Dược phẩm TW1 (CPC1)",
-      "tonDau": 1000,
-      "slNhap": 500,
-      "slXuat": 300,
-      "tongTon": 1200,
-      "tonToiThieu": 200,
-      "trangThai": "Bình thường"
-    },
-    {
-      "id": "KHO-02",
-      "maHangHoa": "DQG0000048",
-      "maThuocNoiBo": "TH003",
-      "tenThuoc": "Augmentin 1g (Amoxicillin + Clavulanic)",
-      "soLo": "LOT-202501B",
-      "hanSuDung": "2026-11-10",
-      "dvt": "Viên",
-      "hamLuong": "875mg/125mg",
-      "nhaCungCap": "GSK Pharma Vietnam",
-      "tonDau": 500,
-      "slNhap": 100,
-      "slXuat": 180,
-      "tongTon": 420,
-      "tonToiThieu": 150,
-      "trangThai": "Sắp hết hạn (< 30 ngày)"
-    },
-    {
-      "id": "KHO-03",
-      "maHangHoa": "DQG0002190",
-      "maThuocNoiBo": "TH005",
-      "tenThuoc": "Myonal 50mg (Eperison HCl)",
-      "soLo": "LOT-202602C",
-      "hanSuDung": "2028-02-28",
-      "dvt": "Viên",
-      "hamLuong": "50mg",
-      "nhaCungCap": "Công ty Dược phẩm Zuellig Pharma",
-      "tonDau": 200,
-      "slNhap": 0,
-      "slXuat": 165,
-      "tongTon": 35,
-      "tonToiThieu": 100,
-      "trangThai": "Cảnh báo tồn thấp"
-    },
-    {
-      "id": "KHO-04",
-      "maHangHoa": "VT-XQ-3543",
-      "maThuocNoiBo": "VT001",
-      "tenThuoc": "Phim X-Quang kỹ thuật số Fujifilm 35x43cm",
-      "soLo": "LOT-FUJI-99",
-      "hanSuDung": "2027-12-31",
-      "dvt": "Tờ",
-      "hamLuong": "35x43cm",
-      "nhaCungCap": "Công ty Vật tư Y tế Miền Bắc",
-      "tonDau": 300,
-      "slNhap": 200,
-      "slXuat": 120,
-      "tongTon": 380,
-      "tonToiThieu": 50,
-      "trangThai": "Bình thường"
-    }
-  ],
   "cashierClosings": [
     {
       "id": "KS-20261011",
@@ -3188,7 +3112,6 @@
       "ngayKhoaSo": "2026-10-11 23:00",
       "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
       "tongThuDichVu": 12450000,
-      "tongThuThuoc": 5320000,
       "tongChi": 1250000,
       "tonQuyCuoiNgay": 16520000,
       "cheDo": "Tự động khóa sổ sau 23:00",
@@ -3200,7 +3123,6 @@
       "ngayKhoaSo": "Đang mở trong ngày",
       "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
       "tongThuDichVu": 800000,
-      "tongThuThuoc": 420000,
       "tongChi": 0,
       "tonQuyCuoiNgay": 800000,
       "cheDo": "Chờ chốt ca 23:00",
@@ -3295,17 +3217,12 @@
     "diaChi": "Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
     "heThong": {
       "batBuocICD10": true,
-      "chanXuatAmKho": true,
       "thuTienTruocCLS": true,
-      "canhBaoTonKhoToiThieu": 50,
-      "canhBaoThuocHetHanNgay": 30,
       "tuDongKhoaSoSauGio": "23:00 (Sau 1 ngày)"
     },
     "congLienThong": {
       "donThuocQuocGiaUrl": "https://donthuocquocgia.vn/api/v1",
       "maLienThongCoSo": "LT_0108924_CLINICAI",
-      "duocQuocGiaUrl": "https://duocquocgia.com.vn/api/v2",
-      "maCoSoDuoc": "DQG_0108924",
       "hoaDonDienTu": "MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)",
       "chuKySo": "VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)"
     }

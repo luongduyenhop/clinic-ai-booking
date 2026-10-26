@@ -82,6 +82,7 @@ class LichLamViec(BaseModelWithTimestamp):
     __tablename__ = "lich_lam_viec"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_lam_viec = Column(Date, nullable=False, index=True)
     ca_lam_viec = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     gio_bat_dau = Column(Time, nullable=False)
@@ -167,6 +168,7 @@ class DanhSachCho(BaseModelWithTimestamp):
 
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_mong_muon = Column(Date, nullable=False, index=True)
     ca_mong_muon = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     trieu_chung = Column(Text, nullable=True)
@@ -179,6 +181,7 @@ class DanhSachCho(BaseModelWithTimestamp):
     # Quan hệ
     benh_nhan = relationship("BenhNhan", back_populates="danh_sach_cho")
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
 
 
 class PhanTichAI(BaseModelWithTimestamp):
@@ -199,6 +202,21 @@ class PhanTichAI(BaseModelWithTimestamp):
     lich_kham = relationship("LichKham", back_populates="phan_tich_ai")
     chuyen_khoa_goi_y = relationship("ChuyenKhoa")
     danh_gia = relationship("DanhGiaAI", back_populates="phan_tich_ai", uselist=False)
+    danh_sach_goi_y = relationship("PhanTichAIGoiY", back_populates="phan_tich_ai", cascade="all, delete-orphan", lazy="selectin")
+
+
+class PhanTichAIGoiY(BaseModelWithTimestamp):
+    """Bảng danh sách chuyên khoa gợi ý từ phân tích AI"""
+    __tablename__ = "phan_tich_ai_goi_y"
+
+    phan_tich_ai_id = Column(Integer, ForeignKey("phan_tich_ai.id", ondelete="CASCADE"), nullable=False, index=True)
+    chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=False, index=True)
+    do_tin_cay = Column(Numeric(5, 2), default=0.00, nullable=False)
+    ly_do_goi_y = Column(Text, nullable=True)
+
+    # Quan hệ
+    phan_tich_ai = relationship("PhanTichAI", back_populates="danh_sach_goi_y")
+    chuyen_khoa = relationship("ChuyenKhoa")
 
 
 class DanhGiaAI(BaseModelWithTimestamp):
@@ -223,6 +241,7 @@ class HangDoiKham(BaseModelWithTimestamp):
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_kham = Column(Date, nullable=False, index=True)
     ca_kham = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     
@@ -245,6 +264,7 @@ class HangDoiKham(BaseModelWithTimestamp):
     lich_kham = relationship("LichKham")
     benh_nhan = relationship("BenhNhan")
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
     nguoi_tiep_nhan = relationship("TaiKhoan")
 
     __table_args__ = (
@@ -257,6 +277,7 @@ class LichDinhKyBacSi(BaseModelWithTimestamp):
     __tablename__ = "lich_dinh_ky_bac_si"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     thu_trong_tuan = Column(Integer, nullable=False, index=True)  # 2: Thứ 2, 3: Thứ 3, ..., 7: Thứ 7, 8: Chủ Nhật
     ca_lam_viec = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     gio_bat_dau = Column(Time, nullable=False)
@@ -270,6 +291,7 @@ class LichDinhKyBacSi(BaseModelWithTimestamp):
 
     bac_si = relationship("BacSi")
     phong_kham = relationship("PhongKham")
+    phong_kham = relationship("PhongKham")
 
     __table_args__ = (
         UniqueConstraint("bac_si_id", "thu_trong_tuan", "ca_lam_viec", name="uq_doctor_roster_shift"),
@@ -281,6 +303,7 @@ class NghiPhepBacSi(BaseModelWithTimestamp):
     __tablename__ = "nghi_phep_bac_si"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     loai_nghi = Column(String(30), default=LoaiNghiPhepEnum.NGHI_PHEP.value, nullable=False)
     tu_ngay = Column(Date, nullable=False, index=True)
     den_ngay = Column(Date, nullable=False, index=True)
@@ -293,4 +316,5 @@ class NghiPhepBacSi(BaseModelWithTimestamp):
     so_lich_anh_huong = Column(Integer, default=0, nullable=False)
 
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
     nguoi_duyet = relationship("TaiKhoan")

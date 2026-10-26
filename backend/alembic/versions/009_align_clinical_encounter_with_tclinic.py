@@ -1,7 +1,7 @@
 """Align clinical encounter schema with tClinic
 
-Revision ID: 007_align_clinical_encounter_with_tclinic
-Revises: 006_drop_kham_doan_and_qa
+Revision ID: 009_align_clinical_encounter_with_tclinic
+Revises: 008_drop_kham_doan_and_qa
 Create Date: 2026-10-13
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "007_align_clinical_encounter_with_tclinic"
-down_revision: Union[str, None] = "006_drop_kham_doan_and_qa"
+revision: str = "009_align_clinical_encounter_with_tclinic"
+down_revision: Union[str, None] = "008_drop_kham_doan_and_qa"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

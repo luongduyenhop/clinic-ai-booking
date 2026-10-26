@@ -71,8 +71,8 @@ class LuotKham(BaseModelWithTimestamp):
     """Phiên khám lâm sàng thực tế (OpenMRS Encounter Pattern)"""
     __tablename__ = "luot_kham"
 
-    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=False)
-    ma_kcb = Column(String(50), nullable=True, index=True)
+    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=True)
+    hang_doi_kham_id = Column(Integer, ForeignKey("hang_doi_kham.id", ondelete="SET NULL"), unique=True, nullable=True, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False)
     thoi_gian_bat_dau = Column(DateTime(timezone=True), nullable=False)
@@ -80,11 +80,6 @@ class LuotKham(BaseModelWithTimestamp):
     ly_do_vao_kham = Column(Text, nullable=True)
     benh_su = Column(Text, nullable=True)
     
-    # Lâm sàng & Tiền sử
-    trieu_chung = Column(Text, nullable=True)
-    chan_doan_so_bo = Column(String(255), nullable=True)
-    tien_su_di_ung = Column(Text, nullable=True)
-
     # Chỉ số sinh hiệu (Vital Signs)
     mach_lan_phut = Column(Integer, nullable=True)
     nhiet_do_c = Column(Numeric(4, 1), nullable=True)
@@ -93,14 +88,11 @@ class LuotKham(BaseModelWithTimestamp):
     nhip_tho_lan_phut = Column(Integer, nullable=True)
     can_nang_kg = Column(Numeric(5, 2), nullable=True)
     chieu_cao_cm = Column(Numeric(5, 2), nullable=True)
-    spo2 = Column(Numeric(4, 1), nullable=True)
-    bmi = Column(Numeric(4, 1), nullable=True)
     
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
     ket_luan_dieu_tri = Column(Text, nullable=True)
     loi_dan_bac_si = Column(Text, nullable=True)
     ngay_hen_tai_kham = Column(Date, nullable=True)
-    loi_dan_tai_kham = Column(Text, nullable=True)
     
     # Khóa hồ sơ bệnh án theo Thông tư 32/2023/TT-BYT (chống sửa hồi tố)
     is_locked = Column(Boolean, default=False, nullable=False)
@@ -111,6 +103,8 @@ class LuotKham(BaseModelWithTimestamp):
 
     # Quan hệ
     lich_kham = relationship("LichKham", back_populates="luot_kham")
+    hang_doi_kham = relationship("HangDoiKham")
+    danh_sach_phieu_chuyen_khoa = relationship("PhieuKhamChuyenKhoa", back_populates="luot_kham", cascade="all, delete-orphan")
     benh_nhan = relationship("BenhNhan", foreign_keys=[benh_nhan_id])
     bac_si = relationship("BacSi", foreign_keys=[bac_si_id])
     nguoi_khoa = relationship("NguoiDung", foreign_keys=[nguoi_khoa_id])
@@ -126,6 +120,30 @@ class LuotKham(BaseModelWithTimestamp):
     )
     dinh_chinh_list = relationship("BienBanDinhChinh", back_populates="luot_kham", cascade="all, delete-orphan")
     kham_the_luc = relationship("LuotKhamTheLuc", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+    kham_noi_khoa = relationship("KhamNoiKhoa", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+    kham_ngoai_khoa = relationship("KhamNgoaiKhoa", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+    kham_mat = relationship("KhamMat", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+    kham_tai_mui_hong = relationship("KhamTaiMuiHong", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+    kham_rang_ham_mat = relationship("KhamRangHamMat", back_populates="luot_kham", uselist=False, cascade="all, delete-orphan")
+
+
+class PhieuKhamChuyenKhoa(BaseModelWithTimestamp):
+    """Bảng phiếu khám chuyên khoa lẻ (Mắt, TMH, RHM, Da liễu, Nội...) trong một lượt khám tổng quát"""
+    __tablename__ = "phieu_kham_chuyen_khoa"
+
+    luot_kham_id = Column(Integer, ForeignKey("luot_kham.id", ondelete="CASCADE"), nullable=False, index=True)
+    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False, index=True)
+    chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
+    noi_dung_kham = Column(Text, nullable=True)
+    ket_luan_chuyen_khoa = Column(Text, nullable=True)
+    phan_loai_suc_khoe = Column(String(20), default="LOAI_1", nullable=True)
+
+    # Quan hệ
+    luot_kham = relationship("LuotKham", back_populates="danh_sach_phieu_chuyen_khoa")
+    bac_si = relationship("BacSi")
+    chuyen_khoa = relationship("ChuyenKhoa")
+    phong_kham = relationship("PhongKham")
 
 
 class ChanDoan(BaseModelWithTimestamp):
@@ -152,10 +170,9 @@ class ChiDinh(BaseModelWithTimestamp):
     dich_vu_id = Column(Integer, ForeignKey("dich_vu.id", ondelete="RESTRICT"), nullable=False)
     so_luong = Column(Integer, default=1, nullable=False)
     don_gia_tai_thoi_diem = Column(Numeric(12, 2), default=0.00, nullable=False)
-    giam_gia = Column(Numeric(12, 2), default=0.00, nullable=False)
-    thanh_tien = Column(Numeric(12, 2), default=0.00, nullable=False)
     trang_thai = Column(String(30), default="da_chi_dinh", nullable=False)  # 'da_chi_dinh', 'dang_thuc_hien', 'da_co_ket_qua', 'da_huy'
     bac_si_chi_dinh_id = Column(Integer, ForeignKey("bac_si.id"), nullable=True)
+    chi_tiet_goi_kham_da_mua_id = Column(Integer, ForeignKey("chi_tiet_dang_ky_goi_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ket_qua_chi_tiet = Column(Text, nullable=True)
     tep_dinh_kem_url = Column(String(255), nullable=True)
     thoi_gian_tra_ket_qua = Column(DateTime(timezone=True), nullable=True)
@@ -172,6 +189,29 @@ class ChiDinh(BaseModelWithTimestamp):
     dich_vu = relationship("DichVu")
     phong_thuc_hien = relationship("PhongKham", foreign_keys=[phong_thuc_hien_id])
     ky_thuat_vien = relationship("NguoiDung", foreign_keys=[ky_thuat_vien_id])
+    ket_qua = relationship("KetQuaCLS", back_populates="chi_dinh", uselist=False, cascade="all, delete-orphan")
+    chi_tiet_goi_kham_da_mua = relationship("ChiTietDangKyGoiKham")
+
+
+class KetQuaCLS(BaseModelWithTimestamp):
+    """Bảng kết quả cận lâm sàng chi tiết (tách rời y lệnh chỉ định theo chuẩn HL7 FHIR)"""
+    __tablename__ = "ket_qua_cls"
+
+    chi_dinh_id = Column(Integer, ForeignKey("chi_dinh.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    nguoi_thuc_hien_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
+    bac_si_duyet_id = Column(Integer, ForeignKey("bac_si.id", ondelete="SET NULL"), nullable=True)
+    ket_qua_chi_tiet = Column(Text, nullable=True)
+    tri_so_chi_tiet = Column(JSON, default=dict, nullable=True)
+    file_dinh_kem_urls = Column(JSON, default=list, nullable=True)
+    ket_qua_phan_loai = Column(String(20), default="BINH_THUONG", nullable=True)
+    thoi_gian_lay_mau = Column(DateTime(timezone=True), nullable=True)
+    thoi_gian_thuc_hien = Column(DateTime(timezone=True), nullable=True)
+    thoi_gian_duyet = Column(DateTime(timezone=True), nullable=True)
+
+    # Quan hệ
+    chi_dinh = relationship("ChiDinh", back_populates="ket_qua")
+    nguoi_thuc_hien = relationship("NguoiDung", foreign_keys=[nguoi_thuc_hien_id])
+    bac_si_duyet = relationship("BacSi", foreign_keys=[bac_si_duyet_id])
 
 
 class DonThuoc(BaseModelWithTimestamp):
@@ -181,7 +221,6 @@ class DonThuoc(BaseModelWithTimestamp):
     luot_kham_id = Column(Integer, ForeignKey("luot_kham.id", ondelete="CASCADE"), index=True, nullable=False)
     bac_si_ke_don_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
     ngay_ke_don = Column(DateTime(timezone=True), nullable=False)
-    so_ngay_dung = Column(Integer, default=5, nullable=False)
     loi_dan_uong_thuoc = Column(Text, nullable=True)
     ghi_chu_duoc_lam_sang = Column(Text, nullable=True)
 
@@ -218,6 +257,20 @@ class DonThuoc(BaseModelWithTimestamp):
         super().__init__(**kwargs)
 
 
+class Thuoc(BaseModelWithTimestamp):
+    """Bảng danh mục thuốc điều trị ngoại trú"""
+    __tablename__ = "thuoc"
+
+    ma_thuoc = Column(String(50), unique=True, nullable=False, index=True)
+    ten_thuoc = Column(String(255), nullable=False, index=True)
+    hoat_chat = Column(String(255), nullable=True)
+    ham_luong = Column(String(100), nullable=True)
+    don_vi_tinh = Column(String(30), default="Viên", nullable=False)
+    duong_dung = Column(String(50), default="Uống", nullable=True)
+    don_gia_niem_yet = Column(Numeric(15, 2), default=0.00, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
 class ChiTietDonThuoc(BaseModelWithTimestamp):
     """Bảng chi tiết từng dòng thuốc trong đơn (OpenMRS Drug Order Item)"""
     __tablename__ = "chi_tiet_don_thuoc"
@@ -228,13 +281,6 @@ class ChiTietDonThuoc(BaseModelWithTimestamp):
     ham_luong = Column(String(50), nullable=True)  # 500mg, 10ml
     don_vi_tinh = Column(String(30), nullable=False)  # Viên, Gói, Chai
     so_luong = Column(Integer, default=1, nullable=False)
-    
-    # Liều dùng 4 cữ chuẩn tClinic (Sáng - Trưa - Chiều - Tối)
-    lieu_sang = Column(String(20), default="", nullable=True)
-    lieu_trua = Column(String(20), default="", nullable=True)
-    lieu_chieu = Column(String(20), default="", nullable=True)
-    lieu_toi = Column(String(20), default="", nullable=True)
-    
     cach_dung = Column(Text, nullable=False)  # Sáng 1 viên, Tối 1 viên sau ăn
     so_ngay_dung = Column(Integer, default=5, nullable=False)
     ghi_chu = Column(Text, nullable=True)
@@ -334,7 +380,8 @@ class HoaDon(BaseModelWithTimestamp):
     __tablename__ = "hoa_don"
 
     ma_hoa_don = Column(String(50), unique=True, nullable=False, index=True)
-    luot_kham_id = Column(Integer, ForeignKey("luot_kham.id", ondelete="RESTRICT"), nullable=False, index=True)
+    luot_kham_id = Column(Integer, ForeignKey("luot_kham.id", ondelete="RESTRICT"), nullable=True, index=True)
+    goi_kham_da_mua_id = Column(Integer, ForeignKey("dang_ky_goi_kham.id", ondelete="SET NULL"), unique=True, nullable=True, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False, index=True)
     thu_ngan_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="RESTRICT"), nullable=False, index=True)
     tong_tien = Column(Numeric(15, 2), default=0.00, nullable=False)
@@ -350,6 +397,7 @@ class HoaDon(BaseModelWithTimestamp):
     luot_kham = relationship("LuotKham")
     benh_nhan = relationship("BenhNhan")
     thu_ngan = relationship("NguoiDung", foreign_keys=[thu_ngan_id])
+    goi_kham_da_mua = relationship("DangKyGoiKham", foreign_keys=[goi_kham_da_mua_id])
     chi_tiet_hoa_don = relationship("ChiTietHoaDon", back_populates="hoa_don", cascade="all, delete-orphan")
 
 
@@ -360,6 +408,8 @@ class ChiTietHoaDon(BaseModelWithTimestamp):
     hoa_don_id = Column(Integer, ForeignKey("hoa_don.id", ondelete="CASCADE"), nullable=False, index=True)
     loai_muc = Column(String(30), nullable=False)  # 'cong_kham', 'can_lam_sang', 'thuoc', 'vat_tu', 'khac'
     muc_tham_chieu_id = Column(Integer, nullable=True)
+    chi_dinh_id = Column(Integer, ForeignKey("chi_dinh.id", ondelete="SET NULL"), nullable=True, index=True)
+    goi_kham_da_mua_id = Column(Integer, ForeignKey("dang_ky_goi_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ten_khoan_thu = Column(String(255), nullable=False)
     so_luong = Column(Integer, default=1, nullable=False)
     don_gia = Column(Numeric(15, 2), default=0.00, nullable=False)
@@ -368,6 +418,8 @@ class ChiTietHoaDon(BaseModelWithTimestamp):
 
     # Quan hệ
     hoa_don = relationship("HoaDon", back_populates="chi_tiet_hoa_don")
+    chi_dinh = relationship("ChiDinh")
+    goi_kham_da_mua = relationship("DangKyGoiKham", foreign_keys=[goi_kham_da_mua_id])
 
 
 class PhieuThuChi(BaseModelWithTimestamp):

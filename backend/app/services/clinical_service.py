@@ -20,6 +20,13 @@ from app.models.medical import (
     LuotKhamTheLuc,
 )
 from app.models.user import TaiKhoan, BacSi, BenhNhan, VaiTroEnum
+from app.models.specialty_exam import (
+    KhamNoiKhoa,
+    KhamNgoaiKhoa,
+    KhamMat,
+    KhamTaiMuiHong,
+    KhamRangHamMat,
+)
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.clinical import (
     EncounterCreateRequest,
@@ -115,7 +122,6 @@ class ClinicalService:
             luot_kham_id=dt.luot_kham_id,
             bac_si_ke_don_id=dt.bac_si_ke_don_id,
             ngay_ke_don=dt.ngay_ke_don,
-            so_ngay_dung=dt.so_ngay_dung or 5,
             loi_dan_uong_thuoc=dt.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=dt.ghi_chu_duoc_lam_sang,
             trang_thai=dt.trang_thai or "DRAFT",
@@ -141,10 +147,6 @@ class ClinicalService:
                     ham_luong=item.ham_luong,
                     don_vi_tinh=item.don_vi_tinh,
                     so_luong=item.so_luong,
-                    lieu_sang=item.lieu_sang or "",
-                    lieu_trua=item.lieu_trua or "",
-                    lieu_chieu=item.lieu_chieu or "",
-                    lieu_toi=item.lieu_toi or "",
                     cach_dung=item.cach_dung,
                     so_ngay_dung=item.so_ngay_dung,
                     ghi_chu=item.ghi_chu
@@ -176,8 +178,6 @@ class ClinicalService:
                 ten_dich_vu=order.dich_vu.ten_dich_vu if order.dich_vu else None,
                 so_luong=order.so_luong,
                 don_gia_tai_thoi_diem=float(order.don_gia_tai_thoi_diem),
-                giam_gia=float(order.giam_gia or 0.0),
-                thanh_tien=float(order.thanh_tien or 0.0),
                 trang_thai=order.trang_thai,
                 bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
                 ket_qua_chi_tiet=order.ket_qua_chi_tiet,
@@ -192,16 +192,12 @@ class ClinicalService:
         return EncounterResponse(
             id=lk.id,
             lich_kham_id=lk.lich_kham_id,
-            ma_kcb=lk.ma_kcb,
             bac_si_id=lk.bac_si_id,
             benh_nhan_id=lk.benh_nhan_id,
             thoi_gian_bat_dau=lk.thoi_gian_bat_dau,
             thoi_gian_ket_thuc=lk.thoi_gian_ket_thuc,
             ly_do_vao_kham=lk.ly_do_vao_kham,
             benh_su=lk.benh_su,
-            trieu_chung=lk.trieu_chung,
-            chan_doan_so_bo=lk.chan_doan_so_bo,
-            tien_su_di_ung=lk.tien_su_di_ung,
             mach_lan_phut=lk.mach_lan_phut,
             nhiet_do_c=float(lk.nhiet_do_c) if lk.nhiet_do_c is not None else None,
             huyet_ap_tam_thu=lk.huyet_ap_tam_thu,
@@ -209,13 +205,10 @@ class ClinicalService:
             nhip_tho_lan_phut=lk.nhip_tho_lan_phut,
             can_nang_kg=float(lk.can_nang_kg) if lk.can_nang_kg is not None else None,
             chieu_cao_cm=float(lk.chieu_cao_cm) if lk.chieu_cao_cm is not None else None,
-            spo2=float(lk.spo2) if lk.spo2 is not None else None,
-            bmi=float(lk.bmi) if lk.bmi is not None else None,
             kham_lam_sang_bo_phan=lk.kham_lam_sang_bo_phan,
             ket_luan_dieu_tri=lk.ket_luan_dieu_tri,
             loi_dan_bac_si=lk.loi_dan_bac_si,
             ngay_hen_tai_kham=lk.ngay_hen_tai_kham,
-            loi_dan_tai_kham=lk.loi_dan_tai_kham,
             is_locked=lk.is_locked,
             thoi_gian_khoa=lk.thoi_gian_khoa,
             nguoi_khoa_id=lk.nguoi_khoa_id,
@@ -256,22 +249,13 @@ class ClinicalService:
             raise ConflictException("Lịch hẹn này đã được tạo lượt khám trước đó!")
 
         # 3. Tạo bản ghi LuotKham mới
-        ma_kcb = payload.ma_kcb
-        if not ma_kcb:
-            now_str = datetime.now(timezone.utc).strftime("%y%m%d")
-            ma_kcb = f"KCB-{now_str}-{str(lich_kham.id).zfill(4)}"
-
         luot_kham = LuotKham(
             lich_kham_id=lich_kham.id,
-            ma_kcb=ma_kcb,
             bac_si_id=bac_si.id,
             benh_nhan_id=lich_kham.benh_nhan_id,
             thoi_gian_bat_dau=datetime.now(timezone.utc),
             ly_do_vao_kham=payload.ly_do_vao_kham or lich_kham.ly_do_kham,
             benh_su=payload.benh_su or lich_kham.trieu_chung_ban_dau,
-            trieu_chung=payload.trieu_chung,
-            chan_doan_so_bo=payload.chan_doan_so_bo,
-            tien_su_di_ung=payload.tien_su_di_ung,
             mach_lan_phut=payload.mach_lan_phut,
             nhiet_do_c=payload.nhiet_do_c,
             huyet_ap_tam_thu=payload.huyet_ap_tam_thu,
@@ -279,8 +263,6 @@ class ClinicalService:
             nhip_tho_lan_phut=payload.nhip_tho_lan_phut,
             can_nang_kg=payload.can_nang_kg,
             chieu_cao_cm=payload.chieu_cao_cm,
-            spo2=payload.spo2,
-            bmi=payload.bmi,
             kham_lam_sang_bo_phan=payload.kham_lam_sang_bo_phan,
             is_locked=False
         )
@@ -321,23 +303,6 @@ class ClinicalService:
             bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
             if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
                 raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
-
-        # INT-03 Health Data Access Audit Logging (NĐ 102/2025/NĐ-CP)
-        from app.services.audit_trail_service import audit_trail_service
-        try:
-            await audit_trail_service.log_access(
-                db=db,
-                user_id=user.id,
-                user_role=user.vai_tro,
-                patient_id=luot_kham.benh_nhan_id,
-                action="VIEW",
-                resource_type="ENCOUNTER",
-                resource_id=luot_kham.id,
-                purpose="Kham chua benh va theo doi ho so benh an",
-                client_ip="127.0.0.1",
-            )
-        except Exception as audit_err:
-            logger.warning(f"⚠️ [AUDIT_LOG_EXCEPTION] {audit_err}")
 
         return self._to_encounter_response(luot_kham)
 
@@ -644,7 +609,6 @@ class ClinicalService:
         luot_kham.ket_luan_dieu_tri = payload.ket_luan_dieu_tri
         luot_kham.loi_dan_bac_si = payload.loi_dan_bac_si
         luot_kham.ngay_hen_tai_kham = payload.ngay_hen_tai_kham
-        luot_kham.loi_dan_tai_kham = payload.loi_dan_tai_kham
         luot_kham.thoi_gian_ket_thuc = now
         luot_kham.is_locked = True
         luot_kham.thoi_gian_khoa = now
@@ -726,7 +690,6 @@ class ClinicalService:
             luot_kham_id=encounter_id,
             bac_si_ke_don_id=bac_si.id,
             ngay_ke_don=now,
-            so_ngay_dung=payload.so_ngay_dung,
             loi_dan_uong_thuoc=payload.loi_dan_uong_thuoc,
             ghi_chu_duoc_lam_sang=payload.ghi_chu_duoc_lam_sang
         )
@@ -741,10 +704,6 @@ class ClinicalService:
                 ham_luong=item.ham_luong,
                 don_vi_tinh=item.don_vi_tinh,
                 so_luong=item.so_luong,
-                lieu_sang=item.lieu_sang or "",
-                lieu_trua=item.lieu_trua or "",
-                lieu_chieu=item.lieu_chieu or "",
-                lieu_toi=item.lieu_toi or "",
                 cach_dung=item.cach_dung,
                 so_ngay_dung=item.so_ngay_dung,
                 ghi_chu=item.ghi_chu
@@ -1122,6 +1081,179 @@ class ClinicalService:
         if not pe:
             return None
         return PhysicalExamResponse.model_validate(pe)
+
+
+    _SPECIALTY_MODEL_MAP = {
+        "noi": KhamNoiKhoa,
+        "noi-khoa": KhamNoiKhoa,
+        "ngoai": KhamNgoaiKhoa,
+        "ngoai-khoa": KhamNgoaiKhoa,
+        "mat": KhamMat,
+        "tmh": KhamTaiMuiHong,
+        "tai-mui-hong": KhamTaiMuiHong,
+        "rhm": KhamRangHamMat,
+        "rang-ham-mat": KhamRangHamMat,
+    }
+
+    async def save_specialty_exam(
+        self,
+        encounter_id: int,
+        dept_code: str,
+        payload_data: dict,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> dict:
+        """Lưu hoặc cập nhật hồ sơ khám chuyên khoa (Nội, Ngoại, Mắt, TMH, RHM) theo Kiến trúc 2 tầng"""
+        key = (dept_code or "").strip().lower()
+        model_cls = self._SPECIALTY_MODEL_MAP.get(key)
+        if not model_cls:
+            raise UnprocessableEntityException(
+                f"Mã chuyên khoa '{dept_code}' không hợp lệ! Hỗ trợ: noi-khoa, ngoai-khoa, mat, tai-mui-hong, rang-ham-mat"
+            )
+
+        bac_si = await self._get_doctor_from_user(user, db)
+        stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
+        luot_kham = (await db.execute(stmt)).scalar_one_or_none()
+        if not luot_kham:
+            raise NotFoundException("Không tìm thấy thông tin lượt khám!")
+
+        if (
+            luot_kham.bac_si_id != bac_si.id
+            and luot_kham.tiep_quan_boi_id != bac_si.id
+            and user.vai_tro != VaiTroEnum.ADMIN.value
+        ):
+            raise ForbiddenException("Bạn không có quyền cập nhật chuyên khoa cho ca khám của bác sĩ khác!")
+
+        if luot_kham.is_locked:
+            raise ConflictException(
+                "Hồ sơ bệnh án đã hoàn tất và bị khóa theo TT 32/2023/TT-BYT (Read-only), không thể cập nhật khám chuyên khoa!"
+            )
+
+        stmt_sp = select(model_cls).where(model_cls.luot_kham_id == encounter_id)
+        record = (await db.execute(stmt_sp)).scalar_one_or_none()
+
+        valid_cols = {c.name for c in model_cls.__table__.columns} - {
+            "id",
+            "luot_kham_id",
+            "created_at",
+            "updated_at",
+            "bac_si_kham_id",
+        }
+        if not record:
+            record = model_cls(luot_kham_id=encounter_id, bac_si_kham_id=bac_si.id)
+            db.add(record)
+        else:
+            record.bac_si_kham_id = bac_si.id
+
+        import json
+        for k, v in (payload_data or {}).items():
+            if k in valid_cols:
+                if k == "so_do_rang_fdi" and isinstance(v, (dict, list)):
+                    v = json.dumps(v, ensure_ascii=False)
+                setattr(record, k, v)
+
+        await db.commit()
+        await db.refresh(record)
+
+        result = {c.name: getattr(record, c.name) for c in model_cls.__table__.columns}
+        if result.get("created_at"):
+            result["created_at"] = result["created_at"].isoformat()
+        if result.get("updated_at"):
+            result["updated_at"] = result["updated_at"].isoformat()
+        return result
+
+    async def get_specialty_exam(
+        self,
+        encounter_id: int,
+        dept_code: str,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> Optional[dict]:
+        """Lấy dữ liệu khám chuyên khoa cụ thể của một lượt khám"""
+        key = (dept_code or "").strip().lower()
+        model_cls = self._SPECIALTY_MODEL_MAP.get(key)
+        if not model_cls:
+            raise UnprocessableEntityException(f"Mã chuyên khoa '{dept_code}' không hợp lệ!")
+
+        stmt = select(model_cls).where(model_cls.luot_kham_id == encounter_id)
+        record = (await db.execute(stmt)).scalar_one_or_none()
+        if not record:
+            return None
+
+        result = {c.name: getattr(record, c.name) for c in model_cls.__table__.columns}
+        if result.get("created_at"):
+            result["created_at"] = result["created_at"].isoformat()
+        if result.get("updated_at"):
+            result["updated_at"] = result["updated_at"].isoformat()
+        return result
+
+    async def get_all_specialty_exams(
+        self,
+        encounter_id: int,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> dict:
+        """Lấy toàn bộ dữ liệu 5 chuyên khoa của một lượt khám"""
+        out = {}
+        for key, model_cls in [
+            ("noi", KhamNoiKhoa),
+            ("ngoai", KhamNgoaiKhoa),
+            ("mat", KhamMat),
+            ("tmh", KhamTaiMuiHong),
+            ("rhm", KhamRangHamMat),
+        ]:
+            stmt = select(model_cls).where(model_cls.luot_kham_id == encounter_id)
+            rec = (await db.execute(stmt)).scalar_one_or_none()
+            if rec:
+                d = {c.name: getattr(rec, c.name) for c in model_cls.__table__.columns}
+                if d.get("created_at"):
+                    d["created_at"] = d["created_at"].isoformat()
+                if d.get("updated_at"):
+                    d["updated_at"] = d["updated_at"].isoformat()
+                out[key] = d
+            else:
+                out[key] = None
+        return out
+
+    async def copy_prescription_from_previous(
+        self,
+        encounter_id: int,
+        source_prescription_id: int,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> PrescriptionResponse:
+        """Sao chép đơn thuốc cũ từ lần khám trước sang ca khám hiện tại (Kế thừa tính năng OldPrescription từ TheDuckHospital)"""
+        stmt_src = (
+            select(DonThuoc)
+            .options(selectinload(DonThuoc.danh_sach_chi_tiet))
+            .where(DonThuoc.id == source_prescription_id)
+        )
+        src_rx = (await db.execute(stmt_src)).scalar_one_or_none()
+        if not src_rx:
+            raise NotFoundException("Không tìm thấy đơn thuốc cũ để sao chép!")
+
+        from app.schemas.clinical import PrescriptionItemCreate
+        items_payload = [
+            PrescriptionItemCreate(
+                khai_niem_thuoc_id=item.khai_niem_thuoc_id,
+                ten_thuoc=item.ten_thuoc,
+                hoat_chat=item.hoat_chat,
+                ham_luong=item.ham_luong,
+                lieu_dung=item.lieu_dung,
+                tan_suat=item.tan_suat,
+                thoi_gian_dung_ngay=item.thoi_gian_dung_ngay,
+                so_luong=item.so_luong,
+                don_vi_tinh=item.don_vi_tinh,
+                duong_dung=item.duong_dung,
+                ghi_chu=item.ghi_chu,
+            )
+            for item in (src_rx.danh_sach_chi_tiet or [])
+        ]
+        create_req = PrescriptionCreateRequest(
+            ghi_chu_don_thuoc=f"[Sao chép từ đơn #{src_rx.id}] {src_rx.ghi_chu_don_thuoc or ''}".strip(),
+            danh_sach_thuoc=items_payload,
+        )
+        return await self.create_prescription(encounter_id, create_req, user, db)
 
 
 clinical_service = ClinicalService()

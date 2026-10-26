@@ -1,77 +1,33 @@
 import logging
-from datetime import date, datetime, time, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone, timedelta
+from typing import List, Optional
 from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import (
-    BadRequestException,
-    ConflictException,
-    NotFoundException,
-)
-from app.core.security import get_password_hash
 from app.models.appointment import (
     LichLamViec,
     LichKham,
     HangDoiKham,
-    CaLamViecEnum,
     TrangThaiLichEnum,
     TrangThaiHangDoiEnum,
-    LichDinhKyBacSi,
-    NghiPhepBacSi,
-    TrangThaiNghiPhepEnum,
-    PhanTichAI,
-    DanhGiaAI,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
+from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, ChanDoan
+from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.clinical import AmendmentResponse
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
-    RoomCreateRequest,
-    RoomResponse,
-    ShiftCreateRequest,
-    ShiftToggleLockRequest,
-    ShiftResponse,
-    EmergencyLeaveDeclareRequest,
-    EmergencyLeaveSummaryResponse,
-    ReassignQueueRequest,
-    ReassignQueueResponse,
-    PostponeAndCancelResponse,
-    ServiceCreateRequest,
-    ServiceUpdateRequest,
-    ServiceItemAdminResponse,
     AdminDashboardStatsResponse,
-    DepartmentCreateRequest,
-    DepartmentUpdateRequest,
-    DepartmentAdminResponse,
-    RosterTemplateCreateRequest,
-    RosterTemplateUpdateRequest,
-    RosterTemplateResponse,
-    RosterBatchGenerateRequest,
-    RosterBatchGenerateResponse,
-    DoctorLeaveCreateRequest,
-    DoctorLeaveResponse,
-    DoctorLeaveApproveRequest,
-    AffectedBookingItem,
-    ConceptCreateRequest,
-    ConceptUpdateRequest,
-    ConceptAdminResponse,
-    RedFlagCreateRequest,
-    RedFlagUpdateRequest,
-    RedFlagAdminResponse,
-    AIAccuracyReportResponse,
-    AIAccuracySpecialtyItem,
     AdminAnalyticsReportResponse,
     CancellationReasonBreakdown,
     SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
+    TopDiseaseStatItem,
+    TopDiseasesResponse,
+    TopServiceRevenueItem,
+    TopServicesResponse,
+    DoctorPerformanceStatItem,
+    DoctorPerformanceResponse,
+    RoomWorkloadStatItem,
+    RoomWorkloadResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -295,6 +251,292 @@ class AdminAnalyticsService:
             ty_le_huy_tong_hop_pct=ty_le_huy,
             do_chinh_xac_ai_pct=ai_rep.ty_le_chinh_xac_toan_vien_pct,
             thong_ke_chuyen_khoa=dept_stats
+        )
+
+    # =========================================================================
+    # GÓI 6: TOP 10 WIDGETS & EXECUTIVE INTELLIGENCE (tClinic Standardized)
+    # =========================================================================
+    async def get_top_icd10_diseases(
+        self,
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+        limit: int = 10,
+    ) -> TopDiseasesResponse:
+        """
+        Top mặt bệnh thường gặp nhất theo mã chuẩn quốc tế ICD-10 (tClinic /dashboard/top-10-benh-icd10).
+        """
+        d_end = den_ngay or date.today()
+        d_start = tu_ngay or (d_end - timedelta(days=30))
+
+        stmt = (
+            select(
+                ChanDoan.ma_icd10,
+                ChanDoan.ten_benh_chan_doan,
+                func.count(ChanDoan.id).label("so_ca")
+            )
+            .join(LuotKham, ChanDoan.luot_kham_id == LuotKham.id)
+            .where(
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
+            )
+            .group_by(ChanDoan.ma_icd10, ChanDoan.ten_benh_chan_doan)
+            .order_by(func.count(ChanDoan.id).desc())
+            .limit(limit)
+        )
+        rows = (await db.execute(stmt)).all()
+
+        stmt_total = (
+            select(func.count(ChanDoan.id))
+            .join(LuotKham, ChanDoan.luot_kham_id == LuotKham.id)
+            .where(
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
+            )
+        )
+        total_diagnoses = (await db.execute(stmt_total)).scalar() or 0
+
+        items: List[TopDiseaseStatItem] = []
+        for r in rows:
+            cnt = r.so_ca
+            pct = round((cnt / total_diagnoses * 100.0), 1) if total_diagnoses > 0 else 0.0
+            items.append(TopDiseaseStatItem(
+                ma_icd10=r.ma_icd10,
+                ten_benh=r.ten_benh_chan_doan,
+                so_ca_mac=cnt,
+                ty_le_pct=pct
+            ))
+
+        return TopDiseasesResponse(
+            tu_ngay=d_start,
+            den_ngay=d_end,
+            tong_so_ca_chan_doan=total_diagnoses,
+            items=items
+        )
+
+    async def get_top_services_analytics(
+        self,
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+        limit: int = 10,
+    ) -> TopServicesResponse:
+        """
+        Top dịch vụ kỹ thuật / cận lâm sàng có số lượt chỉ định và doanh thu cao nhất (tClinic /dashboard/top-10-dich-vu-doanh-thu).
+        """
+        d_end = den_ngay or date.today()
+        d_start = tu_ngay or (d_end - timedelta(days=30))
+
+        stmt = (
+            select(
+                DichVu.id,
+                DichVu.ma_dich_vu,
+                DichVu.ten_dich_vu,
+                DichVu.ma_nhom_byt,
+                DichVu.don_gia,
+                func.sum(ChiDinh.so_luong).label("tong_so_luong"),
+                func.sum(ChiDinh.don_gia_tai_thoi_diem * ChiDinh.so_luong).label("tong_doanh_thu")
+            )
+            .join(ChiDinh, ChiDinh.dich_vu_id == DichVu.id)
+            .join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id)
+            .where(
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
+                ChiDinh.trang_thai != "da_huy"
+            )
+            .group_by(DichVu.id, DichVu.ma_dich_vu, DichVu.ten_dich_vu, DichVu.ma_nhom_byt, DichVu.don_gia)
+            .order_by(func.sum(ChiDinh.don_gia_tai_thoi_diem * ChiDinh.so_luong).desc())
+            .limit(limit)
+        )
+        rows = (await db.execute(stmt)).all()
+
+        stmt_total_rev = (
+            select(func.sum(ChiDinh.don_gia_tai_thoi_diem * ChiDinh.so_luong))
+            .join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id)
+            .where(
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
+                ChiDinh.trang_thai != "da_huy"
+            )
+        )
+        total_cls_rev = float((await db.execute(stmt_total_rev)).scalar() or 0.0)
+
+        items: List[TopServiceRevenueItem] = []
+        for r in rows:
+            rev = float(r.tong_doanh_thu or 0.0)
+            pct = round((rev / total_cls_rev * 100.0), 1) if total_cls_rev > 0 else 0.0
+            items.append(TopServiceRevenueItem(
+                dich_vu_id=r.id,
+                ma_dich_vu=r.ma_dich_vu,
+                ten_dich_vu=r.ten_dich_vu,
+                ma_nhom_byt=r.ma_nhom_byt,
+                so_luong_chi_dinh=int(r.tong_so_luong or 0),
+                don_gia=float(r.don_gia or 0.0),
+                tong_doanh_thu=rev,
+                ty_le_doanh_thu_pct=pct
+            ))
+
+        return TopServicesResponse(
+            tu_ngay=d_start,
+            den_ngay=d_end,
+            tong_doanh_thu_cls=total_cls_rev,
+            items=items
+        )
+
+    async def get_doctor_performance_analytics(
+        self,
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+        chuyen_khoa_id: Optional[int] = None,
+    ) -> DoctorPerformanceResponse:
+        """
+        Thống kê năng suất, thời gian khám trung bình và doanh thu của từng bác sĩ (tClinic /dashboard/khambenh/bacsi).
+        """
+        d_end = den_ngay or date.today()
+        d_start = tu_ngay or (d_end - timedelta(days=30))
+
+        stmt_docs = (
+            select(BacSi)
+            .options(selectinload(BacSi.nguoi_dung), selectinload(BacSi.chuyen_khoa))
+            .where(BacSi.is_active.is_(True))
+        )
+        if chuyen_khoa_id:
+            stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
+
+        docs = (await db.execute(stmt_docs)).scalars().all()
+        doc_ids = [d.id for d in docs]
+        if not doc_ids:
+            return DoctorPerformanceResponse(tu_ngay=d_start, den_ngay=d_end, items=[])
+
+        stmt_encounters = (
+            select(LuotKham)
+            .where(
+                LuotKham.bac_si_id.in_(doc_ids),
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
+            )
+        )
+        encounters = (await db.execute(stmt_encounters)).scalars().all()
+
+        stmt_apts = (
+            select(LichKham)
+            .where(
+                LichKham.bac_si_id.in_(doc_ids),
+                LichKham.ngay_kham >= d_start,
+                LichKham.ngay_kham <= d_end,
+            )
+        )
+        apts = (await db.execute(stmt_apts)).scalars().all()
+
+        items: List[DoctorPerformanceStatItem] = []
+        for doc in docs:
+            d_encs = [e for e in encounters if e.bac_si_id == doc.id]
+            d_apts = [a for a in apts if a.bac_si_id == doc.id]
+
+            so_tiep_nhan = len(d_apts)
+            so_xong = len(d_encs)
+            so_noshow = sum(1 for a in d_apts if a.trang_thai == TrangThaiLichEnum.NO_SHOW.value)
+
+            durations = []
+            for e in d_encs:
+                if e.thoi_gian_bat_dau and e.thoi_gian_ket_thuc:
+                    dur_min = (e.thoi_gian_ket_thuc - e.thoi_gian_bat_dau).total_seconds() / 60.0
+                    if 1.0 <= dur_min <= 180.0:
+                        durations.append(dur_min)
+            avg_duration = round(sum(durations) / len(durations), 1) if durations else 15.0
+
+            rev = float(so_xong * (doc.gia_kham_mac_dinh or 200000.0))
+
+            items.append(DoctorPerformanceStatItem(
+                bac_si_id=doc.id,
+                ho_ten=doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS {doc.id}",
+                chuyen_khoa=doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Đa khoa",
+                hoc_vi=doc.hoc_vi or "BS",
+                so_ca_tiep_nhan=so_tiep_nhan,
+                so_ca_kham_xong=so_xong,
+                so_ca_no_show=so_noshow,
+                thoi_gian_kham_tb_phut=avg_duration,
+                doanh_thu_mang_lai=rev
+            ))
+
+        items.sort(key=lambda x: x.so_ca_kham_xong, reverse=True)
+
+        return DoctorPerformanceResponse(
+            tu_ngay=d_start,
+            den_ngay=d_end,
+            items=items
+        )
+
+    async def get_room_workload_analytics(
+        self,
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+    ) -> RoomWorkloadResponse:
+        """
+        Thống kê phụ tải buồng khám để điều phối lưu lượng tránh tắc nghẽn (tClinic /dashboard/dangky/phongkham).
+        """
+        d_end = den_ngay or date.today()
+        d_start = tu_ngay or (d_end - timedelta(days=7))
+
+        rooms = (await db.execute(select(PhongKham).where(PhongKham.is_active.is_(True)).order_by(PhongKham.ma_phong.asc()))).scalars().all()
+        if not rooms:
+            return RoomWorkloadResponse(tu_ngay=d_start, den_ngay=d_end, items=[])
+
+        shifts = (await db.execute(
+            select(LichLamViec).where(
+                LichLamViec.ngay_lam_viec >= d_start,
+                LichLamViec.ngay_lam_viec <= d_end,
+                LichLamViec.is_active.is_(True),
+                LichLamViec.phong_kham_id.isnot(None),
+            )
+        )).scalars().all()
+
+        queues = (await db.execute(
+            select(HangDoiKham).where(
+                HangDoiKham.ngay_kham >= d_start,
+                HangDoiKham.ngay_kham <= d_end,
+                HangDoiKham.phong_kham_id.isnot(None),
+            )
+        )).scalars().all()
+
+        items: List[RoomWorkloadStatItem] = []
+        for rm in rooms:
+            rm_shifts = [s for s in shifts if s.phong_kham_id == rm.id]
+            rm_queues = [q for q in queues if q.phong_kham_id == rm.id]
+
+            so_ca = len(rm_shifts)
+            so_pt = len(rm_queues)
+
+            dinh_muc = so_ca * 12
+            util_pct = round((so_pt / dinh_muc * 100.0), 1) if dinh_muc > 0 else (0.0 if so_pt == 0 else 100.0)
+
+            if util_pct == 0.0:
+                tai_status = "TRONG"
+            elif util_pct > 100.0:
+                tai_status = "QUA_TAI"
+            elif util_pct >= 80.0:
+                tai_status = "CAO"
+            else:
+                tai_status = "BINH_THUONG"
+
+            items.append(RoomWorkloadStatItem(
+                phong_kham_id=rm.id,
+                ma_phong=rm.ma_phong,
+                ten_phong=rm.ten_phong,
+                loai_phong=rm.loai_phong,
+                tang=rm.tang,
+                so_ca_truc_phan_cong=so_ca,
+                so_benh_nhan_da_phuc_vu=so_pt,
+                cong_suat_su_dung_pct=util_pct,
+                trang_thai_tai=tai_status
+            ))
+
+        return RoomWorkloadResponse(
+            tu_ngay=d_start,
+            den_ngay=d_end,
+            items=items
         )
 
     # =========================================================================

@@ -8,6 +8,7 @@ from app.models.user import (
     BenhNhan,
     BacSi,
     HoSoNguoiThan,
+    NhanVien,
 )
 from app.models.appointment import (
     CaLamViecEnum,
@@ -21,7 +22,8 @@ from app.models.appointment import (
     PhanTichAI,
     DanhGiaAI,
     LichDinhKyBacSi,
-    NghiPhepBacSi
+    NghiPhepBacSi,
+    PhanTichAIGoiY,
 )
 from app.models.medical import (
     KhaiNiem,
@@ -41,6 +43,9 @@ from app.models.medical import (
     LuotKhamTheLuc,
     KhoaSoCaTruc,
     DanhGiaDichVu,
+    PhieuKhamChuyenKhoa,
+    KetQuaCLS,
+    Thuoc,
 )
 from app.models.compliance import (
     TrangThaiGiayPhep,
@@ -51,18 +56,29 @@ from app.models.compliance import (
     NhatKyTruyCapDuLieuYTe,
 )
 from app.models.specialized import (
+    HopDongKhamDoan,
+    NhanVienKhamDoan,
     GoiDichVu,
     ChiTietGoiDichVu,
     DangKyGoiKham,
     LieuTrinhDieuTri,
-    BuoiDieuTri
+    BuoiDieuTri,
+    ChiTietDangKyGoiKham,
 )
 from app.models.content import (
     MauBieuYTe,
+    CauHoiYKhoa,
     BaiVietTinTuc,
     ThongBao,
 )
 from app.models.bff_store import HeThongTrangThaiBff
+from app.models.specialty_exam import (
+    KhamNoiKhoa,
+    KhamNgoaiKhoa,
+    KhamMat,
+    KhamTaiMuiHong,
+    KhamRangHamMat,
+)
 
 __all__ = [
     "BaseModelWithTimestamp",
@@ -74,6 +90,12 @@ __all__ = [
     "BenhNhan",
     "BacSi",
     "HoSoNguoiThan",
+    "NhanVien",
+    "PhanTichAIGoiY",
+    "PhieuKhamChuyenKhoa",
+    "KetQuaCLS",
+    "Thuoc",
+    "ChiTietDangKyGoiKham",
     "CaLamViecEnum",
     "TrangThaiLichEnum",
     "TrangThaiWaitlistEnum",
@@ -109,14 +131,22 @@ __all__ = [
     "LuotKhamTheLuc",
     "KhoaSoCaTruc",
     "DanhGiaDichVu",
+    "HopDongKhamDoan",
+    "NhanVienKhamDoan",
     "GoiDichVu",
     "ChiTietGoiDichVu",
     "DangKyGoiKham",
     "LieuTrinhDieuTri",
     "BuoiDieuTri",
     "MauBieuYTe",
+    "CauHoiYKhoa",
     "BaiVietTinTuc",
     "ThongBao",
     "HeThongTrangThaiBff",
+    "KhamNoiKhoa",
+    "KhamNgoaiKhoa",
+    "KhamMat",
+    "KhamTaiMuiHong",
+    "KhamRangHamMat",
 ]
 

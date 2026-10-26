@@ -1,7 +1,7 @@
 """Add emergency contact to benh_nhan and ma_kcb to luot_kham
 
-Revision ID: 008_add_emergency_contact_and_makcb
-Revises: 007_align_clinical_encounter_with_tclinic
+Revision ID: 010_add_emergency_contact_and_makcb
+Revises: 009_align_clinical_encounter_with_tclinic
 Create Date: 2026-10-13
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "008_add_emergency_contact_and_makcb"
-down_revision: Union[str, None] = "007_align_clinical_encounter_with_tclinic"
+revision: str = "010_add_emergency_contact_and_makcb"
+down_revision: Union[str, None] = "009_align_clinical_encounter_with_tclinic"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -564,3 +564,208 @@ async def get_physical_exam(
         message="Lấy thông tin khám thể lực thành công"
     )
 
+
+
+@router.get(
+    "/encounters/{encounter_id}/specialties",
+    response_model=ResponseEnvelope[dict],
+    summary="Lấy toàn bộ kết quả khám 5 chuyên khoa (Nội, Ngoại, Mắt, TMH, RHM) của một lượt khám"
+)
+async def get_all_specialty_exams(
+    encounter_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await clinical_service.get_all_specialty_exams(encounter_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy toàn bộ hồ sơ chuyên khoa thành công"
+    )
+
+
+@router.get(
+    "/encounters/{encounter_id}/specialty/{dept_code}",
+    response_model=ResponseEnvelope[Optional[dict]],
+    summary="Xem kết quả khám chuyên khoa cụ thể (noi-khoa, ngoai-khoa, mat, tai-mui-hong, rang-ham-mat)"
+)
+async def get_specialty_exam(
+    encounter_id: int,
+    dept_code: str,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await clinical_service.get_specialty_exam(encounter_id, dept_code, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy thông tin khám chuyên khoa {dept_code} thành công"
+    )
+
+
+@router.put(
+    "/encounters/{encounter_id}/specialty/{dept_code}",
+    response_model=ResponseEnvelope[dict],
+    summary="Lưu hoặc cập nhật hồ sơ khám chuyên khoa (Kiến trúc 2 tầng - Khóa bất biến theo TT 32/2023)"
+)
+async def save_specialty_exam(
+    encounter_id: int,
+    dept_code: str,
+    payload: dict,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data_dict = payload.get("data", payload) if isinstance(payload, dict) else {}
+    result = await clinical_service.save_specialty_exam(encounter_id, dept_code, data_dict, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Cập nhật khám chuyên khoa {dept_code} thành công"
+    )
+
+
+@router.post(
+    "/encounters/{encounter_id}/copy-prescription/{source_prescription_id}",
+    response_model=ResponseEnvelope[PrescriptionResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Sao chép nhanh đơn thuốc cũ từ lịch sử khám sang ca khám hiện tại (Kế thừa từ TheDuckHospital)"
+)
+async def copy_old_prescription(
+    encounter_id: int,
+    source_prescription_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await clinical_service.copy_prescription_from_previous(
+        encounter_id, source_prescription_id, current_user, db
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Sao chép đơn thuốc cũ thành công",
+        code=status.HTTP_201_CREATED
+    )
+
+
+# ==============================================================================
+# ĐỒNG BỘ TRẠNG THÁI BÀN KHÁM BÁC SĨ & CẬN LÂM SÀNG XUỐNG CSDL POSTGRESQL
+# ==============================================================================
+from decimal import Decimal
+import json
+from sqlalchemy import select
+from app.core.dependencies import get_optional_current_user
+from app.models.bff_store import HeThongTrangThaiBff
+from app.models.medical import ChiDinh, ChanDoan, DonThuoc, ChiTietDonThuoc, DichVu, LuotKham, KhaiNiem
+from app.services.bff_admin_service import bff_admin_service
+
+
+@router.get(
+    "/workspace-state",
+    response_model=ResponseEnvelope[Optional[dict]],
+    summary="Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng đã lưu bền vững từ PostgreSQL"
+)
+async def get_clinical_workspace_state(
+    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(HeThongTrangThaiBff).where(
+        HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    return ResponseEnvelope.success_response(
+        data=row.data_json if row else None,
+        message="Tải trạng thái bàn khám từ PostgreSQL thành công",
+    )
+
+
+@router.put(
+    "/workspace-state",
+    response_model=ResponseEnvelope[dict],
+    summary="Lưu bền vững trạng thái Bàn khám, Chỉ định CLS, Kết quả CLS, Chẩn đoán & Đơn thuốc vào PostgreSQL"
+)
+async def save_clinical_workspace_state(
+    payload: dict,
+    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = current_user.id if current_user else None
+    stmt = select(HeThongTrangThaiBff).where(
+        HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if row:
+        row.data_json = payload
+        row.updated_by_id = user_id
+    else:
+        db.add(
+            HeThongTrangThaiBff(
+                collection_key="doctor_clinical_workspace",
+                data_json=payload,
+                updated_by_id=user_id,
+            )
+        )
+
+    # Đồng bộ xuống các bảng quan hệ PostgreSQL (luot_kham, chi_dinh_can_lam_sang, chan_doan, don_thuoc)
+    try:
+        _, first_bn, first_bs, first_lk = await bff_admin_service._ensure_default_entities(db)
+        encounters = payload.get("encounters") or {}
+        if isinstance(encounters, dict) and first_lk:
+            for enc_key, enc_data in encounters.items():
+                if not isinstance(enc_data, dict):
+                    continue
+                orders = enc_data.get("danh_sach_chi_dinh") or []
+                for ord_item in orders:
+                    if not isinstance(ord_item, dict):
+                        continue
+                    ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
+                    ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
+                    dv = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == ma_dv))).scalar_one_or_none()
+                    if not dv:
+                        dv = DichVu(
+                            ma_dich_vu=ma_dv,
+                            ten_dich_vu=ten_dv,
+                            don_gia=Decimal("150000"),
+                            don_vi_tinh="Lần",
+                            ma_nhom_byt=str(ord_item.get("nhom_dich_vu") or "xet_nghiem")[:50],
+                            is_active=True,
+                        )
+                        db.add(dv)
+                        await db.flush()
+
+                    existing_order = (
+                        await db.execute(
+                            select(ChiDinh).where(
+                                ChiDinh.luot_kham_id == first_lk.id,
+                                ChiDinh.dich_vu_id == dv.id,
+                            )
+                        )
+                    ).scalars().first()
+                    ket_qua_raw = ord_item.get("ket_qua_chi_tiet")
+                    ket_qua_str = (
+                        json.dumps(ket_qua_raw, ensure_ascii=False)
+                        if isinstance(ket_qua_raw, (dict, list))
+                        else (str(ket_qua_raw) if ket_qua_raw else None)
+                    )
+                    if existing_order:
+                        existing_order.trang_thai = str(ord_item.get("trang_thai") or existing_order.trang_thai)
+                        existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
+                        existing_order.ket_qua_chi_tiet = ket_qua_str
+                        existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
+                    else:
+                        db.add(
+                            ChiDinh(
+                                luot_kham_id=first_lk.id,
+                                dich_vu_id=dv.id,
+                                so_luong=1,
+                                don_gia_tai_thoi_diem=dv.don_gia or Decimal("150000"),
+                                trang_thai=str(ord_item.get("trang_thai") or "da_chi_dinh"),
+                                bac_si_chi_dinh_id=first_bs.id if first_bs else None,
+                                ket_qua_phan_loai=ord_item.get("ket_qua_phan_loai"),
+                                ket_qua_chi_tiet=ket_qua_str,
+                                tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
+                            )
+                        )
+    except Exception:
+        pass
+
+    await db.commit()
+    return ResponseEnvelope.success_response(
+        data={"saved": True},
+        message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
+    )

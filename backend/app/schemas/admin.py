@@ -567,3 +567,178 @@ class PatientStatusUpdateRequest(BaseModel):
     is_blocked_booking: Optional[bool] = None
     diem_tin_nhiem: Optional[int] = Field(None, ge=0, le=100)
     ghi_chu_quan_tri: Optional[str] = None
+
+
+# =============================================================================
+# CHUẨN HÓA BỔ SUNG THEO TIÊU CHUẨN HIS / EMR T-CLINIC (REA Standardized)
+# =============================================================================
+
+# --- 1. Schemas Ma Trận Phân Ca Trực & Slot Khả Dụng ---
+class DoctorScheduleSlotItem(BaseModel):
+    """Thông tin tóm tắt từng lượt khám trong ca trực"""
+    lich_kham_id: int
+    ma_lich_kham: str
+    ten_benh_nhan: str
+    so_dien_thoai: Optional[str] = None
+    gio_kham: time
+    trang_thai: str
+    loai_kham: str = "dat_truoc"  # 'dat_truoc' hoặc 'vang_lai'
+
+
+class DoctorScheduleMatrixCell(BaseModel):
+    """Một ô dữ liệu trong ma trận phân ca trực (Bác sĩ x Ngày x Ca)"""
+    ca_id: Optional[int] = None
+    bac_si_id: int
+    ten_bac_si: str
+    hoc_vi: str = "BS"
+    chuyen_khoa_id: int
+    chuyen_khoa: str
+    ngay: date
+    ca_lam_viec: str  # 'sang' hoặc 'chieu'
+    phong_kham_id: Optional[int] = None
+    ten_phong_kham: Optional[str] = None
+    gio_bat_dau: Optional[time] = None
+    gio_ket_thuc: Optional[time] = None
+    trang_thai_ca: str  # 'DANG_HOAT_DONG', 'DA_KHOA', 'NGHI_PHEP', 'NGHI_DOT_XUAT', 'CHUA_PHAN_CA'
+    ly_do_nghi: Optional[str] = None
+    han_muc_dat_truoc: int = 6
+    han_muc_vang_lai: int = 2
+    so_luong_da_dat: int = 0
+    so_luong_vang_lai: int = 0
+    slot_online_con_trong: int = 6
+    slot_vang_lai_con_trong: int = 2
+    is_full: bool = False
+    danh_sach_benh_nhan: List[DoctorScheduleSlotItem] = []
+
+
+class DoctorScheduleMatrixResponse(BaseModel):
+    """Ma trận phân ca trực toàn viện phục vụ màn hình Roster Calendar"""
+    tu_ngay: date
+    den_ngay: date
+    tong_so_ca_phan_cong: int
+    tong_slot_con_trong: int
+    tong_slot_da_dat: int
+    matrix: List[DoctorScheduleMatrixCell]
+
+
+class DoctorTimesheetReportItem(BaseModel):
+    """Dòng báo cáo chấm công và công suất phục vụ của từng bác sĩ"""
+    bac_si_id: int
+    ten_bac_si: str
+    chuyen_khoa: str
+    tong_so_ca_phan_cong: int
+    so_ca_hoan_thanh: int
+    so_ca_nghi_phep: int
+    so_ca_nghi_dot_xuat: int
+    tong_luot_kham: int
+    ty_le_lap_day_pct: float
+
+
+class DoctorTimesheetReportResponse(BaseModel):
+    """Báo cáo chấm công ca trực toàn viện (tương thích tClinic xuatbaocao)"""
+    tu_ngay: date
+    den_ngay: date
+    tong_bac_si: int
+    tong_ca_toan_vien: int
+    tong_luot_kham_toan_vien: int
+    danh_sach_cham_cong: List[DoctorTimesheetReportItem]
+
+
+# --- 2. Schemas Xuất Danh Mục Bảng Giá Dịch Vụ Kỹ Thuật ---
+class ServiceExportItem(BaseModel):
+    """Dòng dữ liệu xuất bảng giá dịch vụ chuẩn y tế"""
+    id: int
+    ma_dich_vu: str
+    ten_dich_vu: str
+    chuyen_khoa: str
+    don_gia: float
+    don_vi_tinh: str
+    ma_nhom_byt: Optional[str] = None
+    phong_thuc_hien: Optional[str] = None
+    thoi_gian_tra_ket_qua_phut: int
+    is_active: bool
+
+
+class ServiceExportResponse(BaseModel):
+    """Dữ liệu bảng giá kỹ thuật phục vụ xuất báo cáo niêm yết"""
+    tong_so_dich_vu: int
+    ngay_xuat: date
+    danh_muc: List[ServiceExportItem]
+
+
+# --- 3. Schemas Dashboard Top 10 & Intelligence Analytics ---
+class TopDiseaseStatItem(BaseModel):
+    """Thống kê mặt bệnh theo mã ICD-10"""
+    ma_icd10: str
+    ten_benh: str
+    so_ca_mac: int
+    ty_le_pct: float
+
+
+class TopDiseasesResponse(BaseModel):
+    """Top 10 bệnh thường gặp nhất theo phân loại quốc tế ICD-10"""
+    tu_ngay: date
+    den_ngay: date
+    tong_so_ca_chan_doan: int
+    items: List[TopDiseaseStatItem]
+
+
+class TopServiceRevenueItem(BaseModel):
+    """Thống kê dịch vụ kỹ thuật theo số lượng chỉ định và doanh thu"""
+    dich_vu_id: int
+    ma_dich_vu: str
+    ten_dich_vu: str
+    ma_nhom_byt: Optional[str] = None
+    so_luong_chi_dinh: int
+    don_gia: float
+    tong_doanh_thu: float
+    ty_le_doanh_thu_pct: float
+
+
+class TopServicesResponse(BaseModel):
+    """Top dịch vụ cận lâm sàng / kỹ thuật mang lại doanh thu cao nhất"""
+    tu_ngay: date
+    den_ngay: date
+    tong_doanh_thu_cls: float
+    items: List[TopServiceRevenueItem]
+
+
+class DoctorPerformanceStatItem(BaseModel):
+    """Thống kê năng suất khám và khối lượng công việc của từng bác sĩ"""
+    bac_si_id: int
+    ho_ten: str
+    chuyen_khoa: str
+    hoc_vi: str
+    so_ca_tiep_nhan: int
+    so_ca_kham_xong: int
+    so_ca_no_show: int
+    thoi_gian_kham_tb_phut: float
+    doanh_thu_mang_lai: float
+
+
+class DoctorPerformanceResponse(BaseModel):
+    """Báo cáo hiệu suất công tác của đội ngũ y bác sĩ toàn viện"""
+    tu_ngay: date
+    den_ngay: date
+    items: List[DoctorPerformanceStatItem]
+
+
+class RoomWorkloadStatItem(BaseModel):
+    """Thống kê phụ tải buồng khám để điều phối lưu lượng bệnh nhân"""
+    phong_kham_id: int
+    ma_phong: str
+    ten_phong: str
+    loai_phong: str
+    tang: str
+    so_ca_truc_phan_cong: int
+    so_benh_nhan_da_phuc_vu: int
+    cong_suat_su_dung_pct: float
+    trang_thai_tai: str  # 'BINH_THUONG', 'CAO', 'QUA_TAI', 'TRONG'
+
+
+class RoomWorkloadResponse(BaseModel):
+    """Báo cáo phụ tải và công suất buồng khám toàn viện"""
+    tu_ngay: date
+    den_ngay: date
+    items: List[RoomWorkloadStatItem]
+

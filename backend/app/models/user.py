@@ -60,6 +60,7 @@ class NguoiDung(BaseModelWithTimestamp):
     tai_khoan = relationship("TaiKhoan", back_populates="nguoi_dung", uselist=False, cascade="all, delete-orphan")
     benh_nhan = relationship("BenhNhan", back_populates="nguoi_dung", uselist=False, cascade="all, delete-orphan")
     bac_si = relationship("BacSi", back_populates="nguoi_dung", uselist=False, cascade="all, delete-orphan")
+    nhan_vien = relationship("NhanVien", back_populates="nguoi_dung", uselist=False, cascade="all, delete-orphan")
 
 
 class TaiKhoan(BaseModelWithTimestamp):
@@ -67,6 +68,7 @@ class TaiKhoan(BaseModelWithTimestamp):
     __tablename__ = "tai_khoan"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
+    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     mat_khau_hash = Column(String(255), nullable=False)
     vai_tro = Column(String(20), default=VaiTroEnum.BENH_NHAN.value, nullable=False)
@@ -81,17 +83,32 @@ class TaiKhoan(BaseModelWithTimestamp):
     nguoi_dung = relationship("NguoiDung", back_populates="tai_khoan")
 
 
+class NhanVien(BaseModelWithTimestamp):
+    """Bảng hồ sơ nhân sự/nhân viên tổng quát (KTV, Lễ tân, Thu ngân, Bác sĩ)"""
+    __tablename__ = "nhan_vien"
+
+    nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
+    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
+    ma_nhan_vien = Column(String(50), unique=True, nullable=False, index=True)
+    chuc_danh = Column(String(50), nullable=True)  # Kỹ thuật viên, Lễ tân, Thu ngân, Bác sĩ
+    loai_nhan_vien = Column(String(30), default="BAC_SI", nullable=False)  # 'BAC_SI', 'KTV', 'LE_TAN', 'THU_NGAN'
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Quan hệ
+    nguoi_dung = relationship("NguoiDung", back_populates="nhan_vien")
+    bac_si = relationship("BacSi", back_populates="nhan_vien", uselist=False)
+
+
 class BenhNhan(BaseModelWithTimestamp):
     """Bảng hồ sơ bệnh nhân (OpenMRS Patient Pattern)"""
     __tablename__ = "benh_nhan"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
+    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     ma_dinh_danh_y_te = Column(String(50), unique=True, nullable=False, index=True)  # BN-2026-XXXX
     nhom_mau = Column(String(10), nullable=True)
     tien_su_benh = Column(Text, nullable=True)
     di_ung_thuoc = Column(Text, nullable=True)
-    nguoi_lien_he = Column(String(100), nullable=True)
-    sdt_nguoi_lien_he = Column(String(20), nullable=True)
     diem_tin_nhiem = Column(Integer, default=100, nullable=False)
     so_lan_no_show = Column(Integer, default=0, nullable=False)
     is_blocked_booking = Column(Boolean, default=False, nullable=False)
@@ -108,6 +125,7 @@ class BacSi(BaseModelWithTimestamp):
     __tablename__ = "bac_si"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
+    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="SET NULL"), nullable=True)
     hoc_vi = Column(String(50), nullable=False)  # ThS.BS, BSCKI, PGS.TS
     chung_chi_hanh_nghe = Column(String(100), unique=True, nullable=False)
@@ -134,6 +152,7 @@ class BacSi(BaseModelWithTimestamp):
 
     # Quan hệ
     nguoi_dung = relationship("NguoiDung", back_populates="bac_si")
+    nhan_vien = relationship("NhanVien", back_populates="bac_si")
     chuyen_khoa = relationship("ChuyenKhoa", back_populates="danh_sach_bac_si")
     phong_kham = relationship("PhongKham", foreign_keys=[phong_kham_id], lazy="joined")
     danh_sach_lich_lam_viec = relationship("LichLamViec", back_populates="bac_si")

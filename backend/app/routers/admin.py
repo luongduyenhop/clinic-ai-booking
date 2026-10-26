@@ -49,6 +49,13 @@ from app.schemas.admin import (
     PatientAdminItemResponse,
     PatientAdminDetailResponse,
     PatientStatusUpdateRequest,
+    DoctorScheduleMatrixResponse,
+    DoctorTimesheetReportResponse,
+    ServiceExportResponse,
+    TopDiseasesResponse,
+    TopServicesResponse,
+    DoctorPerformanceResponse,
+    RoomWorkloadResponse,
 )
 from app.schemas.clinical import AmendmentResponse
 from app.services.admin_service import admin_service
@@ -182,6 +189,43 @@ async def create_shift(
     )
 
 
+@router.get(
+    "/shifts/schedule-matrix",
+    response_model=ResponseEnvelope[DoctorScheduleMatrixResponse],
+    summary="Ma trận phân ca trực và tình trạng slot trực tuyến / vãng lai theo thời gian thực (tClinic Roster Matrix)"
+)
+async def get_doctor_schedule_matrix(
+    tu_ngay: date = Query(..., description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: date = Query(..., description="Đến ngày (YYYY-MM-DD)"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
+    phong_kham_id: Optional[int] = Query(None, description="Lọc theo buồng khám"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_doctor_schedule_matrix(
+        db, tu_ngay, den_ngay, chuyen_khoa_id, doctor_id, phong_kham_id
+    )
+    return ResponseEnvelope.success_response(data=data, message="Lấy ma trận phân ca trực thành công")
+
+
+@router.get(
+    "/shifts/export-report",
+    response_model=ResponseEnvelope[DoctorTimesheetReportResponse],
+    summary="Báo cáo chấm công và công suất phục vụ theo ca của từng bác sĩ (tClinic xuatbaocao)"
+)
+async def export_shift_timesheet_report(
+    tu_ngay: date = Query(..., description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: date = Query(..., description="Đến ngày (YYYY-MM-DD)"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.export_timesheet_report(db, tu_ngay, den_ngay, chuyen_khoa_id)
+    return ResponseEnvelope.success_response(data=data, message="Xuất báo cáo chấm công phân ca thành công")
+
+
+
 @router.put(
     "/shifts/{shift_id}/lock",
     response_model=ResponseEnvelope[ShiftResponse],
@@ -264,6 +308,22 @@ async def get_services(
 ):
     data = await admin_service.get_services_admin(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh mục dịch vụ thành công")
+
+
+@router.get(
+    "/services/export",
+    response_model=ResponseEnvelope[ServiceExportResponse],
+    summary="Xuất toàn bộ danh mục dịch vụ kỹ thuật y tế & bảng giá niêm yết (tClinic / Thông tư 22/2023/TT-BYT)"
+)
+async def export_services_catalog(
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    ma_nhom_byt: Optional[str] = Query(None, description="Lọc theo nhóm Bộ Y Tế (XN, CDHA, TDCN, TT, KHAM)"),
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.export_services_catalog(db, chuyen_khoa_id, ma_nhom_byt)
+    return ResponseEnvelope.success_response(data=data, message="Xuất danh mục bảng giá dịch vụ thành công")
+
 
 
 @router.post(
@@ -696,6 +756,70 @@ async def get_analytics_report(
 ):
     data = await admin_service.get_analytics_report_admin(db, tu_ngay, den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy báo cáo phân tích thống kê thành công")
+
+
+@router.get(
+    "/analytics/top-diseases",
+    response_model=ResponseEnvelope[TopDiseasesResponse],
+    summary="Top 10 mặt bệnh thường gặp nhất theo mã ICD-10 (tClinic /dashboard/top-10-benh-icd10)"
+)
+async def get_top_diseases(
+    tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
+    limit: int = Query(10, ge=1, le=50, description="Số lượng bệnh trả về"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_top_icd10_diseases(db, tu_ngay, den_ngay, limit)
+    return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top bệnh ICD-10 thành công")
+
+
+@router.get(
+    "/analytics/top-services",
+    response_model=ResponseEnvelope[TopServicesResponse],
+    summary="Top dịch vụ cận lâm sàng / kỹ thuật có doanh thu cao nhất (tClinic /dashboard/top-10-dich-vu-doanh-thu)"
+)
+async def get_top_services(
+    tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
+    limit: int = Query(10, ge=1, le=50, description="Số lượng dịch vụ trả về"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_top_services_analytics(db, tu_ngay, den_ngay, limit)
+    return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top dịch vụ kỹ thuật thành công")
+
+
+@router.get(
+    "/analytics/doctor-performance",
+    response_model=ResponseEnvelope[DoctorPerformanceResponse],
+    summary="Thống kê năng suất, thời gian khám trung bình và doanh thu theo bác sĩ (tClinic /dashboard/khambenh/bacsi)"
+)
+async def get_doctor_performance(
+    tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_doctor_performance_analytics(db, tu_ngay, den_ngay, chuyen_khoa_id)
+    return ResponseEnvelope.success_response(data=data, message="Lấy báo cáo hiệu suất bác sĩ thành công")
+
+
+@router.get(
+    "/analytics/room-workload",
+    response_model=ResponseEnvelope[RoomWorkloadResponse],
+    summary="Thống kê phụ tải buồng khám để điều phối lưu lượng (tClinic /dashboard/dangky/phongkham)"
+)
+async def get_room_workload(
+    tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await admin_service.get_room_workload_analytics(db, tu_ngay, den_ngay)
+    return ResponseEnvelope.success_response(data=data, message="Lấy thống kê phụ tải buồng khám thành công")
+
 
 
 # ==============================================================================

@@ -1,7 +1,7 @@
 import logging
-from datetime import date, datetime, time, timezone
-from typing import Any, Dict, List, Optional
-from sqlalchemy import func, select, or_
+from datetime import date, time
+from typing import Dict, List, Optional
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,7 +10,6 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.core.security import get_password_hash
 from app.models.appointment import (
     LichLamViec,
     LichKham,
@@ -21,18 +20,10 @@ from app.models.appointment import (
     LichDinhKyBacSi,
     NghiPhepBacSi,
     TrangThaiNghiPhepEnum,
-    PhanTichAI,
-    DanhGiaAI,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
-from app.schemas.clinical import AmendmentResponse
+from app.models.medical import LuotKham
+from app.models.user import BacSi, PhongKham, TaiKhoan, BenhNhan
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
-    RoomCreateRequest,
-    RoomResponse,
     ShiftCreateRequest,
     ShiftToggleLockRequest,
     ShiftResponse,
@@ -41,13 +32,6 @@ from app.schemas.admin import (
     ReassignQueueRequest,
     ReassignQueueResponse,
     PostponeAndCancelResponse,
-    ServiceCreateRequest,
-    ServiceUpdateRequest,
-    ServiceItemAdminResponse,
-    AdminDashboardStatsResponse,
-    DepartmentCreateRequest,
-    DepartmentUpdateRequest,
-    DepartmentAdminResponse,
     RosterTemplateCreateRequest,
     RosterTemplateUpdateRequest,
     RosterTemplateResponse,
@@ -57,21 +41,11 @@ from app.schemas.admin import (
     DoctorLeaveResponse,
     DoctorLeaveApproveRequest,
     AffectedBookingItem,
-    ConceptCreateRequest,
-    ConceptUpdateRequest,
-    ConceptAdminResponse,
-    RedFlagCreateRequest,
-    RedFlagUpdateRequest,
-    RedFlagAdminResponse,
-    AIAccuracyReportResponse,
-    AIAccuracySpecialtyItem,
-    AdminAnalyticsReportResponse,
-    CancellationReasonBreakdown,
-    SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
+    DoctorScheduleSlotItem,
+    DoctorScheduleMatrixCell,
+    DoctorScheduleMatrixResponse,
+    DoctorTimesheetReportItem,
+    DoctorTimesheetReportResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -225,7 +199,7 @@ class AdminShiftService:
                 LichLamViec.phong_kham_id == target_room_id,
                 LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
                 LichLamViec.ca_lam_viec == payload.ca_lam_viec,
-                LichLamViec.is_active == True,
+                LichLamViec.is_active.is_(True),
             )
             conflict_shift = (await db.execute(stmt_conflict_room)).scalar_one_or_none()
             if conflict_shift:
@@ -801,7 +775,7 @@ class AdminShiftService:
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu!")
 
-        stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active == True)
+        stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active.is_(True))
         if payload.bac_si_ids:
             stmt = stmt.where(LichDinhKyBacSi.bac_si_id.in_(payload.bac_si_ids))
         templates = (await db.execute(stmt)).scalars().all()
@@ -849,7 +823,7 @@ class AdminShiftService:
                             LichLamViec.phong_kham_id == t.phong_kham_id,
                             LichLamViec.ngay_lam_viec == cur,
                             LichLamViec.ca_lam_viec == t.ca_lam_viec,
-                            LichLamViec.is_active == True
+                            LichLamViec.is_active.is_(True)
                         )
                     )).scalar_one_or_none()
                     if room_conflict:
@@ -944,7 +918,7 @@ class AdminShiftService:
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec >= payload.tu_ngay,
             LichLamViec.ngay_lam_viec <= payload.den_ngay,
-            LichLamViec.is_active == True
+            LichLamViec.is_active.is_(True)
         )
         if payload.ca_lam_viec:
             shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == payload.ca_lam_viec)
@@ -986,7 +960,7 @@ class AdminShiftService:
             await db.commit()
 
         leaves = await self.get_leaves_admin(db, doctor_id=payload.bac_si_id)
-        return [l for l in leaves if l.id == leave.id][0]
+        return [lv for lv in leaves if lv.id == leave.id][0]
 
     async def approve_leave_admin(
         self,
@@ -1010,7 +984,7 @@ class AdminShiftService:
                 LichLamViec.bac_si_id == leave.bac_si_id,
                 LichLamViec.ngay_lam_viec >= leave.tu_ngay,
                 LichLamViec.ngay_lam_viec <= leave.den_ngay,
-                LichLamViec.is_active == True
+                LichLamViec.is_active.is_(True)
             )
             if leave.ca_lam_viec:
                 stmt = stmt.where(LichLamViec.ca_lam_viec == leave.ca_lam_viec)
@@ -1022,7 +996,7 @@ class AdminShiftService:
         await db.commit()
         await db.refresh(leave)
         leaves = await self.get_leaves_admin(db, doctor_id=leave.bac_si_id)
-        return [l for l in leaves if l.id == leave.id][0]
+        return [lv for lv in leaves if lv.id == leave.id][0]
 
     async def get_leave_affected_bookings(self, leave_id: int, db: AsyncSession) -> List[AffectedBookingItem]:
         """Lấy danh sách các lịch hẹn bị ảnh hưởng để nhân viên hỗ trợ dời lịch cho bệnh nhân"""
@@ -1060,6 +1034,298 @@ class AdminShiftService:
                 trang_thai=r.trang_thai
             ))
         return results
+
+    # =========================================================================
+    # GÓI 4: MA TRẬN PHÂN CA TRỰC & BÁO CÁO CHẤM CÔNG (tClinic HIS Standardized)
+    # =========================================================================
+    async def get_doctor_schedule_matrix(
+        self,
+        db: AsyncSession,
+        tu_ngay: date,
+        den_ngay: date,
+        chuyen_khoa_id: Optional[int] = None,
+        doctor_id: Optional[int] = None,
+        phong_kham_id: Optional[int] = None,
+    ) -> DoctorScheduleMatrixResponse:
+        """
+        Ma trận phân ca trực và tình trạng slot khả dụng theo thời gian thực (tClinic Roster Matrix).
+        Hỗ trợ hiển thị lịch trực toàn viện, đếm số slot trực tuyến/vãng lai và danh sách bệnh nhân.
+        """
+        if den_ngay < tu_ngay:
+            raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
+
+        # 1. Truy vấn danh sách bác sĩ
+        stmt_docs = (
+            select(BacSi)
+            .options(
+                selectinload(BacSi.nguoi_dung),
+                selectinload(BacSi.chuyen_khoa),
+            )
+            .where(BacSi.is_active.is_(True))
+        )
+        if doctor_id:
+            stmt_docs = stmt_docs.where(BacSi.id == doctor_id)
+        if chuyen_khoa_id:
+            stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
+
+        docs = (await db.execute(stmt_docs)).scalars().all()
+        doc_ids = [d.id for d in docs]
+        if not doc_ids:
+            return DoctorScheduleMatrixResponse(
+                tu_ngay=tu_ngay,
+                den_ngay=den_ngay,
+                tong_so_ca_phan_cong=0,
+                tong_slot_con_trong=0,
+                tong_slot_da_dat=0,
+                matrix=[],
+            )
+
+        # 2. Truy vấn ca làm việc LichLamViec trong khoảng thời gian
+        stmt_shifts = (
+            select(LichLamViec)
+            .options(selectinload(LichLamViec.phong_kham))
+            .where(
+                LichLamViec.bac_si_id.in_(doc_ids),
+                LichLamViec.ngay_lam_viec >= tu_ngay,
+                LichLamViec.ngay_lam_viec <= den_ngay,
+            )
+        )
+        if phong_kham_id:
+            stmt_shifts = stmt_shifts.where(LichLamViec.phong_kham_id == phong_kham_id)
+
+        shifts = (await db.execute(stmt_shifts)).scalars().all()
+
+        # 3. Truy vấn các đơn nghỉ phép đã duyệt hoặc nghỉ đột xuất
+        stmt_leaves = select(NghiPhepBacSi).where(
+            NghiPhepBacSi.bac_si_id.in_(doc_ids),
+            NghiPhepBacSi.den_ngay >= tu_ngay,
+            NghiPhepBacSi.tu_ngay <= den_ngay,
+            NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+        )
+        leaves = (await db.execute(stmt_leaves)).scalars().all()
+
+        # 4. Truy vấn các lịch hẹn khám trong khoảng ngày
+        stmt_apts = (
+            select(LichKham)
+            .options(selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung))
+            .where(
+                LichKham.bac_si_id.in_(doc_ids),
+                LichKham.ngay_kham >= tu_ngay,
+                LichKham.ngay_kham <= den_ngay,
+                LichKham.trang_thai.notin_([
+                    TrangThaiLichEnum.DA_HUY.value,
+                    TrangThaiLichEnum.TU_DONG_HUY.value,
+                ]),
+            )
+        )
+        apts = (await db.execute(stmt_apts)).scalars().all()
+
+        # Mapping cấu trúc dữ liệu
+        doc_map = {d.id: d for d in docs}
+        leaves_by_doc: Dict[int, List[NghiPhepBacSi]] = {}
+        for leave_item in leaves:
+            leaves_by_doc.setdefault(leave_item.bac_si_id, []).append(leave_item)
+
+        # Phân loại lịch hẹn theo ca: (bac_si_id, ngay_kham, ca_kham)
+        apts_by_shift: Dict[tuple, List[LichKham]] = {}
+        for a in apts:
+            ca_str = "sang" if a.gio_kham.hour < 12 else "chieu"
+            key = (a.bac_si_id, a.ngay_kham, ca_str)
+            apts_by_shift.setdefault(key, []).append(a)
+
+        matrix_cells: List[DoctorScheduleMatrixCell] = []
+        tong_con_trong = 0
+        tong_da_dat = 0
+
+        for s in shifts:
+            doc = doc_map.get(s.bac_si_id)
+            if not doc:
+                continue
+
+            # Kiểm tra trạng thái nghỉ phép
+            doc_leaves = leaves_by_doc.get(s.bac_si_id, [])
+            status_ca = "DANG_HOAT_DONG" if s.is_active else "DA_KHOA"
+            ly_do = s.ghi_chu_nghi
+
+            for leave_item in doc_leaves:
+                if leave_item.tu_ngay <= s.ngay_lam_viec <= leave_item.den_ngay:
+                    if not leave_item.ca_lam_viec or leave_item.ca_lam_viec == s.ca_lam_viec:
+                        if leave_item.loai_nghi == "NGHI_DOT_XUAT":
+                            status_ca = "NGHI_DOT_XUAT"
+                        else:
+                            status_ca = "NGHI_PHEP"
+                        ly_do = leave_item.ly_do
+                        break
+
+            # Lấy danh sách bệnh nhân đã đặt ca này
+            shift_apts = apts_by_shift.get((s.bac_si_id, s.ngay_lam_viec, s.ca_lam_viec), [])
+            so_online = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") != "vang_lai")
+            so_vang_lai = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") == "vang_lai")
+
+            limit_online = s.han_muc_dat_truoc or 6
+            limit_walkin = s.han_muc_vang_lai or 2
+
+            slot_on_free = max(0, limit_online - so_online)
+            slot_wl_free = max(0, limit_walkin - so_vang_lai)
+            is_full = (slot_on_free == 0 and slot_wl_free == 0)
+
+            tong_con_trong += (slot_on_free + slot_wl_free)
+            tong_da_dat += len(shift_apts)
+
+            pts: List[DoctorScheduleSlotItem] = []
+            for a in shift_apts:
+                pt_name = a.benh_nhan.nguoi_dung.ho_ten if a.benh_nhan and a.benh_nhan.nguoi_dung else "Bệnh nhân"
+                pt_phone = a.benh_nhan.nguoi_dung.so_dien_thoai if a.benh_nhan and a.benh_nhan.nguoi_dung else None
+                pts.append(DoctorScheduleSlotItem(
+                    lich_kham_id=a.id,
+                    ma_lich_kham=a.ma_lich_kham,
+                    ten_benh_nhan=pt_name,
+                    so_dien_thoai=pt_phone,
+                    gio_kham=a.gio_kham,
+                    trang_thai=a.trang_thai,
+                    loai_kham=getattr(a, "nguon_dat", "dat_truoc") or "dat_truoc",
+                ))
+
+            matrix_cells.append(DoctorScheduleMatrixCell(
+                ca_id=s.id,
+                bac_si_id=doc.id,
+                ten_bac_si=doc.nguoi_dung.ho_ten if doc.nguoi_dung else "BS",
+                hoc_vi=doc.hoc_vi or "BS",
+                chuyen_khoa_id=doc.chuyen_khoa_id,
+                chuyen_khoa=doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Đa khoa",
+                ngay=s.ngay_lam_viec,
+                ca_lam_viec=s.ca_lam_viec,
+                phong_kham_id=s.phong_kham_id,
+                ten_phong_kham=s.phong_kham.ten_phong if s.phong_kham else None,
+                gio_bat_dau=s.gio_bat_dau,
+                gio_ket_thuc=s.gio_ket_thuc,
+                trang_thai_ca=status_ca,
+                ly_do_nghi=ly_do,
+                han_muc_dat_truoc=limit_online,
+                han_muc_vang_lai=limit_walkin,
+                so_luong_da_dat=so_online,
+                so_luong_vang_lai=so_vang_lai,
+                slot_online_con_trong=slot_on_free,
+                slot_vang_lai_con_trong=slot_wl_free,
+                is_full=is_full,
+                danh_sach_benh_nhan=pts,
+            ))
+
+        return DoctorScheduleMatrixResponse(
+            tu_ngay=tu_ngay,
+            den_ngay=den_ngay,
+            tong_so_ca_phan_cong=len(shifts),
+            tong_slot_con_trong=tong_con_trong,
+            tong_slot_da_dat=tong_da_dat,
+            matrix=matrix_cells,
+        )
+
+    async def export_timesheet_report(
+        self,
+        db: AsyncSession,
+        tu_ngay: date,
+        den_ngay: date,
+        chuyen_khoa_id: Optional[int] = None,
+    ) -> DoctorTimesheetReportResponse:
+        """
+        Báo cáo chấm công và công suất phục vụ theo ca của từng bác sĩ (tClinic xuatbaocao).
+        """
+        if den_ngay < tu_ngay:
+            raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
+
+        stmt_docs = (
+            select(BacSi)
+            .options(
+                selectinload(BacSi.nguoi_dung),
+                selectinload(BacSi.chuyen_khoa),
+            )
+            .where(BacSi.is_active.is_(True))
+        )
+        if chuyen_khoa_id:
+            stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
+
+        docs = (await db.execute(stmt_docs)).scalars().all()
+        doc_ids = [d.id for d in docs]
+        if not doc_ids:
+            return DoctorTimesheetReportResponse(
+                tu_ngay=tu_ngay,
+                den_ngay=den_ngay,
+                tong_bac_si=0,
+                tong_ca_toan_vien=0,
+                tong_luot_kham_toan_vien=0,
+                danh_sach_cham_cong=[],
+            )
+
+        # Lấy toàn bộ ca trực trong khoảng
+        shifts = (await db.execute(
+            select(LichLamViec).where(
+                LichLamViec.bac_si_id.in_(doc_ids),
+                LichLamViec.ngay_lam_viec >= tu_ngay,
+                LichLamViec.ngay_lam_viec <= den_ngay,
+            )
+        )).scalars().all()
+
+        # Lấy toàn bộ nghỉ phép trong khoảng
+        leaves = (await db.execute(
+            select(NghiPhepBacSi).where(
+                NghiPhepBacSi.bac_si_id.in_(doc_ids),
+                NghiPhepBacSi.den_ngay >= tu_ngay,
+                NghiPhepBacSi.tu_ngay <= den_ngay,
+                NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+            )
+        )).scalars().all()
+
+        # Lấy toàn bộ lượt khám hoàn thành DA_KHAM
+        apts = (await db.execute(
+            select(LichKham).where(
+                LichKham.bac_si_id.in_(doc_ids),
+                LichKham.ngay_kham >= tu_ngay,
+                LichKham.ngay_kham <= den_ngay,
+                LichKham.trang_thai == TrangThaiLichEnum.DA_KHAM.value,
+            )
+        )).scalars().all()
+
+        report_items: List[DoctorTimesheetReportItem] = []
+        tong_ca_vien = len(shifts)
+        tong_kham_vien = len(apts)
+
+        for doc in docs:
+            d_shifts = [s for s in shifts if s.bac_si_id == doc.id]
+            d_leaves = [lv for lv in leaves if lv.bac_si_id == doc.id]
+            d_apts = [a for a in apts if a.bac_si_id == doc.id]
+
+            so_ca_tong = len(d_shifts)
+            so_ca_xong = sum(1 for s in d_shifts if s.is_active and s.ngay_lam_viec <= date.today())
+            so_ca_phep = sum(lv.so_ca_anh_huong for lv in d_leaves if lv.loai_nghi == "NGHI_PHEP")
+            so_ca_dot_xuat = sum(lv.so_ca_anh_huong for lv in d_leaves if lv.loai_nghi == "NGHI_DOT_XUAT")
+            so_kham = len(d_apts)
+
+            max_capacity = so_ca_tong * 8
+            fill_rate = round((so_kham / max_capacity * 100.0), 1) if max_capacity > 0 else 0.0
+
+            doc_name = doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS {doc.id}"
+            dept_name = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Đa khoa"
+
+            report_items.append(DoctorTimesheetReportItem(
+                bac_si_id=doc.id,
+                ten_bac_si=doc_name,
+                chuyen_khoa=dept_name,
+                tong_so_ca_phan_cong=so_ca_tong,
+                so_ca_hoan_thanh=so_ca_xong,
+                so_ca_nghi_phep=so_ca_phep,
+                so_ca_nghi_dot_xuat=so_ca_dot_xuat,
+                tong_luot_kham=so_kham,
+                ty_le_lap_day_pct=fill_rate,
+            ))
+
+        return DoctorTimesheetReportResponse(
+            tu_ngay=tu_ngay,
+            den_ngay=den_ngay,
+            tong_bac_si=len(docs),
+            tong_ca_toan_vien=tong_ca_vien,
+            tong_luot_kham_toan_vien=tong_kham_vien,
+            danh_sach_cham_cong=report_items,
+        )
 
     # =========================================================================
 

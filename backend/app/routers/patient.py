@@ -161,3 +161,52 @@ async def create_service_feedback(
         message="Cảm ơn bạn đã gửi đánh giá chất lượng dịch vụ phòng khám!",
         code=status.HTTP_201_CREATED
     )
+
+
+
+@router.post(
+    "/find-lost-code",
+    response_model=ResponseEnvelope[List[dict]],
+    summary="Tra cứu lại Mã hồ sơ bệnh nhân bị quên qua Số điện thoại hoặc CCCD (Kế thừa từ TheDuckHospital)"
+)
+async def find_lost_patient_code(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import select, or_
+    from app.models.user import BenhNhan, NguoiDung
+
+    keyword = str(payload.get("keyword") or payload.get("so_dien_thoai") or payload.get("cccd") or "").strip()
+    if len(keyword) < 3:
+        return ResponseEnvelope.success_response(data=[], message="Vui lòng nhập ít nhất 3 ký tự Số điện thoại hoặc CCCD")
+
+    stmt = (
+        select(BenhNhan, NguoiDung)
+        .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
+        .where(
+            or_(
+                NguoiDung.so_dien_thoai.ilike(f"%{keyword}%"),
+                BenhNhan.cccd_so.ilike(f"%{keyword}%"),
+                NguoiDung.ho_ten.ilike(f"%{keyword}%"),
+            )
+        )
+        .limit(10)
+    )
+    rows = (await db.execute(stmt)).all()
+    results = [
+        {
+            "benh_nhan_id": bn.id,
+            "ma_ho_so": f"BN-{bn.id:05d}",
+            "ho_ten": nd.ho_ten,
+            "so_dien_thoai": nd.so_dien_thoai,
+            "ngay_sinh": nd.ngay_sinh.isoformat() if nd.ngay_sinh else None,
+            "gioi_tinh": nd.gioi_tinh,
+            "cccd_so": bn.cccd_so,
+            "nhom_mau": bn.nhom_mau,
+        }
+        for bn, nd in rows
+    ]
+    return ResponseEnvelope.success_response(
+        data=results,
+        message=f"Tìm thấy {len(results)} hồ sơ bệnh nhân khớp thông tin"
+    )

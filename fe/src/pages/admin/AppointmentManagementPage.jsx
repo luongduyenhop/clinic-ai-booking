@@ -49,13 +49,13 @@ export default function AppointmentManagementPage() {
 
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeServiceTab, setActiveServiceTab] = useState(
-        queryTab && ['LICH_HEN', 'GOI_DICH_VU', 'LIEU_TRINH', 'MA_TRAN_LICH_TRUC', 'CHAM_CONG'].includes(queryTab)
+        queryTab && ['LICH_HEN', 'GOI_DICH_VU', 'LIEU_TRINH', 'MA_TRAN_LICH_TRUC'].includes(queryTab)
             ? queryTab
             : 'LICH_HEN'
     )
 
     useEffect(() => {
-        if (queryTab && ['LICH_HEN', 'GOI_DICH_VU', 'LIEU_TRINH', 'MA_TRAN_LICH_TRUC', 'CHAM_CONG'].includes(queryTab)) {
+        if (queryTab && ['LICH_HEN', 'GOI_DICH_VU', 'LIEU_TRINH', 'MA_TRAN_LICH_TRUC'].includes(queryTab)) {
             setActiveServiceTab(queryTab)
         }
     }, [queryTab])
@@ -65,12 +65,6 @@ export default function AppointmentManagementPage() {
     const [scheduleMatrix, setScheduleMatrix] = useState(null)
     const [matrixTuNgay, setMatrixTuNgay] = useState('2026-10-12')
     const [matrixDenNgay, setMatrixDenNgay] = useState('2026-10-18')
-
-    // ── Tab 5: Báo cáo Chấm công & Tỷ lệ lấp đầy (/shifts/export-report) ───
-    const [timesheetLoading, setTimesheetLoading] = useState(false)
-    const [timesheetReport, setTimesheetReport] = useState(null)
-    const [timesheetTuNgay, setTimesheetTuNgay] = useState('2026-10-01')
-    const [timesheetDenNgay, setTimesheetDenNgay] = useState('2026-10-31')
 
     const fetchMatrixData = async () => {
         setMatrixLoading(true)
@@ -137,85 +131,9 @@ export default function AppointmentManagementPage() {
         }
     }
 
-    const fetchTimesheetData = async () => {
-        setTimesheetLoading(true)
-        try {
-            const data = await adminService.exportDoctorTimesheetReport({
-                tuNgay: timesheetTuNgay,
-                denNgay: timesheetDenNgay,
-            })
-            if (data && data.danh_sach_cham_cong) {
-                setTimesheetReport(data)
-            } else {
-                const rawDoctors = staffList.filter((s) => s.hoTen?.includes('BS') || s.vaiTro?.toLowerCase().includes('bác sĩ') || s.vaiTro?.toLowerCase().includes('chuyên môn'))
-                const doctors = rawDoctors.length ? rawDoctors : staffList.slice(0, 4)
-                const mockList = doctors.map((doc, idx) => {
-                    const assigned = 24 + (idx * 2) % 6
-                    const completed = assigned - (idx % 2 === 0 ? 1 : 0)
-                    const phep = idx % 3 === 0 ? 1 : 0
-                    const dotXuat = idx % 4 === 0 ? 1 : 0
-                    const kham = completed * 6 + (idx * 3)
-                    const maxCap = assigned * 8
-                    const fillRate = Math.round((kham / maxCap) * 1000) / 10
-                    return {
-                        bac_si_id: doc.id || idx + 1,
-                        ten_bac_si: doc.hoTen || doc.ten || 'Bác sĩ',
-                        chuyen_khoa: doc.chuyenKhoa || 'Đa khoa',
-                        tong_so_ca_phan_cong: assigned,
-                        so_ca_hoan_thanh: completed,
-                        so_ca_nghi_phep: phep,
-                        so_ca_nghi_dot_xuat: dotXuat,
-                        tong_luot_kham: kham,
-                        ty_le_lap_day_phan_tram: fillRate,
-                    }
-                })
-                setTimesheetReport({
-                    tu_ngay: timesheetTuNgay,
-                    den_ngay: timesheetDenNgay,
-                    tong_bac_si: mockList.length,
-                    tong_ca_toan_vien: mockList.reduce((acc, c) => acc + c.tong_so_ca_phan_cong, 0),
-                    tong_luot_kham_toan_vien: mockList.reduce((acc, c) => acc + c.tong_luot_kham, 0),
-                    danh_sach_cham_cong: mockList,
-                })
-            }
-        } catch {
-            AppToast.error('Không thể tải báo cáo chấm công!')
-        } finally {
-            setTimesheetLoading(false)
-        }
-    }
-
-    const handleDownloadTimesheetCsv = () => {
-        if (!timesheetReport?.danh_sach_cham_cong?.length) return
-        const headers = ['Mã BS', 'Họ tên Bác sĩ', 'Chuyên khoa', 'Số ca phân công', 'Số ca hoàn thành', 'Số ca nghỉ phép', 'Số ca nghỉ đột xuất', 'Số lượt khám', 'Tỷ lệ lấp đầy (%)']
-        const rows = timesheetReport.danh_sach_cham_cong.map((r) => [
-            `"BS0${r.bac_si_id}"`,
-            `"${r.ten_bac_si}"`,
-            `"${r.chuyen_khoa}"`,
-            r.tong_so_ca_phan_cong,
-            r.so_ca_hoan_thanh,
-            r.so_ca_nghi_phep,
-            r.so_ca_nghi_dot_xuat,
-            r.tong_luot_kham,
-            r.ty_le_lap_day_phan_tram,
-        ])
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n')
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.setAttribute('href', url)
-        link.setAttribute('download', `Bao_cao_cham_cong_bac_si_${timesheetTuNgay}_den_${timesheetDenNgay}.csv`)
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        AppToast.success('Đã tải xuống file Báo cáo Chấm công Bác sĩ (CSV)!')
-    }
-
     useEffect(() => {
         if (activeServiceTab === 'MA_TRAN_LICH_TRUC' && !scheduleMatrix) {
             fetchMatrixData()
-        } else if (activeServiceTab === 'CHAM_CONG' && !timesheetReport) {
-            fetchTimesheetData()
         }
     }, [activeServiceTab])
 
@@ -394,18 +312,6 @@ export default function AppointmentManagementPage() {
                     >
                         <CalendarPlus size={16} weight="bold" />
                         <span>4. Ma trận Lịch trực & Slot (/shifts/schedule-matrix)</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveServiceTab('CHAM_CONG')}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
-                            activeServiceTab === 'CHAM_CONG'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
-                        }`}
-                    >
-                        <Receipt size={16} weight="bold" />
-                        <span>5. Báo cáo Chấm công & Tỷ lệ lấp đầy (/shifts/export-report)</span>
                     </button>
                 </div>
             </div>
@@ -990,167 +896,6 @@ export default function AppointmentManagementPage() {
                         )}
                     </div>
                 </div>
-            )}
-
-            {/* TAB 5: BÁO CÁO CHẤM CÔNG & TỶ LỆ LẤP ĐẦY (/shifts/export-report) */}
-            {activeServiceTab === 'CHAM_CONG' && (
-                <div className="space-y-4">
-                    {/* Header and Filter */}
-                    <div className="medpro-card p-4 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-sky-50 border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-emerald-700 text-emerald-100 flex items-center justify-center shrink-0 shadow-xs">
-                                <Receipt size={22} weight="bold" />
-                            </span>
-                            <div>
-                                <h3 className="font-display font-extrabold text-sm text-[#003553]">
-                                    BÁO CÁO CHẤM CÔNG VÀ NĂNG SUẤT LÂM SÀNG BÁC SĨ (TIMESHEET)
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    Thống kê số ca trực, số ca nghỉ phép/đột xuất, số lượt khám và tỷ lệ lấp đầy ca khám (Fill Rate %)
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-                                <span className="font-semibold text-slate-500">Từ:</span>
-                                <input
-                                    type="date"
-                                    value={timesheetTuNgay}
-                                    onChange={(e) => setTimesheetTuNgay(e.target.value)}
-                                    className="font-medium text-[#003553] outline-hidden cursor-pointer"
-                                />
-                            </div>
-                            <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-                                <span className="font-semibold text-slate-500">Đến:</span>
-                                <input
-                                    type="date"
-                                    value={timesheetDenNgay}
-                                    onChange={(e) => setTimesheetDenNgay(e.target.value)}
-                                    className="font-medium text-[#003553] outline-hidden cursor-pointer"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={fetchTimesheetData}
-                                className="px-3.5 py-1.5 rounded-lg bg-[#003553] hover:bg-[#002840] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                                <ArrowsClockwise size={14} weight="bold" className={timesheetLoading ? 'animate-spin' : ''} />
-                                <span>Xem báo cáo</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleDownloadTimesheetCsv}
-                                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                                <DownloadSimple size={14} weight="bold" />
-                                <span>Xuất CSV Chấm công</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* KPI Cards */}
-                    {timesheetReport && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div className="medpro-card p-3.5">
-                                <div className="text-[11px] font-semibold text-slate-500">Tổng Bác sĩ trực</div>
-                                <div className="text-xl font-extrabold text-[#003553] mt-1">{timesheetReport.tong_bac_si || 0} bác sĩ</div>
-                            </div>
-                            <div className="medpro-card p-3.5">
-                                <div className="text-[11px] font-semibold text-slate-500">Tổng ca phân công toàn viện</div>
-                                <div className="text-xl font-extrabold text-[#00B5F1] mt-1">{timesheetReport.tong_ca_toan_vien || 0} ca</div>
-                            </div>
-                            <div className="medpro-card p-3.5">
-                                <div className="text-[11px] font-semibold text-slate-500">Tổng lượt bệnh nhân khám xong</div>
-                                <div className="text-xl font-extrabold text-emerald-600 mt-1">{timesheetReport.tong_luot_kham_toan_vien || 0} lượt</div>
-                            </div>
-                            <div className="medpro-card p-3.5">
-                                <div className="text-[11px] font-semibold text-slate-500">Tỷ lệ lấp đầy bình quân</div>
-                                <div className="text-xl font-extrabold text-indigo-600 mt-1">
-                                    {timesheetReport.danh_sach_cham_cong?.length
-                                        ? Math.round((timesheetReport.danh_sach_cham_cong.reduce((acc, cur) => acc + (cur.ty_le_lap_day_phan_tram || 0), 0) / timesheetReport.danh_sach_cham_cong.length) * 10) / 10
-                                        : 0}%
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Timesheet Table */}
-                    <div className="medpro-card p-4">
-                        <div className="overflow-x-auto">
-                            {timesheetLoading ? (
-                                <div className="py-16 text-center text-slate-500 text-xs">
-                                    Đang tổng hợp dữ liệu chấm công và tính toán tỷ lệ lấp đầy...
-                                </div>
-                            ) : !timesheetReport || !timesheetReport.danh_sach_cham_cong?.length ? (
-                                <EmptyState icon="Receipt" title="Không tìm thấy dữ liệu chấm công" />
-                            ) : (
-                                <table className="medpro-table text-xs">
-                                    <thead>
-                                        <tr>
-                                            <th>Mã BS</th>
-                                            <th>Họ tên Bác sĩ</th>
-                                            <th>Chuyên khoa</th>
-                                            <th className="text-center">Số ca phân công</th>
-                                            <th className="text-center">Đã hoàn thành</th>
-                                            <th className="text-center">Nghỉ phép</th>
-                                            <th className="text-center">Nghỉ đột xuất</th>
-                                            <th className="text-center">Lượt khám (BN)</th>
-                                            <th className="w-48 text-center">Tỷ lệ lấp đầy (Fill Rate)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {timesheetReport.danh_sach_cham_cong.map((item) => (
-                                            <tr key={item.bac_si_id}>
-                                                <td className="font-mono font-bold text-[#003553]">BS0{item.bac_si_id}</td>
-                                                <td className="font-bold text-[#12263F]">{item.ten_bac_si}</td>
-                                                <td className="text-slate-500">{item.chuyen_khoa}</td>
-                                                <td className="text-center font-bold text-slate-700">{item.tong_so_ca_phan_cong}</td>
-                                                <td className="text-center font-bold text-emerald-600">{item.so_ca_hoan_thanh}</td>
-                                                <td className="text-center text-amber-600 font-semibold">{item.so_ca_nghi_phep}</td>
-                                                <td className="text-center text-rose-600 font-semibold">{item.so_ca_nghi_dot_xuat}</td>
-                                                <td className="text-center font-extrabold text-[#003553]">{item.tong_luot_kham}</td>
-                                                <td>
-                                                    <div className="space-y-1">
-                                                        <div className="flex justify-between text-[11px] font-bold">
-                                                            <span
-                                                                className={
-                                                                    item.ty_le_lap_day_phan_tram >= 75
-                                                                        ? 'text-emerald-600'
-                                                                        : item.ty_le_lap_day_phan_tram >= 50
-                                                                        ? 'text-amber-600'
-                                                                        : 'text-rose-600'
-                                                                }
-                                                            >
-                                                                {item.ty_le_lap_day_phan_tram}%
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400">
-                                                                {item.ty_le_lap_day_phan_tram >= 75 ? 'Rất tốt' : item.ty_le_lap_day_phan_tram >= 50 ? 'Bình thường' : 'Thấp'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                                            <div
-                                                                className={`h-1.5 rounded-full ${
-                                                                    item.ty_le_lap_day_phan_tram >= 75
-                                                                        ? 'bg-emerald-500'
-                                                                        : item.ty_le_lap_day_phan_tram >= 50
-                                                                        ? 'bg-amber-500'
-                                                                        : 'bg-rose-500'
-                                                                }`}
-                                                                style={{ width: `${Math.min(100, item.ty_le_lap_day_phan_tram)}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            )}</div>
     )
 }

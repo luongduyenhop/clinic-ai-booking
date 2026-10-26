@@ -258,23 +258,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 2. Báo cáo Chấm công & Tỷ lệ lấp đầy ca khám (Timesheet) ───
-    exportDoctorTimesheetReport = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
-        try {
-            const params = new URLSearchParams()
-            if (tuNgay) params.append('tu_ngay', tuNgay)
-            if (denNgay) params.append('den_ngay', denNgay)
-            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
-            const res = await this.get(`/api/v1/admin/shifts/export-report?${params.toString()}`, {
-                __skipGlobalLoading: true,
-                __skipRefresh: true,
-            })
-            return res.data?.data || res.data
-        } catch (error) {
-            console.warn('Fallback timesheet report:', error)
-            return null
-        }
-    }
 
     // ── 3. Xuất Danh mục Dịch vụ Kỹ thuật Chuẩn Y tế (Catalog Export) ───
     exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {

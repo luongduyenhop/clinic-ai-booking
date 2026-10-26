@@ -1,6 +1,7 @@
 import socket
 from pathlib import Path
 from typing import AsyncGenerator
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
@@ -12,7 +13,10 @@ def _resolve_active_database_url() -> tuple[str, bool]:
     if url.startswith("sqlite"):
         return url, True
     try:
-        with socket.create_connection((settings.POSTGRES_SERVER, int(settings.POSTGRES_PORT)), timeout=1.0):
+        parsed = make_url(url)
+        host = parsed.host or settings.POSTGRES_SERVER or "localhost"
+        port = parsed.port or int(settings.POSTGRES_PORT or 5432)
+        with socket.create_connection((host, port), timeout=2.0):
             return url, False
     except OSError:
         sqlite_path = (Path(__file__).resolve().parents[2] / "clinic_local.db").as_posix()
@@ -40,19 +44,17 @@ else:
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,
     autocommit=False,
-    autoflush=False
+    autoflush=False,
+    expire_on_commit=False,
 )
 
 
 class Base(DeclarativeBase):
-    """Lớp nền tảng cho toàn bộ Entity Models trong hệ thống"""
     pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency Injection cung cấp database session cho mỗi request"""
     async with AsyncSessionLocal() as session:
         try:
             yield session

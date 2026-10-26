@@ -417,7 +417,7 @@ export default function SpecialtyExamPage() {
                                 >
                                     <option value="Phiếu khám chuyên khoa tiêu chuẩn">Phiếu khám chuyên khoa tiêu chuẩn</option>
                                     <option value="Khám sức khỏe định kỳ (TT 32/2023)">Khám sức khỏe định kỳ (TT 32/2023)</option>
-                                    <option value="Hồ sơ khám chữa bệnh ngoại trú BHYT">Hồ sơ khám chữa bệnh ngoại trú BHYT</option>
+                                    <option value="Hồ sơ khám chữa bệnh dịch vụ theo yêu cầu">Hồ sơ khám chữa bệnh dịch vụ theo yêu cầu</option>
                                 </select>
                             </div>
                         </div>

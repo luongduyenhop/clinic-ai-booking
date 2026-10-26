@@ -192,15 +192,15 @@ export default function PatientFormModal({ open, onClose, editPatient, onCreated
                         )}
                     </div>
 
-                    {/* Health insurance */}
+                    {/* Occupation */}
                     <div className="md:col-span-1">
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Mã thẻ BHYT (nếu có)
+                            Nghề nghiệp
                         </label>
                         <Input
-                            placeholder="Ví dụ: DN4010123456789"
-                            value={formik.values.healthInsurance}
-                            onChange={(e) => formik.setFieldValue('healthInsurance', e.target.value)}
+                            placeholder="Ví dụ: Kỹ sư, Giáo viên, Tự do..."
+                            value={formik.values.occupation || ''}
+                            onChange={(e) => formik.setFieldValue('occupation', e.target.value)}
                         />
                     </div>
 
@@ -251,8 +251,7 @@ export default function PatientFormModal({ open, onClose, editPatient, onCreated
                         onChange={(checkedValues) => formik.setFieldValue('missingDocs', checkedValues)}
                         className="flex flex-wrap gap-4 text-xs"
                     >
-                        <Checkbox value="BHYT">Thiếu bản gốc BHYT</Checkbox>
-                        <Checkbox value="GIAY_CHUYEN_TUYEN">Thiếu giấy chuyển tuyến</Checkbox>
+
                         <Checkbox value="CCCD_CHUA_CONG_CHUNG">Chưa có CCCD gắn chip gốc</Checkbox>
                     </Checkbox.Group>
                 </div>

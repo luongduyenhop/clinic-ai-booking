@@ -219,12 +219,8 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     <Descriptions.Item label="Ngày sinh">
                         {patient?.dob ? dayjs(patient.dob).format('DD/MM/YYYY') : 'N/A'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Mã thẻ BHYT">
-                        {patient?.healthInsurance ? (
-                            <span className="font-mono text-teal-700 font-semibold">{patient.healthInsurance}</span>
-                        ) : (
-                            <span className="text-slate-400">Không có</span>
-                        )}
+                    <Descriptions.Item label="Đối tượng khám">
+                        <span className="font-semibold text-slate-700">Khám dịch vụ tư nhân (100%)</span>
                     </Descriptions.Item>
                 </Descriptions>
 

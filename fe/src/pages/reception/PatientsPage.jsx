@@ -82,9 +82,7 @@ export default function PatientsPage() {
                     <div className="text-slate-500">
                         CCCD: {record.identityCard || <span className="text-slate-400 italic">Chưa có</span>}
                     </div>
-                    {record.healthInsurance && (
-                        <div className="text-teal-700 font-mono text-[11px]">BHYT: {record.healthInsurance}</div>
-                    )}
+
                 </div>
             ),
         },

@@ -348,8 +348,8 @@ export default function CheckInPage() {
                             </Descriptions.Item>
                             <Descriptions.Item label="Số điện thoại">{selectedPatient.phone}</Descriptions.Item>
                             <Descriptions.Item label="CCCD">{selectedPatient.identityCard || 'Chưa cung cấp'}</Descriptions.Item>
-                            <Descriptions.Item label="Thẻ BHYT">
-                                {selectedPatient.healthInsurance || 'Không có BHYT'}
+                            <Descriptions.Item label="Đối tượng">
+                                <span className="font-semibold text-slate-700">Khám dịch vụ tư nhân</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Địa chỉ">{selectedPatient.address || 'Chưa cập nhật'}</Descriptions.Item>
                             {selectedPatient.guardianName && (

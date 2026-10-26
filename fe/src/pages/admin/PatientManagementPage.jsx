@@ -683,7 +683,7 @@ export default function PatientManagementPage() {
                                     QUẢN LÝ HỒ SƠ SỨC KHỎE HỘ GIA ĐÌNH ({familyHouseholds.length} HỘ)
                                 </h3>
                                 <p className="text-xs text-slate-500">
-                                    Theo dõi tiền sử bệnh lý gia đình di truyền, liên kết thẻ BHYT hộ gia đình và chăm sóc sức khỏe liên thế hệ
+                                    Theo dõi tiền sử bệnh lý gia đình di truyền, chăm sóc sức khỏe gia đình định kỳ
                                 </p>
                             </div>
                         </div>
@@ -753,7 +753,7 @@ export default function PatientManagementPage() {
                                                         </span>
                                                     </div>
                                                     <div className="text-[11px] text-slate-500 mt-0.5">
-                                                        BHYT: <span className="font-mono font-bold text-slate-700">{tv.bhyt}</span> &bull; CCCD:{' '}
+                                                        CCCD:{' '}
                                                         <span className="font-mono">{tv.cccd}</span>
                                                     </div>
                                                     <div className="text-[11px] text-slate-600 italic">

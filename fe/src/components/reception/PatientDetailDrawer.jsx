@@ -130,12 +130,8 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                                 <span className="text-slate-400">Chưa có thông tin</span>
                                             )}
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Mã thẻ BHYT">
-                                            {patient.healthInsurance ? (
-                                                <span className="font-mono text-teal-700 font-semibold">{patient.healthInsurance}</span>
-                                            ) : (
-                                                <span className="text-slate-400">Không đăng ký BHYT</span>
-                                            )}
+                                        <Descriptions.Item label="Hình thức khám">
+                                            <span className="font-semibold text-slate-700">Khám dịch vụ tư nhân</span>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Địa chỉ thường trú">
                                             {patient.address || 'Chưa cập nhật'}

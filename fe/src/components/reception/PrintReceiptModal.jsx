@@ -105,10 +105,7 @@ export default function PrintReceiptModal({ open, onClose, invoice }) {
                         <span>Tổng tiền dịch vụ:</span>
                         <span>{formatCurrency(invoice.subTotal)}</span>
                     </div>
-                    <div className="flex justify-between text-emerald-600">
-                        <span>BHYT hỗ trợ thanh toán:</span>
-                        <span>- {formatCurrency(invoice.insuranceDiscount || 0)}</span>
-                    </div>
+
                     <div className="flex justify-between text-sm font-extrabold text-slate-900 border-t border-dashed border-slate-200 pt-2">
                         <span>Số tiền thực thu:</span>
                         <span className="text-sky-700 text-base">{formatCurrency(invoice.amountToPay)}</span>

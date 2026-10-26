@@ -142,11 +142,7 @@ export default function AdministrationPage() {
             render: (amount, record) => (
                 <div>
                     <span className="font-bold text-slate-900 text-sm block">{formatCurrency(amount)}</span>
-                    {record.insuranceDiscount > 0 && (
-                        <span className="text-[11px] text-emerald-600 block">
-                            BHYT giảm: {formatCurrency(record.insuranceDiscount)}
-                        </span>
-                    )}
+
                 </div>
             ),
         },

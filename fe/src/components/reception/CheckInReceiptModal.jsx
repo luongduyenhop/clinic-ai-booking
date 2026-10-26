@@ -76,8 +76,8 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                         <span>{patient?.phone || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-slate-500">BHYT:</span>
-                        <span>{patient?.healthInsurance || 'Không sử dụng'}</span>
+                        <span className="text-slate-500">Đối tượng:</span>
+                        <span className="font-medium text-slate-700">Khám dịch vụ tư nhân</span>
                     </div>
                 </div>
 

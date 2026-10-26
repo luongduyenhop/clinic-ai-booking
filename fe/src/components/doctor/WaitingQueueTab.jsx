@@ -334,7 +334,7 @@ export default function WaitingQueueTab({
                                             )}
                                         </div>
                                         <p className="text-xs text-slate-500 mt-0.5">
-                                            Mã hồ sơ: <span className="font-semibold text-slate-700">{currentPatient.patientCode}</span> | Giới tính: {currentPatient.gender} | Tuổi: {currentPatient.age} | BHYT: {currentPatient.healthInsurance || 'Có (BH-87291)'}
+                                            Mã hồ sơ: <span className="font-semibold text-slate-700">{currentPatient.patientCode}</span> | Giới tính: {currentPatient.gender} | Tuổi: {currentPatient.age} | Đối tượng: Khám dịch vụ
                                         </p>
                                     </div>
                                 </div>

@@ -1,0 +1,9 @@
+import { onsetOptions, symptomNatures } from '../../../data/user/triageQuestionData'
+import SymptomToggle from './SymptomToggle'
+import toggleSelection from './toggleSelection'
+
+export default function SymptomDetailsStep({ formik }) {
+    return <div><h2 className="booking-title">Triệu chứng bắt đầu và diễn tiến ra sao?</h2><p className="booking-description">Thông tin này giúp phân luồng phù hợp hơn, không dùng để chẩn đoán.</p><div className="mt-6"><label className="auth-label" htmlFor="onset">Thời điểm bắt đầu</label><select id="onset" name="onset" value={formik.values.onset} onChange={formik.handleChange} onBlur={formik.handleBlur} className="medpro-input min-h-12"><option value="">Chọn thời điểm</option>{onsetOptions.map((item)=><option key={item.value} value={item.value}>{item.label}</option>)}</select><Error formik={formik} name="onset"/></div><div className="mt-6"><div className="flex items-center justify-between"><label className="auth-label" htmlFor="severity">Mức độ khó chịu</label><strong className="text-[#008EC2]">{formik.values.severity}/10</strong></div><input id="severity" name="severity" type="range" min="1" max="10" value={formik.values.severity} onChange={formik.handleChange} className="w-full accent-[#00B5F1]"/><div className="flex justify-between text-[11px] text-slate-400"><span>Nhẹ</span><span>Rất nặng</span></div></div><div className="mt-6"><p className="auth-label">Tính chất triệu chứng</p><div className="flex flex-wrap gap-2">{symptomNatures.map((item)=><SymptomToggle key={item} label={item} selected={formik.values.natures.includes(item)} onClick={()=>toggleSelection(formik,'natures',item)}/>)}</div><Error formik={formik} name="natures"/></div></div>
+}
+
+function Error({ formik, name }) { return formik.touched[name] && formik.errors[name] ? <p className="mt-1.5 text-xs text-rose-600">{formik.errors[name]}</p> : null }

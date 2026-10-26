@@ -6,17 +6,37 @@ import ApiErrorModal from './components/error/ApiErrorModal'
 import RealtimeNotificationHandler from './components/notification/RealtimeNotificationHandler'
 import UserTemplate from './layouts/UserTemplate'
 import AdminTemplate from './layouts/AdminTemplate'
+import ReceptionLayout from './layouts/ReceptionLayout'
+import DoctorTemplate from './layouts/DoctorTemplate'
+import StaffLayout from './layouts/staff/StaffLayout'
 import ProtectedRoute from './utils/route/ProtectedRoute'
-import { ADMIN_ROLES, CUSTOMER_ROLES } from './utils/constants/System'
+import {
+    ADMIN_ROLES,
+    CUSTOMER_ROLES,
+    STAFF_ROLES,
+    RECEPTIONIST_ROLES,
+    DOCTOR_ROLES,
+} from './utils/constants/System'
 
 // Import User Pages
 import HomePage from './pages/user/HomePage'
 import LoginPage from './pages/user/LoginPage'
+import StaffLoginPage from './pages/staff/StaffLoginPage'
+import RegisterPage from './pages/user/RegisterPage'
+import BookingPage from './pages/user/BookingPage'
+import SymptomSurveyPage from './pages/user/SymptomSurveyPage'
+import PatientPortalLayout from './layouts/PatientPortalLayout'
+import PatientDashboardPage from './pages/user/patient/PatientDashboardPage'
+import PatientAppointmentsPage from './pages/user/patient/PatientAppointmentsPage'
+import MedicalHistoryPage from './pages/user/patient/MedicalHistoryPage'
+import PrescriptionsPage from './pages/user/patient/PrescriptionsPage'
+import LabResultsPage from './pages/user/patient/LabResultsPage'
+import DoctorSchedulesPage from './pages/user/patient/DoctorSchedulesPage'
+import NotFoundPage from './pages/error/NotFoundPage'
 import BookingWizardPage from './pages/user/BookingWizardPage'
 import PatientProfilePage from './pages/user/PatientProfilePage'
 import PatientMedicalRecordsPage from './pages/user/PatientMedicalRecordsPage'
 import PatientBillingPage from './pages/user/PatientBillingPage'
-import NotFoundPage from './pages/error/NotFoundPage'
 
 // Import 10 Clinic Management Modules (Admin / Staff HIS)
 import DashboardAdminPage from './pages/admin/DashboardAdminPage'
@@ -36,6 +56,20 @@ import TreatmentCoursePage from './pages/admin/TreatmentCoursePage'
 import SettingClinicPage from './pages/admin/SettingClinicPage'
 import DownloadAppPage from './pages/admin/DownloadAppPage'
 import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
+import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
+import ExamWorkstationPage from './pages/doctor/ExamWorkstationPage'
+import ParaclinicalWorkPage from './pages/doctor/ParaclinicalWorkPage'
+
+// Import Reception Pages
+import ReceptionDashboardPage from './pages/reception/ReceptionDashboardPage'
+import AppointmentsPage from './pages/reception/AppointmentsPage'
+import CheckInPage from './pages/reception/CheckInPage'
+import QueueManagementPage from './pages/reception/QueueManagementPage'
+import PatientsPage from './pages/reception/PatientsPage'
+import ClinicSchedulePage from './pages/reception/ClinicSchedulePage'
+import AdministrationPage from './pages/reception/AdministrationPage'
+import TasksPage from './pages/reception/TasksPage'
+import ReportsPage from './pages/reception/ReportsPage'
 
 function App() {
     return (
@@ -45,20 +79,48 @@ function App() {
             <Loading />
             <ApiErrorModal />
             <Routes>
+                {/* Cổng đăng nhập nhân viên chuyên biệt (Staff HIS Portal) */}
+                <Route path="/staff/login" element={<StaffLoginPage />} />
+                <Route path="/admin/login" element={<Navigate to="/staff/login" replace />} />
+
+                {/* Reception Portal Routes */}
+                <Route element={<ProtectedRoute allowedRoles={RECEPTIONIST_ROLES} />}>
+                    <Route path="/reception" element={<ReceptionLayout />}>
+                        <Route index element={<Navigate to="/reception/dashboard" replace />} />
+                        <Route path="dashboard" element={<ReceptionDashboardPage />} />
+                        <Route path="appointments" element={<AppointmentsPage />} />
+                        <Route path="check-in" element={<CheckInPage />} />
+                        <Route path="queue" element={<QueueManagementPage />} />
+                        <Route path="patients" element={<PatientsPage />} />
+                        <Route path="schedule" element={<ClinicSchedulePage />} />
+                        <Route path="administration" element={<AdministrationPage />} />
+                        <Route path="tasks" element={<TasksPage />} />
+                        <Route path="reports" element={<ReportsPage />} />
+                    </Route>
+                </Route>
+
                 {/* Client / User Routes */}
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
-                    
-                    {/* Patient Portal Routes (Medpro & tClinic standard) */}
-                    <Route path="/dat-lich" element={<BookingWizardPage />} />
-                    <Route path="/benh-nhan/ho-so" element={<PatientProfilePage />} />
-                    <Route path="/benh-nhan/benh-an" element={<PatientMedicalRecordsPage />} />
-                    <Route path="/benh-nhan/hoa-don" element={<PatientBillingPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                                        <Route path="/dat-lich" element={<BookingPage />} />
+                    <Route path="/dat-lich-kham" element={<BookingWizardPage />} />
+                    <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
 
-                    {/* Protected User Routes */}
+                    {/* Protected User Routes (Cổng Bệnh Nhân) */}
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>
-                        {/* User profile routes */}
+                        <Route path="/benh-nhan" element={<PatientPortalLayout />}>
+                            <Route index element={<PatientDashboardPage />} />
+                            <Route path="lich-hen" element={<PatientAppointmentsPage />} />
+                            <Route path="lich-su-kham" element={<MedicalHistoryPage />} />
+                            <Route path="don-thuoc" element={<PrescriptionsPage />} />
+                            <Route path="ket-qua-can-lam-sang" element={<LabResultsPage />} />
+                            <Route path="lich-bac-si" element={<DoctorSchedulesPage />} />
+                            <Route path="ho-so" element={<PatientProfilePage />} />
+                            <Route path="benh-an" element={<PatientMedicalRecordsPage />} />
+                            <Route path="hoa-don" element={<PatientBillingPage />} />
+                        </Route>
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
@@ -77,8 +139,8 @@ function App() {
                         <Route path="benh-nhan/them-moi" element={<PatientManagementPage />} />
 
                         {/* Video 03A: Khám bệnh */}
-                        <Route path="kham-benh" element={<ClinicalExamPage />} />
-                        <Route path="khambenh" element={<ClinicalExamPage />} />
+                        <Route path="kham-benh" element={<ExamWorkstationPage />} />
+                        <Route path="khambenh" element={<ExamWorkstationPage />} />
                         <Route path="kham-chuyen-khoa/:deptKey" element={<SpecialtyExamPage />} />
                         <Route path="khamlamsang/:deptKey" element={<SpecialtyExamPage />} />
 
@@ -141,6 +203,47 @@ function App() {
 
                         {/* Tải ứng dụng Mobile */}
                         <Route path="tai-ung-dung" element={<DownloadAppPage />} />
+                    </Route>
+                </Route>
+
+                {/* Doctor Routes (Phân hệ Bác sĩ) */}
+                <Route element={<ProtectedRoute allowedRoles={DOCTOR_ROLES} />}>
+                    <Route path="/doctor" element={<DoctorTemplate />}>
+                        <Route index element={<DoctorDashboardPage />} />
+                        <Route path="kham-benh" element={<ExamWorkstationPage />} />
+                        <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
+                    </Route>
+                </Route>
+
+                {/* Unified Staff Portal Routes (Cổng Nhân Viên Hợp Nhất) */}
+                <Route element={<ProtectedRoute allowedRoles={STAFF_ROLES} />}>
+                    <Route path="/staff" element={<StaffLayout />}>
+                        <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                        <Route path="dashboard" element={<DashboardAdminPage />} />
+                        <Route path="reception-dashboard" element={<ReceptionDashboardPage />} />
+                        <Route path="doctor-dashboard" element={<DoctorDashboardPage />} />
+                        <Route path="check-in" element={<CheckInPage />} />
+                        <Route path="queue" element={<QueueManagementPage />} />
+                        <Route path="appointments" element={<AppointmentsPage />} />
+                        <Route path="patients" element={<PatientManagementPage />} />
+                        <Route path="exam-workstation" element={<ExamWorkstationPage />} />
+                        <Route path="specialty-exam" element={<SpecialtyExamPage />} />
+                        <Route path="specialty-exam/:deptKey" element={<SpecialtyExamPage />} />
+                        <Route path="paraclinical-work" element={<ParaclinicalWorkPage />} />
+                        <Route path="paraclinical" element={<ParaclinicalPage />} />
+                        <Route path="cashier" element={<CashierManagementPage />} />
+                        <Route path="schedule" element={<ClinicSchedulePage />} />
+                        <Route path="catalogs" element={<Navigate to="/staff/catalogs/chung" replace />} />
+                        <Route path="catalogs/:loaiDanhMuc" element={<CatalogManagementPage />} />
+                        <Route path="permissions" element={<RolePermissionPage />} />
+                        <Route path="templates" element={<Navigate to="/staff/templates/mau-in" replace />} />
+                        <Route path="templates/:loaiMau" element={<TemplateManagementPage />} />
+                        <Route path="compliance" element={<ComplianceAndAuditPage />} />
+                        <Route path="service-packages" element={<ServicePackagesPage />} />
+                        <Route path="treatment-courses" element={<TreatmentCoursePage />} />
+                        <Route path="settings" element={<SettingClinicPage />} />
+                        <Route path="reports" element={<ReportsPage />} />
+                        <Route path="reception" element={<ReceptionRegistrationPage />} />
                     </Route>
                 </Route>
             </Routes>

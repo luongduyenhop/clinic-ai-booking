@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions } from '../../services/admin/clinicSeedData'
+import { getMasterOptions } from '../../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     StatusBadge,
@@ -17,6 +17,31 @@ import {
 } from '../../components/common/ClinicIcon'
 
 export default function TemplateManagementPage() {
+
+    const templateInputRef = useRef(null)
+
+    const handleDownloadTemplate = () => {
+        const content = form.noiDung || 'BIỂU MẪU Y TẾ TIÊU CHUẨN PHÒNG KHÁM\nMã mẫu: ' + (form.maMau || 'BM01')
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = form.tenFile || 'bieu-mau.txt'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        AppToast.success(`Đã tải xuống file mẫu: ${form.tenFile || 'bieu-mau.txt'}`)
+    }
+
+    const handleUploadTemplateFile = (e) => {
+        const f = e.target.files?.[0]
+        if (!f) return
+        setForm(prev => ({ ...prev, tenFile: f.name }))
+        AppToast.success(`Đã tải lên tệp mẫu: ${f.name} thành công!`)
+        e.target.value = ''
+    }
+
     const { loaiMau = 'mau-in' } = useParams()
     const dispatch = useDispatch()
     const { clinicData } = useSelector((state) => state.app.admin)
@@ -291,7 +316,7 @@ export default function TemplateManagementPage() {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.info(`Đã chọn tệp mẫu ${currentTypeMeta.fileExt} từ máy tính!`)}
+                                    onClick={() => templateInputRef.current?.click()}
                                     className="medpro-btn-outline text-xs"
                                 >
                                     <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
@@ -299,12 +324,13 @@ export default function TemplateManagementPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.success(`Đang tải xuống file mẫu: ${form.tenFile}`)}
+                                    onClick={handleDownloadTemplate}
                                     className="medpro-btn-amber text-xs font-bold"
                                 >
                                     <DownloadSimple size={14} weight="bold" />
                                     <span>Tải file mẫu về</span>
                                 </button>
+                                <input ref={templateInputRef} type="file" className="hidden" onChange={handleUploadTemplateFile} />
                             </div>
                         </div>
 

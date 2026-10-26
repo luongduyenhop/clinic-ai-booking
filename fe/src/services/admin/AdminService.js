@@ -1,5 +1,5 @@
 import { BaseServices } from '../BaseService'
-import { INITIAL_CLINIC_DATA, getFormDefaults } from './clinicSeedData'
+import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 
 const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
 
@@ -25,7 +25,7 @@ function loadClinicStore() {
             treatmentCourses: parsed.treatmentCourses || INITIAL_CLINIC_DATA.treatmentCourses,
             corporateCheckups: parsed.corporateCheckups || INITIAL_CLINIC_DATA.corporateCheckups,
             healthCheckupClassifications: parsed.healthCheckupClassifications || INITIAL_CLINIC_DATA.healthCheckupClassifications,
-            inventoryBatches: parsed.inventoryBatches || INITIAL_CLINIC_DATA.inventoryBatches,
+            inventoryBatches: [],
             cashierClosings: parsed.cashierClosings || INITIAL_CLINIC_DATA.cashierClosings,
             nationalDrugSync: parsed.nationalDrugSync || INITIAL_CLINIC_DATA.nationalDrugSync,
             nationalEhrSync: parsed.nationalEhrSync || INITIAL_CLINIC_DATA.nationalEhrSync,
@@ -42,6 +42,9 @@ function loadClinicStore() {
 
 function saveClinicStore(data) {
     try {
+        if (data && typeof data === 'object') {
+            data.inventoryBatches = []
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch {
         // ignore storage quota errors
@@ -50,9 +53,19 @@ function saveClinicStore(data) {
 }
 
 export class AdminService extends BaseServices {
-    // ── Kết nối Backend FastAPI (/api/v1) kèm đồng bộ Store Quản lý từ Seed ───
+    // ── Kết nối Backend FastAPI (/api/v1) kèm đồng bộ Store Quản lý từ PostgreSQL ───
     getDashboardStats = async () => {
-        const storeData = loadClinicStore()
+        let storeData = loadClinicStore()
+        try {
+            const bootRes = await this.get('/api/v1/admin/bootstrap', { __skipGlobalLoading: true, __skipRefresh: true })
+            const remoteStore = bootRes?.data?.data || bootRes?.data
+            if (remoteStore && remoteStore.schemaVersion) {
+                storeData = saveClinicStore(remoteStore)
+            }
+        } catch {
+            // Giữ storeData từ cache nếu chưa kết nối
+        }
+
         try {
             const res = await this.get('/api/v1/compliance/dashboard', { __skipGlobalLoading: true, __skipRefresh: true })
             return { data: { storeData, backendCompliance: res?.data?.data || res?.data || null } }
@@ -62,25 +75,44 @@ export class AdminService extends BaseServices {
     }
 
     getAllClinicData = async () => {
-        // TODO (Backend Integration): Thay loadClinicStore() bằng await this.get('/api/v1/admin/bootstrap')
+        try {
+            const res = await this.get('/api/v1/admin/bootstrap', { __skipGlobalLoading: true, __skipRefresh: true })
+            const remoteData = res?.data?.data || res?.data
+            if (remoteData && remoteData.schemaVersion) {
+                saveClinicStore(remoteData)
+                return { data: remoteData }
+            }
+        } catch {
+            // Fallback sang localStorage nếu đang chạy độc lập
+        }
         const data = loadClinicStore()
         return { data }
     }
 
     resetClinicDemoData = async () => {
+        try {
+            const res = await this.post('/api/v1/admin/reset-demo', {}, { __skipRefresh: true })
+            const remoteData = res?.data?.data || res?.data
+            if (remoteData && remoteData.schemaVersion) {
+                saveClinicStore(remoteData)
+                return { data: remoteData }
+            }
+        } catch {
+            // Fallback local reset
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CLINIC_DATA))
         return { data: structuredClone(INITIAL_CLINIC_DATA) }
     }
 
-    // ── AI Gợi ý Chuyên khoa (Phân luồng từ danh mục Khoa phòng trong Seed) ───
+    // ── AI Gợi ý Chuyên khoa (Phân luồng từ Backend AI Triage + danh mục Khoa phòng) ───
     suggestSpecialtyByAI = async (symptomsText) => {
         try {
             const res = await this.post(
                 '/api/v1/ai-triage/analyze',
                 { symptoms: symptomsText },
-                { __skipGlobalLoading: true }
+                { __skipGlobalLoading: true, __skipRefresh: true }
             )
-            if (res?.data?.data?.recommended_specialty) {
+            if (res?.data?.data?.recommended_specialty || res?.data?.data?.chuyenKhoa) {
                 return { data: res.data.data }
             }
         } catch {
@@ -129,8 +161,23 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── Thao tác CRUD đồng bộ toàn bộ 10 phân hệ ──────────────────────────────
+    // ── Thao tác CRUD đồng bộ toàn bộ 19 phân hệ xuống PostgreSQL ─────────────
     updateCollection = async ({ collectionKey, items, auditEntry }) => {
+        try {
+            const res = await this.put(
+                `/api/v1/admin/collections/${encodeURIComponent(collectionKey)}`,
+                { collectionKey, items, auditEntry },
+                { __skipGlobalLoading: true, __skipRefresh: true }
+            )
+            const remoteData = res?.data?.data || res?.data
+            if (remoteData && remoteData.schemaVersion) {
+                saveClinicStore(remoteData)
+                return { data: remoteData }
+            }
+        } catch {
+            // Fallback sang lưu localStorage nếu chưa kết nối Backend
+        }
+
         const current = loadClinicStore()
         const defaults = getFormDefaults(current)
         current[collectionKey] = items
@@ -153,6 +200,21 @@ export class AdminService extends BaseServices {
     }
 
     updateCatalogSubCollection = async ({ subKey, items, auditEntry }) => {
+        try {
+            const res = await this.put(
+                `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`,
+                { subKey, items, auditEntry },
+                { __skipGlobalLoading: true, __skipRefresh: true }
+            )
+            const remoteData = res?.data?.data || res?.data
+            if (remoteData && remoteData.schemaVersion) {
+                saveClinicStore(remoteData)
+                return { data: remoteData }
+            }
+        } catch {
+            // Fallback sang lưu localStorage nếu chưa kết nối Backend
+        }
+
         const current = loadClinicStore()
         const defaults = getFormDefaults(current)
         current.catalogs = {
@@ -175,6 +237,148 @@ export class AdminService extends BaseServices {
         }
         saveClinicStore(current)
         return { data: current }
+    }
+
+    // ── 1. Ma trận Lịch trực Bác sĩ & Slot Trống (tClinic standard) ───
+    getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, chuyenKhoaId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (bacSiId) params.append('bac_si_id', bacSiId)
+            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            const res = await this.get(`/api/v1/admin/shifts/schedule-matrix?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback schedule-matrix:', error)
+            return null
+        }
+    }
+
+    // ── 2. Báo cáo Chấm công & Tỷ lệ lấp đầy ca khám (Timesheet) ───
+    exportDoctorTimesheetReport = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            const res = await this.get(`/api/v1/admin/shifts/export-report?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback timesheet report:', error)
+            return null
+        }
+    }
+
+    // ── 3. Xuất Danh mục Dịch vụ Kỹ thuật Chuẩn Y tế (Catalog Export) ───
+    exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (nhomDichVu) params.append('nhom_dich_vu', nhomDichVu)
+            if (trangThai !== undefined && trangThai !== null) params.append('trang_thai', trangThai)
+            const res = await this.get(`/api/v1/admin/services/export?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback services export:', error)
+            return null
+        }
+    }
+
+    // ── 4. Phân tích Mô hình Bệnh tật ICD-10 (Top 10 Diseases) ───
+    getTopIcd10Diseases = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-diseases?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-diseases:', error)
+            return null
+        }
+    }
+
+    // ── 5. Doanh thu Top Dịch vụ Kỹ thuật (Top Services) ───
+    getTopServicesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-services?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-services:', error)
+            return null
+        }
+    }
+
+    // ── 5b. Top Thuốc Kê Nhiều Nhất (ClinicManager statistic_medicine_frequency) ───
+    getTopMedicinesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-medicines?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-medicines:', error)
+            return null
+        }
+    }
+
+    // ── 6. Đánh giá Hiệu suất & Năng suất Bác sĩ (Doctor KPI) ───
+    getDoctorPerformanceAnalytics = async ({ tuNgay, denNgay } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            const res = await this.get(`/api/v1/admin/analytics/doctor-performance?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback doctor-performance:', error)
+            return null
+        }
+    }
+
+    // ── 7. Đo lường Tải trọng Buồng khám (Room Workload) ───
+    getRoomWorkloadAnalytics = async ({ tuNgay, denNgay } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            const res = await this.get(`/api/v1/admin/analytics/room-workload?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback room-workload:', error)
+            return null
+        }
     }
 }
 

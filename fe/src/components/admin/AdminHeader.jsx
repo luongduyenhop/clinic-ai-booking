@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../redux/slices/authSlice'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
-import { getNavigationConfig, getAuthSeed } from '../../services/admin/clinicSeedData'
+import { getNavigationConfig, getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     ArrowsClockwise,
@@ -361,7 +361,7 @@ export default function AdminHeader() {
                     type="button"
                     onClick={handleResetDemo}
                     className="p-1.5 rounded-full text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD] transition cursor-pointer"
-                    title="Nạp lại dữ liệu mẫu gốc từ file clinicSeed.json"
+                    title="Đồng bộ lại dữ liệu chuẩn từ máy chủ"
                 >
                     <ArrowsClockwise size={16} weight="bold" />
                 </button>
@@ -460,8 +460,10 @@ export default function AdminHeader() {
                     <span>{currentLang}</span>
                 </button>
 
+                
+
                 {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
-                <div className="relative pl-1.5 border-l border-slate-200">
+                <div className="relative pl-1.5 border-l border-slate-200 shrink-0">
                     <button
                         type="button"
                         onClick={() => {
@@ -469,12 +471,12 @@ export default function AdminHeader() {
                             setIsNotifOpen(false)
                             setIsUserMenuOpen(!isUserMenuOpen)
                         }}
-                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer"
+                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20 shrink-0">
                             BS
                         </div>
-                        <div className="text-left hidden lg:block leading-tight">
+                        <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
                             <div className="text-[11.5px] font-bold text-[#003553] max-w-[130px] truncate">
                                 {user?.shortName || user?.fullName || defaultUser.shortName}
                             </div>
@@ -485,7 +487,7 @@ export default function AdminHeader() {
                         <CaretDown
                             size={11}
                             weight="bold"
-                            className={`text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
+                            className={`text-slate-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
                         />
                     </button>
 
@@ -497,7 +499,7 @@ export default function AdminHeader() {
                                     {user?.fullName || defaultUser.fullName}
                                 </div>
                                 <div className="text-[10.5px] text-slate-500 font-medium mt-0.5">
-                                    PK Đa Khoa Medpro &bull; CCHN {user?.licenseNo || defaultUser.licenseNo}
+                                    Phòng Khám Đa Khoa Clinic-AI &bull; CCHN {user?.licenseNo || defaultUser.licenseNo}
                                 </div>
                                 <div className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

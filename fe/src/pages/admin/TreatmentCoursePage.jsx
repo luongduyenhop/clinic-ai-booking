@@ -137,7 +137,17 @@ export default function TreatmentCoursePage() {
             }
             return c
         })
-        dispatch(updateClinicCollectionAsync('treatmentCourses', updated))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'treatmentCourses',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'CHECKIN_TREATMENT_SESSION',
+                    doiTuong: `${course.maLT || course.id} - ${course.tenBN}`,
+                    mucDich: `Điểm danh buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi}`,
+                },
+            })
+        )
         AppToast.success(`Điểm danh thành công buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi} cho BN ${course.tenBN}!`)
     }
 

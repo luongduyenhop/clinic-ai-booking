@@ -1,3 +1,4 @@
+import { printDocument, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useMemo, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation } from 'react-router-dom'
@@ -183,7 +184,17 @@ export default function CorporateHealthPage() {
         }
 
         const updated = [newCorp, ...corporateCheckups]
-        dispatch(updateClinicCollectionAsync('corporateCheckups', updated))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'corporateCheckups',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'CREATE_CORPORATE_CONTRACT',
+                    doiTuong: `${newCorp.soHopDong} - ${newCorp.tenDoan}`,
+                    mucDich: `Tạo hợp đồng khám đoàn (${newCorp.soLuongNhanVien} NV)`,
+                },
+            })
+        )
         setSelectedCorp(newCorp)
         setIsAddModalOpen(false)
         AppToast.success(`Tạo hợp đồng khám đoàn ${newCorp.tenDoan} thành công!`)
@@ -383,7 +394,7 @@ export default function CorporateHealthPage() {
                                     <div className="flex items-center gap-1.5">
                                         <button
                                             type="button"
-                                            onClick={() => AppToast.success(`Đang tải phiếu kết luận đoàn ${selectedCorp.tenDoan}...`)}
+                                            onClick={() => { printDocument(); AppToast.success(`Đang mở lệnh in biên bản khám đoàn ${selectedCorp?.tenDoan}...`); }}
                                             className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:text-[#00B5F1] hover:border-[#00B5F1] transition flex items-center gap-1"
                                         >
                                             <Printer size={14} />
@@ -391,7 +402,20 @@ export default function CorporateHealthPage() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => AppToast.success('Đã xuất danh sách kết luận sức khỏe sang Excel!')}
+                                            onClick={() => {
+    const headers = ['STT', 'Họ tên nhân viên', 'Mã NV', 'Năm sinh', 'Giới tính', 'Xếp loại sức khỏe', 'Kết luận']
+    const rows = (selectedCorp?.employees || []).map((e, idx) => [
+        idx + 1,
+        e.hoTen || e.name || '',
+        e.maNV || '',
+        e.namSinh || '',
+        e.gioiTinh || '',
+        e.xepLoai || 'Loại I',
+        e.ketLuan || 'Đủ sức khỏe làm việc',
+    ])
+    exportToCsv(`ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}.csv`, headers, rows)
+    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.csv)!')
+}}
                                             className="px-2.5 py-1.5 rounded-lg bg-[#00B5F1] text-white text-xs font-bold hover:bg-[#009bd1] transition flex items-center gap-1"
                                         >
                                             <DownloadSimple size={14} weight="bold" />

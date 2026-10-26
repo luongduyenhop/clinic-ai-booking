@@ -74,3 +74,11 @@ export const MISSING_DOC_LABELS = {
     SO_KHAM_BENH: 'Sổ theo dõi khám bệnh',
     GIAY_HEN_TAI_KHAM: 'Giấy hẹn tái khám',
 }
+
+export const CLINIC_TIME_SLOTS = [
+    '07:30 - 08:00', '08:00 - 08:30', '08:30 - 09:00', '09:00 - 09:30',
+    '09:30 - 10:00', '10:00 - 10:30', '10:30 - 11:00', '11:00 - 11:30',
+    '13:30 - 14:00', '14:00 - 14:30', '14:30 - 15:00', '15:00 - 15:30',
+    '15:30 - 16:00', '16:00 - 16:30'
+]
+export const initialTimeSlots = CLINIC_TIME_SLOTS

@@ -1,9 +1,12 @@
+import { printDocument, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useMemo, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
-import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { loadClinicDataAsync, updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions, getFormDefaults } from '../../services/admin/clinicSeedData'
+import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
+import VietQrModal from '../../components/common/VietQrModal'
+import { QrCode } from '@phosphor-icons/react'
 import {
     StatusBadge,
     EmptyState,
@@ -21,7 +24,24 @@ export default function CashierManagementPage() {
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
 
-    const vouchers = clinicData?.vouchers || []
+    const [syncTick, setSyncTick] = useState(0)
+
+    const vouchers = useMemo(() => {
+        let list = [...(clinicData?.vouchers || [])]
+        try {
+            const raw = localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
+            if (raw) {
+                const parsed = JSON.parse(raw)
+                const storedVouchers = parsed?.vouchers || []
+                storedVouchers.forEach((sv) => {
+                    if (!list.some((v) => v.id === sv.id || v.maPhieu === sv.maPhieu)) {
+                        list.unshift(sv)
+                    }
+                })
+            }
+        } catch {}
+        return list
+    }, [clinicData, syncTick])
     const patients = clinicData?.patients || []
     const registrations = clinicData?.registrations || []
     const khoanThuCatalog = clinicData?.catalogs?.khoanThu || []
@@ -58,6 +78,13 @@ export default function CashierManagementPage() {
     const initialTypeFilter = queryType === 'PT' ? 'Phiếu thu' : queryType === 'PC' ? 'Phiếu chi' : 'ALL'
     const [searchText, setSearchText] = useState('')
     const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false)
+    const [qrInvoice, setQrInvoice] = useState(null)
+
+    const handleOpenQr = (voucher) => {
+        setQrInvoice(voucher || form)
+        setIsQrModalOpen(true)
+    }
     const [activeCashierTab, setActiveCashierTab] = useState(
         queryTab && ['THU_CHI', 'KHOA_SO'].includes(queryTab) ? queryTab : 'THU_CHI'
     )
@@ -74,6 +101,42 @@ export default function CashierManagementPage() {
     }, [queryTab, queryType])
 
     const cashierClosings = clinicData?.cashierClosings || []
+
+    const handleDailyClosing = async () => {
+        const now = new Date()
+        const totalThu = vouchers
+            .filter((v) => v.loaiPhieu === 'Phiếu thu' && v.daThu)
+            .reduce((s, v) => s + (Number(v.tongTien) || 0), 0)
+        const totalChi = vouchers
+            .filter((v) => v.loaiPhieu === 'Phiếu chi' && v.daThu)
+            .reduce((s, v) => s + (Number(v.tongTien) || 0), 0)
+
+        const newClosing = {
+            id: 'KS-' + Date.now(),
+            maKyKhoaSo: 'KS-' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + String(cashierClosings.length + 1).padStart(2, '0'),
+            ngayKhoaSo: now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN'),
+            nguoiKhoaSo: defaults.defaultCashier || 'Trần Thu Ngân',
+            tongThuDichVu: totalThu,
+            tongThuThuoc: 0,
+            tongChi: totalChi,
+            tonQuyCuoiNgay: totalThu - totalChi,
+            cheDo: 'Chốt ca trực tiếp',
+            trangThai: 'Đã khóa sổ (Hợp lệ)',
+        }
+        const updated = [newClosing, ...cashierClosings]
+        await dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'cashierClosings',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'DAILY_CLOSING',
+                    doiTuong: newClosing.maKyKhoaSo + ' - Số dư: ' + (totalThu - totalChi).toLocaleString('vi-VN') + ' đ',
+                    mucDich: 'Khóa sổ ca thu ngân và cân đối quỹ',
+                },
+            })
+        )
+        AppToast.success('Đã khóa sổ ca thành công! Tồn quỹ ghi nhận: ' + (totalThu - totalChi).toLocaleString('vi-VN') + ' đ')
+    }
     const [form, setForm] = useState(() =>
         queryType === 'PC' ? buildEmptyVoucher('Phiếu chi') : vouchers[0] || buildEmptyVoucher('Phiếu thu')
     )
@@ -229,7 +292,7 @@ export default function CashierManagementPage() {
                 {activeCashierTab === 'KHOA_SO' && (
                     <button
                         type="button"
-                        onClick={() => AppToast.success('Đã thực hiện Khóa sổ tự động ca hôm nay (Bất biến)!')}
+                        onClick={handleDailyClosing}
                         className="medpro-btn-primary text-xs"
                     >
                         <span>Khóa sổ ca hôm nay</span>
@@ -373,7 +436,22 @@ export default function CashierManagementPage() {
                                         {Number(v.tongTien).toLocaleString('vi-VN')} đ
                                     </td>
                                     <td className="text-center">
-                                        <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={false} />
+                                        <div className="flex items-center justify-center gap-1">
+                                            <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={false} />
+                                            {v.loaiPhieu === 'Phiếu thu' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleOpenQr(v)
+                                                    }}
+                                                    className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
+                                                    title="Mã VietQR"
+                                                >
+                                                    <QrCode size={13} weight="bold" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -436,9 +514,20 @@ export default function CashierManagementPage() {
                             <FloppyDisk size={15} weight="bold" />
                             <span>Lưu phiếu</span>
                         </button>
+                        {form.loaiPhieu === 'Phiếu thu' && (
+                            <button
+                                type="button"
+                                onClick={() => handleOpenQr(form)}
+                                className="medpro-btn-outline text-xs font-bold border-teal-500 text-teal-700 hover:bg-teal-50 flex items-center gap-1.5 cursor-pointer"
+                                title="Tạo mã QR thanh toán viện phí NAPAS 247"
+                            >
+                                <QrCode size={15} weight="bold" />
+                                <span>Mã VietQR</span>
+                            </button>
+                        )}
                         <button
                             type="button"
-                            onClick={() => AppToast.success(`Đang in Biên lai ${form.maPhieu} (${form.loaiPhieu})...`)}
+                            onClick={() => { printDocument(); AppToast.success(`Đang mở lệnh in Biên lai ${form.maPhieu}...`); }}
                             className="medpro-btn-amber text-xs font-bold"
                         >
                             <Printer size={15} weight="bold" />
@@ -662,6 +751,13 @@ export default function CashierManagementPage() {
             </div>
         </div>
     )}
+
+    {/* Modal VietQR thanh toán (Lát cắt D) */}
+    <VietQrModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        invoice={qrInvoice || form}
+    />
 </div>
 
     )

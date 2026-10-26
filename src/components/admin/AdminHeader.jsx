@@ -4,8 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../redux/slices/authSlice'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
-import { getNavigationConfig, getAuthSeed } from '../../services/admin/clinicSeedData'
-import QuickPortalSwitcher from '../common/QuickPortalSwitcher'
+import { getNavigationConfig, getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     ArrowsClockwise,
@@ -362,7 +361,7 @@ export default function AdminHeader() {
                     type="button"
                     onClick={handleResetDemo}
                     className="p-1.5 rounded-full text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD] transition cursor-pointer"
-                    title="Nạp lại dữ liệu mẫu gốc từ file clinicSeed.json"
+                    title="Đồng bộ lại dữ liệu chuẩn từ máy chủ"
                 >
                     <ArrowsClockwise size={16} weight="bold" />
                 </button>
@@ -461,10 +460,7 @@ export default function AdminHeader() {
                     <span>{currentLang}</span>
                 </button>
 
-                {/* Chuyển nhanh sang các Cổng vai trò */}
-                <div className="hidden xl:flex items-center pl-1.5 border-l border-slate-200">
-                    <QuickPortalSwitcher size="xs" />
-                </div>
+                
 
                 {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
                 <div className="relative pl-1.5 border-l border-slate-200 shrink-0">
@@ -503,7 +499,7 @@ export default function AdminHeader() {
                                     {user?.fullName || defaultUser.fullName}
                                 </div>
                                 <div className="text-[10.5px] text-slate-500 font-medium mt-0.5">
-                                    PK Đa Khoa Medpro &bull; CCHN {user?.licenseNo || defaultUser.licenseNo}
+                                    Phòng Khám Đa Khoa Clinic-AI &bull; CCHN {user?.licenseNo || defaultUser.licenseNo}
                                 </div>
                                 <div className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

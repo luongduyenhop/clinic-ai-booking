@@ -9,7 +9,7 @@ import {
     getProvincesFromCatalog,
     getDistrictsByProvince,
     getWardsByDistrict,
-} from '../../services/admin/clinicSeedData'
+} from '../../utils/helpers/clinicConfigHelpers'
 import {
     StatusBadge,
     EmptyState,

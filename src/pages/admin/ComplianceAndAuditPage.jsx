@@ -1,3 +1,4 @@
+import { exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, Link } from 'react-router-dom'
@@ -196,7 +197,19 @@ export default function ComplianceAndAuditPage() {
 
                 <button
                     type="button"
-                    onClick={() => AppToast.success('Đã trích xuất Báo cáo Tuân thủ Pháp lý & Nhật ký Kiểm toán phục vụ đoàn thanh tra!')}
+                    onClick={() => {
+    const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Mô tả', 'Phân hệ', 'Địa chỉ IP']
+    const rows = (auditLogs || []).map((l) => [
+        l.timestamp || l.thoiGian || '',
+        l.actor || l.nguoiDung || '',
+        l.action || l.hanhDong || '',
+        l.description || l.moTa || '',
+        l.module || l.phanHe || '',
+        l.ip || '127.0.0.1',
+    ])
+    exportToCsv('ho-so-thanh-tra-y-te-audit.csv', headers, rows)
+    AppToast.success(`Đã trích xuất ${rows.length} nhật ký kiểm toán phục vụ đoàn thanh tra y tế!`)
+}}
                     className="medpro-btn-amber text-xs font-bold"
                 >
                     <DownloadSimple size={15} weight="bold" />

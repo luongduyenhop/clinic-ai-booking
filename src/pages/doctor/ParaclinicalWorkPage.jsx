@@ -10,6 +10,7 @@ import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/cl
 import IndicatorResultForm from '../../components/doctor/cls/IndicatorResultForm'
 import ImagingResultForm from '../../components/doctor/cls/ImagingResultForm'
 import EndoscopyResultForm from '../../components/doctor/cls/EndoscopyResultForm'
+import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 
 const STATUS_FILTERS = [
     { key: 'ALL', label: 'Tất cả' },
@@ -30,6 +31,9 @@ export default function ParaclinicalWorkPage() {
     const [searchParams, setSearchParams] = useSearchParams()
     const group = SERVICE_GROUPS.some((g) => g.key === searchParams.get('nhom')) ? searchParams.get('nhom') : 'XET_NGHIEM'
     const { worklist, worklistLoading, worklistError } = useSelector((state) => state.doctor.clinical)
+    const authRole = useSelector((state) => state.app.auth.role)
+    const effectiveRole = authRole || ''
+    const isLabTech = effectiveRole === 'KTV_XET_NGHIEM' || effectiveRole === 'LAB_TECH' || effectiveRole === 'ROLE-LAB-TECH'
 
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [keyword, setKeyword] = useState('')
@@ -81,8 +85,21 @@ export default function ParaclinicalWorkPage() {
         <div className="flex flex-col gap-5">
             <div className="medpro-card flex flex-wrap items-center gap-3 px-5 py-4">
                 <div className="min-w-[220px] flex-1">
-                    <h1 className="text-[20px] font-bold text-[#003553]">Cận lâm sàng</h1>
-                    <p className="text-[12px] text-slate-500">Nhập và trả kết quả cho các chỉ định trong ngày.</p>
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-[20px] font-bold text-[#003553]">
+                            {isLabTech ? "🔬 Bàn Làm Việc Xét Nghiệm (LIS)" : "Cận lâm sàng"}
+                        </h1>
+                        {isLabTech && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                Vai trò: KTV Xét nghiệm
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-[12px] text-slate-500">
+                        {isLabTech
+                            ? "Khoa Xét nghiệm (Huyết học, Sinh hóa, Nước tiểu, Miễn dịch) · Tiếp nhận mẫu & trả kết quả LIS."
+                            : "Nhập và trả kết quả cho các chỉ định trong ngày."}
+                    </p>
                 </div>
                 <div role="tablist" aria-label="Loại cận lâm sàng" className="flex flex-wrap gap-1 rounded-3xl bg-[#E8F4FD] p-1">
                     {SERVICE_GROUPS.map((g) => (

@@ -1,0 +1,97 @@
+services:
+  # ==============================================================================
+  # 1. Database Tier: PostgreSQL 15 (Chứa danh mục chuẩn ICD-10, Thuốc, Dịch vụ)
+  # ==============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: clinic_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clinic_user
+      POSTGRES_PASSWORD: clinic_password
+      POSTGRES_DB: clinic_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinic_user -d clinic_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      clinic_network:
+        aliases:
+          - db
+          - clinic_postgres
+
+  # ==============================================================================
+  # 2. Application Tier: FastAPI Backend (Multi-stage Build: builder -> runner)
+  # ==============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clinic_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://clinic_user:clinic_password@clinic_postgres:5432/clinic_db
+      - POSTGRES_SERVER=clinic_postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=clinic_user
+      - POSTGRES_PASSWORD=clinic_password
+      - POSTGRES_DB=clinic_db
+      - SECRET_KEY=super_secret_clinic_jwt_key_project_1_change_in_production_2026
+      - DEBUG=False
+      - ENVIRONMENT=production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      clinic_network:
+        aliases:
+          - backend
+          - clinic_backend
+
+  # ==============================================================================
+  # 3. Presentation Tier: React + Vite + Nginx Reverse Proxy (Multi-stage Build)
+  # ==============================================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clinic_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      clinic_network:
+        aliases:
+          - frontend
+          - clinic_frontend
+
+volumes:
+  postgres_data:
+    name: clinic-ai_postgres_data
+
+networks:
+  clinic_network:
+    name: clinic-ai_clinic_network

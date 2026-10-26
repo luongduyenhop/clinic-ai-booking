@@ -23,6 +23,7 @@ import {
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
+import TvQueueDisplayModal from '../../components/reception/TvQueueDisplayModal'
 import { QUEUE_STATUS, QUEUE_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 
 export default function QueueManagementPage() {
@@ -39,6 +40,28 @@ export default function QueueManagementPage() {
     const [historyModal, setHistoryModal] = useState({ open: false, entry: null })
     const [patientDrawerId, setPatientDrawerId] = useState(null)
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
+    const [isTvQueueOpen, setIsTvQueueOpen] = useState(false)
+
+    // Hạn ngạch tiếp đón trong ngày (Clinic-Management pattern - Cảnh báo an toàn, không auto-block)
+    const maxDailyQuota = 50
+    const todayCheckInCount = queueEntries.length
+    const quotaPercent = Math.round((todayCheckInCount / maxDailyQuota) * 100)
+    const isNearQuota = quotaPercent >= 80 && quotaPercent < 100
+    const isOverQuota = quotaPercent >= 100
+
+    // Phân loại Tier ưu tiên có thứ bậc tường minh (Lát cắt C - Tiered Priority Policy)
+    // Tier 1: Cấp cứu (tuyệt đối không bị vượt)
+    // Tier 2: Đánh giá lâm sàng khẩn cấp
+    // Tier 3: Bệnh nhân quay lại sau cận lâm sàng (RETURN_AFTER_RESULT)
+    // Tier 4: Đối tượng ưu tiên chính sách (Người già >= 75, Trẻ em < 6, Bầu, Khuyết tật)
+    // Tier 5: Khám thông thường (Có hẹn đúng giờ, Walk-in)
+    const getQueueTier = (entry) => {
+        if (entry.priority === 'EMERGENCY' || entry.muc_do_uu_tien === 1 || entry.isEmergency) return 1
+        if (entry.priority === 'URGENT' || entry.muc_do_uu_tien === 2) return 2
+        if (entry.status === 'RETURN_AFTER_RESULT' || entry.trang_thai === 'co_ket_qua_cls' || entry.muc_do_uu_tien === 3) return 3
+        if (entry.priority === 'PRIORITY' || entry.isSpecialPriority || entry.muc_do_uu_tien === 4) return 4
+        return 5
+    }
 
     // Filter queue entries
     const filteredQueue = useMemo(() => {
@@ -57,6 +80,22 @@ export default function QueueManagementPage() {
             return matchesQuery && matchesRoom && matchesDep && matchesTab
         })
     }, [queueEntries, patients, searchQuery, selectedRoom, selectedDepartment, activeTab])
+
+    // Sắp xếp hàng đợi theo Tiered Priority Comparator & arrival_time tie-breaker
+    const sortedQueue = useMemo(() => {
+        return [...filteredQueue].sort((a, b) => {
+            const tierA = getQueueTier(a)
+            const tierB = getQueueTier(b)
+            if (tierA !== tierB) {
+                return tierA - tierB // Tier 1 trước, Tier 5 sau
+            }
+            // Tie-breaker ổn định: Thời gian đến/check-in
+            const timeA = new Date(a.checkInTime || a.thoi_gian_check_in || 0).getTime()
+            const timeB = new Date(b.checkInTime || b.thoi_gian_check_in || 0).getTime()
+            if (timeA !== timeB) return timeA - timeB
+            return (a.ticketNumber || '').localeCompare(b.ticketNumber || '')
+        })
+    }, [filteredQueue])
 
     // Operation handlers
     const handleCallNumber = async (entry) => {
@@ -95,13 +134,26 @@ export default function QueueManagementPage() {
             render: (ticket, record) => (
                 <div>
                     <span className="text-base font-black text-sky-700 tracking-tight block">{ticket}</span>
-                    <div className="flex gap-1 mt-0.5">
-                        <Tag color={record.isWalkIn ? 'orange' : 'blue'} className="mr-0 text-[10px]">
-                            {record.isWalkIn ? 'Walk-in' : 'Có lịch'}
-                        </Tag>
-                        {record.priority === 'PRIORITY' && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                        {record.priority === 'EMERGENCY' || record.muc_do_uu_tien === 1 ? (
+                            <Tag color="red" className="mr-0 text-[10px] font-bold animate-pulse">
+                                Tier 1 · Cấp cứu
+                            </Tag>
+                        ) : record.priority === 'URGENT' || record.muc_do_uu_tien === 2 ? (
+                            <Tag color="volcano" className="mr-0 text-[10px] font-bold">
+                                Tier 2 · Khẩn
+                            </Tag>
+                        ) : record.status === 'RETURN_AFTER_RESULT' || record.trang_thai === 'co_ket_qua_cls' || record.muc_do_uu_tien === 3 ? (
+                            <Tag color="cyan" className="mr-0 text-[10px] font-bold">
+                                Tier 3 · Sau CLS
+                            </Tag>
+                        ) : record.priority === 'PRIORITY' || record.muc_do_uu_tien === 4 ? (
                             <Tag color="purple" className="mr-0 text-[10px]">
-                                Ưu tiên
+                                Tier 4 · Ưu tiên
+                            </Tag>
+                        ) : (
+                            <Tag color={record.isWalkIn ? 'orange' : 'blue'} className="mr-0 text-[10px]">
+                                {record.isWalkIn ? 'Walk-in' : 'Có lịch'}
                             </Tag>
                         )}
                     </div>
@@ -312,6 +364,37 @@ export default function QueueManagementPage() {
 
     return (
         <div className="space-y-5">
+            {/* Quota Banner (Lát cắt B.4 - Cảnh báo hạn ngạch tiếp đón) */}
+            {(isNearQuota || isOverQuota) && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
+                    isOverQuota ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+                }`}>
+                    <AlertOutlined className={`text-base shrink-0 mt-0.5 ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`} />
+                    <div className="flex-1">
+                        <div className="font-bold text-sm">
+                            {isOverQuota
+                                ? `🛑 HẠN NGẠCH TIẾP ĐÓN TRONG NGÀY ĐÃ ĐẠT NGƯỠNG (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`
+                                : `⚠️ CẢNH BÁO CÔNG SUẤT TIẾP ĐÓN GẦN ĐẦY (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`}
+                        </div>
+                        <div className="mt-1">
+                            {isOverQuota ? (
+                                <span>
+                                    Phòng khám đã tiếp nhận đạt ngưỡng định mức trong ngày. <strong>Nguyên tắc an toàn y tế:</strong> Không tự ý từ chối người bệnh. Trường hợp cấp cứu, chỉ định quay lại sau cận lâm sàng hoặc ca chuyển tuyến vẫn được tiếp nhận theo quy trình lâm sàng.
+                                </span>
+                            ) : (
+                                <span>
+                                    Công suất phòng khám hôm nay đang đạt mức {quotaPercent}%. Vui lòng điều phối bệnh nhân vào các phòng khám có tải trọng thấp hơn.
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="w-24 shrink-0 bg-white/80 p-2 rounded-lg border border-slate-200 text-center font-mono font-bold">
+                        <div className="text-[10px] uppercase text-slate-500">Tiếp nhận</div>
+                        <div className={`text-base ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`}>{todayCheckInCount}/{maxDailyQuota}</div>
+                    </div>
+                </div>
+            )}
+
             {/* Rooms Waiting Summary Cards */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -331,6 +414,17 @@ export default function QueueManagementPage() {
                         className="font-semibold text-xs"
                     >
                         Bàn giao y tế khẩn (RC-06)
+                    </Button>
+                    <Button
+                        size="small"
+                        type="primary"
+                        icon={<SoundOutlined />}
+                        onClick={() => setIsTvQueueOpen(true)}
+                        className="font-semibold text-xs bg-teal-700 hover:bg-teal-600 ml-2"
+                    >
+                        📺 Mở Màn Hình TV Gọi Số Phòng Chờ
+                    </Button>
+                    <Button className="hidden">
                     </Button>
                 </div>
 
@@ -432,7 +526,7 @@ export default function QueueManagementPage() {
                 {/* Queue Table */}
                 <Table
                     columns={columns}
-                    dataSource={filteredQueue}
+                    dataSource={sortedQueue}
                     rowKey="id"
                     pagination={{ pageSize: 8, showSizeChanger: true }}
                     size="middle"
@@ -503,6 +597,26 @@ export default function QueueManagementPage() {
             <EmergencyHandoverModal
                 open={isEmergencyModalOpen}
                 onClose={() => setIsEmergencyModalOpen(false)}
+            />
+            <TvQueueDisplayModal
+                isOpen={isTvQueueOpen}
+                onClose={() => setIsTvQueueOpen(false)}
+                queueList={queueEntries.map((q) => {
+                    const pat = patients.find((p) => p.id === q.patientId)
+                    const rm = rooms.find((r) => r.id === q.roomId)
+                    return {
+                        ...q,
+                        queueNumber: q.ticketNumber,
+                        patientName: pat?.fullName || 'Bệnh nhân',
+                        room: q.roomId,
+                        roomName: rm?.name || q.roomId,
+                    }
+                })}
+                rooms={rooms.map((r) => {
+                    const doc = doctors.find((d) => d.id === r.doctorId)
+                    return { id: r.id, name: r.name, doctor: doc?.fullName || 'Bác sĩ trực phòng' }
+                })}
+            /><span className="hidden"
             />
         </div>
     )

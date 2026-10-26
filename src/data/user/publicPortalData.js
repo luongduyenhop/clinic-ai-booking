@@ -1,17 +1,18 @@
 export const specialties = [
-    { id: 'noi', name: 'Nội tổng quát', icon: 'Heartbeat', description: 'Thăm khám các bệnh lý nội khoa, tầm soát và tư vấn sức khỏe toàn diện.', doctorCount: 12, fee: 150000 },
-    { id: 'ngoai', name: 'Ngoại tổng quát', icon: 'FirstAidKit', description: 'Đánh giá, theo dõi và điều trị các bệnh lý cần can thiệp ngoại khoa.', doctorCount: 8, fee: 200000 },
-    { id: 'mat', name: 'Mắt', icon: 'Eye', description: 'Khám thị lực, tật khúc xạ và các bệnh lý chuyên sâu về mắt.', doctorCount: 6, fee: 160000 },
-    { id: 'tmh', name: 'Tai Mũi Họng', icon: 'Ear', description: 'Chăm sóc toàn diện các bệnh lý tai, mũi, họng ở mọi lứa tuổi.', doctorCount: 7, fee: 220000 },
-    { id: 'rhm', name: 'Răng Hàm Mặt', icon: 'Tooth', description: 'Khám, điều trị và dự phòng các vấn đề răng miệng, hàm mặt.', doctorCount: 9, fee: 180000 },
+    { id: 'noi', name: 'Khoa Nội tổng quát', icon: 'Heartbeat', description: 'Khám và điều trị các bệnh lý nội khoa tổng hợp, tim mạch, tiêu hóa, hô hấp, đái tháo đường, tăng huyết áp.', doctorCount: 2, fee: 150000, code: 'KHOA_NOI', realId: 1 },
+    { id: 'ngoai', name: 'Khoa Ngoại', icon: 'FirstAidKit', description: 'Khám ngoại khoa, tiểu phẫu, xử lý vết thương phần mềm, trích rạch áp xe, u bã đậu, cắt chỉ.', doctorCount: 1, fee: 200000, code: 'KHOA_NGOAI', realId: 824 },
+    { id: 'tmh', name: 'Khoa Tai Mũi Họng', icon: 'Ear', description: 'Khám và nội soi tai mũi họng, hút rửa xoang, điều trị viêm họng, viêm amidan, viêm tai giữa, tiền đình.', doctorCount: 1, fee: 220000, code: 'KHOA_TMH', realId: 4 },
+    { id: 'rhm', name: 'Khoa Răng', icon: 'Tooth', description: 'Nha khoa tổng quát, khám răng, lấy cao răng, hàn răng sâu, nhổ răng số 8, điều trị tủy, viêm nướu.', doctorCount: 1, fee: 180000, code: 'KHOA_RANG', realId: 825 },
+    { id: 'mat', name: 'Khoa Mắt', icon: 'Eye', description: 'Khám thị lực, đo khúc xạ tự động, soi đáy mắt, điều trị đau mắt đỏ, dị vật mắt, tật khúc xạ.', doctorCount: 1, fee: 160000, code: 'KHOA_MAT', realId: 826 },
 ]
 
 export const doctors = [
-    { id: 'bs-huy', name: 'BS. CKII Trần Quốc Huy', specialtyId: 'rhm', specialty: 'Răng Hàm Mặt', experience: '18 năm kinh nghiệm', initials: 'TH', nextSlot: '08:00 · Thứ Hai', status: 'AVAILABLE' },
-    { id: 'bs-hoang', name: 'BS. CKII Nguyễn Minh Hoàng', specialtyId: 'noi', specialty: 'Nội tổng quát', experience: '16 năm kinh nghiệm', initials: 'NH', nextSlot: '09:30 · Hôm nay', status: 'AVAILABLE' },
-    { id: 'bs-lan', name: 'ThS.BS Lê Ngọc Lan', specialtyId: 'mat', specialty: 'Mắt', experience: '12 năm kinh nghiệm', initials: 'NL', nextSlot: '13:30 · Hôm nay', status: 'AVAILABLE' },
-    { id: 'bs-minh', name: 'BS. CKI Phạm Quang Minh', specialtyId: 'tmh', specialty: 'Tai Mũi Họng', experience: '11 năm kinh nghiệm', initials: 'PM', nextSlot: '15:00 · Ngày mai', status: 'AVAILABLE' },
-    { id: 'bs-phuong', name: 'ThS.BS Đặng Hải Phương', specialtyId: 'ngoai', specialty: 'Ngoại tổng quát', experience: '14 năm kinh nghiệm', initials: 'ĐP', nextSlot: '10:00 · Ngày mai', status: 'AVAILABLE' },
+    { id: 'bs-minh', realId: 4, name: 'PGS.TS Phạm Đức Minh', specialtyId: 'noi', specialty: 'Khoa Nội tổng quát', experience: '22 năm kinh nghiệm', initials: 'PM', nextSlot: '08:00 · Hôm nay', status: 'AVAILABLE', room: 'P101 - Tầng 1' },
+    { id: 'bs-hoang', realId: 13832, name: 'BS. CKII Nguyễn Minh Hoàng', specialtyId: 'noi', specialty: 'Khoa Nội tổng quát', experience: '16 năm kinh nghiệm', initials: 'NH', nextSlot: '09:00 · Hôm nay', status: 'AVAILABLE', room: 'P102 - Tầng 1' },
+    { id: 'bs-phuong', realId: 13833, name: 'ThS. BS Đặng Hải Phương', specialtyId: 'ngoai', specialty: 'Khoa Ngoại', experience: '14 năm kinh nghiệm', initials: 'ĐP', nextSlot: '08:30 · Hôm nay', status: 'AVAILABLE', room: 'P201 - Tầng 2' },
+    { id: 'bs-long', realId: 3, name: 'BS. Lê Hoàng Long', specialtyId: 'tmh', specialty: 'Khoa Tai Mũi Họng', experience: '10 năm kinh nghiệm', initials: 'HL', nextSlot: '08:00 · Hôm nay', status: 'AVAILABLE', room: 'P202 - Tầng 2' },
+    { id: 'bs-huy', realId: 13834, name: 'BS. CKII Trần Quốc Huy', specialtyId: 'rhm', specialty: 'Khoa Răng', experience: '18 năm kinh nghiệm', initials: 'QH', nextSlot: '08:30 · Hôm nay', status: 'AVAILABLE', room: 'P301 - Tầng 3' },
+    { id: 'bs-lan', realId: 13835, name: 'ThS. BS Lê Ngọc Lan', specialtyId: 'mat', specialty: 'Khoa Mắt', experience: '12 năm kinh nghiệm', initials: 'NL', nextSlot: '09:00 · Hôm nay', status: 'AVAILABLE', room: 'P302 - Tầng 3' },
 ]
 
 export const bookingSlots = [

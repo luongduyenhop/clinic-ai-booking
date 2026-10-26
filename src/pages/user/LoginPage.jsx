@@ -5,8 +5,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
 import { setAuth } from '../../redux/slices/authSlice'
-import { Hospital, LockKey, PhoneCall, ShieldCheck } from '../../components/common/ClinicIcon'
+import { Hospital, LockKey, PhoneCall, ShieldCheck, UserCheck } from '../../components/common/ClinicIcon'
 import { DEMO_PATIENT_ACCOUNT } from '../../data/user/demoPatientAccount'
+import { authService } from '../../services/user/AuthService'
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -14,92 +15,115 @@ export default function LoginPage() {
     const dispatch = useDispatch()
     const { authError } = useSelector((state) => state.app.auth)
 
-    const handleRoleDemoLogin = (targetRole = 'ADMIN') => {
-        let userProfile = {
-            id: 'USER_ADMIN_01',
-            fullName: 'Quản trị viên Hệ thống',
-            shortName: 'Admin',
-            role: 'QUAN_TRI',
-            email: 'admin@clinic-ai.vn',
+    const handlePatientQuickLogin = async () => {
+        let accessToken = 'token-patient'
+        let refreshToken = 'refresh-patient'
+        const userProfile = {
+            id: 'USER_PATIENT_01',
+            fullName: DEMO_PATIENT_ACCOUNT.fullName || 'Nguyễn Thị Bệnh Nhân',
+            shortName: 'Bệnh nhân',
+            role: 'BENH_NHAN',
+            phone: DEMO_PATIENT_ACCOUNT.phone,
+            email: 'patient@test.com',
         }
-        let redirectPath = '/admin'
 
-        if (targetRole === 'RECEPTIONIST') {
-            userProfile = {
-                id: 'USER_RECEPTION_01',
-                fullName: 'Nguyễn Thị Thu Cúc',
-                shortName: 'Lễ tân Cúc',
-                role: 'LE_TAN',
-                email: 'letan@clinic-ai.vn',
+        try {
+            const res = await authService.login({
+                email: 'patient@test.com',
+                mat_khau: 'Patient@123456',
+            })
+            const data = res?.data?.data || res?.data || {}
+            if (data.access_token || data.accessToken) {
+                accessToken = data.access_token || data.accessToken
+                refreshToken = data.refresh_token || data.refreshToken || refreshToken
             }
-            redirectPath = '/reception/dashboard'
-        } else if (targetRole === 'DOCTOR') {
-            userProfile = {
-                id: 'USER_DOC_01',
-                fullName: 'BS. CKII Trần Quốc Huy',
-                shortName: 'BS. Huy',
-                role: 'BAC_SI',
-                room: 'Phòng 102',
-                specialty: 'Răng Hàm Mặt',
-                email: 'bshuy@clinic-ai.vn',
-            }
-            redirectPath = '/doctor'
-        } else if (targetRole === 'PATIENT') {
-            userProfile = {
-                id: 'USER_PATIENT_01',
-                fullName: DEMO_PATIENT_ACCOUNT.fullName || 'Nguyễn Văn Minh',
-                shortName: 'Văn Minh',
-                role: 'BENH_NHAN',
-                phone: DEMO_PATIENT_ACCOUNT.phone,
-                email: DEMO_PATIENT_ACCOUNT.email || 'benhnhan@clinic-ai.vn',
-            }
-            redirectPath = '/benh-nhan'
+        } catch {
+            // Fallback token dự phòng
         }
 
         dispatch(
             setAuth({
-                accessToken: 'demo-access-token-' + targetRole.toLowerCase(),
-                refreshToken: 'demo-refresh-token-' + targetRole.toLowerCase(),
-                role: userProfile.role,
+                accessToken,
+                refreshToken,
+                role: 'BENH_NHAN',
                 user: userProfile,
             })
         )
-        AppToast.success(`Đã đăng nhập vai trò: ${userProfile.shortName}!`)
-        navigate(redirectPath, { replace: true })
+        AppToast.success('Đăng nhập thành công vào Cổng Bệnh Nhân!')
+        const target = location.state?.from?.pathname || '/benh-nhan'
+        navigate(target, { replace: true })
     }
 
     const formik = useFormik({
         initialValues: { phone: '', password: '' },
         validationSchema: Yup.object({
-            phone: Yup.string().matches(/^0\d{9}$/, 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0').required('Vui lòng nhập số điện thoại'),
+            phone: Yup.string()
+                .matches(/^0\d{9}$/, 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0')
+                .required('Vui lòng nhập số điện thoại'),
             password: Yup.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').required('Vui lòng nhập mật khẩu'),
         }),
         onSubmit: async (values) => {
-            const result = await dispatch(loginUserAsync({ usernameOrEmail: values.phone, password: values.password }))
+            const result = await dispatch(
+                loginUserAsync({ usernameOrEmail: values.phone, password: values.password })
+            )
             if (loginUserAsync.fulfilled.match(result)) {
-                AppToast.success('Đăng nhập thành công')
-                navigate(location.state?.from?.pathname || '/benh-nhan', { replace: true })
+                AppToast.success('Đăng nhập Cổng Bệnh Nhân thành công!')
+                const target = location.state?.from?.pathname || '/benh-nhan'
+                navigate(target, { replace: true })
             }
         },
     })
 
     return (
-        <AuthShell title="Chào mừng bạn trở lại" description="Đăng nhập để quản lý lịch khám và hồ sơ sức khỏe.">
+        <AuthShell
+            title="Cổng Bệnh Nhân — Đăng Nhập"
+            description="Đăng nhập để đặt lịch khám, tra cứu đơn thuốc điện tử và theo dõi kết quả cận lâm sàng."
+        >
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
-                <Field label="Số điện thoại" name="phone" type="tel" placeholder="0901 234 567" formik={formik} icon={<PhoneCall size={18} />} />
-                <Field label="Mật khẩu" name="password" type="password" placeholder="Nhập mật khẩu" formik={formik} icon={<LockKey size={18} />} />
-                
-                <div className="rounded-xl border border-[#B8E5FA] bg-[#E8F4FD] p-3 text-xs leading-5 text-[#36566B]">
-                    <p className="font-bold text-[#003553]">Tài khoản bệnh nhân demo</p>
-                    <p>Số điện thoại: <strong>{DEMO_PATIENT_ACCOUNT.phone}</strong></p>
-                    <p>Mật khẩu: <strong>{DEMO_PATIENT_ACCOUNT.password}</strong></p>
+                <Field
+                    label="Số điện thoại đăng ký"
+                    name="phone"
+                    type="tel"
+                    placeholder="0901 234 567"
+                    formik={formik}
+                    icon={<PhoneCall size={18} />}
+                />
+                <Field
+                    label="Mật khẩu"
+                    name="password"
+                    type="password"
+                    placeholder="Nhập mật khẩu"
+                    formik={formik}
+                    icon={<LockKey size={18} />}
+                />
+
+                <div className="rounded-2xl border border-[#B8E5FA] bg-[#E8F4FD] p-3.5 text-xs leading-5 text-[#36566B] space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#003553]">Tài khoản bệnh nhân mẫu</span>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                formik.setFieldValue('phone', DEMO_PATIENT_ACCOUNT.phone)
+                                formik.setFieldValue('password', DEMO_PATIENT_ACCOUNT.password)
+                            }}
+                            className="text-[#008EC2] hover:underline font-bold text-[11px] cursor-pointer"
+                        >
+                            Tự động điền ✎
+                        </button>
+                    </div>
+                    <p>
+                        Số điện thoại: <strong>{DEMO_PATIENT_ACCOUNT.phone}</strong>
+                    </p>
+                    <p>
+                        Mật khẩu: <strong>{DEMO_PATIENT_ACCOUNT.password}</strong>
+                    </p>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                    <label className="flex items-center gap-2 text-slate-600">
+                    <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
                         <input type="checkbox" className="rounded text-[#00B5F1]" /> Ghi nhớ đăng nhập
                     </label>
-                    <button type="button" className="font-bold text-[#008EC2] hover:underline">
+                    <button type="button" className="font-bold text-[#008EC2] hover:underline cursor-pointer">
                         Quên mật khẩu?
                     </button>
                 </div>
@@ -110,56 +134,45 @@ export default function LoginPage() {
                     </p>
                 )}
 
-                <button type="submit" disabled={formik.isSubmitting} className="medpro-btn-primary w-full min-h-12 !text-sm font-bold">
-                    {formik.isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
-                </button>
+                <div className="space-y-2.5 pt-1">
+                    <button
+                        type="submit"
+                        disabled={formik.isSubmitting}
+                        className="medpro-btn-primary w-full min-h-12 !text-sm font-bold cursor-pointer"
+                    >
+                        {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng Nhập'}
+                    </button>
 
-                <div className="pt-3 border-t border-slate-100">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
-                        Đăng nhập nhanh theo từng phân hệ (Role-Based Demo)
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button
-                            type="button"
-                            onClick={() => handleRoleDemoLogin('ADMIN')}
-                            className="px-2 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#003553] text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
-                        >
-                            <span>🏛️ Quản lý</span>
-                            <span className="text-[10px] text-amber-700 font-semibold">Admin</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleRoleDemoLogin('RECEPTIONIST')}
-                            className="px-2 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
-                        >
-                            <span>👩‍💼 Lễ tân</span>
-                            <span className="text-[10px] text-teal-700 font-semibold">Lễ tân</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleRoleDemoLogin('DOCTOR')}
-                            className="px-2 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
-                        >
-                            <span>👨‍⚕️ Bác sĩ</span>
-                            <span className="text-[10px] text-sky-700 font-semibold">Bác sĩ</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleRoleDemoLogin('PATIENT')}
-                            className="px-2 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer"
-                        >
-                            <span>🏠 Bệnh nhân</span>
-                            <span className="text-[10px] text-indigo-700 font-semibold">Bệnh nhân</span>
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={handlePatientQuickLogin}
+                        className="w-full min-h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#003553] font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer border border-slate-200"
+                    >
+                        <UserCheck size={16} weight="bold" className="text-[#00B5F1]" />
+                        <span>Đăng nhập nhanh Bệnh nhân (Không cần gõ mật khẩu)</span>
+                    </button>
                 </div>
 
                 <p className="text-center text-sm text-slate-500 pt-2">
-                    Chưa có tài khoản?{' '}
+                    Chưa có tài khoản khám bệnh?{' '}
                     <Link to="/register" className="font-bold text-[#008EC2] hover:underline">
                         Đăng ký ngay
                     </Link>
                 </p>
+
+                {/* Phân tách cổng nhân viên rõ ràng */}
+                <div className="mt-6 pt-4 border-t border-slate-200/80 text-center">
+                    <p className="text-xs text-slate-500 mb-1.5">
+                        Bạn là Bác sĩ, Lễ tân, Thu ngân, KTV hoặc Ban Quản trị?
+                    </p>
+                    <Link
+                        to="/staff/login"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00263C] hover:bg-[#003553] text-white text-xs font-bold transition shadow-xs"
+                    >
+                        <span>🔒 Đăng nhập Cổng Nhân Viên Y Tế (HIS)</span>
+                        <span>→</span>
+                    </Link>
+                </div>
             </form>
         </AuthShell>
     )
@@ -178,7 +191,9 @@ export function AuthShell({ title, description, children }) {
                             CLINIC-AI
                         </Link>
                         <h2 className="mt-16 font-display text-3xl font-extrabold leading-tight">
-                            Chủ động lịch khám.<br />An tâm chăm sóc.
+                            Chủ động lịch khám.
+                            <br />
+                            An tâm chăm sóc.
                         </h2>
                         <p className="mt-4 text-sm leading-6 text-sky-100/80">
                             Đặt lịch nhanh chóng, nhận thông báo kịp thời và quản lý thông tin khám bệnh trên một nền tảng.
@@ -216,9 +231,7 @@ function Field({ label, name, type, placeholder, formik, icon }) {
                 {label}
             </label>
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    {icon}
-                </span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
                 <input
                     id={name}
                     name={name}

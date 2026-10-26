@@ -8,22 +8,13 @@ export const loginUserAsync = createAsyncThunk(
     'auth/loginUser',
     async (credentials, { rejectWithValue }) => {
         try {
-            if (isDemoPatientCredentials(credentials)) {
-                return {
-                    accessToken: 'demo-patient-access-token',
-                    refreshToken: null,
-                    role: DEMO_PATIENT_ACCOUNT.role,
-                    user: DEMO_PATIENT_ACCOUNT.user,
-                }
-            }
-
             const response = await authService.login(credentials)
             const body = response.data || {}
             const data = body.data ?? body
 
             const accessToken = data.accessToken || data.token || data.access_token
             const refreshToken = data.refreshToken || data.refresh_token
-            const role = resolveRoleFromAuth(data, accessToken) || (credentials.usernameOrEmail?.toLowerCase().includes('admin') ? 'ADMIN' : 'USER')
+            const role = resolveRoleFromAuth(data, accessToken) || (credentials.usernameOrEmail?.toLowerCase().includes('admin') ? 'ADMIN' : 'PATIENT')
             
             let user = data.user || null
             if (!user && accessToken) {
@@ -43,9 +34,17 @@ export const loginUserAsync = createAsyncThunk(
                 accessToken,
                 refreshToken,
                 role,
-                user: user || { fullName: credentials.usernameOrEmail, email: credentials.usernameOrEmail },
+                user: user ? { ...user, fullName: user.ho_ten || user.fullName || credentials.usernameOrEmail } : { fullName: credentials.usernameOrEmail, email: credentials.usernameOrEmail },
             }
         } catch (error) {
+            if (isDemoPatientCredentials(credentials)) {
+                return {
+                    accessToken: 'demo-patient-access-token',
+                    refreshToken: null,
+                    role: DEMO_PATIENT_ACCOUNT.role,
+                    user: DEMO_PATIENT_ACCOUNT.user,
+                }
+            }
             return rejectWithValue(error.response?.data?.message || error.response?.data?.Message || error.message)
         }
     }

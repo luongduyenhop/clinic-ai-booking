@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from 'react-redux'
 import StaffSidebar, { ROLE_CONFIGS } from './StaffSidebar'
 import { loadClinicDataAsync } from '../../redux/actions/admin/adminAction'
 import { logout } from '../../redux/slices/authSlice'
-import QuickPortalSwitcher from '../../components/common/QuickPortalSwitcher'
 import {
     SignOut,
     Eye,
@@ -53,27 +52,8 @@ export default function StaffLayout() {
     const { clinicData } = useSelector((state) => state.app.admin)
 
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const [previewRole, setPreviewRoleState] = useState(() => {
-        try {
-            return sessionStorage.getItem('staff_preview_role') || null
-        } catch {
-            return null
-        }
-    })
     const [currentTime, setCurrentTime] = useState(new Date())
-
-    const setPreviewRole = (role) => {
-        try {
-            if (role) {
-                sessionStorage.setItem('staff_preview_role', role)
-            } else {
-                sessionStorage.removeItem('staff_preview_role')
-            }
-        } catch {
-            // ignore storage errors
-        }
-        setPreviewRoleState(role)
-    }
+    // Role preview removed - strictly bound to authRole
 
     // Khởi tạo clinicData nếu chưa có
     useEffect(() => {
@@ -89,12 +69,12 @@ export default function StaffLayout() {
     }, [])
 
     const realRole = authRole || user?.role || 'ADMIN'
-    const effectiveRole = previewRole || realRole
+    const effectiveRole = realRole
     const currentRoleConfig = ROLE_CONFIGS[effectiveRole] || ROLE_CONFIGS.ADMIN
-    const isPreviewing = Boolean(previewRole && previewRole !== realRole)
+    const isPreviewing = false
 
     // Xác định tiêu đề trang
-    const currentTitle = ROUTE_TITLES[location.pathname] || 'Cổng Nhân Viên Phòng Khám'
+    const currentTitle = (effectiveRole === 'KTV_XET_NGHIEM' && location.pathname === '/staff/paraclinical-work') ? 'Bàn làm việc Xét nghiệm LIS · Huyết học - Sinh hóa' : (ROUTE_TITLES[location.pathname] || 'Cổng Nhân Viên Phòng Khám')
 
     const handleLogout = () => {
         dispatch(logout())
@@ -117,38 +97,13 @@ export default function StaffLayout() {
             <StaffSidebar
                 activeRole={effectiveRole}
                 realRole={realRole}
-                previewRole={previewRole}
-                onSelectPreviewRole={setPreviewRole}
+                
                 isCollapsed={isCollapsed}
                 onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
             />
 
             {/* ── KHU VỰC CHÍNH (HEADER + NỘI DUNG) ─────────────────────────── */}
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-                {/* ── BANNER CHẾ ĐỘ XEM TRƯỚC (NẾU ĐANG BẬT PREVIEW) ──────────── */}
-                {isPreviewing && (
-                    <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white px-4 py-2 text-xs flex items-center justify-between shadow-xs shrink-0 z-20">
-                        <div className="flex items-center gap-2 font-medium">
-                            <Eye size={16} className="text-amber-200 animate-pulse shrink-0" />
-                            <span>
-                                <strong>Chế độ xem trước giao diện:</strong> Đang hiển thị menu dành cho vai trò{' '}
-                                <span className="underline uppercase font-bold">{currentRoleConfig.label}</span>.
-                                <span className="hidden md:inline ml-2 opacity-90">
-                                    (Quyền hạn API và token thực tế vẫn thuộc về vai trò <strong>{realRole}</strong>)
-                                </span>
-                            </span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setPreviewRole(null)}
-                            className="px-2.5 py-1 rounded bg-white/20 hover:bg-white/30 text-white font-bold text-[11px] transition flex items-center gap-1 cursor-pointer shrink-0"
-                        >
-                            <ArrowsClockwise size={12} />
-                            Thoát xem trước
-                        </button>
-                    </div>
-                )}
-
                 {/* ── TOP HEADER CỔNG NHÂN VIÊN ───────────────────────────────── */}
                 <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-6 flex items-center justify-between gap-4 shrink-0 shadow-2xs z-10">
                     {/* BREADCRUMB & TIÊU ĐỀ TRANG */}
@@ -175,10 +130,7 @@ export default function StaffLayout() {
                             <span className="font-mono">{formattedTime}</span>
                         </div>
 
-                        {/* Quick Portal Switcher (Chuyển nhanh giữa các portal trong thời gian chuyển đổi) */}
-                        <div className="hidden xl:block">
-                            <QuickPortalSwitcher size="xs" />
-                        </div>
+                        {/* Quick Portal Switcher removed */}
 
                         {/* Badge vai trò hiện tại */}
                         <div

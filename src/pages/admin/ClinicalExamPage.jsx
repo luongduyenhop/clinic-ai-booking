@@ -1,9 +1,10 @@
+import { printDocument } from '../../utils/helpers/exportUtils'
 import { useState, useMemo, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions, getFormDefaults } from '../../services/admin/clinicSeedData'
+import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 import {
     StatusBadge,
     EmptyState,
@@ -41,11 +42,11 @@ import {
 
 const DEPARTMENTS = [
     { id: 'CHUNG', label: 'Khám chung & Sinh hiệu', icon: 'Stethoscope' },
-    { id: 'NOI', label: 'Khoa Nội (Tim mạch/Hô hấp)', icon: 'Heartbeat' },
-    { id: 'NGOAI', label: 'Khoa Ngoại & Tiểu phẫu', icon: 'FirstAidKit' },
-    { id: 'MAT', label: 'Khoa Mắt (Nhãn khoa)', icon: 'Eye' },
+    { id: 'NOI', label: 'Khoa Nội tổng quát', icon: 'Heartbeat' },
+    { id: 'NGOAI', label: 'Khoa Ngoại', icon: 'FirstAidKit' },
     { id: 'TMH', label: 'Khoa Tai Mũi Họng', icon: 'Ear' },
-    { id: 'RHM', label: 'Khoa Răng Hàm Mặt', icon: 'Tooth' },
+    { id: 'RHM', label: 'Khoa Răng', icon: 'Tooth' },
+    { id: 'MAT', label: 'Khoa Mắt', icon: 'Eye' },
 ]
 
 const defaultSpecialtyData = {
@@ -1058,7 +1059,7 @@ export default function ClinicalExamPage() {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => AppToast.success(`Đang in Đơn thuốc Quốc gia ${prescription.maDon}...`)}
+                                        onClick={() => { printDocument(); AppToast.success(`Đang in Đơn thuốc Quốc gia ${prescription.maDon}...`); }}
                                         className="medpro-btn-outline !py-1 !px-2.5 text-[11px]"
                                     >
                                         <Printer size={13} weight="duotone" className="text-[#00B5F1]" />
@@ -1304,7 +1305,7 @@ export default function ClinicalExamPage() {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => AppToast.success('Đang in Phiếu chỉ định Cận lâm sàng...')}
+                                onClick={() => { printDocument(); AppToast.success("Đang mở lệnh in Phiếu chỉ định Cận lâm sàng..."); }}
                                 className="medpro-btn-outline text-xs"
                             >
                                 <Printer size={14} weight="duotone" className="text-[#00B5F1]" />

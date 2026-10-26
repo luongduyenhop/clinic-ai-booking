@@ -1,7 +1,6 @@
 import { Outlet, Link, NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
-import QuickPortalSwitcher from '../components/common/QuickPortalSwitcher'
 
 const DOCTOR_NAV = [
     { to: '/doctor', label: 'Tổng quan', end: true },
@@ -76,9 +75,7 @@ export default function DoctorTemplate() {
 
                         {/* Top corner: Chuyển cổng & Hồ sơ Bác Sĩ */}
                         <div className="flex items-center gap-2.5 shrink-0">
-                            <div className="hidden xl:flex items-center pr-2 border-r border-slate-200">
-                                <QuickPortalSwitcher size="xs" />
-                            </div>
+                            
                             <DoctorHeaderProfile />
                         </div>
                     </div>

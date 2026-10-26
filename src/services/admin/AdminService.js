@@ -1,5 +1,5 @@
 import { BaseServices } from '../BaseService'
-import { INITIAL_CLINIC_DATA, getFormDefaults } from './clinicSeedData'
+import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 
 const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
 
@@ -325,6 +325,24 @@ export class AdminService extends BaseServices {
             return res.data?.data || res.data
         } catch (error) {
             console.warn('Fallback top-services:', error)
+            return null
+        }
+    }
+
+    // ── 5b. Top Thuốc Kê Nhiều Nhất (ClinicManager statistic_medicine_frequency) ───
+    getTopMedicinesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (limit) params.append('limit', limit)
+            const res = await this.get(`/api/v1/admin/analytics/top-medicines?${params.toString()}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data
+        } catch (error) {
+            console.warn('Fallback top-medicines:', error)
             return null
         }
     }

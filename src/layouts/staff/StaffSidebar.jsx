@@ -57,6 +57,12 @@ export const ROLE_CONFIGS = {
         color: 'bg-purple-50 text-purple-700 border-purple-200',
         dotColor: 'bg-purple-500',
     },
+    KTV_XET_NGHIEM: {
+        label: 'KTV Xét nghiệm',
+        badge: 'Huyết học - Sinh hóa (LIS)',
+        color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        dotColor: 'bg-indigo-500',
+    },
     BENH_NHAN: {
         label: 'Bệnh nhân',
         badge: 'Cổng Bệnh nhân',
@@ -134,6 +140,27 @@ export const getStaffMenuForRole = (role) => {
                 items: [
                     { to: '/staff/reports', label: 'Báo cáo doanh thu & Đóng ca', icon: ChartBar },
                     { to: '/staff/appointments', label: 'Tra cứu lịch hẹn', icon: CalendarCheck },
+                ],
+            },
+        ]
+    }
+
+    // 4A. Vai trò: KỸ THUẬT VIÊN XÉT NGHIỆM (LIS CHUYÊN SÂU)
+    if (normalizedRole === 'KTV_XET_NGHIEM' || normalizedRole === 'LAB_TECH' || normalizedRole === 'ROLE-LAB-TECH') {
+        return [
+            {
+                group: 'Phòng Xét Nghiệm (LIS)',
+                items: [
+                    { to: '/staff/paraclinical-work?nhom=XET_NGHIEM', label: 'Bàn xét nghiệm LIS', icon: Microscope, badge: 'Chính' },
+                    { to: '/staff/queue', label: 'Hàng chờ lấy mẫu bệnh phẩm', icon: Clock },
+                    { to: '/staff/paraclinical', label: 'Chỉ số tham chiếu & Kỹ thuật', icon: ClipboardText },
+                ],
+            },
+            {
+                group: 'Báo cáo & Đối soát mẫu',
+                items: [
+                    { to: '/staff/reports', label: 'Thống kê xét nghiệm ca trực', icon: ChartBar },
+                    { to: '/staff/patients', label: 'Đối soát thông tin bệnh nhân', icon: Users },
                 ],
             },
         ]
@@ -217,16 +244,14 @@ export const getStaffMenuForRole = (role) => {
 export default function StaffSidebar({
     activeRole,
     realRole,
-    previewRole,
-    onSelectPreviewRole,
     isCollapsed,
     onToggleCollapse,
 }) {
     const location = useLocation()
-    const [openDropdown, setOpenDropdown] = useState(false)
+    // Dropdown removed
 
     // Xác định vai trò hiển thị menu
-    const effectiveRole = previewRole || activeRole || realRole || 'ADMIN'
+    const effectiveRole = activeRole || realRole || 'ADMIN'
     const roleConfig = ROLE_CONFIGS[effectiveRole] || ROLE_CONFIGS.ADMIN
 
     // Menu động theo vai trò
@@ -241,7 +266,7 @@ export default function StaffSidebar({
         return location.pathname.startsWith(to)
     }
 
-    const isPreviewing = Boolean(previewRole && previewRole !== realRole)
+    // Mode 100% strictly bound to authenticated role
 
     return (
         <aside
@@ -293,83 +318,6 @@ export default function StaffSidebar({
                     >
                         <CaretRight size={16} />
                     </button>
-                </div>
-            )}
-
-            {/* ── THÔNG BÁO CHẾ ĐỘ XEM TRƯỚC (NẾU ĐANG PREVIEW) ────────────────── */}
-            {isPreviewing && !isCollapsed && (
-                <div className="mx-3 mt-3 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 flex flex-col gap-1.5 shadow-2xs">
-                    <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                        <Eye size={14} className="text-amber-600 shrink-0" />
-                        <span>Xem trước: {roleConfig.label}</span>
-                    </div>
-                    <p className="text-[11px] text-amber-700 leading-tight">
-                        Chỉ đổi giao diện menu. Backend vẫn xác thực theo token thực tế.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => onSelectPreviewRole?.(null)}
-                        className="mt-1 py-1 px-2 rounded-lg bg-amber-600 text-white font-semibold text-[11px] hover:bg-amber-700 transition flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                        <ArrowsClockwise size={12} />
-                        Trở lại vai trò thực tế
-                    </button>
-                </div>
-            )}
-
-            {/* ── SELECTOR XEM TRƯỚC VAI TRÒ DÀNH CHO ADMIN ────────────────────── */}
-            {!isCollapsed && (
-                <div className="px-3 pt-3 pb-2 border-b border-slate-100">
-                    <div className="relative">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">
-                            Chế độ xem vai trò (UI Preview)
-                        </label>
-                        <button
-                            type="button"
-                            onClick={() => setOpenDropdown(!openDropdown)}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                        >
-                            <span className="flex items-center gap-2 truncate">
-                                <span className={`w-2 h-2 rounded-full ${roleConfig.dotColor}`} />
-                                <span className="truncate">{roleConfig.label}</span>
-                                {isPreviewing && (
-                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.2 rounded">
-                                        Preview
-                                    </span>
-                                )}
-                            </span>
-                            <CaretDown size={14} className="text-slate-400 shrink-0 ml-1" />
-                        </button>
-
-                        {openDropdown && (
-                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-1 py-1.5 space-y-0.5 max-h-56 overflow-y-auto">
-                                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                                    Chọn vai trò để xem giao diện:
-                                </div>
-                                {Object.entries(ROLE_CONFIGS).map(([key, config]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => {
-                                            onSelectPreviewRole?.(key === realRole ? null : key)
-                                            setOpenDropdown(false)
-                                        }}
-                                        className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer transition ${
-                                            effectiveRole === key
-                                                ? 'bg-sky-50 text-sky-800 font-bold'
-                                                : 'text-slate-600 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-                                            <span>{config.label}</span>
-                                        </span>
-                                        <span className="text-[10px] text-slate-400">{config.badge}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
                 </div>
             )}
 

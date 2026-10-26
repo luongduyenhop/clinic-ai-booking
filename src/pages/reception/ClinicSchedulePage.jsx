@@ -10,7 +10,7 @@ import {
     CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { initialTimeSlots } from '../../mock/reception/seedData'
+import { initialTimeSlots } from '../../utils/constants/receptionConstants'
 
 export default function ClinicSchedulePage() {
     const { doctors, departments, rooms, appointments } = useSelector((state) => state.reception)

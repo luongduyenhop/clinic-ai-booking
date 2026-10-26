@@ -1,28 +1,17 @@
-import {
-    initialDepartments,
-    initialDoctors,
-    initialRooms,
-    initialServices,
-    initialPatients,
-    initialAppointments,
-    initialQueueEntries,
-    initialTasks,
-    initialAuditLogs,
-    initialInvoices,
-} from './seedData'
+// Decoupled from static seedData - uses database initial state
 
 const STORAGE_KEYS = {
-    DEPARTMENTS: 'clinic_reception_departments_v1',
-    DOCTORS: 'clinic_reception_doctors_v1',
-    ROOMS: 'clinic_reception_rooms_v1',
-    SERVICES: 'clinic_reception_services_v1',
-    PATIENTS: 'clinic_reception_patients_v1',
-    APPOINTMENTS: 'clinic_reception_appointments_v1',
-    QUEUE: 'clinic_reception_queue_v1',
-    TASKS: 'clinic_reception_tasks_v1',
-    AUDIT_LOGS: 'clinic_reception_audit_logs_v1',
-    INVOICES: 'clinic_reception_invoices_v1',
-    ACTIVE_ROLE: 'clinic_reception_active_role_v1',
+    DEPARTMENTS: 'clinic_reception_departments_v2',
+    DOCTORS: 'clinic_reception_doctors_v2',
+    ROOMS: 'clinic_reception_rooms_v2',
+    SERVICES: 'clinic_reception_services_v2',
+    PATIENTS: 'clinic_reception_patients_v2',
+    APPOINTMENTS: 'clinic_reception_appointments_v2',
+    QUEUE: 'clinic_reception_queue_v2',
+    TASKS: 'clinic_reception_tasks_v2',
+    AUDIT_LOGS: 'clinic_reception_audit_logs_v2',
+    INVOICES: 'clinic_reception_invoices_v2',
+    ACTIVE_ROLE: 'clinic_reception_active_role_v2',
 }
 
 function getStoredOrInitial(key, initialData) {
@@ -45,16 +34,16 @@ function getStoredOrInitial(key, initialData) {
 
 export function loadAllReceptionData() {
     return {
-        departments: getStoredOrInitial(STORAGE_KEYS.DEPARTMENTS, initialDepartments),
-        doctors: getStoredOrInitial(STORAGE_KEYS.DOCTORS, initialDoctors),
-        rooms: getStoredOrInitial(STORAGE_KEYS.ROOMS, initialRooms),
-        services: getStoredOrInitial(STORAGE_KEYS.SERVICES, initialServices),
-        patients: getStoredOrInitial(STORAGE_KEYS.PATIENTS, initialPatients),
-        appointments: getStoredOrInitial(STORAGE_KEYS.APPOINTMENTS, initialAppointments),
-        queueEntries: getStoredOrInitial(STORAGE_KEYS.QUEUE, initialQueueEntries),
-        tasks: getStoredOrInitial(STORAGE_KEYS.TASKS, initialTasks),
-        auditLogs: getStoredOrInitial(STORAGE_KEYS.AUDIT_LOGS, initialAuditLogs),
-        invoices: getStoredOrInitial(STORAGE_KEYS.INVOICES, initialInvoices),
+        departments: getStoredOrInitial(STORAGE_KEYS.DEPARTMENTS, []),
+        doctors: getStoredOrInitial(STORAGE_KEYS.DOCTORS, []),
+        rooms: getStoredOrInitial(STORAGE_KEYS.ROOMS, []),
+        services: getStoredOrInitial(STORAGE_KEYS.SERVICES, []),
+        patients: getStoredOrInitial(STORAGE_KEYS.PATIENTS, []),
+        appointments: getStoredOrInitial(STORAGE_KEYS.APPOINTMENTS, []),
+        queueEntries: getStoredOrInitial(STORAGE_KEYS.QUEUE, []),
+        tasks: getStoredOrInitial(STORAGE_KEYS.TASKS, []),
+        auditLogs: getStoredOrInitial(STORAGE_KEYS.AUDIT_LOGS, []),
+        invoices: getStoredOrInitial(STORAGE_KEYS.INVOICES, []),
         activeRole: localStorage.getItem(STORAGE_KEYS.ACTIVE_ROLE) || 'RECEPTIONIST',
     }
 }
@@ -77,16 +66,16 @@ export function saveReceptionData(data) {
 
 export function resetReceptionData() {
     try {
-        localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(initialDepartments))
-        localStorage.setItem(STORAGE_KEYS.DOCTORS, JSON.stringify(initialDoctors))
-        localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(initialRooms))
-        localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(initialServices))
-        localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(initialPatients))
-        localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(initialAppointments))
-        localStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(initialQueueEntries))
-        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(initialTasks))
-        localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(initialAuditLogs))
-        localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(initialInvoices))
+        localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.DOCTORS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify([]))
+        localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify([]))
         localStorage.setItem(STORAGE_KEYS.ACTIVE_ROLE, 'RECEPTIONIST')
     } catch (e) {
         console.error('Error resetting reception data:', e)

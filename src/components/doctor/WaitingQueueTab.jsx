@@ -83,6 +83,29 @@ export default function WaitingQueueTab({
     }
 
     // Xử lý khi hoàn thành khám bệnh
+    
+    const handleSaveDraft = () => {
+        if (!currentPatient) {
+            AppToast.warning('Chưa có bệnh nhân nào được chọn để lưu nháp!')
+            return
+        }
+        const draftData = {
+            patientId: currentPatient.id,
+            diagnosis,
+            symptoms,
+            vitalSigns,
+            prescriptions,
+            selectedLabTests,
+            savedAt: new Date().toISOString(),
+        }
+        try {
+            localStorage.setItem(`clinic_exam_draft_${currentPatient.id}`, JSON.stringify(draftData))
+        } catch {
+            // ignore
+        }
+        AppToast.success(`Đã lưu bản nháp bệnh án cho BN ${currentPatient.fullName} thành công!`)
+    }
+
     const handleFinishExam = () => {
         if (!currentPatient) return
 
@@ -537,7 +560,7 @@ export default function WaitingQueueTab({
                             <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-100">
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.info('Đã lưu bản nháp bệnh án!')}
+                                    onClick={handleSaveDraft}
                                     className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs transition cursor-pointer"
                                 >
                                     💾 Lưu bản nháp

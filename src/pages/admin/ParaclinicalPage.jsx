@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions } from '../../services/admin/clinicSeedData'
+import { getMasterOptions } from '../../utils/helpers/clinicConfigHelpers'
 import {
     StatusBadge,
     EmptyState,

@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons'
 import { switchReceptionRoleAsync, resetReceptionDataAsync } from '../../redux/slices/reception/receptionSlice'
 import { RECEPTION_ROLES_OPTIONS } from '../../utils/constants/receptionConstants'
-import QuickPortalSwitcher from '../common/QuickPortalSwitcher'
 
 const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan Dashboard',
@@ -94,14 +93,11 @@ export default function ReceptionHeader() {
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 text-xs font-semibold transition cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
                     >
                         <ReloadOutlined className="text-amber-600" />
-                        <span className="hidden sm:inline">Reset Demo</span>
+                        <span className="hidden sm:inline">Làm mới CSDL</span>
                     </button>
                 </Tooltip>
 
-                {/* Quick Portal Switcher */}
-                <div className="hidden xl:flex items-center shrink-0">
-                    <QuickPortalSwitcher size="xs" />
-                </div>
+                
 
                 {/* Notifications badge for tasks */}
                 <Link
@@ -123,7 +119,7 @@ export default function ReceptionHeader() {
 
                 {/* Role Switcher */}
                 <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
-                    <span className="text-xs text-slate-400 hidden xl:inline font-medium whitespace-nowrap">Vai trò demo:</span>
+                    <span className="text-xs text-slate-400 hidden xl:inline font-medium whitespace-nowrap">Phân quyền ca trực:</span>
                     <Select
                         value={activeRole}
                         onChange={handleRoleChange}

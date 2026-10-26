@@ -6,7 +6,7 @@ import {
     updateCatalogSubCollectionAsync,
     resetClinicDemoDataAsync,
 } from '../../actions/admin/adminAction'
-import { INITIAL_CLINIC_DATA } from '../../../services/admin/clinicSeedData'
+import { INITIAL_CLINIC_DATA } from '../../../utils/helpers/clinicConfigHelpers'
 
 const initialState = {
     stats: null,

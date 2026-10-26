@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import AdminHeader from '../components/admin/AdminHeader'
 import { loadClinicDataAsync } from '../redux/actions/admin/adminAction'
-import { getNavigationConfig } from '../services/admin/clinicSeedData'
+import { getNavigationConfig } from '../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     CaretDown,

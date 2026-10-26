@@ -18,7 +18,7 @@ import { APPOINTMENT_STATUS, MISSING_DOC_LABELS } from '../../utils/constants/re
 export default function CheckInPage() {
     const location = useLocation()
     const dispatch = useDispatch()
-    const { patients, appointments, departments, doctors, rooms, services } = useSelector((state) => state.reception)
+    const { patients, appointments, departments, doctors, rooms, services, queueEntries = [] } = useSelector((state) => state.reception)
 
     const [searchKeyword, setSearchKeyword] = useState('')
     const [selectedPatient, setSelectedPatient] = useState(null)
@@ -175,13 +175,56 @@ export default function CheckInPage() {
     const targetRoom = rooms.find((r) => r.id === (checkInMode === 'WITH_APPOINTMENT' ? selectedAppointment?.roomId : walkInRoomId))
     const isRoomOverloaded = targetRoom && targetRoom.currentWaiting >= targetRoom.capacity
 
+    // Hạn ngạch tiếp đón trong ngày (Tham khảo ý tưởng Clinic-Management MaxPatient, tuân thủ an toàn y tế)
+    const maxDailyQuota = 50
+    const todayCheckInCount = queueEntries.length
+    const quotaPercent = Math.round((todayCheckInCount / maxDailyQuota) * 100)
+    const isNearQuota = quotaPercent >= 80 && quotaPercent < 100
+    const isOverQuota = quotaPercent >= 100
+
     return (
         <div className="space-y-6">
+            {/* Daily Quota Warning Banner (Lát cắt B.4 - Cảnh báo hạn ngạch an toàn) */}
+            {(isNearQuota || isOverQuota) && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
+                    isOverQuota ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+                }`}>
+                    <AlertOutlined className={`text-base shrink-0 mt-0.5 ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`} />
+                    <div className="flex-1">
+                        <div className="font-bold text-sm">
+                            {isOverQuota
+                                ? `🛑 HẠN NGẠCH TIẾP ĐÓN TRONG NGÀY ĐÃ ĐẠT NGƯỠNG (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`
+                                : `⚠️ CẢNH BÁO CÔNG SUẤT TIẾP ĐÓN GẦN ĐẦY (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`}
+                        </div>
+                        <div className="mt-1">
+                            {isOverQuota ? (
+                                <span>
+                                    Công suất tiếp đón hôm nay đã đạt ngưỡng quy định. <strong>Lưu ý quy tắc an toàn y tế:</strong> Hệ thống KHÔNG tự động từ chối người bệnh. Bệnh nhân cấp cứu, tái khám chỉ định hoặc các trường hợp ngoại lệ theo phê duyệt lâm sàng vẫn được tiếp nhận bình thường.
+                                </span>
+                            ) : (
+                                <span>
+                                    Phòng khám đang tiến gần hạn ngạch tiếp nhận trong ngày ({quotaPercent}%). Nhân viên lễ tân vui lòng chủ động thông báo cho người bệnh về thời gian chờ đợi dự kiến.
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="w-24 shrink-0 bg-white/80 p-2 rounded-lg border border-slate-200 text-center font-mono font-bold">
+                        <div className="text-[10px] uppercase text-slate-500">Tiếp nhận</div>
+                        <div className={`text-base ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`}>{todayCheckInCount}/{maxDailyQuota}</div>
+                    </div>
+                </div>
+            )}
+
             {/* Search Header Bar */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
+                        <div className="flex items-center gap-2.5">
+                            <h2 className="text-base font-bold text-slate-800">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                                Đã tiếp nhận: {todayCheckInCount}/{maxDailyQuota} lượt ({quotaPercent}%)
+                            </span>
+                        </div>
                         <span className="text-xs text-slate-500">
                             Tìm kiếm hồ sơ theo CCCD/SĐT, kiểm tra lịch hẹn trước hoặc đăng ký khám trực tiếp (Walk-in)
                         </span>

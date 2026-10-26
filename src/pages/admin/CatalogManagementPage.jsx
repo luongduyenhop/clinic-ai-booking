@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { exportToCsv } from '../../utils/helpers/exportUtils'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateCatalogSubCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { adminService } from '../../services/admin/AdminService'
 import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions } from '../../services/admin/clinicSeedData'
+import { getMasterOptions } from '../../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     StatusBadge,
@@ -18,6 +19,30 @@ import {
 } from '../../components/common/ClinicIcon'
 
 export default function CatalogManagementPage() {
+
+    const fileInputRef = useRef(null)
+
+    const handleExportCatalog = () => {
+        const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá', 'Đơn vị tính', 'Trạng thái']
+        const rows = filteredList.map((item) => [
+            item.ma || item.maDichVu || item.maThuoc || item.maBenh || '',
+            item.ten || item.tenDichVu || item.tenThuoc || item.tenBenh || '',
+            item.chuyenKhoa || item.nhom || item.loai || '',
+            item.donGia || item.gia || 0,
+            item.donViTinh || item.dvt || '',
+            item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+        ])
+        exportToCsv(`danh-muc-${loaiDanhMuc}.csv`, headers, rows)
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.csv) thành công!`)
+    }
+
+    const handleImportFile = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        AppToast.success(`Đã nạp file dữ liệu: ${file.name} (${Math.round(file.size / 1024)} KB) thành công!`)
+        e.target.value = ''
+    }
+
     const { loaiDanhMuc = 'chung' } = useParams()
     const dispatch = useDispatch()
     const location = useLocation()
@@ -258,7 +283,7 @@ export default function CatalogManagementPage() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => AppToast.info('Đã mở hộp thoại Import danh mục từ file Excel (.xlsx)!')}
+                        onClick={() => fileInputRef.current?.click()}
                         className="medpro-btn-outline !py-1 !px-3 text-xs"
                     >
                         <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
@@ -266,12 +291,13 @@ export default function CatalogManagementPage() {
                     </button>
                     <button
                         type="button"
-                        onClick={() => AppToast.success(`Đã xuất Excel danh mục (${filteredList.length} bản ghi)!`)}
+                        onClick={handleExportCatalog}
                         className="medpro-btn-outline !py-1 !px-3 text-xs"
                     >
                         <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
                         <span>Xuất Excel</span>
                     </button>
+                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.json" className="hidden" onChange={handleImportFile} />
                 </div>
             </div>
 

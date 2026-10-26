@@ -24,6 +24,7 @@ import {
 } from '@phosphor-icons/react'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { clinicalService } from '../../services/doctor/ClinicalService'
 
 const SPECIALTY_META = {
     'noi-khoa': {
@@ -179,7 +180,10 @@ export default function SpecialtyExamPage() {
                 },
             })
         )
-        AppToast.success(`Lưu dữ liệu ${currentMeta.title} thành công!`)
+        const encounterId = Number(String(currentExam.id).replace(/\D/g, '')) || 1
+        const activeKey = deptKey || 'noi-khoa'
+        await clinicalService.saveSpecialtyExam(encounterId, activeKey, specialtyData[activeKey.split('-')[0]] || specialtyData)
+        AppToast.success(`Lưu dữ liệu ${currentMeta.title} (CSDL 2 tầng) thành công!`)
     }
 
     return (

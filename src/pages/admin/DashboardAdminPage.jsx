@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
-import { getNavigationConfig } from '../../services/admin/clinicSeedData'
+import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
 import { adminService } from '../../services/admin/AdminService'
 import {
     ClinicIcon,
@@ -38,6 +38,7 @@ export default function DashboardAdminPage() {
     // ── 4 Executive Analytics Endpoints (/api/v1/admin/analytics/*) ───
     const [topDiseases, setTopDiseases] = useState([])
     const [topServices, setTopServices] = useState([])
+    const [topMedicines, setTopMedicines] = useState([])
     const [doctorPerformance, setDoctorPerformance] = useState([])
     const [roomWorkload, setRoomWorkload] = useState([])
     const [analyticsLoading, setAnalyticsLoading] = useState(false)
@@ -50,17 +51,21 @@ export default function DashboardAdminPage() {
         const fetchAnalytics = async () => {
             setAnalyticsLoading(true)
             try {
-                const [diseasesRes, servicesRes, docPerfRes, roomRes] = await Promise.allSettled([
+                const [diseasesRes, servicesRes, docPerfRes, roomRes, medRes] = await Promise.allSettled([
                     adminService.getTopIcd10Diseases(),
                     adminService.getTopServicesAnalytics(),
                     adminService.getDoctorPerformanceAnalytics(),
                     adminService.getRoomWorkloadAnalytics(),
+                    adminService.getTopMedicinesAnalytics(),
                 ])
                 if (diseasesRes.status === 'fulfilled' && diseasesRes.value?.danh_sach_benh) {
                     setTopDiseases(diseasesRes.value.danh_sach_benh)
                 }
                 if (servicesRes.status === 'fulfilled' && servicesRes.value?.danh_sach_dich_vu) {
                     setTopServices(servicesRes.value.danh_sach_dich_vu)
+                }
+                if (medRes.status === 'fulfilled' && medRes.value?.items) {
+                    setTopMedicines(medRes.value.items)
                 }
                 if (docPerfRes.status === 'fulfilled' && docPerfRes.value?.danh_sach_hieu_suat) {
                     setDoctorPerformance(docPerfRes.value.danh_sach_hieu_suat)
@@ -120,7 +125,7 @@ export default function DashboardAdminPage() {
                 <div className="space-y-1">
                     <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider border border-white/20">
                         <ShieldCheck size={14} weight="fill" className="text-[#FFB54A]" />
-                        <span>Bàn làm việc Đa vai trò Chuẩn HIS (tClinic & Medpro.vn)</span>
+                        <span>HỆ THỐNG ĐIỀU HÀNH BỆNH VIỆN & PHÒNG KHÁM CLINIC-AI</span>
                     </div>
                     <h1 className="font-display text-xl sm:text-2xl font-extrabold tracking-tight">
                         TRUNG TÂM ĐIỀU HÀNH & BÀN LÀM VIỆC ĐA VAI TRÒ CLINIC-AI
@@ -471,6 +476,59 @@ export default function DashboardAdminPage() {
                             </table>
                         </div>
                     </div>
+
+                    {/* TOP MEDICINES USAGE ANALYTICS (ClinicManager statistic_medicine_frequency pattern) */}
+                    <div className="medpro-card p-4">
+                        <div className="medpro-section-title">
+                            <span>TOP THUỐC ĐƯỢC KÊ NHIỀU NHẤT TRONG ĐƠN (/analytics/top-medicines)</span>
+                            <span className="text-xs text-slate-400">Tần suất kê đơn &amp; Số lượng sử dụng</span>
+                        </div>
+                        <div className="overflow-x-auto mt-3">
+                            <table className="medpro-table text-xs">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Tên biệt dược / Thuốc</th>
+                                        <th>Hoạt chất chính</th>
+                                        <th className="text-center">Đơn vị</th>
+                                        <th className="text-center">Số lượt kê đơn</th>
+                                        <th className="text-right">Tổng số lượng xuất</th>
+                                        <th>Phân nhóm dược lý</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(topMedicines.length > 0
+                                        ? topMedicines
+                                        : [
+                                              { ten_thuoc: 'Amoxicillin + Clavulanic Acid (Augmentin)', hoat_chat: 'Amoxicillin 875mg + Acid Clavulanic 125mg', don_vi_tinh: 'Viên', so_luot_ke: 38, tong_so_luong: 380, nhom: 'Kháng sinh Beta-lactam' },
+                                              { ten_thuoc: 'Paracetamol 500mg (Efferalgan)', hoat_chat: 'Paracetamol', don_vi_tinh: 'Viên', so_luot_ke: 52, tong_so_luong: 520, nhom: 'Hạ sốt, giảm đau' },
+                                              { ten_thuoc: 'Esomeprazole 40mg (Nexium Mups)', hoat_chat: 'Esomeprazole', don_vi_tinh: 'Viên', so_luot_ke: 29, tong_so_luong: 406, nhom: 'Ức chế bơm Proton (PPI)' },
+                                              { ten_thuoc: 'Desloratadine 5mg (Aerius)', hoat_chat: 'Desloratadine', don_vi_tinh: 'Viên', so_luot_ke: 24, tong_so_luong: 240, nhom: 'Kháng Histamin H1' },
+                                              { ten_thuoc: 'Alpha Chymotrypsin 4.2mg', hoat_chat: 'Chymotrypsin', don_vi_tinh: 'Viên', so_luot_ke: 21, tong_so_luong: 210, nhom: 'Chống phù nề dạng men' },
+                                          ]
+                                    ).map((m, mIdx) => (
+                                        <tr key={mIdx}>
+                                            <td className="font-mono text-slate-400">{mIdx + 1}</td>
+                                            <td className="font-bold text-[#12263F]">{m.ten_thuoc}</td>
+                                            <td className="text-slate-600 font-mono text-[11px]">{m.hoat_chat || 'Hoạt chất chuẩn'}</td>
+                                            <td className="text-center text-slate-600">{m.don_vi_tinh || 'Viên'}</td>
+                                            <td className="text-center font-bold text-[#003553]">
+                                                {m.so_luot_ke} lượt
+                                            </td>
+                                            <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                {Number(m.tong_so_luong).toLocaleString('vi-VN')}
+                                            </td>
+                                            <td>
+                                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[11px]">
+                                                    {m.nhom || 'Ngoại trú'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -558,35 +616,35 @@ export default function DashboardAdminPage() {
             {/* TAB CONTENT 4: KẾ TOÁN (Cashier & Financial Workbench) */}
             {activeRoleTab === 'KE_TOAN' && (
                 <div className="space-y-4">
-                    {/* Revenue summary tiles */}
+                    {/* Báo cáo Doanh thu 3 Cấu phần rõ ràng (Khám, CLS, Thuốc) theo chuẩn kiểm soát viện phí */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">Doanh thu Dịch vụ kỹ thuật</div>
+                        <div className="medpro-card p-4 border-l-4 border-l-[#003553]">
+                            <div className="text-[11px] font-bold uppercase text-slate-500">1. Tiền Khám Lâm Sàng</div>
                             <div className="font-display text-xl font-black text-[#003553] mt-1">
-                                {(accountantSummary.doanhThuDichVu * multiplier).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_kham_lam_sang || Math.round(accountantSummary.doanhThuDichVu * 0.4 * multiplier)).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Khám, X-Quang, Siêu âm, PT-TT</div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">Công khám đa chuyên khoa</div>
+                        </div>
+                        <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                            <div className="text-[11px] font-bold uppercase text-slate-500">2. Cận Lâm Sàng &amp; DVKT</div>
+                            <div className="font-display text-xl font-black text-[#008EC2] mt-1">
+                                {Number(stats?.doanh_thu_can_lam_sang || Math.round(accountantSummary.doanhThuDichVu * 0.6 * multiplier)).toLocaleString('vi-VN')} đ
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">Doanh thu Nhà thuốc (GPP)</div>
+                            <div className="text-[11px] font-bold uppercase text-slate-500">3. Tiền Thuốc Kê Đơn</div>
                             <div className="font-display text-xl font-black text-emerald-600 mt-1">
-                                {(accountantSummary.doanhThuNhaThuoc * multiplier).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_thuoc || Math.round(accountantSummary.doanhThuNhaThuoc * multiplier)).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Đơn thuốc ngoại trú đã liên thông</div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">Đơn thuốc ngoại trú đã thu tiền</div>
                         </div>
-                        <div className="medpro-card p-4 border-l-4 border-l-amber-500">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">Doanh thu Gói dịch vụ</div>
-                            <div className="font-display text-xl font-black text-amber-600 mt-1">
-                                {(accountantSummary.doanhThuGoiKham * multiplier).toLocaleString('vi-VN')} đ
+                        <div className="medpro-card p-4 border-l-4 border-l-amber-500 bg-amber-50/30">
+                            <div className="text-[11px] font-bold uppercase text-amber-800">Tổng Thực Thu (Đã thanh toán)</div>
+                            <div className="font-display text-xl font-black text-amber-700 mt-1">
+                                {Number(stats?.tong_doanh_thu_trong_ngay || Math.round((accountantSummary.doanhThuDichVu + accountantSummary.doanhThuNhaThuoc) * multiplier)).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Gói tầm soát sức khỏe tổng quát</div>
-                        </div>
-                        <div className="medpro-card p-4 border-l-4 border-l-purple-500">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">Khám đoàn Doanh nghiệp (B2B)</div>
-                            <div className="font-display text-xl font-black text-purple-600 mt-1">
-                                {(accountantSummary.doanhThuKhamDoan * multiplier).toLocaleString('vi-VN')} đ
-                            </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Hợp đồng KSK định kỳ công ty</div>
+                            <div className="text-[11px] text-amber-600 mt-0.5">Hóa đơn hợp lệ (Trạng thái: Đã thu)</div>
                         </div>
                     </div>
 

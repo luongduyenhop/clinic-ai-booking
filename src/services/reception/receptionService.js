@@ -1,5 +1,7 @@
+import { http } from '../BaseService'
 import { loadAllReceptionData, saveReceptionData, resetReceptionData } from '../../mock/reception/receptionStorage'
 import { APPOINTMENT_STATUS, QUEUE_STATUS, PAYMENT_STATUS } from '../../utils/constants/receptionConstants'
+import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
 
 // Giả lập độ trễ mạng nhẹ (150ms)
 const delay = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -40,12 +42,40 @@ class ReceptionService {
     }
 
     async fetchAllData() {
+        try {
+            const res = await http.get('/api/v1/reception/overview')
+            if (res.data && res.data.success && res.data.data) {
+                const apiData = res.data.data
+                this.data = {
+                    ...this.data,
+                    ...apiData,
+                    activeRole: this.data?.activeRole || 'RECEPTIONIST',
+                }
+                this._persist()
+                return JSON.parse(JSON.stringify(this.data))
+            }
+        } catch (err) {
+            console.warn('Backend reception overview unavailable, fallback to local storage:', err)
+        }
         await delay()
         this.data = loadAllReceptionData()
         return JSON.parse(JSON.stringify(this.data))
     }
 
     async resetAllData() {
+        try {
+            const res = await http.get('/api/v1/reception/overview')
+            if (res.data && res.data.success && res.data.data) {
+                this.data = {
+                    ...res.data.data,
+                    activeRole: 'RECEPTIONIST',
+                }
+                this._persist()
+                return JSON.parse(JSON.stringify(this.data))
+            }
+        } catch (err) {
+            console.warn('Backend reset overview fallback:', err)
+        }
         await delay()
         this.data = resetReceptionData()
         return JSON.parse(JSON.stringify(this.data))
@@ -195,6 +225,18 @@ class ReceptionService {
             roomId: appointment.roomId,
         })
         this._persist()
+
+        try {
+            const patientRecord = this.data.patients.find((p) => p.id === appointment.patientId)
+            clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, {
+                queueEntry: newQueueEntry,
+                patient: patientRecord,
+                appointment,
+            })
+        } catch (e) {
+            console.warn('Bridge emit error:', e)
+        }
+
         return { queueEntry: newQueueEntry, appointment }
     }
 
@@ -237,6 +279,18 @@ class ReceptionService {
             serviceId,
         })
         this._persist()
+
+        try {
+            const patientRecord = this.data.patients.find((p) => p.id === patientId)
+            clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, {
+                queueEntry: newQueueEntry,
+                patient: patientRecord,
+                appointment: null,
+            })
+        } catch (e) {
+            console.warn('Bridge emit walk-in error:', e)
+        }
+
         return newQueueEntry
     }
 

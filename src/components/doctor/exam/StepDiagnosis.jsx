@@ -5,6 +5,41 @@ import { searchIcd10Async } from '../../../redux/actions/doctor/clinicalAction'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ClinicIcon } from '../../common/ClinicIcon'
 
+const DEPARTMENT_ICD10_PRESETS = {
+    KHOA_NOI: [
+        { ma: 'I10', ten: 'Tăng huyết áp vô căn (nguyên phát)' },
+        { ma: 'E11', ten: 'Đái tháo đường típ 2' },
+        { ma: 'K29.7', ten: 'Viêm dạ dày - tá tràng' },
+        { ma: 'K21.0', ten: 'Trào ngược dạ dày thực quản (GERD)' },
+        { ma: 'A09', ten: 'Tiêu chảy và viêm dạ dày ruột' },
+    ],
+    KHOA_NGOAI: [
+        { ma: 'T14.1', ten: 'Vết thương hở vùng cơ thể' },
+        { ma: 'L02.9', ten: 'Áp xe da, nhọt và cụm nhọt' },
+        { ma: 'S93.4', ten: 'Bong gân và căng cơ khớp cổ chân' },
+        { ma: 'K80.0', ten: 'Sỏi túi mật kèm viêm túi mật' },
+    ],
+    KHOA_TMH: [
+        { ma: 'J02.9', ten: 'Viêm họng cấp' },
+        { ma: 'J01.9', ten: 'Viêm xoang cấp' },
+        { ma: 'J03.9', ten: 'Viêm amidan cấp' },
+        { ma: 'H66.9', ten: 'Viêm tai giữa không đặc hiệu' },
+        { ma: 'J30.4', ten: 'Viêm mũi dị ứng' },
+    ],
+    KHOA_RANG: [
+        { ma: 'K02.9', ten: 'Sâu răng không đặc hiệu' },
+        { ma: 'K04.0', ten: 'Viêm tủy răng' },
+        { ma: 'K05.1', ten: 'Viêm lợi mạn tính' },
+        { ma: 'K01.1', ten: 'Răng khôn mọc lệch / ngầm' },
+    ],
+    KHOA_MAT: [
+        { ma: 'H10.9', ten: 'Viêm kết mạc không đặc hiệu (Đau mắt đỏ)' },
+        { ma: 'H52.1', ten: 'Cận thị' },
+        { ma: 'H52.2', ten: 'Loạn thị' },
+        { ma: 'H25.9', ten: 'Đục thủy tinh thể người già' },
+    ],
+}
+
 function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
     return (
         <div
@@ -87,24 +122,58 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
         )
 
     const ai = encounter.ai_triage
+    const deptCode = encounter?.khoa_chuyen_mon || encounter?.ma_chuyen_khoa || 'KHOA_NOI'
+    const presets = DEPARTMENT_ICD10_PRESETS[deptCode] || DEPARTMENT_ICD10_PRESETS.KHOA_NOI
+
+    const handlePickPreset = (p) => {
+        if (locked || list.some((d) => d.ma_icd10 === p.ma)) return
+        const loai = primary ? 'phu' : 'chinh'
+        setFieldValue('danh_sach_chan_doan', [...list, { ma_icd10: p.ma, ten_benh_chan_doan: p.ten, loai_chan_doan: loai }])
+    }
 
     return (
         <div className="flex flex-wrap gap-5">
             <div className="flex min-w-0 flex-[999_1_380px] flex-col gap-4">
-                <label>
-                    <span className="medpro-label">Tìm mã bệnh WHO ICD-10</span>
-                    <AutoComplete
-                        className="w-full"
-                        value={keyword}
-                        options={options}
-                        onSearch={setKeyword}
-                        onChange={setKeyword}
-                        onSelect={addDiagnosis}
-                        disabled={locked}
-                        placeholder="Gõ mã hoặc tên bệnh, ví dụ A09, tiêu chảy…"
-                        notFoundContent={debounced ? 'Không tìm thấy mã phù hợp' : null}
-                    />
-                </label>
+                <div>
+                    <label>
+                        <span className="medpro-label">Tìm mã bệnh WHO ICD-10</span>
+                        <AutoComplete
+                            className="w-full"
+                            value={keyword}
+                            options={options}
+                            onSearch={setKeyword}
+                            onChange={setKeyword}
+                            onSelect={addDiagnosis}
+                            disabled={locked}
+                            placeholder="Gõ mã hoặc tên bệnh, ví dụ A09, tiêu chảy…"
+                            notFoundContent={debounced ? 'Không tìm thấy mã phù hợp' : null}
+                        />
+                    </label>
+                    {!locked && presets.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className="text-[11px] font-semibold text-slate-500 mr-1">Gợi ý nhanh theo khoa:</span>
+                            {presets.map((p) => {
+                                const alreadySelected = list.some((d) => d.ma_icd10 === p.ma)
+                                return (
+                                    <button
+                                        key={p.ma}
+                                        type="button"
+                                        onClick={() => handlePickPreset(p)}
+                                        disabled={alreadySelected}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                            alreadySelected
+                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'
+                                        }`}
+                                    >
+                                        <span className="font-bold text-[#0077B6]">{p.ma}</span>
+                                        <span>{p.ten}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex flex-col gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán chính</span>

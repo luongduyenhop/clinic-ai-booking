@@ -4,18 +4,22 @@ import { useSelector, useDispatch } from 'react-redux'
 import { List } from '@phosphor-icons/react'
 import { logout } from '../../redux/slices/authSlice'
 import { Hospital, SignOut, UserCheck, X } from '../common/ClinicIcon'
-import QuickPortalSwitcher from '../common/QuickPortalSwitcher'
+import { getRoleDefaultPath } from '../../utils/constants/System'
 
 export default function UserHeader() {
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { isAuthenticated, user } = useSelector((state) => state.app.auth)
+    const { isAuthenticated, user, role } = useSelector((state) => state.app.auth)
     const [mobileOpen, setMobileOpen] = useState(false)
 
     const handleLogout = () => {
         dispatch(logout())
         navigate('/login')
     }
+
+    const portalUrl = getRoleDefaultPath(role)
+    const roleName = user?.role || role || ''
+    const isStaff = !['BENH_NHAN', 'PATIENT', 'CUSTOMER', 'USER'].includes(String(roleName).toUpperCase())
 
     return (
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-[#E2EDF5]">
@@ -34,16 +38,16 @@ export default function UserHeader() {
                     <Link to="/khao-sat-trieu-chung" className="hover:text-[#00B5F1] transition">Trợ lý AI</Link>
                 </nav>
 
-                <div className="hidden xl:flex items-center">
-                    <QuickPortalSwitcher size="sm" />
-                </div>
-
                 <div className="flex items-center gap-2.5 shrink-0">
                     {isAuthenticated ? (
                         <div className="hidden sm:flex items-center gap-2">
-                            <Link to="/benh-nhan" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003553] max-w-[180px] truncate bg-[#E8F4FD] px-2.5 py-1.5 rounded-full border border-[#B8E5FA] hover:border-[#00B5F1]">
+                            <Link
+                                to={portalUrl}
+                                title={isStaff ? 'Đến không gian làm việc chuyên môn' : 'Đến Cổng Bệnh Nhân'}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003553] max-w-[200px] truncate bg-[#E8F4FD] px-3 py-1.5 rounded-full border border-[#B8E5FA] hover:border-[#00B5F1] transition"
+                            >
                                 <UserCheck size={15} weight="duotone" className="text-[#00B5F1]" />
-                                <span className="truncate">{user?.shortName || user?.fullName || 'Bệnh nhân'}</span>
+                                <span className="truncate">{user?.shortName || user?.fullName || (isStaff ? 'Nhân viên Y tế' : 'Bệnh nhân')}</span>
                             </Link>
                             <button
                                 onClick={handleLogout}
@@ -76,15 +80,12 @@ export default function UserHeader() {
 
             {mobileOpen && (
                 <nav className="lg:hidden public-container pb-4 grid gap-1 text-sm font-bold text-[#003553] bg-white border-t border-slate-100">
-                    <div className="py-2">
-                        <QuickPortalSwitcher size="sm" />
-                    </div>
                     <Link onClick={() => setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/">
                         Trang chủ
                     </Link>
                     {isAuthenticated && (
-                        <Link onClick={() => setMobileOpen(false)} className="p-3 rounded-lg bg-[#E8F4FD] text-[#008EC2]" to="/benh-nhan">
-                            Cổng bệnh nhân
+                        <Link onClick={() => setMobileOpen(false)} className="p-3 rounded-lg bg-[#E8F4FD] text-[#008EC2]" to={portalUrl}>
+                            {isStaff ? 'Không gian làm việc HIS' : 'Cổng bệnh nhân'}
                         </Link>
                     )}
                     <a onClick={() => setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" href="/#chuyen-khoa">
@@ -95,6 +96,9 @@ export default function UserHeader() {
                     </a>
                     <Link onClick={() => setMobileOpen(false)} className="p-3 rounded-lg hover:bg-[#E8F4FD]" to="/khao-sat-trieu-chung">
                         Trợ lý AI
+                    </Link>
+                    <Link onClick={() => setMobileOpen(false)} className="p-3 rounded-lg text-slate-500 hover:text-[#003553]" to="/staff/login">
+                        🔒 Đăng nhập Cổng Nhân Viên
                     </Link>
                 </nav>
             )}

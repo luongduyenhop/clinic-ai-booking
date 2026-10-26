@@ -266,7 +266,7 @@ class CashierService:
             raise ConflictException(f"Hóa đơn {invoice.ma_hoa_don} đã ở trạng thái hủy!")
 
         if invoice.trang_thai == "da_thu":
-            raise ConflictException("Hóa đơn đã thu tiền không thể hủy trực tiếp, vui lòng lập phiếu chi hoàn tiền!")
+            raise ConflictException("Hóa đơn đã thu tiền không thể hủy trực tiếp, vui lòng liên hệ quản trị phòng khám!")
 
         invoice.trang_thai = "da_huy"
         invoice.ghi_chu = f"{invoice.ghi_chu or ''} | HỦY: {ly_do}".strip(" | ")

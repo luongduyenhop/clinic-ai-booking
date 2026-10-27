@@ -138,3 +138,68 @@ class PatientMedicalRecordSummaryResponse(BaseModel):
     co_don_thuoc: bool = False
     so_loai_thuoc: int = 0
     trang_thai_luot_kham: str = "DA_KHAM"
+
+
+class PatientDiagnosisResponse(BaseModel):
+    id: int
+    ma_icd10: str
+    ten_benh_chan_doan: str
+    loai_chan_doan: str
+    ghi_chu_chuyen_mon: Optional[str] = None
+
+
+class PatientLabResultResponse(BaseModel):
+    id: int
+    luot_kham_id: int
+    ngay_kham: date
+    ten_dich_vu: str
+    ma_dich_vu: Optional[str] = None
+    trang_thai: str
+    ket_qua_chi_tiet: Optional[str] = None
+    ket_qua_phan_loai: Optional[str] = None
+    tri_so_chi_tiet: Dict[str, Any] = Field(default_factory=dict)
+    file_dinh_kem_urls: List[str] = Field(default_factory=list)
+    thoi_gian_tra_ket_qua: Optional[datetime] = None
+
+
+class PatientPrescriptionItemResponse(BaseModel):
+    id: int
+    ten_thuoc: str
+    hoat_chat: Optional[str] = None
+    ham_luong: Optional[str] = None
+    don_vi_tinh: str
+    so_luong: int
+    lieu_sang: Optional[str] = ""
+    lieu_trua: Optional[str] = ""
+    lieu_chieu: Optional[str] = ""
+    lieu_toi: Optional[str] = ""
+    cach_dung: str
+    so_ngay_dung: int
+    ghi_chu: Optional[str] = None
+
+
+class PatientPrescriptionResponse(BaseModel):
+    id: int
+    luot_kham_id: int
+    ngay_kham: date
+    ngay_ke_don: datetime
+    bac_si_ho_ten: str
+    chuyen_khoa: str
+    trang_thai: str
+    so_ngay_dung: int
+    loi_dan_uong_thuoc: Optional[str] = None
+    ghi_chu_duoc_lam_sang: Optional[str] = None
+    ma_don_quoc_gia: Optional[str] = None
+    danh_sach_thuoc: List[PatientPrescriptionItemResponse] = Field(default_factory=list)
+
+
+class PatientMedicalRecordDetailResponse(PatientMedicalRecordSummaryResponse):
+    ly_do_vao_kham: Optional[str] = None
+    benh_su: Optional[str] = None
+    trieu_chung: Optional[str] = None
+    chan_doan_so_bo: Optional[str] = None
+    ket_luan_dieu_tri: Optional[str] = None
+    loi_dan_tai_kham: Optional[str] = None
+    danh_sach_chan_doan: List[PatientDiagnosisResponse] = Field(default_factory=list)
+    ket_qua_can_lam_sang: List[PatientLabResultResponse] = Field(default_factory=list)
+    don_thuoc: List[PatientPrescriptionResponse] = Field(default_factory=list)

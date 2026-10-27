@@ -11,6 +11,9 @@ from app.schemas.patient import (
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientMedicalRecordSummaryResponse,
+    PatientMedicalRecordDetailResponse,
+    PatientLabResultResponse,
+    PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
     ServiceFeedbackCreateRequest,
@@ -141,6 +144,46 @@ async def get_medical_records(
         data=records,
         message=f"Tìm thấy {len(records)} lượt khám trong sổ sức khỏe điện tử"
     )
+
+
+@router.get(
+    "/medical-records/{encounter_id}",
+    response_model=ResponseEnvelope[PatientMedicalRecordDetailResponse],
+    summary="Bệnh nhân xem chi tiết một bệnh án điện tử thuộc hồ sơ của mình",
+)
+async def get_medical_record_detail(
+    encounter_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await patient_service.get_patient_medical_record_detail(encounter_id, current_user, db)
+    return ResponseEnvelope.success_response(data=record, message="Lấy chi tiết hồ sơ khám thành công")
+
+
+@router.get(
+    "/lab-results",
+    response_model=ResponseEnvelope[List[PatientLabResultResponse]],
+    summary="Bệnh nhân tra cứu toàn bộ kết quả xét nghiệm và cận lâm sàng của mình",
+)
+async def get_lab_results(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    results = await patient_service.get_patient_lab_results(current_user, db)
+    return ResponseEnvelope.success_response(data=results, message=f"Tìm thấy {len(results)} kết quả cận lâm sàng")
+
+
+@router.get(
+    "/prescriptions",
+    response_model=ResponseEnvelope[List[PatientPrescriptionResponse]],
+    summary="Bệnh nhân tra cứu danh sách đơn thuốc trực tuyến của mình",
+)
+async def get_prescriptions(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    prescriptions = await patient_service.get_patient_prescriptions(current_user, db)
+    return ResponseEnvelope.success_response(data=prescriptions, message=f"Tìm thấy {len(prescriptions)} đơn thuốc")
 
 
 # ── Khảo sát & Đánh giá chất lượng sau khám ──────────────────────────

@@ -1,17 +1,21 @@
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
-from app.models.medical import ChanDoan, ChiDinh, DanhGiaDichVu, DonThuoc, LuotKham
+from app.core.exceptions import BadRequestException, NotFoundException
+from app.models.medical import ChiDinh, DanhGiaDichVu, DonThuoc, LuotKham
 from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan
 from app.schemas.patient import (
     FamilyMemberCreateRequest,
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientMedicalRecordSummaryResponse,
+    PatientMedicalRecordDetailResponse,
+    PatientDiagnosisResponse,
+    PatientLabResultResponse,
+    PatientPrescriptionItemResponse,
+    PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
     ServiceFeedbackCreateRequest,
@@ -223,6 +227,131 @@ class PatientService:
             ))
 
         return results
+
+    @staticmethod
+    def _encounter_date(enc: LuotKham):
+        if enc.thoi_gian_bat_dau:
+            return enc.thoi_gian_bat_dau.date()
+        if enc.lich_kham:
+            return enc.lich_kham.ngay_kham
+        return enc.ngay_hen_tai_kham
+
+    @staticmethod
+    def _doctor_context(enc: LuotKham):
+        doctor = enc.bac_si
+        doctor_name = doctor.nguoi_dung.ho_ten if doctor and doctor.nguoi_dung else "Bác sĩ phụ trách"
+        specialty = doctor.chuyen_khoa.ten_chuyen_khoa if doctor and doctor.chuyen_khoa else "Đa khoa"
+        return doctor_name, specialty
+
+    def _to_lab_result(self, enc: LuotKham, order: ChiDinh) -> PatientLabResultResponse:
+        service = order.dich_vu
+        attachments = list(order.file_dinh_kem_urls or [])
+        if order.tep_dinh_kem_url and order.tep_dinh_kem_url not in attachments:
+            attachments.append(order.tep_dinh_kem_url)
+        return PatientLabResultResponse(
+            id=order.id,
+            luot_kham_id=enc.id,
+            ngay_kham=self._encounter_date(enc),
+            ten_dich_vu=service.ten_dich_vu if service else "Dịch vụ cận lâm sàng",
+            ma_dich_vu=service.ma_dich_vu if service else None,
+            trang_thai=order.trang_thai,
+            ket_qua_chi_tiet=order.ket_qua_chi_tiet,
+            ket_qua_phan_loai=order.ket_qua_phan_loai,
+            tri_so_chi_tiet=order.tri_so_chi_tiet or {},
+            file_dinh_kem_urls=attachments,
+            thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua,
+        )
+
+    def _to_prescription(self, enc: LuotKham, prescription: DonThuoc) -> PatientPrescriptionResponse:
+        doctor_name, specialty = self._doctor_context(enc)
+        return PatientPrescriptionResponse(
+            id=prescription.id,
+            luot_kham_id=enc.id,
+            ngay_kham=self._encounter_date(enc),
+            ngay_ke_don=prescription.ngay_ke_don,
+            bac_si_ho_ten=doctor_name,
+            chuyen_khoa=specialty,
+            trang_thai=prescription.trang_thai,
+            so_ngay_dung=prescription.so_ngay_dung or 5,
+            loi_dan_uong_thuoc=prescription.loi_dan_uong_thuoc,
+            ghi_chu_duoc_lam_sang=prescription.ghi_chu_duoc_lam_sang,
+            ma_don_quoc_gia=prescription.ma_don_quoc_gia,
+            danh_sach_thuoc=[PatientPrescriptionItemResponse.model_validate(item, from_attributes=True) for item in prescription.danh_sach_chi_tiet],
+        )
+
+    def _patient_record_options(self):
+        return (
+            selectinload(LuotKham.lich_kham),
+            selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
+            selectinload(LuotKham.bac_si).selectinload(BacSi.chuyen_khoa),
+            selectinload(LuotKham.danh_sach_chan_doan),
+            selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+            selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
+        )
+
+    async def _get_owned_encounter(self, encounter_id: int, user: TaiKhoan, db: AsyncSession) -> LuotKham:
+        patient = await self._get_current_benh_nhan(user, db)
+        stmt = select(LuotKham).where(
+            LuotKham.id == encounter_id,
+            LuotKham.benh_nhan_id == patient.id,
+        ).options(*self._patient_record_options())
+        encounter = (await db.execute(stmt)).scalar_one_or_none()
+        if not encounter:
+            raise NotFoundException("Không tìm thấy hồ sơ khám thuộc tài khoản bệnh nhân này!")
+        return encounter
+
+    async def get_patient_medical_record_detail(self, encounter_id: int, user: TaiKhoan, db: AsyncSession) -> PatientMedicalRecordDetailResponse:
+        enc = await self._get_owned_encounter(encounter_id, user, db)
+        doctor_name, specialty = self._doctor_context(enc)
+        diagnoses = list(enc.danh_sach_chan_doan or [])
+        main_diagnosis = next((item for item in diagnoses if item.loai_chan_doan == "chinh"), diagnoses[0] if diagnoses else None)
+        prescriptions = [item for item in (enc.danh_sach_don_thuoc or []) if item.trang_thai != "SUPERSEDED"]
+        return PatientMedicalRecordDetailResponse(
+            luot_kham_id=enc.id,
+            ngay_kham=self._encounter_date(enc),
+            bac_si_ho_ten=doctor_name,
+            chuyen_khoa=specialty,
+            phong_kham="Phòng khám chuyên khoa",
+            chan_doan_chinh=main_diagnosis.ten_benh_chan_doan if main_diagnosis else "Chưa có chẩn đoán",
+            ma_icd10=main_diagnosis.ma_icd10 if main_diagnosis else "N/A",
+            loi_dan_bac_si=enc.loi_dan_bac_si,
+            ngay_hen_tai_kham=enc.ngay_hen_tai_kham,
+            tong_so_chi_dinh_cls=len(enc.danh_sach_chi_dinh or []),
+            co_don_thuoc=bool(prescriptions),
+            so_loai_thuoc=sum(len(item.danh_sach_chi_tiet or []) for item in prescriptions),
+            trang_thai_luot_kham="DA_KHOA_HO_SO" if enc.is_locked else "DANG_KHAM",
+            ly_do_vao_kham=enc.ly_do_vao_kham,
+            benh_su=enc.benh_su,
+            trieu_chung=enc.trieu_chung,
+            chan_doan_so_bo=enc.chan_doan_so_bo,
+            ket_luan_dieu_tri=enc.ket_luan_dieu_tri,
+            loi_dan_tai_kham=enc.loi_dan_tai_kham,
+            danh_sach_chan_doan=[PatientDiagnosisResponse.model_validate(item, from_attributes=True) for item in diagnoses],
+            ket_qua_can_lam_sang=[self._to_lab_result(enc, item) for item in (enc.danh_sach_chi_dinh or [])],
+            don_thuoc=[self._to_prescription(enc, item) for item in prescriptions],
+        )
+
+    async def get_patient_lab_results(self, user: TaiKhoan, db: AsyncSession) -> List[PatientLabResultResponse]:
+        patient = await self._get_current_benh_nhan(user, db)
+        stmt = select(LuotKham).where(LuotKham.benh_nhan_id == patient.id).options(
+            selectinload(LuotKham.lich_kham),
+            selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+        ).order_by(desc(LuotKham.thoi_gian_bat_dau))
+        encounters = (await db.execute(stmt)).scalars().all()
+        return [self._to_lab_result(enc, item) for enc in encounters for item in (enc.danh_sach_chi_dinh or [])]
+
+    async def get_patient_prescriptions(self, user: TaiKhoan, db: AsyncSession) -> List[PatientPrescriptionResponse]:
+        patient = await self._get_current_benh_nhan(user, db)
+        stmt = select(LuotKham).where(LuotKham.benh_nhan_id == patient.id).options(
+            *self._patient_record_options()
+        ).order_by(desc(LuotKham.thoi_gian_bat_dau))
+        encounters = (await db.execute(stmt)).scalars().all()
+        return [
+            self._to_prescription(enc, item)
+            for enc in encounters
+            for item in (enc.danh_sach_don_thuoc or [])
+            if item.trang_thai != "SUPERSEDED"
+        ]
 
     # ── 4. Khảo sát & Đánh giá dịch vụ sau khám ─────────────────────────
     async def create_service_feedback(

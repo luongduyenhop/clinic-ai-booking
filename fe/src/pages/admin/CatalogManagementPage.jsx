@@ -170,7 +170,7 @@ export default function CatalogManagementPage() {
 
     const handleNewItem = () => {
         if (activeCatalogKey === 'diaChi') {
-            setForm({ id: '', maTinh: '01', tenTinh: 'Thành phố Hà Nội', quanHuyen: '', phuongXa: '', trangThai: true })
+            setForm({ id: '', maTinh: getNextCode(listData, 'TT', 2), tenTinh: '', quanHuyen: '', phuongXa: '', trangThai: true })
         } else if (activeCatalogKey === 'khoaPhong') {
             setForm({
                 id: '',
@@ -608,12 +608,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'diaChi' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã Tỉnh / Thành phố</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã Tỉnh / Thành phố</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maTinh || ''}
-                                    onChange={(e) => setForm({ ...form, maTinh: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã Tỉnh / Thành phố do hệ thống tự sinh, không thể chỉnh sửa"
                                 />
                             </div>
                             <div>

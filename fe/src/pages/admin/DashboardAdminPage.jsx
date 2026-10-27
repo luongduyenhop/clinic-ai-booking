@@ -633,18 +633,18 @@ export default function DashboardAdminPage() {
                             <div className="text-[11px] text-slate-400 mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">3. Tiền Thuốc Kê Đơn</div>
+                            <div className="text-[11px] font-bold uppercase text-slate-500">3. Gói Khám &amp; Liệu Trình</div>
                             <div className="font-display text-xl font-black text-emerald-600 mt-1">
-                                {Number(stats?.doanh_thu_thuoc || Math.round(accountantSummary.doanhThuNhaThuoc * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_goi_dich_vu || Math.round((accountantSummary.doanhThuDichVu || 1200000) * 0.3 * multiplier)).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Đơn thuốc ngoại trú đã thu tiền</div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">Gói dịch vụ &amp; Liệu trình phục hồi</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-amber-500 bg-amber-50/30">
                             <div className="text-[11px] font-bold uppercase text-amber-800">Tổng Thực Thu (Đã thanh toán)</div>
                             <div className="font-display text-xl font-black text-amber-700 mt-1">
-                                {Number(stats?.tong_doanh_thu_trong_ngay || Math.round((accountantSummary.doanhThuDichVu + accountantSummary.doanhThuNhaThuoc) * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.tong_doanh_thu_trong_ngay || Math.round((accountantSummary.doanhThuDichVu || 0) * multiplier)).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-amber-600 mt-0.5">Hóa đơn hợp lệ (Trạng thái: Đã thu)</div>
+                            <div className="text-[11px] text-amber-600 mt-0.5">Tổng thu viện phí hợp lệ (Không bán lẻ thuốc)</div>
                         </div>
                     </div>
 

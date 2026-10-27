@@ -145,19 +145,7 @@ export default function ComplianceAndAuditPage() {
                         <Signature size={15} weight="bold" />
                         <span>2. Đơn thuốc QG (/donthuocquocgia)</span>
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('DUOC_QG')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                            activeTab === 'DUOC_QG'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
-                        }`}
-                    >
-                        <Pill size={15} weight="bold" />
-                        <span>3. Dược Quốc gia (/dongboduocquocgia)</span>
-                    </button>
-                    <button
+                                        <button
                         type="button"
                         onClick={() => setActiveTab('HSSK')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
@@ -167,7 +155,7 @@ export default function ComplianceAndAuditPage() {
                         }`}
                     >
                         <Heartbeat size={15} weight="bold" />
-                        <span>4. Sổ Sức Khỏe HSSK (/dongbohssk)</span>
+                        <span>3. Sổ Sức Khỏe HSSK (/dongbohssk)</span>
                     </button>
                     <button
                         type="button"
@@ -179,7 +167,7 @@ export default function ComplianceAndAuditPage() {
                         }`}
                     >
                         <ClipboardText size={15} weight="bold" />
-                        <span>5. Nhật ký Kiểm toán ({auditLogs.length})</span>
+                        <span>4. Nhật ký Kiểm toán ({auditLogs.length})</span>
                     </button>
                     <button
                         type="button"
@@ -408,112 +396,7 @@ export default function ComplianceAndAuditPage() {
                 </div>
             )}
 
-            {/* TAB 3: ĐỒNG BỘ DƯỢC QUỐC GIA (5 PHÂN MỤC) */}
-            {activeTab === 'DUOC_QG' && (
-                <div className="medpro-card p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="medpro-section-title !mb-0">
-                            <span>ĐỒNG BỘ CƠ SỞ DỮ LIỆU DƯỢC QUỐC GIA (/dongboduocquocgia — 5 PHÂN MỤC)</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => handleTriggerSync('Dược Quốc gia')}
-                            className="medpro-btn-primary text-xs"
-                        >
-                            <ArrowsClockwise size={14} className={syncingKey === 'Dược Quốc gia' ? 'animate-spin' : ''} />
-                            <span>Đồng bộ phân mục hiện tại</span>
-                        </button>
-                    </div>
-
-                    {/* 5 Subtabs */}
-                    <div className="flex flex-wrap items-center gap-1.5 border-b border-[#E5EEF5] pb-2">
-                        {[
-                            { key: 'ALL', label: 'Tất cả phân mục', count: (Array.isArray(nationalDrugSync) ? nationalDrugSync : []).length },
-                            { key: 'Hóa đơn bán lẻ', label: '1. Hóa đơn bán lẻ', count: (Array.isArray(nationalDrugSync) ? nationalDrugSync : []).filter(x => x.phanMuc?.includes('bán')).length },
-                            { key: 'Phiếu nhập hàng', label: '2. Phiếu nhập kho', count: (Array.isArray(nationalDrugSync) ? nationalDrugSync : []).filter(x => x.phanMuc?.includes('nhập')).length },
-                            { key: 'Tồn đầu kỳ', label: '3. Tồn đầu kỳ', count: (Array.isArray(nationalDrugSync) ? nationalDrugSync : []).filter(x => x.phanMuc?.includes('Tồn')).length },
-                            { key: 'Danh mục', label: '4. Danh mục thuốc QG', count: 4 },
-                        ].map((st) => (
-                            <button
-                                key={st.key}
-                                type="button"
-                                onClick={() => setDrugSubTab(st.key)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                    drugSubTab === st.key
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-slate-100 text-[#003553] hover:bg-slate-200'
-                                }`}
-                            >
-                                {st.label} ({st.count})
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Active Subtab Table */}
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Mã đồng bộ</th>
-                                    <th>Phân mục</th>
-                                    <th>Mã phiếu chứng từ</th>
-                                    <th>Mã ca KCB</th>
-                                    <th>Bệnh nhân / Đơn vị</th>
-                                    <th>Thời điểm lập</th>
-                                    <th>Người lập</th>
-                                    <th>Mã liên thông Dược QG</th>
-                                    <th>Trạng thái</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(Array.isArray(nationalDrugSync) ? nationalDrugSync : [])
-                                    .filter((item) => drugSubTab === 'ALL' || item.phanMuc?.includes(drugSubTab))
-                                    .map((item, idx) => (
-                                        <tr key={item.id || idx}>
-                                            <td className="font-bold">{idx + 1}</td>
-                                            <td className="font-mono font-bold text-[#00B5F1]">{item.id}</td>
-                                            <td>
-                                                <span className="medpro-badge-info">{item.phanMuc}</span>
-                                            </td>
-                                            <td className="font-mono text-xs font-bold text-[#003553]">{item.maPhieu}</td>
-                                            <td className="font-mono text-xs">{item.maKCB}</td>
-                                            <td className="font-bold text-[#12263F]">{item.benhNhan}</td>
-                                            <td className="tabular-nums text-xs">{item.ngayLap}</td>
-                                            <td className="text-xs text-slate-600">{item.nguoiLap}</td>
-                                            <td className="font-mono text-xs font-bold text-emerald-700">
-                                                {item.maLienThongDQG}
-                                            </td>
-                                            <td>
-                                                <span
-                                                    className={
-                                                        item.trangThai?.includes('Đã đồng bộ')
-                                                            ? 'medpro-badge-success'
-                                                            : 'medpro-badge-warning'
-                                                    }
-                                                >
-                                                    {item.trangThai}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleTriggerSync(item.maPhieu)}
-                                                    className="medpro-btn-outline text-[11px] !py-1 !px-2"
-                                                >
-                                                    <span>Đẩy lại Cổng</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* TAB 4: ĐỒNG BỘ SỔ SỨC KHỎE ĐIỆN TỬ HSSK */}
+            {/* TAB 3: ĐỒNG BỘ SỔ SỨC KHỎE ĐIỆN TỬ HSSK */}
             {activeTab === 'HSSK' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">

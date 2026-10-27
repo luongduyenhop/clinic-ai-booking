@@ -1,16 +1,38 @@
 import { BaseServices } from '../BaseService'
 import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 
-const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
+const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL'
+
+function sanitizeThuocVatTu(list) {
+    if (!Array.isArray(list)) return []
+    return list.map((item) => {
+        const clean = { ...item }
+        delete clean.donGia
+        delete clean.giaNhap
+        delete clean.tonKho
+        delete clean.soLo
+        delete clean.hanSuDung
+        return clean
+    })
+}
 
 function loadClinicStore() {
     try {
+        // Tự động dọn dẹp các cache cũ nếu có
+        localStorage.removeItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
         const raw = localStorage.getItem(STORAGE_KEY)
         if (!raw) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CLINIC_DATA))
             return structuredClone(INITIAL_CLINIC_DATA)
         }
         const parsed = JSON.parse(raw)
+        const loadedCatalogs = {
+            ...structuredClone(INITIAL_CLINIC_DATA.catalogs),
+            ...(parsed.catalogs || {}),
+        }
+        if (loadedCatalogs.thuocVatTu) {
+            loadedCatalogs.thuocVatTu = sanitizeThuocVatTu(loadedCatalogs.thuocVatTu)
+        }
         return {
             ...structuredClone(INITIAL_CLINIC_DATA),
             ...parsed,
@@ -30,10 +52,7 @@ function loadClinicStore() {
             nationalDrugSync: parsed.nationalDrugSync || INITIAL_CLINIC_DATA.nationalDrugSync,
             nationalEhrSync: parsed.nationalEhrSync || INITIAL_CLINIC_DATA.nationalEhrSync,
             clinicSettings: parsed.clinicSettings || INITIAL_CLINIC_DATA.clinicSettings,
-            catalogs: {
-                ...structuredClone(INITIAL_CLINIC_DATA.catalogs),
-                ...(parsed.catalogs || {}),
-            },
+            catalogs: loadedCatalogs,
         }
     } catch {
         return structuredClone(INITIAL_CLINIC_DATA)
@@ -44,6 +63,9 @@ function saveClinicStore(data) {
     try {
         if (data && typeof data === 'object') {
             data.inventoryBatches = []
+            if (data.catalogs?.thuocVatTu) {
+                data.catalogs.thuocVatTu = sanitizeThuocVatTu(data.catalogs.thuocVatTu)
+            }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch {

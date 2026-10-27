@@ -1,24 +1,23 @@
 from datetime import datetime, timezone
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModelWithTimestamp
 
 
 class TrangThaiGiayPhep(str, Enum):
-    """Trạng thái vòng đời giấy phép hành nghề bác sĩ & cơ sở (INT-05)"""
-    ACTIVE = "ACTIVE"                  # Còn hiệu lực
-    EXPIRING_SOON = "EXPIRING_SOON"    # Sắp hết hạn (<= 90 ngày)
-    EXPIRED = "EXPIRED"                # Đã hết hạn
-    SUSPENDED = "SUSPENDED"            # Tạm đình chỉ hoạt động
-    REVOKED = "REVOKED"                # Bị thu hồi giấy phép
+    ACTIVE = "ACTIVE"
+    EXPIRING_SOON = "EXPIRING_SOON"
+    EXPIRED = "EXPIRED"
+    SUSPENDED = "SUSPENDED"
+    REVOKED = "REVOKED"
 
 
 class GiayPhepCoSo(BaseModelWithTimestamp):
-    """Quản lý Giấy phép hoạt động của Cơ sở khám chữa bệnh (Facility Credentialing - INT-05)"""
     __tablename__ = "giay_phep_co_so"
 
     so_giay_phep = Column(String(100), unique=True, nullable=False, index=True)
+    ma_lien_thong_co_so = Column(String(100), nullable=True)
     ten_co_so = Column(String(255), nullable=False)
     ngay_cap = Column(DateTime(timezone=True), nullable=False)
     ngay_het_han = Column(DateTime(timezone=True), nullable=True, index=True)
@@ -29,7 +28,6 @@ class GiayPhepCoSo(BaseModelWithTimestamp):
 
 
 class LichSuGiayPhepBacSi(BaseModelWithTimestamp):
-    """Nhật ký biến động và thẩm định giấy phép hành nghề bác sĩ (INT-05 Audit Log)"""
     __tablename__ = "lich_su_giay_phep_bac_si"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -40,7 +38,6 @@ class LichSuGiayPhepBacSi(BaseModelWithTimestamp):
     ngay_hieu_luc = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     ghi_chu = Column(Text, nullable=True)
 
-    # Quan hệ
     bac_si = relationship("BacSi", backref="lich_su_giay_phep")
     nguoi_thuc_hien = relationship("TaiKhoan")
 
@@ -60,16 +57,17 @@ class HealthDataResourceType(str, Enum):
 
 
 class NhatKyTruyCapDuLieuYTe(BaseModelWithTimestamp):
-    """Bảng nhật ký kiểm toán truy cập dữ liệu sức khỏe (Health Data Access Log - INT-03 / NĐ 102/2025/NĐ-CP)"""
     __tablename__ = "nhat_ky_truy_cap_y_te"
 
     user_id = Column(Integer, nullable=False, index=True)
     user_role = Column(String(50), nullable=False)
-    patient_id = Column(Integer, nullable=False, index=True)
-    action = Column(String(50), nullable=False)  # VIEW, EDIT, EXPORT, AMEND
-    resource_type = Column(String(50), nullable=False)  # ENCOUNTER, PRESCRIPTION, PATIENT_HISTORY, DIAGNOSIS
+    loai_nhat_ky = Column(String(30), default="Y_TE", nullable=False)
+    patient_id = Column(Integer, nullable=True, index=True)
+    action = Column(String(50), nullable=False)
+    resource_type = Column(String(50), nullable=False)
     resource_id = Column(Integer, nullable=True)
-    purpose = Column(String(255), nullable=False)  # KHAM_BENH, HO_TRO_DUOC, THANH_TRA, TRA_CUU
+    purpose = Column(String(255), nullable=False)
+    noi_dung_cu_json = Column(JSON, nullable=True)
+    noi_dung_moi_json = Column(JSON, nullable=True)
     client_ip = Column(String(50), nullable=True)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-

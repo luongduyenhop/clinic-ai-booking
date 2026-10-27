@@ -302,6 +302,52 @@ export default function ClinicalExamPage() {
                 },
             })
         )
+
+        // Tự động đẩy chỉ định Cận lâm sàng sang phân hệ phòng CLS
+        const currentTasks = clinicData?.paraclinicalTasks || []
+        const effectiveServices = patch.services || services || []
+        let hasNewCls = false
+        const updatedTasks = [...currentTasks]
+
+        effectiveServices.forEach((s) => {
+            const isCls = s.phongTH?.toLowerCase().includes('phòng') ||
+                s.tenDV?.toLowerCase().includes('siêu âm') ||
+                s.tenDV?.toLowerCase().includes('xquang') ||
+                s.tenDV?.toLowerCase().includes('x-quang') ||
+                s.tenDV?.toLowerCase().includes('xét nghiệm') ||
+                s.tenDV?.toLowerCase().includes('nội soi') ||
+                s.tenDV?.toLowerCase().includes('điện tim')
+            if (isCls && !updatedTasks.some((t) => t.maKCB === currentExam.maKCB && t.maDV === s.maDV)) {
+                updatedTasks.unshift({
+                    id: `CLS-${currentExam.maKCB}-${s.maDV}`,
+                    maKCB: currentExam.maKCB,
+                    maBN: currentExam.maBN,
+                    hoTen: currentExam.hoTen,
+                    gioiTinh: currentExam.gioiTinh,
+                    tuoi: currentExam.tuoi,
+                    maDV: s.maDV,
+                    tenDV: s.tenDV,
+                    phongThucHien: s.phongTH || 'Phòng Cận lâm sàng',
+                    bacSiChiDinh: currentExam.bacSi || 'BS.CKII Nguyễn Minh Hoàng',
+                    bacSiThucHien: '',
+                    trangThai: s.trangThaiCLS || 'Chờ thực hiện',
+                    ngayChiDinh: new Date().toISOString().replace('T', ' ').slice(0, 16),
+                    moTa: s.moTaCLS || '',
+                    ketLuan: s.ketQuaCLS || '',
+                    hinhAnh: s.hinhAnhCLS || [],
+                })
+                hasNewCls = true
+            }
+        })
+
+        if (hasNewCls) {
+            await dispatch(
+                updateClinicCollectionAsync({
+                    collectionKey: 'paraclinicalTasks',
+                    items: updatedTasks,
+                })
+            )
+        }
     }
 
     const handleAddIcd = () => {
@@ -1344,6 +1390,11 @@ export default function ClinicalExamPage() {
                                             <td>{s.phongTH}</td>
                                             <td>
                                                 <StatusBadge status={s.trangThaiCLS} compact />
+                                                {s.ketQuaCLS && (
+                                                    <div className="mt-1 p-1 bg-emerald-50 rounded border border-emerald-200 text-[11px] text-emerald-800 font-semibold" title={s.moTaCLS || ''}>
+                                                        KL: {s.ketQuaCLS}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td>
                                                 <button

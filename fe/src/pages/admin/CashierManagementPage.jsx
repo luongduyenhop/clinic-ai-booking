@@ -39,7 +39,7 @@ export default function CashierManagementPage() {
     const vouchers = useMemo(() => {
         let list = [...(clinicData?.vouchers || [])]
         try {
-            const raw = localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
+            const raw = localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL')
             if (raw) {
                 const parsed = JSON.parse(raw)
                 const storedVouchers = parsed?.vouchers || []
@@ -57,6 +57,17 @@ export default function CashierManagementPage() {
     const patients = clinicData?.patients || []
     const registrations = clinicData?.registrations || []
     const khoanThuCatalog = clinicData?.catalogs?.khoanThu || []
+
+    // Danh sách bệnh nhân chờ thu viện phí (Đã có dịch vụ chỉ định từ bàn khám)
+    const pendingBillRegistrations = useMemo(() => {
+        return (registrations || []).filter((r) => {
+            const hasServices = Array.isArray(r.services) && r.services.length > 0
+            const isPaid = vouchers.some(
+                (v) => (v.maKCB === r.maKCB || (v.maBN === r.maBN && v.items?.length > 0)) && v.daThu
+            )
+            return hasServices && !isPaid
+        })
+    }, [registrations, vouchers])
 
     const masterOptions = getMasterOptions(clinicData)
     const defaults = getFormDefaults(clinicData)
@@ -172,9 +183,11 @@ export default function CashierManagementPage() {
 
     const paidCount = vouchers.filter((v) => v.daThu).length
 
-    const handleSelectPatientAutoFill = (maBN) => {
+    const handleSelectPatientAutoFill = (maBN, specificKCB) => {
         const patient = patients.find((p) => p.maBN === maBN)
-        const reg = registrations.find((r) => r.maBN === maBN)
+        const reg = specificKCB
+            ? registrations.find((r) => r.maKCB === specificKCB)
+            : registrations.find((r) => r.maBN === maBN)
         const autoItems =
             reg?.services?.map((s, i) => ({
                 id: `VI-AUTO-${i + 1}`,
@@ -187,8 +200,9 @@ export default function CashierManagementPage() {
         setForm({
             ...form,
             maBN,
-            hoTenBN: patient?.hoTen || form.hoTenBN,
-            tenPhieu: `Thu viện phí BN ${patient?.hoTen || ''} ${reg ? `(Mã KCB: ${reg.maKCB})` : ''}`,
+            maKCB: reg?.maKCB || '',
+            hoTenBN: patient?.hoTen || reg?.hoTen || form.hoTenBN,
+            tenPhieu: `Thu viện phí BN ${patient?.hoTen || reg?.hoTen || ''} ${reg ? `(Mã KCB: ${reg.maKCB})` : ''}`,
             items: autoItems.length > 0 ? autoItems : form.items,
             tongTien: autoItems.length > 0 ? sum : form.tongTien,
         })
@@ -366,6 +380,38 @@ export default function CashierManagementPage() {
                                 <span>Lập phiếu mới</span>
                             </button>
                         </div>
+
+                        {pendingBillRegistrations.length > 0 && (
+                            <div className="mb-3 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200">
+                                <div className="flex items-center justify-between text-xs font-bold text-amber-900 mb-1.5">
+                                    <span className="flex items-center gap-1.5">
+                                        <Receipt size={14} weight="bold" className="text-amber-600" />
+                                        <span>CHỜ THU TIỀN VIỆN PHÍ ({pendingBillRegistrations.length})</span>
+                                    </span>
+                                    <span className="text-[10px] text-amber-600 font-semibold">Click nạp nhanh</span>
+                                </div>
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                    {pendingBillRegistrations.map((p) => {
+                                        const total = (p.services || []).reduce((acc, s) => acc + (Number(s.thanhTien) || 0), 0)
+                                        return (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => handleSelectPatientAutoFill(p.maBN, p.maKCB)}
+                                                className="px-2 py-1.5 rounded-lg bg-white hover:bg-amber-100/70 text-xs flex items-center justify-between cursor-pointer transition border border-amber-100"
+                                            >
+                                                <div>
+                                                    <span className="font-bold text-[#003553]">{p.hoTen}</span>
+                                                    <span className="ml-1.5 font-mono text-[10px] text-slate-500">({p.maKCB})</span>
+                                                </div>
+                                                <span className="font-bold text-emerald-700 font-mono text-[11px]">
+                                                    {total.toLocaleString('vi-VN')} đ
+                                                </span>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-12 gap-2 mb-3">
                             <div className="col-span-7 relative">

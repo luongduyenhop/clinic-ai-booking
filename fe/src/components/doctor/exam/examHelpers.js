@@ -15,8 +15,27 @@ export const VITAL_FIELDS = [
 export const computeBmi = (kg, cm) => {
     const w = Number(kg)
     const h = Number(cm) / 100
-    if (!w || !h) return ''
+    if (!w || !h || h <= 0) return ''
     return (w / (h * h)).toFixed(1)
+}
+
+// Phân loại thể trạng BMI theo chuẩn IDI & WPRO / Bộ Y Tế dành cho người Châu Á
+export const getBmiClassification = (bmiVal) => {
+    const val = Number(bmiVal)
+    if (!val || Number.isNaN(val) || val <= 0) return null
+    if (val < 18.5) {
+        return { label: 'Gầy / Thiếu cân', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', alert: true }
+    }
+    if (val <= 22.9) {
+        return { label: 'Thể trạng chuẩn', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', alert: false }
+    }
+    if (val <= 24.9) {
+        return { label: 'Tiền béo phì', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', alert: true }
+    }
+    if (val <= 29.9) {
+        return { label: 'Béo phì độ I', badgeClass: 'bg-rose-100 text-rose-800 border-rose-300', alert: true }
+    }
+    return { label: 'Béo phì độ II', badgeClass: 'bg-red-200 text-red-900 border-red-400 font-extrabold', alert: true }
 }
 
 export const DOSE_SLOTS = [

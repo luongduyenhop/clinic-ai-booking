@@ -1,5 +1,5 @@
 import { ClinicIcon } from '../../common/ClinicIcon'
-import { VITAL_FIELDS, computeBmi } from './examHelpers'
+import { VITAL_FIELDS, computeBmi, getBmiClassification } from './examHelpers'
 import SpecialtyExamSection from './SpecialtyExamSection'
 
 function AiTriageCard({ ai }) {
@@ -32,6 +32,7 @@ function AiTriageCard({ ai }) {
 export default function StepClinical({ formik, encounter, locked }) {
     const { values, errors, handleChange, handleBlur } = formik
     const bmi = computeBmi(values.can_nang_kg, values.chieu_cao_cm)
+    const bmiInfo = getBmiClassification(bmi)
 
     return (
         <div className="flex flex-col gap-5">
@@ -73,12 +74,27 @@ export default function StepClinical({ formik, encounter, locked }) {
                             </label>
                         )
                     })}
-                    <div className="flex flex-col gap-1 rounded-xl bg-white px-3 py-2.5 ring-1 ring-slate-200">
+                    <div
+                        className={`flex flex-col gap-1 rounded-xl px-3 py-2.5 transition-all ${
+                            bmiInfo?.alert
+                                ? 'bg-amber-50/70 ring-2 ring-amber-400'
+                                : 'bg-white ring-1 ring-slate-200'
+                        }`}
+                    >
                         <span className="text-[12px] font-medium text-slate-600">BMI · tự tính</span>
-                        <span className="flex items-baseline gap-1.5">
-                            <span className="text-[20px] font-bold text-[#003553]">{bmi || '—'}</span>
-                            <span className="text-[12px] text-slate-500">kg/m²</span>
-                        </span>
+                        <div className="flex flex-wrap items-baseline justify-between gap-1">
+                            <span className="flex items-baseline gap-1.5">
+                                <span className="text-[20px] font-bold text-[#003553]">{bmi || '—'}</span>
+                                <span className="text-[12px] text-slate-500">kg/m²</span>
+                            </span>
+                            {bmiInfo && (
+                                <span
+                                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-bold ${bmiInfo.badgeClass}`}
+                                >
+                                    {bmiInfo.label}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </section>

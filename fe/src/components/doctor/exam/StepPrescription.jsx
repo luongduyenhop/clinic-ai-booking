@@ -76,25 +76,21 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             .then((list) => {
                 if (cancelled) return
                 setOptions(
-                    list.map((d) => {
-                        // Giả lập số tồn kho thực tế của nhà thuốc phòng khám (SimpleClinic)
-                        const stock = d.ton_kho !== undefined ? d.ton_kho : Math.floor((d.ten_thuoc.length * 47) % 180) + 15
-                        return {
-                            value: d.ten_thuoc,
-                            label: (
-                                <div className="flex items-center justify-between py-0.5">
-                                    <div>
-                                        <strong className="text-[#003553] text-[13px]">{d.ten_thuoc}</strong>
-                                        <span className="ml-2 text-slate-500 text-xs">{d.hoat_chat} ({d.ham_luong || 'Chuẩn'})</span>
-                                    </div>
-                                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                        Tồn: {stock} {d.don_vi_tinh || 'viên'}
-                                    </span>
+                    list.map((d) => ({
+                        value: d.ten_thuoc,
+                        label: (
+                            <div className="flex items-center justify-between py-0.5">
+                                <div>
+                                    <strong className="text-[#003553] text-[13px]">{d.ten_thuoc}</strong>
+                                    <span className="ml-2 text-slate-500 text-xs">{d.hoat_chat} ({d.ham_luong || 'Chuẩn'})</span>
                                 </div>
-                            ),
-                            item: { ...d, ton_kho: stock },
-                        }
-                    })
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-[#0077B6]">
+                                    {d.nhom_thuoc || d.don_vi_tinh || 'Kê đơn'}
+                                </span>
+                            </div>
+                        ),
+                        item: { ...d },
+                    }))
                 )
             })
             .catch(() => !cancelled && setOptions([]))
@@ -350,8 +346,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     {rows.map((r, i) => {
                         const conflict = findAllergyConflict(r.hoat_chat, allergy)
                         const totalQty = computeQuantity(r)
-                        const stockExceeded = r.ton_kho !== undefined && totalQty > r.ton_kho
-
+                        
                         return (
                             <div key={`${r.ten_thuoc}-${i}`} className={`border-t border-slate-100 ${conflict ? 'bg-rose-50/50' : i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
                                 <div className={`${GRID} px-3 py-2.5`}>
@@ -378,17 +373,15 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         </button>
                                     </div>
 
-                                    {/* Cột 2: Tên thuốc, hoạt chất, tồn kho */}
+                                    {/* Cột 2: Tên thuốc, hoạt chất, đường dùng */}
                                     <div className="min-w-0 pr-2">
                                         <div className="font-bold text-[#003553] text-[13px] truncate">{r.ten_thuoc}</div>
                                         <div className="flex items-center gap-2 text-[11px] text-slate-500">
                                             <span>{r.hoat_chat} ({r.ham_luong || 'Chuẩn'})</span>
                                             <span className="text-slate-300">·</span>
                                             <span className="font-semibold text-teal-700">{r.don_vi_tinh || 'Viên'}</span>
-                                            {r.ton_kho !== undefined && (
-                                                <span className={`text-[10px] px-1.5 py-0.2 rounded ${stockExceeded ? 'bg-amber-100 text-amber-800 font-bold' : 'text-slate-500'}`}>
-                                                    Tồn: {r.ton_kho}
-                                                </span>
+                                            {r.duong_dung && (
+                                                <span className="text-[10px] text-slate-400">({r.duong_dung})</span>
                                             )}
                                         </div>
                                     </div>

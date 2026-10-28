@@ -131,7 +131,37 @@ export default function ParaclinicalPage() {
                 },
             })
         )
-        AppToast.success(markCompleted ? 'Đã hoàn thành và trả kết quả Cận lâm sàng!' : 'Đã lưu kết quả Cận lâm sàng!')
+        // Đồng bộ 2 chiều kết quả về Lượt khám bệnh án của Bác sĩ
+        const registrations = clinicData?.registrations || []
+        const hasMatchingReg = registrations.some((r) => r.maKCB === updatedRecord.maKCB)
+        if (hasMatchingReg) {
+            const updatedRegistrations = registrations.map((r) => {
+                if (r.maKCB === updatedRecord.maKCB) {
+                    const updatedServices = (r.services || []).map((s) => {
+                        if (s.maDV === updatedRecord.maDV) {
+                            return {
+                                ...s,
+                                trangThaiCLS: markCompleted ? 'Đã có kết quả' : s.trangThaiCLS,
+                                ketQuaCLS: updatedRecord.ketLuan,
+                                moTaCLS: updatedRecord.moTa,
+                                hinhAnhCLS: updatedRecord.hinhAnh,
+                            }
+                        }
+                        return s
+                    })
+                    return { ...r, services: updatedServices }
+                }
+                return r
+            })
+            await dispatch(
+                updateClinicCollectionAsync({
+                    collectionKey: 'registrations',
+                    items: updatedRegistrations,
+                })
+            )
+        }
+
+        AppToast.success(markCompleted ? 'Đã hoàn thành và trả kết quả Cận lâm sàng về Bệnh án!' : 'Đã lưu kết quả Cận lâm sàng!')
     }
 
     return (

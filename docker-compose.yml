@@ -76,6 +76,8 @@ services:
       - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
     ports:
       - "3000:3000"
+    volumes:
+      - ./fe/dist:/usr/share/nginx/html:ro
     networks:
       - clinic_network
 

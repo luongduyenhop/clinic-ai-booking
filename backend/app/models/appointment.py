@@ -3,14 +3,14 @@ from sqlalchemy import (
     CheckConstraint, Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric,
     UniqueConstraint, text
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 from app.core.config import ALLOWED_SLOT_DURATIONS
 from app.models.base import BaseModelWithTimestamp
 
 
 class CaLamViecEnum(str, Enum):
-    SANG = "sang"    # 07:30 - 11:30
-    CHIEU = "chieu"  # 13:30 - 17:00
+    SANG = "sang"
+    CHIEU = "chieu"
 
 
 class TrangThaiLichEnum(str, Enum):
@@ -24,7 +24,6 @@ class TrangThaiLichEnum(str, Enum):
     NO_SHOW = "no_show"
 
 
-# Whitelist các trạng thái đang thực sự chiếm dụng slot (Occupying Statuses) theo chuẩn OpenMRS O3 / FHIR
 OCCUPYING_SLOT_STATUSES = frozenset({
     TrangThaiLichEnum.DA_XAC_NHAN.value,
     TrangThaiLichEnum.DA_TIEP_NHAN.value,
@@ -32,8 +31,6 @@ OCCUPYING_SLOT_STATUSES = frozenset({
 })
 _OCCUPYING_CONDITION_STR = ", ".join(f"'{status}'" for status in sorted(OCCUPYING_SLOT_STATUSES))
 _ACTIVE_BOOKING_CONDITION = text(f"trang_thai IN ({_OCCUPYING_CONDITION_STR})")
-
-# Giữ CANCELLED_STATUSES cho kiểm tra điều kiện hủy/hoàn tác
 CANCELLED_STATUSES = {TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value}
 
 
@@ -46,15 +43,15 @@ class TrangThaiWaitlistEnum(str, Enum):
 
 
 class LoaiHangDoiEnum(str, Enum):
-    """Phân loại nguồn gốc bệnh nhân trong hàng đợi theo chuẩn Bahmni Queue"""
-    DUNG_HEN = "dung_hen"            # Bệnh nhân đến đúng khung giờ hẹn (trước 0-30p)
-    DEN_SOM = "den_som"              # Bệnh nhân đến sớm hơn 30p so với giờ hẹn
-    DEN_MUON = "den_muon"            # Bệnh nhân đến trễ hơn khung giờ hẹn (> 30p)
-    VANG_LAI = "vang_lai"            # Bệnh nhân không đặt trước, lấy số tại quầy
-    TRA_KET_QUA_CLS = "tra_ket_qua"  # Bệnh nhân quay lại phòng khám sau khi làm xét nghiệm
+    DUNG_HEN = "dung_hen"
+    DEN_SOM = "den_som"
+    DEN_MUON = "den_muon"
+    VANG_LAI = "vang_lai"
+    TRA_KET_QUA_CLS = "tra_ket_qua"
 
 
 class TrangThaiHangDoiEnum(str, Enum):
+<<<<<<< HEAD
     """Trạng thái điều phối thực tế tại phòng khám ngoại trú (Bahmni Clinic Queue)"""
     CHO_KHAM = "cho_kham"            # Đang đợi gọi số trước cửa phòng
     DANG_KHAM = "dang_kham"          # Đang trong phòng khám với bác sĩ
@@ -71,16 +68,23 @@ class LyDoUuTienEnum(str, Enum):
     THAI_PHU = "thai_phu"               # Phụ nữ mang thai
     TRE_SO_SINH = "tre_so_sinh"          # Trẻ sơ sinh ≤ 6 tháng
     THUONG_BINH = "thuong_binh"          # Thương binh liệt sĩ
+=======
+    CHO_KHAM = "cho_kham"
+    CHO_GOI = "CHO_GOI"
+    DANG_GOI = "DANG_GOI"
+    DANG_KHAM = "dang_kham"
+    TAM_HOAN = "tam_hoan"
+    DA_KHAM = "da_kham"
+    BO_KHAM = "bo_kham"
+>>>>>>> origin/develop
 
 
 class LoaiNghiPhepEnum(str, Enum):
-    """Phân loại hình thức nghỉ của Bác sĩ chuẩn OpenMRS/Bahmni Absence"""
-    NGHI_PHEP = "NGHI_PHEP"          # Nghỉ phép năm / Kế hoạch báo trước
-    NGHI_DOT_XUAT = "NGHI_DOT_XUAT"  # Nghỉ đột xuất trong ngày (cần chuyển tuyến/hoãn)
+    NGHI_PHEP = "NGHI_PHEP"
+    NGHI_DOT_XUAT = "NGHI_DOT_XUAT"
 
 
 class TrangThaiNghiPhepEnum(str, Enum):
-    """Trạng thái duyệt đơn nghỉ phép của bác sĩ"""
     CHO_DUYET = "CHO_DUYET"
     DA_DUYET = "DA_DUYET"
     TU_CHOI = "TU_CHOI"
@@ -88,26 +92,25 @@ class TrangThaiNghiPhepEnum(str, Enum):
 
 
 class LichLamViec(BaseModelWithTimestamp):
-    """Bảng cấu hình ca làm việc định kỳ của Bác sĩ (OpenMRS Appointment Block)"""
     __tablename__ = "lich_lam_viec"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_lam_viec = Column(Date, nullable=False, index=True)
     ca_lam_viec = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     gio_bat_dau = Column(Time, nullable=False)
     gio_ket_thuc = Column(Time, nullable=False)
-    gioi_han_ca_kham = Column(Integer, default=8, nullable=False)  # Tối đa 8 bệnh nhân/ca
-    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
-    han_muc_dat_truoc = Column(Integer, default=6, nullable=False)  # Mặc định ~75% dành cho đặt hẹn online
-    han_muc_vang_lai = Column(Integer, default=2, nullable=False)   # Mặc định ~25% dành cho tiếp đón vãng lai/khẩn
-    is_active = Column(Boolean, default=True, nullable=False)      # False nếu nghỉ đột xuất
+    buoc_gio_hen_phut = Column(Integer, default=30, nullable=False)
+    gioi_han_ca_kham = Column(Integer, default=8, nullable=False)
+    han_muc_dat_truoc = Column(Integer, default=6, nullable=False)
+    han_muc_vang_lai = Column(Integer, default=2, nullable=False)
+    so_luot_toi_da_moi_khung = Column(Integer, default=1, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
     ghi_chu_nghi = Column(Text, nullable=True)
 
-    # Quan hệ
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_lam_viec")
     phong_kham = relationship("PhongKham", back_populates="danh_sach_lich_lam_viec")
 
-    # Khớp database: mỗi bác sĩ chỉ có 1 ca sáng và 1 ca chiều mỗi ngày; buồng khám không được trùng ca
     __table_args__ = (
         UniqueConstraint("bac_si_id", "ngay_lam_viec", "ca_lam_viec", name="uq_doctor_shift"),
         Index(
@@ -120,14 +123,18 @@ class LichLamViec(BaseModelWithTimestamp):
 
 
 class LichKham(BaseModelWithTimestamp):
-    """Bảng lịch hẹn khám bệnh trực tuyến (OpenMRS Appointment / TimeSlot)"""
     __tablename__ = "lich_kham"
 
     ma_lich_kham = Column(String(50), unique=True, nullable=False, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False, index=True)
+<<<<<<< HEAD
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=True, index=True)
     chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=True, index=True)
     ca_kham = Column(String(20), nullable=True)  # 'sang' hoặc 'chieu'
+=======
+    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False, index=True)
+    lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
+>>>>>>> origin/develop
     ngay_kham = Column(Date, nullable=False, index=True)
     gio_kham = Column(Time, nullable=True, index=True)
     thoi_luong_phut = Column(Integer, default=30, nullable=False)
@@ -137,30 +144,32 @@ class LichKham(BaseModelWithTimestamp):
     trang_thai = Column(String(30), default=TrangThaiLichEnum.DA_XAC_NHAN.value, nullable=False)
     is_reconfirmed_24h = Column(Boolean, default=False, nullable=False)
     thoi_gian_xac_nhan = Column(DateTime(timezone=True), nullable=True)
+    thoi_gian_xac_nhan_lai = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_huy = Column(DateTime(timezone=True), nullable=True)
     ly_do_huy = Column(Text, nullable=True)
+    nguoi_huy_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
     nguoi_huy_vai_tro = Column(String(20), nullable=True)
+    phan_tich_ai_id = Column(Integer, ForeignKey("phan_tich_ai.id", ondelete="SET NULL"), nullable=True)
+    idempotency_key = Column(String(64), nullable=True, index=True)
 
-    # Quan hệ
     benh_nhan = relationship("BenhNhan", back_populates="danh_sach_lich_kham")
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_kham")
+<<<<<<< HEAD
     chuyen_khoa = relationship("ChuyenKhoa")
+=======
+    lich_lam_viec = relationship("LichLamViec")
+>>>>>>> origin/develop
     luot_kham = relationship("LuotKham", back_populates="lich_kham", uselist=False)
-    phan_tich_ai = relationship("PhanTichAI", back_populates="lich_kham", uselist=False)
+    phan_tich_ai = relationship("PhanTichAI", foreign_keys=[phan_tich_ai_id])
 
-    # Đánh chỉ mục Index phục vụ truy vấn slot nhanh
     __table_args__ = (
         Index("ix_doctor_schedule_date", "bac_si_id", "ngay_kham"),
-        # Kiểm tra lịch trùng giờ của chính bệnh nhân khi đặt lịch (UC-B03)
         Index("idx_lich_kham_benh_nhan", "benh_nhan_id", "ngay_kham"),
-        # Khớp các ràng buộc CHECK của database/schema_postgresql.sql
         CheckConstraint(
             f"thoi_luong_phut IN ({', '.join(str(minutes) for minutes in ALLOWED_SLOT_DURATIONS)})",
             name="ck_lich_kham_thoi_luong_phut"
         ),
         CheckConstraint("so_thu_tu > 0", name="ck_lich_kham_so_thu_tu"),
-        # Chốt chặn cuối cấp CSDL (khớp database/schema_postgresql.sql): không bao giờ có 2 lịch còn hiệu lực
-        # trùng giờ của cùng 1 bác sĩ hoặc cùng 1 bệnh nhân
         Index(
             "uq_active_doctor_slot", "bac_si_id", "ngay_kham", "gio_kham",
             unique=True,
@@ -177,11 +186,11 @@ class LichKham(BaseModelWithTimestamp):
 
 
 class DanhSachCho(BaseModelWithTimestamp):
-    """Bảng danh sách chờ thông minh khi hết slot khám (OpenMRS Appointment Waitlist)"""
     __tablename__ = "danh_sach_cho"
 
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_mong_muon = Column(Date, nullable=False, index=True)
     ca_mong_muon = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     trieu_chung = Column(Text, nullable=True)
@@ -191,13 +200,12 @@ class DanhSachCho(BaseModelWithTimestamp):
     thoi_gian_het_han_giu_slot = Column(DateTime(timezone=True), nullable=True)
     slot_duoc_cap_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True)
 
-    # Quan hệ
     benh_nhan = relationship("BenhNhan", back_populates="danh_sach_cho")
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
 
 
 class PhanTichAI(BaseModelWithTimestamp):
-    """Bảng ghi nhận vết suy luận triệu chứng ngôn ngữ tự nhiên từ AI"""
     __tablename__ = "phan_tich_ai"
 
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, unique=True)
@@ -209,58 +217,68 @@ class PhanTichAI(BaseModelWithTimestamp):
     tu_khoa_cap_cuu_phat_hien = Column(String(100), nullable=True)
     mo_hinh_ap_dung = Column(String(50), default="TFIDF_LOGISTIC_V1", nullable=False)
     thoi_gian_suy_luan_ms = Column(Numeric(8, 2), nullable=True)
+    ma_phien_phan_tich = Column(String(100), nullable=True)
 
-    # Quan hệ
-    lich_kham = relationship("LichKham", back_populates="phan_tich_ai")
+    lich_kham = relationship("LichKham", foreign_keys=[lich_kham_id])
     chuyen_khoa_goi_y = relationship("ChuyenKhoa")
     danh_gia = relationship("DanhGiaAI", back_populates="phan_tich_ai", uselist=False)
+    danh_sach_goi_y = relationship("PhanTichAIGoiY", back_populates="phan_tich_ai", cascade="all, delete-orphan", lazy="selectin")
+
+
+class PhanTichAIGoiY(BaseModelWithTimestamp):
+    __tablename__ = "phan_tich_ai_goi_y"
+
+    phan_tich_ai_id = Column(Integer, ForeignKey("phan_tich_ai.id", ondelete="CASCADE"), nullable=False, index=True)
+    chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=False, index=True)
+    thu_tu_uu_tien = Column(Integer, default=1, nullable=False)
+    do_tin_cay = Column(Numeric(5, 4), default=0.0000, nullable=False)
+    ly_do_goi_y = Column(Text, nullable=True)
+
+    phan_tich_ai = relationship("PhanTichAI", back_populates="danh_sach_goi_y")
+    chuyen_khoa = relationship("ChuyenKhoa")
 
 
 class DanhGiaAI(BaseModelWithTimestamp):
-    """Bảng đánh giá độ chính xác của AI từ Bác sĩ hoặc Bệnh nhân (AI Feedback Loop)"""
     __tablename__ = "danh_gia_ai"
 
     phan_tich_ai_id = Column(Integer, ForeignKey("phan_tich_ai.id", ondelete="CASCADE"), unique=True, nullable=False)
     nguoi_danh_gia_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
     vai_tro_nguoi_danh_gia = Column(String(20), nullable=False)
-    so_sao = Column(Integer, nullable=True) # 1 - 5 sao
+    so_sao = Column(Integer, nullable=True)
     chuyen_khoa_thuc_te_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="SET NULL"), nullable=True)
     nhan_xet = Column(Text, nullable=True)
 
-    # Quan hệ
     phan_tich_ai = relationship("PhanTichAI", back_populates="danh_gia")
 
 
 class HangDoiKham(BaseModelWithTimestamp):
-    """Bảng quản lý Hàng đợi gọi số khám bệnh tại phòng khám (OpenMRS / Bahmni Queue Ticket Pattern)"""
     __tablename__ = "hang_doi_kham"
 
-    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, index=True)
+    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, unique=True)
+    lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     ngay_kham = Column(Date, nullable=False, index=True)
     ca_kham = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
-    
-    so_thu_tu_kham = Column(Integer, nullable=False)  # STT hiển thị trên màn hình cửa phòng (1, 2, 3...)
+    so_thu_tu_kham = Column(Integer, nullable=False)
     loai_hang_doi = Column(String(30), default=LoaiHangDoiEnum.DUNG_HEN.value, nullable=False)
-    # Mức độ ưu tiên điều phối: 1: Cấp cứu, 2: Đúng hẹn đã check-in, 3: Trả kết quả CLS, 4: Đến sớm, 5: Vãng lai / Đến muộn
-    muc_do_uu_tien = Column(Integer, default=2, nullable=False, index=True)
-    trang_thai = Column(String(30), default=TrangThaiHangDoiEnum.CHO_KHAM.value, nullable=False, index=True)
-
+    muc_do_uu_tien = Column(Integer, default=5, nullable=False, index=True)
+    trang_thai = Column(String(30), default=TrangThaiHangDoiEnum.CHO_GOI.value, nullable=False, index=True)
     thoi_gian_check_in = Column(DateTime(timezone=True), nullable=False)
     thoi_gian_xep_hang_lai = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_goi_kham = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_bat_dau = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_ket_thuc = Column(DateTime(timezone=True), nullable=True)
-    so_lan_goi = Column(Integer, default=0, nullable=False)  # Đếm số lần gọi loa (tối đa 3 lần)
-    
+    so_lan_goi = Column(Integer, default=0, nullable=False)
     nguoi_tiep_nhan_id = Column(Integer, ForeignKey("tai_khoan.id", ondelete="SET NULL"), nullable=True)
     ghi_chu_dieu_phoi = Column(Text, nullable=True)
 
-    # Quan hệ
     lich_kham = relationship("LichKham")
+    lich_lam_viec = relationship("LichLamViec")
     benh_nhan = relationship("BenhNhan")
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
     nguoi_tiep_nhan = relationship("TaiKhoan")
 
     __table_args__ = (
@@ -269,15 +287,14 @@ class HangDoiKham(BaseModelWithTimestamp):
 
 
 class LichDinhKyBacSi(BaseModelWithTimestamp):
-    """Khuôn mẫu phân ca trực định kỳ theo tuần của Bác sĩ (Bahmni Provider Weekly Roster Template)"""
     __tablename__ = "lich_dinh_ky_bac_si"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
-    thu_trong_tuan = Column(Integer, nullable=False, index=True)  # 2: Thứ 2, 3: Thứ 3, ..., 7: Thứ 7, 8: Chủ Nhật
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
+    thu_trong_tuan = Column(Integer, nullable=False, index=True)
     ca_lam_viec = Column(String(20), default=CaLamViecEnum.SANG.value, nullable=False)
     gio_bat_dau = Column(Time, nullable=False)
     gio_ket_thuc = Column(Time, nullable=False)
-    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     thoi_luong_slot_phut = Column(Integer, default=20, nullable=False)
     gioi_han_ca_kham = Column(Integer, default=12, nullable=False)
     han_muc_dat_truoc = Column(Integer, default=10, nullable=False)
@@ -293,20 +310,22 @@ class LichDinhKyBacSi(BaseModelWithTimestamp):
 
 
 class NghiPhepBacSi(BaseModelWithTimestamp):
-    """Quản lý ngày nghỉ phép và lịch nghỉ đột xuất của Bác sĩ (OpenMRS / Bahmni Absence Management)"""
     __tablename__ = "nghi_phep_bac_si"
 
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)
+    phong_kham_id = Column(Integer, ForeignKey("phong_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     loai_nghi = Column(String(30), default=LoaiNghiPhepEnum.NGHI_PHEP.value, nullable=False)
     tu_ngay = Column(Date, nullable=False, index=True)
     den_ngay = Column(Date, nullable=False, index=True)
-    ca_lam_viec = Column(String(20), nullable=True)  # None = Cả ngày, hoặc 'sang', 'chieu'
+    ca_lam_viec = Column(String(20), nullable=True)
     ly_do = Column(Text, nullable=False)
     trang_thai = Column(String(30), default=TrangThaiNghiPhepEnum.CHO_DUYET.value, nullable=False)
     nguoi_duyet_id = Column(Integer, ForeignKey("tai_khoan.id", ondelete="SET NULL"), nullable=True)
+    thoi_gian_duyet = Column(DateTime(timezone=True), nullable=True)
     ghi_chu_duyet = Column(Text, nullable=True)
     so_ca_anh_huong = Column(Integer, default=0, nullable=False)
     so_lich_anh_huong = Column(Integer, default=0, nullable=False)
 
     bac_si = relationship("BacSi")
+    phong_kham = relationship("PhongKham")
     nguoi_duyet = relationship("TaiKhoan")

@@ -27,6 +27,18 @@ import {
     Heartbeat,
 } from '../../components/common/ClinicIcon'
 
+const getNextPatientCode = (list) => {
+    let max = 0
+    ;(list || []).forEach((p) => {
+        const m = String(p.maBN || p.id || '').match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return 'BN' + String(max + 1).padStart(7, '0')
+}
+
 export default function PatientManagementPage() {
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -56,7 +68,7 @@ export default function PatientManagementPage() {
 
     const buildEmptyPatient = () => ({
         id: '',
-        maBN: `BN0000${150 + patients.length + 1}`,
+        maBN: getNextPatientCode(patients),
         hoTen: '',
         ngaySinh: '1992-06-15',
         tuoi: '34 tuổi',
@@ -118,13 +130,15 @@ export default function PatientManagementPage() {
         }
 
         const exists = patients.some((p) => p.id === form.id && form.id)
+        const nextMaBN = exists ? form.maBN : (form.maBN || getNextPatientCode(patients))
+        const formWithCode = { ...form, maBN: nextMaBN }
         let updated
         if (exists) {
-            updated = patients.map((p) => (p.id === form.id ? { ...p, ...form } : p))
+            updated = patients.map((p) => (p.id === form.id ? { ...p, ...formWithCode } : p))
         } else {
             const newPatient = {
-                ...form,
-                id: form.maBN || `BN0000${150 + patients.length + 1}`,
+                ...formWithCode,
+                id: nextMaBN,
                 taiKhoan: form.taiKhoan || form.dienThoai,
             }
             updated = [newPatient, ...patients]
@@ -422,12 +436,19 @@ export default function PatientManagementPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <label className="medpro-label">Mã bệnh nhân</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã bệnh nhân</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maBN || ''}
-                                    onChange={(e) => setForm({ ...form, maBN: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã bệnh nhân do hệ thống tự sinh chuẩn BNxxxxxxx, không được phép chỉnh sửa"
                                 />
                             </div>
                             <div className="sm:col-span-2">

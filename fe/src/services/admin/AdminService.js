@@ -1,16 +1,38 @@
 import { BaseServices } from '../BaseService'
 import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 
-const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
+const STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL'
+
+function sanitizeThuocVatTu(list) {
+    if (!Array.isArray(list)) return []
+    return list.map((item) => {
+        const clean = { ...item }
+        delete clean.donGia
+        delete clean.giaNhap
+        delete clean.tonKho
+        delete clean.soLo
+        delete clean.hanSuDung
+        return clean
+    })
+}
 
 function loadClinicStore() {
     try {
+        // Tự động dọn dẹp các cache cũ nếu có
+        localStorage.removeItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
         const raw = localStorage.getItem(STORAGE_KEY)
         if (!raw) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CLINIC_DATA))
             return structuredClone(INITIAL_CLINIC_DATA)
         }
         const parsed = JSON.parse(raw)
+        const loadedCatalogs = {
+            ...structuredClone(INITIAL_CLINIC_DATA.catalogs),
+            ...(parsed.catalogs || {}),
+        }
+        if (loadedCatalogs.thuocVatTu) {
+            loadedCatalogs.thuocVatTu = sanitizeThuocVatTu(loadedCatalogs.thuocVatTu)
+        }
         return {
             ...structuredClone(INITIAL_CLINIC_DATA),
             ...parsed,
@@ -30,10 +52,7 @@ function loadClinicStore() {
             nationalDrugSync: parsed.nationalDrugSync || INITIAL_CLINIC_DATA.nationalDrugSync,
             nationalEhrSync: parsed.nationalEhrSync || INITIAL_CLINIC_DATA.nationalEhrSync,
             clinicSettings: parsed.clinicSettings || INITIAL_CLINIC_DATA.clinicSettings,
-            catalogs: {
-                ...structuredClone(INITIAL_CLINIC_DATA.catalogs),
-                ...(parsed.catalogs || {}),
-            },
+            catalogs: loadedCatalogs,
         }
     } catch {
         return structuredClone(INITIAL_CLINIC_DATA)
@@ -44,6 +63,9 @@ function saveClinicStore(data) {
     try {
         if (data && typeof data === 'object') {
             data.inventoryBatches = []
+            if (data.catalogs?.thuocVatTu) {
+                data.catalogs.thuocVatTu = sanitizeThuocVatTu(data.catalogs.thuocVatTu)
+            }
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch {
@@ -258,23 +280,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 2. Báo cáo Chấm công & Tỷ lệ lấp đầy ca khám (Timesheet) ───
-    exportDoctorTimesheetReport = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
-        try {
-            const params = new URLSearchParams()
-            if (tuNgay) params.append('tu_ngay', tuNgay)
-            if (denNgay) params.append('den_ngay', denNgay)
-            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
-            const res = await this.get(`/api/v1/admin/shifts/export-report?${params.toString()}`, {
-                __skipGlobalLoading: true,
-                __skipRefresh: true,
-            })
-            return res.data?.data || res.data
-        } catch (error) {
-            console.warn('Fallback timesheet report:', error)
-            return null
-        }
-    }
 
     // ── 3. Xuất Danh mục Dịch vụ Kỹ thuật Chuẩn Y tế (Catalog Export) ───
     exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {

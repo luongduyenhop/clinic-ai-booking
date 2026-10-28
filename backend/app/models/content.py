@@ -20,6 +20,22 @@ class MauBieuYTe(BaseModelWithTimestamp):
     bac_si_tao = relationship("BacSi")
 
 
+class CauHoiYKhoa(BaseModelWithTimestamp):
+    """Bảng câu hỏi & tư vấn y khoa thường gặp (Q&A)"""
+    __tablename__ = "cau_hoi_y_khoa"
+
+    tieu_de = Column(String(255), nullable=False, index=True)
+    chuyen_muc = Column(String(50), default="NOI_KHOA", nullable=False, index=True)
+    cau_hoi = Column(Text, nullable=False)
+    cau_tra_loi = Column(Text, nullable=True)
+    bac_si_tra_loi_id = Column(Integer, ForeignKey("bac_si.id", ondelete="SET NULL"), nullable=True)
+    luot_xem = Column(Integer, default=0, nullable=False)
+    is_published = Column(Boolean, default=True, nullable=False)
+
+    # Quan hệ
+    bac_si_tra_loi = relationship("BacSi")
+
+
 class BaiVietTinTuc(BaseModelWithTimestamp):
     """Bảng bài viết tin tức, y học thường thức và khuyến cáo sức khỏe"""
     __tablename__ = "bai_viet_tin_tuc"

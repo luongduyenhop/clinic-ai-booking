@@ -139,35 +139,29 @@
         "icon": "FirstAidKit"
       },
       {
-        "label": "Thu chi",
+        "label": "Viện phí",
         "path": "/admin/thu-chi",
         "icon": "Receipt",
         "hasDropdown": true,
-        "dropdownTitle": "VIỆN PHÍ & THU CHI TÀI CHÍNH",
+        "dropdownTitle": "QUẢN LÝ VIỆN PHÍ & HÓA ĐƠN",
         "submenu": [
           {
-            "label": "Thu viện phí & Hóa đơn",
+            "label": "Quản lý Thu viện phí & Hóa đơn",
             "path": "/admin/thu-chi?tab=THU_CHI",
             "icon": "Receipt",
-            "desc": "Danh sách phiếu thu viện phí khám & CLS"
+            "desc": "Lập phiếu thu, thanh toán viện phí & in biên lai thu tiền"
           },
           {
-            "label": "Lập Phiếu thu mới",
+            "label": "Lập Phiếu thu viện phí mới",
             "path": "/admin/thu-chi?type=PT",
             "icon": "PlusCircle",
-            "desc": "Tiếp nhận thanh toán tiền mặt / Chuyển khoản VietQR"
+            "desc": "Thu tiền khám, viện phí, xét nghiệm tự động"
           },
           {
-            "label": "Lập Phiếu chi mới",
-            "path": "/admin/thu-chi?type=PC",
-            "icon": "MinusCircle",
-            "desc": "Hoàn tiền dịch vụ hoặc chi phí hành chính"
-          },
-          {
-            "label": "Khóa sổ ca trực (/khoaso)",
+            "label": "Khóa sổ ca thu ngân (/khoaso)",
             "path": "/admin/thu-chi?tab=KHOA_SO",
             "icon": "FloppyDisk",
-            "desc": "Kiểm kê quỹ ca trực & lưu biên bản bất biến"
+            "desc": "Cân đối doanh thu viện phí & chốt ca cuối ngày"
           }
         ]
       },
@@ -384,7 +378,7 @@
                 "path": "/admin/danh-muc/benh"
               },
               {
-                "label": "Thuốc kê đơn BYT",
+                "label": "Thuốc kê đơn (BYT)",
                 "path": "/admin/danh-muc/thuoc-vat-tu"
               },
               {
@@ -436,10 +430,6 @@
               {
                 "label": "Phân quyền vai trò",
                 "path": "/admin/phan-quyen"
-              },
-              {
-                "label": "Lịch trực / Chấm công",
-                "path": "/admin/phan-quyen?tab=CHAM_CONG"
               }
             ]
           },
@@ -491,7 +481,7 @@
       },
       {
         "id": "cashier",
-        "title": "Thu chi & Viện phí",
+        "title": "Thu viện phí & Hóa đơn",
         "icon": "Receipt",
         "path": "/admin/thu-chi"
       },
@@ -546,8 +536,8 @@
         "icon": "CalendarCheck"
       },
       {
-        "title": "5. Thu chi - Viện phí",
-        "desc": "Lập phiếu thu, phiếu chi, thanh toán không tiền mặt & in phiếu",
+        "title": "5. Thu viện phí & Hóa đơn",
+        "desc": "Lập phiếu thu viện phí, thanh toán không tiền mặt (VietQR) & in biên lai thu tiền",
         "path": "/admin/thu-chi",
         "icon": "Receipt"
       },
@@ -601,8 +591,8 @@
       },
       {
         "step": "Video 05",
-        "title": "Thu chi - Viện phí",
-        "desc": "Lập phiếu thu/chi, tự động tổng hợp dịch vụ của bệnh nhân & in biên lai",
+        "title": "Thu viện phí",
+        "desc": "Lập phiếu thu viện phí tự động từ chỉ định dịch vụ & in biên lai thu tiền",
         "path": "/admin/thu-chi",
         "icon": "Receipt",
         "badge": "Tài chính"
@@ -731,8 +721,7 @@
       }
     ],
     "voucherTypes": [
-      "Phiếu thu",
-      "Phiếu chi"
+      "Phiếu thu"
     ],
     "serviceOrderCategoryTabs": [
       "Tất cả",
@@ -819,13 +808,6 @@
         "codeLabel": "Mã khoản thu",
         "nameLabel": "Tên khoản thu viện phí",
         "icon": "CurrencyCircleDollar"
-      },
-      {
-        "key": "khoanChi",
-        "label": "4. Danh mục Khoản chi",
-        "codeLabel": "Mã khoản chi",
-        "nameLabel": "Tên khoản chi vận hành",
-        "icon": "Receipt"
       },
       {
         "key": "phuongPhapTruDau",
@@ -1788,28 +1770,6 @@
         }
       ],
       "tongTien": 150000
-    },
-    {
-      "id": "PC260922001",
-      "maPhieu": "PC260922001",
-      "loaiPhieu": "Phiếu chi",
-      "tenPhieu": "Chi mua bổ sung phim X-Quang kỹ thuật số & Gel siêu âm",
-      "maBN": "",
-      "hoTenBN": "Công ty Vật tư Y tế Miền Bắc",
-      "ngayThu": "2026-10-11 16:00",
-      "nguoiThu": "Thu ngân Lê Thanh Huyền",
-      "hinhThuc": "Chuyển khoản",
-      "daThu": true,
-      "ghiChu": "Hóa đơn GTGT số 0019284",
-      "items": [
-        {
-          "id": "VI-6",
-          "tenKhoan": "Chi mua vật tư tiêu hao y tế",
-          "soTien": 1250000,
-          "ghiChu": "2 hộp phim + 5 can gel"
-        }
-      ],
-      "tongTien": 1250000
     }
   ],
   "newsCategories": [
@@ -1978,32 +1938,6 @@
         "ten": "Thu tiền Thủ thuật - Vật lý trị liệu",
         "donGiaMacDinh": 150000,
         "thuTu": 4,
-        "trangThai": true
-      }
-    ],
-    "khoanChi": [
-      {
-        "id": "KC-01",
-        "ma": "KC_VATTU",
-        "ten": "Chi mua vật tư tiêu hao y tế",
-        "moTa": "Bông băng, cồn, găng tay, phim X-Quang",
-        "thuTu": 1,
-        "trangThai": true
-      },
-      {
-        "id": "KC-02",
-        "ma": "KC_THIETBI",
-        "ten": "Chi bảo trì & kiểm định thiết bị y tế",
-        "moTa": "Hiệu chuẩn máy X-Quang, máy siêu âm",
-        "thuTu": 2,
-        "trangThai": true
-      },
-      {
-        "id": "KC-03",
-        "ma": "KC_HOANUNG",
-        "ten": "Chi hoàn trả viện phí cho bệnh nhân",
-        "moTa": "Khi hủy dịch vụ chưa thực hiện",
-        "thuTu": 3,
         "trangThai": true
       }
     ],
@@ -2196,10 +2130,9 @@
         "tenThuoc": "Amlodipin 5mg (Stamlo)",
         "hoatChat": "Amlodipin besylat 5mg",
         "dvt": "Viên",
-        "donGia": 3500,
-        "tonKho": 1200,
         "nhomThuoc": "Thuốc Tim mạch - Huyết áp",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH002",
@@ -2207,10 +2140,9 @@
         "tenThuoc": "Magne-B6 Corbière",
         "hoatChat": "Magnesium lactat 470mg + Vitamin B6 5mg",
         "dvt": "Viên",
-        "donGia": 2800,
-        "tonKho": 850,
         "nhomThuoc": "Vitamin & Khoáng chất",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH003",
@@ -2218,10 +2150,9 @@
         "tenThuoc": "Augmentin 1g",
         "hoatChat": "Amoxicillin 875mg + Acid Clavulanic 125mg",
         "dvt": "Viên",
-        "donGia": 18500,
-        "tonKho": 420,
         "nhomThuoc": "Kháng sinh kê đơn",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH004",
@@ -2229,10 +2160,9 @@
         "tenThuoc": "Alphachymotrypsin 4.2mg",
         "hoatChat": "Chymotrypsin 4200 IU",
         "dvt": "Viên",
-        "donGia": 1500,
-        "tonKho": 2000,
         "nhomThuoc": "Kháng viêm - Giảm phù nề",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH005",
@@ -2240,10 +2170,9 @@
         "tenThuoc": "Myonal 50mg",
         "hoatChat": "Eperison HCl 50mg",
         "dvt": "Viên",
-        "donGia": 6200,
-        "tonKho": 540,
         "nhomThuoc": "Thuốc Giãn cơ xương khớp",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       },
       {
         "id": "TH006",
@@ -2251,10 +2180,9 @@
         "tenThuoc": "Nexium Mups 40mg",
         "hoatChat": "Esomeprazol 40mg",
         "dvt": "Viên",
-        "donGia": 22000,
-        "tonKho": 630,
         "nhomThuoc": "Thuốc Dạ dày - Tiêu hóa",
-        "trangThai": true
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
       }
     ],
     "dichVu": [
@@ -3177,76 +3105,6 @@
       "phanLoai": "Loại I"
     }
   ],
-  "inventoryBatches": [
-    {
-      "id": "KHO-01",
-      "maHangHoa": "DQG0001024",
-      "maThuocNoiBo": "TH001",
-      "tenThuoc": "Amlodipin 5mg (Stamlo)",
-      "soLo": "LOT-202508A",
-      "hanSuDung": "2028-08-15",
-      "dvt": "Viên",
-      "hamLuong": "5mg",
-      "nhaCungCap": "Công ty Dược phẩm TW1 (CPC1)",
-      "tonDau": 1000,
-      "slNhap": 500,
-      "slXuat": 300,
-      "tongTon": 1200,
-      "tonToiThieu": 200,
-      "trangThai": "Bình thường"
-    },
-    {
-      "id": "KHO-02",
-      "maHangHoa": "DQG0000048",
-      "maThuocNoiBo": "TH003",
-      "tenThuoc": "Augmentin 1g (Amoxicillin + Clavulanic)",
-      "soLo": "LOT-202501B",
-      "hanSuDung": "2026-11-10",
-      "dvt": "Viên",
-      "hamLuong": "875mg/125mg",
-      "nhaCungCap": "GSK Pharma Vietnam",
-      "tonDau": 500,
-      "slNhap": 100,
-      "slXuat": 180,
-      "tongTon": 420,
-      "tonToiThieu": 150,
-      "trangThai": "Sắp hết hạn (< 30 ngày)"
-    },
-    {
-      "id": "KHO-03",
-      "maHangHoa": "DQG0002190",
-      "maThuocNoiBo": "TH005",
-      "tenThuoc": "Myonal 50mg (Eperison HCl)",
-      "soLo": "LOT-202602C",
-      "hanSuDung": "2028-02-28",
-      "dvt": "Viên",
-      "hamLuong": "50mg",
-      "nhaCungCap": "Công ty Dược phẩm Zuellig Pharma",
-      "tonDau": 200,
-      "slNhap": 0,
-      "slXuat": 165,
-      "tongTon": 35,
-      "tonToiThieu": 100,
-      "trangThai": "Cảnh báo tồn thấp"
-    },
-    {
-      "id": "KHO-04",
-      "maHangHoa": "VT-XQ-3543",
-      "maThuocNoiBo": "VT001",
-      "tenThuoc": "Phim X-Quang kỹ thuật số Fujifilm 35x43cm",
-      "soLo": "LOT-FUJI-99",
-      "hanSuDung": "2027-12-31",
-      "dvt": "Tờ",
-      "hamLuong": "35x43cm",
-      "nhaCungCap": "Công ty Vật tư Y tế Miền Bắc",
-      "tonDau": 300,
-      "slNhap": 200,
-      "slXuat": 120,
-      "tongTon": 380,
-      "tonToiThieu": 50,
-      "trangThai": "Bình thường"
-    }
-  ],
   "cashierClosings": [
     {
       "id": "KS-20261011",
@@ -3254,7 +3112,6 @@
       "ngayKhoaSo": "2026-10-11 23:00",
       "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
       "tongThuDichVu": 12450000,
-      "tongThuThuoc": 5320000,
       "tongChi": 1250000,
       "tonQuyCuoiNgay": 16520000,
       "cheDo": "Tự động khóa sổ sau 23:00",
@@ -3266,7 +3123,6 @@
       "ngayKhoaSo": "Đang mở trong ngày",
       "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
       "tongThuDichVu": 800000,
-      "tongThuThuoc": 420000,
       "tongChi": 0,
       "tonQuyCuoiNgay": 800000,
       "cheDo": "Chờ chốt ca 23:00",
@@ -3361,17 +3217,12 @@
     "diaChi": "Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
     "heThong": {
       "batBuocICD10": true,
-      "chanXuatAmKho": true,
       "thuTienTruocCLS": true,
-      "canhBaoTonKhoToiThieu": 50,
-      "canhBaoThuocHetHanNgay": 30,
       "tuDongKhoaSoSauGio": "23:00 (Sau 1 ngày)"
     },
     "congLienThong": {
       "donThuocQuocGiaUrl": "https://donthuocquocgia.vn/api/v1",
       "maLienThongCoSo": "LT_0108924_CLINICAI",
-      "duocQuocGiaUrl": "https://duocquocgia.com.vn/api/v2",
-      "maCoSoDuoc": "DQG_0108924",
       "hoaDonDienTu": "MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)",
       "chuKySo": "VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)"
     }

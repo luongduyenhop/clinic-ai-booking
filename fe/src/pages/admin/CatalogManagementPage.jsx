@@ -18,6 +18,19 @@ import {
     MagnifyingGlass,
 } from '../../components/common/ClinicIcon'
 
+const getNextCode = (list, prefix, pad = 3) => {
+    let max = 0
+    ;(list || []).forEach((item) => {
+        const val = item.ma || item.maPhong || item.maThuoc || item.maDV || item.id || ''
+        const m = String(val).match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return prefix + String(max + 1).padStart(pad, '0')
+}
+
 export default function CatalogManagementPage() {
 
     const fileInputRef = useRef(null)
@@ -56,17 +69,6 @@ export default function CatalogManagementPage() {
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState(generalSubTabs[0]?.key || 'goTat')
     const [searchText, setSearchText] = useState('')
-    const [pharmacyTab, setPharmacyTab] = useState(
-        queryTab && ['DANH_MUC', 'TON_KHO'].includes(queryTab) ? queryTab : 'DANH_MUC'
-    )
-
-    useEffect(() => {
-        if (queryTab && ['DANH_MUC', 'TON_KHO'].includes(queryTab)) {
-            setPharmacyTab(queryTab)
-        }
-    }, [queryTab])
-    const [batchFilter, setBatchFilter] = useState('ALL')
-    const inventoryBatches = clinicData?.inventoryBatches || []
 
     // ── Export Danh mục Dịch vụ Chuẩn y tế (/api/v1/admin/services/export) ───
     const [isExportModalOpen, setIsExportModalOpen] = useState(false)
@@ -157,7 +159,7 @@ export default function CatalogManagementPage() {
 
     const handleNewItem = () => {
         if (activeCatalogKey === 'diaChi') {
-            setForm({ id: '', maTinh: '01', tenTinh: 'Thành phố Hà Nội', quanHuyen: '', phuongXa: '', trangThai: true })
+            setForm({ id: '', maTinh: getNextCode(listData, 'TT', 2), tenTinh: '', quanHuyen: '', phuongXa: '', trangThai: true })
         } else if (activeCatalogKey === 'khoaPhong') {
             setForm({
                 id: '',
@@ -184,15 +186,14 @@ export default function CatalogManagementPage() {
                 tenThuoc: '',
                 hoatChat: '',
                 dvt: 'Viên',
-                donGia: 5000,
-                tonKho: 500,
+                duongDung: 'Uống sau ăn',
                 nhomThuoc: 'Thuốc kê đơn',
                 trangThai: true,
             })
         } else if (activeCatalogKey === 'dichVu') {
             setForm({
                 id: '',
-                maDV: `DV0${15 + listData.length}`,
+                maDV: getNextCode(listData, 'DV', 3),
                 tenDV: '',
                 nhomDV: 'Khám bệnh',
                 dvt: 'Lần',
@@ -362,122 +363,8 @@ export default function CatalogManagementPage() {
                 </div>
             )}
 
-            {/* Warehouse sub-tab switcher for Thuốc & Vật tư y tế */}
-            {loaiDanhMuc === 'thuoc-vat-tu' && (
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-[#E8F4FD]/60 p-2.5 rounded-xl border border-[#B8E5FA]">
-                    <div className="flex items-center gap-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setPharmacyTab('DANH_MUC')}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                pharmacyTab === 'DANH_MUC'
-                                    ? 'bg-[#00B5F1] text-white shadow-xs'
-                                    : 'bg-white text-[#003553] hover:bg-slate-100'
-                            }`}
-                        >
-                            1. Danh mục Thuốc & Vật tư y tế ({listData.length})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setPharmacyTab('TON_KHO')}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                pharmacyTab === 'TON_KHO'
-                                    ? 'bg-[#00B5F1] text-white shadow-xs'
-                                    : 'bg-white text-[#003553] hover:bg-slate-100'
-                            }`}
-                        >
-                            2. Quản lý Kho, Số lô & Hạn dùng FEFO (/tonkho) ({inventoryBatches.length})
-                        </button>
-                    </div>
-                    {pharmacyTab === 'TON_KHO' && (
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => AppToast.success('Đã tải Báo cáo Tồn kho & Hạn dùng Excel!')}
-                                className="medpro-btn-outline text-xs !py-1"
-                            >
-                                <DownloadSimple size={13} weight="bold" className="text-[#00B5F1]" />
-                                <span>Tải báo cáo kho</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => AppToast.success('Đã chốt tồn kho chu kỳ thành công (F5)!')}
-                                className="medpro-btn-primary text-xs !py-1"
-                            >
-                                <FloppyDisk size={13} weight="bold" />
-                                <span>Chốt tồn kho (F5)</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Warehouse Full Inventory View */}
-            {loaiDanhMuc === 'thuoc-vat-tu' && pharmacyTab === 'TON_KHO' ? (
-                <div className="medpro-card p-4 space-y-3">
-                    <div className="medpro-section-title">
-                        <span>DANH SÁCH TỒN KHO DƯỢC & VẬT TƯ Y TẾ (KIỂM SOÁT LÔ & HẠN SỬ DỤNG FEFO)</span>
-                        <span className="text-xs font-semibold text-[#00B5F1]">{inventoryBatches.length} mặt hàng theo lô</span>
-                    </div>
-
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Mã Dược QG</th>
-                                    <th>Mã nội bộ</th>
-                                    <th>Thuốc & Vật tư</th>
-                                    <th>Số lô SX</th>
-                                    <th>Hạn dùng (FEFO)</th>
-                                    <th>ĐVT</th>
-                                    <th>Hàm lượng</th>
-                                    <th>Tồn đầu</th>
-                                    <th>SL Nhập</th>
-                                    <th>SL Xuất</th>
-                                    <th>Tổng tồn</th>
-                                    <th>Trạng thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {inventoryBatches.map((item, idx) => (
-                                    <tr key={item.id || idx}>
-                                        <td className="font-bold">{idx + 1}</td>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{item.maHangHoa}</td>
-                                        <td className="font-mono text-xs">{item.maThuocNoiBo}</td>
-                                        <td className="font-bold text-[#003553]">{item.tenThuoc}</td>
-                                        <td className="font-mono text-xs font-semibold">{item.soLo}</td>
-                                        <td className="font-mono text-xs tabular-nums text-slate-600">{item.hanSuDung}</td>
-                                        <td>{item.dvt}</td>
-                                        <td className="text-xs text-slate-500">{item.hamLuong}</td>
-                                        <td className="tabular-nums text-center">{item.tonDau}</td>
-                                        <td className="tabular-nums text-center text-emerald-600 font-bold">+{item.slNhap}</td>
-                                        <td className="tabular-nums text-center text-rose-600 font-bold">-{item.slXuat}</td>
-                                        <td className="tabular-nums text-center font-extrabold text-[#003553] text-sm">
-                                            {item.tongTon}
-                                        </td>
-                                        <td>
-                                            <span
-                                                className={
-                                                    item.trangThai === 'Bình thường'
-                                                        ? 'medpro-badge-success'
-                                                        : item.trangThai?.includes('Sắp hết hạn')
-                                                        ? 'medpro-badge-danger'
-                                                        : 'medpro-badge-warning'
-                                                }
-                                            >
-                                                {item.trangThai}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ) : (
-                /* Main 2-Column Workspace */
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+            {/* Main 2-Column Workspace */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     {/* LEFT PANEL (6 cols): Bảng danh sách danh mục */}
                     <div className="lg:col-span-6 medpro-card p-3.5 flex flex-col h-[calc(100vh-195px)]">
                         <div className="medpro-section-title">
@@ -524,7 +411,9 @@ export default function CatalogManagementPage() {
                                         item.tenThuoc ||
                                         item.tenDV
                                     const extra =
-                                        item.donGiaMacDinh
+                                        activeCatalogKey === 'thuocVatTu'
+                                            ? item.hoatChat ? `${item.hoatChat} (${item.nhomThuoc || 'Kê đơn'})` : item.nhomThuoc || ''
+                                            : item.donGiaMacDinh
                                             ? `${Number(item.donGiaMacDinh).toLocaleString('vi-VN')} đ`
                                             : item.donGia
                                             ? `${Number(item.donGia).toLocaleString('vi-VN')} đ`
@@ -595,12 +484,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'diaChi' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã Tỉnh / Thành phố</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã Tỉnh / Thành phố</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maTinh || ''}
-                                    onChange={(e) => setForm({ ...form, maTinh: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã Tỉnh / Thành phố do hệ thống tự sinh, không thể chỉnh sửa"
                                 />
                             </div>
                             <div>
@@ -636,12 +532,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'khoaPhong' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã phòng khám</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã phòng khám</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maPhong || ''}
-                                    onChange={(e) => setForm({ ...form, maPhong: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã phòng khám do hệ thống tự sinh, không thể sửa"
                                 />
                             </div>
                             <div>
@@ -730,57 +633,75 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'thuocVatTu' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã thuốc / Vật tư *</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã thuốc kê đơn *</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maThuoc || ''}
-                                    onChange={(e) => setForm({ ...form, maThuoc: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã thuốc do hệ thống tự sinh theo chuẩn THxxx, không thể sửa"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Nhóm dược lý / Vật tư</label>
+                                <label className="medpro-label">Nhóm dược lý / Phân loại</label>
                                 <input
                                     type="text"
                                     value={form.nhomThuoc || ''}
                                     onChange={(e) => setForm({ ...form, nhomThuoc: e.target.value })}
+                                    placeholder="VD: Kháng sinh, Hạ sốt..."
                                     className="medpro-input"
                                 />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="medpro-label">Tên thương mại thuốc / Vật tư *</label>
+                                <label className="medpro-label">Tên biệt dược / Thuốc thương mại *</label>
                                 <input
                                     type="text"
                                     value={form.tenThuoc || ''}
                                     onChange={(e) => setForm({ ...form, tenThuoc: e.target.value })}
+                                    placeholder="VD: Augmentin 1g, Efferalgan 500mg..."
                                     className="medpro-input font-semibold"
                                 />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="medpro-label">Hoạt chất & Hàm lượng (Chuẩn Liên thông Đơn thuốc QG)</label>
+                                <label className="medpro-label">Hoạt chất & Hàm lượng (Chuẩn Cổng Đơn thuốc QG)</label>
                                 <input
                                     type="text"
                                     value={form.hoatChat || ''}
                                     onChange={(e) => setForm({ ...form, hoatChat: e.target.value })}
-                                    className="medpro-input"
+                                    placeholder="VD: Amoxicillin 875mg + Acid Clavulanic 125mg"
+                                    className="medpro-input font-mono"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Đơn vị tính</label>
-                                <input
-                                    type="text"
-                                    value={form.dvt || ''}
+                                <label className="medpro-label">Đơn vị tính (DVT)</label>
+                                <select
+                                    value={form.dvt || 'Viên'}
                                     onChange={(e) => setForm({ ...form, dvt: e.target.value })}
                                     className="medpro-input"
-                                />
+                                >
+                                    <option value="Viên">Viên</option>
+                                    <option value="Gói">Gói</option>
+                                    <option value="Lọ">Lọ</option>
+                                    <option value="Chai">Chai</option>
+                                    <option value="Ống">Ống</option>
+                                    <option value="Tuýp">Tuýp</option>
+                                    <option value="Hộp">Hộp</option>
+                                </select>
                             </div>
                             <div>
-                                <label className="medpro-label">Đơn giá (VNĐ)</label>
+                                <label className="medpro-label">Đường dùng & Hướng dẫn mặc định</label>
                                 <input
-                                    type="number"
-                                    value={form.donGia || 0}
-                                    onChange={(e) => setForm({ ...form, donGia: Number(e.target.value) })}
-                                    className="medpro-input tabular-nums font-bold"
+                                    type="text"
+                                    value={form.duongDung || form.huongDan || ''}
+                                    onChange={(e) => setForm({ ...form, duongDung: e.target.value, huongDan: e.target.value })}
+                                    placeholder="VD: Uống sau ăn, Bôi ngoài da..."
+                                    className="medpro-input"
                                 />
                             </div>
                         </div>
@@ -789,12 +710,19 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'dichVu' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="medpro-label">Mã dịch vụ kỹ thuật *</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã dịch vụ kỹ thuật *</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={form.maDV || ''}
-                                    onChange={(e) => setForm({ ...form, maDV: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã dịch vụ do hệ thống tự sinh, không thể sửa"
                                 />
                             </div>
                             <div>
@@ -933,7 +861,6 @@ export default function CatalogManagementPage() {
                     )}
                 </div>
             </div>
-            )}
 
             {/* MODAL XUẤT BẢNG GIÁ DỊCH VỤ CHUẨN Y TẾ */}
             {isExportModalOpen && (

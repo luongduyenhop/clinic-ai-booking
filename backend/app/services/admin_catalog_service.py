@@ -1,7 +1,7 @@
 import logging
-from datetime import date, datetime, time, timezone
+from datetime import date
 from typing import Any, Dict, List, Optional
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,53 +10,18 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.core.security import get_password_hash
 from app.models.appointment import (
-    LichLamViec,
     LichKham,
-    HangDoiKham,
-    CaLamViecEnum,
     TrangThaiLichEnum,
-    TrangThaiHangDoiEnum,
-    LichDinhKyBacSi,
-    NghiPhepBacSi,
-    TrangThaiNghiPhepEnum,
     PhanTichAI,
     DanhGiaAI,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
-from app.schemas.clinical import AmendmentResponse
+from app.models.medical import DichVu, KhaiNiem, TuKhoaCapCuu
+from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
-    RoomCreateRequest,
-    RoomResponse,
-    ShiftCreateRequest,
-    ShiftToggleLockRequest,
-    ShiftResponse,
-    EmergencyLeaveDeclareRequest,
-    EmergencyLeaveSummaryResponse,
-    ReassignQueueRequest,
-    ReassignQueueResponse,
-    PostponeAndCancelResponse,
     ServiceCreateRequest,
     ServiceUpdateRequest,
     ServiceItemAdminResponse,
-    AdminDashboardStatsResponse,
-    DepartmentCreateRequest,
-    DepartmentUpdateRequest,
-    DepartmentAdminResponse,
-    RosterTemplateCreateRequest,
-    RosterTemplateUpdateRequest,
-    RosterTemplateResponse,
-    RosterBatchGenerateRequest,
-    RosterBatchGenerateResponse,
-    DoctorLeaveCreateRequest,
-    DoctorLeaveResponse,
-    DoctorLeaveApproveRequest,
-    AffectedBookingItem,
     ConceptCreateRequest,
     ConceptUpdateRequest,
     ConceptAdminResponse,
@@ -65,13 +30,8 @@ from app.schemas.admin import (
     RedFlagAdminResponse,
     AIAccuracyReportResponse,
     AIAccuracySpecialtyItem,
-    AdminAnalyticsReportResponse,
-    CancellationReasonBreakdown,
-    SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
+    ServiceExportItem,
+    ServiceExportResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,8 +68,8 @@ class AdminCatalogService:
                 phong_thuc_hien_id=item.phong_thuc_hien_id,
                 ten_phong_thuc_hien=item.phong_thuc_hien.ten_phong if item.phong_thuc_hien else None,
                 ma_phong_thuc_hien=item.phong_thuc_hien.ma_phong if item.phong_thuc_hien else None,
-                thoi_gian_tra_ket_qua_phut=item.thoi_gian_tra_ket_qua_phut or 30,
-                huong_dan_chuan_bi=item.huong_dan_chuan_bi,
+                thoi_gian_tra_ket_qua_phut=getattr(item, "thoi_gian_tra_ket_qua_phut", 30) or 30,
+                huong_dan_chuan_bi=getattr(item, "huong_dan_chuan_bi", None),
             )
             for item in items
         ]
@@ -257,8 +217,8 @@ class AdminCatalogService:
             phong_thuc_hien_id=service.phong_thuc_hien_id,
             ten_phong_thuc_hien=service.phong_thuc_hien.ten_phong if service.phong_thuc_hien else None,
             ma_phong_thuc_hien=service.phong_thuc_hien.ma_phong if service.phong_thuc_hien else None,
-            thoi_gian_tra_ket_qua_phut=service.thoi_gian_tra_ket_qua_phut or 30,
-            huong_dan_chuan_bi=service.huong_dan_chuan_bi,
+            thoi_gian_tra_ket_qua_phut=getattr(service, "thoi_gian_tra_ket_qua_phut", 30) or 30,
+            huong_dan_chuan_bi=getattr(service, "huong_dan_chuan_bi", None),
         )
 
 
@@ -487,6 +447,53 @@ class AdminCatalogService:
             ty_le_chinh_xac_toan_vien_pct=overall_acc,
             danh_gia_sao_trung_binh=round(float(avg_stars), 1),
             chi_tiet_theo_chuyen_khoa=dept_list
+        )
+
+    async def export_services_catalog(
+        self,
+        db: AsyncSession,
+        chuyen_khoa_id: Optional[int] = None,
+        ma_nhom_byt: Optional[str] = None
+    ) -> ServiceExportResponse:
+        """
+        Xuất toàn bộ danh mục dịch vụ kỹ thuật y tế & bảng giá niêm yết (tClinic / Thông tư 22/2023/TT-BYT).
+        Hỗ trợ đối soát bảng giá và báo cáo niêm yết công khai.
+        """
+        stmt = (
+            select(DichVu)
+            .options(
+                selectinload(DichVu.chuyen_khoa),
+                selectinload(DichVu.phong_thuc_hien)
+            )
+            .order_by(DichVu.ma_dich_vu.asc())
+        )
+        if chuyen_khoa_id:
+            stmt = stmt.where(DichVu.chuyen_khoa_id == chuyen_khoa_id)
+        if ma_nhom_byt:
+            stmt = stmt.where(DichVu.ma_nhom_byt == ma_nhom_byt)
+
+        rows = (await db.execute(stmt)).scalars().all()
+        items: List[ServiceExportItem] = []
+        for r in rows:
+            dept_name = r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else "Chung"
+            room_name = r.phong_thuc_hien.ten_phong if r.phong_thuc_hien else "Phòng khám"
+            items.append(ServiceExportItem(
+                id=r.id,
+                ma_dich_vu=r.ma_dich_vu,
+                ten_dich_vu=r.ten_dich_vu,
+                chuyen_khoa=dept_name,
+                don_gia=float(r.don_gia or 0.0),
+                don_vi_tinh=getattr(r, "don_vi_tinh", "Lần") or "Lần",
+                ma_nhom_byt=r.ma_nhom_byt,
+                phong_thuc_hien=room_name,
+                thoi_gian_tra_ket_qua_phut=r.thoi_gian_tra_ket_qua_phut or 30,
+                is_active=r.is_active
+            ))
+
+        return ServiceExportResponse(
+            tong_so_dich_vu=len(items),
+            ngay_xuat=date.today(),
+            danh_muc=items
         )
 
     # =========================================================================

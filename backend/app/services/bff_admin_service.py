@@ -107,11 +107,27 @@ class BffAdminService:
 
     def _load_clean_seed(self) -> dict:
         if self._cached_raw_seed is None:
-            if SEED_FILE_PATH.exists():
-                with open(SEED_FILE_PATH, "r", encoding="utf-8") as f:
-                    self._cached_raw_seed = json.load(f)
-            else:
-                self._cached_raw_seed = {}
+            candidate_paths = [
+                Path(__file__).resolve().parents[2] / "fe" / "src" / "services" / "admin" / "seed" / "clinicSeed.json",
+                Path(__file__).resolve().parents[3] / "fe" / "src" / "services" / "admin" / "seed" / "clinicSeed.json",
+                Path(__file__).resolve().parents[3] / "fe-clinic-ai-booking" / "src" / "services" / "admin" / "seed" / "clinicSeed.json",
+            ]
+            loaded = False
+            for p in candidate_paths:
+                if p.exists():
+                    try:
+                        with open(p, "r", encoding="utf-8") as f:
+                            self._cached_raw_seed = json.load(f)
+                            loaded = True
+                            break
+                    except Exception:
+                        pass
+            if not loaded:
+                try:
+                    from app.core.clinic_bootstrap_seed import _RAW_JSON
+                    self._cached_raw_seed = json.loads(_RAW_JSON)
+                except Exception:
+                    self._cached_raw_seed = {}
 
         seed = copy.deepcopy(self._cached_raw_seed)
         perm_modules = seed.get("permissionModules") or []

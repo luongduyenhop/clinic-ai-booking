@@ -14,7 +14,11 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.models.appointment import LichKham
+<<<<<<< HEAD
 from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
+=======
+from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, GiaoDichThanhToan, HoaDon, LuotKham, PhieuThuChi
+>>>>>>> origin/develop
 from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
@@ -35,7 +39,6 @@ logger = logging.getLogger(__name__)
 
 
 class CashierService:
-    """Nghiệp vụ Phân hệ Thu ngân & Quản lý Viện phí Ngoại trú (Billing & Cashier System)"""
 
     async def get_invoice_detail(self, invoice_id: int, db: AsyncSession) -> HoaDon:
         stmt = (
@@ -58,8 +61,6 @@ class CashierService:
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> HoaDon:
-        """Tạo hóa đơn viện phí từ lượt khám (tự động tổng hợp tiền khám, cận lâm sàng, thuốc)"""
-        # Kiểm tra lượt khám
         stmt_lk = (
             select(LuotKham)
             .options(
@@ -74,7 +75,6 @@ class CashierService:
         if not luot_kham:
             raise NotFoundException(f"Không tìm thấy thông tin lượt khám ID {payload.luot_kham_id}!")
 
-        # Kiểm tra xem đã có hóa đơn chưa thanh toán cho lượt khám này chưa
         stmt_exist = select(HoaDon).where(
             HoaDon.luot_kham_id == luot_kham.id,
             HoaDon.trang_thai == "chua_thu",
@@ -97,8 +97,6 @@ class CashierService:
                     "ghi_chu": it.ghi_chu,
                 })
         else:
-            # Tự động trích xuất từ lượt khám
-            # 1. Công khám
             gia_kham = Decimal("150000.00")
             if luot_kham.lich_kham and luot_kham.lich_kham.bac_si:
                 gia_kham = Decimal(str(luot_kham.lich_kham.bac_si.gia_kham_mac_dinh or 150000.00))
@@ -112,7 +110,6 @@ class CashierService:
                 "ghi_chu": None,
             })
 
-            # 2. Cận lâm sàng
             for cd in (luot_kham.danh_sach_chi_dinh or []):
                 if cd.trang_thai != "da_huy":
                     don_gia_cls = Decimal(str(cd.don_gia_tai_thoi_diem or 0.00))
@@ -125,22 +122,6 @@ class CashierService:
                         "don_gia": don_gia_cls,
                         "thanh_tien": Decimal(cd.so_luong or 1) * don_gia_cls,
                         "ghi_chu": None,
-                    })
-
-            # 3. Thuốc từ đơn thuốc hợp lệ (không SUPERSEDED)
-            active_prescriptions = [dt for dt in (luot_kham.danh_sach_don_thuoc or []) if dt.trang_thai != "SUPERSEDED"]
-            for dt in active_prescriptions:
-                for ct in (dt.danh_sach_chi_tiet or []):
-                    # Giả định đơn giá thuốc chuẩn 5,000 VND / đơn vị tính nếu chưa có bảng giá thuốc
-                    don_gia_thuoc = Decimal("5000.00")
-                    line_items_data.append({
-                        "loai_muc": "thuoc",
-                        "muc_tham_chieu_id": ct.id,
-                        "ten_khoan_thu": f"{ct.ten_thuoc} ({ct.ham_luong or ''})",
-                        "so_luong": ct.so_luong or 1,
-                        "don_gia": don_gia_thuoc,
-                        "thanh_tien": Decimal(ct.so_luong or 1) * don_gia_thuoc,
-                        "ghi_chu": ct.cach_dung,
                     })
 
         tong_tien = sum((item["thanh_tien"] for item in line_items_data), Decimal("0.00"))
@@ -188,7 +169,6 @@ class CashierService:
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> HoaDon:
-        """Thanh toán viện phí và xuất biên lai thu tiền"""
         stmt = (
             select(HoaDon)
             .where(HoaDon.id == invoice_id)
@@ -219,7 +199,6 @@ class CashierService:
         if payload.ghi_chu:
             invoice.ghi_chu = f"{invoice.ghi_chu or ''} | {payload.ghi_chu}".strip(" | ")
 
-        # Tự động tạo phiếu thu tài chính
         ma_phieu = f"PT-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         phieu_thu = PhieuThuChi(
             ma_phieu=ma_phieu,
@@ -235,7 +214,22 @@ class CashierService:
         )
         db.add(phieu_thu)
 
-        # Cập nhật trạng thái chỉ định CLS thuộc hóa đơn sang da_thanh_toan
+        ma_gd = f"GD-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        giao_dich = GiaoDichThanhToan(
+            ma_giao_dich=ma_gd,
+            hoa_don_id=invoice.id,
+            loai_giao_dich="THU_VIEN_PHI",
+            so_tien=invoice.thuc_thu,
+            phuong_thuc=payload.phuong_thuc_thanh_toan,
+            nguon_tao_giao_dich="TAI_QUAY",
+            nguoi_thu_id=thu_ngan_user_id,
+            thoi_gian_giao_dich=now,
+            thoi_gian_xac_nhan=now,
+            trang_thai="THANH_CONG",
+            ghi_chu=payload.ghi_chu,
+        )
+        db.add(giao_dich)
+
         stmt_items = select(ChiTietHoaDon).where(
             ChiTietHoaDon.hoa_don_id == invoice.id,
             ChiTietHoaDon.loai_muc == "can_lam_sang",
@@ -258,7 +252,6 @@ class CashierService:
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> HoaDon:
-        """Hủy hóa đơn viện phí chưa thu hoặc sai lệch"""
         stmt = select(HoaDon).where(HoaDon.id == invoice_id).with_for_update()
         invoice = (await db.execute(stmt)).scalar_one_or_none()
         if not invoice:
@@ -268,7 +261,7 @@ class CashierService:
             raise ConflictException(f"Hóa đơn {invoice.ma_hoa_don} đã ở trạng thái hủy!")
 
         if invoice.trang_thai == "da_thu":
-            raise ConflictException("Hóa đơn đã thu tiền không thể hủy trực tiếp, vui lòng lập phiếu chi hoàn tiền!")
+            raise ConflictException("Hóa đơn đã thu tiền không thể hủy trực tiếp, vui lòng liên hệ quản trị phòng khám!")
 
         invoice.trang_thai = "da_huy"
         invoice.ghi_chu = f"{invoice.ghi_chu or ''} | HỦY: {ly_do}".strip(" | ")
@@ -282,7 +275,6 @@ class CashierService:
         page_size: int = 50,
         db: AsyncSession = None,
     ) -> PendingBillsListResponse:
-        """Lấy danh sách các hóa đơn chờ thu viện phí"""
         stmt = (
             select(HoaDon)
             .options(
@@ -346,12 +338,10 @@ class CashierService:
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> ShiftSummaryResponse:
-        """Báo cáo tổng kết ca trực thu ngân theo các hình thức thu"""
         stmt_user = select(NguoiDung).where(NguoiDung.id == thu_ngan_user_id)
         user = (await db.execute(stmt_user)).scalar_one_or_none()
         ten_thu_ngan = user.ho_ten if user else f"User {thu_ngan_user_id}"
 
-        # Lấy các phiếu thu chưa khóa sổ của thu ngân này
         stmt_slips = select(PhieuThuChi).where(
             PhieuThuChi.nhan_vien_id == thu_ngan_user_id,
             PhieuThuChi.trang_thai_khoa_so == False,
@@ -362,7 +352,6 @@ class CashierService:
         tong_chuyen_khoan = Decimal("0.00")
         tong_the_pos = Decimal("0.00")
         so_phieu_thu = 0
-        so_phieu_chi = 0
 
         for s in slips:
             amount = s.so_tien or Decimal("0.00")
@@ -374,10 +363,6 @@ class CashierService:
                     tong_chuyen_khoan += amount
                 elif s.phuong_thuc == "the_pos":
                     tong_the_pos += amount
-            elif s.loai_phieu == "CHI":
-                so_phieu_chi += 1
-                if s.phuong_thuc == "tien_mat":
-                    tong_tien_mat -= amount
 
         tong_doanh_thu = tong_tien_mat + tong_chuyen_khoan + tong_the_pos
 
@@ -390,7 +375,7 @@ class CashierService:
             tong_the_pos=tong_the_pos,
             tong_doanh_thu=tong_doanh_thu,
             so_phieu_thu=so_phieu_thu,
-            so_phieu_chi=so_phieu_chi,
+            so_phieu_chi=0,
         )
 
     async def close_shift(
@@ -400,7 +385,10 @@ class CashierService:
         tien_mat_thuc_te: Optional[Decimal] = None,
         db: AsyncSession = None,
     ) -> CloseShiftResponse:
+<<<<<<< HEAD
         """Khóa sổ ca trực thu ngân, chốt toàn bộ phiếu thu chi trong ca và tạo bản ghi KhoaSoCaTruc"""
+=======
+>>>>>>> origin/develop
         summary = await self.get_shift_summary(thu_ngan_user_id, db)
 
         stmt_update = (

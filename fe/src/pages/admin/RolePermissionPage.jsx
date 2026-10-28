@@ -19,6 +19,18 @@ import {
     XCircle,
 } from '../../components/common/ClinicIcon'
 
+const getNextStaffCode = (list) => {
+    let max = 0
+    ;(list || []).forEach((s) => {
+        const m = String(s.maNV || s.id || '').match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return "NV" + String(max + 1).padStart(3, '0')
+}
+
 export default function RolePermissionPage() {
     const location = useLocation()
     const dispatch = useDispatch()
@@ -54,7 +66,7 @@ export default function RolePermissionPage() {
         () =>
             staffList[0] || {
                 id: '',
-                maNV: 'NV006',
+                maNV: getNextStaffCode(staffList),
                 hoTen: '',
                 taiKhoan: '',
                 dienThoai: '',
@@ -136,9 +148,11 @@ export default function RolePermissionPage() {
             return
         }
         const exists = staffList.some((s) => s.id === staffForm.id && staffForm.id)
+        const nextMa = exists ? staffForm.maNV : (staffForm.maNV || getNextStaffCode(staffList))
+        const formWithCode = { ...staffForm, maNV: nextMa }
         const updated = exists
             ? staffList.map((s) => (s.id === staffForm.id ? { ...s, ...staffForm } : s))
-            : [...staffList, { ...staffForm, id: `NV-00${staffList.length + 1}` }]
+            : [...staffList, { ...formWithCode, id: nextMa }]
 
         await dispatch(
             updateClinicCollectionAsync({
@@ -146,7 +160,7 @@ export default function RolePermissionPage() {
                 items: updated,
                 auditEntry: {
                     hanhDong: exists ? 'UPDATE_STAFF_CREDENTIAL' : 'CREATE_STAFF_CREDENTIAL',
-                    doiTuong: `${staffForm.hoTen} - CCHN: ${staffForm.soCCHN} (${staffForm.trangThaiCCHN})`,
+                    doiTuong: `${formWithCode.hoTen} (${nextMa}) - CCHN: ${formWithCode.soCCHN} (${formWithCode.trangThaiCCHN})`,
                     mucDich: 'Quản lý nhân sự & Chứng chỉ hành nghề (INT-05)',
                 },
             })
@@ -368,10 +382,11 @@ export default function RolePermissionPage() {
                             <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                        const nextMa = getNextStaffCode(staffList)
                                         setStaffForm({
                                             id: '',
-                                            maNV: `NV00${staffList.length + 1}`,
+                                            maNV: nextMa,
                                             hoTen: '',
                                             taiKhoan: '',
                                             dienThoai: '',
@@ -384,7 +399,7 @@ export default function RolePermissionPage() {
                                             trangThaiCCHN: 'ACTIVE',
                                             trangThai: true,
                                         })
-                                    }
+                                    }}
                                     className="medpro-btn-outline text-xs"
                                 >
                                     <Plus size={14} weight="bold" className="text-[#00B5F1]" />
@@ -399,12 +414,19 @@ export default function RolePermissionPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <label className="medpro-label">Mã nhân viên</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã nhân viên</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={staffForm.maNV || ''}
-                                    onChange={(e) => setStaffForm({ ...staffForm, maNV: e.target.value })}
-                                    className="medpro-input font-mono font-bold"
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã nhân viên do hệ thống tự sinh theo chuẩn NVxxx, không thể chỉnh sửa"
                                 />
                             </div>
                             <div className="sm:col-span-2">

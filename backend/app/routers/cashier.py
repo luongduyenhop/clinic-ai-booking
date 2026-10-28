@@ -15,6 +15,8 @@ from app.schemas.cashier import (
     InvoiceResponse,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    RefundInvoiceRequest,
+    RefundInvoiceResponse,
 )
 from app.services.cashier_service import cashier_service
 
@@ -248,9 +250,31 @@ async def close_shift(
     result = await cashier_service.close_shift(
         thu_ngan_user_id=current_user.nguoi_dung_id,
         ghi_chu=payload.ghi_chu,
+        tien_mat_thuc_te=payload.tien_mat_thuc_te,
         db=db
     )
     return ResponseEnvelope.success_response(
         data=result,
         message="Khóa sổ ca trực thành công"
+    )
+
+
+@router.post(
+    "/refund",
+    response_model=ResponseEnvelope[RefundInvoiceResponse],
+    summary="Hoàn tiền viện phí và lập phiếu chi trả lại bệnh nhân (FC-16)"
+)
+async def refund_invoice(
+    payload: RefundInvoiceRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.refund_invoice(
+        payload=payload,
+        thu_ngan_user_id=current_user.nguoi_dung_id,
+        db=db
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Hoàn tiền thành công {result.so_tien_hoan:,.0f}đ cho hóa đơn {result.ma_hoa_don}"
     )

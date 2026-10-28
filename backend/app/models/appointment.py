@@ -61,6 +61,16 @@ class TrangThaiHangDoiEnum(str, Enum):
     TAM_HOAN = "tam_hoan"            # Gọi quá 3 lần không vào, tạm hoãn chờ kích hoạt lại
     DA_KHAM = "da_kham"              # Đã hoàn tất buổi khám
     BO_KHAM = "bo_kham"              # Bỏ về không khám
+    DA_DONG_VE = "da_dong_ve"        # Lễ tân chủ động đóng vé (lý do hành chính)
+
+
+class LyDoUuTienEnum(str, Enum):
+    """Danh mục lý do ưu tiên đặc biệt khám chữa bệnh (Ưu tiên mức 1)"""
+    CAP_CUU_NHE = "cap_cuu_nhe"          # Cấp cứu nhẹ
+    NGUOI_GIA = "nguoi_gia"              # Người già ≥ 80 tuổi
+    THAI_PHU = "thai_phu"               # Phụ nữ mang thai
+    TRE_SO_SINH = "tre_so_sinh"          # Trẻ sơ sinh ≤ 6 tháng
+    THUONG_BINH = "thuong_binh"          # Thương binh liệt sĩ
 
 
 class LoaiNghiPhepEnum(str, Enum):
@@ -115,9 +125,11 @@ class LichKham(BaseModelWithTimestamp):
 
     ma_lich_kham = Column(String(50), unique=True, nullable=False, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False, index=True)
-    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False, index=True)
+    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=True, index=True)
+    chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=True, index=True)
+    ca_kham = Column(String(20), nullable=True)  # 'sang' hoặc 'chieu'
     ngay_kham = Column(Date, nullable=False, index=True)
-    gio_kham = Column(Time, nullable=False, index=True)
+    gio_kham = Column(Time, nullable=True, index=True)
     thoi_luong_phut = Column(Integer, default=30, nullable=False)
     so_thu_tu = Column(Integer, default=1, nullable=False)
     ly_do_kham = Column(String(255), nullable=True)
@@ -132,6 +144,7 @@ class LichKham(BaseModelWithTimestamp):
     # Quan hệ
     benh_nhan = relationship("BenhNhan", back_populates="danh_sach_lich_kham")
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_kham")
+    chuyen_khoa = relationship("ChuyenKhoa")
     luot_kham = relationship("LuotKham", back_populates="lich_kham", uselist=False)
     phan_tich_ai = relationship("PhanTichAI", back_populates="lich_kham", uselist=False)
 
@@ -150,13 +163,15 @@ class LichKham(BaseModelWithTimestamp):
         # trùng giờ của cùng 1 bác sĩ hoặc cùng 1 bệnh nhân
         Index(
             "uq_active_doctor_slot", "bac_si_id", "ngay_kham", "gio_kham",
-            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION,
-            sqlite_where=_ACTIVE_BOOKING_CONDITION
+            unique=True,
+            postgresql_where=text(f"trang_thai IN ({_OCCUPYING_CONDITION_STR}) AND bac_si_id IS NOT NULL AND gio_kham IS NOT NULL"),
+            sqlite_where=text(f"trang_thai IN ({_OCCUPYING_CONDITION_STR}) AND bac_si_id IS NOT NULL AND gio_kham IS NOT NULL")
         ),
         Index(
             "uq_active_patient_slot", "benh_nhan_id", "ngay_kham", "gio_kham",
-            unique=True, postgresql_where=_ACTIVE_BOOKING_CONDITION,
-            sqlite_where=_ACTIVE_BOOKING_CONDITION
+            unique=True,
+            postgresql_where=text(f"trang_thai IN ({_OCCUPYING_CONDITION_STR}) AND gio_kham IS NOT NULL"),
+            sqlite_where=text(f"trang_thai IN ({_OCCUPYING_CONDITION_STR}) AND gio_kham IS NOT NULL")
         ),
     )
 
@@ -233,6 +248,7 @@ class HangDoiKham(BaseModelWithTimestamp):
     trang_thai = Column(String(30), default=TrangThaiHangDoiEnum.CHO_KHAM.value, nullable=False, index=True)
 
     thoi_gian_check_in = Column(DateTime(timezone=True), nullable=False)
+    thoi_gian_xep_hang_lai = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_goi_kham = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_bat_dau = Column(DateTime(timezone=True), nullable=True)
     thoi_gian_ket_thuc = Column(DateTime(timezone=True), nullable=True)

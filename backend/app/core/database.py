@@ -6,13 +6,19 @@ from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
+from sqlalchemy.engine import make_url
+
+
 def _resolve_active_database_url() -> tuple[str, bool]:
     """Kiểm tra kết nối PostgreSQL; nếu dịch vụ PostgreSQL/Docker chưa bật thì tự động dùng SQLite bền vững"""
     url = settings.async_database_url
     if url.startswith("sqlite"):
         return url, True
     try:
-        with socket.create_connection((settings.POSTGRES_SERVER, int(settings.POSTGRES_PORT)), timeout=1.0):
+        parsed_url = make_url(url)
+        host = parsed_url.host or settings.POSTGRES_SERVER
+        port = parsed_url.port or settings.POSTGRES_PORT
+        with socket.create_connection((host, int(port)), timeout=2.0):
             return url, False
     except OSError:
         sqlite_path = (Path(__file__).resolve().parents[2] / "clinic_local.db").as_posix()

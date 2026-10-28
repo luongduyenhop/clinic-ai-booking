@@ -97,10 +97,36 @@ class ShiftSummaryResponse(BaseModel):
 
 
 class CloseShiftRequest(BaseModel):
+    tien_mat_thuc_te: Optional[Decimal] = Field(None, description="Số tiền mặt thực tế kiểm đếm trong két. Mặc định bằng tổng tiền mặt hệ thống.")
     ghi_chu: Optional[str] = None
 
 
 class CloseShiftResponse(BaseModel):
     ok: bool
+    ma_khoa_so: Optional[str] = None
     thoi_gian_dong_so: datetime
+    tien_mat_thuc_te: Optional[Decimal] = None
+    chenh_lech_tien_mat: Optional[Decimal] = None
+    khoa_so_id: Optional[int] = None
     tong_ket: ShiftSummaryResponse
+
+
+class RefundInvoiceRequest(BaseModel):
+    """Yêu cầu hoàn tiền viện phí / xuất phiếu chi trả lại bệnh nhân (FC-16)"""
+    invoice_id: int = Field(..., description="ID hóa đơn cần hoàn tiền")
+    so_tien_hoan: Optional[Decimal] = Field(None, gt=0, description="Số tiền hoàn lại (None nếu hoàn 100% thực thu)")
+    ly_do: str = Field(..., min_length=5, max_length=500, description="Lý do hoàn tiền (bệnh nhân bỏ về, hủy dịch vụ CLS, v.v.)")
+    phuong_thuc: str = Field("tien_mat", description="tien_mat hoặc chuyen_khoan")
+
+
+class RefundInvoiceResponse(BaseModel):
+    """Kết quả hoàn tiền viện phí"""
+    ma_phieu_chi: str
+    phieu_chi_id: int
+    hoa_don_id: int
+    ma_hoa_don: str
+    so_tien_hoan: Decimal
+    trang_thai_hoa_don_moi: str
+    thoi_gian: datetime
+    nguoi_thuc_hien_id: int
+    ly_do: str

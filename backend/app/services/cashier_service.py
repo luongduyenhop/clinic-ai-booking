@@ -14,7 +14,7 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.models.appointment import LichKham
-from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, HoaDon, LuotKham, PhieuThuChi
+from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
 from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
@@ -27,6 +27,8 @@ from app.schemas.cashier import (
     PendingBillItem,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    RefundInvoiceRequest,
+    RefundInvoiceResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -394,10 +396,11 @@ class CashierService:
     async def close_shift(
         self,
         thu_ngan_user_id: int,
-        ghi_chu: Optional[str],
-        db: AsyncSession,
+        ghi_chu: Optional[str] = None,
+        tien_mat_thuc_te: Optional[Decimal] = None,
+        db: AsyncSession = None,
     ) -> CloseShiftResponse:
-        """Khóa sổ ca trực thu ngân, chốt toàn bộ phiếu thu chi trong ca"""
+        """Khóa sổ ca trực thu ngân, chốt toàn bộ phiếu thu chi trong ca và tạo bản ghi KhoaSoCaTruc"""
         summary = await self.get_shift_summary(thu_ngan_user_id, db)
 
         stmt_update = (
@@ -413,11 +416,116 @@ class CashierService:
         for s in slips:
             s.trang_thai_khoa_so = True
 
+        actual_cash = tien_mat_thuc_te if tien_mat_thuc_te is not None else summary.tong_tien_mat
+        diff_cash = actual_cash - summary.tong_tien_mat
+
+        # Xác định ca làm việc theo giờ Việt Nam (UTC+7)
+        hour_vn = (now.hour + 7) % 24
+        ca = "SANG" if hour_vn < 13 else "CHIEU"
+        ma_ks = f"KS-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+
+        khoa_so = KhoaSoCaTruc(
+            ma_khoa_so=ma_ks,
+            ca_lam_viec=ca,
+            ngay_khoa_so=now.date(),
+            thu_ngan_giao_id=thu_ngan_user_id,
+            tong_tien_mat_he_thong=summary.tong_tien_mat,
+            tong_chuyen_khoan_he_thong=summary.tong_chuyen_khoan,
+            tong_the_pos_he_thong=summary.tong_the_pos,
+            tien_mat_thuc_te=actual_cash,
+            chenh_lech_tien_mat=diff_cash,
+            tong_so_phieu_thu=summary.so_phieu_thu,
+            tong_so_phieu_chi=summary.so_phieu_chi,
+            trang_thai="DA_KHOA_SO",
+            ghi_chu=ghi_chu,
+        )
+        db.add(khoa_so)
         await db.commit()
+        await db.refresh(khoa_so)
+
         return CloseShiftResponse(
             ok=True,
+            ma_khoa_so=khoa_so.ma_khoa_so,
             thoi_gian_dong_so=now,
+            tien_mat_thuc_te=actual_cash,
+            chenh_lech_tien_mat=diff_cash,
+            khoa_so_id=khoa_so.id,
             tong_ket=summary,
+        )
+
+    async def refund_invoice(
+        self,
+        payload: RefundInvoiceRequest,
+        thu_ngan_user_id: int,
+        db: AsyncSession,
+    ) -> RefundInvoiceResponse:
+        """Hoàn tiền viện phí và xuất phiếu chi trả lại bệnh nhân (FC-16)"""
+        stmt = (
+            select(HoaDon)
+            .options(
+                selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+            )
+            .where(HoaDon.id == payload.invoice_id)
+            .with_for_update()
+        )
+        invoice = (await db.execute(stmt)).scalar_one_or_none()
+        if not invoice:
+            raise NotFoundException(f"Không tìm thấy hóa đơn ID {payload.invoice_id}!")
+
+        if invoice.trang_thai not in ("da_thu", "hoan_tien_mot_phan"):
+            raise BadRequestException(f"Chỉ có thể hoàn tiền hóa đơn đã thu (Trạng thái hiện tại: {invoice.trang_thai})!")
+
+        # Tính toán số tiền hoàn
+        so_tien_hoan = payload.so_tien_hoan if payload.so_tien_hoan is not None else invoice.thuc_thu
+        if so_tien_hoan <= 0:
+            raise BadRequestException("Số tiền hoàn phải lớn hơn 0!")
+        if so_tien_hoan > invoice.thuc_thu:
+            raise BadRequestException(f"Số tiền hoàn ({so_tien_hoan:,.0f}đ) không được vượt quá số thực thu của hóa đơn ({invoice.thuc_thu:,.0f}đ)!")
+
+        now = datetime.now(timezone.utc)
+        ma_phieu = f"PC-{now.strftime('%y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
+        ten_nguoi_nhan = (
+            invoice.benh_nhan.nguoi_dung.ho_ten
+            if invoice.benh_nhan and invoice.benh_nhan.nguoi_dung
+            else "Bệnh nhân"
+        )
+
+        phieu_chi = PhieuThuChi(
+            ma_phieu=ma_phieu,
+            loai_phieu="CHI",
+            hoa_don_id=invoice.id,
+            nguoi_giao_dich=ten_nguoi_nhan,
+            so_tien=so_tien_hoan,
+            phuong_thuc=payload.phuong_thuc,
+            ly_do=payload.ly_do,
+            nhan_vien_id=thu_ngan_user_id,
+            thoi_gian=now,
+            trang_thai_khoa_so=False,
+        )
+        db.add(phieu_chi)
+
+        # Cập nhật trạng thái hóa đơn
+        if so_tien_hoan >= invoice.thuc_thu:
+            invoice.trang_thai = "da_hoan_tien"
+        else:
+            invoice.trang_thai = "hoan_tien_mot_phan"
+
+        ghi_chu_hoan = f" | [Hoàn tiền: {so_tien_hoan:,.0f}đ, Phiếu: {ma_phieu}, Lý do: {payload.ly_do}]"
+        invoice.ghi_chu = (invoice.ghi_chu or "") + ghi_chu_hoan
+
+        await db.commit()
+        await db.refresh(phieu_chi)
+
+        return RefundInvoiceResponse(
+            ma_phieu_chi=phieu_chi.ma_phieu,
+            phieu_chi_id=phieu_chi.id,
+            hoa_don_id=invoice.id,
+            ma_hoa_don=invoice.ma_hoa_don,
+            so_tien_hoan=so_tien_hoan,
+            trang_thai_hoa_don_moi=invoice.trang_thai,
+            thoi_gian=now,
+            nguoi_thuc_hien_id=thu_ngan_user_id,
+            ly_do=payload.ly_do,
         )
 
 

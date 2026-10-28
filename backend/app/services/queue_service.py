@@ -184,15 +184,15 @@ class QueueService:
         ca_kham = self._determine_shift(lich.gio_kham)
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
-        now_clinic = datetime.now(clinic_tz).replace(tzinfo=None)
-        appointment_dt = datetime.combine(lich.ngay_kham, lich.gio_kham)
+        now_clinic = datetime.now(clinic_tz)
+        appointment_dt = datetime.combine(lich.ngay_kham, lich.gio_kham).replace(tzinfo=clinic_tz)
         diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
-        if diff_minutes > 30:
+        if diff_minutes >= 30:
             # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
             loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
             muc_do_uu_tien = 4
-        elif diff_minutes < -15:
+        elif diff_minutes <= -15:
             # Đến muộn hơn 15 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
             loai_hang_doi = LoaiHangDoiEnum.DEN_MUON.value
             muc_do_uu_tien = 5

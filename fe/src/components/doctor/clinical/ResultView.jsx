@@ -9,6 +9,7 @@ import {
     LAB_HUONG_ARROW,
 } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
+import { ClsImageGallery } from '../cls/ClsImageUploader'
 
 function IndicatorTable({ params, values }) {
     return (
@@ -143,7 +144,10 @@ export default function ResultView({ order }) {
             <TextBlock label="Đề nghị" text={detail.de_nghi} />
             <TextBlock label="Ghi chú" text={detail.ghi_chu} />
 
-            {order.tep_dinh_kem_url && (
+            {/* Ảnh CĐHA lưu trên máy chủ cần token nên hiển thị qua gallery, không mở link trực tiếp */}
+            {order.tep_dinh_kem_urls?.length > 0 && <ClsImageGallery urls={order.tep_dinh_kem_urls} />}
+
+            {order.tep_dinh_kem_url && !order.tep_dinh_kem_urls?.length && (
                 <a href={order.tep_dinh_kem_url} target="_blank" rel="noreferrer" className="medpro-btn-outline">
                     Xem tệp đính kèm
                 </a>

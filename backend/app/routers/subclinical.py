@@ -1,12 +1,19 @@
 from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
+from app.schemas.cls_imaging import (
+    ClsFileListResponse,
+    ClsFileResponse,
+    ImagingResultRequest,
+    ImagingResultResponse,
+)
 from app.schemas.subclinical import (
     SubclinicalDetailResponse,
     SubclinicalQueueResponse,
@@ -15,6 +22,7 @@ from app.schemas.subclinical import (
     WorkspaceOrdersResponse,
 )
 from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
+from app.services.cls_file_service import cls_file_service
 from app.services.cls_lab_result_service import cls_lab_result_service
 from app.services.cls_service_group import CLS_GROUPS
 from app.services.cls_workspace_bridge_service import cls_workspace_bridge_service
@@ -182,3 +190,104 @@ async def submit_lab_result(
     if result.ket_qua.so_nguy_hiem:
         message += f" — {result.ket_qua.so_nguy_hiem} chỉ số ở ngưỡng nguy hiểm"
     return ResponseEnvelope.success_response(data=result, message=message)
+
+
+# ── Ảnh kết quả & phiếu kết quả Chẩn đoán hình ảnh ─────────────────────────
+@router.post(
+    "/orders/{order_id}/files",
+    response_model=ResponseEnvelope[ClsFileResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Tải lên 1 ảnh kết quả (JPG/PNG, tối đa 10 MB, tối đa 10 ảnh/ca) cho chỉ định CLS"
+)
+async def upload_subclinical_file(
+    order_id: int,
+    file: UploadFile = File(..., description="Ảnh JPG/PNG (ảnh DICOM cần xuất sang JPG/PNG từ máy)"),
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_file_service.upload_file(order_id, file, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Tải ảnh kết quả lên thành công",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.get(
+    "/orders/{order_id}/files",
+    response_model=ResponseEnvelope[ClsFileListResponse],
+    summary="Danh sách ảnh kết quả đã tải lên của chỉ định CLS"
+)
+async def list_subclinical_files(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_file_service.list_files(order_id, db)
+    return ResponseEnvelope.success_response(data=result, message=f"Có {len(result.items)} ảnh kết quả")
+
+
+@router.get(
+    "/orders/{order_id}/files/{file_id}",
+    response_class=FileResponse,
+    summary="Xem ảnh kết quả CLS (bắt buộc xác thực, không public)"
+)
+async def get_subclinical_file(
+    order_id: int,
+    file_id: str = Path(..., max_length=40),
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    path, media_type = await cls_file_service.get_file(order_id, file_id, db)
+    return FileResponse(
+        path,
+        media_type=media_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.delete(
+    "/orders/{order_id}/files/{file_id}",
+    response_model=ResponseEnvelope[None],
+    summary="Xóa ảnh kết quả khi kết quả chưa được duyệt"
+)
+async def delete_subclinical_file(
+    order_id: int,
+    file_id: str = Path(..., max_length=40),
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    await cls_file_service.delete_file(order_id, file_id, db)
+    return ResponseEnvelope.success_response(data=None, message="Đã xóa ảnh kết quả")
+
+
+@router.get(
+    "/orders/{order_id}/imaging-result",
+    response_model=ResponseEnvelope[ImagingResultResponse],
+    summary="Lấy phiếu kết quả Chẩn đoán hình ảnh (bản nháp hoặc đã trả) kèm danh sách ảnh"
+)
+async def get_imaging_result(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_file_service.get_imaging_result(order_id, db)
+    return ResponseEnvelope.success_response(data=result, message="Lấy kết quả chẩn đoán hình ảnh thành công")
+
+
+@router.post(
+    "/orders/{order_id}/imaging-result",
+    response_model=ResponseEnvelope[ImagingResultResponse],
+    summary="Lưu nháp hoặc trả kết quả Chẩn đoán hình ảnh (mô tả, kết luận, đề nghị, ảnh đã tải lên)"
+)
+async def save_imaging_result(
+    order_id: int,
+    payload: ImagingResultRequest,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_file_service.save_imaging_result(order_id, payload, current_user.nguoi_dung_id, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đã trả kết quả chẩn đoán hình ảnh" if result.trang_thai == "da_co_ket_qua" else "Đã lưu nháp kết quả"
+    )

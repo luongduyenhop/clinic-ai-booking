@@ -23,3 +23,6 @@ docs/
 .idea/
 .vscode/
 *.md
+
+# Ảnh kết quả CLS tải lên lúc chạy
+uploads/

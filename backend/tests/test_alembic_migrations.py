@@ -76,7 +76,7 @@ async def test_full_45_tables_schema_metadata_integrity(db_session):
         # 7. Tuân thủ y tế & Giấy phép hành nghề
         "giay_phep_co_so", "lich_su_giay_phep_bac_si", "nhat_ky_truy_cap_y_te",
         # 8. Gói khám cá nhân & Liệu trình phục hồi
-        "goi_dich_vu", "chi_tiet_goi_dich_vu", "dang_ky_goi_kham", "lieu_trinh_dieu_tri", "buoi_dieu_tri",
+        "goi_kham", "chi_tiet_goi_kham", "goi_kham_da_mua", "lieu_trinh_dieu_tri", "buoi_dieu_tri",
         # 9. Danh mục y tế & Kiến thức AI & Nội dung
         "khai_niem", "tu_khoa_cap_cuu", "thong_bao", "mau_bieu_y_te", "bai_viet_tin_tuc", "he_thong_trang_thai_bff"
     }

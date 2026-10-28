@@ -23,7 +23,7 @@ async def seed_master_from_frontend():
         return
 
     with open(seed_path, "r", encoding="utf-8") as f:
-        raw_seed = json.load(f)
+        json.load(f)
 
     async with AsyncSessionLocal() as session:
         # 1. Seed Gói Dịch Vụ Khám

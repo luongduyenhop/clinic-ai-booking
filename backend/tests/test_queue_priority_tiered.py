@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, datetime, timedelta, timezone
+from app.services.appointment_service import clinic_now
 from sqlalchemy import select
 from app.models.user import TaiKhoan
 from app.models.appointment import (
@@ -71,7 +72,7 @@ async def test_emergency_never_superseded_by_cls_return_db(booking, db_session):
     Tích hợp DB: Bác sĩ bấm call_next_patient luôn lấy ca Cấp cứu (Tier 1)
     trước ca quay lại sau CLS (Tier 3).
     """
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
     bs = booking.bs_x
 
@@ -131,7 +132,7 @@ async def test_cls_return_prioritized_over_routine_walkin_db(booking, db_session
     Tích hợp DB: Bác sĩ bấm call_next_patient ưu tiên gọi ca quay lại sau CLS (Tier 3)
     trước ca vãng lai thông thường (Tier 5).
     """
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
     bs = booking.bs_x
 
@@ -190,7 +191,7 @@ async def test_same_tier_arrival_time_tie_breaker_db(booking, db_session):
     Tích hợp DB: Trong cùng Tier 2 (khám đúng hẹn), ca đến trước (arrival time)
     được gọi trước.
     """
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
     bs = booking.bs_x
 

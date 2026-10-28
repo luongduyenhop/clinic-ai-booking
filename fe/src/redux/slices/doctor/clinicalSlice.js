@@ -90,8 +90,8 @@ const clinicalSlice = createSlice({
                 state.services = payload || []
             })
 
-            .addCase(fetchClsWorklistAsync.pending, (state) => {
-                state.worklistLoading = true
+            .addCase(fetchClsWorklistAsync.pending, (state, { meta }) => {
+                if (!meta.arg?.silent) state.worklistLoading = true
                 state.worklistError = null
             })
             .addCase(fetchClsWorklistAsync.fulfilled, (state, { payload }) => {

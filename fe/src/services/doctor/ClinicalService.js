@@ -56,25 +56,63 @@ const ticketToQueueItem = (t) => {
     }
 }
 
-// Danh sách chỉ định CLS của mọi bệnh nhân trong ngày
-const allOrders = () => {
-    const fromEncounters = Object.values(db.encounters).flatMap((enc) =>
-        (enc.danh_sach_chi_dinh || []).map((o) => ({
-            ...o,
-            benh_nhan: enc.benh_nhan,
-            ly_do: enc.ly_do_vao_kham || enc.ai_triage?.trieu_chung_nhap,
-            bac_si_chi_dinh: 'BS. Dung',
-        }))
-    )
-    return [...fromEncounters, ...db.extraOrders]
+// ── Cầu nối CLS: chỉ định trên bàn khám (workspace) ↔ bảng chi_dinh thật (/api/v1/subclinical) ──
+// Chỉ định đã ghi vào chi_dinh mang server_order_id; KTV thao tác bằng id thật, bàn khám giữ bản sao để hiển thị.
+const findMirrorOrder = (serverOrderId) => {
+    for (const enc of Object.values(db.encounters)) {
+        const o = (enc.danh_sach_chi_dinh || []).find((x) => x.server_order_id === serverOrderId)
+        if (o) return { enc, order: o }
+    }
+    return null
 }
 
-const findOrder = (orderId) => {
-    for (const enc of Object.values(db.encounters)) {
-        const o = (enc.danh_sach_chi_dinh || []).find((x) => x.id === orderId)
-        if (o) return o
+const diagnosisText = (enc) => {
+    const list = enc.danh_sach_chan_doan || []
+    const ordered = [...list.filter((d) => d.loai_chan_doan === 'chinh'), ...list.filter((d) => d.loai_chan_doan !== 'chinh')]
+    const text = ordered.map((d) => [d.ma_icd10, d.ten_benh_chan_doan].filter(Boolean).join(' - ')).join('; ')
+    return text ? text.slice(0, 255) : null
+}
+
+const parseResultDetail = (item) => {
+    if (item.tri_so_chi_tiet && Object.keys(item.tri_so_chi_tiet).length > 0) return item.tri_so_chi_tiet
+    try {
+        const parsed = JSON.parse(item.ket_qua_chi_tiet)
+        return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+        return null
     }
-    return db.extraOrders.find((x) => x.id === orderId)
+}
+
+const toWorklistItem = (item) => {
+    const bn = item.benh_nhan || {}
+    const hasResult = item.trang_thai === 'da_co_ket_qua'
+    const mirror = findMirrorOrder(item.id)?.order
+    return {
+        id: item.id,
+        luot_kham_id: item.luot_kham_id,
+        dich_vu_id: item.dich_vu?.id,
+        ma_dich_vu: item.dich_vu?.ma_dich_vu,
+        ten_dich_vu: item.ten_dich_vu,
+        nhom_dich_vu: item.nhom_dich_vu,
+        trang_thai: item.trang_thai,
+        thoi_gian_chi_dinh: item.thoi_gian_chi_dinh,
+        thoi_gian_cho_phut: item.thoi_gian_cho_phut,
+        benh_nhan: {
+            ma: bn.mabn,
+            ho_ten: bn.ho_ten,
+            gioi_tinh: bn.gioi_tinh,
+            tuoi: bn.nam_sinh ? new Date().getFullYear() - bn.nam_sinh : null,
+            so_dien_thoai: bn.so_dien_thoai,
+            di_ung_thuoc: bn.di_ung_thuoc,
+        },
+        ly_do: item.ly_do_vao_kham,
+        chan_doan_so_bo: item.chan_doan_so_bo,
+        bac_si_chi_dinh: item.bac_si_chi_dinh || 'Bác sĩ',
+        // Bản nháp kết quả chưa có cột trong chi_dinh nên lấy từ bản sao trên bàn khám
+        ket_qua_chi_tiet: (hasResult && parseResultDetail(item)) || mirror?.ket_qua_chi_tiet || null,
+        ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : mirror?.ket_qua_phan_loai || null,
+        tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || mirror?.tep_dinh_kem_url || null,
+    }
 }
 
 export class ClinicalService extends BaseServices {
@@ -116,6 +154,50 @@ export class ClinicalService extends BaseServices {
             await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true })
         } catch {
             // Giữ dữ liệu ở localStorage nếu mất kết nối tạm thời
+        }
+    }
+
+    // Tải lại bản mới nhất trước khi sửa bản sao, tránh ghi đè thay đổi của máy khác bằng dữ liệu cũ
+    reloadFromPostgres = async () => {
+        this._hydratedFromPg = false
+        await this.hydrateFromPostgres()
+    }
+
+    // Ghi các chỉ định chưa có trên server vào bảng chi_dinh; lỗi mạng thì giữ nguyên, lần chỉ định sau gửi lại
+    syncOrdersToServer = async (enc) => {
+        const pending = (enc.danh_sach_chi_dinh || []).filter((o) => !o.server_order_id && o.trang_thai !== 'da_huy')
+        if (pending.length === 0) return
+        const bn = enc.benh_nhan || {}
+        const tuoi = Number.parseInt(bn.tuoi, 10)
+        try {
+            const res = await this.post(
+                '/api/v1/subclinical/workspace-orders',
+                {
+                    workspace_encounter_id: String(enc.id),
+                    benh_nhan: {
+                        ma: bn.ma || null,
+                        ho_ten: bn.ho_ten || 'Bệnh nhân',
+                        gioi_tinh: bn.gioi_tinh || null,
+                        tuoi: Number.isNaN(tuoi) ? null : tuoi,
+                        di_ung_thuoc: bn.di_ung_thuoc || null,
+                    },
+                    ly_do_vao_kham: enc.ly_do_vao_kham || enc.ai_triage?.trieu_chung_nhap || null,
+                    chan_doan_so_bo: diagnosisText(enc),
+                    dich_vu_ids: pending.map((o) => o.dich_vu_id),
+                },
+                { __skipGlobalLoading: true }
+            )
+            const result = res?.data?.data
+            enc.luot_kham_server_id = result?.luot_kham_id
+            ;(result?.orders || []).forEach((so) => {
+                const o = pending.find((x) => x.dich_vu_id === so.dich_vu_id)
+                if (o) {
+                    o.server_order_id = so.id
+                    o.trang_thai = so.trang_thai
+                }
+            })
+        } catch (e) {
+            console.warn('Sync CLS orders to /api/v1/subclinical/workspace-orders error:', e)
         }
     }
 
@@ -299,6 +381,7 @@ export class ClinicalService extends BaseServices {
                     thoi_gian_chi_dinh: new Date().toISOString(),
                 })
             })
+        await this.syncOrdersToServer(enc)
         await this.persistToPostgres()
         try {
             clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_ORDERED, {
@@ -316,6 +399,10 @@ export class ClinicalService extends BaseServices {
         const o = enc?.danh_sach_chi_dinh?.find((x) => x.id === orderId)
         if (!o) return reject('Không tìm thấy chỉ định')
         if (o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
+        if (o.server_order_id) {
+            // Hủy cả bản ghi chi_dinh để chỉ định không còn nằm trong hàng đợi KTV (409 nếu KTV đã bắt đầu)
+            await this.post(`/api/v1/subclinical/orders/${o.server_order_id}/cancel?ly_do=${encodeURIComponent('Bác sĩ hủy chỉ định')}`, {})
+        }
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
         await this.persistToPostgres()
         return delay(enc.danh_sach_chi_dinh)
@@ -455,12 +542,14 @@ export class ClinicalService extends BaseServices {
     getServices = async () => {
         try {
             const res = await this.get('/api/v1/medical/services')
-            if (res?.data?.data && res.data.data.length > 0) return res.data.data
+            if (res?.data?.data && res.data.data.length > 0) return { data: res.data.data }
         } catch {
             // Dự phòng offline
         }
         return delay(MOCK_SERVICES, 100)
     }
+
+    getServicesCatalog = async () => (await this.getServices())?.data || []
 
     searchIcd10 = async (keyword) => {
         try {
@@ -489,58 +578,74 @@ export class ClinicalService extends BaseServices {
     }
 
     // ── Cận lâm sàng ──────────────────────────────────────────────────────
-    getClsWorklist = async (nhomDichVu) => {
+    // Hàng đợi KTV đọc từ bảng chi_dinh (GET /api/v1/subclinical/queue); orderId bên dưới là chi_dinh.id thật
+    getClsWorklist = async ({ nhom, tuKhoa, ngay } = {}) => {
         await this.hydrateFromPostgres()
-        const list = allOrders()
-            .filter((o) => o.nhom_dich_vu === nhomDichVu && o.trang_thai !== 'da_huy')
-            .sort((a, b) => a.thoi_gian_chi_dinh.localeCompare(b.thoi_gian_chi_dinh))
-        return delay(list)
+        const params = new URLSearchParams({ nhom_dich_vu: nhom, trang_thai: 'tat_ca' })
+        if (tuKhoa?.trim()) params.set('tu_khoa', tuKhoa.trim())
+        if (ngay) params.set('ngay', ngay)
+        const res = await this.get(`/api/v1/subclinical/queue?${params}`, { __skipGlobalLoading: true })
+        const items = res?.data?.data?.items || []
+        return { data: items.filter((it) => it.trang_thai !== 'da_huy').map(toWorklistItem) }
     }
 
     startOrder = async (orderId) => {
-        const o = findOrder(orderId)
-        if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai === 'da_chi_dinh') o.trang_thai = 'dang_thuc_hien'
-        await this.persistToPostgres()
-        return delay(o, 150)
+        const res = await this.post(`/api/v1/subclinical/orders/${orderId}/start`, {})
+        const trangThai = res?.data?.data?.trang_thai || 'dang_thuc_hien'
+        await this.reloadFromPostgres()
+        const mirror = findMirrorOrder(orderId)
+        if (mirror && mirror.order.trang_thai === 'da_chi_dinh') {
+            mirror.order.trang_thai = trangThai
+            await this.persistToPostgres()
+        }
+        return { data: { id: orderId, trang_thai: trangThai } }
     }
 
     submitOrderResult = async (orderId, payload) => {
-        const o = findOrder(orderId)
-        if (!o) return reject('Không tìm thấy chỉ định')
-        Object.assign(o, payload, { thoi_gian_tra_ket_qua: new Date().toISOString() })
-
-        // Tìm encounter chứa chỉ định này và cập nhật hàng đợi
-        let targetEncounter = null
-        for (const enc of Object.values(db.encounters)) {
-            if ((enc.danh_sach_chi_dinh || []).some((x) => x.id === orderId)) {
-                targetEncounter = enc
-                break
-            }
+        const final = payload.trang_thai === 'da_co_ket_qua'
+        let trangThai = payload.trang_thai
+        if (final) {
+            const detail = payload.ket_qua_chi_tiet
+            const res = await this.post(`/api/v1/subclinical/orders/${orderId}/results`, {
+                ket_qua_chi_tiet: typeof detail === 'string' ? detail : JSON.stringify(detail ?? {}),
+                ket_qua_phan_loai: payload.ket_qua_phan_loai || 'BINH_THUONG',
+                tri_so_chi_tiet: detail && typeof detail === 'object' ? detail : {},
+                file_dinh_kem_urls: payload.tep_dinh_kem_url ? [payload.tep_dinh_kem_url] : [],
+            })
+            trangThai = res?.data?.data?.trang_thai || trangThai
         }
+        const result = { ...payload, id: orderId, trang_thai: trangThai }
+        if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
 
-        if (targetEncounter) {
-            const ticket = db.queue.find((t) => t.encounter_id === targetEncounter.id)
+        // Cập nhật bản sao trên bàn khám để bác sĩ thấy kết quả và lượt khám được ưu tiên gọi lại
+        await this.reloadFromPostgres()
+        const mirror = findMirrorOrder(orderId)
+        if (mirror) {
+            const patch = { ...result }
+            delete patch.id
+            Object.assign(mirror.order, patch)
+            const ticket = final ? db.queue.find((t) => t.encounter_id === mirror.enc.id) : null
             if (ticket) {
                 ticket.trang_thai = 'co_ket_qua_cls'
                 ticket.muc_do_uu_tien = 0 // Ưu tiên cao nhất để lên đầu danh sách
-                ticket.ghi_chu = `⭐ CÓ KQ CLS: ${o.ten_dich_vu}`
+                ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
+            }
+            await this.persistToPostgres()
+        }
+
+        if (final) {
+            try {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
+                    orderId,
+                    order: mirror?.order || result,
+                    encounterId: mirror?.enc.id,
+                })
+            } catch (e) {
+                console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
             }
         }
 
-        await this.persistToPostgres()
-
-        try {
-            clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
-                orderId,
-                order: o,
-                encounterId: targetEncounter?.id,
-            })
-        } catch (e) {
-            console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
-        }
-
-        return delay(o)
+        return { data: result }
     }
 
     uploadFile = (file) => {

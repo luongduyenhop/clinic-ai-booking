@@ -6,36 +6,44 @@
 
 ---
 
-## 1. QUY TẮC ĐẶT TÊN NHÁNH (GIT BRANCHING STRATEGY)
+## 1. MÔ HÌNH PHÂN NHÁNH (GITFLOW STRATEGY)
 
-Mọi thành viên làm việc trên nhánh riêng rẽ, tuyệt đối **không commit trực tiếp lên nhánh `main`**. Mọi thay đổi phải thông qua Pull Request.
+Dự án áp dụng mô hình phân nhánh chuẩn Gitflow để tách biệt giữa môi trường phát triển và môi trường nghiệm thu chấm điểm:
 
-### Cú pháp chuẩn:
-```text
-feature/PJ2026-<Mã_Task>-<tên-ngắn-gọn>
-fix/PJ2026-<Mã_Bug>-<tên-ngắn-gọn>
-test/PJ2026-<Mã_Task>-<tên-ngắn-gọn>
-```
-
-### Ví dụ:
-- Tính năng mới: `feature/PJ2026-15-cashier-invoice-management`
-- Sửa lỗi hệ thống: `fix/PJ2026-89-cls-pdf-export-timeout`
-- Kiểm thử tự động: `test/PJ2026-92-doctor-emr-pytest-suite`
+1. **Nhánh `main` (Production / Release):**
+   - Chứa mã nguồn ổn định nhất, đã qua toàn bộ các bước kiểm thử QA và nghiệm thu.
+   - Dùng để demo trực tiếp và nộp hội đồng chấm điểm môn học.
+   - Tuyệt đối không commit trực tiếp, không mở PR tính năng lẻ trỏ vào `main`.
+2. **Nhánh `develop` (Integration / Active Development):**
+   - Nhánh tích hợp chính của Sprint. Toàn bộ mã nguồn mới hàng ngày của 5 thành viên đều được gộp về đây.
+   - Tuyệt đối không commit trực tiếp lên `develop`. Mọi thay đổi đều phải thông qua Pull Request.
+3. **Các nhánh phụ (Feature / Fix / Test):**
+   - Tạo nhánh bắt đầu từ `develop`:
+     ```text
+     feature/PJ2026-<Mã_Task>-<tên-ngắn-gọn>
+     fix/PJ2026-<Mã_Bug>-<tên-ngắn-gọn>
+     test/PJ2026-<Mã_Task>-<tên-ngắn-gọn>
+     ```
+   - *Ví dụ:*
+     - `feature/PJ2026-15-cashier-invoice-management`
+     - `fix/PJ2026-89-cls-pdf-export-timeout`
+     - `test/PJ2026-92-doctor-emr-pytest-suite`
 
 ---
 
-## 2. BẢO VỆ NHÁNH `main` BẰNG THIẾT LẬP KỸ THUẬT (GITHUB BRANCH PROTECTION)
+## 2. BẢO VỆ NHÁNH `main` VÀ `develop` (GITHUB BRANCH PROTECTION)
 
-Nhánh `main` được bảo vệ bằng cấu hình Ruleset / Branch Protection trên GitHub với các điều kiện kỹ thuật bắt buộc:
-1. **Require a pull request before merging:** Chặn hoàn toàn việc push trực tiếp vào `main`.
-2. **Require approvals:** Bắt buộc tối thiểu **1 lượt duyệt (Approval)** từ thành viên độc lập khác. Tác giả PR tuyệt đối không được tự approve code của chính mình.
-3. **Require approval of the most recent reviewable push:** Yêu cầu thay đổi mới nhất có thể review phải được một người khác với người thực hiện push phê duyệt. Tác giả bổ sung commit sau khi được approve không thể mặc nhiên dùng lại approval trước đó để merge.
+Cả hai nhánh `main` và `develop` đều được bảo vệ bằng cấu hình Ruleset trên GitHub:
+1. **Require a pull request before merging:** Chặn hoàn toàn việc push trực tiếp code lên cả `develop` và `main`.
+2. **Require approvals:** Bắt buộc tối thiểu **1 lượt duyệt (Approval)** từ người khác. Tác giả PR tuyệt đối không được tự approve code của chính mình.
+3. **Require approval of the most recent reviewable push:** Yêu cầu thay đổi mới nhất có thể review phải được một người khác với người push phê duyệt. Tác giả đẩy commit mới thì approval cũ không còn hiệu lực.
 4. **Require status checks to pass before merging:** Bắt buộc các bài kiểm tra CI phải đạt tích xanh (Pass) trước khi nút Merge được mở khóa:
-   - `Backend Linting & Automated Testing` (Tên status check từ job `backend-quality-and-test` trong `.github/workflows/ci.yml`)
-   - `Frontend Linting & Build Verification` (Tên status check từ job `frontend-quality-and-build` trong `.github/workflows/ci.yml`)
-   *(Lưu ý: Sau khi CI chạy lần đầu, vào cấu hình Ruleset để chọn chính xác tên status check hiển thị trong danh mục của GitHub).*
-5. **Do not allow force pushes & deletions:** Cấm tuyệt đối `git push --force` và cấm xóa nhánh `main`.
-6. **Merge Strategy thống nhất:** Chọn **Squash and merge** để gộp các commit lẻ thành 1 commit duy nhất trên `main`, giữ lịch sử dự án tường minh.
+   - `Backend Linting & Automated Testing` (Job `backend-quality-and-test` trong `.github/workflows/ci.yml`)
+   - `Frontend Linting & Build Verification` (Job `frontend-quality-and-build` trong `.github/workflows/ci.yml`)
+5. **Do not allow force pushes & deletions:** Cấm tuyệt đối `git push --force` và cấm xóa cả hai nhánh `main` và `develop`.
+6. **Merge Strategy thống nhất:**
+   - Từ `feature/...` vào `develop`: Chọn **Squash and merge** để gộp commit lẻ thành 1 commit hoàn chỉnh.
+   - Từ `develop` vào `main` (Release Sprint): Chọn **Create a merge commit** để lưu giữ toàn bộ lịch sử phát triển của Sprint.
 
 ---
 
@@ -66,7 +74,8 @@ git commit -m "test(doctor): PJ2026-92 bo sung test case ke don thuoc"
 
 ## 4. QUY TRÌNH PULL REQUEST (PR) VÀ CODE REVIEW
 
-### 4.1. Tiêu đề và Mô tả Pull Request
+### 4.1. Tiêu đề, Nhánh đích và Mô tả Pull Request
+- **Nhánh đích (Base branch):** Luôn chọn trỏ vào **`develop`** (Base: `develop` 🠔 Compare: `feature/...`).
 - **Tiêu đề PR:** Viết theo cú pháp commit:  
   `feat(cashier): PJ2026-15 Quản lý hóa đơn và thanh toán viện phí`
 - **Mô tả PR (Description):**
@@ -79,7 +88,7 @@ git commit -m "test(doctor): PJ2026-92 bo sung test case ke don thuoc"
 - **Ma trận review chéo:**
   - **Tùng ↔ Hoàng:** Review chéo module Thu ngân và Bác sĩ khám bệnh.
   - **Trọng ↔ An:** Review chéo module Tiếp đón và Cận lâm sàng.
-- **Quyền thực hiện Squash and Merge:**
+- **Quyền thực hiện Squash and Merge vào `develop`:**
   - Đối với PR tính năng độc lập: Sau khi đạt 1 Approval độc lập và toàn bộ CI status checks đạt Pass, tác giả hoặc reviewer đều có quyền bấm **Squash and merge**.
   - Đối với PR cốt lõi (Kiến trúc tổng thể, Alembic Migration phức tạp, Security/Auth, AI Engine): Bắt buộc Trưởng nhóm (**Hợp**) thẩm định và bấm Merge.
 
@@ -98,13 +107,13 @@ Quy trình trạng thái chuẩn của từng ticket trên bảng Jira:
 ```
 
 1. **To Do:** Task nằm trong Sprint Backlog, có đầy đủ tiêu chí chấp nhận (Acceptance Criteria).
-2. **In Progress:** Thành viên tạo nhánh `feature/PJ2026-XX...` và bắt đầu code (kích hoạt bởi Jira Automation khi nhận diện issue key từ branch).
-3. **In Review:** Pull Request được mở trên GitHub, CI Pipeline đang chạy và chờ đồng đội review.
-4. **Testing / QA:** Pull Request đã được Merge vào nhánh chính (`main`). Task chuyển sang môi trường tích hợp để chạy kiểm thử liên thông (E2E) và kiểm thử hồi quy.
+2. **In Progress:** Thành viên tạo nhánh `feature/PJ2026-XX...` từ `develop` và bắt đầu code (kích hoạt bởi Jira Automation khi nhận diện issue key từ branch).
+3. **In Review:** Pull Request được mở trên GitHub trỏ vào `develop`, CI Pipeline đang chạy và chờ đồng đội review.
+4. **Testing / QA:** Pull Request đã được Merge vào nhánh `develop`. Task chuyển sang môi trường tích hợp để chạy kiểm thử liên thông (E2E) và kiểm thử hồi quy.
 5. **Done:** Chỉ được chuyển sang Done khi thỏa mãn toàn bộ **Definition of Done (DoD)** ở Mục 7.
 
 **Nguyên tắc chuyển trạng thái quan trọng:**  
-Jira Automation **không được tự động chuyển ticket sang `Done`** chỉ dựa trên sự kiện Pull Request được merge. Việc chuyển sang `Done` chỉ được thực hiện sau khi kiểm thử QA xác nhận thành công và các tiêu chí DoD đã được đáp ứng trọn vẹn.
+Jira Automation **không được tự động chuyển ticket sang `Done`** chỉ dựa trên sự kiện Pull Request được merge vào `develop`. Việc chuyển sang `Done` chỉ được thực hiện sau khi kiểm thử QA xác nhận thành công và các tiêu chí DoD đã được đáp ứng trọn vẹn.
 
 ---
 
@@ -144,16 +153,16 @@ Jira Automation **không được tự động chuyển ticket sang `Done`** ch�
 Một User Story / Task chỉ được chuyển sang **Done** khi đáp ứng đủ 6 tiêu chuẩn:
 1. Mã nguồn tuân thủ Clean Code: Tên biến và hàm tự giải thích logic nghiệp vụ; loại bỏ hoàn toàn mã chết và comment thừa thãi.
 2. Vượt qua 100% các bài kiểm thử tự động bắt buộc trong CI (Backend Pytest, Frontend Build).
-3. Đạt tối thiểu 1 Approval độc lập và được Squash and Merge vào nhánh `main`.
-4. Không gây xung đột (conflict) hoặc làm đổ vỡ các bài kiểm thử hồi quy của hệ thống.
+3. Đạt tối thiểu 1 Approval độc lập và được Squash and Merge vào nhánh **`develop`**.
+4. Không gây xung đột (conflict) hoặc làm đổ vỡ các bài kiểm thử hồi quy của hệ thống trên `develop`.
 5. Được kiểm thử xác nhận thành công trên môi trường tích hợp (giai đoạn Testing / QA).
 6. Trạng thái ticket trên Jira được chuyển sang Done bởi QA hoặc người phụ trách sau khi nghiệm thu.
 
 ---
 
-## 8. QUY TRÌNH XỬ LÝ BUG SAU KHI MERGE (TESTING PHASE)
+## 8. QUY TRÌNH XỬ LÝ BUG SAU KHI MERGE (TESTING PHASE TRÊN `develop`)
 
-Khi mã nguồn đã vào `main` nhưng phát hiện lỗi trong quá trình kiểm thử QA:
+Khi mã nguồn đã vào `develop` nhưng phát hiện lỗi trong quá trình kiểm thử QA:
 1. **Xử lý Ticket tính năng ban đầu:**
    - Nếu phát hiện lỗi khiến tính năng chưa đạt DoD, ticket tính năng ban đầu tiếp tục giữ ở trạng thái `Testing / QA` (không được chuyển sang `Done`).
 2. **Tạo Ticket Bug mới trên Jira và liên kết chuẩn xác:**
@@ -161,24 +170,35 @@ Khi mã nguồn đã vào `main` nhưng phát hiện lỗi trong quá trình ki�
    - Điền đầy đủ: Steps to reproduce, Expected result, Actual result, ảnh chụp lỗi.
    - Gán (Assignee) cho thành viên phụ trách module tương ứng.
    - **Xác định đúng chiều liên kết (Issue Linking):**
-     - Từ màn hình User Story: chọn `is blocked by` ➔ trỏ đến mã Bug (Ví dụ: `PJ2026-15 is blocked by PJ2026-89`).
-     - Hoặc từ màn hình Bug: chọn `blocks` ➔ trỏ đến mã User Story (Ví dụ: `PJ2026-89 blocks PJ2026-15`).
-     - Tuyệt đối kiểm tra kỹ cả 2 đầu ticket để tránh tạo liên kết ngược chiều.
+     - Từ màn hình User Story: chọn `is blocked by` ➔ trỏ đến mã Bug (`PJ2026-15 is blocked by PJ2026-89`).
+     - Hoặc từ màn hình Bug: chọn `blocks` ➔ trỏ đến mã User Story (`PJ2026-89 blocks PJ2026-15`).
 3. **Quy trình sửa lỗi:**
-   - Tạo nhánh sửa lỗi riêng: `fix/PJ2026-<Mã_Bug>-<tên-lỗi>`
-   - Mở Pull Request mới với tiêu đề `fix(...)` trỏ vào `main`.
-   - Review -> CI Pass -> Merge -> Chạy lại kiểm thử xác nhận.
+   - Tạo nhánh sửa lỗi từ `develop`: `fix/PJ2026-<Mã_Bug>-<tên-lỗi>`
+   - Mở Pull Request mới với tiêu đề `fix(...)` trỏ vào **`develop`**.
+   - Review -> CI Pass -> Merge vào `develop` -> Chạy lại kiểm thử xác nhận.
 4. **Nghiệm thu hoàn tất:**
    - Chuyển ticket Bug sang **Done**.
-   - Sau khi kiểm thử toàn diện xác nhận tính năng hoạt động ổn định, ticket tính năng ban đầu mới chính thức được chuyển sang **Done**.
+   - Sau khi kiểm thử toàn diện xác nhận tính năng hoạt động ổn định trên `develop`, ticket tính năng ban đầu mới chính thức được chuyển sang **Done**.
 
 ---
 
-## 9. VẬN HÀNH SCRUM THỰC DỤNG CHO NHÓM 5 NGƯỜI
+## 9. QUY TRÌNH PHÁT HÀNH TỔNG THỂ SANG `main` (RELEASE ĐỒ ÁN)
+
+Sau khi toàn bộ 18 tính năng và các Bug trên `develop` được kiểm thử đạt 100% DoD:
+1. Trưởng nhóm (**Hợp**) mở Pull Request lớn duy nhất:  
+   **Base:** `main` 🠔 **Compare:** `develop`
+2. Tiêu đề: `release: PJ2026 Hoàn thiện hệ thống Clinic-AI Sprint 5 sẵn sàng nghiệm thu`
+3. CI Pipeline chạy kiểm thử toàn diện lần cuối trên `main`.
+4. Trưởng nhóm thực hiện Merge (`Create a merge commit`) để bảo toàn lịch sử phát triển.
+5. Nhánh `main` lúc này chính là phiên bản phát hành chính thức (Release v1.0) dùng để báo cáo và chấm điểm trước Giảng viên hướng dẫn.
+
+---
+
+## 10. VẬN HÀNH SCRUM THỰC DỤNG CHO NHÓM 5 NGƯỜI
 
 Để tối ưu hiệu quả và giá trị chuyển giao:
 - **Sprint Goal theo giá trị nghiệp vụ:** Mỗi Sprint tập trung vào một kết quả nghiệp vụ cụ thể thay vì đếm số lượng task lẻ.  
-  *Ví dụ:* "Hoàn thiện liên thông luồng Tiếp đón, Khám bệnh và Kê đơn ngoại trú, bảo đảm hồ sơ bệnh nhân và đơn thuốc được xử lý chính xác, đồng bộ qua cơ sở dữ liệu và vượt qua các bài kiểm thử bắt buộc."
+  *Ví dụ:* "Hoàn thiện liên thông luồng Tiếp đón, Khám bệnh và Kê đơn ngoại trú trên nhánh develop, bảo đảm hồ sơ bệnh nhân và đơn thuốc được xử lý chính xác, đồng bộ qua cơ sở dữ liệu và vượt qua các bài kiểm thử bắt buộc."
 - **Daily Standup (5-10 phút):** Trao đổi nhanh đầu ngày qua Zalo hoặc gặp trực tiếp theo 3 câu hỏi:
   1. Hôm qua đã hoàn thành gì?
   2. Hôm nay sẽ làm gì?
@@ -188,4 +208,12 @@ Khi mã nguồn đã vào `main` nhưng phát hiện lỗi trong quá trình ki�
 
 ---
 
+## 11. MA TRẬN PHÂN CÔNG TRÁCH NHIỆM
 
+| Thành viên | Trách nhiệm chính | Module phụ trách |
+| :--- | :--- | :--- |
+| **Lương Duyên Hợp** | Scrum Master / Tech Lead | Kiến trúc hệ thống, Authentication, AI Engine, Tích hợp tổng thể & Phê duyệt Core PR, Quản lý Release develop ➔ main |
+| **Nguyễn Đăng Tùng** | Fullstack Developer | Module Thu ngân, Quản lý viện phí, Hóa đơn tài chính, Báo cáo doanh thu |
+| **Trần Huy Hoàng** | Fullstack Developer | Module Bác sĩ khám bệnh, Bệnh án điện tử (EMR), Kê đơn thuốc ngoại trú |
+| **Hoàng Đức Trọng** | Fullstack Developer | Module Tiếp đón bệnh nhân, Cấp số thứ tự, Điều phối luồng khám |
+| **Đỗ Thành An** | Fullstack Developer | Module Cận lâm sàng (CLS), Nhập kết quả X-quang/Xét nghiệm, Quản lý danh mục |

@@ -59,4 +59,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python scripts/ai_pr_review.py
+          if [ -f backend/scripts/ai_pr_review.py ]; then
+            python backend/scripts/ai_pr_review.py
+          elif [ -f scripts/ai_pr_review.py ]; then
+            python scripts/ai_pr_review.py
+          fi

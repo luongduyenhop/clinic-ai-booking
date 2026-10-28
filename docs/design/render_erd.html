@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinic-AI Database Schema & Architecture (42 Tables)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #0284c7;
+      --primary-light: #38bdf8;
+      --accent: #10b981;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 40px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(2, 132, 199, 0.2);
+      color: var(--primary-light);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 0%, #bae6fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .meta-tags {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      background: #1e293b;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #cbd5e1;
+      border: 1px solid var(--border);
+    }
+
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .section-card h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-card p.desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .diagram-wrapper {
+      background: #0b1120;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;
+    }
+
+    .diagram-wrapper svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .table-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .table-item {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 10px;
+      border-left: 4px solid var(--primary-light);
+    }
+
+    .table-item.green { border-left-color: #10b981; }
+    .table-item.purple { border-left-color: #a855f7; }
+    .table-item.amber { border-left-color: #f59e0b; }
+    .table-item.rose { border-left-color: #f43f5e; }
+
+    .table-header {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+
+    .table-desc {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge">KIẾN TRÚC ENTERPRISE DATABASE</div>
+    <h1>Sơ Đồ Cơ Sở Dữ Liệu Toàn Diện Clinic-AI</h1>
+    <p class="subtitle">Hệ thống quản lý phòng khám thông minh tương thích chuẩn OpenMRS / FHIR R4 & Thông tư 32/2023/TT-BYT (Quy mô 42 bảng cốt lõi)</p>
+    <div class="meta-tags">
+      <div class="meta-tag">Database: SQLite & PostgreSQL 16+</div>
+      <div class="meta-tag">ORM: SQLAlchemy 2.0 / Alembic 006</div>
+      <div class="meta-tag">Phiên bản: 2.1 (Tinh gọn)</div>
+      <div class="meta-tag">Kiểm thử: 100% Pytest Passed</div>
+    </div>
+  </header>
+
+  <!-- SECTION 1: DOMAIN ARCHITECTURE -->
+  <div class="section-card" id="card-domain-map">
+    <h2>1. Sơ Đồ Tổng Thể 9 Phân Vùng Dữ Liệu (Domain Map)</h2>
+    <p class="desc">Phân định luồng dữ liệu độc lập giữa các phân hệ: Tiếp đón, Lâm sàng, Cận lâm sàng, Thu ngân và Tri thức AI.</p>
+    <div class="diagram-wrapper">
+      <div class="mermaid" id="domain-map">
+flowchart TD
+    IAM["1. Định Danh & Người Dùng<br/>(nguoi_dung, tai_khoan, bac_si, benh_nhan, ho_so_nguoi_than)"]
+    FAC["2. Cơ Cấu Khoa Phòng<br/>(chuyen_khoa, phong_kham)"]
+    SCH["3. Lịch Trực & Hàng Đợi<br/>(lich_lam_viec, lich_kham, danh_sach_cho, hang_doi_kham, lich_dinh_ky, nghi_phep, phan_tich_ai, danh_gia_ai)"]
+    ENC["4. Khám Lâm Sàng & EMR<br/>(luot_kham, chan_doan, luot_kham_the_luc, bien_ban_dinh_chinh, danh_gia_dich_vu)"]
+    ORD["5. Cận Lâm Sàng & Đơn Thuốc<br/>(dich_vu, chi_dinh, don_thuoc, chi_tiet_don_thuoc)"]
+    BIL["6. Viện Phí & Thu Ngân<br/>(hoa_don, chi_tiet_hoa_don, phieu_thu_chi, khoa_so_ca_truc)"]
+    PKG["7. Gói Khám & Liệu Trình<br/>(goi_dich_vu, chi_tiet_goi_dich_vu, dang_ky_goi_kham, lieu_trinh_dieu_tri, buoi_dieu_tri)"]
+    COM["8. Tuân Thủ & Pháp Lý Y Tế<br/>(giay_phep_co_so, lich_su_giay_phep_bac_si, nhat_ky_truy_cap_y_te)"]
+    KNO["9. Tri Thức AI & Nội Dung<br/>(khai_niem, tu_khoa_cap_cuu, thong_bao, mau_bieu, bai_viet)"]
+
+    IAM --> SCH
+    FAC --> SCH
+    FAC --> IAM
+    SCH --> ENC
+    ENC --> ORD
+    ENC --> BIL
+    ORD --> BIL
+    IAM --> PKG
+    ORD --> PKG
+    IAM --> COM
+    KNO --> SCH
+    KNO --> ENC
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: CORE RELATIONSHIPS ERD -->
+  <div class="section-card" id="card-erd-core">
+    <h2>2. Sơ Đồ Thực Thể Quan Hệ Cốt Lõi (Core ERD Relationships)</h2>
+    <p class="desc">Mối quan hệ 1-1, 1-N giữa các bảng nghiệp vụ chính: Đặt lịch, Mở phiên khám OpenMRS, Kê đơn, Cận lâm sàng và Viện phí.</p>
+    <div class="diagram-wrapper">
+      <div class="mermaid" id="erd-core">
+erDiagram
+    NGUOI_DUNG ||--o| TAI_KHOAN : "xac_thuc_email"
+    NGUOI_DUNG ||--o| BAC_SI : "ho_so_chuyen_mon"
+    NGUOI_DUNG ||--o| BENH_NHAN : "ho_so_y_te"
+    BENH_NHAN ||--o{ HO_SO_NGUOI_THAN : "bao_ho"
+
+    CHUYEN_KHOA ||--o{ BAC_SI : "thuoc_khoa"
+    CHUYEN_KHOA ||--o{ PHONG_KHAM : "bo_tri_phong"
+    PHONG_KHAM ||--o{ BAC_SI : "buong_kham"
+
+    BAC_SI ||--o{ LICH_LAM_VIEC : "truc_theo_ca"
+    PHONG_KHAM ||--o{ LICH_LAM_VIEC : "dien_ra_tai"
+    BENH_NHAN ||--o{ LICH_KHAM : "dat_lich_hen"
+    BAC_SI ||--o{ LICH_KHAM : "phuc_vu_kham"
+    LICH_KHAM ||--o| PHAN_TICH_AI : "tien_kham_ai"
+    LICH_KHAM ||--o| DANH_SACH_CHO : "checkin_cap_so"
+    DANH_SACH_CHO ||--o| HANG_DOI_KHAM : "dieu_phoi_buong"
+
+    LICH_KHAM ||--|| LUOT_KHAM : "mo_phien_kham"
+    BAC_SI ||--o{ LUOT_KHAM : "bac_si_phu_trach"
+    BENH_NHAN ||--o{ LUOT_KHAM : "nguoi_duoc_kham"
+    LUOT_KHAM ||--o{ CHAN_DOAN : "ket_luan_icd10"
+    LUOT_KHAM ||--o| LUOT_KHAM_THE_LUC : "the_luc_tt32"
+    LUOT_KHAM ||--o{ BIEN_BAN_DINH_CHINH : "dinh_chinh"
+    LUOT_KHAM ||--o| DANH_GIA_DICH_VU : "danh_gia_5sao"
+
+    LUOT_KHAM ||--o{ CHI_DINH : "y_lenh_cls"
+    DICH_VU ||--o{ CHI_DINH : "dich_vu_ky_thuat"
+    LUOT_KHAM ||--o{ DON_THUOC : "ke_don_thuoc"
+    DON_THUOC ||--o{ CHI_TIET_DON_THUOC : "chi_tiet_thuoc"
+
+    BENH_NHAN ||--o{ HOA_DON : "thanh_toan_vien_phi"
+    LUOT_KHAM ||--o{ HOA_DON : "phat_sinh_chi_phi"
+    HOA_DON ||--o{ CHI_TIET_HOA_DON : "dong_khoan_thu"
+    HOA_DON ||--o{ PHIEU_THU_CHI : "hach_toan"
+    NGUOI_DUNG ||--o{ KHOA_SO_CA_TRUC : "thu_ngan_chot_ca"
+
+    GOI_DICH_VU ||--o{ CHI_TIET_GOI_DICH_VU : "chua_dich_vu"
+    BENH_NHAN ||--o{ DANG_KY_GOI_KHAM : "mua_goi"
+    BENH_NHAN ||--o{ LIEU_TRINH_DIEU_TRI : "theo_doi_lieu_trinh"
+    LIEU_TRINH_DIEU_TRI ||--o{ BUOI_DIEU_TRI : "buoi_thuc_hien"
+
+    NGUOI_DUNG ||--o{ NHAT_KY_TRUY_CAP_Y_TE : "audit_log"
+    BAC_SI ||--o{ LICH_SU_GIAY_PHEP_BAC_SI : "cchn_cycle"
+    TAI_KHOAN ||--o{ THONG_BAO : "nhan_thong_bao"
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: 42 TABLES BREAKDOWN -->
+  <div class="section-card" id="card-breakdown">
+    <h2>3. Danh Mục 42 Bảng Phân Theo 9 Phân Hệ Chức Năng</h2>
+    <p class="desc">Kiến trúc cơ sở dữ liệu đã được tinh gọn, đồng bộ hóa hoàn toàn giữa ORM Models, Alembic Migrations và Database SQLite/PostgreSQL.</p>
+
+    <div class="table-grid">
+      <div class="table-item">
+        <div class="table-header">nguoi_dung & tai_khoan</div>
+        <div class="table-desc">Gốc hồ sơ cá nhân, Email auth, JWT, Phân quyền RBAC</div>
+      </div>
+      <div class="table-item">
+        <div class="table-header">bac_si & benh_nhan</div>
+        <div class="table-desc">Hồ sơ chuyên môn, CCHN & Mã y tế BN-YYYY-XXXX</div>
+      </div>
+      <div class="table-item">
+        <div class="table-header">ho_so_nguoi_than</div>
+        <div class="table-desc">Quản lý bảo hộ con nhỏ, người thân đặt lịch hộ</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">chuyen_khoa & phong_kham</div>
+        <div class="table-desc">Cơ cấu chuyên khoa lâm sàng và buồng khám vật lý</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">lich_lam_viec & lich_kham</div>
+        <div class="table-desc">Phân ca trực bác sĩ và slot đặt hẹn khám 30 phút</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">danh_sach_cho & hang_doi_kham</div>
+        <div class="table-desc">Hàng đợi check-in sảnh và điều phối STT buồng khám</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">lich_dinh_ky_bac_si & nghi_phep</div>
+        <div class="table-desc">Template ca tuần định kỳ và điều phối khi vắng mặt</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">phan_tich_ai & danh_gia_ai</div>
+        <div class="table-desc">Trợ lý AI Triage gợi ý chuyên khoa và bác sĩ chấm điểm</div>
+      </div>
+      <div class="table-item purple">
+        <div class="table-header">luot_kham & chan_doan</div>
+        <div class="table-desc">OpenMRS Encounter sinh hiệu, bệnh án, ICD-10</div>
+      </div>
+      <div class="table-item purple">
+        <div class="table-header">luot_kham_the_luc & bien_ban_dinh_chinh</div>
+        <div class="table-desc">Thể lực TT32 và biên bản hội chẩn đính chính bệnh án</div>
+      </div>
+      <div class="table-item purple">
+        <div class="table-header">danh_gia_dich_vu</div>
+        <div class="table-desc">Đánh giá độ hài lòng 5 sao sau lượt khám</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">dich_vu & chi_dinh</div>
+        <div class="table-desc">Danh mục kỹ thuật xét nghiệm/CĐHA và phiếu chỉ định</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">don_thuoc & chi_tiet_don_thuoc</div>
+        <div class="table-desc">Kê đơn thuốc ngoại trú, hoạt chất, liều và cách dùng</div>
+      </div>
+      <div class="table-item rose">
+        <div class="table-header">hoa_don & chi_tiet_hoa_don</div>
+        <div class="table-desc">Tổng hợp viện phí, đối soát dòng thu chi tiết</div>
+      </div>
+      <div class="table-item rose">
+        <div class="table-header">phieu_thu_chi & khoa_so_ca_truc</div>
+        <div class="table-desc">Hạch toán VietQR/POS/Tiền mặt và bàn giao ca trực</div>
+      </div>
+      <div class="table-item">
+        <div class="table-header">goi_dich_vu & dang_ky_goi_kham</div>
+        <div class="table-desc">Gói khám VIP/Tiêu chuẩn và quản lý đăng ký gói</div>
+      </div>
+      <div class="table-item">
+        <div class="table-header">lieu_trinh_dieu_tri & buoi_dieu_tri</div>
+        <div class="table-desc">Quản lý các buổi vật lý trị liệu, phục hồi chức năng</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">giay_phep_co_so & lich_su_cchn</div>
+        <div class="table-desc">Giấy phép hoạt động phòng khám & vòng đời CCHN bác sĩ</div>
+      </div>
+      <div class="table-item green">
+        <div class="table-header">nhat_ky_truy_cap_y_te</div>
+        <div class="table-desc">Audit Log bảo mật truy vết xem/sửa hồ sơ bệnh án</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">khai_niem & tu_khoa_cap_cuu</div>
+        <div class="table-desc">OpenMRS Concept Dictionary & Red Flags cảnh báo khẩn</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">thong_bao & mau_bieu_y_te</div>
+        <div class="table-desc">Hệ thống thông báo đẩy & mẫu in phiếu y tế chuẩn hóa</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">bai_viet_tin_tuc</div>
+        <div class="table-desc">Cổng bài viết tin tức và khuyến cáo sức khỏe</div>
+      </div>
+      <div class="table-item amber">
+        <div class="table-header">he_thong_trang_thai_bff</div>
+        <div class="table-desc">BFF State Synchronization và Cache Metadata</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#0b1120',
+      primaryColor: '#0284c7',
+      primaryTextColor: '#ffffff',
+      primaryBorderColor: '#38bdf8',
+      lineColor: '#38bdf8',
+      secondaryColor: '#1e293b',
+      tertiaryColor: '#0f172a'
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis'
+    },
+    er: {
+      useMaxWidth: false,
+      entityPadding: 15
+    }
+  });
+</script>
+
+</body>
+</html>

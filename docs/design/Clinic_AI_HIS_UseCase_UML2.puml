@@ -1,0 +1,102 @@
+@startuml Clinic_AI_HIS_UseCase_Compact
+title SƠ ĐỒ USE CASE TỔNG QUÁT CLINIC-AI HIS
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam nodesep 15
+skinparam ranksep 40
+
+skinparam usecase {
+    BackgroundColor #F0F9FF
+    BorderColor #0284C7
+    ArrowColor #334155
+    FontColor #0F172A
+}
+skinparam actor {
+    BackgroundColor #FEF3C7
+    BorderColor #D97706
+    FontColor #0F172A
+}
+
+' ===== ACTORS =====
+actor "Bệnh nhân" as Patient
+actor "Lễ tân kiêm\nThu ngân" as Cashier
+actor "Bác sĩ" as Doctor
+actor "Quản trị viên" as Admin
+
+actor "Cổng Đơn thuốc QG" as RxGov << External >>
+actor "Cổng Thanh toán" as PayGate << External >>
+
+' ===== SYSTEM =====
+rectangle "CLINIC-AI HIS" {
+    usecase "Đặt / hủy / đổi lịch hẹn" as UC_Book
+    usecase "Khai báo triệu chứng\n& gợi ý chuyên khoa" as UC_Triage
+    usecase "Tra cứu lịch sử\n& kết quả KCB" as UC_History
+
+    usecase "Tiếp đón, xác nhận lịch hẹn\n& phân buồng khám" as UC_Checkin
+
+    usecase "Khám bệnh & ghi nhận EMR" as UC_Exam
+    usecase "Thực hiện cận lâm sàng\ntại chỗ" as UC_CLS
+    usecase "Kê đơn thuốc điện tử" as UC_Prescribe
+    usecase "Kiểm tra tương tác\nthuốc & dị ứng" as UC_CheckDrug
+
+    usecase "Thanh toán viện phí\n(tạm ứng / quyết toán)" as UC_Pay
+    usecase "Tạo mã QR thanh toán" as UC_QrPay
+
+    usecase "Quản lý danh mục\n& bảng giá dịch vụ" as UC_Catalog
+    usecase "Quản lý lịch trực\n& chấm công" as UC_Shift
+    usecase "Giám sát Dashboard BI\n& liên thông QG" as UC_Dashboard
+    usecase "Quản lý tài khoản\n& phân quyền" as UC_UserRole
+}
+
+' ===== ASSOCIATIONS =====
+Patient -- UC_Book
+Patient -- UC_Triage
+Patient -- UC_History
+
+Cashier -- UC_Checkin
+Cashier -- UC_Pay
+Cashier -- UC_QrPay
+
+Doctor -- UC_Exam
+Doctor -- UC_CLS
+Doctor -- UC_Prescribe
+Doctor -- UC_History
+
+Admin -- UC_Catalog
+Admin -- UC_Shift
+Admin -- UC_Dashboard
+Admin -- UC_UserRole
+
+' External Systems
+UC_Prescribe -- RxGov
+UC_QrPay -- PayGate
+
+' ===== INCLUDE =====
+UC_Prescribe ..> UC_CheckDrug : <<include>>
+
+' ===== EXTEND =====
+UC_Triage ..> UC_Book : <<extend>>
+note on link
+  condition: {Bệnh nhân chọn khai báo triệu chứng khi đặt lịch}
+  extension point: BookingWithSymptoms
+end note
+
+UC_CLS ..> UC_Exam : <<extend>>
+UC_Prescribe ..> UC_Exam : <<extend>>
+
+UC_QrPay ..> UC_Pay : <<extend>>
+note on link
+  condition: {Phương thức = QR}
+  extension point: SelectCashlessMethod
+end note
+
+note right of UC_Exam
+  Bao gồm khám Nha khoa,
+  Tai Mũi Họng và hẹn tái khám
+  (chi tiết trong đặc tả)
+end note
+
+@enduml

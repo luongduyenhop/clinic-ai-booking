@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Clinic-AI Core Relationship ERD</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #0f172a;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 {
+      color: #38bdf8;
+      font-size: 26px;
+      margin-bottom: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .diagram-box {
+      background: #0b1120;
+      padding: 36px;
+      border-radius: 16px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <h2>SƠ ĐỒ THỰC THỂ QUAN HỆ CỐT LÕI (CORE ERD - 42 BẢNG)</h2>
+  <div class="diagram-box">
+    <div class="mermaid">
+erDiagram
+    NGUOI_DUNG ||--o| TAI_KHOAN : "xac_thuc_email"
+    NGUOI_DUNG ||--o| BAC_SI : "ho_so_chuyen_mon"
+    NGUOI_DUNG ||--o| BENH_NHAN : "ho_so_y_te"
+    BENH_NHAN ||--o{ HO_SO_NGUOI_THAN : "bao_ho"
+
+    CHUYEN_KHOA ||--o{ BAC_SI : "thuoc_khoa"
+    CHUYEN_KHOA ||--o{ PHONG_KHAM : "bo_tri_phong"
+    PHONG_KHAM ||--o{ BAC_SI : "buong_kham"
+
+    BAC_SI ||--o{ LICH_LAM_VIEC : "truc_theo_ca"
+    PHONG_KHAM ||--o{ LICH_LAM_VIEC : "dien_ra_tai"
+    BENH_NHAN ||--o{ LICH_KHAM : "dat_lich_hen"
+    BAC_SI ||--o{ LICH_KHAM : "phuc_vu_kham"
+    LICH_KHAM ||--o| PHAN_TICH_AI : "tien_kham_ai"
+    LICH_KHAM ||--o| DANH_SACH_CHO : "checkin_cap_so"
+    DANH_SACH_CHO ||--o| HANG_DOI_KHAM : "dieu_phoi_buong"
+
+    LICH_KHAM ||--|| LUOT_KHAM : "mo_phien_kham"
+    BAC_SI ||--o{ LUOT_KHAM : "bac_si_phu_trach"
+    BENH_NHAN ||--o{ LUOT_KHAM : "nguoi_duoc_kham"
+    LUOT_KHAM ||--o{ CHAN_DOAN : "ket_luan_icd10"
+    LUOT_KHAM ||--o| LUOT_KHAM_THE_LUC : "the_luc_tt32"
+    LUOT_KHAM ||--o{ BIEN_BAN_DINH_CHINH : "dinh_chinh"
+    LUOT_KHAM ||--o| DANH_GIA_DICH_VU : "danh_gia_5sao"
+
+    LUOT_KHAM ||--o{ CHI_DINH : "y_lenh_cls"
+    DICH_VU ||--o{ CHI_DINH : "dich_vu_ky_thuat"
+    LUOT_KHAM ||--o{ DON_THUOC : "ke_don_thuoc"
+    DON_THUOC ||--o{ CHI_TIET_DON_THUOC : "chi_tiet_thuoc"
+
+    BENH_NHAN ||--o{ HOA_DON : "thanh_toan_vien_phi"
+    LUOT_KHAM ||--o{ HOA_DON : "phat_sinh_chi_phi"
+    HOA_DON ||--o{ CHI_TIET_HOA_DON : "dong_khoan_thu"
+    HOA_DON ||--o{ PHIEU_THU_CHI : "hach_toan"
+    NGUOI_DUNG ||--o{ KHOA_SO_CA_TRUC : "thu_ngan_chot_ca"
+
+    GOI_DICH_VU ||--o{ CHI_TIET_GOI_DICH_VU : "chua_dich_vu"
+    BENH_NHAN ||--o{ DANG_KY_GOI_KHAM : "mua_goi"
+    BENH_NHAN ||--o{ LIEU_TRINH_DIEU_TRI : "theo_doi_lieu_trinh"
+    LIEU_TRINH_DIEU_TRI ||--o{ BUOI_DIEU_TRI : "buoi_thuc_hien"
+
+    NGUOI_DUNG ||--o{ NHAT_KY_TRUY_CAP_Y_TE : "audit_log"
+    BAC_SI ||--o{ LICH_SU_GIAY_PHEP_BAC_SI : "cchn_cycle"
+    TAI_KHOAN ||--o{ THONG_BAO : "nhan_thong_bao"
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0b1120',
+        primaryColor: '#0284c7',
+        primaryTextColor: '#ffffff',
+        primaryBorderColor: '#38bdf8',
+        lineColor: '#38bdf8',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#0f172a'
+      },
+      er: {
+        useMaxWidth: false,
+        entityPadding: 16
+      }
+    });
+  </script>
+</body>
+</html>

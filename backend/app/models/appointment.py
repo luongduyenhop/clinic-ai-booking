@@ -119,9 +119,6 @@ class LichKham(BaseModelWithTimestamp):
 
     ma_lich_kham = Column(String(50), unique=True, nullable=False, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False, index=True)
-    bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False, index=True)
-    lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
-=======
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=True, index=True)
     lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
     chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=True, index=True)

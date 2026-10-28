@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -116,22 +116,6 @@ class CashierService:
                         "thanh_tien": Decimal(cd.so_luong or 1) * don_gia_cls,
                         "ghi_chu": None,
                     })
-
-            for dt in (luot_kham.danh_sach_don_thuoc or []):
-                if dt.trang_thai != "SUPERSEDED":
-                    for item in (dt.danh_sach_chi_tiet or []):
-                        don_gia_thuoc = Decimal("15000.00")
-                        so_luong = int(item.so_luong or 1)
-                        name_display = f"{item.ten_thuoc} ({item.ham_luong})" if item.ham_luong else item.ten_thuoc
-                        line_items_data.append({
-                            "loai_muc": "thuoc",
-                            "muc_tham_chieu_id": item.id,
-                            "ten_khoan_thu": name_display,
-                            "so_luong": so_luong,
-                            "don_gia": don_gia_thuoc,
-                            "thanh_tien": Decimal(so_luong) * don_gia_thuoc,
-                            "ghi_chu": item.cach_dung,
-                        })
 
         tong_tien = sum((item["thanh_tien"] for item in line_items_data), Decimal("0.00"))
         mien_giam = Decimal(str(payload.mien_giam or 0.00))
@@ -250,21 +234,6 @@ class CashierService:
                 cd = (await db.execute(stmt_cd)).scalar_one_or_none()
                 if cd and cd.trang_thai == "da_chi_dinh":
                     cd.trang_thai = "da_thanh_toan"
-
-        stmt_drug_items = select(ChiTietHoaDon).where(
-            ChiTietHoaDon.hoa_don_id == invoice.id,
-            ChiTietHoaDon.loai_muc == "thuoc",
-        )
-        drug_items = (await db.execute(stmt_drug_items)).scalars().all()
-        if drug_items and invoice.luot_kham_id:
-            stmt_dt = select(DonThuoc).where(
-                DonThuoc.luot_kham_id == invoice.luot_kham_id,
-                DonThuoc.trang_thai != "SUPERSEDED",
-            )
-            prescriptions = (await db.execute(stmt_dt)).scalars().all()
-            for rx in prescriptions:
-                if rx.trang_thai in ("DRAFT", "SIGNED", "ISSUED"):
-                    rx.trang_thai = "PAID"
 
         await db.commit()
         return await self.get_invoice_detail(invoice.id, db)
@@ -445,11 +414,18 @@ class CashierService:
 
         stmt = (
             select(LuotKham)
+            .outerjoin(LuotKham.lich_kham)
             .options(
                 selectinload(LuotKham.lich_kham).selectinload(LichKham.bac_si).selectinload(BacSi.nguoi_dung),
                 selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
                 selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
+            )
+            .where(
+                or_(
+                    LuotKham.lich_kham_id.is_(None),
+                    LichKham.trang_thai.not_in(["da_huy", "tu_dong_huy", "no_show"]),
+                )
             )
             .order_by(LuotKham.id.desc())
         )
@@ -480,9 +456,12 @@ class CashierService:
             if lk.lich_kham and lk.lich_kham.bac_si and lk.lich_kham.bac_si.gia_kham_mac_dinh:
                 exam_fee = Decimal(str(lk.lich_kham.bac_si.gia_kham_mac_dinh))
 
-            cls_fee = sum(Decimal(str(cd.don_gia_tai_thoi_diem or 0)) for cd in (lk.danh_sach_chi_dinh or []) if cd.trang_thai != "da_huy")
-            drug_fee = Decimal("15000.00") * Decimal(so_thuoc)
-            tam_tinh = exam_fee + cls_fee + drug_fee
+            cls_fee = sum(
+                Decimal(str(cd.so_luong or 1)) * Decimal(str(cd.don_gia_tai_thoi_diem or 0))
+                for cd in (lk.danh_sach_chi_dinh or [])
+                if cd.trang_thai != "da_huy"
+            )
+            tam_tinh = exam_fee + cls_fee
 
             items.append(
                 UnbilledEncounterItem(

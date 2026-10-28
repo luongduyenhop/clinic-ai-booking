@@ -104,3 +104,21 @@ class CloseShiftResponse(BaseModel):
     ok: bool
     thoi_gian_dong_so: datetime
     tong_ket: ShiftSummaryResponse
+
+
+class UnbilledEncounterItem(BaseModel):
+    luot_kham_id: int
+    ma_kcb: Optional[str] = None
+    benh_nhan: PatientBrief
+    bac_si_kham: Optional[str] = None
+    ngay_kham: Optional[str] = None
+    so_chi_dinh: int = 0
+    so_thuoc: int = 0
+    tam_tinh: Decimal = Decimal("0.00")
+    thoi_gian_bat_dau: Optional[datetime] = None
+    is_locked: bool = False
+
+
+class UnbilledEncountersListResponse(BaseModel):
+    items: List[UnbilledEncounterItem]
+    total: int

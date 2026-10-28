@@ -14,7 +14,7 @@ from app.core.exceptions import (
 )
 from app.models.appointment import LichKham
 from app.models.medical import ChiDinh, ChiTietHoaDon, DonThuoc, GiaoDichThanhToan, HoaDon, LuotKham, PhieuThuChi
-from app.models.user import BenhNhan, NguoiDung
+from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
     InvoiceCreateRequest,
@@ -24,6 +24,8 @@ from app.schemas.cashier import (
     PendingBillItem,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    UnbilledEncounterItem,
+    UnbilledEncountersListResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,6 +116,22 @@ class CashierService:
                         "thanh_tien": Decimal(cd.so_luong or 1) * don_gia_cls,
                         "ghi_chu": None,
                     })
+
+            for dt in (luot_kham.danh_sach_don_thuoc or []):
+                if dt.trang_thai != "SUPERSEDED":
+                    for item in (dt.danh_sach_chi_tiet or []):
+                        don_gia_thuoc = Decimal("15000.00")
+                        so_luong = int(item.so_luong or 1)
+                        name_display = f"{item.ten_thuoc} ({item.ham_luong})" if item.ham_luong else item.ten_thuoc
+                        line_items_data.append({
+                            "loai_muc": "thuoc",
+                            "muc_tham_chieu_id": item.id,
+                            "ten_khoan_thu": name_display,
+                            "so_luong": so_luong,
+                            "don_gia": don_gia_thuoc,
+                            "thanh_tien": Decimal(so_luong) * don_gia_thuoc,
+                            "ghi_chu": item.cach_dung,
+                        })
 
         tong_tien = sum((item["thanh_tien"] for item in line_items_data), Decimal("0.00"))
         mien_giam = Decimal(str(payload.mien_giam or 0.00))
@@ -231,7 +249,22 @@ class CashierService:
                 stmt_cd = select(ChiDinh).where(ChiDinh.id == ci.muc_tham_chieu_id)
                 cd = (await db.execute(stmt_cd)).scalar_one_or_none()
                 if cd and cd.trang_thai == "da_chi_dinh":
-                    pass
+                    cd.trang_thai = "da_thanh_toan"
+
+        stmt_drug_items = select(ChiTietHoaDon).where(
+            ChiTietHoaDon.hoa_don_id == invoice.id,
+            ChiTietHoaDon.loai_muc == "thuoc",
+        )
+        drug_items = (await db.execute(stmt_drug_items)).scalars().all()
+        if drug_items and invoice.luot_kham_id:
+            stmt_dt = select(DonThuoc).where(
+                DonThuoc.luot_kham_id == invoice.luot_kham_id,
+                DonThuoc.trang_thai != "SUPERSEDED",
+            )
+            prescriptions = (await db.execute(stmt_dt)).scalars().all()
+            for rx in prescriptions:
+                if rx.trang_thai in ("DRAFT", "SIGNED", "ISSUED"):
+                    rx.trang_thai = "PAID"
 
         await db.commit()
         return await self.get_invoice_detail(invoice.id, db)
@@ -396,6 +429,80 @@ class CashierService:
             thoi_gian_dong_so=now,
             tong_ket=summary,
         )
+
+
+    async def get_unbilled_encounters(
+        self,
+        page: int = 1,
+        page_size: int = 50,
+        db: AsyncSession = None,
+    ) -> UnbilledEncountersListResponse:
+        stmt_billed = select(HoaDon.luot_kham_id).where(
+            HoaDon.luot_kham_id.is_not(None),
+            HoaDon.trang_thai != "da_huy",
+        )
+        billed_ids = (await db.execute(stmt_billed)).scalars().all()
+
+        stmt = (
+            select(LuotKham)
+            .options(
+                selectinload(LuotKham.lich_kham).selectinload(LichKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+                selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
+            )
+            .order_by(LuotKham.id.desc())
+        )
+        if billed_ids:
+            stmt = stmt.where(LuotKham.id.not_in(billed_ids))
+
+        all_encounters = (await db.execute(stmt)).scalars().all()
+        items = []
+        for lk in all_encounters:
+            ho_ten = "Chưa rõ"
+            sdt = None
+            mabn = None
+            if lk.benh_nhan:
+                mabn = lk.benh_nhan.ma_dinh_danh_y_te
+                if lk.benh_nhan.nguoi_dung:
+                    ho_ten = lk.benh_nhan.nguoi_dung.ho_ten
+                    sdt = lk.benh_nhan.nguoi_dung.so_dien_thoai
+
+            bac_si_name = None
+            if lk.lich_kham and lk.lich_kham.bac_si and lk.lich_kham.bac_si.nguoi_dung:
+                bac_si_name = lk.lich_kham.bac_si.nguoi_dung.ho_ten
+
+            so_cd = len([cd for cd in (lk.danh_sach_chi_dinh or []) if cd.trang_thai != "da_huy"])
+            active_rx = [rx for rx in (lk.danh_sach_don_thuoc or []) if rx.trang_thai != "SUPERSEDED"]
+            so_thuoc = sum(len(rx.danh_sach_chi_tiet or []) for rx in active_rx)
+
+            exam_fee = Decimal("150000.00")
+            if lk.lich_kham and lk.lich_kham.bac_si and lk.lich_kham.bac_si.gia_kham_mac_dinh:
+                exam_fee = Decimal(str(lk.lich_kham.bac_si.gia_kham_mac_dinh))
+
+            cls_fee = sum(Decimal(str(cd.don_gia_tai_thoi_diem or 0)) for cd in (lk.danh_sach_chi_dinh or []) if cd.trang_thai != "da_huy")
+            drug_fee = Decimal("15000.00") * Decimal(so_thuoc)
+            tam_tinh = exam_fee + cls_fee + drug_fee
+
+            items.append(
+                UnbilledEncounterItem(
+                    luot_kham_id=lk.id,
+                    ma_kcb=lk.ma_kcb or f"KCB-{lk.id:06d}",
+                    benh_nhan=PatientBrief(mabn=mabn, ho_ten=ho_ten, so_dien_thoai=sdt),
+                    bac_si_kham=bac_si_name,
+                    ngay_kham=lk.thoi_gian_bat_dau.strftime("%d/%m/%Y") if lk.thoi_gian_bat_dau else None,
+                    so_chi_dinh=so_cd,
+                    so_thuoc=so_thuoc,
+                    tam_tinh=tam_tinh,
+                    thoi_gian_bat_dau=lk.thoi_gian_bat_dau,
+                    is_locked=lk.is_locked,
+                )
+            )
+
+        total = len(items)
+        start = (page - 1) * page_size
+        paged_items = items[start : start + page_size]
+        return UnbilledEncountersListResponse(items=paged_items, total=total)
 
 
 cashier_service = CashierService()

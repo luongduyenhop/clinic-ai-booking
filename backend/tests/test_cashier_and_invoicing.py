@@ -1,8 +1,7 @@
 import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
-from app.models.medical import DichVu, LuotKham, ChiDinh, DonThuoc, ChiTietDonThuoc
-from tests.test_clinical_skeleton import _dam_bao_ma_icd10
+from app.models.medical import DichVu
 
 
 @pytest.mark.asyncio

@@ -1,14 +1,14 @@
 import asyncio
 from datetime import date, datetime, time, timedelta, timezone
-from sqlalchemy import select, text, delete, func
-from app.core.database import AsyncSessionLocal, engine, Base
+from sqlalchemy import select
+from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.models.user import ChuyenKhoa, NguoiDung, TaiKhoan, BenhNhan, BacSi, PhongKham, VaiTroEnum
 from app.models.appointment import (
     LichLamViec, LichKham, CaLamViecEnum, TrangThaiLichEnum,
     HangDoiKham, TrangThaiHangDoiEnum, LoaiHangDoiEnum
 )
-from app.models.medical import DichVu, LuotKham, ChanDoan, DonThuoc, ChiTietDonThuoc, Thuoc, KhaiNiem
+from app.models.medical import DichVu
 
 
 DEPARTMENTS_DATA = [

@@ -1,6 +1,6 @@
 from enum import Enum
 from sqlalchemy import Column, String, Date, Boolean, Integer, ForeignKey, Text, Numeric, DateTime, JSON
-from sqlalchemy.orm import relationship, synonym, foreign
+from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
 

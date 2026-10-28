@@ -1,77 +1,20 @@
 import logging
-from datetime import date, datetime, time, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
-    BadRequestException,
     ConflictException,
     NotFoundException,
 )
-from app.core.security import get_password_hash
-from app.models.appointment import (
-    LichLamViec,
-    LichKham,
-    HangDoiKham,
-    CaLamViecEnum,
-    TrangThaiLichEnum,
-    TrangThaiHangDoiEnum,
-    LichDinhKyBacSi,
-    NghiPhepBacSi,
-    TrangThaiNghiPhepEnum,
-    PhanTichAI,
-    DanhGiaAI,
-)
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, KhaiNiem, TuKhoaCapCuu
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
-from app.schemas.clinical import AmendmentResponse
+from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.admin import (
-    DoctorAdminCreateRequest,
-    DoctorAdminUpdateRequest,
-    DoctorAdminResponse,
     RoomCreateRequest,
     RoomResponse,
-    ShiftCreateRequest,
-    ShiftToggleLockRequest,
-    ShiftResponse,
-    EmergencyLeaveDeclareRequest,
-    EmergencyLeaveSummaryResponse,
-    ReassignQueueRequest,
-    ReassignQueueResponse,
-    PostponeAndCancelResponse,
-    ServiceCreateRequest,
-    ServiceUpdateRequest,
-    ServiceItemAdminResponse,
-    AdminDashboardStatsResponse,
     DepartmentCreateRequest,
     DepartmentUpdateRequest,
     DepartmentAdminResponse,
-    RosterTemplateCreateRequest,
-    RosterTemplateUpdateRequest,
-    RosterTemplateResponse,
-    RosterBatchGenerateRequest,
-    RosterBatchGenerateResponse,
-    DoctorLeaveCreateRequest,
-    DoctorLeaveResponse,
-    DoctorLeaveApproveRequest,
-    AffectedBookingItem,
-    ConceptCreateRequest,
-    ConceptUpdateRequest,
-    ConceptAdminResponse,
-    RedFlagCreateRequest,
-    RedFlagUpdateRequest,
-    RedFlagAdminResponse,
-    AIAccuracyReportResponse,
-    AIAccuracySpecialtyItem,
-    AdminAnalyticsReportResponse,
-    CancellationReasonBreakdown,
-    SpecialtyBookingStat,
-    PatientAdminItemResponse,
-    PatientAdminDetailResponse,
-    PatientStatusUpdateRequest,
-    PatientAppointmentBrief,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,7 +39,9 @@ class AdminDepartmentService:
         if loai_phong:
             stmt = stmt.where(PhongKham.loai_phong == loai_phong)
         if chuyen_khoa_id:
-            stmt = stmt.where((PhongKham.chuyen_khoa_id == chuyen_khoa_id) | (PhongKham.chuyen_khoa_id == None))
+            stmt = stmt.where(
+                (PhongKham.chuyen_khoa_id == chuyen_khoa_id) | (PhongKham.chuyen_khoa_id.is_(None))
+            )
         if is_active is not None:
             stmt = stmt.where(PhongKham.is_active == is_active)
         stmt = stmt.order_by(PhongKham.tang, PhongKham.ma_phong)

@@ -3,7 +3,7 @@ from sqlalchemy import (
     CheckConstraint, Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric,
     UniqueConstraint, text
 )
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import relationship
 from app.core.config import ALLOWED_SLOT_DURATIONS
 from app.models.base import BaseModelWithTimestamp
 

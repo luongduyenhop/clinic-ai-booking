@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

@@ -1,6 +1,5 @@
 import pytest
 from datetime import datetime, timezone
-from decimal import Decimal
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
 
 

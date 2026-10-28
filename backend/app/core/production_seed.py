@@ -1,7 +1,6 @@
 import logging
 from sqlalchemy import select
 from app.models.medical import Thuoc, KhaiNiem, DichVu
-from app.models.user import ChuyenKhoa
 
 logger = logging.getLogger("clinic_production_seed")
 

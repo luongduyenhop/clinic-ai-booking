@@ -1,10 +1,10 @@
 import asyncio
 import json
 import os
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal, engine, Base
+from app.core.database import AsyncSessionLocal
 from app.models.specialized import GoiDichVu, HopDongKhamDoan, NhanVienKhamDoan
 from app.models.content import MauBieuYTe, CauHoiYKhoa, BaiVietTinTuc
 
@@ -23,7 +23,7 @@ async def seed_master_from_frontend():
         return
 
     with open(seed_path, "r", encoding="utf-8") as f:
-        raw_seed = json.load(f)
+        json.load(f)
 
     async with AsyncSessionLocal() as session:
         # 1. Seed Gói Dịch Vụ Khám

@@ -15,10 +15,29 @@ from app.schemas.cashier import (
     InvoiceResponse,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    UnbilledEncountersListResponse,
 )
 from app.services.cashier_service import cashier_service
 
 router = APIRouter(prefix="/cashier", tags=["7. Thu Ngân & Quản Lý Viện Phí (Cashier & Billing)"])
+
+
+@router.get(
+    "/unbilled-encounters",
+    response_model=ResponseEnvelope[UnbilledEncountersListResponse],
+    summary="Lấy danh sách các lượt khám chưa lập hóa đơn viện phí"
+)
+async def get_unbilled_encounters(
+    page: int = Query(1, ge=1, description="Số trang"),
+    page_size: int = Query(50, ge=1, le=100, description="Kích thước trang"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.get_unbilled_encounters(page=page, page_size=page_size, db=db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy danh sách {len(result.items)} ca khám chờ lập hóa đơn thành công"
+    )
 
 
 @router.get(

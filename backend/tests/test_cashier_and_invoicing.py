@@ -220,3 +220,104 @@ async def test_cashier_shift_summary_and_close_shift(api_client, booking, db_ses
     )
     assert res_close.status_code == 200
     assert res_close.json()["data"]["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_cashier_closed_loop_auto_aggregate_and_unbilled_encounters(api_client, booking, db_session):
+    token_admin = booking.tokens["admin"]
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_start = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kiem tra toan dien hop 1"},
+        headers=token_bs
+    )
+    assert res_start.status_code == 201
+    enc_id = res_start.json()["data"]["id"]
+
+    dv = DichVu(
+        ma_dich_vu=f"CLS-XRAY-{booking.suffix}",
+        ten_dich_vu="Chup X-Quang Nguc Thang",
+        don_gia=Decimal("220000.00"),
+        don_vi_tinh="Lan",
+        is_active=True
+    )
+    db_session.add(dv)
+    await db_session.flush()
+
+    res_order = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/orders",
+        json={"dich_vu_id": dv.id, "so_luong": 1},
+        headers=token_bs
+    )
+    assert res_order.status_code == 201
+
+    rx_payload = {
+        "so_ngay_dung": 7,
+        "loi_dan_uong_thuoc": "Uong sau khi an",
+        "danh_sach_thuoc": [
+            {
+                "ten_thuoc": "Amoxicillin 500mg",
+                "hoat_chat": "Amoxicillin",
+                "ham_luong": "500mg",
+                "don_vi_tinh": "Vien",
+                "so_luong": 14,
+                "cach_dung": "Uong 2 vien chia 2 lan/ngay",
+                "so_ngay_dung": 7
+            }
+        ]
+    }
+    res_rx = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/prescriptions",
+        json=rx_payload,
+        headers=token_bs
+    )
+    assert res_rx.status_code == 201
+
+    res_unbilled = await api_client.get(
+        "/api/v1/cashier/unbilled-encounters",
+        headers=token_admin
+    )
+    assert res_unbilled.status_code == 200
+    unbilled_data = res_unbilled.json()["data"]
+    assert any(item["luot_kham_id"] == enc_id for item in unbilled_data["items"])
+
+    res_bill = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_bill.status_code == 201
+    bill_data = res_bill.json()["data"]
+    inv_id = bill_data["id"]
+
+    loai_mucs = [item["loai_muc"] for item in bill_data["chi_tiet_hoa_don"]]
+    assert "cong_kham" in loai_mucs
+    assert "can_lam_sang" in loai_mucs
+    assert "thuoc" in loai_mucs
+
+    res_unbilled_after = await api_client.get(
+        "/api/v1/cashier/unbilled-encounters",
+        headers=token_admin
+    )
+    assert res_unbilled_after.status_code == 200
+    assert not any(item["luot_kham_id"] == enc_id for item in res_unbilled_after.json()["data"]["items"])
+
+    thuc_thu = float(bill_data["thuc_thu"])
+    res_pay = await api_client.post(
+        f"/api/v1/cashier/invoices/{inv_id}/pay",
+        json={"phuong_thuc_thanh_toan": "chuyen_khoan", "so_tien_khach_tra": thuc_thu, "ghi_chu": "VietQR NAPAS 247"},
+        headers=token_admin
+    )
+    assert res_pay.status_code == 200
+    assert res_pay.json()["data"]["trang_thai"] == "da_thu"
+
+    res_queue = await api_client.get(
+        "/api/v1/subclinical/queue",
+        headers=token_admin
+    )
+    assert res_queue.status_code == 200
+    queue_items = res_queue.json()["data"]["items"]
+    assert any(q["luot_kham_id"] == enc_id and q["trang_thai"] in ("da_thanh_toan", "da_chi_dinh") for q in queue_items)

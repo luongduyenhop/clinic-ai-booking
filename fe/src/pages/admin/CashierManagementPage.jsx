@@ -7,6 +7,7 @@ import { AppToast } from '../../components/common/AppNotification'
 import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 import VietQrModal from '../../components/common/VietQrModal'
 import { QrCode } from '@phosphor-icons/react'
+import { cashierService } from '../../services/cashierService'
 import {
     StatusBadge,
     EmptyState,
@@ -99,6 +100,62 @@ export default function CashierManagementPage() {
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [isQrModalOpen, setIsQrModalOpen] = useState(false)
     const [qrInvoice, setQrInvoice] = useState(null)
+    const [liveUnbilled, setLiveUnbilled] = useState([])
+    const [livePendingBills, setLivePendingBills] = useState([])
+
+    const fetchLiveCashierData = async () => {
+        try {
+            const unbilledRes = await cashierService.getUnbilledEncounters()
+            if (unbilledRes?.items) {
+                setLiveUnbilled(unbilledRes.items)
+            }
+            const pendingRes = await cashierService.getPendingBills()
+            if (pendingRes?.items) {
+                setLivePendingBills(pendingRes.items)
+            }
+        } catch {
+        }
+    }
+
+    useEffect(() => {
+        fetchLiveCashierData()
+    }, [])
+
+    const handleSelectUnbilledEncounter = async (enc) => {
+        try {
+            const created = await cashierService.createInvoice({
+                luot_kham_id: enc.luot_kham_id,
+                mien_giam: 0
+            })
+            if (created) {
+                const autoItems = (created.chi_tiet_hoa_don || []).map((line) => ({
+                    id: `LINE-${line.id}`,
+                    tenKhoan: line.ten_khoan_thu,
+                    soTien: Number(line.thanh_tien),
+                    ghiChu: line.loai_muc === 'cong_kham' ? 'Cong kham' : (line.loai_muc === 'can_lam_sang' ? 'Can lam sang' : 'Thuoc dieu tri')
+                }))
+                setForm({
+                    ...form,
+                    id: created.id,
+                    invoiceId: created.id,
+                    maPhieu: created.ma_hoa_don,
+                    maKCB: enc.ma_kcb,
+                    maBN: enc.benh_nhan?.mabn || '',
+                    hoTenBN: enc.benh_nhan?.ho_ten || '',
+                    tenPhieu: `Thu vien phi BN ${enc.benh_nhan?.ho_ten || ''} (Ma KCB: ${enc.ma_kcb})`,
+                    items: autoItems,
+                    tongTien: Number(created.tong_tien),
+                    daThu: false,
+                    hinhThuc: 'Chuyển khoản'
+                })
+                AppToast.success(`Da tu dong gom chi phi kham, CLS va thuoc cho ca kham ${enc.ma_kcb}!`)
+                fetchLiveCashierData()
+                return
+            }
+        } catch {
+        }
+        handleSelectPatientAutoFill(enc.benh_nhan?.mabn, enc.ma_kcb)
+    }
 
     const handleOpenQr = (voucher) => {
         setQrInvoice(voucher || form)
@@ -249,6 +306,22 @@ export default function CashierManagementPage() {
             setForm(newVoucher)
         }
 
+        if (form.invoiceId && form.daThu) {
+            try {
+                const methodMap = {
+                    'Tiền mặt': 'tien_mat',
+                    'Chuyển khoản': 'chuyen_khoan',
+                    'Thẻ POS': 'the_pos'
+                }
+                await cashierService.payInvoice(form.invoiceId, {
+                    phuong_thuc_thanh_toan: methodMap[form.hinhThuc] || 'tien_mat',
+                    so_tien_khach_tra: calculatedTotal,
+                    ghi_chu: form.ghiChu || 'Thanh toán tại quầy'
+                })
+                fetchLiveCashierData()
+            } catch {
+            }
+        }
         await dispatch(
             updateClinicCollectionAsync({
                 collectionKey: 'vouchers',
@@ -381,7 +454,37 @@ export default function CashierManagementPage() {
                             </button>
                         </div>
 
-                        {pendingBillRegistrations.length > 0 && (
+                        {liveUnbilled.length > 0 ? (
+                            <div className="mb-3 p-2.5 rounded-xl bg-sky-50/90 border border-sky-200">
+                                <div className="flex items-center justify-between text-xs font-bold text-sky-900 mb-1.5">
+                                    <span className="flex items-center gap-1.5">
+                                        <Receipt size={14} weight="bold" className="text-sky-600" />
+                                        <span>CA KHÁM CHỜ GOM CHI PHÍ ({liveUnbilled.length})</span>
+                                    </span>
+                                    <span className="text-[10px] text-sky-600 font-semibold">Tự động gom</span>
+                                </div>
+                                <div className="space-y-1 max-h-36 overflow-y-auto">
+                                    {liveUnbilled.map((u) => (
+                                        <div
+                                            key={u.luot_kham_id}
+                                            onClick={() => handleSelectUnbilledEncounter(u)}
+                                            className="px-2 py-1.5 rounded-lg bg-white hover:bg-sky-100 text-xs flex items-center justify-between cursor-pointer transition border border-sky-100"
+                                        >
+                                            <div>
+                                                <span className="font-bold text-[#003553]">{u.benh_nhan?.ho_ten}</span>
+                                                <span className="ml-1.5 font-mono text-[10px] text-slate-500">({u.ma_kcb})</span>
+                                                <div className="text-[10px] text-slate-500">
+                                                    BS: {u.bac_si_kham || 'Phụ trách'} | {u.so_chi_dinh} CLS | {u.so_thuoc} thuốc
+                                                </div>
+                                            </div>
+                                            <span className="font-bold text-emerald-700 font-mono text-[11px]">
+                                                {Number(u.tam_tinh || 0).toLocaleString('vi-VN')} đ
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (pendingBillRegistrations.length > 0 && (
                             <div className="mb-3 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200">
                                 <div className="flex items-center justify-between text-xs font-bold text-amber-900 mb-1.5">
                                     <span className="flex items-center gap-1.5">
@@ -411,7 +514,7 @@ export default function CashierManagementPage() {
                                     })}
                                 </div>
                             </div>
-                        )}
+                        ))}
 
                         <div className="grid grid-cols-12 gap-2 mb-3">
                             <div className="col-span-7 relative">

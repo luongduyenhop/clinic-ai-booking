@@ -132,7 +132,7 @@ export default function CashierManagementPage() {
                     id: `LINE-${line.id}`,
                     tenKhoan: line.ten_khoan_thu,
                     soTien: Number(line.thanh_tien),
-                    ghiChu: line.loai_muc === 'cong_kham' ? 'Cong kham' : (line.loai_muc === 'can_lam_sang' ? 'Can lam sang' : 'Thuoc dieu tri')
+                    ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
                 }))
                 setForm({
                     ...form,
@@ -142,17 +142,18 @@ export default function CashierManagementPage() {
                     maKCB: enc.ma_kcb,
                     maBN: enc.benh_nhan?.mabn || '',
                     hoTenBN: enc.benh_nhan?.ho_ten || '',
-                    tenPhieu: `Thu vien phi BN ${enc.benh_nhan?.ho_ten || ''} (Ma KCB: ${enc.ma_kcb})`,
+                    tenPhieu: `Thu viện phí BN ${enc.benh_nhan?.ho_ten || ''} (Mã KCB: ${enc.ma_kcb})`,
                     items: autoItems,
                     tongTien: Number(created.tong_tien),
                     daThu: false,
                     hinhThuc: 'Chuyển khoản'
                 })
-                AppToast.success(`Da tu dong gom chi phi kham, CLS va thuoc cho ca kham ${enc.ma_kcb}!`)
+                AppToast.success(`Đã tự động gom chi phí khám và CLS cho ca khám ${enc.ma_kcb}!`)
                 fetchLiveCashierData()
                 return
             }
-        } catch {
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Không thể tạo hóa đơn viện phí')
         }
         handleSelectPatientAutoFill(enc.benh_nhan?.mabn, enc.ma_kcb)
     }
@@ -219,8 +220,36 @@ export default function CashierManagementPage() {
     const [newItemAmount, setNewItemAmount] = useState(khoanThuCatalog[0]?.donGiaMacDinh || 120000)
     const [newItemNote, setNewItemNote] = useState('')
 
+    const allVouchers = useMemo(() => {
+        const combined = [...vouchers]
+        livePendingBills.forEach((pb) => {
+            const alreadyExists = combined.some(
+                (v) => v.id === pb.id || v.invoiceId === pb.id || v.maPhieu === pb.ma_hoa_don
+            )
+            if (!alreadyExists) {
+                combined.unshift({
+                    id: pb.id,
+                    invoiceId: pb.id,
+                    maPhieu: pb.ma_hoa_don,
+                    maKCB: `KCB-${pb.luot_kham_id}`,
+                    maBN: pb.benh_nhan?.mabn || '',
+                    hoTenBN: pb.benh_nhan?.ho_ten || 'Chưa rõ',
+                    soDienThoai: pb.benh_nhan?.so_dien_thoai || '',
+                    tongTien: Number(pb.thuc_thu || pb.tong_tien || 0),
+                    daThu: false,
+                    ngayThu: pb.thoi_gian_tao ? new Date(pb.thoi_gian_tao).toLocaleString('vi-VN') : '',
+                    hinhThuc: 'Tiền mặt',
+                    tenPhieu: `Viện phí ca khám #${pb.luot_kham_id}`,
+                    items: [],
+                    daKhoaSo: false
+                })
+            }
+        })
+        return combined
+    }, [vouchers, livePendingBills])
+
     const filteredVouchers = useMemo(() => {
-        return vouchers.filter((v) => {
+        return allVouchers.filter((v) => {
             const matchText =
                 !searchText ||
                 v.maPhieu?.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -232,13 +261,13 @@ export default function CashierManagementPage() {
                 (statusFilter === 'PENDING' && !v.daThu)
             return matchText && matchStatus
         })
-    }, [vouchers, searchText, statusFilter])
+    }, [allVouchers, searchText, statusFilter])
 
-    const totalThu = vouchers
+    const totalThu = allVouchers
         .filter((v) => v.daThu)
         .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
 
-    const paidCount = vouchers.filter((v) => v.daThu).length
+    const paidCount = allVouchers.filter((v) => v.daThu).length
 
     const handleSelectPatientAutoFill = (maBN, specificKCB) => {
         const patient = patients.find((p) => p.maBN === maBN)
@@ -319,7 +348,9 @@ export default function CashierManagementPage() {
                     ghi_chu: form.ghiChu || 'Thanh toán tại quầy'
                 })
                 fetchLiveCashierData()
-            } catch {
+            } catch (err) {
+                AppToast.error(err?.response?.data?.message || err?.message || 'Thanh toán viện phí thất bại!')
+                return
             }
         }
         await dispatch(
@@ -474,7 +505,7 @@ export default function CashierManagementPage() {
                                                 <span className="font-bold text-[#003553]">{u.benh_nhan?.ho_ten}</span>
                                                 <span className="ml-1.5 font-mono text-[10px] text-slate-500">({u.ma_kcb})</span>
                                                 <div className="text-[10px] text-slate-500">
-                                                    BS: {u.bac_si_kham || 'Phụ trách'} | {u.so_chi_dinh} CLS | {u.so_thuoc} thuốc
+                                                    BS: {u.bac_si_kham || 'Phụ trách'} | {u.so_chi_dinh} CLS
                                                 </div>
                                             </div>
                                             <span className="font-bold text-emerald-700 font-mono text-[11px]">
@@ -562,7 +593,23 @@ export default function CashierManagementPage() {
                                     {filteredVouchers.map((v, idx) => (
                                         <tr
                                             key={v.id}
-                                            onClick={() => setForm({ ...v })}
+                                            onClick={async () => {
+                                                setForm({ ...v })
+                                                if (v.invoiceId && (!v.items || v.items.length === 0)) {
+                                                    try {
+                                                        const detail = await cashierService.getInvoiceDetail(v.invoiceId)
+                                                        if (detail?.chi_tiet_hoa_don) {
+                                                            const lines = detail.chi_tiet_hoa_don.map((line) => ({
+                                                                id: `LINE-${line.id}`,
+                                                                tenKhoan: line.ten_khoan_thu,
+                                                                soTien: Number(line.thanh_tien),
+                                                                ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
+                                                            }))
+                                                            setForm((prev) => ({ ...prev, items: lines }))
+                                                        }
+                                                    } catch {}
+                                                }
+                                            }}
                                             className={`cursor-pointer ${
                                                 form.id === v.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
                                             }`}
@@ -877,11 +924,27 @@ export default function CashierManagementPage() {
                 </div>
             )}
 
-            {/* Modal VietQR thanh toán */}
             <VietQrModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
+                onConfirmPayment={async (inv) => {
+                    const targetId = inv?.invoiceId || inv?.id
+                    if (!targetId) return
+                    try {
+                        await cashierService.payInvoice(targetId, {
+                            phuong_thuc_thanh_toan: 'chuyen_khoan',
+                            so_tien_khach_tra: inv?.tongTien || calculatedTotal,
+                            ghi_chu: 'Thanh toán qua quét mã VietQR'
+                        })
+                        fetchLiveCashierData()
+                        setForm((prev) => ({ ...prev, daThu: true }))
+                        AppToast.success(`Hóa đơn #${targetId} đã được gạch nợ thành công!`)
+                    } catch (err) {
+                        AppToast.error(err?.response?.data?.message || err?.message || 'Lỗi khi gạch nợ chuyển khoản')
+                        throw err
+                    }
+                }}
             />
         </div>
     )

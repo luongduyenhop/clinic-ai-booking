@@ -217,26 +217,36 @@ class AppointmentService:
         db: AsyncSession
     ) -> AppointmentResponse:
         """Đặt lịch khám trực tuyến với cơ chế khóa Pessimistic Locking chống Race Condition (UC-B03)"""
-        # 1. Xác định hồ sơ bệnh nhân từ tài khoản hiện tại; khóa dòng bệnh nhân để 2 yêu cầu đặt lịch đồng thời
-        # của cùng 1 người (kể cả với 2 bác sĩ khác nhau) phải chờ nhau. Thứ tự khóa luôn là bệnh nhân -> ca
-        # làm việc của bác sĩ nên không gây deadlock
-        stmt_bn = (
-            select(BenhNhan, NguoiDung)
-            .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
-            .where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
-            .with_for_update(of=BenhNhan)
-        )
+        # 1. Xác định hồ sơ bệnh nhân từ tài khoản hiện tại hoặc ID được chỉ định (Lễ tân/Admin đặt hộ);
+        # Khóa dòng bệnh nhân để 2 yêu cầu đặt lịch đồng thời phải chờ nhau.
+        if user.vai_tro in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value) and getattr(payload, "benh_nhan_id", None):
+            stmt_bn = (
+                select(BenhNhan, NguoiDung)
+                .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
+                .where(BenhNhan.id == payload.benh_nhan_id)
+                .with_for_update(of=BenhNhan)
+            )
+        else:
+            stmt_bn = (
+                select(BenhNhan, NguoiDung)
+                .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
+                .where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+                .with_for_update(of=BenhNhan)
+            )
         bn_row = (await db.execute(stmt_bn)).first()
         if not bn_row:
-            raise ForbiddenException("Tài khoản chưa có hồ sơ Bệnh nhân hợp lệ!")
+            raise ForbiddenException("Không tìm thấy hồ sơ Bệnh nhân hợp lệ!")
         benh_nhan, bn_info = bn_row
+
         # Bệnh nhân bị khóa đặt online (vắng mặt không báo trước nhiều lần - module No-show) chỉ đặt qua Hotline.
-        # Đọc sau khi đã khóa dòng nên không lọt qua được khi cờ vừa được bật
+        # FC-09 / B4: Lễ tân hoặc Admin có quyền bảo lãnh đặt lịch hộ (1 bước, không reset is_blocked_booking)
         if benh_nhan.is_blocked_booking:
-            raise ForbiddenException(
-                "Tài khoản của bạn đang bị tạm khóa đặt lịch trực tuyến do vắng mặt không báo trước nhiều lần. "
-                "Vui lòng liên hệ Hotline phòng khám để được hỗ trợ!"
-            )
+            if user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
+                raise ForbiddenException(
+                    "Tài khoản của bạn đang bị tạm khóa đặt lịch trực tuyến do vắng mặt không báo trước nhiều lần. "
+                    "Vui lòng liên hệ Hotline phòng khám để được hỗ trợ!"
+                )
+            logger.info(f"Lễ tân/Admin ID {user.id} bảo lãnh đặt lịch cho bệnh nhân bị khóa ID {benh_nhan.id}")
 
         # 2. Bác sĩ phải tồn tại và còn hoạt động (404 thay vì lỗi khóa ngoại 500)
         bac_si, bs_info, specialty_name = await self._get_active_doctor(payload.bac_si_id, db)

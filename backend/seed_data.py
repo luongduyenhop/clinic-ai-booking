@@ -10,6 +10,11 @@ from app.models.medical import TuKhoaCapCuu, DichVu, KhaiNiem, LuotKham, ChanDoa
 
 # Nhóm Bộ Y tế của 5 dịch vụ CLS mẫu (để bàn khám/bàn KTV xếp đúng tab Xét nghiệm / CĐHA / TDCN / Nội soi)
 CLS_SERVICE_GROUPS = {"DV_XN_MAU": "XN", "DV_XQ_NGUC": "CDHA", "DV_SA_BUNG": "CDHA", "DV_ECG": "TDCN", "DV_NS_TMH": "NS"}
+# Dịch vụ xét nghiệm sinh hóa mẫu (có bộ chỉ số Glucose, Ure, Creatinin...) bổ sung cho CSDL đã seed từ trước
+LAB_DEMO_SERVICES = [
+    {"ma_dich_vu": "DV_XN_SINH_HOA", "ten_dich_vu": "Sinh hóa máu cơ bản (Glucose, Ure, Creatinin, AST, ALT, mỡ máu)",
+     "don_gia": 150000.00},
+]
 
 # Tài khoản đăng nhập nhanh trên trang Cổng nhân viên (fe/src/pages/staff/StaffLoginPage.jsx)
 STAFF_DEMO_ACCOUNTS = [
@@ -50,6 +55,10 @@ async def ensure_cls_demo_data(session):
     )).scalars().all()
     for dv in services:
         dv.ma_nhom_byt = CLS_SERVICE_GROUPS[dv.ma_dich_vu]
+
+    for item in LAB_DEMO_SERVICES:
+        if not (await session.execute(select(DichVu.id).where(DichVu.ma_dich_vu == item["ma_dich_vu"]))).first():
+            session.add(DichVu(**item, don_vi_tinh="Lần", ma_nhom_byt="XN"))
     await session.commit()
 
 

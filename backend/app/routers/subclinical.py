@@ -14,6 +14,8 @@ from app.schemas.subclinical import (
     WorkspaceOrdersRequest,
     WorkspaceOrdersResponse,
 )
+from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
+from app.services.cls_lab_result_service import cls_lab_result_service
 from app.services.cls_service_group import CLS_GROUPS
 from app.services.cls_workspace_bridge_service import cls_workspace_bridge_service
 from app.services.subclinical_service import subclinical_service
@@ -143,3 +145,40 @@ async def create_orders_from_workspace(
         message=f"Đã gửi {len(result.orders)} chỉ định cận lâm sàng sang phòng kỹ thuật",
         code=status.HTTP_201_CREATED
     )
+
+
+@router.get(
+    "/orders/{order_id}/lab-template",
+    response_model=ResponseEnvelope[LabTemplateResponse],
+    summary="Bộ chỉ số mẫu (đơn vị, khoảng tham chiếu theo giới tính) của chỉ định xét nghiệm, kèm kết quả đã lưu"
+)
+async def get_lab_template(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_lab_result_service.get_lab_template(order_id, db)
+    return ResponseEnvelope.success_response(data=result, message="Lấy bộ chỉ số xét nghiệm thành công")
+
+
+@router.post(
+    "/orders/{order_id}/lab-results",
+    response_model=ResponseEnvelope[LabResultResponse],
+    summary="Nhập chỉ số xét nghiệm máu, tự đánh giá vượt ngưỡng và lưu vào ket_qua_cls"
+)
+async def submit_lab_result(
+    order_id: int,
+    payload: LabResultSubmitRequest,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_lab_result_service.submit_lab_result(
+        order_id=order_id,
+        payload=payload,
+        technician_user_id=current_user.nguoi_dung_id,
+        db=db
+    )
+    message = "Đã lưu nháp kết quả xét nghiệm" if payload.luu_nhap else "Đã trả kết quả xét nghiệm"
+    if result.ket_qua.so_nguy_hiem:
+        message += f" — {result.ket_qua.so_nguy_hiem} chỉ số ở ngưỡng nguy hiểm"
+    return ResponseEnvelope.success_response(data=result, message=message)

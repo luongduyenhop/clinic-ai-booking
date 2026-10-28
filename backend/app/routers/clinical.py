@@ -713,6 +713,9 @@ async def save_clinical_workspace_state(
                 for ord_item in orders:
                     if not isinstance(ord_item, dict):
                         continue
+                    # Chỉ định đã ghi vào chi_dinh qua POST /subclinical/workspace-orders, không gắn lại vào first_lk
+                    if ord_item.get("server_order_id"):
+                        continue
                     ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
                     ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
                     dv = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == ma_dv))).scalar_one_or_none()

@@ -717,6 +717,62 @@ export class ClinicalService extends BaseServices {
             return null
         }
     }
+
+    // ── Kết quả xét nghiệm: bộ chỉ số mẫu + đánh giá vượt ngưỡng do backend tính, lưu ở bảng ket_qua_cls ──
+    getLabTemplate = async (orderId) => {
+        const res = await this.get(`/api/v1/subclinical/orders/${orderId}/lab-template`, { __skipGlobalLoading: true })
+        return { data: res?.data?.data }
+    }
+
+    // body: { chi_so: { WBC: 11.5, ... }, ket_luan, ghi_chu, luu_nhap }
+    submitLabResult = async (orderId, body) => {
+        const res = await this.post(`/api/v1/subclinical/orders/${orderId}/lab-results`, body)
+        const { trang_thai, ket_qua: kq } = res.data.data
+        const result = {
+            id: orderId,
+            trang_thai,
+            ket_qua_phan_loai: kq.ket_qua_phan_loai,
+            ket_qua_chi_tiet: {
+                loai: 'XET_NGHIEM',
+                chi_so: kq.chi_so,
+                chi_tiet: kq.chi_tiet,
+                ket_luan: kq.ket_luan,
+                ghi_chu: kq.ghi_chu,
+            },
+        }
+        if (!body.luu_nhap) {
+            result.thoi_gian_tra_ket_qua = kq.thoi_gian_tra_ket_qua
+            await this.syncReturnedResultToWorkspace(orderId, result)
+        }
+        return { data: result }
+    }
+
+    // Đưa kết quả đã trả về bản sao trên bàn khám để bác sĩ thấy (kèm cờ cảnh báo) và lượt khám được ưu tiên gọi lại
+    syncReturnedResultToWorkspace = async (orderId, result) => {
+        await this.reloadFromPostgres()
+        const mirror = findMirrorOrder(orderId)
+        if (mirror) {
+            const patch = { ...result }
+            delete patch.id
+            Object.assign(mirror.order, patch)
+            const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
+            if (ticket) {
+                ticket.trang_thai = 'co_ket_qua_cls'
+                ticket.muc_do_uu_tien = 0
+                ticket.ghi_chu = `${result.ket_qua_phan_loai === 'NGUY_KICH' ? '🚨 KQ CLS NGUY KỊCH' : '⭐ CÓ KQ CLS'}: ${mirror.order.ten_dich_vu}`
+            }
+            await this.persistToPostgres()
+        }
+        try {
+            clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
+                orderId,
+                order: mirror?.order || result,
+                encounterId: mirror?.enc.id,
+            })
+        } catch (e) {
+            console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
+        }
+    }
 }
 
 export const clinicalService = new ClinicalService()

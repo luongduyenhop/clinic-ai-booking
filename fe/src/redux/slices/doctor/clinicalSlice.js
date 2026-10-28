@@ -11,6 +11,7 @@ import {
     fetchClsWorklistAsync,
     startOrderAsync,
     submitOrderResultAsync,
+    submitLabResultAsync,
 } from '../../actions/doctor/clinicalAction'
 
 const initialState = {
@@ -106,6 +107,9 @@ const clinicalSlice = createSlice({
                 state.worklist = replaceOrder(state.worklist, payload)
             })
             .addCase(submitOrderResultAsync.fulfilled, (state, { payload }) => {
+                state.worklist = replaceOrder(state.worklist, payload)
+            })
+            .addCase(submitLabResultAsync.fulfilled, (state, { payload }) => {
                 state.worklist = replaceOrder(state.worklist, payload)
             })
     },

@@ -3,6 +3,10 @@ import { Drawer } from 'antd'
 import { ORDER_STATUS, RESULT_CLASS } from '../../../utils/constants/clinical'
 import { formatDate } from '../../../utils/helpers/formatDate'
 import ResultView from '../clinical/ResultView'
+import { ClinicIcon } from '../../common/ClinicIcon'
+
+// Số chỉ số xét nghiệm bất thường do backend đánh giá (chỉ có ở kết quả nhập theo bộ chỉ số mẫu)
+const abnormalCount = (o) => (o.ket_qua_chi_tiet?.chi_tiet || []).filter((r) => r.danh_gia !== 'BINH_THUONG').length
 
 export default function ClsResultRail({ encounter }) {
     const [viewing, setViewing] = useState(null)
@@ -36,8 +40,14 @@ export default function ClsResultRail({ encounter }) {
                                 <span className={st.badge}>{st.label}</span>
                             </span>
                             {hasResult && cls && (
-                                <span className={`text-[12px] ${o.ket_qua_phan_loai === 'BINH_THUONG' ? 'text-emerald-700' : 'font-bold text-rose-700'}`}>
-                                    {cls.label} · bấm để xem
+                                <span
+                                    className={`flex items-center gap-1 text-[12px] ${o.ket_qua_phan_loai === 'BINH_THUONG' ? 'text-emerald-700' : 'font-bold text-rose-700'}`}
+                                >
+                                    {o.ket_qua_phan_loai !== 'BINH_THUONG' && (
+                                        <ClinicIcon name={o.ket_qua_phan_loai === 'NGUY_KICH' ? 'WarningCircle' : 'Warning'} size={14} weight="fill" />
+                                    )}
+                                    {cls.label}
+                                    {abnormalCount(o) > 0 && ` · ${abnormalCount(o)} chỉ số`} · bấm để xem
                                 </span>
                             )}
                         </button>

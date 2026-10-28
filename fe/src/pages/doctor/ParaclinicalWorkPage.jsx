@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
-import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync } from '../../redux/actions/doctor/clinicalAction'
+import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync } from '../../redux/actions/doctor/clinicalAction'
 import { SERVICE_GROUPS, ORDER_STATUS } from '../../utils/constants/clinical'
 import { formatDateTime } from '../../utils/helpers/formatDate'
 import { AppToast } from '../../components/common/AppNotification'
@@ -29,8 +29,8 @@ const waitLabel = (minutes) => {
     return `chờ ${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`
 }
 
-function ResultForm({ group, order, submitting, onSubmit }) {
-    if (group === 'XET_NGHIEM') return <IndicatorResultForm order={order} loai="XET_NGHIEM" submitting={submitting} onSubmit={onSubmit} />
+function ResultForm({ group, order, submitting, onSubmit, onSubmitLab }) {
+    if (group === 'XET_NGHIEM') return <IndicatorResultForm order={order} loai="XET_NGHIEM" submitting={submitting} onSubmitLab={onSubmitLab} />
     if (group === 'TDCN') return <IndicatorResultForm order={order} loai="TDCN" submitting={submitting} onSubmit={onSubmit} />
     if (group === 'CDHA') return <ImagingResultForm order={order} submitting={submitting} onSubmit={onSubmit} />
     return <EndoscopyResultForm order={order} submitting={submitting} onSubmit={onSubmit} />
@@ -104,6 +104,21 @@ export default function ParaclinicalWorkPage() {
         try {
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()
             AppToast.success(final ? `Đã trả kết quả ${selected.ten_dich_vu}` : 'Đã lưu nháp kết quả')
+        } catch (msg) {
+            AppToast.error(msg)
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    // Xét nghiệm: backend tự đánh giá chỉ số và lưu vào ket_qua_cls
+    const handleLabSubmit = async (body) => {
+        setSubmitting(true)
+        try {
+            const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
+            if (body.luu_nhap) AppToast.success('Đã lưu nháp kết quả xét nghiệm')
+            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã trả kết quả ${selected.ten_dich_vu} — có chỉ số nguy hiểm`)
+            else AppToast.success(`Đã trả kết quả ${selected.ten_dich_vu}`)
         } catch (msg) {
             AppToast.error(msg)
         } finally {
@@ -263,7 +278,14 @@ export default function ParaclinicalWorkPage() {
                                 )}
                             </div>
                             <div className="p-5">
-                                <ResultForm key={selected.id} group={group} order={selected} submitting={submitting} onSubmit={handleSubmit} />
+                                <ResultForm
+                                    key={selected.id}
+                                    group={group}
+                                    order={selected}
+                                    submitting={submitting}
+                                    onSubmit={handleSubmit}
+                                    onSubmitLab={handleLabSubmit}
+                                />
                             </div>
                         </>
                     )}

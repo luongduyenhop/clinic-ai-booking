@@ -308,3 +308,27 @@ export function formatReference(param) {
 }
 
 export const FLAG_LABEL = { HIGH: 'Cao ▲', LOW: 'Thấp ▼', ABN: 'Bất thường' }
+
+// Đánh giá chỉ số xét nghiệm (backend tính, lưu ở ket_qua_cls): cam = ngoài khoảng tham chiếu, đỏ = vượt ngưỡng nguy kịch
+export const LAB_DANH_GIA = {
+    THAP: { label: 'Thấp ▼', badge: 'medpro-badge-warning', row: 'bg-amber-50', text: 'text-amber-700', input: '!border-amber-500', icon: 'Warning' },
+    CAO: { label: 'Cao ▲', badge: 'medpro-badge-warning', row: 'bg-amber-50', text: 'text-amber-700', input: '!border-amber-500', icon: 'Warning' },
+    NGUY_HIEM: { label: 'Nguy hiểm', badge: 'medpro-badge-danger', row: 'bg-rose-50', text: 'text-rose-700', input: '!border-rose-600', icon: 'WarningCircle' },
+}
+
+// Cùng quy tắc với backend (cls_lab_result_service.danh_gia_chi_so): bằng ngưỡng vẫn chưa bị nâng mức.
+// Trả về { danh_gia, huong } | null khi chưa nhập | { invalid: true } khi không phải số hợp lệ
+export function evaluateLabValue(chiSo, rawValue) {
+    const text = String(rawValue ?? '').trim().replace(',', '.')
+    if (!text) return null
+    if (!/^\d+(\.\d+)?$/.test(text)) return { invalid: true }
+    const v = Number(text)
+    const has = (x) => x !== null && x !== undefined
+    if (has(chiSo.nguy_kich_thap) && v < chiSo.nguy_kich_thap) return { danh_gia: 'NGUY_HIEM', huong: 'THAP' }
+    if (has(chiSo.nguy_kich_cao) && v > chiSo.nguy_kich_cao) return { danh_gia: 'NGUY_HIEM', huong: 'CAO' }
+    if (has(chiSo.thap) && v < chiSo.thap) return { danh_gia: 'THAP', huong: 'THAP' }
+    if (has(chiSo.cao) && v > chiSo.cao) return { danh_gia: 'CAO', huong: 'CAO' }
+    return { danh_gia: 'BINH_THUONG', huong: null }
+}
+
+export const LAB_HUONG_ARROW = { THAP: '▼', CAO: '▲' }

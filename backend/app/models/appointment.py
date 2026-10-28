@@ -53,6 +53,8 @@ class LoaiHangDoiEnum(str, Enum):
 class TrangThaiHangDoiEnum(str, Enum):
     """Trạng thái điều phối thực tế tại phòng khám ngoại trú (Bahmni Clinic Queue)"""
     CHO_KHAM = "cho_kham"            # Đang đợi gọi số trước cửa phòng
+    CHO_GOI = "CHO_GOI"              # Tương thích develop
+    DANG_GOI = "DANG_GOI"            # Tương thích develop
     DANG_KHAM = "dang_kham"          # Đang trong phòng khám với bác sĩ
     TAM_HOAN = "tam_hoan"            # Gọi quá 3 lần không vào, tạm hoãn chờ kích hoạt lại
     DA_KHAM = "da_kham"              # Đã hoàn tất buổi khám
@@ -117,14 +119,13 @@ class LichKham(BaseModelWithTimestamp):
 
     ma_lich_kham = Column(String(50), unique=True, nullable=False, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="RESTRICT"), nullable=False, index=True)
-<<<<<<< HEAD
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False, index=True)
     lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
 =======
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=True, index=True)
+    lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
     chuyen_khoa_id = Column(Integer, ForeignKey("chuyen_khoa.id", ondelete="RESTRICT"), nullable=True, index=True)
     ca_kham = Column(String(20), nullable=True)  # 'sang' hoặc 'chieu'
->>>>>>> 6b0dfb8 (28-10-26 co ban nghiep vu le tan)
     ngay_kham = Column(Date, nullable=False, index=True)
     gio_kham = Column(Time, nullable=True, index=True)
     thoi_luong_phut = Column(Integer, default=30, nullable=False)
@@ -144,11 +145,8 @@ class LichKham(BaseModelWithTimestamp):
 
     benh_nhan = relationship("BenhNhan", back_populates="danh_sach_lich_kham")
     bac_si = relationship("BacSi", back_populates="danh_sach_lich_kham")
-<<<<<<< HEAD
     lich_lam_viec = relationship("LichLamViec")
-=======
     chuyen_khoa = relationship("ChuyenKhoa")
->>>>>>> 6b0dfb8 (28-10-26 co ban nghiep vu le tan)
     luot_kham = relationship("LuotKham", back_populates="lich_kham", uselist=False)
     phan_tich_ai = relationship("PhanTichAI", foreign_keys=[phan_tich_ai_id])
 

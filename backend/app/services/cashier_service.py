@@ -14,7 +14,7 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.models.appointment import LichKham
-from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
+from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, GiaoDichThanhToan, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
 from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,

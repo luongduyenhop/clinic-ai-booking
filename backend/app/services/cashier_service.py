@@ -14,11 +14,7 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.models.appointment import LichKham
-<<<<<<< HEAD
-from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
-=======
-from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, GiaoDichThanhToan, HoaDon, LuotKham, PhieuThuChi
->>>>>>> origin/develop
+from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, GiaoDichThanhToan, HoaDon, KhoaSoCaTruc, LuotKham, PhieuThuChi
 from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
@@ -385,10 +381,7 @@ class CashierService:
         tien_mat_thuc_te: Optional[Decimal] = None,
         db: AsyncSession = None,
     ) -> CloseShiftResponse:
-<<<<<<< HEAD
         """Khóa sổ ca trực thu ngân, chốt toàn bộ phiếu thu chi trong ca và tạo bản ghi KhoaSoCaTruc"""
-=======
->>>>>>> origin/develop
         summary = await self.get_shift_summary(thu_ngan_user_id, db)
 
         stmt_update = (

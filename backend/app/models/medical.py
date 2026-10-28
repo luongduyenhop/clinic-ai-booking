@@ -79,7 +79,8 @@ class DichVu(BaseModelWithTimestamp):
 class LuotKham(BaseModelWithTimestamp):
     __tablename__ = "luot_kham"
 
-    ma_luot_kham = Column(String(50), unique=True, nullable=True, index=True)
+    ma_kcb = Column(String(50), unique=True, nullable=True, index=True)
+    ma_luot_kham = synonym("ma_kcb")
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=True)
     hang_doi_kham_id = Column(Integer, ForeignKey("hang_doi_kham.id", ondelete="SET NULL"), unique=True, nullable=True, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
@@ -90,7 +91,6 @@ class LuotKham(BaseModelWithTimestamp):
     ly_do_vao_kham = Column(Text, nullable=True)
     benh_su = Column(Text, nullable=True)
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
-    ma_kcb = synonym("ma_luot_kham")
     trieu_chung = Column(Text, nullable=True)
     chan_doan_so_bo = Column(String(255), nullable=True)
     tien_su_di_ung = Column(Text, nullable=True)
@@ -180,6 +180,8 @@ class ChiDinh(BaseModelWithTimestamp):
     dich_vu_id = Column(Integer, ForeignKey("dich_vu.id", ondelete="RESTRICT"), nullable=False)
     so_luong = Column(Integer, default=1, nullable=False)
     don_gia_tai_thoi_diem = Column(Numeric(12, 2), default=0.00, nullable=False)
+    giam_gia = Column(Numeric(12, 2), default=0.00, nullable=True)
+    thanh_tien = Column(Numeric(12, 2), default=0.00, nullable=True)
     trang_thai = Column(String(30), default="da_chi_dinh", nullable=False)
     bac_si_chi_dinh_id = Column(Integer, ForeignKey("bac_si.id"), nullable=True)
     chi_tiet_goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)

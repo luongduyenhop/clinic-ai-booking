@@ -62,6 +62,52 @@ class QueueService:
             return CaLamViecEnum.SANG.value
         return CaLamViecEnum.CHIEU.value
 
+    def _generate_queue_code(self, ticket: HangDoiKham) -> str:
+        """Sinh mã STT theo tiền tố buồng khám / chuyên khoa (ví dụ: NOI-01, TMH-02, RHM-01)"""
+        stt = ticket.so_thu_tu_kham or 1
+        prefix = "PK"
+
+        # 1. Ưu tiên tiền tố từ Chuyên khoa của Bác sĩ phụ trách buồng khám
+        if ticket.bac_si and ticket.bac_si.chuyen_khoa:
+            ck = ticket.bac_si.chuyen_khoa
+            ma_ck = (ck.ma_chuyen_khoa or "").upper().strip()
+            ten_ck = (ck.ten_chuyen_khoa or "").lower()
+
+            prefix_map = {
+                "KHOA_NOI": "NOI",
+                "KHOA_TMH": "TMH",
+                "KHOA_RHM": "RHM",
+                "KHOA_DA_LIEU": "DL",
+                "KHOA_TIM_MACH": "TM",
+                "KHOA_TIEU_HOA": "TH",
+                "KHOA_THAN_KINH": "TK",
+                "KHOA_HO_HAP": "HH",
+                "KHOA_XUONG_KHOP": "XK",
+                "KHOA_MAT": "MAT",
+                "KHOA_NGOAI": "NGOAI",
+                "KHOA_NHI": "NHI",
+                "KHOA_SAN": "SAN",
+            }
+            if ma_ck in prefix_map:
+                prefix = prefix_map[ma_ck]
+            elif "tai mũi họng" in ten_ck or "tai - mũi - họng" in ten_ck:
+                prefix = "TMH"
+            elif "răng hàm mặt" in ten_ck or "răng - hàm - mặt" in ten_ck:
+                prefix = "RHM"
+            elif "da liễu" in ten_ck:
+                prefix = "DL"
+            elif "nội" in ten_ck:
+                prefix = "NOI"
+            elif "ngoại" in ten_ck:
+                prefix = "NGOAI"
+            elif "mắt" in ten_ck:
+                prefix = "MAT"
+            elif ma_ck:
+                cleaned = ma_ck.replace("KHOA_", "").replace("KHOA-", "").replace("CK_", "").replace("CK-", "")
+                prefix = cleaned[:5] if cleaned else "PK"
+
+        return f"{prefix}-{stt:02d}"
+
     def _to_ticket_response(self, ticket: HangDoiKham) -> QueueTicketResponse:
         """Chuyển đổi thực thể HangDoiKham sang DTO QueueTicketResponse kèm chỉ số Flow Board"""
         ten_bn = ticket.benh_nhan.nguoi_dung.ho_ten if ticket.benh_nhan and ticket.benh_nhan.nguoi_dung else None
@@ -118,6 +164,7 @@ class QueueService:
             ngay_kham=ticket.ngay_kham,
             ca_kham=ticket.ca_kham,
             so_thu_tu_kham=ticket.so_thu_tu_kham,
+            ma_so_thu_tu=self._generate_queue_code(ticket),
             loai_hang_doi=ticket.loai_hang_doi,
             muc_do_uu_tien=ticket.muc_do_uu_tien,
             trang_thai=ticket.trang_thai,
@@ -375,31 +422,6 @@ class QueueService:
         max_stt = (await db.execute(stmt_max_stt)).scalar()
         next_stt = max_stt + 1
 
-        base_time = now.time()
-        gio_kham_tai_cho = time(
-            base_time.hour,
-            base_time.minute,
-            (next_stt * 7) % 60,
-            microsecond=min(999999, next_stt * 1000)
-        )
-        ma_lich = f"LK-{today.strftime('%Y%m%d')}-WLK{effective_doctor_id:02d}{next_stt:03d}"
-        lich_tai_cho = LichKham(
-            ma_lich_kham=ma_lich,
-            benh_nhan_id=payload.benh_nhan_id,
-            bac_si_id=effective_doctor_id,
-            chuyen_khoa_id=bs.chuyen_khoa_id,
-            ca_kham=payload.ca_kham,
-            ngay_kham=today,
-            gio_kham=gio_kham_tai_cho,
-            thoi_luong_phut=settings.SLOT_DURATION_MINUTES,
-            so_thu_tu=next_stt,
-            ly_do_kham=payload.ly_do_kham or "Tiếp đón vãng lai tại phòng khám",
-            trieu_chung_ban_dau=payload.ly_do_kham,
-            trang_thai=TrangThaiLichEnum.DA_TIEP_NHAN.value,
-        )
-        db.add(lich_tai_cho)
-        await db.flush()
-
         # FC-08: Độ ưu tiên
         if payload.ly_do_uu_tien:
             muc_do_uu_tien = 1
@@ -411,8 +433,9 @@ class QueueService:
         if payload.ghi_chu:
             ghi_chu = f"{ghi_chu} | {payload.ghi_chu}"
 
+        # Bệnh nhân vãng lai vào thẳng hàng đợi, không tạo lịch hẹn khám trước (lich_kham_id = None)
         ticket = HangDoiKham(
-            lich_kham_id=lich_tai_cho.id,
+            lich_kham_id=None,
             benh_nhan_id=payload.benh_nhan_id,
             bac_si_id=effective_doctor_id,
             ngay_kham=today,
@@ -820,6 +843,7 @@ class QueueService:
                     ngay_kham=t.ngay_kham,
                     ca_kham=t.ca_kham,
                     so_thu_tu_kham=t.so_thu_tu_kham,
+                    ma_so_thu_tu=self._generate_queue_code(t),
                     loai_hang_doi=t.loai_hang_doi,
                     muc_do_uu_tien=t.muc_do_uu_tien,
                     trang_thai=t.trang_thai,

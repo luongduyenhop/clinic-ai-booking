@@ -11,6 +11,8 @@ from app.schemas.patient import (
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientMedicalRecordSummaryResponse,
+    PatientLabResultResponse,
+    PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
     ServiceFeedbackCreateRequest,
@@ -140,6 +142,38 @@ async def get_medical_records(
     return ResponseEnvelope.success_response(
         data=records,
         message=f"Tìm thấy {len(records)} lượt khám trong sổ sức khỏe điện tử"
+    )
+
+
+@router.get(
+    "/prescriptions",
+    response_model=ResponseEnvelope[List[PatientPrescriptionResponse]],
+    summary="Bệnh nhân tra cứu đơn thuốc điện tử và liều dùng theo từng buổi"
+)
+async def get_patient_prescriptions(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    prescriptions = await patient_service.get_patient_prescriptions(current_user, db)
+    return ResponseEnvelope.success_response(
+        data=prescriptions,
+        message=f"Tìm thấy {len(prescriptions)} đơn thuốc điện tử"
+    )
+
+
+@router.get(
+    "/lab-results",
+    response_model=ResponseEnvelope[List[PatientLabResultResponse]],
+    summary="Bệnh nhân xem và tải kết quả xét nghiệm, chẩn đoán hình ảnh"
+)
+async def get_patient_lab_results(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    results = await patient_service.get_patient_lab_results(current_user, db)
+    return ResponseEnvelope.success_response(
+        data=results,
+        message=f"Tìm thấy {len(results)} kết quả cận lâm sàng"
     )
 
 

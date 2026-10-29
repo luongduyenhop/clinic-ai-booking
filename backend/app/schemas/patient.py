@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -138,3 +138,58 @@ class PatientMedicalRecordSummaryResponse(BaseModel):
     co_don_thuoc: bool = False
     so_loai_thuoc: int = 0
     trang_thai_luot_kham: str = "DA_KHAM"
+
+
+# ── 6. Tra cứu đơn thuốc và kết quả CLS trên Cổng Bệnh nhân ─────────
+class PatientPrescriptionItemResponse(BaseModel):
+    id: int
+    ten_thuoc: str
+    ham_luong: Optional[str] = None
+    don_vi_tinh: str
+    so_luong: int
+    lieu_sang: str = ""
+    lieu_trua: str = ""
+    lieu_chieu: str = ""
+    lieu_toi: str = ""
+    cach_dung: str
+    so_ngay_dung: int
+
+
+class PatientPrescriptionResponse(BaseModel):
+    id: int
+    luot_kham_id: int
+    ma_don_thuoc: str
+    ngay_ke_don: datetime
+    bac_si_ho_ten: str
+    chan_doan: str
+    trang_thai: str
+    da_ky_so: bool
+    ngay_ky: Optional[datetime] = None
+    loi_dan_uong_thuoc: Optional[str] = None
+    danh_sach_thuoc: List[PatientPrescriptionItemResponse] = Field(default_factory=list)
+
+
+class PatientLabResultDetailResponse(BaseModel):
+    ten_chi_so: str
+    gia_tri: str
+    khoang_tham_chieu: Optional[str] = None
+
+
+class PatientLabAttachmentResponse(BaseModel):
+    url: str
+    ten_tep: str
+    loai_tep: str
+
+
+class PatientLabResultResponse(BaseModel):
+    id: int
+    luot_kham_id: int
+    ma_dich_vu: str
+    ten_dich_vu: str
+    ngay_tra_ket_qua: datetime
+    loai_ket_qua: str
+    trang_thai: str
+    ket_luan: str
+    phan_loai: str
+    chi_tiet: List[PatientLabResultDetailResponse] = Field(default_factory=list)
+    tep_dinh_kem: List[PatientLabAttachmentResponse] = Field(default_factory=list)

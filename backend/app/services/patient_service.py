@@ -4,13 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.models.medical import DanhGiaDichVu, DonThuoc, LuotKham
+from app.models.medical import ChiDinh, DanhGiaDichVu, DonThuoc, LuotKham
 from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan
 from app.schemas.patient import (
     FamilyMemberCreateRequest,
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientMedicalRecordSummaryResponse,
+    PatientLabAttachmentResponse,
+    PatientLabResultDetailResponse,
+    PatientLabResultResponse,
+    PatientPrescriptionItemResponse,
+    PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
     ServiceFeedbackCreateRequest,
@@ -221,6 +226,127 @@ class PatientService:
                 trang_thai_luot_kham="DA_KHOA_HO_SO" if enc.is_locked else "DANG_KHAM",
             ))
 
+        return results
+
+    async def get_patient_prescriptions(
+        self, user: TaiKhoan, db: AsyncSession
+    ) -> List[PatientPrescriptionResponse]:
+        """Trả đơn thuốc của chính bệnh nhân đang đăng nhập, chống IDOR."""
+        bn = await self._get_current_benh_nhan(user, db)
+        stmt = (
+            select(DonThuoc)
+            .join(LuotKham, DonThuoc.luot_kham_id == LuotKham.id)
+            .where(
+                LuotKham.benh_nhan_id == bn.id,
+                DonThuoc.trang_thai != "SUPERSEDED",
+            )
+            .options(
+                selectinload(DonThuoc.danh_sach_chi_tiet),
+                selectinload(DonThuoc.bac_si_ke_don).selectinload(BacSi.nguoi_dung),
+                selectinload(DonThuoc.luot_kham).selectinload(LuotKham.danh_sach_chan_doan),
+            )
+            .order_by(desc(DonThuoc.ngay_ke_don))
+        )
+        prescriptions = (await db.execute(stmt)).scalars().all()
+        results = []
+        for rx in prescriptions:
+            diagnoses = rx.luot_kham.danh_sach_chan_doan or []
+            primary = next((d for d in diagnoses if d.loai_chan_doan.lower() == "chinh"), None)
+            primary = primary or (diagnoses[0] if diagnoses else None)
+            doctor = rx.bac_si_ke_don
+            results.append(PatientPrescriptionResponse(
+                id=rx.id,
+                luot_kham_id=rx.luot_kham_id,
+                ma_don_thuoc=rx.ma_don_thuoc or rx.ma_don_quoc_gia or f"DT-{rx.id:06d}",
+                ngay_ke_don=rx.ngay_ke_don,
+                bac_si_ho_ten=doctor.nguoi_dung.ho_ten if doctor and doctor.nguoi_dung else "Bác sĩ kê đơn",
+                chan_doan=primary.ten_benh_chan_doan if primary else "Chưa cập nhật chẩn đoán",
+                trang_thai=rx.trang_thai,
+                da_ky_so=bool(rx.chu_ky_so and rx.ngay_ky),
+                ngay_ky=rx.ngay_ky,
+                loi_dan_uong_thuoc=rx.loi_dan_uong_thuoc,
+                danh_sach_thuoc=[PatientPrescriptionItemResponse(
+                    id=item.id,
+                    ten_thuoc=item.ten_thuoc,
+                    ham_luong=item.ham_luong,
+                    don_vi_tinh=item.don_vi_tinh,
+                    so_luong=item.so_luong,
+                    lieu_sang=item.lieu_sang or "",
+                    lieu_trua=item.lieu_trua or "",
+                    lieu_chieu=item.lieu_chieu or "",
+                    lieu_toi=item.lieu_toi or "",
+                    cach_dung=item.cach_dung,
+                    so_ngay_dung=item.so_ngay_dung,
+                ) for item in rx.danh_sach_chi_tiet],
+            ))
+        return results
+
+    async def get_patient_lab_results(
+        self, user: TaiKhoan, db: AsyncSession
+    ) -> List[PatientLabResultResponse]:
+        """Trả kết quả CLS và URL file chất lượng gốc của chính bệnh nhân."""
+        bn = await self._get_current_benh_nhan(user, db)
+        stmt = (
+            select(ChiDinh)
+            .join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id)
+            .where(
+                LuotKham.benh_nhan_id == bn.id,
+                ChiDinh.trang_thai == "da_co_ket_qua",
+            )
+            .options(
+                selectinload(ChiDinh.dich_vu),
+                selectinload(ChiDinh.ket_qua),
+                selectinload(ChiDinh.phieu_ket_qua),
+            )
+            .order_by(desc(ChiDinh.thoi_gian_tra_ket_qua), desc(ChiDinh.id))
+        )
+        orders = (await db.execute(stmt)).scalars().all()
+        results = []
+        for order in orders:
+            detail_data = order.tri_so_chi_tiet or (order.ket_qua.tri_so_chi_tiet if order.ket_qua else {}) or {}
+            details = []
+            if isinstance(detail_data, dict):
+                for name, value in detail_data.items():
+                    if isinstance(value, dict):
+                        details.append(PatientLabResultDetailResponse(
+                            ten_chi_so=str(name),
+                            gia_tri=str(value.get("gia_tri", value.get("value", ""))),
+                            khoang_tham_chieu=value.get("khoang_tham_chieu", value.get("reference")),
+                        ))
+                    else:
+                        details.append(PatientLabResultDetailResponse(ten_chi_so=str(name), gia_tri=str(value)))
+
+            urls = list(order.file_dinh_kem_urls or [])
+            if order.tep_dinh_kem_url:
+                urls.append(order.tep_dinh_kem_url)
+            if order.ket_qua:
+                urls.extend(order.ket_qua.file_dinh_kem_urls or [])
+            if order.phieu_ket_qua:
+                urls.extend(order.phieu_ket_qua.tep_dinh_kem_urls or [])
+            unique_urls = list(dict.fromkeys(str(url) for url in urls if url))
+            attachments = [PatientLabAttachmentResponse(
+                url=url,
+                ten_tep=url.split("?")[0].rstrip("/").split("/")[-1] or f"ket-qua-{order.id}",
+                loai_tep="HINH_ANH" if url.lower().split("?")[0].endswith((".jpg", ".jpeg", ".png", ".webp", ".dicom", ".dcm")) else "TAI_LIEU",
+            ) for url in unique_urls]
+            service = order.dich_vu
+            service_code = service.ma_dich_vu if service else f"CLS-{order.id:06d}"
+            service_name = service.ten_dich_vu if service else "Kết quả cận lâm sàng"
+            result_text = order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None)
+            result_time = order.thoi_gian_tra_ket_qua or (order.ket_qua.thoi_gian_duyet if order.ket_qua else None) or order.created_at
+            results.append(PatientLabResultResponse(
+                id=order.id,
+                luot_kham_id=order.luot_kham_id,
+                ma_dich_vu=service_code,
+                ten_dich_vu=service_name,
+                ngay_tra_ket_qua=result_time,
+                loai_ket_qua="CHAN_DOAN_HINH_ANH" if attachments else "XET_NGHIEM",
+                trang_thai=order.trang_thai,
+                ket_luan=result_text or "Đã có kết quả",
+                phan_loai=order.ket_qua_phan_loai or "BINH_THUONG",
+                chi_tiet=details,
+                tep_dinh_kem=attachments,
+            ))
         return results
 
     # ── 4. Khảo sát & Đánh giá dịch vụ sau khám ─────────────────────────

@@ -454,10 +454,10 @@ class HoaDon(BaseModelWithTimestamp):
     tong_tien = Column(Numeric(15, 2), default=0.00, nullable=False)
     mien_giam = Column(Numeric(15, 2), default=0.00, nullable=False)
     so_tien_phai_thu = Column(Numeric(15, 2), default=0.00, nullable=False)
-    thuc_thu = synonym("so_tien_phai_thu")
+    thuc_thu = Column(Numeric(15, 2), default=0.00, nullable=True)
     trang_thai = Column(String(30), default="chua_thu", nullable=False, index=True)
     nguoi_lap_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="RESTRICT"), nullable=True, index=True)
-    thu_ngan_id = synonym("nguoi_lap_id")
+    thu_ngan_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="RESTRICT"), nullable=True, index=True)
     nguoi_huy_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
     thoi_gian_huy = Column(DateTime(timezone=True), nullable=True)
     ly_do_huy = Column(Text, nullable=True)
@@ -466,6 +466,17 @@ class HoaDon(BaseModelWithTimestamp):
     ngay_thanh_toan = Column(DateTime(timezone=True), nullable=True)
     phuong_thuc_thanh_toan = Column(String(30), default="tien_mat", nullable=True)
     goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)
+
+    def __init__(self, **kwargs):
+        if "thuc_thu" in kwargs and "so_tien_phai_thu" not in kwargs:
+            kwargs["so_tien_phai_thu"] = kwargs["thuc_thu"]
+        elif "so_tien_phai_thu" in kwargs and "thuc_thu" not in kwargs:
+            kwargs["thuc_thu"] = kwargs["so_tien_phai_thu"]
+        if "thu_ngan_id" in kwargs and "nguoi_lap_id" not in kwargs:
+            kwargs["nguoi_lap_id"] = kwargs["thu_ngan_id"]
+        elif "nguoi_lap_id" in kwargs and "thu_ngan_id" not in kwargs:
+            kwargs["thu_ngan_id"] = kwargs["nguoi_lap_id"]
+        super().__init__(**kwargs)
 
     luot_kham = relationship("LuotKham")
     benh_nhan = relationship("BenhNhan")

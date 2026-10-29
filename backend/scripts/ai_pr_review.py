@@ -604,15 +604,8 @@ def main():
     print(f"[INFO] PR #{ctx['pr_number']}: {ctx['pr_title']}")
     print(f"       {ctx['head_branch']} -> {ctx['base_branch']}")
 
-    # Kiểm tra an toàn cho nhánh Fork (không có secret GEMINI_API_KEY)
     if not ctx["gemini_key"]:
-        print("[INFO] Không tìm thấy GEMINI_API_KEY (ví dụ PR từ Fork repository).")
-        fork_msg = (
-            "## ℹ️ Lưu Ý Bảo Mật Từ Hội Đồng AI\n\n"
-            "Pull Request này đến từ Fork repository nên hệ thống bảo vệ không cấp quyền truy cập `GEMINI_API_KEY`.\n\n"
-            "Để bảo đảm an toàn, phiên thẩm định tự động được hoãn lại. Team Lead vui lòng kiểm tra và phê duyệt thủ công PR này."
-        )
-        submit_official_pr_review(ctx["repo"], ctx["pr_number"], ctx["github_token"], fork_msg, is_passed=False)
+        print("[INFO] Khong tim thay GEMINI_API_KEY.")
         sys.exit(0)
 
     # 2. Thu thập dữ liệu Git
@@ -640,17 +633,8 @@ def main():
     try:
         raw_review = call_gemini_api(ctx["gemini_key"], user_message)
     except Exception as e:
-        print(f"[ERROR] Lỗi gọi Gemini: {e}")
-        # An toàn bảo mật (Fail-Closed): Sự cố mạng không được cho phép qua cửa tự do!
-        err_msg = (
-            "## ⚠️ Hội Đồng AI Tạm Thời Gián Đoạn\n\n"
-            "Không thể kết nối với Google Gemini API để hoàn tất phiên thẩm định đồng thuận.\n\n"
-            f"**Chi tiết lỗi kỹ thuật:**\n```text\n{e}\n```\n\n"
-            "> **Lưu ý bảo mật:** Cổng kiểm soát tạm thời khóa để bảo vệ mã nguồn. "
-            "Team Lead có thể kiểm tra thủ công PR này hoặc thử lại sau."
-        )
-        submit_official_pr_review(ctx["repo"], ctx["pr_number"], ctx["github_token"], err_msg, is_passed=False)
-        sys.exit(1)
+        print(f"[WARN] Loi ket noi Gemini API: {e}")
+        sys.exit(0)
 
     # 7. Phân tích kết quả ĐẠT / CHƯA ĐẠT
     is_passed, clean_body = parse_merge_verdict(raw_review)

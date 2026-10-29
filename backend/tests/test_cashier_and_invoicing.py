@@ -410,3 +410,74 @@ async def test_cashier_unbilled_encounters_exclude_cancelled_and_verify_cls_quan
     assert res_bill.status_code == 201
     bill_data = res_bill.json()["data"]
     assert float(bill_data["thuc_thu"]) == float(active_item["tam_tinh"])
+
+@pytest.mark.asyncio
+async def test_cannot_create_duplicate_invoice_for_paid_encounter(api_client, booking, db_session):
+    token_admin = booking.tokens["admin"]
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_start = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kiem tra suc khoe dinh ky"},
+        headers=token_bs
+    )
+    assert res_start.status_code == 201
+    enc_id = res_start.json()["data"]["id"]
+
+    res_inv = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_inv.status_code == 201
+    inv_id = res_inv.json()["data"]["id"]
+    thuc_thu = float(res_inv.json()["data"]["thuc_thu"])
+
+    res_pay = await api_client.post(
+        f"/api/v1/cashier/invoices/{inv_id}/pay",
+        json={"phuong_thuc_thanh_toan": "tien_mat", "so_tien_khach_tra": thuc_thu},
+        headers=token_admin
+    )
+    assert res_pay.status_code == 200
+    assert res_pay.json()["data"]["trang_thai"] == "da_thu"
+
+    res_dup = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_dup.status_code == 409
+    assert "đã được lập hóa đơn và thanh toán" in res_dup.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_cashier_and_subclinical_rbac_forbidden(api_client, booking):
+    token_patient = booking.tokens["bn_a"]
+
+    res_unbilled = await api_client.get(
+        "/api/v1/cashier/unbilled-encounters",
+        headers=token_patient
+    )
+    assert res_unbilled.status_code == 403
+
+    res_create_inv = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": 999999, "mien_giam": 0.00},
+        headers=token_patient
+    )
+    assert res_create_inv.status_code == 403
+
+    res_queue = await api_client.get(
+        "/api/v1/subclinical/queue",
+        headers=token_patient
+    )
+    assert res_queue.status_code == 403
+
+    res_start_cls = await api_client.post(
+        "/api/v1/subclinical/orders/999999/start",
+        headers=token_patient
+    )
+    assert res_start_cls.status_code == 403
+

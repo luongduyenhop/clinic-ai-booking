@@ -31,7 +31,6 @@ class InvoiceCreateRequest(BaseModel):
     luot_kham_id: int = Field(..., description="ID lượt khám cần xuất viện phí")
     mien_giam: Decimal = Field(Decimal("0.00"), ge=0, description="Số tiền miễn giảm nếu có")
     ghi_chu: Optional[str] = None
-    items: Optional[List[InvoiceLineItemCreate]] = Field(None, description="Danh sách mục tùy chỉnh nếu không auto-generate")
 
 
 class InvoicePayRequest(BaseModel):

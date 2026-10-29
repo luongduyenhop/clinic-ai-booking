@@ -63,6 +63,7 @@ class CashierService:
                 selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
             )
             .where(LuotKham.id == payload.luot_kham_id)
+            .with_for_update()
         )
         luot_kham = (await db.execute(stmt_lk)).scalar_one_or_none()
         if not luot_kham:
@@ -70,52 +71,42 @@ class CashierService:
 
         stmt_exist = select(HoaDon).where(
             HoaDon.luot_kham_id == luot_kham.id,
-            HoaDon.trang_thai == "chua_thu",
+            HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
         )
         existing_bill = (await db.execute(stmt_exist)).scalar_one_or_none()
         if existing_bill:
+            if existing_bill.trang_thai == "da_thu":
+                raise ConflictException("Lượt khám này đã được lập hóa đơn và thanh toán viện phí hoàn tất!")
             raise ConflictException(f"Lượt khám này đã có hóa đơn chờ thu mã {existing_bill.ma_hoa_don}!")
 
         line_items_data: List[dict] = []
 
-        if payload.items and len(payload.items) > 0:
-            for it in payload.items:
-                line_items_data.append({
-                    "loai_muc": it.loai_muc,
-                    "muc_tham_chieu_id": it.muc_tham_chieu_id,
-                    "ten_khoan_thu": it.ten_khoan_thu,
-                    "so_luong": it.so_luong,
-                    "don_gia": it.don_gia,
-                    "thanh_tien": Decimal(it.so_luong) * it.don_gia,
-                    "ghi_chu": it.ghi_chu,
-                })
-        else:
-            gia_kham = Decimal("150000.00")
-            if luot_kham.lich_kham and luot_kham.lich_kham.bac_si:
-                gia_kham = Decimal(str(luot_kham.lich_kham.bac_si.gia_kham_mac_dinh or 150000.00))
-            line_items_data.append({
-                "loai_muc": "cong_kham",
-                "muc_tham_chieu_id": luot_kham.lich_kham_id,
-                "ten_khoan_thu": "Công khám chuyên khoa ngoại trú",
-                "so_luong": 1,
-                "don_gia": gia_kham,
-                "thanh_tien": gia_kham,
-                "ghi_chu": None,
-            })
+        gia_kham = Decimal("150000.00")
+        if luot_kham.lich_kham and luot_kham.lich_kham.bac_si:
+            gia_kham = Decimal(str(luot_kham.lich_kham.bac_si.gia_kham_mac_dinh or 150000.00))
+        line_items_data.append({
+            "loai_muc": "cong_kham",
+            "muc_tham_chieu_id": luot_kham.lich_kham_id,
+            "ten_khoan_thu": "Công khám chuyên khoa ngoại trú",
+            "so_luong": 1,
+            "don_gia": gia_kham,
+            "thanh_tien": gia_kham,
+            "ghi_chu": None,
+        })
 
-            for cd in (luot_kham.danh_sach_chi_dinh or []):
-                if cd.trang_thai != "da_huy":
-                    don_gia_cls = Decimal(str(cd.don_gia_tai_thoi_diem or 0.00))
-                    ten_dv = cd.dich_vu.ten_dich_vu if cd.dich_vu else "Dịch vụ cận lâm sàng"
-                    line_items_data.append({
-                        "loai_muc": "can_lam_sang",
-                        "muc_tham_chieu_id": cd.id,
-                        "ten_khoan_thu": ten_dv,
-                        "so_luong": cd.so_luong or 1,
-                        "don_gia": don_gia_cls,
-                        "thanh_tien": Decimal(cd.so_luong or 1) * don_gia_cls,
-                        "ghi_chu": None,
-                    })
+        for cd in (luot_kham.danh_sach_chi_dinh or []):
+            if cd.trang_thai != "da_huy":
+                don_gia_cls = Decimal(str(cd.don_gia_tai_thoi_diem or 0.00))
+                ten_dv = cd.dich_vu.ten_dich_vu if cd.dich_vu else "Dịch vụ cận lâm sàng"
+                line_items_data.append({
+                    "loai_muc": "can_lam_sang",
+                    "muc_tham_chieu_id": cd.id,
+                    "ten_khoan_thu": ten_dv,
+                    "so_luong": cd.so_luong or 1,
+                    "don_gia": don_gia_cls,
+                    "thanh_tien": Decimal(cd.so_luong or 1) * don_gia_cls,
+                    "ghi_chu": None,
+                })
 
         tong_tien = sum((item["thanh_tien"] for item in line_items_data), Decimal("0.00"))
         mien_giam = Decimal(str(payload.mien_giam or 0.00))

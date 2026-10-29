@@ -6,6 +6,7 @@ import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminActi
 import { AppToast } from '../../components/common/AppNotification'
 import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 import VietQrModal from '../../components/common/VietQrModal'
+import ReceiptModal from '../../components/common/ReceiptModal'
 import { QrCode } from '@phosphor-icons/react'
 import { cashierService } from '../../services/cashierService'
 import {
@@ -100,6 +101,7 @@ export default function CashierManagementPage() {
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [isQrModalOpen, setIsQrModalOpen] = useState(false)
     const [qrInvoice, setQrInvoice] = useState(null)
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
     const [liveUnbilled, setLiveUnbilled] = useState([])
     const [livePendingBills, setLivePendingBills] = useState([])
 
@@ -320,6 +322,10 @@ export default function CashierManagementPage() {
     const handleSaveVoucher = async () => {
         if (!form.tenPhieu?.trim()) {
             AppToast.error('Vui lòng nhập Tên phiếu thu viện phí!')
+            return
+        }
+        if (form.daThu && !form.invoiceId) {
+            AppToast.warning('Phiếu thu chưa liên kết với Hóa đơn viện phí Backend. Vui lòng lập hóa đơn từ ca khám trước khi xác nhận Đã thu!')
             return
         }
         const calculatedTotal = (form.items || []).reduce((sum, i) => sum + (Number(i.soTien) || 0), 0)
@@ -700,7 +706,7 @@ export default function CashierManagementPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => { printDocument(); AppToast.success(`Đang mở lệnh in Biên lai ${form.maPhieu}...`); }}
+                                    onClick={() => setIsReceiptModalOpen(true)}
                                     className="medpro-btn-amber text-xs font-bold"
                                 >
                                     <Printer size={15} weight="bold" />
@@ -928,13 +934,18 @@ export default function CashierManagementPage() {
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
+                bankBin={clinicData?.clinicSettings?.bankInfo?.bankBin || '970422'}
+                bankName={clinicData?.clinicSettings?.bankInfo?.bankName || 'MBBank (Ngân hàng TMCP Quân Đội)'}
+                accountNumber={clinicData?.clinicSettings?.bankInfo?.accountNumber || '0901234567'}
+                accountName={clinicData?.clinicSettings?.bankInfo?.accountName || clinicData?.clinicSettings?.tenPhongKham || 'PHONG KHAM CLINIC AI'}
                 onConfirmPayment={async (inv) => {
                     const targetId = inv?.invoiceId || inv?.id
                     if (!targetId) return
                     try {
+                        const targetAmount = inv?.thuc_thu !== undefined ? inv.thuc_thu : (inv?.thucThu !== undefined ? inv.thucThu : (inv?.tong_tien !== undefined ? inv.tong_tien : (inv?.tongTien ?? form.tongTien ?? 0)))
                         await cashierService.payInvoice(targetId, {
                             phuong_thuc_thanh_toan: 'chuyen_khoan',
-                            so_tien_khach_tra: inv?.tongTien || calculatedTotal,
+                            so_tien_khach_tra: Number(targetAmount),
                             ghi_chu: 'Thanh toán qua quét mã VietQR'
                         })
                         fetchLiveCashierData()
@@ -945,6 +956,13 @@ export default function CashierManagementPage() {
                         throw err
                     }
                 }}
+            />
+
+            <ReceiptModal
+                isOpen={isReceiptModalOpen}
+                onClose={() => setIsReceiptModalOpen(false)}
+                voucher={form}
+                clinicInfo={clinicData?.clinicSettings || {}}
             />
         </div>
     )

@@ -1,7 +1,8 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, func
-from app.models.user import ChuyenKhoa, PhongKham, BacSi
+from app.core.config import settings
+from app.models.user import ChuyenKhoa, PhongKham, BacSi, TaiKhoan, VaiTroEnum
 from app.models.appointment import LichLamViec
 from app.models.medical import DichVu, Thuoc
 from seed_data import seed_database
@@ -118,3 +119,114 @@ async def test_admin_rbac_permission_protection(api_client: AsyncClient, booking
     }
     res_dept = await api_client.post("/api/v1/admin/departments", json=dept_payload, headers=patient_hdr)
     assert res_dept.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seed_preserves_admin_modifications_across_restarts(db_session):
+    await seed_database(db_session)
+
+    stmt_room1 = select(PhongKham).where(PhongKham.ma_phong == "P101")
+    room1 = (await db_session.execute(stmt_room1)).scalar_one()
+    room1.ten_phong = "Phòng Khám Nội VIP Đã Đổi Tên"
+
+    stmt_room2 = select(PhongKham).where(PhongKham.ma_phong == "P102")
+    room2 = (await db_session.execute(stmt_room2)).scalar_one()
+    room2.is_active = False
+
+    stmt_svc = select(DichVu).where(DichVu.ma_dich_vu == "DV_KHAM_NOI")
+    svc = (await db_session.execute(stmt_svc)).scalar_one()
+    svc.don_gia = 350000.0
+
+    stmt_doc = select(BacSi).where(BacSi.hoc_vi == "PGS.TS")
+    doctor = (await db_session.execute(stmt_doc)).scalar_one()
+    doctor.mo_ta_chuyen_sau = "Chuyên gia tim mạch hàng đầu bệnh viện"
+
+    await db_session.flush()
+
+    await seed_database(db_session)
+
+    stmt_check_r1 = select(PhongKham).where(PhongKham.ma_phong == "P101")
+    r1_after = (await db_session.execute(stmt_check_r1)).scalar_one()
+    assert r1_after.ten_phong == "Phòng Khám Nội VIP Đã Đổi Tên"
+
+    stmt_check_r2 = select(PhongKham).where(PhongKham.ma_phong == "P102")
+    r2_after = (await db_session.execute(stmt_check_r2)).scalar_one()
+    assert r2_after.is_active is False
+
+    stmt_check_svc = select(DichVu).where(DichVu.ma_dich_vu == "DV_KHAM_NOI")
+    svc_after = (await db_session.execute(stmt_check_svc)).scalar_one()
+    assert float(svc_after.don_gia) == 350000.0
+
+    stmt_check_doc = select(BacSi).where(BacSi.hoc_vi == "PGS.TS")
+    doc_after = (await db_session.execute(stmt_check_doc)).scalar_one()
+    assert doc_after.mo_ta_chuyen_sau == "Chuyên gia tim mạch hàng đầu bệnh viện"
+
+
+@pytest.mark.asyncio
+async def test_legacy_departments_are_deactivated(db_session):
+    legacy_ck = ChuyenKhoa(
+        ma_chuyen_khoa="KHOA_TIM_MACH",
+        ten_chuyen_khoa="Tim mạch",
+        mo_ta="Khoa tim mạch cũ",
+        vi_tri_phong="Phòng 201 cũ",
+        is_active=True,
+    )
+    db_session.add(legacy_ck)
+    await db_session.flush()
+
+    await seed_database(db_session)
+
+    stmt_legacy = select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == "KHOA_TIM_MACH")
+    legacy_after = (await db_session.execute(stmt_legacy)).scalar_one()
+    assert legacy_after.is_active is False
+
+    stmt_active = select(ChuyenKhoa).where(ChuyenKhoa.is_active.is_(True))
+    active_depts = (await db_session.execute(stmt_active)).scalars().all()
+    active_codes = {d.ma_chuyen_khoa for d in active_depts}
+    assert active_codes == {"KHOA_NOI", "KHOA_NGOAI", "KHOA_TMH", "KHOA_RANG", "KHOA_MAT"}
+
+
+@pytest.mark.asyncio
+async def test_legacy_shifts_backfill_missing_room(db_session):
+    await seed_database(db_session)
+
+    stmt_shift = select(LichLamViec).limit(1)
+    shift = (await db_session.execute(stmt_shift)).scalar_one()
+    doctor_id = shift.bac_si_id
+
+    stmt_doc = select(BacSi).where(BacSi.id == doctor_id)
+    doc = (await db_session.execute(stmt_doc)).scalar_one()
+    assert doc.phong_kham_id is not None
+
+    shift.phong_kham_id = None
+    await db_session.flush()
+
+    await seed_database(db_session)
+
+    stmt_shift_after = select(LichLamViec).where(LichLamViec.id == shift.id)
+    shift_after = (await db_session.execute(stmt_shift_after)).scalar_one()
+    assert shift_after.phong_kham_id == doc.phong_kham_id
+
+
+@pytest.mark.asyncio
+async def test_production_environment_prevents_default_insecure_admin(db_session):
+    orig_env = settings.ENVIRONMENT
+    orig_debug = settings.DEBUG
+    orig_pwd = settings.INITIAL_ADMIN_PASSWORD
+    try:
+        settings.ENVIRONMENT = "production"
+        settings.DEBUG = False
+        settings.INITIAL_ADMIN_PASSWORD = None
+
+        await seed_database(db_session)
+
+        stmt_admin = select(TaiKhoan).where(
+            TaiKhoan.email == "admin@clinic.com",
+            TaiKhoan.vai_tro == VaiTroEnum.ADMIN.value,
+        )
+        admin_account = (await db_session.execute(stmt_admin)).scalar_one_or_none()
+        assert admin_account is None
+    finally:
+        settings.ENVIRONMENT = orig_env
+        settings.DEBUG = orig_debug
+        settings.INITIAL_ADMIN_PASSWORD = orig_pwd

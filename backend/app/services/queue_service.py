@@ -329,7 +329,7 @@ class QueueService:
             effective_doctor_id = payload.bac_si_id
 
         # Khóa dòng BacSi bằng SELECT ... FOR UPDATE để triệt tiêu race condition concurrency khi nhiều lễ tân check-in cùng lúc
-        stmt_bs = select(BacSi).where(BacSi.id == effective_doctor_id).with_for_update()
+        stmt_bs = select(BacSi).options(selectinload(BacSi.phong_kham)).where(BacSi.id == effective_doctor_id).with_for_update(of=BacSi)
         bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")

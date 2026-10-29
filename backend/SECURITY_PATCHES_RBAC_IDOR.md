@@ -92,6 +92,7 @@ async def _verify_patient_history_and_package_access(
     current_user: TaiKhoan,
     db: AsyncSession
 ) -> None:
+// dùng phân quyền giống refund_invoice từ tiếp theo áp dụng như vậy
     staff_roles = {
         VaiTroEnum.LE_TAN.value,
         VaiTroEnum.THU_NGAN.value,

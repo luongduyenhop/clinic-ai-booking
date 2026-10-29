@@ -894,7 +894,7 @@ async def save_clinical_workspace_state(
                         )
                     )
 
-                # 4. Đồng bộ chỉ định cận lâm sàng
+                # 4. Đồng bộ chỉ định cận lâm sàng (AC2: lưu trạng thái CHO_THUC_HIEN gửi phòng KTV)
                 orders = enc_data.get("danh_sach_chi_dinh") or []
                 for ord_item in orders:
                     if not isinstance(ord_item, dict):
@@ -928,8 +928,16 @@ async def save_clinical_workspace_state(
                         if isinstance(ket_qua_raw, (dict, list))
                         else (str(ket_qua_raw) if ket_qua_raw else None)
                     )
+
+                    raw_status = str(ord_item.get("trang_thai") or "").strip()
+                    # AC2: Chỉ định lưu vào bảng chi_dinh với trạng thái CHO_THUC_HIEN
+                    if not raw_status or raw_status == "da_chi_dinh":
+                        status_to_save = "CHO_THUC_HIEN"
+                    else:
+                        status_to_save = raw_status
+
                     if existing_order:
-                        existing_order.trang_thai = str(ord_item.get("trang_thai") or existing_order.trang_thai)
+                        existing_order.trang_thai = status_to_save
                         existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
                         existing_order.ket_qua_chi_tiet = ket_qua_str
                         existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
@@ -940,13 +948,61 @@ async def save_clinical_workspace_state(
                                 dich_vu_id=dv.id,
                                 so_luong=1,
                                 don_gia_tai_thoi_diem=dv.don_gia or Decimal("150000"),
-                                trang_thai=str(ord_item.get("trang_thai") or "da_chi_dinh"),
+                                trang_thai=status_to_save,
                                 bac_si_chi_dinh_id=bs_id,
                                 ket_qua_phan_loai=ord_item.get("ket_qua_phan_loai"),
                                 ket_qua_chi_tiet=ket_qua_str,
                                 tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
                             )
                         )
+
+                # 5. AC1: Đồng bộ danh sách chẩn đoán ICD-10 vào bảng chan_doan
+                diagnoses = enc_data.get("danh_sach_chan_doan")
+                if isinstance(diagnoses, list) and diagnoses:
+                    cur_diags = (
+                        await db.execute(
+                            select(ChanDoan).where(ChanDoan.luot_kham_id == target_lk.id)
+                        )
+                    ).scalars().all()
+                    for cd in cur_diags:
+                        await db.delete(cd)
+                    await db.flush()
+
+                    primary_diag_str = None
+                    for d_item in diagnoses:
+                        if not isinstance(d_item, dict):
+                            continue
+                        ma = str(d_item.get("ma_icd10") or "").strip()
+                        ten = str(d_item.get("ten_benh_chan_doan") or "").strip()
+                        loai = str(d_item.get("loai_chan_doan") or "chinh").strip().lower()
+                        if not ma:
+                            continue
+
+                        kn = (
+                            await db.execute(
+                                select(KhaiNiem).where(
+                                    KhaiNiem.ma_khai_niem == ma,
+                                    KhaiNiem.loai_khai_niem == "benh_icd10"
+                                )
+                            )
+                        ).scalars().first()
+
+                        db.add(
+                            ChanDoan(
+                                luot_kham_id=target_lk.id,
+                                khai_niem_id=kn.id if kn else None,
+                                ma_icd10=ma,
+                                ten_benh_chan_doan=ten or (kn.ten_khai_niem if kn else ma),
+                                loai_chan_doan=loai if loai in ("chinh", "phu") else "chinh",
+                                ghi_chu_chuyen_mon=d_item.get("ghi_chu_chuyen_mon"),
+                                bac_si_ghi_nhan_id=bs_id,
+                            )
+                        )
+                        if loai == "chinh" and not primary_diag_str:
+                            primary_diag_str = f"{ma} - {ten or (kn.ten_khai_niem if kn else ma)}"
+
+                    if primary_diag_str:
+                        target_lk.chan_doan_so_bo = primary_diag_str[:255]
     except Exception as e:
         import logging
         logging.getLogger("clinical_sync").warning(f"Error syncing clinical data: {e}")

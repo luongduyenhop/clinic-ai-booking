@@ -292,7 +292,7 @@ export class ClinicalService extends BaseServices {
                     ma_dich_vu: s.ma_dich_vu,
                     ten_dich_vu: s.ten_dich_vu,
                     nhom_dich_vu: s.nhom_dich_vu,
-                    trang_thai: 'da_chi_dinh',
+                    trang_thai: 'CHO_THUC_HIEN',
                     ket_qua_phan_loai: null,
                     ket_qua_chi_tiet: null,
                     tep_dinh_kem_url: null,
@@ -315,7 +315,7 @@ export class ClinicalService extends BaseServices {
         const enc = db.encounters[encounterId]
         const o = enc?.danh_sach_chi_dinh?.find((x) => x.id === orderId)
         if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
+        if (o.trang_thai !== 'CHO_THUC_HIEN' && o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
         await this.persistToPostgres()
         return delay(enc.danh_sach_chi_dinh)
@@ -500,7 +500,7 @@ export class ClinicalService extends BaseServices {
     startOrder = async (orderId) => {
         const o = findOrder(orderId)
         if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai === 'da_chi_dinh') o.trang_thai = 'dang_thuc_hien'
+        if (o.trang_thai === 'da_chi_dinh' || o.trang_thai === 'CHO_THUC_HIEN') o.trang_thai = 'dang_thuc_hien'
         await this.persistToPostgres()
         return delay(o, 150)
     }

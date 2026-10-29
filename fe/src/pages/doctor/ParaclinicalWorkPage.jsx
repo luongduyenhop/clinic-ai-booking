@@ -14,7 +14,7 @@ import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEve
 
 const STATUS_FILTERS = [
     { key: 'ALL', label: 'Tất cả' },
-    { key: 'da_chi_dinh', label: 'Chờ làm' },
+    { key: 'CHO_THUC_HIEN', label: 'Chờ thực hiện' },
     { key: 'dang_thuc_hien', label: 'Đang làm' },
     { key: 'da_co_ket_qua', label: 'Có kết quả' },
 ]
@@ -55,7 +55,9 @@ export default function ParaclinicalWorkPage() {
     const q = keyword.trim().toLowerCase()
     const visible = worklist.filter(
         (o) =>
-            (statusFilter === 'ALL' || o.trang_thai === statusFilter) &&
+            (statusFilter === 'ALL' ||
+                (statusFilter === 'CHO_THUC_HIEN' && (o.trang_thai === 'CHO_THUC_HIEN' || o.trang_thai === 'da_chi_dinh')) ||
+                o.trang_thai === statusFilter) &&
             (!q || o.benh_nhan?.ho_ten.toLowerCase().includes(q) || o.ten_dich_vu.toLowerCase().includes(q))
     )
     const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]

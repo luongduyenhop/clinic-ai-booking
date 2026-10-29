@@ -47,6 +47,15 @@ function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
         >
             <span className="min-w-14 font-bold text-[#003553]">{dx.ma_icd10}</span>
             <span className="flex-1 text-[13px]">{dx.ten_benh_chan_doan}</span>
+            {primary ? (
+                <span className="rounded-md bg-sky-100 px-2.5 py-0.5 text-[11px] font-bold text-[#0077B6] border border-sky-300">
+                    Chẩn đoán chính
+                </span>
+            ) : (
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    Chẩn đoán phụ
+                </span>
+            )}
             {!primary && !locked && (
                 <button type="button" className="text-[12px] font-semibold text-[#0077B6] hover:underline cursor-pointer" onClick={onMakePrimary}>
                     Đặt làm chính
@@ -114,7 +123,13 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
         setOptions([])
     }
 
-    const remove = (ma) => setFieldValue('danh_sach_chan_doan', list.filter((d) => d.ma_icd10 !== ma))
+    const remove = (ma) => {
+        const nextList = list.filter((d) => d.ma_icd10 !== ma)
+        if (primary?.ma_icd10 === ma && nextList.length > 0) {
+            nextList[0] = { ...nextList[0], loai_chan_doan: 'chinh' }
+        }
+        setFieldValue('danh_sach_chan_doan', nextList)
+    }
     const makePrimary = (ma) =>
         setFieldValue(
             'danh_sach_chan_doan',
@@ -176,15 +191,28 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán chính</span>
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                            Chẩn đoán chính <span className="text-rose-500">* (Bắt buộc 1 mã ICD-10)</span>
+                        </span>
+                        {primary && (
+                            <span className="text-[11px] font-semibold text-emerald-600">✓ Đã chọn mã chính</span>
+                        )}
+                    </div>
                     {primary ? (
                         <DiagnosisRow dx={primary} primary locked={locked} onRemove={() => remove(primary.ma_icd10)} />
                     ) : (
-                        <p className={`rounded-xl px-4 py-3 text-[13px] ${errors.danh_sach_chan_doan ? 'bg-rose-50 text-rose-700' : 'bg-[#F5F9FC] text-slate-500'}`}>
-                            {errors.danh_sach_chan_doan || 'Chưa có chẩn đoán chính. Mã đầu tiên bạn chọn sẽ là chẩn đoán chính.'}
-                        </p>
+                        <div className="flex items-start gap-2.5 rounded-xl border border-rose-300 bg-rose-50/80 px-4 py-3 text-rose-800">
+                            <ClinicIcon name="WarningCircle" size={18} className="mt-0.5 shrink-0 text-rose-600" />
+                            <div className="text-[13px] leading-relaxed">
+                                <strong className="font-semibold">Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10).</strong>
+                                <p className="text-[12px] text-rose-700 mt-0.5">
+                                    Vui lòng tìm kiếm mã ở ô bên trên hoặc nhấn chọn từ danh mục gợi ý nhanh theo chuyên khoa.
+                                </p>
+                            </div>
+                        </div>
                     )}
-                    <span className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán phụ</span>
+                    <span className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán phụ (không bắt buộc)</span>
                     {secondary.length === 0 && <p className="text-[12px] text-slate-500">Không có.</p>}
                     {secondary.map((d) => (
                         <DiagnosisRow

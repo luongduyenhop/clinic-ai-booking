@@ -106,13 +106,13 @@ export default function StepOrders({ encounter, services, locked, submitting, on
                 <h3 className="text-[12px] font-bold uppercase tracking-wide text-[#003553]">Đã chỉ định ({orders.length})</h3>
                 {orders.length === 0 && <p className="text-[12px] text-slate-600">Chưa có chỉ định nào.</p>}
                 {orders.map((o) => {
-                    const st = ORDER_STATUS[o.trang_thai]
+                    const st = ORDER_STATUS[o.trang_thai] || { label: 'Chờ thực hiện', badge: 'medpro-badge' }
                     return (
                         <div key={o.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2.5">
                             <span className="text-[13px] font-medium text-[#003553]">{o.ten_dich_vu}</span>
                             <span className="flex items-center gap-1">
                                 <span className={st.badge}>{st.label}</span>
-                                {o.trang_thai === 'da_chi_dinh' && !locked && (
+                                {(o.trang_thai === 'da_chi_dinh' || o.trang_thai === 'CHO_THUC_HIEN') && !locked && (
                                     <button
                                         type="button"
                                         aria-label={`Hủy chỉ định ${o.ten_dich_vu}`}
@@ -126,10 +126,10 @@ export default function StepOrders({ encounter, services, locked, submitting, on
                         </div>
                     )
                 })}
-                {picked.length > 0 && <p className="text-[12px] text-[#003553]">Đang chọn thêm {picked.length} dịch vụ.</p>}
+                {picked.length > 0 && <p className="text-[12px] text-[#003553]">Đang chọn thêm {picked.length} dịch vụ gửi KTV.</p>}
                 <p className="text-[12px] text-slate-600">Tạm tính {formatCurrency(total)} · thu tại quầy lễ tân</p>
                 <button type="button" className="medpro-btn-primary w-full" disabled={locked || picked.length === 0 || submitting} onClick={handleSend}>
-                    {submitting ? 'Đang gửi…' : 'Gửi chỉ định'}
+                    {submitting ? 'Đang gửi sang KTV…' : 'Gửi chỉ định sang phòng KTV'}
                 </button>
             </div>
         </div>

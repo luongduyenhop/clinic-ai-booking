@@ -1355,54 +1355,60 @@ class ClinicalService:
                         target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
 
                     # Task 3 AC2: Đồng bộ chỉ định cận lâm sàng (lưu trạng thái CHO_THUC_HIEN gửi phòng KTV)
-                    orders = enc_data.get("danh_sach_chi_dinh") or []
-                    for ord_item in orders:
-                        if not isinstance(ord_item, dict):
-                            continue
-                        ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
-                        ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
-                        dv = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == ma_dv))).scalar_one_or_none()
-                        if not dv:
-                            dv = DichVu(
-                                ma_dich_vu=ma_dv,
-                                ten_dich_vu=ten_dv,
-                                don_gia=Decimal("150000"),
-                                don_vi_tinh="Lần",
-                                ma_nhom_byt=str(ord_item.get("nhom_dich_vu") or "xet_nghiem")[:50],
-                                is_active=True,
-                            )
-                            db.add(dv)
-                            await db.flush()
+                    orders = [o for o in (enc_data.get("danh_sach_chi_dinh") or []) if isinstance(o, dict)]
+                    if orders:
+                        # Batch load existing services and existing orders to prevent N+1 queries
+                        service_codes = [str(o.get("ma_dich_vu") or f"DV-{o.get('dich_vu_id', 1)}")[:50] for o in orders]
+                        existing_dvs = (
+                            await db.execute(select(DichVu).where(DichVu.ma_dich_vu.in_(service_codes)))
+                        ).scalars().all()
+                        dv_map = {dv.ma_dich_vu: dv for dv in existing_dvs}
 
-                        existing_order = (
+                        existing_orders = (
                             await db.execute(
-                                select(ChiDinh).where(
-                                    ChiDinh.luot_kham_id == target_lk.id,
-                                    ChiDinh.dich_vu_id == dv.id,
-                                )
+                                select(ChiDinh).where(ChiDinh.luot_kham_id == target_lk.id)
                             )
-                        ).scalars().first()
-                        ket_qua_raw = ord_item.get("ket_qua_chi_tiet")
-                        ket_qua_str = (
-                            json.dumps(ket_qua_raw, ensure_ascii=False)
-                            if isinstance(ket_qua_raw, (dict, list))
-                            else (str(ket_qua_raw) if ket_qua_raw else None)
-                        )
+                        ).scalars().all()
+                        order_map = {ord.dich_vu_id: ord for ord in existing_orders}
 
-                        raw_status = str(ord_item.get("trang_thai") or "").strip()
-                        if not raw_status or raw_status == "da_chi_dinh":
-                            status_to_save = "CHO_THUC_HIEN"
-                        else:
-                            status_to_save = raw_status
+                        for ord_item in orders:
+                            ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
+                            ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
+                            dv = dv_map.get(ma_dv)
+                            if not dv:
+                                dv = DichVu(
+                                    ma_dich_vu=ma_dv,
+                                    ten_dich_vu=ten_dv,
+                                    don_gia=Decimal("150000"),
+                                    don_vi_tinh="Lần",
+                                    ma_nhom_byt=str(ord_item.get("nhom_dich_vu") or "xet_nghiem")[:50],
+                                    is_active=True,
+                                )
+                                db.add(dv)
+                                await db.flush()
+                                dv_map[ma_dv] = dv
 
-                        if existing_order:
-                            existing_order.trang_thai = status_to_save
-                            existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
-                            existing_order.ket_qua_chi_tiet = ket_qua_str
-                            existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
-                        else:
-                            db.add(
-                                ChiDinh(
+                            existing_order = order_map.get(dv.id)
+                            ket_qua_raw = ord_item.get("ket_qua_chi_tiet")
+                            ket_qua_str = (
+                                json.dumps(ket_qua_raw, ensure_ascii=False)
+                                if isinstance(ket_qua_raw, (dict, list))
+                                else (str(ket_qua_raw) if ket_qua_raw else None)
+                            )
+
+                            raw_status = str(ord_item.get("trang_thai") or "").strip()
+                            if not raw_status or raw_status == "da_chi_dinh":
+                                status_to_save = "CHO_THUC_HIEN"
+                            else:
+                                status_to_save = raw_status
+
+                            if existing_order:
+                                existing_order.trang_thai = status_to_save
+                                existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
+                                existing_order.ket_qua_chi_tiet = ket_qua_str
+                                existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
+                            else:
+                                new_order = ChiDinh(
                                     luot_kham_id=target_lk.id,
                                     dich_vu_id=dv.id,
                                     so_luong=1,
@@ -1413,7 +1419,8 @@ class ClinicalService:
                                     ket_qua_chi_tiet=ket_qua_str,
                                     tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
                                 )
-                            )
+                                db.add(new_order)
+                                order_map[dv.id] = new_order
 
                     # Task 3 AC1: Đồng bộ danh sách chẩn đoán ICD-10 vào bảng chan_doan
                     diagnoses = enc_data.get("danh_sach_chan_doan")
@@ -1427,6 +1434,24 @@ class ClinicalService:
                             await db.delete(cd)
                         await db.flush()
 
+                        # Batch load KhaiNiem to eliminate N+1 queries
+                        icd_codes = [
+                            str(d.get("ma_icd10") or "").strip()
+                            for d in diagnoses
+                            if isinstance(d, dict) and str(d.get("ma_icd10") or "").strip()
+                        ]
+                        kn_map = {}
+                        if icd_codes:
+                            kn_rows = (
+                                await db.execute(
+                                    select(KhaiNiem).where(
+                                        KhaiNiem.ma_khai_niem.in_(icd_codes),
+                                        KhaiNiem.loai_khai_niem == "benh_icd10",
+                                    )
+                                )
+                            ).scalars().all()
+                            kn_map = {kn.ma_khai_niem: kn for kn in kn_rows}
+
                         primary_diag_str = None
                         for d_item in diagnoses:
                             if not isinstance(d_item, dict):
@@ -1437,14 +1462,7 @@ class ClinicalService:
                             if not ma:
                                 continue
 
-                            kn = (
-                                await db.execute(
-                                    select(KhaiNiem).where(
-                                        KhaiNiem.ma_khai_niem == ma,
-                                        KhaiNiem.loai_khai_niem == "benh_icd10"
-                                    )
-                                )
-                            ).scalars().first()
+                            kn = kn_map.get(ma)
 
                             db.add(
                                 ChanDoan(

@@ -8,7 +8,7 @@ select = [
     "F",
 ]
 ignore = [
-    "E501",
-    "E402",
-    "F401",
+    "E501", # Line too long
+    "E402", # Module level import not at top of file
+    "F401", # Unused imports
 ]

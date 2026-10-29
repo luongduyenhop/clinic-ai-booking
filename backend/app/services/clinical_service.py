@@ -31,6 +31,8 @@ from app.models.specialty_exam import (
     KhamRangHamMat,
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
+from app.schemas.compliance import TrangThaiDonThuoc
+from app.services.prescription_fsm_service import PrescriptionFSMService
 from app.schemas.clinical import (
     EncounterCreateRequest,
     EncounterCompleteRequest,
@@ -1479,6 +1481,153 @@ class ClinicalService:
                                 primary_diag_str = f"{ma} - {ten or (kn.ten_khai_niem if kn else ma)}"
 
                         target_lk.chan_doan_so_bo = primary_diag_str[:255] if primary_diag_str else None
+
+                    # Task 4 AC1 & AC2: Đồng bộ đơn thuốc (DonThuoc) và danh sách thuốc (ChiTietDonThuoc)
+                    med_items = enc_data.get("danh_sach_thuoc")
+                    if med_items is None and isinstance(enc_data.get("don_thuoc"), dict):
+                        med_items = enc_data.get("don_thuoc", {}).get("danh_sach_thuoc")
+
+                    if med_items is not None and isinstance(med_items, list):
+                        stmt_rx = (
+                            select(DonThuoc)
+                            .options(selectinload(DonThuoc.danh_sach_chi_tiet))
+                            .where(DonThuoc.luot_kham_id == target_lk.id)
+                            .order_by(DonThuoc.id.desc())
+                        )
+                        existing_rx = (await db.execute(stmt_rx)).scalars().first()
+
+                        requested_status = str(enc_data.get("trang_thai_don_thuoc") or "").strip()
+                        if not requested_status and isinstance(enc_data.get("don_thuoc"), dict):
+                            requested_status = str(enc_data.get("don_thuoc", {}).get("trang_thai") or "").strip()
+
+                        # Khóa bất biến FSM: Nếu đơn đã SIGNED, ISSUED, ACCEPTED, cấm sửa đổi thuốc trực tiếp
+                        if existing_rx and existing_rx.trang_thai in (
+                            TrangThaiDonThuoc.SIGNED.value,
+                            TrangThaiDonThuoc.ISSUED.value,
+                            TrangThaiDonThuoc.ACCEPTED.value,
+                            TrangThaiDonThuoc.SUPERSEDED.value,
+                        ):
+                            logger.info(
+                                f"🔒 [FSM IMMUTABILITY] DonThuoc #{existing_rx.id} đang ở trạng thái {existing_rx.trang_thai}, dữ liệu đã khóa bất biến!"
+                            )
+                        else:
+                            rx_so_ngay = 5
+                            try:
+                                rx_so_ngay = int(enc_data.get("so_ngay_dung") or 5)
+                            except (ValueError, TypeError):
+                                pass
+
+                            rx_loi_dan = enc_data.get("loi_dan_uong_thuoc") or (
+                                enc_data.get("don_thuoc", {}).get("loi_dan_uong_thuoc") if isinstance(enc_data.get("don_thuoc"), dict) else ""
+                            )
+
+                            if not existing_rx and len(med_items) > 0:
+                                existing_rx = DonThuoc(
+                                    luot_kham_id=target_lk.id,
+                                    bac_si_ke_don_id=bs_id or 1,
+                                    ngay_ke_don=datetime.now(timezone.utc),
+                                    so_ngay_dung=rx_so_ngay,
+                                    loi_dan_uong_thuoc=rx_loi_dan or "",
+                                    trang_thai=TrangThaiDonThuoc.DRAFT.value,
+                                )
+                                db.add(existing_rx)
+                                await db.flush()
+                            elif existing_rx:
+                                existing_rx.loi_dan_uong_thuoc = rx_loi_dan or existing_rx.loi_dan_uong_thuoc
+                                existing_rx.so_ngay_dung = rx_so_ngay
+                                if not existing_rx.trang_thai:
+                                    existing_rx.trang_thai = TrangThaiDonThuoc.DRAFT.value
+
+                            if existing_rx:
+                                # Xóa danh sách chi tiết cũ để nạp danh sách mới khi đơn ở DRAFT
+                                for old_item in list(existing_rx.danh_sach_chi_tiet or []):
+                                    await db.delete(old_item)
+                                await db.flush()
+
+                                items_for_hash = []
+                                for m in med_items:
+                                    if not isinstance(m, dict):
+                                        continue
+                                    t_name = str(m.get("ten_thuoc") or "").strip()
+                                    if not t_name:
+                                        continue
+                                    l_sang = str(m.get("sang") or m.get("lieu_sang") or "")
+                                    l_trua = str(m.get("trua") or m.get("lieu_trua") or "")
+                                    l_chieu = str(m.get("chieu") or m.get("lieu_chieu") or "")
+                                    l_toi = str(m.get("toi") or m.get("lieu_toi") or "")
+
+                                    m_days = rx_so_ngay
+                                    try:
+                                        m_days = int(m.get("so_ngay_dung") or rx_so_ngay)
+                                    except (ValueError, TypeError):
+                                        pass
+
+                                    raw_qty = m.get("so_luong")
+                                    calc_qty = 1
+                                    try:
+                                        if raw_qty is not None and int(raw_qty) > 0:
+                                            calc_qty = int(raw_qty)
+                                        else:
+                                            tot_day = 0.0
+                                            for slot in (l_sang, l_trua, l_chieu, l_toi):
+                                                try:
+                                                    tot_day += float(slot)
+                                                except (ValueError, TypeError):
+                                                    pass
+                                            calc_qty = max(1, int(tot_day * m_days) if tot_day > 0 else 1)
+                                    except (ValueError, TypeError):
+                                        calc_qty = 1
+
+                                    c_dung = str(m.get("cach_dung") or "").strip()
+                                    if not c_dung:
+                                        dparts = []
+                                        if l_sang and l_sang != "0":
+                                            dparts.append(f"sáng {l_sang}")
+                                        if l_trua and l_trua != "0":
+                                            dparts.append(f"trưa {l_trua}")
+                                        if l_chieu and l_chieu != "0":
+                                            dparts.append(f"chiều {l_chieu}")
+                                        if l_toi and l_toi != "0":
+                                            dparts.append(f"tối {l_toi}")
+                                        c_dung = f"Uống {', '.join(dparts)} sau ăn" if dparts else "Uống theo chỉ dẫn"
+
+                                    db.add(
+                                        ChiTietDonThuoc(
+                                            don_thuoc_id=existing_rx.id,
+                                            ten_thuoc=t_name,
+                                            hoat_chat=m.get("hoat_chat"),
+                                            ham_luong=m.get("ham_luong"),
+                                            don_vi_tinh=m.get("don_vi_tinh") or "Viên",
+                                            so_luong=calc_qty,
+                                            lieu_sang=l_sang,
+                                            lieu_trua=l_trua,
+                                            lieu_chieu=l_chieu,
+                                            lieu_toi=l_toi,
+                                            cach_dung=c_dung,
+                                            so_ngay_dung=m_days,
+                                            ghi_chu=m.get("ghi_chu"),
+                                        )
+                                    )
+                                    items_for_hash.append({
+                                        "ten_thuoc": t_name,
+                                        "ham_luong": m.get("ham_luong"),
+                                        "so_luong": calc_qty,
+                                        "don_vi_tinh": m.get("don_vi_tinh") or "Viên",
+                                        "cach_dung": c_dung,
+                                    })
+
+                                # Nếu yêu cầu ký số (SIGNED): Chuyển trạng thái, khóa chữ ký và hash
+                                if requested_status == TrangThaiDonThuoc.SIGNED.value:
+                                    existing_rx.trang_thai = TrangThaiDonThuoc.SIGNED.value
+                                    existing_rx.ngay_ky = datetime.now(timezone.utc)
+                                    existing_rx.nguoi_ky_id = bs_id
+                                    existing_rx.chu_ky_so = enc_data.get("chu_ky_so") or "BS-DIGITAL-SIGNATURE-SHA256"
+                                    existing_rx.du_lieu_don_thuoc_hash = PrescriptionFSMService.compute_prescription_hash(
+                                        existing_rx.id, items_for_hash
+                                    )
+                                    logger.info(
+                                        f"✍️ [FSM SIGNED IN WORKSPACE] DonThuoc #{existing_rx.id} | Hash: {existing_rx.du_lieu_don_thuoc_hash}"
+                                    )
 
             await db.commit()
             return {"saved": True}

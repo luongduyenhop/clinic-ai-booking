@@ -72,8 +72,12 @@ const toFormValues = (enc) => ({
     ...Object.fromEntries(VITAL_FIELDS.map((f) => [f.name, enc?.[f.name] ?? ''])),
     danh_sach_chan_doan: enc?.danh_sach_chan_doan || [],
     ket_luan_dieu_tri: enc?.ket_luan_dieu_tri || '',
-    danh_sach_thuoc: enc?.don_thuoc?.danh_sach_thuoc || [],
-    loi_dan_uong_thuoc: enc?.don_thuoc?.loi_dan_uong_thuoc || '',
+    danh_sach_thuoc: enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || [],
+    loi_dan_uong_thuoc: enc?.loi_dan_uong_thuoc || enc?.don_thuoc?.loi_dan_uong_thuoc || '',
+    trang_thai_don_thuoc: enc?.trang_thai_don_thuoc || enc?.don_thuoc?.trang_thai || 'DRAFT',
+    ngay_ky: enc?.ngay_ky || enc?.don_thuoc?.ngay_ky || '',
+    chu_ky_so: enc?.chu_ky_so || enc?.don_thuoc?.chu_ky_so || '',
+    nguoi_ky: enc?.nguoi_ky || enc?.don_thuoc?.nguoi_ky || '',
     ngay_hen_tai_kham: enc?.ngay_hen_tai_kham || '',
     loi_dan_bac_si: enc?.loi_dan_bac_si || '',
 })
@@ -323,12 +327,20 @@ export default function ExamWorkstationPage() {
             ngay_hen_tai_kham: v.ngay_hen_tai_kham || null,
             don_thuoc: {
                 loi_dan_uong_thuoc: v.loi_dan_uong_thuoc,
+                trang_thai: v.trang_thai_don_thuoc || 'DRAFT',
+                ngay_ky: v.ngay_ky || null,
+                chu_ky_so: v.chu_ky_so || null,
+                nguoi_ky: v.nguoi_ky || null,
                 danh_sach_thuoc: v.danh_sach_thuoc.map((r) => ({
                     ...r,
                     so_luong: computeQuantity(r),
                     cach_dung_day_du: [doseText(r), r.cach_dung].filter(Boolean).join(' – '),
                 })),
             },
+            trang_thai_don_thuoc: v.trang_thai_don_thuoc || 'DRAFT',
+            ngay_ky: v.ngay_ky || null,
+            chu_ky_so: v.chu_ky_so || null,
+            nguoi_ky: v.nguoi_ky || null,
         }
         try {
             await dispatch(completeEncounterAsync({ encounterId: encounter.id, payload })).unwrap()

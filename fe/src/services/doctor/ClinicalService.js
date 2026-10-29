@@ -327,6 +327,51 @@ export class ClinicalService extends BaseServices {
         }
     }
 
+    signPrescription = async (encounterId, payload = {}) => {
+        const enc = db.encounters[encounterId]
+        if (!enc) return reject('Không tìm thấy lượt khám')
+
+        if (enc.is_locked || enc.trang_thai_don_thuoc === 'SIGNED' || enc.don_thuoc?.trang_thai === 'SIGNED') {
+            return delay({
+                success: true,
+                alreadySigned: true,
+                message: 'Đơn thuốc đã được ký số trước đó và đang được bảo vệ bất biến.',
+                don_thuoc: enc.don_thuoc || {},
+            })
+        }
+
+        const now = new Date().toISOString()
+        const doctorName = enc.ten_bac_si || 'Bác sĩ phụ trách'
+        const sigData = payload.chu_ky_so || `SHA256:SIG:${encounterId}:${Date.now()}`
+
+        enc.trang_thai_don_thuoc = 'SIGNED'
+        if (!enc.don_thuoc) {
+            enc.don_thuoc = {}
+        }
+        enc.don_thuoc.trang_thai = 'SIGNED'
+        enc.don_thuoc.ngay_ky = now
+        enc.don_thuoc.chu_ky_so = sigData
+        enc.don_thuoc.nguoi_ky = doctorName
+        if (payload.danh_sach_thuoc) {
+            enc.don_thuoc.danh_sach_thuoc = payload.danh_sach_thuoc
+            enc.danh_sach_thuoc = payload.danh_sach_thuoc
+        }
+        if (payload.loi_dan_uong_thuoc) {
+            enc.don_thuoc.loi_dan_uong_thuoc = payload.loi_dan_uong_thuoc
+            enc.loi_dan_uong_thuoc = payload.loi_dan_uong_thuoc
+        }
+
+        await this.persistToPostgres()
+        return delay({
+            success: true,
+            trang_thai: 'SIGNED',
+            ngay_ky: now,
+            chu_ky_so: sigData,
+            nguoi_ky: doctorName,
+            don_thuoc: enc.don_thuoc,
+        })
+    }
+
     completeEncounter = async (encounterId, payload) => {
         const enc = db.encounters[encounterId]
         if (!enc) return reject('Không tìm thấy lượt khám')

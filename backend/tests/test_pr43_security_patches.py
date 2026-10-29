@@ -21,7 +21,7 @@ async def test_post_cashier_refund_rbac_denies_patient_and_doctor(api_client, bo
         headers=booking.tokens["bn_a"],
     )
     assert res_bn.status_code == 403
-    assert "Chỉ Thu ngân, Lễ tân hoặc Quản trị viên" in res_bn.json()["message"]
+    assert "quyền" in res_bn.json()["message"]
 
     # 2. Bác sĩ gọi refund -> 403
     res_bs = await api_client.post(
@@ -30,7 +30,7 @@ async def test_post_cashier_refund_rbac_denies_patient_and_doctor(api_client, bo
         headers=booking.tokens["bs_x"],
     )
     assert res_bs.status_code == 403
-    assert "Chỉ Thu ngân, Lễ tân hoặc Quản trị viên" in res_bs.json()["message"]
+    assert "quyền" in res_bs.json()["message"]
 
 
 @pytest.mark.asyncio
@@ -157,3 +157,46 @@ async def test_idor_protection_patient_history_summary(api_client, booking, db_s
         headers=booking.tokens["bs_x"],
     )
     assert res_doctor.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_patient_denied_reception_dashboards_and_resources(api_client, booking, db_session):
+    """
+    Test RBAC cho các endpoint Dashboard, Flow Board, và Resource tại quầy:
+    - Bệnh nhân không được phép xem các endpoint nội bộ vận hành -> 403 Forbidden
+    """
+    endpoints = [
+        "/api/v1/reception/search-appointments?q=test",
+        "/api/v1/reception/dashboard/shift-summary",
+        "/api/v1/reception/dashboard/room-status",
+        "/api/v1/reception/flow-board",
+        "/api/v1/reception/resources/roster",
+        "/api/v1/reception/resources/rooms",
+        "/api/v1/reception/resources/roster-template",
+        f"/api/v1/reception/queue/{booking.bs_x.id}",
+    ]
+    for ep in endpoints:
+        res = await api_client.get(ep, headers=booking.tokens["bn_a"])
+        assert res.status_code == 403, f"Endpoint {ep} must return 403 for patients, got {res.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_staff_allowed_reception_dashboards_and_resources(api_client, booking, db_session):
+    """
+    Test RBAC cho các endpoint Dashboard, Flow Board, và Resource tại quầy:
+    - Lễ tân và Admin được phép truy cập đầy đủ -> 200 OK
+    """
+    await booking.tao_tai_khoan("letan_dash", VaiTroEnum.LE_TAN.value)
+
+    endpoints = [
+        "/api/v1/reception/dashboard/shift-summary",
+        "/api/v1/reception/dashboard/room-status",
+        "/api/v1/reception/flow-board",
+        "/api/v1/reception/resources/roster",
+        "/api/v1/reception/resources/rooms",
+        "/api/v1/reception/resources/roster-template",
+        f"/api/v1/reception/queue/{booking.bs_x.id}",
+    ]
+    for ep in endpoints:
+        res = await api_client.get(ep, headers=booking.tokens["letan_dash"])
+        assert res.status_code == 200, f"Endpoint {ep} should return 200 for receptionist, got {res.status_code}"

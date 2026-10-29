@@ -340,7 +340,7 @@ class CashierService:
 
         stmt_slips = select(PhieuThuChi).where(
             PhieuThuChi.nhan_vien_id == thu_ngan_user_id,
-            PhieuThuChi.trang_thai_khoa_so == False,
+            PhieuThuChi.trang_thai_khoa_so.is_(False),
         )
         slips = (await db.execute(stmt_slips)).scalars().all()
 
@@ -388,7 +388,7 @@ class CashierService:
             select(PhieuThuChi)
             .where(
                 PhieuThuChi.nhan_vien_id == thu_ngan_user_id,
-                PhieuThuChi.trang_thai_khoa_so == False,
+                PhieuThuChi.trang_thai_khoa_so.is_(False),
             )
             .with_for_update()
         )

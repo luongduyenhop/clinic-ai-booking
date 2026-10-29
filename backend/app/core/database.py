@@ -7,9 +7,6 @@ from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
-from sqlalchemy.engine import make_url
-
-
 def _resolve_active_database_url() -> tuple[str, bool]:
     """Kiểm tra kết nối PostgreSQL; nếu dịch vụ PostgreSQL/Docker chưa bật thì tự động dùng SQLite bền vững"""
     url = settings.async_database_url

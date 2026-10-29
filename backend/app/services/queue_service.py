@@ -22,7 +22,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
 )
-from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham, ChuyenKhoa
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
 from app.models.specialized import DangKyGoiKham, GoiDichVu
 from app.schemas.queue import (
     CheckInRequest,
@@ -282,6 +282,13 @@ class QueueService:
             appointment_dt = datetime.combine(lich.ngay_kham, gio_hen)
             diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
+            # Xử lý trường hợp khung giờ cận nửa đêm (Midnight Wraparound):
+            if lich.ngay_kham == now_clinic.date():
+                if now_clinic.hour >= 20 and gio_hen.hour < 4:
+                    diff_minutes += 1440
+                elif now_clinic.hour < 4 and gio_hen.hour >= 20:
+                    diff_minutes -= 1440
+
             if diff_minutes > 30:
                 # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
                 loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
@@ -350,10 +357,18 @@ class QueueService:
         today = date.today()
         now = datetime.now(timezone.utc)
 
+        # 1. Validation Logic Phân bổ Bác sĩ (Critical):
+        if payload.bac_si_id is None and not payload.chuyen_khoa_id:
+            raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
+
+        if payload.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if not ck:
+                raise NotFoundException(f"Chuyên khoa ID {payload.chuyen_khoa_id} không tồn tại trên hệ thống!")
+
         # FC-07: Auto-assign nếu bac_si_id is None
         if payload.bac_si_id is None:
-            if not payload.chuyen_khoa_id:
-                raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
             from app.services.load_balancing_service import load_balancing_service
             effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
                 chuyen_khoa_id=payload.chuyen_khoa_id,
@@ -364,7 +379,14 @@ class QueueService:
         else:
             effective_doctor_id = payload.bac_si_id
 
-        bs = (await db.execute(select(BacSi).where(BacSi.id == effective_doctor_id))).scalar_one_or_none()
+        # Khóa dòng BacSi bằng SELECT ... FOR UPDATE OF bac_si
+        stmt_bs = (
+            select(BacSi)
+            .options(selectinload(BacSi.phong_kham))
+            .where(BacSi.id == effective_doctor_id)
+            .with_for_update(of=BacSi)
+        )
+        bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 
@@ -433,9 +455,33 @@ class QueueService:
         if payload.ghi_chu:
             ghi_chu = f"{ghi_chu} | {payload.ghi_chu}"
 
-        # Bệnh nhân vãng lai vào thẳng hàng đợi, không tạo lịch hẹn khám trước (lich_kham_id = None)
+        base_time = now.time()
+        gio_kham_tai_cho = time(
+            base_time.hour,
+            base_time.minute,
+            (next_stt * 7) % 60,
+            microsecond=min(999999, next_stt * 1000)
+        )
+        ma_lich = f"LK-{today.strftime('%Y%m%d')}-WLK{effective_doctor_id:02d}{next_stt:03d}"
+        lich_tai_cho = LichKham(
+            ma_lich_kham=ma_lich,
+            benh_nhan_id=payload.benh_nhan_id,
+            bac_si_id=effective_doctor_id,
+            chuyen_khoa_id=bs.chuyen_khoa_id,
+            ca_kham=payload.ca_kham,
+            ngay_kham=today,
+            gio_kham=gio_kham_tai_cho,
+            thoi_luong_phut=settings.SLOT_DURATION_MINUTES,
+            so_thu_tu=next_stt,
+            ly_do_kham=payload.ly_do_kham or "Tiếp đón vãng lai tại phòng khám",
+            trieu_chung_ban_dau=payload.ly_do_kham,
+            trang_thai=TrangThaiLichEnum.DA_TIEP_NHAN.value,
+        )
+        db.add(lich_tai_cho)
+        await db.flush()
+
         ticket = HangDoiKham(
-            lich_kham_id=None,
+            lich_kham_id=lich_tai_cho.id,
             benh_nhan_id=payload.benh_nhan_id,
             bac_si_id=effective_doctor_id,
             ngay_kham=today,

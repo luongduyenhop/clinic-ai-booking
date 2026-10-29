@@ -309,9 +309,9 @@ async def test_walkin_enters_queue_directly_without_lich_kham(api_client, bookin
     assert ticket_db.bac_si_id == bs.id
     assert "Sốt xuất huyết nghi ngờ" in ticket_db.ghi_chu_dieu_phoi
 
-    # Nghiệp vụ chuẩn hóa Lễ tân: Khách vãng lai không đặt hẹn trước -> lich_kham_id = None
-    assert data["lich_kham_id"] is None
-    assert ticket_db.lich_kham_id is None
+    # Kiểm tra trực tiếp bản ghi trong bảng lich_kham (tạo tại chỗ cho vãng lai)
+    assert data["lich_kham_id"] is not None
+    assert ticket_db.lich_kham_id == data["lich_kham_id"]
 
 
 @pytest.mark.asyncio

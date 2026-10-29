@@ -162,6 +162,13 @@ class IncidentService:
         if not absent_bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ vắng mặt!")
 
+        # Multi-tenancy check: Kiểm tra phong_kham_id của bác sĩ vắng mặt so với phong_kham_id của người dùng hiện tại
+        target_phong_kham_id = leave.phong_kham_id or absent_bs.phong_kham_id
+        user_phong_kham_id = getattr(current_user, "phong_kham_id", None)
+        if current_user.vai_tro != VaiTroEnum.ADMIN.value and user_phong_kham_id is not None:
+            if target_phong_kham_id != user_phong_kham_id:
+                raise ForbiddenException("Bạn không có quyền điều phối hàng đợi của phòng khám này!")
+
         now = datetime.now(timezone.utc)
         today = date.today()
 

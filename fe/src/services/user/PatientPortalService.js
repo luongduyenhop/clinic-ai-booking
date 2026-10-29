@@ -80,6 +80,65 @@ function readLocalFamily() {
 }
 
 class PatientPortalService {
+    async getMedicalRecords() {
+        const response = await http.get('/api/v1/patient/medical-records')
+        const records = response?.data?.data ?? []
+
+        return records.map((record) => {
+            const vitalSigns = record.sinh_hieu ?? {}
+            const diagnoses = record.danh_sach_chan_doan ?? []
+            const primaryDiagnosis = diagnoses.find((item) => item.loai_chan_doan?.toLowerCase() === 'chinh')
+            const secondaryDiagnoses = diagnoses.filter((item) => item !== primaryDiagnosis)
+            const dateTime = record.thoi_gian_bat_dau ?? `${record.ngay_kham}T00:00:00`
+
+            const displayVital = (value, suffix) => value == null ? 'Chưa ghi nhận' : `${value}${suffix}`
+            const displayDiagnosis = (diagnosis) => diagnosis
+                ? `${diagnosis.ma_icd10} - ${diagnosis.ten_benh_chan_doan}`
+                : 'Chưa có chẩn đoán'
+
+            return {
+                id: String(record.luot_kham_id),
+                maKcb: `HSK-${String(record.luot_kham_id).padStart(6, '0')}`,
+                ngayKham: record.ngay_kham,
+                gioKham: dateTime.slice(11, 16),
+                chuyenKhoa: record.chuyen_khoa,
+                phongKham: record.phong_kham,
+                bacSi: [record.bac_si_hoc_vi, record.bac_si_ho_ten].filter(Boolean).join(' '),
+                trangThai: record.trang_thai_luot_kham,
+                lyDoKham: record.ly_do_vao_kham || record.trieu_chung || 'Không ghi nhận',
+                tienSu: record.benh_su || 'Không ghi nhận',
+                sinhHieu: {
+                    huyetAp: vitalSigns.huyet_ap_tam_thu != null && vitalSigns.huyet_ap_tam_truong != null
+                        ? `${vitalSigns.huyet_ap_tam_thu}/${vitalSigns.huyet_ap_tam_truong} mmHg`
+                        : 'Chưa ghi nhận',
+                    mach: displayVital(vitalSigns.mach_lan_phut, ' bpm'),
+                    nhietDo: displayVital(vitalSigns.nhiet_do_c, ' °C'),
+                    spo2: displayVital(vitalSigns.spo2, '%'),
+                    canNang: displayVital(vitalSigns.can_nang_kg, ' kg'),
+                    chieuCao: displayVital(vitalSigns.chieu_cao_cm, ' cm'),
+                    bmi: displayVital(vitalSigns.bmi, ''),
+                },
+                chanDoan: {
+                    icd10Chinh: displayDiagnosis(primaryDiagnosis),
+                    icd10Phu: secondaryDiagnoses.map(displayDiagnosis).join('; '),
+                    ketLuan: record.ket_luan_dieu_tri || record.loi_dan_bac_si || 'Chưa có kết luận điều trị',
+                },
+                canLamSang: [],
+                donThuoc: {
+                    maDon: record.co_don_thuoc ? `Theo hồ sơ #${record.luot_kham_id}` : 'Không có đơn thuốc',
+                    soNgayDung: 0,
+                    loiDanChung: record.loi_dan_bac_si || 'Không có lời dặn',
+                    danhSachThuoc: [],
+                },
+                taiKham: {
+                    ngayHen: record.ngay_hen_tai_kham || 'Chưa có lịch hẹn',
+                    loiDanTaiKham: record.loi_dan_bac_si || 'Bác sĩ chưa ghi nhận lời dặn tái khám.',
+                },
+                danhGia: null,
+            }
+        })
+    }
+
     async getPortalData() {
         const savedAppointments = await bookingService.getBookings()
         await delay()

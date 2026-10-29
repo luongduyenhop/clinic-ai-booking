@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
@@ -6,9 +6,7 @@ import {
     Stethoscope,
     Pill,
     Clock,
-    CheckCircle,
     CalendarCheck,
-    Receipt,
     Printer,
     Sparkle,
     ArrowRight,
@@ -20,9 +18,10 @@ import {
     Eye,
     Scan
 } from '../../components/common/ClinicIcon'
+import { patientPortalService } from '../../services/user/PatientPortalService'
 
 // Dữ liệu mẫu hồ sơ bệnh án theo chuẩn tClinic và Medpro
-const MOCK_RECORDS = [
+const _MOCK_RECORDS = [
     {
         id: 'LK-2026-0042',
         maKcb: 'KCB-2026-0819-01',
@@ -212,8 +211,10 @@ const MOCK_RECORDS = [
 ]
 
 export default function PatientMedicalRecordsPage() {
-    const [records, setRecords] = useState(MOCK_RECORDS)
-    const [selectedRecordId, setSelectedRecordId] = useState(MOCK_RECORDS[0].id)
+    const [records, setRecords] = useState([])
+    const [selectedRecordId, setSelectedRecordId] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState('')
     const [activeTab, setActiveTab] = useState('tong_quan') // 'tong_quan' | 'don_thuoc' | 'can_lam_sang' | 'tai_kham'
 
     // Modal đánh giá 5 sao
@@ -223,6 +224,25 @@ export default function PatientMedicalRecordsPage() {
     const [activeFamilyMember, setActiveFamilyMember] = useState('self')
 
     const currentRecord = records.find((r) => r.id === selectedRecordId) || records[0]
+
+    useEffect(() => {
+        let active = true
+        patientPortalService.getMedicalRecords()
+            .then((data) => {
+                if (!active) return
+                setRecords(data)
+                setSelectedRecordId(data[0]?.id ?? null)
+                setLoadError('')
+            })
+            .catch(() => {
+                if (!active) return
+                setLoadError('Không thể tải bệnh án điện tử. Vui lòng thử lại.')
+            })
+            .finally(() => {
+                if (active) setIsLoading(false)
+            })
+        return () => { active = false }
+    }, [])
 
     const handleOpenRating = () => {
         if (currentRecord.danhGia) {
@@ -257,6 +277,18 @@ export default function PatientMedicalRecordsPage() {
 
     const handlePrintRecord = () => {
         window.print()
+    }
+
+    if (isLoading) {
+        return <div className="medpro-card p-10 text-center text-sm font-semibold text-slate-500">Đang tải timeline hồ sơ sức khỏe…</div>
+    }
+
+    if (loadError) {
+        return <div className="medpro-card border-rose-200 p-10 text-center text-sm font-semibold text-rose-700">{loadError}</div>
+    }
+
+    if (!currentRecord) {
+        return <div className="medpro-card p-10 text-center text-sm font-semibold text-slate-500">Bạn chưa có lượt khám nào trong hồ sơ sức khỏe.</div>
     }
 
     return (

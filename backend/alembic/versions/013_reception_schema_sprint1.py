@@ -1,7 +1,7 @@
 """Reception Schema Sprint 1: nullable doctor/time for specialty booking, add queue restore timestamp
 
-Revision ID: 012_reception_schema_sprint1
-Revises: 011_align_schema_to_erd_v8_2
+Revision ID: 013_reception_schema_sprint1
+Revises: 012_fix_schema_drift_and_legacy_constraints
 Create Date: 2026-10-27
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "012_reception_schema_sprint1"
-down_revision: Union[str, Sequence[str], None] = "011_align_schema_to_erd_v8_2"
+revision: str = "013_reception_schema_sprint1"
+down_revision: Union[str, Sequence[str], None] = "012_fix_schema_drift_and_legacy_constraints"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

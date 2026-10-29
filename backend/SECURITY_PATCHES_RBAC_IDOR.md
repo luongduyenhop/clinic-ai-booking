@@ -217,6 +217,18 @@ LichLamViec.is_active.is_(True),
 
 ---
 
+### 7. Tuyến Tính Hóa Chuỗi Alembic Migration (`alembic/versions/`)
+
+Khi merge nhánh `develop` vào branch này, xảy ra đụng độ trùng số thứ tự migration `012` giữa `012_fix_schema_drift_and_legacy_constraints.py` (từ `develop`) và `012_reception_schema_sprint1.py`.
+Để bảo đảm tính toàn vẹn của đồ thị Alembic (DAG), file tiếp đón được đổi thành:
+`alembic/versions/013_reception_schema_sprint1.py` với cấu hình:
+```python
+revision: str = "013_reception_schema_sprint1"
+down_revision: Union[str, Sequence[str], None] = "012_fix_schema_drift_and_legacy_constraints"
+```
+
+---
+
 ## 🧪 Lệnh Chạy Kiểm Thử Tự Động
 
 Chạy toàn bộ test suites bảo mật & điều phối qua Docker container:

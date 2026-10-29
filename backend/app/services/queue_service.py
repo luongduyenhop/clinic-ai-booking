@@ -22,7 +22,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
 )
-from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham, ChuyenKhoa
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
 from app.models.specialized import DangKyGoiKham, GoiDichVu
 from app.schemas.queue import (
     CheckInRequest,
@@ -61,6 +61,52 @@ class QueueService:
         if t < time(12, 30):
             return CaLamViecEnum.SANG.value
         return CaLamViecEnum.CHIEU.value
+
+    def _generate_queue_code(self, ticket: HangDoiKham) -> str:
+        """Sinh mã STT theo tiền tố buồng khám / chuyên khoa (ví dụ: NOI-01, TMH-02, RHM-01)"""
+        stt = ticket.so_thu_tu_kham or 1
+        prefix = "PK"
+
+        # 1. Ưu tiên tiền tố từ Chuyên khoa của Bác sĩ phụ trách buồng khám
+        if ticket.bac_si and ticket.bac_si.chuyen_khoa:
+            ck = ticket.bac_si.chuyen_khoa
+            ma_ck = (ck.ma_chuyen_khoa or "").upper().strip()
+            ten_ck = (ck.ten_chuyen_khoa or "").lower()
+
+            prefix_map = {
+                "KHOA_NOI": "NOI",
+                "KHOA_TMH": "TMH",
+                "KHOA_RHM": "RHM",
+                "KHOA_DA_LIEU": "DL",
+                "KHOA_TIM_MACH": "TM",
+                "KHOA_TIEU_HOA": "TH",
+                "KHOA_THAN_KINH": "TK",
+                "KHOA_HO_HAP": "HH",
+                "KHOA_XUONG_KHOP": "XK",
+                "KHOA_MAT": "MAT",
+                "KHOA_NGOAI": "NGOAI",
+                "KHOA_NHI": "NHI",
+                "KHOA_SAN": "SAN",
+            }
+            if ma_ck in prefix_map:
+                prefix = prefix_map[ma_ck]
+            elif "tai mũi họng" in ten_ck or "tai - mũi - họng" in ten_ck:
+                prefix = "TMH"
+            elif "răng hàm mặt" in ten_ck or "răng - hàm - mặt" in ten_ck:
+                prefix = "RHM"
+            elif "da liễu" in ten_ck:
+                prefix = "DL"
+            elif "nội" in ten_ck:
+                prefix = "NOI"
+            elif "ngoại" in ten_ck:
+                prefix = "NGOAI"
+            elif "mắt" in ten_ck:
+                prefix = "MAT"
+            elif ma_ck:
+                cleaned = ma_ck.replace("KHOA_", "").replace("KHOA-", "").replace("CK_", "").replace("CK-", "")
+                prefix = cleaned[:5] if cleaned else "PK"
+
+        return f"{prefix}-{stt:02d}"
 
     def _to_ticket_response(self, ticket: HangDoiKham) -> QueueTicketResponse:
         """Chuyển đổi thực thể HangDoiKham sang DTO QueueTicketResponse kèm chỉ số Flow Board"""
@@ -118,6 +164,7 @@ class QueueService:
             ngay_kham=ticket.ngay_kham,
             ca_kham=ticket.ca_kham,
             so_thu_tu_kham=ticket.so_thu_tu_kham,
+            ma_so_thu_tu=self._generate_queue_code(ticket),
             loai_hang_doi=ticket.loai_hang_doi,
             muc_do_uu_tien=ticket.muc_do_uu_tien,
             trang_thai=ticket.trang_thai,
@@ -194,7 +241,7 @@ class QueueService:
         if existing_ticket:
             # Bahmni Idempotency Rule: Gửi lại request không tạo vé rác, trả về vé và số thứ tự hiện hữu
             logger.info(f"Lịch hẹn {lich.ma_lich_kham} đã check-in trước đó, trả về vé STT #{existing_ticket.so_thu_tu_kham}")
-            return self._to_ticket_response(existing_ticket)
+            return await self._get_ticket_with_relations(existing_ticket.id, db)
 
         now = datetime.now(timezone.utc)
 
@@ -235,16 +282,22 @@ class QueueService:
             appointment_dt = datetime.combine(lich.ngay_kham, gio_hen)
             diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
+            # Xử lý trường hợp cận nửa đêm & lệch múi giờ (Circular 24h Wraparound):
+            while diff_minutes < -720:
+                diff_minutes += 1440
+            while diff_minutes > 720:
+                diff_minutes -= 1440
+
             if diff_minutes > 30:
                 # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
                 loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
                 muc_do_uu_tien = 4
-            elif diff_minutes < -30:
-                # Đến muộn hơn 30 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
+            elif diff_minutes < -15:
+                # Đến muộn hơn 15 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
                 loai_hang_doi = LoaiHangDoiEnum.DEN_MUON.value
                 muc_do_uu_tien = 5
             else:
-                # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 30p) -> ưu tiên 2 tiêu chuẩn
+                # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 15p) -> ưu tiên 2 tiêu chuẩn
                 loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
                 muc_do_uu_tien = 2
             ghi_chu = payload.ghi_chu
@@ -303,10 +356,18 @@ class QueueService:
         today = date.today()
         now = datetime.now(timezone.utc)
 
+        # 1. Validation Logic Phân bổ Bác sĩ (Critical):
+        if payload.bac_si_id is None and not payload.chuyen_khoa_id:
+            raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
+
+        if payload.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if not ck:
+                raise NotFoundException(f"Chuyên khoa ID {payload.chuyen_khoa_id} không tồn tại trên hệ thống!")
+
         # FC-07: Auto-assign nếu bac_si_id is None
         if payload.bac_si_id is None:
-            if not payload.chuyen_khoa_id:
-                raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
             from app.services.load_balancing_service import load_balancing_service
             effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
                 chuyen_khoa_id=payload.chuyen_khoa_id,
@@ -317,7 +378,14 @@ class QueueService:
         else:
             effective_doctor_id = payload.bac_si_id
 
-        bs = (await db.execute(select(BacSi).where(BacSi.id == effective_doctor_id))).scalar_one_or_none()
+        # Khóa dòng BacSi bằng SELECT ... FOR UPDATE OF bac_si
+        stmt_bs = (
+            select(BacSi)
+            .options(selectinload(BacSi.phong_kham))
+            .where(BacSi.id == effective_doctor_id)
+            .with_for_update(of=BacSi)
+        )
+        bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 
@@ -375,6 +443,17 @@ class QueueService:
         max_stt = (await db.execute(stmt_max_stt)).scalar()
         next_stt = max_stt + 1
 
+        # FC-08: Độ ưu tiên
+        if payload.ly_do_uu_tien:
+            muc_do_uu_tien = 1
+            ghi_chu = f"Ưu tiên ({payload.ly_do_uu_tien.value}): {payload.ly_do_kham or 'Vãng lai ưu tiên'}"
+        else:
+            muc_do_uu_tien = 5
+            ghi_chu = f"Vãng lai: {payload.ly_do_kham or 'Không ghi chú'}"
+
+        if payload.ghi_chu:
+            ghi_chu = f"{ghi_chu} | {payload.ghi_chu}"
+
         base_time = now.time()
         gio_kham_tai_cho = time(
             base_time.hour,
@@ -399,17 +478,6 @@ class QueueService:
         )
         db.add(lich_tai_cho)
         await db.flush()
-
-        # FC-08: Độ ưu tiên
-        if payload.ly_do_uu_tien:
-            muc_do_uu_tien = 1
-            ghi_chu = f"Ưu tiên ({payload.ly_do_uu_tien.value}): {payload.ly_do_kham or 'Vãng lai ưu tiên'}"
-        else:
-            muc_do_uu_tien = 5
-            ghi_chu = f"Vãng lai: {payload.ly_do_kham or 'Không ghi chú'}"
-
-        if payload.ghi_chu:
-            ghi_chu = f"{ghi_chu} | {payload.ghi_chu}"
 
         ticket = HangDoiKham(
             lich_kham_id=lich_tai_cho.id,
@@ -516,8 +584,9 @@ class QueueService:
             if lich:
                 lich.trang_thai = TrangThaiLichEnum.DANG_KHAM.value
 
+        ticket_id_called = candidate.id
+        ticket_stt_called = candidate.so_thu_tu_kham
         await db.commit()
-        await db.refresh(candidate)
 
         # 3. Đếm số người còn lại trong hàng đợi
         stmt_count = select(func.count(HangDoiKham.id)).where(
@@ -527,10 +596,12 @@ class QueueService:
         )
         remaining = (await db.execute(stmt_count)).scalar() or 0
 
-        logger.info(f"📢 [QUEUE CALLED] Bác sĩ {doctor_id} gọi bệnh nhân STT #{candidate.so_thu_tu_kham} (Ticket: {candidate.id})")
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        ticket_response = await self._get_ticket_with_relations(ticket_id_called, db)
+        logger.info(f"📢 [QUEUE CALLED] Bác sĩ {doctor_id} gọi bệnh nhân STT #{ticket_stt_called} (Ticket: {ticket_id_called})")
         return CallNextResponse(
-            message=f"Đã gọi thành công bệnh nhân STT #{candidate.so_thu_tu_kham} vào phòng khám!",
-            ticket=self._to_ticket_response(candidate),
+            message=f"Đã gọi thành công bệnh nhân STT #{ticket_stt_called} vào phòng khám!",
+            ticket=ticket_response,
             so_nguoi_con_lai=remaining,
         )
 
@@ -563,11 +634,12 @@ class QueueService:
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
+        ticket_id_postponed = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
         ticket.ghi_chu_dieu_phoi = f"Tạm hoãn lúc {datetime.now(timezone.utc).strftime('%H:%M:%S')} do gọi 3 lần không vào."
         await db.commit()
-        await db.refresh(ticket)
-        return self._to_ticket_response(ticket)
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        return await self._get_ticket_with_relations(ticket_id_postponed, db)
 
     async def restore_ticket(
         self,
@@ -584,13 +656,14 @@ class QueueService:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
         now = datetime.now(timezone.utc)
+        ticket_id_restored = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
         ticket.thoi_gian_xep_hang_lai = now
         ticket.muc_do_uu_tien = 4  # Khi quay lại, ưu tiên sau các ca đúng giờ
         ticket.ghi_chu_dieu_phoi = f"{ticket.ghi_chu_dieu_phoi or ''} | Phục hồi hàng đợi lúc {now.strftime('%H:%M:%S')}.".strip(" | ")
         await db.commit()
-        await db.refresh(ticket)
-        return self._to_ticket_response(ticket)
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        return await self._get_ticket_with_relations(ticket_id_restored, db)
 
     async def close_ticket(
         self,
@@ -820,6 +893,7 @@ class QueueService:
                     ngay_kham=t.ngay_kham,
                     ca_kham=t.ca_kham,
                     so_thu_tu_kham=t.so_thu_tu_kham,
+                    ma_so_thu_tu=self._generate_queue_code(t),
                     loai_hang_doi=t.loai_hang_doi,
                     muc_do_uu_tien=t.muc_do_uu_tien,
                     trang_thai=t.trang_thai,
@@ -1062,7 +1136,7 @@ class QueueService:
                 and_(
                     LichLamViec.ngay_lam_viec == target_date,
                     LichLamViec.ca_lam_viec == target_ca,
-                    LichLamViec.is_active == True,
+                    LichLamViec.is_active.is_(True),
                 )
             )
         )

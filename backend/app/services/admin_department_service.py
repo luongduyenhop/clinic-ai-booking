@@ -96,7 +96,7 @@ class AdminDepartmentService:
         if loai_phong:
             stmt = stmt.where(PhongKham.loai_phong == loai_phong)
         if chuyen_khoa_id:
-            stmt = stmt.where((PhongKham.chuyen_khoa_id == chuyen_khoa_id) | (PhongKham.chuyen_khoa_id == None))
+            stmt = stmt.where((PhongKham.chuyen_khoa_id == chuyen_khoa_id) | (PhongKham.chuyen_khoa_id.is_(None)))
         if is_active is not None:
             stmt = stmt.where(PhongKham.is_active == is_active)
         stmt = stmt.order_by(PhongKham.tang, PhongKham.ma_phong)

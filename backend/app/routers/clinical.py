@@ -684,10 +684,15 @@ async def save_clinical_workspace_state(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        user = (
+            current_user
+            if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int)
+            else None
+        )
         result = await clinical_service.sync_workspace_to_postgres(
             db=db,
             payload=payload,
-            current_user=current_user,
+            current_user=user,
         )
         return ResponseEnvelope.success_response(
             data=result,

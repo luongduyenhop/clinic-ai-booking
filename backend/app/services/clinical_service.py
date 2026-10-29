@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1295,7 +1295,7 @@ class ClinicalService:
         - Data Integrity: Không swallow ngoại lệ, rollback tức thì nếu có lỗi.
         - Medical Safety: Tuyệt đối không fallback sang first_lk tránh ghi đè chẩn đoán/chỉ định nhầm bệnh nhân.
         """
-        user_id = current_user.id if current_user else None
+        user_id = current_user.id if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
 
         try:
             # 1. Lưu snapshot JSON vào bảng HeThongTrangThaiBff
@@ -1417,7 +1417,7 @@ class ClinicalService:
 
                     # Task 3 AC1: Đồng bộ danh sách chẩn đoán ICD-10 vào bảng chan_doan
                     diagnoses = enc_data.get("danh_sach_chan_doan")
-                    if isinstance(diagnoses, list) and diagnoses:
+                    if isinstance(diagnoses, list):
                         cur_diags = (
                             await db.execute(
                                 select(ChanDoan).where(ChanDoan.luot_kham_id == target_lk.id)
@@ -1460,8 +1460,7 @@ class ClinicalService:
                             if loai == "chinh" and not primary_diag_str:
                                 primary_diag_str = f"{ma} - {ten or (kn.ten_khai_niem if kn else ma)}"
 
-                        if primary_diag_str:
-                            target_lk.chan_doan_so_bo = primary_diag_str[:255]
+                        target_lk.chan_doan_so_bo = primary_diag_str[:255] if primary_diag_str else None
 
             await db.commit()
             return {"saved": True}

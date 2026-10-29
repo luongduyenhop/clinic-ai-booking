@@ -185,7 +185,7 @@ class QueueService:
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
         now_clinic = datetime.now(clinic_tz)
-        appointment_dt = datetime.combine(now_clinic.date(), lich.gio_kham, tzinfo=clinic_tz)
+        appointment_dt = datetime.combine(lich.ngay_kham, lich.gio_kham, tzinfo=clinic_tz)
         diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
         if diff_minutes >= 30:

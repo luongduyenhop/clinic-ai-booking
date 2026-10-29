@@ -206,6 +206,17 @@ from app.core.exceptions import (
 
 ---
 
+### 6. `app/services/load_balancing_service.py`
+
+Sửa toán tử so sánh boolean trong SQLAlchemy 2.0 (`E712`):
+```python
+# Thay vì == True:
+BacSi.is_active.is_(True),
+LichLamViec.is_active.is_(True),
+```
+
+---
+
 ## 🧪 Lệnh Chạy Kiểm Thử Tự Động
 
 Chạy toàn bộ test suites bảo mật & điều phối qua Docker container:

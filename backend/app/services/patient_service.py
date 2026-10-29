@@ -3,16 +3,18 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, NotFoundException
+from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
 from app.models.medical import DanhGiaDichVu, DonThuoc, LuotKham
-from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan
+from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.patient import (
     FamilyMemberCreateRequest,
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
+    PatientDiagnosisResponse,
     PatientMedicalRecordSummaryResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
+    PatientVitalSignsResponse,
     ServiceFeedbackCreateRequest,
     ServiceFeedbackResponse,
 )
@@ -22,6 +24,8 @@ class PatientService:
     """Tầng nghiệp vụ chuyên biệt phục vụ Cổng Khách hàng / Bệnh nhân (Patient Portal)"""
 
     async def _get_current_benh_nhan(self, user: TaiKhoan, db: AsyncSession) -> BenhNhan:
+        if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Chỉ bệnh nhân mới được truy cập hồ sơ sức khỏe cá nhân!")
         stmt = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         bn = (await db.execute(stmt)).scalar_one_or_none()
         if not bn:
@@ -208,11 +212,39 @@ class PatientService:
             results.append(PatientMedicalRecordSummaryResponse(
                 luot_kham_id=enc.id,
                 ngay_kham=enc.thoi_gian_bat_dau.date() if enc.thoi_gian_bat_dau else enc.ngay_hen_tai_kham,
+                thoi_gian_bat_dau=enc.thoi_gian_bat_dau,
+                thoi_gian_ket_thuc=enc.thoi_gian_ket_thuc,
+                ly_do_vao_kham=enc.ly_do_vao_kham,
+                trieu_chung=enc.trieu_chung,
+                benh_su=enc.benh_su,
+                ket_luan_dieu_tri=enc.ket_luan_dieu_tri,
+                bac_si_id=bs.id,
                 bac_si_ho_ten=bs_name,
+                bac_si_hoc_vi=bs.hoc_vi,
                 chuyen_khoa=dept_name,
                 phong_kham="Phòng khám chuyên khoa",
                 chan_doan_chinh=main_diag,
                 ma_icd10=icd_code,
+                sinh_hieu=PatientVitalSignsResponse(
+                    mach_lan_phut=enc.mach_lan_phut,
+                    nhiet_do_c=float(enc.nhiet_do_c) if enc.nhiet_do_c is not None else None,
+                    huyet_ap_tam_thu=enc.huyet_ap_tam_thu,
+                    huyet_ap_tam_truong=enc.huyet_ap_tam_truong,
+                    nhip_tho_lan_phut=enc.nhip_tho_lan_phut,
+                    can_nang_kg=float(enc.can_nang_kg) if enc.can_nang_kg is not None else None,
+                    chieu_cao_cm=float(enc.chieu_cao_cm) if enc.chieu_cao_cm is not None else None,
+                    spo2=float(enc.spo2) if enc.spo2 is not None else None,
+                    bmi=float(enc.bmi) if enc.bmi is not None else None,
+                ),
+                danh_sach_chan_doan=[
+                    PatientDiagnosisResponse(
+                        ma_icd10=diagnosis.ma_icd10,
+                        ten_benh_chan_doan=diagnosis.ten_benh_chan_doan,
+                        loai_chan_doan=diagnosis.loai_chan_doan,
+                        ghi_chu_chuyen_mon=diagnosis.ghi_chu_chuyen_mon,
+                    )
+                    for diagnosis in enc.danh_sach_chan_doan or []
+                ],
                 loi_dan_bac_si=enc.loi_dan_bac_si,
                 ngay_hen_tai_kham=enc.ngay_hen_tai_kham,
                 tong_so_chi_dinh_cls=len(enc.danh_sach_chi_dinh or []),

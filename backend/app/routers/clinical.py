@@ -663,6 +663,7 @@ from app.models.medical import (
     LuotKhamTheLuc,
 )
 from app.models.user import BacSi, ChuyenKhoa
+from app.models.medical import ChiDinh, DichVu
 from app.services.bff_admin_service import bff_admin_service
 
 

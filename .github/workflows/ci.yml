@@ -7,9 +7,6 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
-  # ==============================================================================
-  # Job 1: Backend Linting & Pytest Suite (219 Tests)
-  # ==============================================================================
   backend-quality-and-test:
     name: Backend Linting & Automated Testing
     runs-on: ubuntu-latest
@@ -51,6 +48,7 @@ jobs:
       - name: 4. Kiểm tra Linter & Cú pháp (Ruff)
         working-directory: ./backend
         run: |
+          python -m ruff check --fix .
           python -m ruff check .
 
       - name: 5. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
@@ -65,9 +63,6 @@ jobs:
             python -m pytest tests -v
           fi
 
-  # ==============================================================================
-  # Job 2: Frontend Linting & Production Build (Next.js 14)
-  # ==============================================================================
   frontend-quality-and-build:
     name: Frontend Linting & Build Verification
     runs-on: ubuntu-latest
@@ -88,10 +83,10 @@ jobs:
         run: |
           npm ci
 
-      - name: 4. Kiểm tra Linter & Build Production (Next.js)
+      - name: 4. Kiểm tra Linter & Build Production (Vite)
         working-directory: ./fe
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:8000
-          NEXT_PUBLIC_ENABLE_ROLE_SWITCHER: "true"
+          VITE_API_URL: http://localhost:8000
+          VITE_USE_MOCK: "false"
         run: |
           npm run build

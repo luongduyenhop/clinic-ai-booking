@@ -3,26 +3,23 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
-    BadRequestException,
     ConflictException,
     NotFoundException,
     UnprocessableEntityException,
 )
 from app.models.appointment import LichKham
-from app.models.medical import ChiDinh, ChiTietHoaDon, DichVu, DonThuoc, GiaoDichThanhToan, HoaDon, LuotKham, PhieuThuChi
-from app.models.user import BacSi, BenhNhan, NguoiDung
+from app.models.medical import ChiDinh, ChiTietHoaDon, DonThuoc, GiaoDichThanhToan, HoaDon, LuotKham, PhieuThuChi
+from app.models.user import BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
     InvoiceCreateRequest,
-    InvoiceLineItemCreate,
     InvoiceLineItemResponse,
     InvoicePayRequest,
-    InvoiceResponse,
     PatientBrief,
     PendingBillItem,
     PendingBillsListResponse,
@@ -338,7 +335,7 @@ class CashierService:
 
         stmt_slips = select(PhieuThuChi).where(
             PhieuThuChi.nhan_vien_id == thu_ngan_user_id,
-            PhieuThuChi.trang_thai_khoa_so == False,
+            PhieuThuChi.trang_thai_khoa_so.is_(False),
         )
         slips = (await db.execute(stmt_slips)).scalars().all()
 
@@ -384,7 +381,7 @@ class CashierService:
             select(PhieuThuChi)
             .where(
                 PhieuThuChi.nhan_vien_id == thu_ngan_user_id,
-                PhieuThuChi.trang_thai_khoa_so == False,
+                PhieuThuChi.trang_thai_khoa_so.is_(False),
             )
             .with_for_update()
         )

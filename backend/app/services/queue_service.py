@@ -239,12 +239,12 @@ class QueueService:
                 # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
                 loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
                 muc_do_uu_tien = 4
-            elif diff_minutes < -15:
-                # Đến muộn hơn 15 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
+            elif diff_minutes < -30:
+                # Đến muộn hơn 30 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
                 loai_hang_doi = LoaiHangDoiEnum.DEN_MUON.value
                 muc_do_uu_tien = 5
             else:
-                # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 15p) -> ưu tiên 2 tiêu chuẩn
+                # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 30p) -> ưu tiên 2 tiêu chuẩn
                 loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
                 muc_do_uu_tien = 2
             ghi_chu = payload.ghi_chu

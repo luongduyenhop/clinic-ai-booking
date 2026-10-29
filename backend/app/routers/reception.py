@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from sqlalchemy import select
+from app.core.exceptions import ForbiddenException
+from app.models.user import TaiKhoan, VaiTroEnum, BenhNhan
 from app.schemas.queue import (
     CheckInRequest,
     WalkInCheckInRequest,
@@ -37,6 +39,29 @@ from app.services.incident_service import incident_service
 
 router = APIRouter(prefix="/reception", tags=["6. Tiếp Đón & Điều Phối Hàng Đợi (Bahmni Queue Module)"])
 
+async def _assert_patient_access_or_staff(benh_nhan_id: int, current_user: TaiKhoan, db: AsyncSession):
+    """
+    Bảo vệ chống lỗ hổng IDOR:
+    - Nhân viên y tế (Lễ tân, Bác sĩ, Thu ngân, Admin) được quyền tra cứu hồ sơ bệnh nhân phục vụ nghiệp vụ.
+    - Bệnh nhân chỉ được quyền tra cứu hồ sơ và gói khám của CHÍNH MÌNH.
+    """
+    staff_roles = {
+        VaiTroEnum.LE_TAN.value,
+        VaiTroEnum.BAC_SI.value,
+        VaiTroEnum.ADMIN.value,
+        VaiTroEnum.THU_NGAN.value,
+        VaiTroEnum.KY_THUAT_VIEN.value,
+    }
+    if current_user.vai_tro in staff_roles:
+        return
+
+    # Nếu người gọi là bệnh nhân, kiểm tra quyền sở hữu IDOR
+    stmt = select(BenhNhan.id).where(BenhNhan.nguoi_dung_id == current_user.nguoi_dung_id)
+    own_benh_nhan_id = (await db.execute(stmt)).scalar_one_or_none()
+    if own_benh_nhan_id != benh_nhan_id:
+        raise ForbiddenException("Bạn không có quyền truy cập hồ sơ của bệnh nhân khác!")
+
+
 
 @router.get(
     "/search-appointments",
@@ -49,6 +74,10 @@ async def search_appointments(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    staff_roles = {VaiTroEnum.LE_TAN.value, VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value, VaiTroEnum.THU_NGAN.value}
+    if current_user.vai_tro not in staff_roles:
+        raise ForbiddenException("Chức năng tìm kiếm lịch hẹn quầy tiếp đón chỉ dành cho nhân viên phòng khám!")
+
     results = await queue_service.search_appointments(q, query_date, db)
     return ResponseEnvelope.success_response(
         data=results,
@@ -265,6 +294,10 @@ async def get_reception_appointments(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    staff_roles = {VaiTroEnum.LE_TAN.value, VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value, VaiTroEnum.THU_NGAN.value}
+    if current_user.vai_tro not in staff_roles:
+        raise ForbiddenException("Chức năng tra cứu danh sách lịch hẹn tiếp đón chỉ dành cho nhân viên phòng khám!")
+
     result = await queue_service.get_reception_appointments(
         query_date=query_date,
         ca_kham=ca_kham,
@@ -390,6 +423,7 @@ async def get_patient_packages(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    await _assert_patient_access_or_staff(benh_nhan_id, current_user, db)
     result = await queue_service.get_patient_packages(benh_nhan_id, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -407,6 +441,7 @@ async def get_patient_history_summary(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    await _assert_patient_access_or_staff(benh_nhan_id, current_user, db)
     result = await queue_service.get_patient_history_summary(benh_nhan_id, db)
     return ResponseEnvelope.success_response(
         data=result,

@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.core.exceptions import ForbiddenException
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.cashier import (
     CloseShiftRequest,
     CloseShiftResponse,
@@ -269,6 +270,11 @@ async def refund_invoice(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # RBAC: Chỉ Lễ tân, Thu ngân hoặc Quản trị viên mới được phép hoàn tiền viện phí
+    allowed_roles = {VaiTroEnum.LE_TAN.value, VaiTroEnum.THU_NGAN.value, VaiTroEnum.ADMIN.value}
+    if current_user.vai_tro not in allowed_roles:
+        raise ForbiddenException("Chức năng hoàn tiền viện phí chỉ dành cho Lễ tân, Thu ngân hoặc Quản trị viên!")
+
     result = await cashier_service.refund_invoice(
         payload=payload,
         thu_ngan_user_id=current_user.nguoi_dung_id,

@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "012_reception_schema_sprint1"
-down_revision: Union[str, Sequence[str], None] = "011_align_schema_to_erd_v8_2"
+revision: str = "013_reception_schema_sprint1"
+down_revision: Union[str, Sequence[str], None] = "012_fix_schema_drift_and_legacy_constraints"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

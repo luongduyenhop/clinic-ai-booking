@@ -9,13 +9,11 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import (
     ConflictException,
     NotFoundException,
-    UnprocessableEntityException,
 )
 from app.models.medical import ChiDinh, DichVu, LuotKham
-from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham
+from app.models.user import BacSi, BenhNhan
 from app.schemas.subclinical import (
     PatientBrief,
-    SubclinicalDetailResponse,
     SubclinicalQueueItem,
     SubclinicalQueueResponse,
     SubclinicalResultSubmitRequest,

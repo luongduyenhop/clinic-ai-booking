@@ -198,7 +198,8 @@ class AIService:
         try:
             def infer():
                 return get_ai_triage_model().analyze(
-                    raw_text, age=payload.tuoi, gender=payload.gioi_tinh
+                    raw_text, age=payload.tuoi, gender=payload.gioi_tinh,
+                    structured=payload.structured.model_dump(exclude_none=True) if payload.structured else None,
                 )
 
             model_result = await run_in_threadpool(infer)

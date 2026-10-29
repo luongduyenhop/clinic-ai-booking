@@ -92,6 +92,14 @@ def test_packaged_model_does_not_infer_pediatrics_without_age_evidence():
     assert result["specialties"][0]["specialty"] != "Nhi"
 
 
+def test_optional_context_reaches_model_features():
+    result = get_ai_triage_model().analyze(
+        "ho và sốt", structured={"age": "age_child", "duration": "duration_hours", "severity": "severity_mild"},
+    )
+    assert result["pediatric_evidence"] is True
+    assert {"age_child", "duration_hours", "severity_mild"}.issubset(result["active_features"])
+
+
 @pytest.mark.asyncio
 async def test_api_uses_model_and_returns_explainability(api_client, db_session):
     await _ensure_specialty(db_session, "KHOA_RHM_AI_TEST", "Răng Hàm Mặt")

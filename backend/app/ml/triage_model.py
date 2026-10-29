@@ -60,9 +60,11 @@ class AITriageModel:
         *,
         age: int | None = None,
         gender: str | None = None,
+        structured: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        structured = self._structured_context(age, gender)
-        extraction = extract_features(text, self.feature_names, structured)
+        context = self._structured_context(age, gender)
+        context.update({key: value for key, value in (structured or {}).items() if value})
+        extraction = extract_features(text, self.feature_names, context)
         vector = extraction["vector"]
         frame = pd.DataFrame(
             [[vector[name] for name in self.feature_names]],

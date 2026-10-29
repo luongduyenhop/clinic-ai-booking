@@ -1,6 +1,14 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 from app.schemas.appointment import DoctorBriefResponse
+
+
+class TriageContext(BaseModel):
+    age: Optional[Literal['', 'age_newborn', 'age_infant', 'age_child', 'age_adolescent', 'age_adult', 'age_older_adult']] = None
+    sex: Optional[Literal['', 'sex_female', 'sex_male']] = None
+    duration: Optional[Literal['', 'duration_hours', 'duration_1_3_days', 'duration_4_7_days', 'duration_1_4_weeks', 'duration_over_4_weeks']] = None
+    onset: Optional[Literal['', 'onset_sudden', 'onset_gradual', 'onset_after_meal', 'onset_after_trauma', 'onset_after_infection']] = None
+    severity: Optional[Literal['', 'severity_mild', 'severity_moderate', 'severity_severe']] = None
 
 
 class SymptomTriageRequest(BaseModel):
@@ -8,6 +16,7 @@ class SymptomTriageRequest(BaseModel):
     trieu_chung: str = Field(..., min_length=5, max_length=4000, description="Mô tả các triệu chứng khó chịu người bệnh đang gặp phải")
     tuoi: Optional[int] = Field(None, ge=0, le=120, description="Độ tuổi bệnh nhân (hỗ trợ phân loại)")
     gioi_tinh: Optional[str] = Field(None, description="Giới tính")
+    structured: Optional[TriageContext] = None
 
 
 class SpecialtySuggestion(BaseModel):

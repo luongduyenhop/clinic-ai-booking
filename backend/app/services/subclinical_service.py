@@ -19,6 +19,7 @@ from app.schemas.subclinical import (
     SubclinicalResultSubmitRequest,
     SubclinicalServiceBrief,
 )
+from app.services.cls_result_state import is_phieu_approved, latest_phieu
 from app.services.cls_service_group import clinic_day_range, nhom_dich_vu_condition, nhom_dich_vu_of
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class SubclinicalService:
                 selectinload(ChiDinh.dich_vu),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(ChiDinh.phieu_ket_qua),
             )
             .where(ChiDinh.created_at >= day_start, ChiDinh.created_at < day_end)
             .order_by(ChiDinh.created_at.asc(), ChiDinh.id.asc())
@@ -132,6 +134,8 @@ class SubclinicalService:
                     ket_qua_phan_loai=o.ket_qua_phan_loai,
                     tri_so_chi_tiet=o.tri_so_chi_tiet,
                     file_dinh_kem_urls=o.file_dinh_kem_urls,
+                    trang_thai_ket_qua=o.phieu_ket_qua.trang_thai if o.phieu_ket_qua else None,
+                    thoi_gian_duyet=o.phieu_ket_qua.thoi_gian_duyet if o.phieu_ket_qua else None,
                 )
             )
 
@@ -190,6 +194,8 @@ class SubclinicalService:
 
         if order.trang_thai == "da_huy":
             raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
+        if is_phieu_approved(await latest_phieu(order.id, db)):
+            raise ConflictException("Kết quả đã được duyệt, không thể chỉnh sửa!")
 
         now = datetime.now(timezone.utc)
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet

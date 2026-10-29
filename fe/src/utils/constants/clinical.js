@@ -23,7 +23,13 @@ export const ORDER_STATUS = {
     dang_thuc_hien: { label: 'Đang làm', badge: 'medpro-badge-info' },
     da_co_ket_qua: { label: 'Có kết quả', badge: 'medpro-badge-success' },
     da_huy: { label: 'Đã hủy', badge: 'medpro-badge-danger' },
+    // Trạng thái hiển thị (chỉ định vẫn dang_thuc_hien): KTV đã hoàn tất kết quả, chờ "Duyệt & Trả kết quả"
+    cho_duyet: { label: 'Chờ duyệt', badge: 'medpro-badge-warning' },
 }
+
+// Trạng thái hiển thị trên bàn KTV: tách ca đã hoàn tất kết quả nhưng chưa duyệt khỏi "Đang làm"
+export const clsDisplayStatus = (order) =>
+    order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA' ? 'cho_duyet' : order.trang_thai
 
 export const RESULT_CLASS = {
     BINH_THUONG: { label: 'Bình thường', badge: 'medpro-badge-success' },

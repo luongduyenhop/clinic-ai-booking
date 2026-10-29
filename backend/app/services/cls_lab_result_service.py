@@ -1,8 +1,8 @@
 """Nhập kết quả xét nghiệm máu theo bộ chỉ số mẫu và tự cảnh báo chỉ số vượt ngưỡng.
 
-Backend tự đánh giá từng chỉ số (không tin cờ do client gửi lên) và lưu vào `ket_qua_cls`;
-khi trả kết quả thì ghi thêm các cột kết quả trên `chi_dinh` để các màn hình đang đọc chúng không bị vỡ.
-`ket_qua_cls` có thể chứa bản nháp: kết quả chỉ được coi là đã trả khi `chi_dinh.trang_thai == "da_co_ket_qua"`.
+Backend tự đánh giá từng chỉ số (không tin cờ do client gửi lên) và lưu vào `ket_qua_cls`.
+Trạng thái nằm ở `phieu_ket_qua_cls` (NHAP -> DA_CO_KET_QUA chờ duyệt -> DA_DUYET); các cột kết quả trên `chi_dinh`
+chỉ được ghi khi KTV bấm "Duyệt & Trả kết quả" (cls_approval_service).
 """
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
-from app.models.medical import ChiDinh, KetQuaCLS, LuotKham
+from app.models.medical import ChiDinh, KetQuaCLS, LuotKham, PhieuKetQuaCLS
 from app.models.user import BenhNhan
 from app.schemas.cls_lab_result import (
     LabIndicatorResult,
@@ -24,6 +24,7 @@ from app.schemas.cls_lab_result import (
     LabTemplateResponse,
 )
 from app.services.cls_lab_templates import LabIndicator, LabTemplate, find_lab_template, normalize_gioi_tinh
+from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_NHAP, is_phieu_approved, latest_phieu
 from app.services.cls_service_group import XET_NGHIEM, nhom_dich_vu_of
 
 # Đánh giá từng chỉ số
@@ -180,13 +181,15 @@ class ClsLabResultService:
         return order, template, gioi_tinh
 
     @staticmethod
-    def _saved_result(order: ChiDinh) -> Optional[LabResultSaved]:
+    def _saved_result(order: ChiDinh, phieu: Optional[PhieuKetQuaCLS]) -> Optional[LabResultSaved]:
         kq = order.ket_qua
         detail = (kq.tri_so_chi_tiet if kq else None) or {}
         if detail.get("loai") != XET_NGHIEM:
             return None
         return LabResultSaved(
             da_tra_ket_qua=order.trang_thai == "da_co_ket_qua",
+            trang_thai_ket_qua=phieu.trang_thai if phieu else PHIEU_NHAP,
+            thoi_gian_duyet=kq.thoi_gian_duyet,
             ket_qua_phan_loai=kq.ket_qua_phan_loai or PHAN_LOAI_BINH_THUONG,
             chi_so=detail.get("chi_so") or {},
             chi_tiet=detail.get("chi_tiet") or [],
@@ -209,7 +212,7 @@ class ClsLabResultService:
             ten_mau=template.ten_mau,
             gioi_tinh_ap_dung=gioi_tinh,
             chi_so=[_indicator_template(ind, gioi_tinh, i) for i, ind in enumerate(template.chi_so)],
-            ket_qua=self._saved_result(order),
+            ket_qua=self._saved_result(order, await latest_phieu(order.id, db)),
         )
 
     async def submit_lab_result(
@@ -219,17 +222,20 @@ class ClsLabResultService:
         technician_user_id: int,
         db: AsyncSession,
     ) -> LabResultResponse:
-        """Lưu nháp hoặc trả kết quả xét nghiệm; chỉ nhận chỉ định đang thực hiện (hoặc cập nhật kết quả đã trả)"""
+        """Lưu nháp hoặc hoàn tất kết quả xét nghiệm (chờ duyệt); chỉ nhận chỉ định đang thực hiện, chưa duyệt"""
         order, template, gioi_tinh = await self._load_lab_order(order_id, db, for_update=True)
+        phieu = await latest_phieu(order.id, db)
 
         if order.trang_thai == "da_huy":
             raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
         if order.trang_thai == "da_chi_dinh":
             raise ConflictException("Chỉ định chưa được tiếp nhận, hãy bấm Tiếp nhận & bắt đầu trước khi nhập kết quả!")
-        if order.trang_thai == "da_co_ket_qua" and payload.luu_nhap:
-            raise ConflictException("Kết quả đã trả cho bác sĩ, không thể lưu nháp — hãy bấm Cập nhật kết quả!")
-        if order.trang_thai not in ("dang_thuc_hien", "da_co_ket_qua"):
+        if order.trang_thai == "da_co_ket_qua" or is_phieu_approved(phieu):
+            raise ConflictException("Kết quả đã được duyệt và trả cho bác sĩ, không thể chỉnh sửa!")
+        if order.trang_thai != "dang_thuc_hien":
             raise ConflictException(f"Không thể nhập kết quả ở trạng thái {order.trang_thai}!")
+        if payload.luu_nhap and phieu is not None and phieu.trang_thai == PHIEU_CHO_DUYET:
+            raise ConflictException("Kết quả đã hoàn tất, đang chờ duyệt — không thể lưu nháp, hãy bấm Cập nhật kết quả!")
 
         results = evaluate_lab_values(template, gioi_tinh, payload.chi_so)
         danh_gias = [r.danh_gia for r in results]
@@ -262,19 +268,25 @@ class ClsLabResultService:
         kq.thoi_gian_lay_mau = order.thoi_gian_lay_mau
         kq.thoi_gian_thuc_hien = order.thoi_gian_thuc_hien or now
 
+        if phieu is None:
+            phieu = PhieuKetQuaCLS(chi_dinh_id=order.id, lan_thuc_hien=1)
+            db.add(phieu)
+        phieu.loai_ket_qua = XET_NGHIEM
+        phieu.trang_thai = PHIEU_NHAP if payload.luu_nhap else PHIEU_CHO_DUYET
+        phieu.ket_luan = ket_luan
+        phieu.ghi_chu = ghi_chu
+        phieu.ky_thuat_vien_id = technician_user_id
+        phieu.thoi_gian_lay_mau = kq.thoi_gian_lay_mau
+        phieu.thoi_gian_thuc_hien = kq.thoi_gian_thuc_hien
         if not payload.luu_nhap:
-            order.trang_thai = "da_co_ket_qua"
-            order.thoi_gian_tra_ket_qua = now
             order.ky_thuat_vien_id = technician_user_id
-            order.ket_qua_chi_tiet = kq.ket_qua_chi_tiet
-            order.ket_qua_phan_loai = phan_loai
-            order.tri_so_chi_tiet = detail
 
         response = LabResultResponse(
             chi_dinh_id=order.id,
             trang_thai=order.trang_thai,
             ket_qua=LabResultSaved(
-                da_tra_ket_qua=order.trang_thai == "da_co_ket_qua",
+                da_tra_ket_qua=False,
+                trang_thai_ket_qua=phieu.trang_thai,
                 ket_qua_phan_loai=phan_loai,
                 chi_so=chi_so,
                 chi_tiet=results,
@@ -282,7 +294,6 @@ class ClsLabResultService:
                 so_nguy_hiem=detail["so_nguy_hiem"],
                 ket_luan=ket_luan,
                 ghi_chu=ghi_chu,
-                thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua if order.trang_thai == "da_co_ket_qua" else None,
             ),
         )
         await db.commit()

@@ -140,8 +140,9 @@ class PatientPortalService {
 
                 // 3. Kết quả Cận lâm sàng
                 const orders = enc.danh_sach_chi_dinh || []
+                const needsApproval = (o) => ['XET_NGHIEM', 'CDHA'].includes(o.nhom_dich_vu)
                 orders.forEach((o) => {
-                    if (o.trang_thai === 'da_co_ket_qua') {
+                    if (o.trang_thai === 'da_co_ket_qua' && (!needsApproval(o) || o.thoi_gian_duyet)) {
                         dynamicLabResults.push({
                             id: `lab-${o.id}`,
                             code: o.ma_dich_vu || `CLS-${o.id}`,
@@ -152,7 +153,11 @@ class PatientPortalService {
                             department: o.nhom_dich_vu === 'CDHA' ? 'Khoa Chẩn đoán hình ảnh' : 'Khoa Xét nghiệm',
                             status: 'Đã có kết quả',
                             summary: o.ket_qua_chi_tiet?.ket_luan || o.ket_qua_chi_tiet?.mo_ta || o.ket_qua_phan_loai || 'Chỉ số trong giới hạn bình thường',
-                            details: o.ket_qua_chi_tiet?.chi_so || [],
+                            details: (o.ket_qua_chi_tiet?.chi_tiet || []).map((c) => ({
+                                label: c.ten,
+                                value: `${c.gia_tri} ${c.don_vi || ''}${c.danh_gia && c.danh_gia !== 'BINH_THUONG' ? (c.huong === 'THAP' ? ' ↓' : ' ↑') : ''}`.trim(),
+                                reference: c.khoang_tham_chieu || '—',
+                            })),
                         })
                     }
                 })

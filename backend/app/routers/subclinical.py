@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
+from app.schemas.cls_approval import ClsApprovalResponse, ClsReportResponse, ReturnedClsResultsResponse
 from app.schemas.cls_imaging import (
     ClsFileListResponse,
     ClsFileResponse,
@@ -22,6 +23,7 @@ from app.schemas.subclinical import (
     WorkspaceOrdersResponse,
 )
 from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
+from app.services.cls_approval_service import cls_approval_service
 from app.services.cls_file_service import cls_file_service
 from app.services.cls_lab_result_service import cls_lab_result_service
 from app.services.cls_service_group import CLS_GROUPS
@@ -32,6 +34,8 @@ router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghi
 
 # Bàn làm việc CLS: kỹ thuật viên thực hiện, bác sĩ theo dõi/hủy chỉ định của mình, admin giám sát
 CLS_WORKBENCH_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN]
+# Ký duyệt & trả kết quả do kỹ thuật viên phòng CLS thực hiện (admin giám sát), không phải bác sĩ chỉ định
+CLS_APPROVER_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.ADMIN]
 
 
 @router.get(
@@ -291,3 +295,46 @@ async def save_imaging_result(
         data=result,
         message="Đã trả kết quả chẩn đoán hình ảnh" if result.trang_thai == "da_co_ket_qua" else "Đã lưu nháp kết quả"
     )
+
+
+# ── Ký duyệt & trả kết quả, phiếu in, kết quả mới cho bàn khám ─────────────
+@router.post(
+    "/orders/{order_id}/approve",
+    response_model=ResponseEnvelope[ClsApprovalResponse],
+    summary="KTV duyệt & trả kết quả đã hoàn tất: chỉ định sang da_co_ket_qua, khóa sửa kết quả và ảnh"
+)
+async def approve_subclinical_result(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_APPROVER_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_approval_service.approve(order_id, current_user, db)
+    return ResponseEnvelope.success_response(data=result, message="Đã duyệt & trả kết quả cho bác sĩ chỉ định")
+
+
+@router.get(
+    "/orders/{order_id}/report",
+    response_model=ResponseEnvelope[ClsReportResponse],
+    summary="Dữ liệu phiếu kết quả CLS để in A4/A5 (chỉ kết quả đã duyệt)"
+)
+async def get_subclinical_report(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_approval_service.get_report(order_id, current_user, db)
+    return ResponseEnvelope.success_response(data=result, message="Lấy dữ liệu phiếu kết quả thành công")
+
+
+@router.get(
+    "/returned-results",
+    response_model=ResponseEnvelope[ReturnedClsResultsResponse],
+    summary="Kết quả CLS vừa được duyệt (bàn khám bác sĩ hỏi định kỳ để hiện kết quả không cần tải lại trang)"
+)
+async def get_returned_results(
+    since: Optional[datetime] = Query(None, description="Lấy kết quả duyệt từ thời điểm này (mặc định đầu ngày)"),
+    current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cls_approval_service.returned_results(current_user, since, db)
+    return ResponseEnvelope.success_response(data=result, message=f"Có {len(result.items)} kết quả mới")

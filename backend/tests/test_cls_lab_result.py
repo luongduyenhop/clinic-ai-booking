@@ -127,9 +127,11 @@ async def test_nop_ket_qua_tu_danh_gia_va_luu_ket_qua_cls(api_client, booking, d
     res = await api_client.post(url, json=body, headers=booking.tokens["ktv"])
     assert res.status_code == 200, res.text
     data = res.json()["data"]
-    assert data["trang_thai"] == "da_co_ket_qua"
+    # Hoàn tất kết quả chưa phải trả: chỉ định giữ dang_thuc_hien cho tới khi KTV duyệt
+    assert data["trang_thai"] == "dang_thuc_hien"
     kq = data["ket_qua"]
-    assert kq["da_tra_ket_qua"] is True
+    assert kq["da_tra_ket_qua"] is False
+    assert kq["trang_thai_ket_qua"] == "DA_CO_KET_QUA"
     assert kq["ket_qua_phan_loai"] == "NGUY_KICH"
     assert kq["so_bat_thuong"] == 2 and kq["so_nguy_hiem"] == 1
     danh_gia = {c["ma"]: (c["danh_gia"], c["huong"]) for c in kq["chi_tiet"]}
@@ -145,20 +147,19 @@ async def test_nop_ket_qua_tu_danh_gia_va_luu_ket_qua_cls(api_client, booking, d
     assert ket_qua.nguoi_thuc_hien_id is not None
     assert "Tiểu cầu (PLT): 40 G/L ▼ NGUY_HIEM" in ket_qua.ket_qua_chi_tiet
 
-    # Các cột cũ trên chi_dinh vẫn được ghi cho màn hình đang đọc chúng
+    # Chưa duyệt thì chưa ghi các cột kết quả trên chi_dinh (bàn khám chưa thấy kết quả)
     chi_dinh = await db_session.get(ChiDinh, order_id)
     await db_session.refresh(chi_dinh)
-    assert chi_dinh.ket_qua_phan_loai == "NGUY_KICH"
-    assert chi_dinh.tri_so_chi_tiet["loai"] == "XET_NGHIEM"
-    assert chi_dinh.tri_so_chi_tiet["chi_so"]["PLT"] == "40"
-    assert chi_dinh.thoi_gian_tra_ket_qua is not None
+    assert chi_dinh.trang_thai == "dang_thuc_hien"
+    assert not (chi_dinh.tri_so_chi_tiet or {}).get("loai")
+    assert chi_dinh.thoi_gian_tra_ket_qua is None
 
     # Mở lại (tải lại trang) vẫn thấy kết quả
     res_tpl = await api_client.get(f"/api/v1/subclinical/orders/{order_id}/lab-template", headers=booking.tokens["ktv"])
     saved = res_tpl.json()["data"]["ket_qua"]
     assert saved["chi_so"] == {"WBC": "10", "HGB": "125", "PLT": "40"}
     assert saved["ket_luan"] == "Giảm tiểu cầu nặng"
-    assert saved["da_tra_ket_qua"] is True
+    assert saved["trang_thai_ket_qua"] == "DA_CO_KET_QUA"
 
     # Cập nhật kết quả: ghi đè đúng 1 bản ghi ket_qua_cls
     res_update = await api_client.post(url, json={"chi_so": {"PLT": 200}}, headers=booking.tokens["ktv"])
@@ -167,7 +168,7 @@ async def test_nop_ket_qua_tu_danh_gia_va_luu_ket_qua_cls(api_client, booking, d
     rows = (await db_session.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order_id))).scalars().all()
     assert len(rows) == 1
 
-    # Đã trả rồi thì không lưu nháp được nữa
+    # Đã hoàn tất (chờ duyệt) thì không quay về nháp được nữa
     res_draft = await api_client.post(url, json={"chi_so": {"PLT": 200}, "luu_nhap": True}, headers=booking.tokens["ktv"])
     assert res_draft.status_code == 409
 

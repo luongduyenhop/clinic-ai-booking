@@ -112,11 +112,43 @@ const toWorklistItem = (item) => {
         ket_qua_chi_tiet: (hasResult && parseResultDetail(item)) || mirror?.ket_qua_chi_tiet || null,
         ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : mirror?.ket_qua_phan_loai || null,
         tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || mirror?.tep_dinh_kem_url || null,
+        // Phiếu kết quả: NHAP / DA_CO_KET_QUA (KTV hoàn tất, chờ duyệt) / DA_DUYET
+        trang_thai_ket_qua: item.trang_thai_ket_qua || null,
+        thoi_gian_duyet: item.thoi_gian_duyet || null,
+    }
+}
+
+const sameInstant = (a, b) => Boolean(a && b) && Date.parse(a) === Date.parse(b)
+
+// Kết quả đã duyệt từ máy chủ -> các trường của bản sao chỉ định trên bàn khám (cùng cấu trúc ResultView)
+const toMirrorPatch = (r) => ({
+    trang_thai: r.trang_thai,
+    ket_qua_phan_loai: r.ket_qua_phan_loai,
+    ket_qua_chi_tiet: r.ket_qua_chi_tiet,
+    tep_dinh_kem_url: r.tep_dinh_kem_urls?.[0] || null,
+    tep_dinh_kem_urls: r.tep_dinh_kem_urls || [],
+    thoi_gian_tra_ket_qua: r.thoi_gian_tra_ket_qua,
+    thoi_gian_duyet: r.thoi_gian_duyet,
+    nguoi_duyet: r.nguoi_duyet,
+})
+
+// Ghi kết quả vào bản sao và đẩy lượt khám lên đầu hàng đợi để bác sĩ gọi lại kết luận
+// (bệnh nhân đang ở trong phòng khám thì giữ nguyên trạng thái, không đẩy ra khỏi bàn khám)
+const applyReturnedResult = (mirror, patch) => {
+    Object.assign(mirror.order, patch)
+    const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
+    if (ticket && ticket.trang_thai !== 'dang_kham') {
+        ticket.trang_thai = 'co_ket_qua_cls'
+        ticket.muc_do_uu_tien = 0
+        ticket.ghi_chu = `${patch.ket_qua_phan_loai === 'NGUY_KICH' ? '🚨 KQ CLS NGUY KỊCH' : '⭐ CÓ KQ CLS'}: ${mirror.order.ten_dich_vu}`
     }
 }
 
 export class ClinicalService extends BaseServices {
     _hydratedFromPg = false
+    _returnedSince = null
+    _returnedPollOff = false
+    _returnedPolling = null
 
     constructor() {
         super()
@@ -620,6 +652,10 @@ export class ClinicalService extends BaseServices {
             })
             trangThai = res?.data?.data?.trang_thai || trangThai
         }
+        if (imaging) {
+            // CĐHA hoàn tất chỉ là chờ duyệt: bàn khám nhận kết quả khi KTV bấm "Duyệt & Trả kết quả" (approveOrder)
+            return { data: { id: orderId, trang_thai: trangThai, trang_thai_ket_qua: final ? 'DA_CO_KET_QUA' : 'NHAP' } }
+        }
         const result = { ...payload, id: orderId, trang_thai: trangThai }
         if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
 
@@ -768,9 +804,11 @@ export class ClinicalService extends BaseServices {
     submitLabResult = async (orderId, body) => {
         const res = await this.post(`/api/v1/subclinical/orders/${orderId}/lab-results`, body)
         const { trang_thai, ket_qua: kq } = res.data.data
+        // Hoàn tất xét nghiệm chỉ là chờ duyệt; bàn khám nhận kết quả khi KTV duyệt (approveOrder)
         const result = {
             id: orderId,
             trang_thai,
+            trang_thai_ket_qua: kq.trang_thai_ket_qua,
             ket_qua_phan_loai: kq.ket_qua_phan_loai,
             ket_qua_chi_tiet: {
                 loai: 'XET_NGHIEM',
@@ -780,11 +818,74 @@ export class ClinicalService extends BaseServices {
                 ghi_chu: kq.ghi_chu,
             },
         }
-        if (!body.luu_nhap) {
-            result.thoi_gian_tra_ket_qua = kq.thoi_gian_tra_ket_qua
-            await this.syncReturnedResultToWorkspace(orderId, result)
-        }
         return { data: result }
+    }
+
+    // ── Ký duyệt & trả kết quả, phiếu in, kết quả mới cho bàn khám ──
+    approveOrder = async (orderId) => {
+        const res = await this.post(`/api/v1/subclinical/orders/${orderId}/approve`, {})
+        const data = res.data.data
+        const patch = toMirrorPatch(data.ket_qua)
+        await this.syncReturnedResultToWorkspace(orderId, patch)
+        return { data: { id: orderId, ...patch, trang_thai_ket_qua: data.trang_thai_ket_qua, nguoi_duyet: data.nguoi_duyet.ho_ten } }
+    }
+
+    getClsReport = async (orderId) => {
+        const res = await this.get(`/api/v1/subclinical/orders/${orderId}/report`, { __skipGlobalLoading: true })
+        return res?.data?.data
+    }
+
+    // Bàn khám hỏi định kỳ các kết quả vừa duyệt (khác máy/khác người dùng vẫn nhận được, không cần tải lại trang).
+    // Trả về những chỉ định mà bàn khám này chưa biết là đã có kết quả: [{ encounterId, patientName, order }]
+    pollReturnedResults = async () => {
+        // Hẹn giờ và sự kiện cầu nối có thể gọi chồng nhau: dùng chung một lượt hỏi để không báo trùng
+        if (this._returnedPollOff) return []
+        if (this._returnedPolling) return []
+        this._returnedPolling = this._pollReturnedResultsOnce()
+        try {
+            return await this._returnedPolling
+        } finally {
+            this._returnedPolling = null
+        }
+    }
+
+    _pollReturnedResultsOnce = async () => {
+        let payload
+        try {
+            const query = this._returnedSince ? `?since=${encodeURIComponent(this._returnedSince)}` : ''
+            const res = await this.get(`/api/v1/subclinical/returned-results${query}`, {
+                __skipGlobalLoading: true,
+                __skipGlobalError: true,
+            })
+            payload = res?.data?.data || {}
+        } catch (e) {
+            // Không phải tài khoản bác sĩ/admin thì dừng hỏi; lỗi mạng thì lần sau hỏi lại
+            if (e?.response?.status === 403) this._returnedPollOff = true
+            return []
+        }
+        if (payload.server_time) this._returnedSince = payload.server_time
+        const isNew = (it) => {
+            const mirror = findMirrorOrder(it.chi_dinh_id)
+            return mirror && !sameInstant(mirror.order.thoi_gian_duyet, it.thoi_gian_duyet)
+        }
+        const fresh = (payload.items || []).filter(isNew)
+        if (fresh.length === 0) return []
+
+        // Tải bản mới nhất trước khi ghi để không đè thay đổi của máy khác
+        await this.reloadFromPostgres()
+        const changed = []
+        let dirty = false
+        fresh.forEach((it) => {
+            const mirror = findMirrorOrder(it.chi_dinh_id)
+            if (!mirror) return
+            if (isNew(it)) {
+                applyReturnedResult(mirror, toMirrorPatch(it))
+                dirty = true
+            }
+            changed.push({ encounterId: mirror.enc.id, patientName: mirror.enc.benh_nhan?.ho_ten, order: structuredClone(mirror.order) })
+        })
+        if (dirty) await this.persistToPostgres()
+        return changed
     }
 
     // Đưa kết quả đã trả về bản sao trên bàn khám để bác sĩ thấy (kèm cờ cảnh báo) và lượt khám được ưu tiên gọi lại
@@ -794,13 +895,7 @@ export class ClinicalService extends BaseServices {
         if (mirror) {
             const patch = { ...result }
             delete patch.id
-            Object.assign(mirror.order, patch)
-            const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
-            if (ticket) {
-                ticket.trang_thai = 'co_ket_qua_cls'
-                ticket.muc_do_uu_tien = 0
-                ticket.ghi_chu = `${result.ket_qua_phan_loai === 'NGUY_KICH' ? '🚨 KQ CLS NGUY KỊCH' : '⭐ CÓ KQ CLS'}: ${mirror.order.ten_dich_vu}`
-            }
+            applyReturnedResult(mirror, patch)
             await this.persistToPostgres()
         }
         try {

@@ -76,6 +76,9 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
     }, [order.id])
 
     const pickPreset = (name) => setValues({ ...values, mo_ta: presets[name].mo_ta, ket_luan: presets[name].ket_luan })
+    // Đã duyệt & trả (da_co_ket_qua) thì khóa toàn bộ form; đã hoàn tất (chờ duyệt) thì vẫn sửa được
+    const locked = approved || order.trang_thai === 'da_co_ket_qua'
+    const completed = order.trang_thai_ket_qua === 'DA_CO_KET_QUA'
 
     const submit = async (final) => {
         if (final) {
@@ -98,10 +101,10 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
     return (
         <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
             <PerformerFields serviceName={order.ten_dich_vu} />
-            <PresetChips label="Chèn mẫu kết quả:" presets={presets} onPick={pickPreset} />
+            <PresetChips label="Chèn mẫu kết quả:" presets={presets} onPick={pickPreset} disabled={locked} />
 
             <div className="flex flex-wrap gap-5">
-                <div className="flex min-w-0 flex-[999_1_360px] flex-col gap-4">
+                <fieldset disabled={locked} className="flex min-w-0 flex-[999_1_360px] flex-col gap-4">
                     <label>
                         <span className="medpro-label">Mô tả</span>
                         <textarea name="mo_ta" rows={7} className="medpro-input" value={values.mo_ta} onChange={handleChange} />
@@ -127,24 +130,27 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
                             ))}
                         </div>
                     </fieldset>
-                </div>
+                </fieldset>
                 <div className="flex-[1_1_280px]">
                     <ClsImageUploader
                         orderId={order.id}
                         urls={images}
                         onChange={setImages}
-                        disabled={order.trang_thai === 'da_chi_dinh' || approved}
+                        disabled={order.trang_thai === 'da_chi_dinh' || locked}
                         disabledHint={approved ? 'Kết quả đã duyệt, không thay đổi ảnh' : 'Bấm “Tiếp nhận & bắt đầu” để tải ảnh lên'}
                     />
                 </div>
             </div>
 
-            <ResultFormFooter
-                submitting={submitting}
-                alreadyReturned={order.trang_thai === 'da_co_ket_qua'}
-                onDraft={() => submit(false)}
-                onSubmit={() => submit(true)}
-            />
+            {!locked && (
+                <ResultFormFooter
+                    submitting={submitting}
+                    needsApproval
+                    alreadyReturned={completed}
+                    onDraft={() => submit(false)}
+                    onSubmit={() => submit(true)}
+                />
+            )}
         </form>
     )
 }

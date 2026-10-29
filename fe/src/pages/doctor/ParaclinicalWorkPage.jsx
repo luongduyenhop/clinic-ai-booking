@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync } from '../../redux/actions/doctor/clinicalAction'
-import { SERVICE_GROUPS, ORDER_STATUS } from '../../utils/constants/clinical'
+import { SERVICE_GROUPS, ORDER_STATUS, clsDisplayStatus } from '../../utils/constants/clinical'
 import { formatDateTime } from '../../utils/helpers/formatDate'
 import { AppToast } from '../../components/common/AppNotification'
 import { ClinicIcon } from '../../components/common/ClinicIcon'
@@ -10,14 +10,19 @@ import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/cl
 import IndicatorResultForm from '../../components/doctor/cls/IndicatorResultForm'
 import ImagingResultForm from '../../components/doctor/cls/ImagingResultForm'
 import EndoscopyResultForm from '../../components/doctor/cls/EndoscopyResultForm'
+import ClsApprovalBar from '../../components/doctor/cls/ClsApprovalBar'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 
 const STATUS_FILTERS = [
     { key: 'ALL', label: 'Tất cả' },
     { key: 'da_chi_dinh', label: 'Chờ làm' },
     { key: 'dang_thuc_hien', label: 'Đang làm' },
+    { key: 'cho_duyet', label: 'Chờ duyệt' },
     { key: 'da_co_ket_qua', label: 'Có kết quả' },
 ]
+
+// Xét nghiệm và CĐHA đi qua bước KTV "Duyệt & Trả kết quả"; TDCN/Nội soi vẫn trả thẳng như cũ
+const APPROVAL_GROUPS = ['XET_NGHIEM', 'CDHA']
 
 const REFRESH_MS = 30000
 
@@ -84,7 +89,7 @@ export default function ParaclinicalWorkPage() {
         setSearchParams({ nhom: key })
     }
 
-    const visible = worklist.filter((o) => statusFilter === 'ALL' || o.trang_thai === statusFilter)
+    const visible = worklist.filter((o) => statusFilter === 'ALL' || clsDisplayStatus(o) === statusFilter)
     const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {
@@ -103,7 +108,9 @@ export default function ParaclinicalWorkPage() {
         setSubmitting(true)
         try {
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()
-            AppToast.success(final ? `Đã trả kết quả ${selected.ten_dich_vu}` : 'Đã lưu nháp kết quả')
+            if (!final) AppToast.success('Đã lưu nháp kết quả')
+            else if (APPROVAL_GROUPS.includes(group)) AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — bấm “Duyệt & Trả kết quả” để gửi bác sĩ`)
+            else AppToast.success(`Đã trả kết quả ${selected.ten_dich_vu}`)
         } catch (msg) {
             AppToast.error(msg)
         } finally {
@@ -117,8 +124,8 @@ export default function ParaclinicalWorkPage() {
         try {
             const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
             if (body.luu_nhap) AppToast.success('Đã lưu nháp kết quả xét nghiệm')
-            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã trả kết quả ${selected.ten_dich_vu} — có chỉ số nguy hiểm`)
-            else AppToast.success(`Đã trả kết quả ${selected.ten_dich_vu}`)
+            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã hoàn tất ${selected.ten_dich_vu} — có chỉ số nguy hiểm, kiểm tra kỹ trước khi duyệt`)
+            else AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — chờ duyệt & trả`)
         } catch (msg) {
             AppToast.error(msg)
         } finally {
@@ -188,7 +195,7 @@ export default function ParaclinicalWorkPage() {
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                         {STATUS_FILTERS.map((f) => {
-                            const n = f.key === 'ALL' ? worklist.length : worklist.filter((o) => o.trang_thai === f.key).length
+                            const n = f.key === 'ALL' ? worklist.length : worklist.filter((o) => clsDisplayStatus(o) === f.key).length
                             return (
                                 <button
                                     key={f.key}
@@ -213,7 +220,7 @@ export default function ParaclinicalWorkPage() {
 
                     {!worklistLoading &&
                         visible.map((o) => {
-                            const st = ORDER_STATUS[o.trang_thai]
+                            const st = ORDER_STATUS[clsDisplayStatus(o)]
                             const isSel = selected?.id === o.id
                             return (
                                 <button
@@ -277,7 +284,8 @@ export default function ParaclinicalWorkPage() {
                                     </button>
                                 )}
                             </div>
-                            <div className="p-5">
+                            <div className="flex flex-col gap-4 p-5">
+                                {APPROVAL_GROUPS.includes(group) && <ClsApprovalBar order={selected} />}
                                 <ResultForm
                                     key={selected.id}
                                     group={group}

@@ -90,17 +90,23 @@ export function ClassificationBar({ value, abnormalCount }) {
     )
 }
 
-export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturned }) {
+// needsApproval: nhóm XN/CĐHA — nút chính chỉ "Hoàn tất kết quả", KTV duyệt & trả ở bước sau
+export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturned, needsApproval = false }) {
+    const submitLabel = needsApproval ? 'Hoàn tất kết quả' : 'Trả kết quả'
     return (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
             <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
-                Khi trả, kết quả hiện ngay ở cột “Kết quả CLS” trên Bàn khám và bệnh nhân được xếp bậc 3 để quay lại kết luận.
+                {needsApproval
+                    ? 'Sau khi hoàn tất, bấm “Duyệt & Trả kết quả” để kết quả hiện trên Bàn khám của bác sĩ chỉ định.'
+                    : 'Khi trả, kết quả hiện ngay ở cột “Kết quả CLS” trên Bàn khám và bệnh nhân được xếp bậc 3 để quay lại kết luận.'}
             </span>
-            <button type="button" className="medpro-btn-outline" disabled={submitting} onClick={onDraft}>
-                Lưu nháp
-            </button>
+            {!(needsApproval && alreadyReturned) && (
+                <button type="button" className="medpro-btn-outline" disabled={submitting} onClick={onDraft}>
+                    Lưu nháp
+                </button>
+            )}
             <button type="button" className="medpro-btn-primary" disabled={submitting} onClick={onSubmit}>
-                {submitting ? 'Đang gửi…' : alreadyReturned ? 'Cập nhật kết quả' : 'Trả kết quả'}
+                {submitting ? 'Đang gửi…' : alreadyReturned ? 'Cập nhật kết quả' : submitLabel}
                 <ClinicIcon name="ArrowRight" size={16} weight="bold" />
             </button>
         </div>

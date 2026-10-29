@@ -66,7 +66,10 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
     if (!template) return <LoadingBlock />
 
     const notStarted = order.trang_thai === 'da_chi_dinh'
-    const returned = order.trang_thai === 'da_co_ket_qua'
+    // da_co_ket_qua = KTV đã duyệt & trả: khóa sửa. Đã hoàn tất (chờ duyệt) thì vẫn cập nhật được, không quay về nháp
+    const approved = order.trang_thai === 'da_co_ket_qua'
+    const completed = (order.trang_thai_ket_qua || template.ket_qua?.trang_thai_ket_qua) === 'DA_CO_KET_QUA'
+    const locked = notStarted || approved
     const rows = template.chi_so.map((c) => ({ c, ev: evaluateLabValue(c, values[c.ma]) }))
     const evals = rows.map((r) => r.ev).filter((ev) => ev && !ev.invalid)
     const classification = classify(evals)
@@ -93,7 +96,7 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
         const body = { chi_so: chiSo, ket_luan: ketLuan.trim() || null, ghi_chu: ghiChu.trim() || null, luu_nhap: !final }
         if (final && critical.length > 0) {
             Modal.confirm({
-                title: `Trả kết quả có ${critical.length} chỉ số ở ngưỡng nguy hiểm?`,
+                title: `Hoàn tất kết quả có ${critical.length} chỉ số ở ngưỡng nguy hiểm?`,
                 content: (
                     <div className="space-y-1.5 text-[13px]">
                         <ul className="list-disc pl-5 text-rose-700">
@@ -103,10 +106,10 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                                 </li>
                             ))}
                         </ul>
-                        <p className="text-slate-600">Hãy kiểm tra lại mẫu/máy trước khi trả. Bác sĩ chỉ định sẽ thấy cờ cảnh báo Nguy kịch.</p>
+                        <p className="text-slate-600">Hãy kiểm tra lại mẫu/máy. Khi duyệt & trả, bác sĩ chỉ định sẽ thấy cờ cảnh báo Nguy kịch.</p>
                     </div>
                 ),
-                okText: 'Đã kiểm tra, trả kết quả',
+                okText: 'Đã kiểm tra, hoàn tất',
                 okButtonProps: { danger: true },
                 cancelText: 'Xem lại',
                 onOk: () => onSubmitLab(body),
@@ -171,7 +174,7 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                                         <input
                                             aria-label={c.ten}
                                             inputMode="decimal"
-                                            disabled={notStarted || submitting}
+                                            disabled={locked || submitting}
                                             className={`medpro-input font-bold ${style ? `${style.input} ${style.text}` : ''} ${
                                                 ev?.invalid ? '!border-rose-500' : ''
                                             }`}
@@ -204,7 +207,7 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label>
                     <span className="medpro-label">Kết luận</span>
-                    <textarea rows={2} className="medpro-input" value={ketLuan} disabled={notStarted} onChange={(e) => setKetLuan(e.target.value)} />
+                    <textarea rows={2} className="medpro-input" value={ketLuan} disabled={locked} onChange={(e) => setKetLuan(e.target.value)} />
                 </label>
                 <label>
                     <span className="medpro-label">Ghi chú</span>
@@ -213,26 +216,29 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                         className="medpro-input"
                         placeholder="Ví dụ: mẫu hơi đục, đã ly tâm lại"
                         value={ghiChu}
-                        disabled={notStarted}
+                        disabled={locked}
                         onChange={(e) => setGhiChu(e.target.value)}
                     />
                 </label>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
-                    Đánh giá do hệ thống tính lại khi lưu. Khi trả, kết quả và cờ cảnh báo hiện ngay ở cột “Kết quả CLS” trên Bàn khám.
-                </span>
-                {!returned && (
-                    <button type="button" className="medpro-btn-outline" disabled={submitting || notStarted} onClick={() => submit(false)}>
-                        Lưu nháp
+            {!approved && (
+                <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                    <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
+                        Đánh giá do hệ thống tính lại khi lưu. Sau khi hoàn tất, bấm “Duyệt &amp; Trả kết quả” để kết quả và cờ cảnh báo hiện
+                        trên Bàn khám của bác sĩ.
+                    </span>
+                    {!completed && (
+                        <button type="button" className="medpro-btn-outline" disabled={submitting || notStarted} onClick={() => submit(false)}>
+                            Lưu nháp
+                        </button>
+                    )}
+                    <button type="button" className="medpro-btn-primary" disabled={submitting || notStarted} onClick={() => submit(true)}>
+                        {submitting ? 'Đang lưu…' : completed ? 'Cập nhật kết quả' : 'Hoàn tất kết quả'}
+                        <ClinicIcon name="ArrowRight" size={16} weight="bold" />
                     </button>
-                )}
-                <button type="button" className="medpro-btn-primary" disabled={submitting || notStarted} onClick={() => submit(true)}>
-                    {submitting ? 'Đang gửi…' : returned ? 'Cập nhật kết quả' : 'Trả kết quả'}
-                    <ClinicIcon name="ArrowRight" size={16} weight="bold" />
-                </button>
-            </div>
+                </div>
+            )}
         </form>
     )
 }

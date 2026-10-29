@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
     LAB_TEMPLATES,
     FUNCTIONAL_TEMPLATES,
@@ -10,6 +11,7 @@ import {
 } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { ClsImageGallery } from '../cls/ClsImageUploader'
+import ClsResultPrintModal from '../cls/ClsResultPrintModal'
 
 function IndicatorTable({ params, values }) {
     return (
@@ -108,9 +110,11 @@ function TextBlock({ label, text }) {
 
 // Hiển thị kết quả CLS theo 4 loại (dùng chung cho Bàn khám và trang Cận lâm sàng)
 export default function ResultView({ order }) {
+    const [printOpen, setPrintOpen] = useState(false)
     if (!order) return null
     const detail = order.ket_qua_chi_tiet
     const cls = RESULT_CLASS[order.ket_qua_phan_loai]
+    const printableId = order.thoi_gian_duyet && order.trang_thai === 'da_co_ket_qua' ? order.server_order_id : null
 
     if (!detail) {
         return <p className="text-sm text-slate-500">Chưa có kết quả cho chỉ định này.</p>
@@ -118,12 +122,23 @@ export default function ResultView({ order }) {
 
     return (
         <div className="space-y-4">
-            {cls && (
-                <div className="flex items-center gap-2 text-[13px]">
-                    <span className="text-slate-600">Phân loại:</span>
-                    <span className={cls.badge}>{cls.label}</span>
+            {(cls || printableId) && (
+                <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                    {cls && (
+                        <>
+                            <span className="text-slate-600">Phân loại:</span>
+                            <span className={cls.badge}>{cls.label}</span>
+                        </>
+                    )}
+                    {order.nguoi_duyet && <span className="text-slate-500">· KTV duyệt: {order.nguoi_duyet}</span>}
+                    {printableId && (
+                        <button type="button" className="medpro-btn-outline ml-auto !py-1.5" onClick={() => setPrintOpen(true)}>
+                            <ClinicIcon name="Printer" size={15} /> In phiếu
+                        </button>
+                    )}
                 </div>
             )}
+            {printOpen && <ClsResultPrintModal orderId={printableId} open={printOpen} onClose={() => setPrintOpen(false)} />}
 
             {detail.loai === 'XET_NGHIEM' &&
                 (detail.chi_tiet ? (

@@ -8,7 +8,6 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -33,6 +32,7 @@ from app.schemas.cls_imaging import (
     ImagingResultRequest,
     ImagingResultResponse,
 )
+from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_NHAP, is_phieu_approved, latest_phieu
 from app.services.cls_service_group import CDHA, XET_NGHIEM, nhom_dich_vu_of
 
 logger = logging.getLogger(__name__)
@@ -168,11 +168,15 @@ class ClsFileService:
     # ── Kết quả Chẩn đoán hình ảnh ───────────────────────────────────────
 
     async def get_imaging_result(self, order_id: int, db: AsyncSession) -> ImagingResultResponse:
-        stmt = select(ChiDinh).options(selectinload(ChiDinh.dich_vu)).where(ChiDinh.id == order_id)
+        stmt = (
+            select(ChiDinh)
+            .options(selectinload(ChiDinh.dich_vu), selectinload(ChiDinh.ket_qua))
+            .where(ChiDinh.id == order_id)
+        )
         order = (await db.execute(stmt)).scalar_one_or_none()
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
-        return self._to_response(order, await self._latest_phieu(order.id, db))
+        return self._to_response(order, await latest_phieu(order.id, db), order.ket_qua)
 
     async def save_imaging_result(
         self,
@@ -181,23 +185,25 @@ class ClsFileService:
         technician_user_id: int,
         db: AsyncSession,
     ) -> ImagingResultResponse:
-        """Lưu nháp hoặc trả kết quả CĐHA vào phieu_ket_qua_cls; khi trả thì cập nhật cả chi_dinh và ket_qua_cls"""
+        """Lưu nháp hoặc hoàn tất kết quả CĐHA vào phieu_ket_qua_cls (+ ket_qua_cls khi hoàn tất).
+
+        Chỉ định vẫn ở `dang_thuc_hien` cho tới khi KTV bấm "Duyệt & Trả kết quả" (cls_approval_service).
+        """
         order = await self._lock_order(order_id, db)
         group = self._ensure_imaging_order(order)
         self._ensure_editable(order)
-        phieu = await self._latest_phieu(order.id, db)
-        if self._phieu_approved(phieu):
+        phieu = await latest_phieu(order.id, db)
+        if is_phieu_approved(phieu) or order.trang_thai == "da_co_ket_qua":
             raise ConflictException("Kết quả đã được duyệt, không thể chỉnh sửa!")
 
         mo_ta = (payload.mo_ta_hinh_anh or "").strip() or None
         ket_luan = (payload.ket_luan or "").strip() or None
         de_nghi = (payload.de_nghi or "").strip() or None
-        # Đã trả kết quả thì mọi lần lưu sau đều là cập nhật kết quả đã trả, không quay về nháp
-        final = payload.hoan_tat or order.trang_thai == "da_co_ket_qua"
+        # Đã hoàn tất (chờ duyệt) thì mọi lần lưu sau đều là cập nhật kết quả hoàn tất, không quay về nháp
+        final = payload.hoan_tat or bool(phieu and phieu.trang_thai == PHIEU_CHO_DUYET)
         if final and not (mo_ta and ket_luan):
-            raise UnprocessableEntityException("Cần nhập mô tả hình ảnh và kết luận trước khi trả kết quả")
+            raise UnprocessableEntityException("Cần nhập mô tả hình ảnh và kết luận trước khi hoàn tất kết quả")
 
-        now = datetime.now(timezone.utc)
         if phieu is None:
             phieu = PhieuKetQuaCLS(chi_dinh_id=order.id, lan_thuc_hien=1)
             db.add(phieu)
@@ -211,30 +217,23 @@ class ClsFileService:
         phieu.ky_thuat_vien_id = technician_user_id
         phieu.thoi_gian_lay_mau = order.thoi_gian_lay_mau
         phieu.thoi_gian_thuc_hien = order.thoi_gian_thuc_hien
-        phieu.trang_thai = "DA_CO_KET_QUA" if final else "NHAP"
+        phieu.trang_thai = PHIEU_CHO_DUYET if final else PHIEU_NHAP
 
+        ket_qua = (await db.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))).scalar_one_or_none()
         if final:
-            phieu.thoi_gian_tra_ket_qua = now
-            order.trang_thai = "da_co_ket_qua"
-            order.ket_qua_chi_tiet = self._summary_text(mo_ta, ket_luan, de_nghi)
-            order.ket_qua_phan_loai = payload.ket_qua_phan_loai
-            order.tep_dinh_kem_url = attachments[0] if attachments else None
-            order.thoi_gian_tra_ket_qua = now
             order.ky_thuat_vien_id = technician_user_id
-
-            ket_qua = (await db.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))).scalar_one_or_none()
             if ket_qua is None:
                 ket_qua = KetQuaCLS(chi_dinh_id=order.id)
                 db.add(ket_qua)
             ket_qua.nguoi_thuc_hien_id = technician_user_id
-            ket_qua.ket_qua_chi_tiet = order.ket_qua_chi_tiet
+            ket_qua.ket_qua_chi_tiet = self._summary_text(mo_ta, ket_luan, de_nghi)
             ket_qua.ket_qua_phan_loai = payload.ket_qua_phan_loai
             ket_qua.file_dinh_kem_urls = attachments
             ket_qua.thoi_gian_lay_mau = order.thoi_gian_lay_mau
             ket_qua.thoi_gian_thuc_hien = order.thoi_gian_thuc_hien
 
         await db.commit()
-        return self._to_response(order, phieu)
+        return self._to_response(order, phieu, ket_qua)
 
     # ── Nội bộ ───────────────────────────────────────────────────────────
 
@@ -306,34 +305,20 @@ class ClsFileService:
         if order.trang_thai not in _EDITABLE_STATES:
             raise ConflictException("Cần tiếp nhận ca (bắt đầu thực hiện) trước khi nhập kết quả hình ảnh")
 
-    @staticmethod
-    async def _latest_phieu(order_id: int, db: AsyncSession) -> Optional[PhieuKetQuaCLS]:
-        stmt = (
-            select(PhieuKetQuaCLS)
-            .where(PhieuKetQuaCLS.chi_dinh_id == order_id)
-            .order_by(PhieuKetQuaCLS.lan_thuc_hien.desc())
-            .limit(1)
-        )
-        return (await db.execute(stmt)).scalar_one_or_none()
-
-    @staticmethod
-    def _phieu_approved(phieu: Optional[PhieuKetQuaCLS]) -> bool:
-        return bool(phieu and (phieu.trang_thai == "DA_DUYET" or phieu.bac_si_duyet_id or phieu.thoi_gian_duyet))
-
     async def _ensure_not_approved(self, order: ChiDinh, db: AsyncSession) -> None:
-        if self._phieu_approved(await self._latest_phieu(order.id, db)):
+        if is_phieu_approved(await latest_phieu(order.id, db)):
             raise ConflictException("Kết quả đã được duyệt, không thể thay đổi ảnh!")
 
     async def _sync_result_attachments(self, order: ChiDinh, db: AsyncSession) -> None:
         """Giữ danh sách ảnh trên phiếu kết quả khớp với chi_dinh khi thêm/xóa ảnh sau lúc đã lưu kết quả"""
         attachments = list(order.file_dinh_kem_urls or [])
-        phieu = await self._latest_phieu(order.id, db)
+        phieu = await latest_phieu(order.id, db)
         if phieu is not None:
             phieu.tep_dinh_kem_urls = attachments
+        ket_qua = (await db.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))).scalar_one_or_none()
+        if ket_qua is not None:
+            ket_qua.file_dinh_kem_urls = attachments
         if order.trang_thai == "da_co_ket_qua":
-            ket_qua = (await db.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))).scalar_one_or_none()
-            if ket_qua is not None:
-                ket_qua.file_dinh_kem_urls = attachments
             order.tep_dinh_kem_url = attachments[0] if attachments else None
 
     @staticmethod
@@ -343,7 +328,9 @@ class ClsFileService:
             parts.append(f"Đề nghị: {de_nghi}")
         return "\n".join(parts)
 
-    def _to_response(self, order: ChiDinh, phieu: Optional[PhieuKetQuaCLS]) -> ImagingResultResponse:
+    def _to_response(
+        self, order: ChiDinh, phieu: Optional[PhieuKetQuaCLS], ket_qua: Optional[KetQuaCLS]
+    ) -> ImagingResultResponse:
         return ImagingResultResponse(
             chi_dinh_id=order.id,
             trang_thai=order.trang_thai,
@@ -354,10 +341,11 @@ class ClsFileService:
             mo_ta_hinh_anh=phieu.mo_ta_hinh_anh if phieu else None,
             ket_luan=phieu.ket_luan if phieu else None,
             de_nghi=phieu.de_nghi if phieu else None,
-            ket_qua_phan_loai=order.ket_qua_phan_loai if order.trang_thai == "da_co_ket_qua" else None,
+            ket_qua_phan_loai=ket_qua.ket_qua_phan_loai if ket_qua else None,
             thiet_bi_thuc_hien=phieu.thiet_bi_thuc_hien if phieu else None,
             tep_dinh_kem_urls=[self.file_url(order.id, fid) for fid in self._file_ids(order)],
-            da_duyet=self._phieu_approved(phieu),
+            da_duyet=is_phieu_approved(phieu),
+            thoi_gian_duyet=phieu.thoi_gian_duyet if phieu else None,
             thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua,
         )
 

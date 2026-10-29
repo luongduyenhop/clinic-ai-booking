@@ -100,8 +100,10 @@ async def test_upload_anh_xem_lai_va_tra_ket_qua_cdha(api_client, booking, db_se
     res_tra = await api_client.post(url_kq, json=body, headers=ktv)
     assert res_tra.status_code == 200, res_tra.text
     data = res_tra.json()["data"]
-    assert data["trang_thai"] == "da_co_ket_qua"
+    # Hoàn tất: phiếu chờ duyệt, chỉ định giữ dang_thuc_hien cho tới khi KTV duyệt & trả
+    assert data["trang_thai"] == "dang_thuc_hien"
     assert data["trang_thai_phieu"] == "DA_CO_KET_QUA"
+    assert data["ket_qua_phan_loai"] == "BAT_THUONG"
     assert data["tep_dinh_kem_urls"] == [jpg["url"], png["url"]]
 
     phieu = (await db_session.execute(select(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id == order_id))).scalar_one()
@@ -110,10 +112,17 @@ async def test_upload_anh_xem_lai_va_tra_ket_qua_cdha(api_client, booking, db_se
     assert phieu.tep_dinh_kem_urls == [jpg["url"], png["url"]]
     ket_qua = (await db_session.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order_id))).scalar_one()
     assert ket_qua.file_dinh_kem_urls == [jpg["url"], png["url"]]
+    assert "Gan nhiễm mỡ độ I." in ket_qua.ket_qua_chi_tiet
+    await db_session.refresh(order)
+    assert order.trang_thai == "dang_thuc_hien"
+
+    res_duyet = await api_client.post(f"/api/v1/subclinical/orders/{order_id}/approve", headers=ktv)
+    assert res_duyet.status_code == 200, res_duyet.text
     await db_session.refresh(order)
     assert order.trang_thai == "da_co_ket_qua"
     assert order.ket_qua_phan_loai == "BAT_THUONG"
     assert "Gan nhiễm mỡ độ I." in order.ket_qua_chi_tiet
+    assert order.tep_dinh_kem_url == jpg["url"]
 
     # Tải lại trang: đọc lại phiếu + ảnh từ máy chủ
     res_get = await api_client.get(url_kq, headers=ktv)
@@ -226,7 +235,7 @@ async def test_xoa_anh_truoc_khi_duyet_va_khoa_sau_duyet(api_client, booking, db
     res_tra = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Mô tả", "ket_luan": "Kết luận"}, headers=ktv)
     assert res_tra.status_code == 200
 
-    # Đã trả nhưng chưa duyệt: vẫn xóa được, phiếu kết quả cập nhật theo
+    # Đã hoàn tất nhưng chưa duyệt: vẫn xóa được, phiếu kết quả cập nhật theo
     res_del = await api_client.delete(a["url"], headers=ktv)
     assert res_del.status_code == 200, res_del.text
     assert not (upload_dir / str(order_id) / a["file_id"]).exists()
@@ -236,12 +245,14 @@ async def test_xoa_anh_truoc_khi_duyet_va_khoa_sau_duyet(api_client, booking, db
     assert phieu.tep_dinh_kem_urls == [b["url"]]
     order = await db_session.get(ChiDinh, order_id)
     await db_session.refresh(order)
-    assert order.file_dinh_kem_urls == [b["url"]] and order.tep_dinh_kem_url == b["url"]
+    assert order.file_dinh_kem_urls == [b["url"]]
+    ket_qua = (await db_session.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order_id))).scalar_one()
+    await db_session.refresh(ket_qua)
+    assert ket_qua.file_dinh_kem_urls == [b["url"]]
 
     # Sau khi duyệt: khóa thêm/xóa ảnh và sửa kết quả
-    phieu.trang_thai = "DA_DUYET"
-    phieu.thoi_gian_duyet = datetime.now(timezone.utc)
-    await db_session.commit()
+    res_duyet = await api_client.post(f"/api/v1/subclinical/orders/{order_id}/approve", headers=ktv)
+    assert res_duyet.status_code == 200, res_duyet.text
     assert (await api_client.delete(b["url"], headers=ktv)).status_code == 409
     assert (await _upload(api_client, order_id, ktv)).status_code == 409
     res_sua = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Sửa", "ket_luan": "Sửa"}, headers=ktv)

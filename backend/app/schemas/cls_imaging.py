@@ -42,4 +42,5 @@ class ImagingResultResponse(BaseModel):
     thiet_bi_thuc_hien: Optional[str] = None
     tep_dinh_kem_urls: List[str] = []
     da_duyet: bool = False
+    thoi_gian_duyet: Optional[datetime] = None
     thoi_gian_tra_ket_qua: Optional[datetime] = None

@@ -22,7 +22,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
 )
-from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
 from app.models.specialized import DangKyGoiKham
 from app.schemas.queue import (
     CheckInRequest,
@@ -294,6 +294,18 @@ class QueueService:
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng tiếp nhận bệnh nhân vãng lai chỉ dành cho Lễ tân hoặc Admin!")
 
+        # 1. Validation Logic Phân bổ Bác sĩ (Critical):
+        # Bắt buộc phải có bác sĩ tiếp nhận HOẶC chuyên khoa để auto-assign
+        if payload.bac_si_id is None and not payload.chuyen_khoa_id:
+            raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
+
+        # Kiểm tra chuyên khoa hợp lệ nếu được chỉ định
+        if payload.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if not ck:
+                raise NotFoundException(f"Chuyên khoa ID {payload.chuyen_khoa_id} không tồn tại trên hệ thống!")
+
         # Kiểm tra bệnh nhân
         bn = (await db.execute(select(BenhNhan).where(BenhNhan.id == payload.benh_nhan_id))).scalar_one_or_none()
         if not bn:
@@ -316,7 +328,9 @@ class QueueService:
         else:
             effective_doctor_id = payload.bac_si_id
 
-        bs = (await db.execute(select(BacSi).where(BacSi.id == effective_doctor_id))).scalar_one_or_none()
+        # Khóa dòng BacSi bằng SELECT ... FOR UPDATE để triệt tiêu race condition concurrency khi nhiều lễ tân check-in cùng lúc
+        stmt_bs = select(BacSi).where(BacSi.id == effective_doctor_id).with_for_update()
+        bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 

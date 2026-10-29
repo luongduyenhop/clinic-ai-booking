@@ -201,3 +201,93 @@ async def test_staff_allowed_reception_dashboards_and_resources(api_client, book
         res = await api_client.get(ep, headers=booking.tokens["letan_dash"])
         assert res.status_code == 200, f"Endpoint {ep} should return 200 for receptionist, got {res.status_code}"
 
+
+
+@pytest.mark.asyncio
+async def test_walk_in_validation_missing_doctor_and_department(api_client, booking, db_session):
+    """
+    Test validation trong check_in_walk_in:
+    - Nếu cả bac_si_id và chuyen_khoa_id đều không có -> 400 Bad Request
+    """
+    await booking.tao_tai_khoan("letan_wlk_val", VaiTroEnum.LE_TAN.value)
+
+    payload = {
+        "benh_nhan_id": booking.bn_a.id,
+        "ca_kham": "sang",
+        "bac_si_id": None,
+        "chuyen_khoa_id": None,
+    }
+    res = await api_client.post(
+        "/api/v1/reception/walk-in",
+        json=payload,
+        headers=booking.tokens["letan_wlk_val"],
+    )
+    assert res.status_code == 400
+    assert "chuyên khoa để phân bổ tự động" in res.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_walk_in_validation_nonexistent_department(api_client, booking, db_session):
+    """
+    Test validation trong check_in_walk_in:
+    - Nếu chuyen_khoa_id không tồn tại -> 404 Not Found rõ ràng, không để lọt vào ConflictException
+    """
+    await booking.tao_tai_khoan("letan_wlk_ck", VaiTroEnum.LE_TAN.value)
+
+    payload = {
+        "benh_nhan_id": booking.bn_a.id,
+        "ca_kham": "sang",
+        "bac_si_id": None,
+        "chuyen_khoa_id": 999999,
+    }
+    res = await api_client.post(
+        "/api/v1/reception/walk-in",
+        json=payload,
+        headers=booking.tokens["letan_wlk_ck"],
+    )
+    assert res.status_code == 404
+    assert "không tồn tại" in res.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
+    """
+    Test Multi-tenancy check trong rebalance_queue:
+    - Lễ tân có phong_kham_id khác với phòng khám của bác sĩ vắng mặt -> 403 Forbidden
+    """
+    from datetime import date
+    from app.services.incident_service import incident_service
+    from app.schemas.incident import RebalanceQueueRequest
+    from app.models.appointment import NghiPhepBacSi, TrangThaiNghiPhepEnum, LoaiNghiPhepEnum
+    from app.core.exceptions import ForbiddenException
+
+    today = date.today()
+    # Tạo đơn nghỉ phép cho bs_x với phòng khám 101
+    np = NghiPhepBacSi(
+        bac_si_id=booking.bs_x.id,
+        phong_kham_id=101,
+        loai_nghi=LoaiNghiPhepEnum.NGHI_DOT_XUAT.value,
+        tu_ngay=today,
+        den_ngay=today,
+        ca_lam_viec="sang",
+        ly_do="Sự cố đột xuất phòng khám 101",
+        trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
+    )
+    db_session.add(np)
+    await db_session.flush()
+
+    # Tạo Lễ tân thuộc phòng khám 202 (khác với phòng khám 101)
+    letan_nd = await booking.tao_tai_khoan("letan_tenant", VaiTroEnum.LE_TAN.value)
+    from sqlalchemy import select
+    from app.models.user import TaiKhoan
+    stmt_tk = select(TaiKhoan).where(TaiKhoan.nguoi_dung_id == letan_nd.id)
+    letan = (await db_session.execute(stmt_tk)).scalar_one()
+    letan.phong_kham_id = 202
+
+    req = RebalanceQueueRequest(
+        nghi_phep_bac_si_id=np.id,
+    )
+
+    with pytest.raises(ForbiddenException) as exc_info:
+        await incident_service.rebalance_queue(req, letan, db_session)
+    assert "phòng khám này" in str(exc_info.value.message)

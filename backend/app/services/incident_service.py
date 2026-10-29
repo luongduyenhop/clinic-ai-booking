@@ -1,22 +1,19 @@
 import logging
 from datetime import date, datetime, timezone
 from typing import List, Optional
-from sqlalchemy import func, select, or_, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException, NotFoundException
+from app.core.exceptions import ForbiddenException, NotFoundException
 from app.models.appointment import (
     HangDoiKham,
-    LichKham,
     LichLamViec,
     NghiPhepBacSi,
     TrangThaiHangDoiEnum,
     TrangThaiNghiPhepEnum,
-    TrangThaiLichEnum,
-    LoaiHangDoiEnum,
 )
-from app.models.user import BacSi, ChuyenKhoa, TaiKhoan, VaiTroEnum, BenhNhan, NguoiDung
+from app.models.user import BacSi, TaiKhoan, VaiTroEnum, BenhNhan
 from app.schemas.incident import (
     DoctorAbsenceIncidentResponse,
     DoctorAlternativeItem,
@@ -91,9 +88,9 @@ class IncidentService:
                     .where(
                         BacSi.chuyen_khoa_id == ck_id,
                         BacSi.id != leave.bac_si_id,
-                        BacSi.is_active == True,
+                        BacSi.is_active.is_(True),
                         LichLamViec.ngay_lam_viec == target_date,
-                        LichLamViec.is_active == True,
+                        LichLamViec.is_active.is_(True),
                     )
                 )
                 if leave.ca_lam_viec:
@@ -161,6 +158,13 @@ class IncidentService:
         absent_bs = leave.bac_si
         if not absent_bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ vắng mặt!")
+
+        # Multi-tenancy check: Kiểm tra phong_kham_id của bác sĩ vắng mặt so với phong_kham_id của người dùng hiện tại
+        target_phong_kham_id = leave.phong_kham_id or absent_bs.phong_kham_id
+        user_phong_kham_id = getattr(current_user, "phong_kham_id", None)
+        if current_user.vai_tro != VaiTroEnum.ADMIN.value and user_phong_kham_id is not None:
+            if target_phong_kham_id != user_phong_kham_id:
+                raise ForbiddenException("Bạn không có quyền điều phối hàng đợi của phòng khám này!")
 
         now = datetime.now(timezone.utc)
         today = date.today()

@@ -1,6 +1,6 @@
-# HƯỚNG DẪN VÁ LỖ HỔNG BẢO MẬT RBAC, IDOR & SỬA LỖI ASYNC ORM MISSINGGREENLET
+# HƯỚNG DẪN VÁ LỖ HỔNG BẢO MẬT RBAC, IDOR, RACE CONDITION & SỬA LỖI ASYNC ORM MISSINGGREENLET
 
-Tài liệu này ghi lại chi tiết các điểm đã sửa chữa để vượt qua vòng kiểm duyệt kỹ thuật & bảo mật của **Hội Đồng AI (GitHub Copilot & Google Gemini Pro)** cho **PR #43** và **PR #48**.
+Tài liệu này ghi lại chi tiết các điểm đã sửa chữa để vượt qua vòng kiểm duyệt kỹ thuật & bảo mật của **Hội Đồng AI (GitHub Copilot & Google Gemini Pro)** cho **PR #43** và **PR #48**, bao gồm cả **3 Điểm Thống Nhất Bắt Buộc Sửa (Blocking Action Items)**.
 
 ---
 
@@ -14,6 +14,9 @@ Tài liệu này ghi lại chi tiết các điểm đã sửa chữa để vư�
 | **4** | `GET /reception/queue/{doctor_id}` | **Thiếu Auth & RBAC** | Thiếu dependency xác thực người dùng | Bổ sung `current_user = Depends(get_current_user)` và chặn role ngoài y tế |
 | **5** | `app/services/queue_service.py` (`call_next_patient`, `postpone_ticket`, `restore_ticket`, `check_in_patient`) | **Async ORM MissingGreenlet** | Sau `await db.commit()` trong SQLAlchemy 2.0 Async, ORM entity bị detach/expire, gọi `_to_ticket_response` truy cập lazy relation gây crash runtime | Dùng `await self._get_ticket_with_relations(ticket_id, db)` nạp eager-loading đầy đủ |
 | **6** | `app/services/cashier_service.py` | **Missing Import** | Thiếu `BadRequestException` khi chặn hoàn tiền hóa đơn chưa thu | Bổ sung import `BadRequestException` từ `app.core.exceptions` |
+| **7** | `app/services/queue_service.py` (`check_in_walk_in`) | **Lỗi Logic Phân Bổ (Critical)** | Khi `bac_si_id=None`, không kiểm tra kỹ `chuyen_khoa_id` trước khi gọi load balancing gây ra `ConflictException` mập mờ | Kiểm tra `if not payload.chuyen_khoa_id: raise BadRequestException(...)` và kiểm tra sự tồn tại của `ChuyenKhoa` ngay đầu hàm |
+| **8** | `app/services/incident_service.py` (`rebalance_queue`) | **Lỗ hổng Bảo mật Multi-Tenancy** | Lễ tân buồng này có thể can thiệp điều phối bệnh nhân thuộc buồng/phòng khám khác | Kiểm tra `phong_kham_id` của bác sĩ vắng mặt so với `phong_kham_id` của `current_user` (nếu không phải ADMIN) |
+| **9** | `app/services/queue_service.py` (`check_in_walk_in`) | **Race Condition Concurrency** | Nhiều lễ tân check-in cùng lúc cho 1 bác sĩ sẽ sinh trùng `so_thu_tu_kham` và `ma_lich_kham` | Bọc truy vấn bác sĩ với `select(BacSi).where(...).with_for_update()` |
 
 ---
 
@@ -113,86 +116,83 @@ Gọi hàm này trong:
 - `GET /patients/{benh_nhan_id}/history-summary`
 
 #### C. Chặn quyền truy cập các endpoint Dashboard & Điều phối tại quầy:
-- `GET /search-appointments`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-      raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tìm kiếm lịch hẹn tại quầy tiếp đón!")
-  ```
-- `GET /queue/{doctor_id}`:
-  ```python
-  async def get_doctor_queue(
-      doctor_id: int,
-      query_date: Optional[date] = Query(None),
-      current_user: TaiKhoan = Depends(get_current_user),
-      db: AsyncSession = Depends(get_db)
-  ):
-      if current_user.vai_tro not in QUEUE_VIEW_ROLES:
-          raise ForbiddenException("Bạn không có quyền xem thông tin hàng đợi phòng khám!")
-  ```
-- `GET /flow-board`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-      raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem Patient Flow Board!")
-  ```
-- `GET /dashboard/shift-summary`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-      raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem Dashboard ca trực tiếp đón!")
-  ```
-- `GET /dashboard/room-status`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-      raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem trạng thái buồng khám!")
-  ```
-- `GET /resources/roster`, `/resources/rooms`, `/resources/roster-template`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-      raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu tài nguyên ca trực!")
-  ```
-- `GET /incidents/doctor-absences`, `POST /incidents/rebalance-queue`, `POST /process-no-shows`:
-  ```python
-  if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-      raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền thao tác chức năng này!")
-  ```
+- `GET /search-appointments`, `GET /appointments`: Giới hạn cho `RECEPTION_STAFF_ROLES`.
+- `GET /queue/{doctor_id}`: Bổ sung `current_user = Depends(get_current_user)` và chặn role ngoài `QUEUE_VIEW_ROLES`.
+- `GET /flow-board`, `GET /dashboard/*`, `GET /resources/*`: Giới hạn cho `RECEPTION_STAFF_ROLES`.
+- `GET /incidents/doctor-absences`, `POST /incidents/rebalance-queue`, `POST /process-no-shows`: Giới hạn cho `RECEPTION_ADMIN_ROLES`.
 
 ---
 
-### 3. `app/services/queue_service.py` (Khắc phục MissingGreenlet)
+### 3. `app/services/queue_service.py` (MissingGreenlet & Concurrency)
 
+#### A. Khắc phục MissingGreenlet:
 Thay vì gọi `self._to_ticket_response(entity)` sau khi thực hiện `await db.commit()` (lúc này quan hệ `benh_nhan`, `bac_si` đã bị detach), nạp lại ticket bằng query eager-loading:
-
 ```python
-# Tại call_next_patient:
-ticket_id_called = candidate.id
-ticket_stt_called = candidate.so_thu_tu_kham
-await db.commit()
+# Tại call_next_patient, postpone_ticket, restore_ticket, check_in_patient (idempotent):
+ticket_response = await self._get_ticket_with_relations(ticket_id, db)
+```
 
-# Nạp lại kèm eager loading đầy đủ
-ticket_response = await self._get_ticket_with_relations(ticket_id_called, db)
-return CallNextResponse(
-    message=f"Đã gọi thành công bệnh nhân STT #{ticket_stt_called} vào phòng khám!",
-    ticket=ticket_response,
-    so_nguoi_con_lai=remaining,
-)
+#### B. Validation Chuyên Khoa Phân Bổ & Khóa Dòng Chống Race Condition trong `check_in_walk_in`:
+```python
+    async def check_in_walk_in(
+        self,
+        payload: WalkInCheckInRequest,
+        receptionist_user: TaiKhoan,
+        db: AsyncSession,
+    ) -> QueueTicketResponse:
+        if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
+            raise ForbiddenException("Chức năng tiếp nhận bệnh nhân vãng lai chỉ dành cho Lễ tân hoặc Admin!")
 
-# Tại postpone_ticket:
-ticket_id_postponed = ticket.id
-await db.commit()
-return await self._get_ticket_with_relations(ticket_id_postponed, db)
+        # 1. Validation Logic Phân bổ Bác sĩ (Critical):
+        # Bắt buộc phải có bác sĩ tiếp nhận HOẶC chuyên khoa để auto-assign
+        if payload.bac_si_id is None and not payload.chuyen_khoa_id:
+            raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
 
-# Tại restore_ticket:
-ticket_id_restored = ticket.id
-await db.commit()
-return await self._get_ticket_with_relations(ticket_id_restored, db)
+        # Kiểm tra chuyên khoa hợp lệ nếu được chỉ định
+        if payload.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if not ck:
+                raise NotFoundException(f"Chuyên khoa ID {payload.chuyen_khoa_id} không tồn tại trên hệ thống!")
 
-# Tại check_in_patient (nhánh idempotent):
-if existing_ticket:
-    return await self._get_ticket_with_relations(existing_ticket.id, db)
+        # ... (kiểm tra bệnh nhân) ...
+
+        # FC-07: Auto-assign nếu bac_si_id is None
+        if payload.bac_si_id is None:
+            from app.services.load_balancing_service import load_balancing_service
+            effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
+                chuyen_khoa_id=payload.chuyen_khoa_id,
+                ca_kham=payload.ca_kham,
+                ngay_kham=today,
+                db=db
+            )
+        else:
+            effective_doctor_id = payload.bac_si_id
+
+        # Khóa dòng BacSi bằng SELECT ... FOR UPDATE để triệt tiêu race condition concurrency khi nhiều lễ tân check-in cùng lúc
+        stmt_bs = select(BacSi).where(BacSi.id == effective_doctor_id).with_for_update()
+        bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+        if not bs:
+            raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 ```
 
 ---
 
-### 4. `app/services/cashier_service.py`
+### 4. `app/services/incident_service.py` (Multi-Tenancy Check)
+
+Thêm logic kiểm tra phòng khám trong `rebalance_queue`:
+```python
+        # Multi-tenancy check: Kiểm tra phong_kham_id của bác sĩ vắng mặt so với phong_kham_id của người dùng hiện tại
+        target_phong_kham_id = leave.phong_kham_id or absent_bs.phong_kham_id
+        user_phong_kham_id = getattr(current_user, "phong_kham_id", None)
+        if current_user.vai_tro != VaiTroEnum.ADMIN.value and user_phong_kham_id is not None:
+            if target_phong_kham_id != user_phong_kham_id:
+                raise ForbiddenException("Bạn không có quyền điều phối hàng đợi của phòng khám này!")
+```
+
+---
+
+### 5. `app/services/cashier_service.py`
 
 Import thêm `BadRequestException`:
 ```python
@@ -208,13 +208,12 @@ from app.core.exceptions import (
 
 ## 🧪 Lệnh Chạy Kiểm Thử Tự Động
 
-Chạy qua Docker container:
+Chạy toàn bộ test suites bảo mật & điều phối qua Docker container:
 ```bash
-docker run --rm -v "${PWD}:/app" clinic-ai-booking-backend pytest tests/test_pr43_security_patches.py tests/test_billing_gaps.py tests/test_reception_sprint1.py tests/test_incident_and_dashboard.py tests/test_load_balancing.py
+docker run --rm -v "${PWD}:/app" clinic-ai-booking-backend pytest tests/test_pr43_security_patches.py tests/test_billing_gaps.py tests/test_reception_sprint1.py tests/test_incident_and_dashboard.py tests/test_load_balancing.py tests/test_bahmni_queue_flow.py
 ```
 
 Kiểm tra định dạng & cú pháp linter:
 ```bash
-docker run --rm -v "${PWD}:/app" clinic-ai-booking-backend ruff check app/routers/cashier.py app/routers/reception.py app/services/queue_service.py app/services/cashier_service.py tests/test_pr43_security_patches.py
+docker run --rm -v "${PWD}:/app" clinic-ai-booking-backend ruff check app/routers/cashier.py app/routers/reception.py app/services/queue_service.py app/services/incident_service.py tests/test_pr43_security_patches.py
 ```
-

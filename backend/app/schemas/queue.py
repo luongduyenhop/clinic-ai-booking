@@ -38,6 +38,7 @@ class QueueTicketResponse(BaseModel):
     ngay_kham: date
     ca_kham: str
     so_thu_tu_kham: int
+    ma_so_thu_tu: Optional[str] = Field(None, description="Mã số thứ tự khám định dạng buồng khám / chuyên khoa (ví dụ: NOI-01, TMH-02, RHM-01)")
     loai_hang_doi: str
     muc_do_uu_tien: int
     trang_thai: str
@@ -100,6 +101,7 @@ class PatientFlowBoardItem(BaseModel):
     ngay_kham: date
     ca_kham: str
     so_thu_tu_kham: int
+    ma_so_thu_tu: Optional[str] = Field(None, description="Mã số thứ tự khám định dạng buồng khám / chuyên khoa (ví dụ: NOI-01, TMH-02, RHM-01)")
     loai_hang_doi: str
     muc_do_uu_tien: int
     trang_thai: str

@@ -352,7 +352,7 @@ export default function ExamWorkstationPage() {
             AppToast.error(`Cần mô tả mục bất thường: ${missingNotes.map(([label]) => label).join(', ')}`)
             return
         }
-        const primary = formik.values.danh_sach_chan_doan.filter((d) => d.loai_chan_doan === 'chinh')
+        const primary = (formik.values.danh_sach_chan_doan || []).filter((d) => d.loai_chan_doan === 'chinh')
         if (primary.length !== 1) {
             formik.setFieldError('danh_sach_chan_doan', 'Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi hoàn tất khám.')
             AppToast.error('Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi khóa bệnh án!')

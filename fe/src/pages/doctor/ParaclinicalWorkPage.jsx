@@ -66,6 +66,7 @@ export default function ParaclinicalWorkPage() {
     const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {
+        if (!selected?.id) return
         try {
             await dispatch(startOrderAsync(selected.id)).unwrap()
             AppToast.info('Đã chuyển sang Đang làm')
@@ -75,6 +76,7 @@ export default function ParaclinicalWorkPage() {
     }
 
     const handleSubmit = async (payload, final) => {
+        if (!selected?.id) return
         setSubmitting(true)
         try {
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()

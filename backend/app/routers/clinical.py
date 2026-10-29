@@ -702,5 +702,5 @@ async def save_clinical_workspace_state(
         logger.error(f"Error syncing clinical workspace state: {e}", exc_info=True)
         return ResponseEnvelope.error_response(
             code=500,
-            message=f"Lỗi đồng bộ dữ liệu lâm sàng: {str(e)}",
+            message="Lỗi hệ thống khi đồng bộ dữ liệu lâm sàng. Vui lòng liên hệ quản trị viên.",
         )

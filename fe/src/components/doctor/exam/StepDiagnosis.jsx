@@ -82,7 +82,7 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
     const [ratingNote, setRatingNote] = useState(encounter.danh_gia_ai?.nhan_xet || '')
     const debounced = useDebounce(keyword, 250)
 
-    const list = values.danh_sach_chan_doan
+    const list = values.danh_sach_chan_doan || []
     const primary = list.find((d) => d.loai_chan_doan === 'chinh')
     const secondary = list.filter((d) => d.loai_chan_doan !== 'chinh')
 

@@ -312,6 +312,12 @@ async def refund_invoice(
     ])),
     db: AsyncSession = Depends(get_db)
 ):
+    if current_user.vai_tro not in (
+        VaiTroEnum.LE_TAN.value,
+        VaiTroEnum.THU_NGAN.value,
+        VaiTroEnum.ADMIN.value,
+    ):
+        raise ForbiddenException("Chỉ Thu ngân, Lễ tân hoặc Quản trị viên mới có quyền thực hiện hoàn tiền viện phí!")
     result = await cashier_service.refund_invoice(
         payload=payload,
         thu_ngan_user_id=current_user.nguoi_dung_id,

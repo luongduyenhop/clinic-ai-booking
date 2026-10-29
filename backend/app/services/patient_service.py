@@ -1,11 +1,10 @@
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
-from app.models.medical import ChanDoan, ChiDinh, DanhGiaDichVu, DonThuoc, LuotKham
+from app.core.exceptions import BadRequestException, NotFoundException
+from app.models.medical import DanhGiaDichVu, DonThuoc, LuotKham
 from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan
 from app.schemas.patient import (
     FamilyMemberCreateRequest,

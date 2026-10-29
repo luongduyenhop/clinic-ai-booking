@@ -166,16 +166,20 @@ async def test_package_3_doctor_leave_management(api_client: AsyncClient, bookin
 
 
 @pytest.mark.asyncio
-async def test_package_4_ai_concept_mapping_and_accuracy(api_client: AsyncClient, booking):
-    """
-    GÓI 4: QUẢN TRỊ ÁNH XẠ TRIỆU CHỨNG - CHUYÊN KHOA & ĐÁNH GIÁ AI
-    - Danh sách và thêm mới khái niệm triệu chứng (KhaiNiem / CIEL)
-    - Quản lý từ khóa cấp cứu (TuKhoaCapCuu / Red Flags)
-    - Xem báo cáo độ chính xác phân luồng AI (Clinical Suggestion Accuracy)
-    """
+async def test_package_4_ai_concept_mapping_and_accuracy(api_client: AsyncClient, booking, db_session):
     admin_hdr = booking.tokens["admin"]
 
-    # 1. Khái niệm triệu chứng (Concept Mapping)
+    existing_ck = (await db_session.execute(select(ChuyenKhoa))).scalars().first()
+    if not existing_ck:
+        existing_ck = ChuyenKhoa(
+            ma_chuyen_khoa=f"CK_AI_{booking.suffix}",
+            ten_chuyen_khoa="Khoa Nội Test AI",
+            mo_ta="Chuyên khoa test AI concept mapping",
+            vi_tri_phong="Phòng 101"
+        )
+        db_session.add(existing_ck)
+        await db_session.flush()
+
     unique_term = f"TT_TEST_{date.today().strftime('%m%d%H%M%S')}"
     res_concept = await api_client.post(
         "/api/v1/admin/ai/concepts",
@@ -183,7 +187,7 @@ async def test_package_4_ai_concept_mapping_and_accuracy(api_client: AsyncClient
             "ma_khai_niem": unique_term,
             "ten_khai_niem": f"Đau tức ngực kèm khó thở nhẹ {unique_term}",
             "loai_khai_niem": "trieu_chung",
-            "chuyen_khoa_id": 1,
+            "chuyen_khoa_id": existing_ck.id,
             "mo_ta": "Triệu chứng thường gặp của bệnh lý cơ tim hoặc trào ngược"
         },
         headers=admin_hdr

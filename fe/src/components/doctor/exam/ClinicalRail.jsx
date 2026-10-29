@@ -232,7 +232,7 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
                                         {hasResult ? (
                                             <div className="flex items-center justify-between pt-1 border-t border-emerald-100/80">
                                                 <span className={`text-[12px] font-semibold ${
-                                                    o.ket_qua_phan_loai === 'BAT_THUONG' ? 'text-rose-700' : 'text-emerald-700'
+                                                    o.ket_qua_phan_loai && o.ket_qua_phan_loai !== 'BINH_THUONG' ? 'text-rose-700' : 'text-emerald-700'
                                                 }`}>
                                                     {cls?.label || 'Đã có kết quả'}
                                                 </span>

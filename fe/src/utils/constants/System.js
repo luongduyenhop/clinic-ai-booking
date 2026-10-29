@@ -59,6 +59,18 @@ export const STAFF_ROLES = [
     'ROLE-LAB-TECH',
 ]
 
+// Được bấm "Duyệt & Trả kết quả" CLS (backend: ky_thuat_vien -> TECHNICIAN, admin)
+export const CLS_APPROVER_ROLES = [
+    ROLE_TECHNICIAN,
+    'TECHNICIAN',
+    ROLE_LAB_TECH,
+    'LAB_TECH',
+    'ROLE-LAB-TECH',
+    ROLE_ADMIN,
+    ROLE_ADMINISTRATOR,
+    'QUAN_TRI',
+]
+
 export const RECEPTIONIST_ROLES = [
     ROLE_RECEPTIONIST,
     'RECEPTIONIST',

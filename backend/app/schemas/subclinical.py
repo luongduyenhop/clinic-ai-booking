@@ -17,22 +17,65 @@ class PatientBrief(BaseModel):
     so_dien_thoai: Optional[str] = None
     nam_sinh: Optional[int] = None
     gioi_tinh: Optional[str] = None
+    di_ung_thuoc: Optional[str] = None
 
 
 class SubclinicalQueueItem(BaseModel):
     id: int  # chi_dinh_id
     luot_kham_id: int
     dich_vu: SubclinicalServiceBrief
+    nhom_dich_vu: Optional[str] = None
+    ten_dich_vu: str
     benh_nhan: PatientBrief
     bac_si_chi_dinh: Optional[str] = None
+    ly_do_vao_kham: Optional[str] = None
+    chan_doan_so_bo: Optional[str] = None
     trang_thai: str
     phong_thuc_hien_id: Optional[int] = None
     thoi_gian_chi_dinh: datetime
+    thoi_gian_cho_phut: int = 0
+    ket_qua_chi_tiet: Optional[str] = None
+    ket_qua_phan_loai: Optional[str] = None
+    tri_so_chi_tiet: Optional[Dict[str, Any]] = None
+    file_dinh_kem_urls: Optional[List[str]] = None
+    trang_thai_ket_qua: Optional[str] = Field(None, description="Phiếu kết quả: NHAP, DA_CO_KET_QUA (chờ duyệt), DA_DUYET")
+    thoi_gian_duyet: Optional[datetime] = None
 
 
 class SubclinicalQueueResponse(BaseModel):
     items: List[SubclinicalQueueItem]
     total: int
+
+
+class WorkspacePatientIn(BaseModel):
+    ma: Optional[str] = Field(None, max_length=50, description="Mã bệnh nhân trên bàn khám")
+    ho_ten: str = Field(..., min_length=1, max_length=150)
+    gioi_tinh: Optional[str] = Field(None, max_length=10)
+    tuoi: Optional[int] = Field(None, ge=0, le=150)
+    so_dien_thoai: Optional[str] = Field(None, max_length=20)
+    di_ung_thuoc: Optional[str] = None
+
+
+class WorkspaceOrdersRequest(BaseModel):
+    """Chỉ định CLS gửi từ bàn khám bác sĩ (lượt khám còn nằm trong workspace-state, chưa có luot_kham thật)"""
+    workspace_encounter_id: str = Field(..., min_length=1, max_length=30)
+    benh_nhan: WorkspacePatientIn
+    ly_do_vao_kham: Optional[str] = None
+    chan_doan_so_bo: Optional[str] = Field(None, max_length=255)
+    dich_vu_ids: List[int] = Field(..., min_length=1)
+
+
+class WorkspaceOrderItem(BaseModel):
+    id: int
+    dich_vu_id: int
+    ma_dich_vu: str
+    nhom_dich_vu: Optional[str] = None
+    trang_thai: str
+
+
+class WorkspaceOrdersResponse(BaseModel):
+    luot_kham_id: int
+    orders: List[WorkspaceOrderItem]
 
 
 class SubclinicalStatusUpdateRequest(BaseModel):

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from app.core.exceptions import (
     NotFoundException,
 )
 from app.models.medical import ChiDinh, DichVu, LuotKham
-from app.models.user import BacSi, BenhNhan
+from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.subclinical import (
     PatientBrief,
     SubclinicalQueueItem,
@@ -19,6 +19,8 @@ from app.schemas.subclinical import (
     SubclinicalResultSubmitRequest,
     SubclinicalServiceBrief,
 )
+from app.services.cls_result_state import is_phieu_approved, latest_phieu
+from app.services.cls_service_group import clinic_day_range, nhom_dich_vu_condition, nhom_dich_vu_of
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +33,22 @@ class SubclinicalService:
         phong_thuc_hien_id: Optional[int] = None,
         trang_thai: Optional[str] = None,
         db: AsyncSession = None,
+        nhom_dich_vu: Optional[str] = None,
+        ngay: Optional[date] = None,
+        tu_khoa: Optional[str] = None,
     ) -> SubclinicalQueueResponse:
-        """Lấy danh sách hàng đợi chỉ định cận lâm sàng tại các phòng kỹ thuật"""
+        """Lấy hàng đợi chỉ định cận lâm sàng trong ngày (giờ phòng khám), ca chỉ định sớm nhất lên trước"""
+        day_start, day_end = clinic_day_range(ngay)
         stmt = (
             select(ChiDinh)
             .options(
                 selectinload(ChiDinh.dich_vu),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(ChiDinh.phieu_ket_qua),
             )
-            .order_by(ChiDinh.id.desc())
+            .where(ChiDinh.created_at >= day_start, ChiDinh.created_at < day_end)
+            .order_by(ChiDinh.created_at.asc(), ChiDinh.id.asc())
         )
 
         if phong_thuc_hien_id is not None:
@@ -49,7 +57,25 @@ class SubclinicalService:
                 | (ChiDinh.dich_vu.has(DichVu.phong_thuc_hien_id == phong_thuc_hien_id))
             )
 
-        if trang_thai:
+        if nhom_dich_vu:
+            stmt = stmt.where(ChiDinh.dich_vu.has(nhom_dich_vu_condition(nhom_dich_vu)))
+
+        if tu_khoa and tu_khoa.strip():
+            pattern = f"%{tu_khoa.strip()}%"
+            stmt = stmt.where(
+                ChiDinh.luot_kham.has(
+                    LuotKham.benh_nhan.has(
+                        BenhNhan.ma_dinh_danh_y_te.ilike(pattern)
+                        | BenhNhan.nguoi_dung.has(
+                            NguoiDung.ho_ten.ilike(pattern) | NguoiDung.so_dien_thoai.ilike(pattern)
+                        )
+                    )
+                )
+            )
+
+        if trang_thai == "tat_ca":
+            pass
+        elif trang_thai:
             stmt = stmt.where(ChiDinh.trang_thai == trang_thai)
         else:
             # Mặc định chỉ lấy các ca đang chờ thực hiện hoặc đang tiến hành
@@ -57,6 +83,7 @@ class SubclinicalService:
 
         orders = (await db.execute(stmt)).scalars().all()
 
+        now = datetime.now(timezone.utc)
         items: List[SubclinicalQueueItem] = []
         for o in orders:
             benh_nhan_dto = PatientBrief(ho_ten="Chưa xác định")
@@ -73,6 +100,7 @@ class SubclinicalService:
                     so_dien_thoai=sdt,
                     gioi_tinh=gioi_tinh,
                     nam_sinh=nam_sinh,
+                    di_ung_thuoc=bn.di_ung_thuoc,
                 )
 
             bac_si_name = None
@@ -86,16 +114,28 @@ class SubclinicalService:
                 don_gia=o.don_gia_tai_thoi_diem or Decimal("0.00"),
             )
 
+            waited_until = o.thoi_gian_thuc_hien or now
             items.append(
                 SubclinicalQueueItem(
                     id=o.id,
                     luot_kham_id=o.luot_kham_id,
                     dich_vu=dv_brief,
+                    nhom_dich_vu=nhom_dich_vu_of(o.dich_vu.ma_nhom_byt, o.dich_vu.ma_dich_vu) if o.dich_vu else None,
+                    ten_dich_vu=dv_brief.ten_dich_vu,
                     benh_nhan=benh_nhan_dto,
                     bac_si_chi_dinh=bac_si_name,
+                    ly_do_vao_kham=o.luot_kham.ly_do_vao_kham if o.luot_kham else None,
+                    chan_doan_so_bo=o.luot_kham.chan_doan_so_bo if o.luot_kham else None,
                     trang_thai=o.trang_thai,
                     phong_thuc_hien_id=o.phong_thuc_hien_id or (o.dich_vu.phong_thuc_hien_id if o.dich_vu else None),
                     thoi_gian_chi_dinh=o.created_at,
+                    thoi_gian_cho_phut=max(0, int((waited_until - o.created_at).total_seconds() // 60)),
+                    ket_qua_chi_tiet=o.ket_qua_chi_tiet,
+                    ket_qua_phan_loai=o.ket_qua_phan_loai,
+                    tri_so_chi_tiet=o.tri_so_chi_tiet,
+                    file_dinh_kem_urls=o.file_dinh_kem_urls,
+                    trang_thai_ket_qua=o.phieu_ket_qua.trang_thai if o.phieu_ket_qua else None,
+                    thoi_gian_duyet=o.phieu_ket_qua.thoi_gian_duyet if o.phieu_ket_qua else None,
                 )
             )
 
@@ -154,6 +194,8 @@ class SubclinicalService:
 
         if order.trang_thai == "da_huy":
             raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
+        if is_phieu_approved(await latest_phieu(order.id, db)):
+            raise ConflictException("Kết quả đã được duyệt, không thể chỉnh sửa!")
 
         now = datetime.now(timezone.utc)
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet

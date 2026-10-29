@@ -40,6 +40,8 @@ import { clinicalService } from '../../services/doctor/ClinicalService'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/clinical/StateBlocks'
 
 const QUEUE_POLL_MS = 15000
+// Hỏi máy chủ kết quả CLS vừa được KTV duyệt: bác sĩ thấy kết quả trong vài giây, không cần tải lại trang
+const CLS_RESULT_POLL_MS = 5000
 
 // Các trường được tự lưu nháp (PATCH lượt khám)
 const DRAFT_FIELDS = [
@@ -116,18 +118,34 @@ export default function ExamWorkstationPage() {
             loadQueue()
             AppToast.info(`Bệnh nhân ${data?.patient?.fullName || data?.queueEntry?.ticketNumber || ''} vừa check-in vào phòng khám`)
         })
-        const unsubCls = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_RESULT_RETURNED, (data) => {
-            loadQueue()
-            if (encounterId && data?.encounterId === encounterId) {
-                dispatch(fetchEncounterAsync(encounterId))
-            }
-            AppToast.success(`Đã có kết quả CLS: ${data?.order?.ten_dich_vu || ''} cho bệnh nhân!`)
-        })
         return () => {
             unsubCheckIn()
-            unsubCls()
         }
-    }, [dispatch, loadQueue, encounterId])
+    }, [loadQueue])
+
+    // Kết quả CLS đã duyệt: hỏi định kỳ (khác máy/khác tài khoản), cùng trình duyệt thì sự kiện cầu nối gọi hỏi ngay
+    const checkReturnedResults = useCallback(async () => {
+        const changed = await clinicalService.pollReturnedResults()
+        if (changed.length === 0) return
+        loadQueue()
+        const shownId = encounter?.id ?? encounterId
+        if (shownId && changed.some((c) => c.encounterId === shownId)) dispatch(fetchEncounterAsync(shownId))
+        changed.forEach(({ order, patientName }) => {
+            const text = `Đã có kết quả CLS: ${order.ten_dich_vu}${patientName ? ` — ${patientName}` : ''}`
+            if (order.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`${text} (NGUY KỊCH)`)
+            else AppToast.success(text)
+        })
+    }, [dispatch, loadQueue, encounterId, encounter?.id])
+
+    useEffect(() => {
+        checkReturnedResults()
+        const timer = setInterval(checkReturnedResults, CLS_RESULT_POLL_MS)
+        const off = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_RESULT_RETURNED, checkReturnedResults)
+        return () => {
+            clearInterval(timer)
+            off()
+        }
+    }, [checkReturnedResults])
 
     const selectEncounter = (id) => {
         setPickedEncounterId(id)

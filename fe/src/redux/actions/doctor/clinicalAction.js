@@ -48,8 +48,14 @@ export const searchDrugsAsync = thunk('clinical/searchDrugs', (q) => clinicalSer
 export const uploadFileAsync = thunk('clinical/uploadFile', (file) => clinicalService.uploadFile(file))
 
 // Cận lâm sàng
-export const fetchClsWorklistAsync = thunk('clinical/fetchWorklist', (nhom) => clinicalService.getClsWorklist(nhom))
+// filters: { nhom, tuKhoa, ngay, silent } — silent: làm mới nền, không hiện khối đang tải
+export const fetchClsWorklistAsync = thunk('clinical/fetchWorklist', (filters) => clinicalService.getClsWorklist(filters))
 export const startOrderAsync = thunk('clinical/startOrder', (orderId) => clinicalService.startOrder(orderId))
 export const submitOrderResultAsync = thunk('clinical/submitResult', ({ orderId, payload }) =>
     clinicalService.submitOrderResult(orderId, payload)
 )
+export const fetchLabTemplateAsync = thunk('clinical/fetchLabTemplate', (orderId) => clinicalService.getLabTemplate(orderId))
+export const submitLabResultAsync = thunk('clinical/submitLabResult', ({ orderId, body }) =>
+    clinicalService.submitLabResult(orderId, body)
+)
+export const approveOrderAsync = thunk('clinical/approveOrder', (orderId) => clinicalService.approveOrder(orderId))

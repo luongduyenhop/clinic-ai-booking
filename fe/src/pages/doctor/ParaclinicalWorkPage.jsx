@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
-import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync } from '../../redux/actions/doctor/clinicalAction'
-import { SERVICE_GROUPS, ORDER_STATUS } from '../../utils/constants/clinical'
+import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync } from '../../redux/actions/doctor/clinicalAction'
+import { SERVICE_GROUPS, ORDER_STATUS, clsDisplayStatus } from '../../utils/constants/clinical'
 import { formatDateTime } from '../../utils/helpers/formatDate'
 import { AppToast } from '../../components/common/AppNotification'
 import { ClinicIcon } from '../../components/common/ClinicIcon'
@@ -10,17 +10,32 @@ import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/cl
 import IndicatorResultForm from '../../components/doctor/cls/IndicatorResultForm'
 import ImagingResultForm from '../../components/doctor/cls/ImagingResultForm'
 import EndoscopyResultForm from '../../components/doctor/cls/EndoscopyResultForm'
+import ClsApprovalBar from '../../components/doctor/cls/ClsApprovalBar'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 
 const STATUS_FILTERS = [
     { key: 'ALL', label: 'Tất cả' },
     { key: 'da_chi_dinh', label: 'Chờ làm' },
     { key: 'dang_thuc_hien', label: 'Đang làm' },
+    { key: 'cho_duyet', label: 'Chờ duyệt' },
     { key: 'da_co_ket_qua', label: 'Có kết quả' },
 ]
 
-function ResultForm({ group, order, submitting, onSubmit }) {
-    if (group === 'XET_NGHIEM') return <IndicatorResultForm order={order} loai="XET_NGHIEM" submitting={submitting} onSubmit={onSubmit} />
+// Xét nghiệm và CĐHA đi qua bước KTV "Duyệt & Trả kết quả"; TDCN/Nội soi vẫn trả thẳng như cũ
+const APPROVAL_GROUPS = ['XET_NGHIEM', 'CDHA']
+
+const REFRESH_MS = 30000
+
+const todayIso = () => new Date().toLocaleDateString('en-CA')
+
+const waitLabel = (minutes) => {
+    if (!minutes) return 'vừa chỉ định'
+    if (minutes < 60) return `chờ ${minutes} phút`
+    return `chờ ${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`
+}
+
+function ResultForm({ group, order, submitting, onSubmit, onSubmitLab }) {
+    if (group === 'XET_NGHIEM') return <IndicatorResultForm order={order} loai="XET_NGHIEM" submitting={submitting} onSubmitLab={onSubmitLab} />
     if (group === 'TDCN') return <IndicatorResultForm order={order} loai="TDCN" submitting={submitting} onSubmit={onSubmit} />
     if (group === 'CDHA') return <ImagingResultForm order={order} submitting={submitting} onSubmit={onSubmit} />
     return <EndoscopyResultForm order={order} submitting={submitting} onSubmit={onSubmit} />
@@ -37,13 +52,35 @@ export default function ParaclinicalWorkPage() {
 
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [keyword, setKeyword] = useState('')
+    const [tuKhoa, setTuKhoa] = useState('')
+    const [ngay, setNgay] = useState(todayIso)
     const [selectedId, setSelectedId] = useState(null)
     const [submitting, setSubmitting] = useState(false)
+    const [starting, setStarting] = useState(false)
 
-    const load = useCallback(() => dispatch(fetchClsWorklistAsync(group)), [dispatch, group])
+    // Gõ xong mới tìm trên server (tên, SĐT, mã bệnh nhân)
+    useEffect(() => {
+        const timer = setTimeout(() => setTuKhoa(keyword.trim()), 350)
+        return () => clearTimeout(timer)
+    }, [keyword])
+
+    const load = useCallback(
+        (silent = false) => dispatch(fetchClsWorklistAsync({ nhom: group, tuKhoa, ngay, silent })),
+        [dispatch, group, tuKhoa, ngay]
+    )
 
     useEffect(() => {
         load()
+    }, [load])
+
+    // Tự làm mới: định kỳ và ngay khi bác sĩ gửi chỉ định mới (cùng trình duyệt, khác tab)
+    useEffect(() => {
+        const timer = setInterval(() => load(true), REFRESH_MS)
+        const off = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_ORDERED, () => load(true))
+        return () => {
+            clearInterval(timer)
+            off()
+        }
     }, [load])
 
     const switchGroup = (key) => {
@@ -52,20 +89,18 @@ export default function ParaclinicalWorkPage() {
         setSearchParams({ nhom: key })
     }
 
-    const q = keyword.trim().toLowerCase()
-    const visible = worklist.filter(
-        (o) =>
-            (statusFilter === 'ALL' || o.trang_thai === statusFilter) &&
-            (!q || o.benh_nhan?.ho_ten.toLowerCase().includes(q) || o.ten_dich_vu.toLowerCase().includes(q))
-    )
+    const visible = worklist.filter((o) => statusFilter === 'ALL' || clsDisplayStatus(o) === statusFilter)
     const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {
+        setStarting(true)
         try {
             await dispatch(startOrderAsync(selected.id)).unwrap()
-            AppToast.info('Đã chuyển sang Đang làm')
+            AppToast.info('Đã tiếp nhận, chuyển sang Đang làm')
         } catch (msg) {
             AppToast.error(msg)
+        } finally {
+            setStarting(false)
         }
     }
 
@@ -73,7 +108,24 @@ export default function ParaclinicalWorkPage() {
         setSubmitting(true)
         try {
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()
-            AppToast.success(final ? `Đã trả kết quả ${selected.ten_dich_vu}` : 'Đã lưu nháp kết quả')
+            if (!final) AppToast.success('Đã lưu nháp kết quả')
+            else if (APPROVAL_GROUPS.includes(group)) AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — bấm “Duyệt & Trả kết quả” để gửi bác sĩ`)
+            else AppToast.success(`Đã trả kết quả ${selected.ten_dich_vu}`)
+        } catch (msg) {
+            AppToast.error(msg)
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    // Xét nghiệm: backend tự đánh giá chỉ số và lưu vào ket_qua_cls
+    const handleLabSubmit = async (body) => {
+        setSubmitting(true)
+        try {
+            const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
+            if (body.luu_nhap) AppToast.success('Đã lưu nháp kết quả xét nghiệm')
+            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã hoàn tất ${selected.ten_dich_vu} — có chỉ số nguy hiểm, kiểm tra kỹ trước khi duyệt`)
+            else AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — chờ duyệt & trả`)
         } catch (msg) {
             AppToast.error(msg)
         } finally {
@@ -125,14 +177,25 @@ export default function ParaclinicalWorkPage() {
                     <input
                         type="search"
                         className="medpro-input"
-                        placeholder="Tên bệnh nhân hoặc dịch vụ"
+                        placeholder="Tên, SĐT hoặc mã bệnh nhân"
                         aria-label="Tìm chỉ định"
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                     />
+                    <label className="flex items-center gap-2 text-[12px] text-slate-500">
+                        Ngày chỉ định
+                        <input
+                            type="date"
+                            className="medpro-input flex-1"
+                            aria-label="Ngày chỉ định"
+                            value={ngay}
+                            max={todayIso()}
+                            onChange={(e) => setNgay(e.target.value || todayIso())}
+                        />
+                    </label>
                     <div className="flex flex-wrap gap-1.5">
                         {STATUS_FILTERS.map((f) => {
-                            const n = f.key === 'ALL' ? worklist.length : worklist.filter((o) => o.trang_thai === f.key).length
+                            const n = f.key === 'ALL' ? worklist.length : worklist.filter((o) => clsDisplayStatus(o) === f.key).length
                             return (
                                 <button
                                     key={f.key}
@@ -150,14 +213,14 @@ export default function ParaclinicalWorkPage() {
                     </div>
 
                     {worklistLoading && <LoadingBlock />}
-                    {worklistError && <ErrorBlock message={worklistError} onRetry={load} />}
+                    {worklistError && <ErrorBlock message={worklistError} onRetry={() => load()} />}
                     {!worklistLoading && !worklistError && visible.length === 0 && (
                         <EmptyBlock icon="ListChecks" title="Không có chỉ định" hint="Thử đổi bộ lọc trạng thái hoặc loại cận lâm sàng." />
                     )}
 
                     {!worklistLoading &&
                         visible.map((o) => {
-                            const st = ORDER_STATUS[o.trang_thai]
+                            const st = ORDER_STATUS[clsDisplayStatus(o)]
                             const isSel = selected?.id === o.id
                             return (
                                 <button
@@ -178,8 +241,12 @@ export default function ParaclinicalWorkPage() {
                                         <span className={st.badge}>{st.label}</span>
                                     </span>
                                     <span className="text-[13px]">{o.ten_dich_vu}</span>
+                                    {o.chan_doan_so_bo && (
+                                        <span className="text-[12px] text-slate-600">Chẩn đoán sơ bộ: {o.chan_doan_so_bo}</span>
+                                    )}
                                     <span className="text-[12px] text-slate-500">
                                         {o.bac_si_chi_dinh} chỉ định {formatDateTime(o.thoi_gian_chi_dinh)}
+                                        {o.trang_thai === 'da_chi_dinh' && ` · ${waitLabel(o.thoi_gian_cho_phut)}`}
                                     </span>
                                 </button>
                             )
@@ -202,6 +269,9 @@ export default function ParaclinicalWorkPage() {
                                     <span className="text-[13px]">
                                         Lý do khám: <strong className="font-medium">{selected.ly_do || '—'}</strong> · {selected.bac_si_chi_dinh} chỉ định
                                     </span>
+                                    <span className="text-[13px]">
+                                        Chẩn đoán sơ bộ: <strong className="font-medium">{selected.chan_doan_so_bo || '—'}</strong>
+                                    </span>
                                 </div>
                                 {selected.benh_nhan?.di_ung_thuoc && (
                                     <span className="medpro-badge-danger">
@@ -209,13 +279,21 @@ export default function ParaclinicalWorkPage() {
                                     </span>
                                 )}
                                 {selected.trang_thai === 'da_chi_dinh' && (
-                                    <button type="button" className="medpro-btn-amber" onClick={handleStart}>
-                                        Bắt đầu thực hiện
+                                    <button type="button" className="medpro-btn-amber" onClick={handleStart} disabled={starting}>
+                                        {starting ? 'Đang tiếp nhận…' : 'Tiếp nhận & bắt đầu'}
                                     </button>
                                 )}
                             </div>
-                            <div className="p-5">
-                                <ResultForm key={selected.id} group={group} order={selected} submitting={submitting} onSubmit={handleSubmit} />
+                            <div className="flex flex-col gap-4 p-5">
+                                {APPROVAL_GROUPS.includes(group) && <ClsApprovalBar order={selected} />}
+                                <ResultForm
+                                    key={selected.id}
+                                    group={group}
+                                    order={selected}
+                                    submitting={submitting}
+                                    onSubmit={handleSubmit}
+                                    onSubmitLab={handleLabSubmit}
+                                />
                             </div>
                         </>
                     )}

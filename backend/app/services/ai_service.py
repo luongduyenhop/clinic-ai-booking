@@ -3,6 +3,7 @@ import unicodedata
 import logging
 from functools import lru_cache
 from typing import List, Optional, Tuple, Union
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 from app.core.config import settings
@@ -15,13 +16,20 @@ from app.schemas.ai import (
     SpecialtySuggestion
 )
 from app.schemas.appointment import DoctorBriefResponse
+from app.ml.triage_model import (
+    AITriageModelError,
+    MODEL_VERSION,
+    get_ai_triage_model,
+)
+from app.ml.triage_nlp import detect_red_flags as detect_model_red_flags
 
 logger = logging.getLogger("clinic_backend")
 
 # Cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
 BUILT_IN_EMERGENCY = [
     "đau ngực dữ dội", "khó thở cấp", "ngất xỉu", "hôn mê",
-    "co giật", "liệt nửa người", "sốt co giật", "nôn ra máu"
+    "co giật", "liệt nửa người", "sốt co giật", "nôn ra máu",
+    "bất tỉnh", "không đánh thức được"
 ]
 
 
@@ -152,8 +160,18 @@ class AIService:
         tokens = self.tokenize(self.normalize_vietnamese(raw_text))
         benh_nhan_id = await self._get_patient_id(user, db)
 
-        # 1. CHỐT CHẶN 1: Quét dấu hiệu cấp cứu Red Flags
+        # 1. CHỐT CHẶN 1: Quét dấu hiệu cấp cứu Red Flags. Chạy trước model để
+        # cảnh báo 115 không phụ thuộc vào độ tin cậy hoặc trạng thái model.
         is_emergency, alert_msg, tu_khoa = await self.scan_red_flags(tokens, db)
+        model_red_flags = detect_model_red_flags(raw_text)
+        if not is_emergency and model_red_flags:
+            is_emergency = True
+            tu_khoa = model_red_flags[0]
+            alert_msg = (
+                "CẢNH BÁO DẤU HIỆU NGUY CẤP: "
+                f"{', '.join(model_red_flags)}. Gọi ngay 115 hoặc đến cơ sở cấp cứu "
+                "gần nhất; không chờ kết quả phân loại chuyên khoa."
+            )
         if is_emergency:
             # Ghi vết nhật ký cấp cứu kèm từ khóa đã bắt trúng để hậu kiểm báo động
             log_ai = PhanTichAI(
@@ -169,80 +187,89 @@ class AIService:
             return SymptomTriageResponse(
                 has_emergency=True,
                 emergency_alert=alert_msg,
-                suggested_specialties=[]
+                suggested_specialties=[],
+                recognized_symptoms=[],
+                disease_predictions=[],
+                model_version=MODEL_VERSION,
             )
 
-        # 2. CHỐT CHẶN 2: Mô hình phân loại triệu chứng dựa trên bảng tri thức y tế
-        # (Trong thực tế production gọi model PhoBERT trên server GPU, ở đây implement Engine đối chiếu luật + trọng số NLP)
-        knowledge_base = [
-            {
-                "specialty_name": "Tim mạch",
-                "keywords": ["ngực", "tim", "hồi hộp", "đánh trống ngực", "mạch nhanh", "vã mồ hôi"],
-                "reason": "Mô tả triệu chứng liên quan đến vùng ngực, tim và huyết động học."
-            },
-            {
-                "specialty_name": "Tiêu hóa",
-                "keywords": ["bụng", "dạ dày", "tiêu chảy", "ợ chua", "đầy hơi", "buồn nôn", "thượng vị"],
-                "reason": "Các dấu hiệu điển hình của rối loạn đường tiêu hóa và dạ dày - đại tràng."
-            },
-            {
-                "specialty_name": "Tai - Mũi - Họng",
-                "keywords": ["chóng mặt", "quay cuồng", "tiền đình", "ù tai", "tai", "mũi", "họng", "nghẹt mũi", "khàn tiếng"],
-                "reason": "Triệu chứng tiền đình và hô hấp trên thuộc phạm vi Tai - Mũi - Họng."
-            },
-            {
-                "specialty_name": "Thần kinh",
-                "keywords": ["đầu", "đau nửa đầu", "mất ngủ", "tê bì", "giật", "chân tay"],
-                "reason": "Dấu hiệu ảnh hưởng tới hệ thần kinh trung ương và ngoại vi."
-            },
-            {
-                "specialty_name": "Hô hấp",
-                "keywords": ["ho", "đờm", "phổi", "khò khè", "viêm phế quản"],
-                "reason": "Triệu chứng bệnh lý đường hô hấp dưới và phổi."
-            },
-            {
-                "specialty_name": "Da liễu",
-                "keywords": ["ngứa", "mẩn đỏ", "dị ứng", "mề đay", "mụn", "bong tróc da"],
-                "reason": "Tổn thương bề mặt da và phản ứng quá mẫn dị ứng."
-            },
-            {
-                "specialty_name": "Cơ xương khớp",
-                "keywords": ["khớp", "gối", "lưng", "vai gáy", "cột sống", "cứng khớp"],
-                "reason": "Bệnh lý hệ vận động và thoái hóa xương khớp."
+        # 2. CHỐT CHẶN 2: NLP 450 đặc trưng + RandomForest 100 bệnh/5 khoa.
+        model_failed = False
+        try:
+            def infer():
+                return get_ai_triage_model().analyze(
+                    raw_text, age=payload.tuoi, gender=payload.gioi_tinh
+                )
+
+            model_result = await run_in_threadpool(infer)
+        except (AITriageModelError, ValueError, OSError) as exc:
+            logger.exception("AI Triage model unavailable: %s", exc)
+            model_failed = True
+            model_result = {
+                "specialties": [],
+                "diseases": [],
+                "recognized_symptoms": [],
+                "clinical_match_count": 0,
             }
-        ]
 
-        scored_specialties = []
-        for kb in knowledge_base:
-            match_count = sum(1 for kw in kb["keywords"] if self.contains_phrase(tokens, kw))
-            if match_count > 0:
-                confidence = min(0.60 + (match_count * 0.12), 0.95)
-                scored_specialties.append((kb["specialty_name"], confidence, kb["reason"]))
-
-        scored_specialties.sort(key=lambda x: x[1], reverse=True)
-
+        scored_specialties = model_result["specialties"]
+        disease_predictions = model_result["diseases"]
+        recognized_symptoms = list(dict.fromkeys(model_result["recognized_symptoms"]))
         suggestions: List[SpecialtySuggestion] = []
         default_assigned = False
+        needs_more_information = False
 
-        # 3. CHỐT CHẶN 3: Đánh giá 3 tầng ngưỡng tin cậy (Tham chiếu Infermedica Confidence Tiers)
-        if not scored_specialties or scored_specialties[0][1] < settings.AI_CONFIDENCE_THRESHOLD:
-            # Tầng 3 (< 60%): Không đủ độ tin cậy đặc hiệu -> Fallback về Nội tổng quát để đảm bảo an toàn
+        # 3. CHỐT CHẶN 3: chỉ định tuyến khi >= 60% và có ít nhất 2 dấu
+        # hiệu lâm sàng được NLP nhận diện. Nếu không, tiếp nhận Nội tổng quát
+        # và yêu cầu bổ sung vị trí, thời gian, mức độ hoặc dấu hiệu đi kèm.
+        top_confidence = scored_specialties[0]["probability"] if scored_specialties else 0.0
+        insufficient_evidence = model_result["clinical_match_count"] < 2
+        if model_failed or top_confidence < settings.AI_CONFIDENCE_THRESHOLD or insufficient_evidence:
             default_assigned = True
-            target_specialty_name = "Nội tổng quát"
-            confidence = 0.50
-            reason = "Mô tả triệu chứng chưa đủ đặc hiệu hoặc độ tin cậy < 60%. Hệ thống khuyến nghị khám Nội tổng quát để sàng lọc bước đầu."
+            needs_more_information = True
+            confidence = top_confidence
+            if model_failed:
+                reason = (
+                    "Model AI hiện không sẵn sàng. Hệ thống chuyển Nội tổng quát "
+                    "để tiếp nhận an toàn; nhân viên y tế cần đánh giá trực tiếp."
+                )
+            else:
+                reason = (
+                    f"Độ tin cậy chuyên khoa cao nhất là {top_confidence:.0%} hoặc mô tả "
+                    "chưa có đủ 2 dấu hiệu đặc hiệu. Vui lòng bổ sung vị trí, thời gian, "
+                    "mức độ và dấu hiệu đi kèm; tạm thời tiếp nhận tại Nội tổng quát."
+                )
             suggestions.append(
-                await self._build_specialty_suggestion(target_specialty_name, confidence, reason, db, muc_do="thap")
+                await self._build_specialty_suggestion(
+                    "Nội tổng quát", confidence, reason, db, muc_do="thap"
+                )
             )
         else:
-            # Lấy tối đa 2 chuyên khoa có điểm cao nhất
-            for spec_name, conf, reason in scored_specialties[:2]:
+            specialty_aliases = {
+                "Ngoại": "Ngoại tổng quát",
+                "Tai Mũi Họng": "Tai - Mũi - Họng",
+            }
+            top_diseases = disease_predictions[:3]
+            disease_context = ", ".join(
+                f"{item['ten_benh']} ({item['xac_suat']:.0%})" for item in top_diseases
+            )
+            # Khoa đầu tiên phải đạt 60%; khoa thứ hai chỉ trả về nếu còn >= 20%.
+            for index, item in enumerate(scored_specialties[:2]):
+                spec_name = specialty_aliases.get(item["specialty"], item["specialty"])
+                conf = item["probability"]
+                if index > 0 and conf < 0.20:
+                    continue
                 if conf >= 0.75:
                     muc_do = "cao"
-                    full_reason = f"[Độ tin cậy cao >= 75%] {reason}"
+                    tier = "Độ tin cậy cao"
                 else:
                     muc_do = "trung_binh"
-                    full_reason = f"[Gợi ý tham khảo 60-74%] {reason} (Khuyến nghị bác sĩ khám lâm sàng xác nhận)"
+                    tier = "Gợi ý tham khảo"
+                full_reason = (
+                    f"[{tier}: {conf:.0%}] Model nhận diện: "
+                    f"{', '.join(recognized_symptoms[:6])}. Các khả năng nổi bật: "
+                    f"{disease_context}. Cần bác sĩ khám lâm sàng xác nhận."
+                )
                 suggestions.append(
                     await self._build_specialty_suggestion(spec_name, conf, full_reason, db, muc_do=muc_do)
                 )
@@ -263,7 +290,11 @@ class AIService:
             has_emergency=False,
             emergency_alert=None,
             suggested_specialties=suggestions,
-            default_assigned=default_assigned
+            default_assigned=default_assigned,
+            needs_more_information=needs_more_information,
+            recognized_symptoms=recognized_symptoms,
+            disease_predictions=disease_predictions,
+            model_version=MODEL_VERSION,
         )
 
     async def _build_specialty_suggestion(

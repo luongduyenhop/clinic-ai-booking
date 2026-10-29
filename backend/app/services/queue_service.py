@@ -241,7 +241,7 @@ class QueueService:
         if existing_ticket:
             # Bahmni Idempotency Rule: Gửi lại request không tạo vé rác, trả về vé và số thứ tự hiện hữu
             logger.info(f"Lịch hẹn {lich.ma_lich_kham} đã check-in trước đó, trả về vé STT #{existing_ticket.so_thu_tu_kham}")
-            return self._to_ticket_response(existing_ticket)
+            return await self._get_ticket_with_relations(existing_ticket.id, db)
 
         now = datetime.now(timezone.utc)
 
@@ -539,8 +539,9 @@ class QueueService:
             if lich:
                 lich.trang_thai = TrangThaiLichEnum.DANG_KHAM.value
 
+        ticket_id_called = candidate.id
+        ticket_stt_called = candidate.so_thu_tu_kham
         await db.commit()
-        await db.refresh(candidate)
 
         # 3. Đếm số người còn lại trong hàng đợi
         stmt_count = select(func.count(HangDoiKham.id)).where(
@@ -550,10 +551,12 @@ class QueueService:
         )
         remaining = (await db.execute(stmt_count)).scalar() or 0
 
-        logger.info(f"📢 [QUEUE CALLED] Bác sĩ {doctor_id} gọi bệnh nhân STT #{candidate.so_thu_tu_kham} (Ticket: {candidate.id})")
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        ticket_response = await self._get_ticket_with_relations(ticket_id_called, db)
+        logger.info(f"📢 [QUEUE CALLED] Bác sĩ {doctor_id} gọi bệnh nhân STT #{ticket_stt_called} (Ticket: {ticket_id_called})")
         return CallNextResponse(
-            message=f"Đã gọi thành công bệnh nhân STT #{candidate.so_thu_tu_kham} vào phòng khám!",
-            ticket=self._to_ticket_response(candidate),
+            message=f"Đã gọi thành công bệnh nhân STT #{ticket_stt_called} vào phòng khám!",
+            ticket=ticket_response,
             so_nguoi_con_lai=remaining,
         )
 
@@ -586,11 +589,12 @@ class QueueService:
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
+        ticket_id_postponed = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
         ticket.ghi_chu_dieu_phoi = f"Tạm hoãn lúc {datetime.now(timezone.utc).strftime('%H:%M:%S')} do gọi 3 lần không vào."
         await db.commit()
-        await db.refresh(ticket)
-        return self._to_ticket_response(ticket)
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        return await self._get_ticket_with_relations(ticket_id_postponed, db)
 
     async def restore_ticket(
         self,
@@ -607,13 +611,14 @@ class QueueService:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
         now = datetime.now(timezone.utc)
+        ticket_id_restored = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
         ticket.thoi_gian_xep_hang_lai = now
         ticket.muc_do_uu_tien = 4  # Khi quay lại, ưu tiên sau các ca đúng giờ
         ticket.ghi_chu_dieu_phoi = f"{ticket.ghi_chu_dieu_phoi or ''} | Phục hồi hàng đợi lúc {now.strftime('%H:%M:%S')}.".strip(" | ")
         await db.commit()
-        await db.refresh(ticket)
-        return self._to_ticket_response(ticket)
+        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
+        return await self._get_ticket_with_relations(ticket_id_restored, db)
 
     async def close_ticket(
         self,
@@ -1086,7 +1091,7 @@ class QueueService:
                 and_(
                     LichLamViec.ngay_lam_viec == target_date,
                     LichLamViec.ca_lam_viec == target_ca,
-                    LichLamViec.is_active == True,
+                    LichLamViec.is_active.is_(True),
                 )
             )
         )

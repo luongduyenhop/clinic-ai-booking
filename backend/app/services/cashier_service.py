@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
+    BadRequestException,
     ConflictException,
     NotFoundException,
     UnprocessableEntityException,

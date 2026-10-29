@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user,require_roles
 from app.core.response import ResponseEnvelope
 from app.core.exceptions import ForbiddenException
 from app.models.user import TaiKhoan, VaiTroEnum
@@ -267,15 +267,13 @@ async def close_shift(
 )
 async def refund_invoice(
     payload: RefundInvoiceRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_roles([
+        VaiTroEnum.LE_TAN,
+        VaiTroEnum.THU_NGAN,
+        VaiTroEnum.ADMIN,
+    ])),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in (
-        VaiTroEnum.LE_TAN.value,
-        VaiTroEnum.THU_NGAN.value,
-        VaiTroEnum.ADMIN.value,
-    ):
-        raise ForbiddenException("Chỉ Thu ngân, Lễ tân hoặc Quản trị viên mới có quyền thực hiện hoàn tiền viện phí!")
     result = await cashier_service.refund_invoice(
         payload=payload,
         thu_ngan_user_id=current_user.nguoi_dung_id,

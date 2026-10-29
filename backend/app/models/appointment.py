@@ -3,7 +3,7 @@ from sqlalchemy import (
     CheckConstraint, Column, String, Date, Time, Integer, ForeignKey, Text, Boolean, Index, DateTime, Numeric,
     UniqueConstraint, text
 )
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import relationship
 from app.core.config import ALLOWED_SLOT_DURATIONS
 from app.models.base import BaseModelWithTimestamp
 
@@ -239,7 +239,7 @@ class DanhGiaAI(BaseModelWithTimestamp):
 class HangDoiKham(BaseModelWithTimestamp):
     __tablename__ = "hang_doi_kham"
 
-    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, unique=True)
+    lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="SET NULL"), nullable=True, index=True)
     lich_lam_viec_id = Column(Integer, ForeignKey("lich_lam_viec.id", ondelete="SET NULL"), nullable=True, index=True)
     benh_nhan_id = Column(Integer, ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False, index=True)

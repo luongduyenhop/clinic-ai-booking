@@ -262,27 +262,47 @@ async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
     from app.core.exceptions import ForbiddenException
 
     today = date.today()
-    # Tạo đơn nghỉ phép cho bs_x với phòng khám 101
+    import uuid
+    from app.models.user import PhongKham
+    uid = uuid.uuid4().hex[:6]
+    room1 = PhongKham(
+        ma_phong=f"P1-{uid}",
+        ten_phong=f"Phòng {uid}-1",
+        tang="Tầng 1",
+        loai_phong="kham_benh",
+        is_active=True,
+    )
+    room2 = PhongKham(
+        ma_phong=f"P2-{uid}",
+        ten_phong=f"Phòng {uid}-2",
+        tang="Tầng 2",
+        loai_phong="kham_benh",
+        is_active=True,
+    )
+    db_session.add_all([room1, room2])
+    await db_session.flush()
+
+    # Tạo đơn nghỉ phép cho bs_x gắn với room1
     np = NghiPhepBacSi(
         bac_si_id=booking.bs_x.id,
-        phong_kham_id=101,
+        phong_kham_id=room1.id,
         loai_nghi=LoaiNghiPhepEnum.NGHI_DOT_XUAT.value,
         tu_ngay=today,
         den_ngay=today,
         ca_lam_viec="sang",
-        ly_do="Sự cố đột xuất phòng khám 101",
+        ly_do=f"Sự cố đột xuất phòng khám {room1.id}",
         trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
     )
     db_session.add(np)
     await db_session.flush()
 
-    # Tạo Lễ tân thuộc phòng khám 202 (khác với phòng khám 101)
+    # Tạo Lễ tân thuộc room2 (khác với room1)
     letan_nd = await booking.tao_tai_khoan("letan_tenant", VaiTroEnum.LE_TAN.value)
     from sqlalchemy import select
     from app.models.user import TaiKhoan
     stmt_tk = select(TaiKhoan).where(TaiKhoan.nguoi_dung_id == letan_nd.id)
     letan = (await db_session.execute(stmt_tk)).scalar_one()
-    letan.phong_kham_id = 202
+    letan.phong_kham_id = room2.id
 
     req = RebalanceQueueRequest(
         nghi_phep_bac_si_id=np.id,

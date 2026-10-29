@@ -234,6 +234,13 @@ class QueueService:
             appointment_dt = datetime.combine(lich.ngay_kham, gio_hen)
             diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
+            # Xử lý trường hợp khung giờ cận nửa đêm (Midnight Wraparound):
+            if lich.ngay_kham == now_clinic.date():
+                if now_clinic.hour >= 20 and gio_hen.hour < 4:
+                    diff_minutes += 1440
+                elif now_clinic.hour < 4 and gio_hen.hour >= 20:
+                    diff_minutes -= 1440
+
             if diff_minutes > 30:
                 # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
                 loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value

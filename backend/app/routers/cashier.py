@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user,require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.cashier import (
     CloseShiftRequest,
     CloseShiftResponse,
@@ -266,7 +266,11 @@ async def close_shift(
 )
 async def refund_invoice(
     payload: RefundInvoiceRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_roles([
+            VaiTroEnum.LE_TAN,
+            VaiTroEnum.THU_NGAN,
+            VaiTroEnum.ADMIN,
+        ])),
     db: AsyncSession = Depends(get_db)
 ):
     result = await cashier_service.refund_invoice(

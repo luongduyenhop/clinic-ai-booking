@@ -7,7 +7,6 @@ from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
-from sqlalchemy.engine import make_url
 
 
 def _resolve_active_database_url() -> tuple[str, bool]:

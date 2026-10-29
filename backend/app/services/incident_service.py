@@ -91,9 +91,9 @@ class IncidentService:
                     .where(
                         BacSi.chuyen_khoa_id == ck_id,
                         BacSi.id != leave.bac_si_id,
-                        BacSi.is_active == True,
+                        BacSi.is_active.is_(True),
                         LichLamViec.ngay_lam_viec == target_date,
-                        LichLamViec.is_active == True,
+                        LichLamViec.is_active.is_(True),
                     )
                 )
                 if leave.ca_lam_viec:

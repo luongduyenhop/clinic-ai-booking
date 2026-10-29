@@ -20,7 +20,6 @@ async def test_walk_in_stt_auto_increment_no_gap_per_room_and_day(api_client, bo
     bs1 = booking.bs_x
     bs2 = booking.bs_y
 
-    today = date.today()
     suffix = uuid.uuid4().hex[:6]
 
     # Tạo 3 bệnh nhân cho BS 1 và 1 bệnh nhân cho BS 2

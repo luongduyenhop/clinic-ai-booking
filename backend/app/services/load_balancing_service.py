@@ -48,11 +48,11 @@ class DoctorLoadBalancingService:
             .join(BacSi, LichLamViec.bac_si_id == BacSi.id)
             .where(
                 BacSi.chuyen_khoa_id == chuyen_khoa_id,
-                BacSi.is_active == True,
+                BacSi.is_active.is_(True),
                 BacSi.trang_thai_giay_phep == "ACTIVE",
                 LichLamViec.ngay_lam_viec == ngay_kham,
                 LichLamViec.ca_lam_viec == ca_kham,
-                LichLamViec.is_active == True,
+                LichLamViec.is_active.is_(True),
             )
             .with_for_update(of=LichLamViec)
         )

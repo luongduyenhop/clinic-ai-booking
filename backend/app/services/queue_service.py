@@ -1086,7 +1086,7 @@ class QueueService:
                 and_(
                     LichLamViec.ngay_lam_viec == target_date,
                     LichLamViec.ca_lam_viec == target_ca,
-                    LichLamViec.is_active == True,
+                    LichLamViec.is_active.is_(True),
                 )
             )
         )

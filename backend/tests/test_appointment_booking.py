@@ -45,6 +45,7 @@ async def test_book_available_slot_then_it_shows_booked(api_client, db_session, 
     assert response.status_code == 201, response.text
     data = response.json()["data"]
     assert data["so_thu_tu"] == 1
+    assert data["ma_lich_kham"] == f"LK-{ngay.strftime('%Y%m%d')}-BS{booking.bs_x.id:02d}001"
     assert data["bac_si"]["chuyen_khoa"] == "Đa khoa"
     assert data["trang_thai"] == TrangThaiLichEnum.DA_XAC_NHAN.value
     assert await _slot_status(api_client, booking.bs_x.id, ngay, "09:00") == "booked"

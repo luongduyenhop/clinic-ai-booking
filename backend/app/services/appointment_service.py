@@ -125,6 +125,11 @@ def build_day_slots(
     return slots
 
 
+def build_appointment_code(appointment_date: date, doctor_id: int, sequence: int) -> str:
+    """Sinh mã lịch theo chuẩn Jira PJ2026-145: LK-YYYYMMDD-BSxxSTT."""
+    return f"LK-{appointment_date.strftime('%Y%m%d')}-BS{doctor_id:02d}{sequence:03d}"
+
+
 class AppointmentService:
     """Tầng Control xử lý nghiệp vụ đặt lịch, tính toán slot động và kiểm soát xung đột (Package B)"""
 
@@ -317,8 +322,8 @@ class AppointmentService:
         total_count, max_so_thu_tu = (await db.execute(stmt_count)).one()
         so_thu_tu = max_so_thu_tu + 1
 
-        # 7. Sinh mã lịch khám duy nhất theo mẫu: LK-YYYYMMDD-<mã BS><thứ tự cấp mã>
-        ma_lich = f"LK-{payload.ngay_kham.strftime('%Y%m%d')}-{payload.bac_si_id:02d}{total_count + 1:03d}"
+        # 7. Sinh mã lịch khám duy nhất theo mẫu Jira PJ2026-145: LK-YYYYMMDD-BSxxSTT
+        ma_lich = build_appointment_code(payload.ngay_kham, payload.bac_si_id, total_count + 1)
 
         # 8. Khởi tạo bản ghi LichKham
         lich_kham = LichKham(
@@ -1044,7 +1049,7 @@ class AppointmentService:
         )
         total_count, max_so_thu_tu = (await db.execute(stmt_count)).one()
         so_thu_tu = max_so_thu_tu + 1
-        ma_lich = f"LK-{freed_slot.ngay_kham.strftime('%Y%m%d')}-{entry.bac_si_id:02d}{total_count + 1:03d}"
+        ma_lich = build_appointment_code(freed_slot.ngay_kham, entry.bac_si_id, total_count + 1)
 
         # 7. Khởi tạo lịch khám chính thức đã xác nhận cho người bệnh
         new_booking = LichKham(

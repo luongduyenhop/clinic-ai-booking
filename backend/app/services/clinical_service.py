@@ -1,5 +1,7 @@
+import json
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
 from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum
+from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     LuotKham,
     ChanDoan,
@@ -1279,6 +1282,193 @@ class ClinicalService:
             danh_sach_thuoc=items_payload,
         )
         return await self.create_prescription(encounter_id, create_req, user, db)
+
+    async def sync_workspace_to_postgres(
+        self,
+        db: AsyncSession,
+        payload: dict,
+        current_user: Optional[TaiKhoan] = None,
+    ) -> dict:
+        """Đồng bộ bền vững trạng thái Bàn khám lâm sàng xuống CSDL PostgreSQL.
+        Tuân thủ:
+        - Clean Architecture: Logic nghiệp vụ DB đóng gói trong Service layer.
+        - Data Integrity: Không swallow ngoại lệ, rollback tức thì nếu có lỗi.
+        - Medical Safety: Tuyệt đối không fallback sang first_lk tránh ghi đè chẩn đoán/chỉ định nhầm bệnh nhân.
+        """
+        user_id = current_user.id if current_user else None
+
+        try:
+            # 1. Lưu snapshot JSON vào bảng HeThongTrangThaiBff
+            stmt = select(HeThongTrangThaiBff).where(
+                HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+            )
+            row = (await db.execute(stmt)).scalar_one_or_none()
+            if row:
+                row.data_json = payload
+                row.updated_by_id = user_id
+            else:
+                db.add(
+                    HeThongTrangThaiBff(
+                        collection_key="doctor_clinical_workspace",
+                        data_json=payload,
+                        updated_by_id=user_id,
+                    )
+                )
+
+            # 2. Đồng bộ xuống các bảng quan hệ (LuotKham, ChiDinh, ChanDoan)
+            encounters = payload.get("encounters") or {}
+            first_bs = (await db.execute(select(BacSi).limit(1))).scalars().first()
+
+            if isinstance(encounters, dict):
+                for enc_key, enc_data in encounters.items():
+                    if not isinstance(enc_data, dict):
+                        continue
+
+                    # Tìm LuotKham tương ứng theo ID
+                    target_lk = None
+                    raw_id = enc_data.get("id") or enc_key
+                    try:
+                        enc_id = int(raw_id)
+                        target_lk = (await db.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one_or_none()
+                    except (ValueError, TypeError):
+                        target_lk = None
+
+                    # Tuyệt đối không fallback sang first_lk tránh ghi đè nhầm bệnh án
+                    if not target_lk:
+                        logger.warning(
+                            f"Bỏ qua đồng bộ encounter {raw_id}: không tìm thấy LuotKham tương ứng trong CSDL."
+                        )
+                        continue
+
+                    bs_id = target_lk.bac_si_id or (first_bs.id if first_bs else None)
+
+                    # Cập nhật lý do khám, bệnh sử, triệu chứng lâm sàng nếu có
+                    if enc_data.get("ly_do_vao_kham"):
+                        target_lk.ly_do_vao_kham = enc_data.get("ly_do_vao_kham")
+                        if not target_lk.trieu_chung:
+                            target_lk.trieu_chung = target_lk.ly_do_vao_kham
+
+                    if enc_data.get("benh_su"):
+                        target_lk.benh_su = enc_data.get("benh_su")
+
+                    if enc_data.get("kham_lam_sang_bo_phan"):
+                        target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
+
+                    # Task 3 AC2: Đồng bộ chỉ định cận lâm sàng (lưu trạng thái CHO_THUC_HIEN gửi phòng KTV)
+                    orders = enc_data.get("danh_sach_chi_dinh") or []
+                    for ord_item in orders:
+                        if not isinstance(ord_item, dict):
+                            continue
+                        ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
+                        ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
+                        dv = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == ma_dv))).scalar_one_or_none()
+                        if not dv:
+                            dv = DichVu(
+                                ma_dich_vu=ma_dv,
+                                ten_dich_vu=ten_dv,
+                                don_gia=Decimal("150000"),
+                                don_vi_tinh="Lần",
+                                ma_nhom_byt=str(ord_item.get("nhom_dich_vu") or "xet_nghiem")[:50],
+                                is_active=True,
+                            )
+                            db.add(dv)
+                            await db.flush()
+
+                        existing_order = (
+                            await db.execute(
+                                select(ChiDinh).where(
+                                    ChiDinh.luot_kham_id == target_lk.id,
+                                    ChiDinh.dich_vu_id == dv.id,
+                                )
+                            )
+                        ).scalars().first()
+                        ket_qua_raw = ord_item.get("ket_qua_chi_tiet")
+                        ket_qua_str = (
+                            json.dumps(ket_qua_raw, ensure_ascii=False)
+                            if isinstance(ket_qua_raw, (dict, list))
+                            else (str(ket_qua_raw) if ket_qua_raw else None)
+                        )
+
+                        raw_status = str(ord_item.get("trang_thai") or "").strip()
+                        if not raw_status or raw_status == "da_chi_dinh":
+                            status_to_save = "CHO_THUC_HIEN"
+                        else:
+                            status_to_save = raw_status
+
+                        if existing_order:
+                            existing_order.trang_thai = status_to_save
+                            existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
+                            existing_order.ket_qua_chi_tiet = ket_qua_str
+                            existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
+                        else:
+                            db.add(
+                                ChiDinh(
+                                    luot_kham_id=target_lk.id,
+                                    dich_vu_id=dv.id,
+                                    so_luong=1,
+                                    don_gia_tai_thoi_diem=dv.don_gia or Decimal("150000"),
+                                    trang_thai=status_to_save,
+                                    bac_si_chi_dinh_id=bs_id,
+                                    ket_qua_phan_loai=ord_item.get("ket_qua_phan_loai"),
+                                    ket_qua_chi_tiet=ket_qua_str,
+                                    tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
+                                )
+                            )
+
+                    # Task 3 AC1: Đồng bộ danh sách chẩn đoán ICD-10 vào bảng chan_doan
+                    diagnoses = enc_data.get("danh_sach_chan_doan")
+                    if isinstance(diagnoses, list) and diagnoses:
+                        cur_diags = (
+                            await db.execute(
+                                select(ChanDoan).where(ChanDoan.luot_kham_id == target_lk.id)
+                            )
+                        ).scalars().all()
+                        for cd in cur_diags:
+                            await db.delete(cd)
+                        await db.flush()
+
+                        primary_diag_str = None
+                        for d_item in diagnoses:
+                            if not isinstance(d_item, dict):
+                                continue
+                            ma = str(d_item.get("ma_icd10") or "").strip()
+                            ten = str(d_item.get("ten_benh_chan_doan") or "").strip()
+                            loai = str(d_item.get("loai_chan_doan") or "chinh").strip().lower()
+                            if not ma:
+                                continue
+
+                            kn = (
+                                await db.execute(
+                                    select(KhaiNiem).where(
+                                        KhaiNiem.ma_khai_niem == ma,
+                                        KhaiNiem.loai_khai_niem == "benh_icd10"
+                                    )
+                                )
+                            ).scalars().first()
+
+                            db.add(
+                                ChanDoan(
+                                    luot_kham_id=target_lk.id,
+                                    khai_niem_id=kn.id if kn else None,
+                                    ma_icd10=ma,
+                                    ten_benh_chan_doan=ten or (kn.ten_khai_niem if kn else ma),
+                                    loai_chan_doan=loai if loai in ("chinh", "phu") else "chinh",
+                                    ghi_chu_chuyen_mon=d_item.get("ghi_chu_chuyen_mon"),
+                                    bac_si_ghi_nhan_id=bs_id,
+                                )
+                            )
+                            if loai == "chinh" and not primary_diag_str:
+                                primary_diag_str = f"{ma} - {ten or (kn.ten_khai_niem if kn else ma)}"
+
+                        if primary_diag_str:
+                            target_lk.chan_doan_so_bo = primary_diag_str[:255]
+
+            await db.commit()
+            return {"saved": True}
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Error syncing clinical data to Postgres: {e}", exc_info=True)
+            raise
 
 
 clinical_service = ClinicalService()

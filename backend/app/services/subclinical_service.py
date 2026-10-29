@@ -54,8 +54,8 @@ class SubclinicalService:
         if trang_thai:
             stmt = stmt.where(ChiDinh.trang_thai == trang_thai)
         else:
-            # Mặc định chỉ lấy các ca đang chờ thực hiện hoặc đang tiến hành
-            stmt = stmt.where(ChiDinh.trang_thai.in_(["da_chi_dinh", "dang_thuc_hien"]))
+            # Mặc định lấy các ca đang chờ thực hiện hoặc đang tiến hành (bao gồm CHO_THUC_HIEN)
+            stmt = stmt.where(ChiDinh.trang_thai.in_(["CHO_THUC_HIEN", "da_chi_dinh", "dang_thuc_hien"]))
 
         orders = (await db.execute(stmt)).scalars().all()
 

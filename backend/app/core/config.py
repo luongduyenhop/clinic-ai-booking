@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     CANCELLATION_MINIMUM_HOURS: int = 2
     # Giờ khám lưu theo giờ Việt Nam (UTC+7, không có giờ mùa hè), độc lập với múi giờ của server/Docker
     CLINIC_UTC_OFFSET_HOURS: int = 7
+    # Thư mục lưu ảnh kết quả CLS (mặc định backend/uploads/cls); ảnh y tế chỉ xem qua API có xác thực
+    CLS_UPLOAD_DIR: Optional[str] = None
 
     @field_validator("SLOT_DURATION_MINUTES")
     @classmethod

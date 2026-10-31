@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.response import ResponseEnvelope
 from app.models.medical import DichVu
 from app.schemas.medical import SpecialtyResponse, DoctorResponse, AcademicDegreeResponse
+from app.services.cls_service_group import nhom_dich_vu_of
 from app.services.medical_service import medical_service
 from pydantic import BaseModel
 
@@ -18,6 +19,7 @@ class ServiceItemResponse(BaseModel):
     ten_dich_vu: str
     don_gia: float
     don_vi_tinh: str
+    nhom_dich_vu: Optional[str] = None
 
 
 @router.get(
@@ -79,7 +81,8 @@ async def get_services(db: AsyncSession = Depends(get_db)):
             ma_dich_vu=dv.ma_dich_vu,
             ten_dich_vu=dv.ten_dich_vu,
             don_gia=dv.don_gia,
-            don_vi_tinh=dv.don_vi_tinh
+            don_vi_tinh=dv.don_vi_tinh,
+            nhom_dich_vu=nhom_dich_vu_of(dv.ma_nhom_byt, dv.ma_dich_vu),
         )
         for dv in services
     ]

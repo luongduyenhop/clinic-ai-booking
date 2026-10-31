@@ -8,6 +8,51 @@ from app.models.appointment import LichLamViec, LichKham, CaLamViecEnum, TrangTh
 from app.models.medical import TuKhoaCapCuu, DichVu, KhaiNiem, LuotKham, ChanDoan, DonThuoc, ChiTietDonThuoc
 
 
+# Nhóm Bộ Y tế của 5 dịch vụ CLS mẫu (để bàn khám/bàn KTV xếp đúng tab Xét nghiệm / CĐHA / TDCN / Nội soi)
+CLS_SERVICE_GROUPS = {"DV_XN_MAU": "XN", "DV_XQ_NGUC": "CDHA", "DV_SA_BUNG": "CDHA", "DV_ECG": "TDCN", "DV_NS_TMH": "NS"}
+
+# Tài khoản đăng nhập nhanh trên trang Cổng nhân viên (fe/src/pages/staff/StaffLoginPage.jsx)
+STAFF_DEMO_ACCOUNTS = [
+    {"email": "bshuy@clinic-ai.vn", "mat_khau": "Doctor@123456", "ho_ten": "BS. CKI Trần Quốc Huy",
+     "so_dien_thoai": "0988000105", "vai_tro": VaiTroEnum.BAC_SI.value},
+    {"email": "yen.lab@clinic-ai.vn", "mat_khau": "LabTech@123456", "ho_ten": "CN. Hoàng Thị Yến",
+     "so_dien_thoai": "0988000201", "vai_tro": VaiTroEnum.KY_THUAT_VIEN.value},
+]
+
+
+async def ensure_cls_demo_data(session):
+    """Bổ sung (idempotent) cho cả CSDL đã seed từ trước: tài khoản KTV/bác sĩ đăng nhập nhanh và nhóm dịch vụ CLS"""
+    for acc in STAFF_DEMO_ACCOUNTS:
+        if (await session.execute(select(TaiKhoan.id).where(TaiKhoan.email == acc["email"]))).first():
+            continue
+        phone_taken = (await session.execute(
+            select(NguoiDung.id).where(NguoiDung.so_dien_thoai == acc["so_dien_thoai"])
+        )).first()
+        nd = NguoiDung(
+            ho_ten=acc["ho_ten"],
+            email=acc["email"],
+            so_dien_thoai=None if phone_taken else acc["so_dien_thoai"],
+        )
+        session.add(nd)
+        await session.flush()
+        session.add(TaiKhoan(
+            nguoi_dung_id=nd.id,
+            email=acc["email"],
+            mat_khau_hash=hash_password(acc["mat_khau"]),
+            vai_tro=acc["vai_tro"],
+            is_active=True,
+        ))
+        if acc["vai_tro"] == VaiTroEnum.BAC_SI.value:
+            session.add(BacSi(nguoi_dung_id=nd.id, hoc_vi="BSCKI", chung_chi_hanh_nghe=f"CCHN-{acc['so_dien_thoai']}"))
+
+    services = (await session.execute(
+        select(DichVu).where(DichVu.ma_dich_vu.in_(list(CLS_SERVICE_GROUPS)), DichVu.ma_nhom_byt.is_(None))
+    )).scalars().all()
+    for dv in services:
+        dv.ma_nhom_byt = CLS_SERVICE_GROUPS[dv.ma_dich_vu]
+    await session.commit()
+
+
 async def seed_database():
     """Khởi tạo tập dữ liệu ban đầu cho toàn bộ 18 bảng CSDL PostgreSQL phòng khám theo chuẩn OpenMRS"""
     print("🌱 [SEEDING] Đang kết nối PostgreSQL và khởi tạo dữ liệu mẫu...")
@@ -16,6 +61,8 @@ async def seed_database():
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
+        await ensure_cls_demo_data(session)
+
         # 1. Kiểm tra nếu đã có dữ liệu thì không seed đè
         stmt_check = select(ChuyenKhoa)
         existing = (await session.execute(stmt_check)).first()
@@ -50,11 +97,11 @@ async def seed_database():
 
         # 4. Seed Danh mục Dịch vụ Cận lâm sàng (OpenMRS Medical Service)
         dich_vus = [
-            DichVu(ma_dich_vu="DV_XN_MAU", ten_dich_vu="Tổng phân tích tế bào máu ngoại vi (18 chỉ số)", don_gia=120000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_XQ_NGUC", ten_dich_vu="Chụp X-quang tim phổi thẳng kỹ thuật số (CR/DR)", don_gia=180000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_SA_BUNG", ten_dich_vu="Siêu âm ổ bụng tổng quát màu Doppler", don_gia=200000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_ECG", ten_dich_vu="Điện tâm đồ (ECG) 12 chuyển đạo", don_gia=100000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_NS_TMH", ten_dich_vu="Nội soi Tai - Mũi - Họng ống mềm", don_gia=250000.00, don_vi_tinh="Lần"),
+            DichVu(ma_dich_vu="DV_XN_MAU", ten_dich_vu="Tổng phân tích tế bào máu ngoại vi (18 chỉ số)", don_gia=120000.00, don_vi_tinh="Lần", ma_nhom_byt="XN"),
+            DichVu(ma_dich_vu="DV_XQ_NGUC", ten_dich_vu="Chụp X-quang tim phổi thẳng kỹ thuật số (CR/DR)", don_gia=180000.00, don_vi_tinh="Lần", ma_nhom_byt="CDHA"),
+            DichVu(ma_dich_vu="DV_SA_BUNG", ten_dich_vu="Siêu âm ổ bụng tổng quát màu Doppler", don_gia=200000.00, don_vi_tinh="Lần", ma_nhom_byt="CDHA"),
+            DichVu(ma_dich_vu="DV_ECG", ten_dich_vu="Điện tâm đồ (ECG) 12 chuyển đạo", don_gia=100000.00, don_vi_tinh="Lần", ma_nhom_byt="TDCN"),
+            DichVu(ma_dich_vu="DV_NS_TMH", ten_dich_vu="Nội soi Tai - Mũi - Họng ống mềm", don_gia=250000.00, don_vi_tinh="Lần", ma_nhom_byt="NS"),
         ]
         session.add_all(dich_vus)
 

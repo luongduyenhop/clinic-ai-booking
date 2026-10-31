@@ -176,7 +176,16 @@ async def test_nop_ket_qua_tu_danh_gia_va_luu_ket_qua_cls(api_client, booking, d
 async def test_bo_qua_co_danh_gia_client_gui_len(api_client, booking, db_session):
     order_id = await _tao_ca_xet_nghiem(api_client, booking, db_session, booking.bn_a)
     # Trường lạ (cờ đánh giá của client) bị bỏ qua, backend tự tính
-    body = {"chi_so": {"WBC": 50}, "ket_qua_phan_loai": "BINH_THUONG", "danh_gia": {"WBC": "BINH_THUONG"}}
+    # Trả kết quả bắt buộc phải có kết luận (422)
+    res_no_conclusion = await api_client.post(
+        f"/api/v1/subclinical/orders/{order_id}/lab-results",
+        json={"chi_so": {"WBC": 50}},
+        headers=booking.tokens["ktv"]
+    )
+    assert res_no_conclusion.status_code == 422
+
+    # Trường lạ (cờ đánh giá của client) bị bỏ qua, backend tự tính
+    body = {"chi_so": {"WBC": 50}, "ket_luan": "Bạch cầu tăng vọt", "ket_qua_phan_loai": "BINH_THUONG", "danh_gia": {"WBC": "BINH_THUONG"}}
     res = await api_client.post(f"/api/v1/subclinical/orders/{order_id}/lab-results", json=body, headers=booking.tokens["ktv"])
     assert res.status_code == 200
     assert res.json()["data"]["ket_qua"]["ket_qua_phan_loai"] == "NGUY_KICH"

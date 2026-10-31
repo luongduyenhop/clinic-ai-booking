@@ -645,7 +645,7 @@ export class ClinicalService extends BaseServices {
             }
         }
 
-        return { data: result }
+        return result
     }
 
     uploadFile = (file) => {
@@ -744,7 +744,7 @@ export class ClinicalService extends BaseServices {
             result.thoi_gian_tra_ket_qua = kq.thoi_gian_tra_ket_qua
             await this.syncReturnedResultToWorkspace(orderId, result)
         }
-        return { data: result }
+        return result
     }
 
     // Đưa kết quả đã trả về bản sao trên bàn khám để bác sĩ thấy (kèm cờ cảnh báo) và lượt khám được ưu tiên gọi lại

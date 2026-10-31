@@ -234,8 +234,15 @@ class ClsLabResultService:
         results = evaluate_lab_values(template, gioi_tinh, payload.chi_so)
         danh_gias = [r.danh_gia for r in results]
         phan_loai = phan_loai_tong_hop(danh_gias)
-        ket_luan = (payload.ket_luan or "").strip() or None
-        ghi_chu = (payload.ghi_chu or "").strip() or None
+        existing_detail = (order.ket_qua.tri_so_chi_tiet or {}) if order.ket_qua else {}
+        existing_ket_luan = existing_detail.get("ket_luan")
+        existing_ghi_chu = existing_detail.get("ghi_chu")
+
+        ket_luan = (payload.ket_luan or "").strip() or existing_ket_luan or None
+        ghi_chu = (payload.ghi_chu or "").strip() or existing_ghi_chu or None
+
+        if not payload.luu_nhap and not ket_luan:
+            raise UnprocessableEntityException("Cần nhập kết luận trước khi trả kết quả xét nghiệm!")
         chi_so = {r.ma: _fmt(payload.chi_so[r.ma]) for r in results}
         detail = {
             "loai": XET_NGHIEM,

@@ -30,7 +30,7 @@ const initialState = {
     worklistError: null,
 }
 
-const replaceOrder = (list, order) => list.map((o) => (o.id === order.id ? { ...o, ...order } : o))
+const replaceOrder = (list, order) => { const item = order?.data || order; return list.map((o) => (o.id === item?.id ? { ...o, ...item } : o)) }
 
 const clinicalSlice = createSlice({
     name: 'clinical',

@@ -236,11 +236,13 @@ async def test_xoa_anh_truoc_khi_duyet_va_khoa_sau_duyet(api_client, booking, db
     assert phieu.tep_dinh_kem_urls == [b["url"]]
     order = await db_session.get(ChiDinh, order_id)
     await db_session.refresh(order)
-    assert order.file_dinh_kem_urls == [b["url"]] and order.tep_dinh_kem_url == b["url"]
+    assert order.file_dinh_kem_urls == [b["url"]]
 
     # Sau khi trả kết quả chính thức: khóa thêm/xóa ảnh và sửa kết quả
     res_final = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Mô tả chuẩn", "ket_luan": "Kết luận chuẩn", "hoan_tat": True}, headers=ktv)
     assert res_final.status_code == 200
+    await db_session.refresh(order)
+    assert order.file_dinh_kem_urls == [b["url"]] and order.tep_dinh_kem_url == b["url"]
     assert (await api_client.delete(b["url"], headers=ktv)).status_code == 409
     assert (await _upload(api_client, order_id, ktv)).status_code == 409
     res_sua = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Sửa", "ket_luan": "Sửa"}, headers=ktv)

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal, Input, Select, Button, message, Alert } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
 import { AlertOutlined } from '@ant-design/icons'
-import { emergencyHandoverAsync } from '../../redux/slices/reception/receptionSlice'
+import { emergencyHandoverAsync } from '../../redux/actions/reception/receptionAction'
 
 export default function EmergencyHandoverModal({ open, onClose, defaultPatientId }) {
     const dispatch = useDispatch()

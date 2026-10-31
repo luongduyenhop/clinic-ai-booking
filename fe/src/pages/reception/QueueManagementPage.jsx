@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Table, Tabs, Input, Select, Button, Tag, Space, Modal, Timeline, message, Tooltip, Dropdown } from 'antd'
 import {
@@ -14,16 +14,20 @@ import {
     ArrowUpOutlined,
     MoreOutlined,
     UserDeleteOutlined,
+    PrinterOutlined,
+    SyncOutlined,
 } from '@ant-design/icons'
 import {
     callQueueEntryAsync,
     markAbsentAsync,
     resumeQueueEntryAsync,
-} from '../../redux/slices/reception/receptionSlice'
+    fetchFlowBoardAsync,
+} from '../../redux/actions/reception/receptionAction'
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import TvQueueDisplayModal from '../../components/reception/TvQueueDisplayModal'
+import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import { QUEUE_STATUS, QUEUE_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 
 export default function QueueManagementPage() {
@@ -41,6 +45,25 @@ export default function QueueManagementPage() {
     const [patientDrawerId, setPatientDrawerId] = useState(null)
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [isTvQueueOpen, setIsTvQueueOpen] = useState(false)
+    const [receiptEntry, setReceiptEntry] = useState(null)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+
+    // Đồng bộ hàng đợi thực tế từ Backend khi vào trang
+    useEffect(() => {
+        dispatch(fetchFlowBoardAsync())
+    }, [dispatch])
+
+    const handleRefreshQueue = async () => {
+        setIsRefreshing(true)
+        try {
+            await dispatch(fetchFlowBoardAsync()).unwrap()
+            message.success('Đã cập nhật hàng đợi thời gian thực')
+        } catch {
+            message.info('Đã tải lại dữ liệu hàng đợi')
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
 
     // Hạn ngạch tiếp đón trong ngày (Clinic-Management pattern - Cảnh báo an toàn, không auto-block)
     const maxDailyQuota = 50
@@ -67,15 +90,22 @@ export default function QueueManagementPage() {
     const filteredQueue = useMemo(() => {
         return queueEntries.filter((q) => {
             const pat = patients.find((p) => p.id === q.patientId)
+            const ticketStr = String(q.ma_so_thu_tu || q.ticketNumber || '')
+            const patName = q.patientName || pat?.fullName || ''
+            const patPhone = q.phone || pat?.phone || ''
             const matchesQuery =
                 !searchQuery ||
-                q.ticketNumber.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-                (pat && pat.fullName.toLowerCase().includes(searchQuery.toLowerCase().trim())) ||
-                (pat && pat.phone.includes(searchQuery.trim()))
+                ticketStr.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+                patName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+                patPhone.includes(searchQuery.trim())
 
-            const matchesRoom = !selectedRoom || q.roomId === selectedRoom
+            const matchesRoom = !selectedRoom || q.roomId === selectedRoom || q.phong_kham === selectedRoom
             const matchesDep = !selectedDepartment || q.departmentId === selectedDepartment
-            const matchesTab = activeTab === 'ALL' || q.status === activeTab
+            const matchesTab =
+                activeTab === 'ALL' ||
+                (activeTab === 'WAITING'
+                    ? (q.status === 'WAITING' || q.status === 'CHO_KHAM' || q.status === 'cho_kham')
+                    : (q.status === activeTab || q.status?.toLowerCase() === activeTab.toLowerCase()))
 
             return matchesQuery && matchesRoom && matchesDep && matchesTab
         })
@@ -127,38 +157,41 @@ export default function QueueManagementPage() {
 
     const columns = [
         {
-            title: 'STT & Số vé',
+            title: 'STT & Mã buồng',
             dataIndex: 'ticketNumber',
             key: 'ticketNumber',
-            width: 130,
-            render: (ticket, record) => (
-                <div>
-                    <span className="text-base font-black text-sky-700 tracking-tight block">{ticket}</span>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                        {record.priority === 'EMERGENCY' || record.muc_do_uu_tien === 1 ? (
-                            <Tag color="red" className="mr-0 text-[10px] font-bold animate-pulse">
-                                Tier 1 · Cấp cứu
-                            </Tag>
-                        ) : record.priority === 'URGENT' || record.muc_do_uu_tien === 2 ? (
-                            <Tag color="volcano" className="mr-0 text-[10px] font-bold">
-                                Tier 2 · Khẩn
-                            </Tag>
-                        ) : record.status === 'RETURN_AFTER_RESULT' || record.trang_thai === 'co_ket_qua_cls' || record.muc_do_uu_tien === 3 ? (
-                            <Tag color="cyan" className="mr-0 text-[10px] font-bold">
-                                Tier 3 · Sau CLS
-                            </Tag>
-                        ) : record.priority === 'PRIORITY' || record.muc_do_uu_tien === 4 ? (
-                            <Tag color="purple" className="mr-0 text-[10px]">
-                                Tier 4 · Ưu tiên
-                            </Tag>
-                        ) : (
-                            <Tag color={record.isWalkIn ? 'orange' : 'blue'} className="mr-0 text-[10px]">
-                                {record.isWalkIn ? 'Walk-in' : 'Có lịch'}
-                            </Tag>
-                        )}
+            width: 145,
+            render: (ticket, record) => {
+                const displayTicket = record.ma_so_thu_tu || record.ticketNumber || ticket
+                return (
+                    <div>
+                        <span className="text-base font-black text-sky-700 tracking-tight block font-mono">{displayTicket}</span>
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                            {record.priority === 'EMERGENCY' || record.muc_do_uu_tien === 1 ? (
+                                <Tag color="red" className="mr-0 text-[10px] font-bold animate-pulse">
+                                    Tier 1 · Cấp cứu
+                                </Tag>
+                            ) : record.priority === 'URGENT' || record.muc_do_uu_tien === 2 ? (
+                                <Tag color="volcano" className="mr-0 text-[10px] font-bold">
+                                    Tier 2 · Khẩn
+                                </Tag>
+                            ) : record.status === 'RETURN_AFTER_RESULT' || record.trang_thai === 'co_ket_qua_cls' || record.muc_do_uu_tien === 3 ? (
+                                <Tag color="cyan" className="mr-0 text-[10px] font-bold">
+                                    Tier 3 · Sau CLS
+                                </Tag>
+                            ) : record.priority === 'PRIORITY' || record.muc_do_uu_tien === 4 ? (
+                                <Tag color="purple" className="mr-0 text-[10px]">
+                                    Tier 4 · Ưu tiên
+                                </Tag>
+                            ) : (
+                                <Tag color={record.isWalkIn ? 'orange' : 'blue'} className="mr-0 text-[10px]">
+                                    {record.isWalkIn ? 'Walk-in' : 'Có lịch'}
+                                </Tag>
+                            )}
+                        </div>
                     </div>
-                </div>
-            ),
+                )
+            },
         },
         {
             title: 'Bệnh nhân',
@@ -166,18 +199,25 @@ export default function QueueManagementPage() {
             width: 220,
             render: (_, record) => {
                 const pat = patients.find((p) => p.id === record.patientId)
+                const pName = record.patientName || pat?.fullName || 'Bệnh nhân'
+                const pPhone = record.phone || pat?.phone || ''
+                const pCode = pat?.patientCode || (record.patientId ? `BN-${record.patientId}` : '')
                 return (
                     <div>
                         <button
                             onClick={() => setPatientDrawerId(record.patientId)}
                             className="font-bold text-slate-900 hover:text-sky-600 hover:underline text-left cursor-pointer"
                         >
-                            {pat?.fullName || 'N/A'}
+                            {pName}
                         </button>
                         <div className="text-slate-400 text-xs flex gap-2">
-                            <span>{pat?.phone}</span>
-                            <span>•</span>
-                            <span className="font-mono">{pat?.patientCode}</span>
+                            <span>{pPhone}</span>
+                            {pCode && (
+                                <>
+                                    <span>•</span>
+                                    <span className="font-mono">{pCode}</span>
+                                </>
+                            )}
                         </div>
                     </div>
                 )
@@ -302,6 +342,12 @@ export default function QueueManagementPage() {
                         onClick: () => setHistoryModal({ open: true, entry: record }),
                     },
                     {
+                        key: 'print',
+                        label: 'Xem & In phiếu nhiệt mini (80mm)',
+                        icon: <PrinterOutlined />,
+                        onClick: () => setReceiptEntry(record),
+                    },
+                    {
                         type: 'divider',
                     },
                     {
@@ -338,6 +384,16 @@ export default function QueueManagementPage() {
                                 {record.callCount > 0 ? `Gọi lại (${record.callCount})` : 'Gọi số'}
                             </Button>
                         )}
+
+                        {/* Quick Print Button */}
+                        <Tooltip title="Xem & In phiếu STT nhiệt mini (80mm)">
+                            <Button
+                                size="small"
+                                icon={<PrinterOutlined />}
+                                className="text-xs text-sky-700"
+                                onClick={() => setReceiptEntry(record)}
+                            />
+                        </Tooltip>
 
                         {/* Quick Transfer Button */}
                         {!isInConsult && (
@@ -414,6 +470,14 @@ export default function QueueManagementPage() {
                         className="font-semibold text-xs"
                     >
                         Bàn giao y tế khẩn (RC-06)
+                    </Button>
+                    <Button
+                        size="small"
+                        icon={<SyncOutlined spin={isRefreshing} />}
+                        onClick={handleRefreshQueue}
+                        className="font-semibold text-xs ml-2"
+                    >
+                        Đồng bộ hàng đợi
                     </Button>
                     <Button
                         size="small"
@@ -617,6 +681,13 @@ export default function QueueManagementPage() {
                     return { id: r.id, name: r.name, doctor: doc?.fullName || 'Bác sĩ trực phòng' }
                 })}
             /><span className="hidden"
+            />
+
+            {/* Check-In / Queue Thermal Receipt Modal */}
+            <CheckInReceiptModal
+                open={Boolean(receiptEntry)}
+                onClose={() => setReceiptEntry(null)}
+                queueEntry={receiptEntry}
             />
         </div>
     )

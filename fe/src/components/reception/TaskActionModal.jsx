@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Modal, Input, Button, message, Descriptions, Tag } from 'antd'
 import { useDispatch } from 'react-redux'
-import { resolveTaskAsync } from '../../redux/slices/reception/receptionSlice'
+import { resolveTaskAsync } from '../../redux/actions/reception/receptionAction'
 import { TASK_SEVERITY_LABELS } from '../../utils/constants/receptionConstants'
 
 export default function TaskActionModal({ open, onClose, task }) {

@@ -26,26 +26,49 @@ export default function QueuePanel({
     const [filter, setFilter] = useState('cho_kham')
     const [voiceEnabled, setVoiceEnabled] = useState(audioAnnouncer.isEnabled())
 
+    // Kiểm tra xem phòng khám hiện tại có đang trong một ca khám hay không (Guard A4)
+    const isExaminingAny = Boolean(currentTicket || queue.some((t) => t.trang_thai === 'dang_kham'))
+    const activeExamTicket = currentTicket || queue.find((t) => t.trang_thai === 'dang_kham')
+
     const handleToggleVoice = () => {
         const next = !voiceEnabled
         setVoiceEnabled(next)
         audioAnnouncer.setEnabled(next)
     }
 
+    // Mời khám bệnh nhân tiếp theo và kích hoạt chuông + loa sảnh chờ
     const handleCallNextWithVoice = async () => {
-        if (!onCallNext) return
-        const nextPatient = visible.find((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
-        onCallNext()
-        if (nextPatient && voiceEnabled) {
-            audioAnnouncer.announcePatient(nextPatient.ten_benh_nhan, nextPatient.so_thu_tu_kham, 'buồng khám số 1')
+        if (!onCallNext || calling || isExaminingAny) return
+        try {
+            const ticket = await onCallNext()
+            if (voiceEnabled) {
+                const calledTicket =
+                    ticket ||
+                    activeExamTicket ||
+                    visible.find((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
+                if (calledTicket) {
+                    audioAnnouncer.announcePatient(
+                        calledTicket.ten_benh_nhan || 'Bệnh nhân',
+                        calledTicket.so_thu_tu_kham,
+                        calledTicket.phong_kham || 'buồng khám'
+                    )
+                }
+            }
+        } catch {
+            // Lỗi hoặc 409 conflict đã được toast xử lý
         }
     }
 
+    // Gọi lại loa sảnh chờ cho bệnh nhân đang trong phòng khám
     const handleRecallWithVoice = () => {
-        if (!onRecall) return
+        if (!onRecall || !currentTicket) return
         onRecall()
-        if (currentTicket && voiceEnabled) {
-            audioAnnouncer.announcePatient(currentTicket.ten_benh_nhan, currentTicket.so_thu_tu_kham, 'buồng khám số 1')
+        if (voiceEnabled) {
+            audioAnnouncer.announcePatient(
+                currentTicket.ten_benh_nhan || 'Bệnh nhân',
+                currentTicket.so_thu_tu_kham,
+                currentTicket.phong_kham || 'buồng khám'
+            )
         }
     }
 
@@ -107,9 +130,9 @@ export default function QueuePanel({
                         <ClinicIcon name={voiceEnabled ? 'SpeakerHigh' : 'SpeakerSimpleSlash'} size={13} />
                         <span>{voiceEnabled ? 'Loa' : 'Mute'}</span>
                     </button>
-                    {currentTicket && (
+                    {activeExamTicket && (
                         <span className="text-[11px] font-bold bg-[#E8F4FD] text-[#0077B6] px-2 py-0.5 rounded-full">
-                            #{currentTicket.so_thu_tu_kham}
+                            #{activeExamTicket.so_thu_tu_kham}
                         </span>
                     )}
                 </div>
@@ -118,18 +141,39 @@ export default function QueuePanel({
             {/* Calling Buttons directly integrated */}
             {(onCallNext || onRecall) && (
                 <div className="flex flex-col gap-1.5">
+                    {/* NÚT MỜI KHÁM: Đổi màu & Khóa khi đang có ca khám dở dang để chống gọi trùng */}
                     <button
                         type="button"
                         onClick={handleCallNextWithVoice}
-                        disabled={calling}
-                        className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#00A9E3] text-white font-bold text-xs shadow-xs hover:bg-[#0092c4] active:scale-[0.99] transition cursor-pointer disabled:opacity-50"
-                        title="Gọi bệnh nhân tiếp theo (Phím tắt: F2 hoặc Alt+N)"
+                        disabled={calling || isExaminingAny}
+                        className={`w-full flex items-center justify-between py-2 px-3 rounded-xl font-bold text-xs shadow-xs transition ${
+                            isExaminingAny
+                                ? 'bg-amber-500 hover:bg-amber-500 text-white cursor-not-allowed opacity-90 border border-amber-600/30'
+                                : 'bg-[#00A9E3] text-white hover:bg-[#0092c4] active:scale-[0.99] cursor-pointer disabled:opacity-50'
+                        }`}
+                        title={
+                            isExaminingAny
+                                ? `Đang có ca khám STT #${activeExamTicket?.so_thu_tu_kham} (${activeExamTicket?.ten_benh_nhan || ''}). Vui lòng hoàn tất hoặc tạm hoãn ca hiện tại trước khi mời ca mới để tránh gọi trùng!`
+                                : 'Gọi bệnh nhân tiếp theo (Phím tắt: F2 hoặc Alt+N)'
+                        }
                     >
                         <div className="flex items-center gap-2">
-                            <ClinicIcon name="ArrowRight" size={15} weight="bold" />
-                            <span>{calling ? 'Đang gọi số…' : 'Gọi số tiếp theo (Ưu tiên)'}</span>
+                            <ClinicIcon name={isExaminingAny ? 'Lock' : 'ArrowRight'} size={15} weight="bold" />
+                            <span>
+                                {calling
+                                    ? 'Đang gọi số…'
+                                    : isExaminingAny
+                                    ? `Đang khám BN #${activeExamTicket?.so_thu_tu_kham} (Khóa)`
+                                    : 'Mời khám (Ưu tiên)'}
+                            </span>
                         </div>
-                        <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-mono">F2</span>
+                        <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                isExaminingAny ? 'bg-black/20 text-white' : 'bg-white/20 text-white'
+                            }`}
+                        >
+                            {isExaminingAny ? 'KHÓA' : 'F2'}
+                        </span>
                     </button>
 
                     <button
@@ -137,6 +181,7 @@ export default function QueuePanel({
                         onClick={handleRecallWithVoice}
                         disabled={!currentTicket}
                         className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
+                        title={currentTicket ? `Gọi loa nhắc lại cho BN #${currentTicket?.so_thu_tu_kham}` : 'Chưa có ca đang khám'}
                     >
                         <ClinicIcon name="Bell" size={14} />
                         <span>Gọi lại số #{currentTicket?.so_thu_tu_kham || '—'}</span>
@@ -178,27 +223,40 @@ export default function QueuePanel({
                     const tier = PRIORITY_TIERS[t.muc_do_uu_tien] || PRIORITY_TIERS[5]
                     const hasClsReady = isReturnedAfterCls(t)
                     const isExamining = t.trang_thai === 'dang_kham'
+                    const isLockedByActiveExam = isExaminingAny && !isExamining
 
                     return (
                         <button
                             key={t.ticket_id}
                             type="button"
-                            disabled={!t.encounter_id}
-                            onClick={() => onSelect(t.encounter_id)}
-                            className={`flex w-full gap-2.5 rounded-xl p-2.5 text-left transition cursor-pointer border ${
-                                selected
-                                    ? 'bg-[#E8F4FD] border-[#00B5F1] ring-2 ring-[#00B5F1]/20'
+                            disabled={!t.encounter_id || isLockedByActiveExam}
+                            onClick={() => {
+                                if (isLockedByActiveExam) return
+                                onSelect(t.encounter_id)
+                            }}
+                            title={
+                                isLockedByActiveExam
+                                    ? `Đang có ca khám #${activeExamTicket?.so_thu_tu_kham} (${activeExamTicket?.ten_benh_nhan || ''}). Vui lòng hoàn thành ca này trước khi chuyển ca khác.`
+                                    : undefined
+                            }
+                            className={`flex w-full gap-2.5 rounded-xl p-2.5 text-left transition border ${
+                                isLockedByActiveExam
+                                    ? 'bg-slate-50/70 border-slate-200 opacity-60 cursor-not-allowed'
+                                    : selected
+                                    ? 'bg-[#E8F4FD] border-[#00B5F1] ring-2 ring-[#00B5F1]/20 cursor-pointer'
                                     : hasClsReady
-                                    ? 'bg-emerald-50/70 border-emerald-300 hover:bg-emerald-50'
+                                    ? 'bg-emerald-50/70 border-emerald-300 hover:bg-emerald-50 cursor-pointer'
                                     : isExamining
-                                    ? 'bg-sky-50/80 border-sky-300 hover:bg-sky-50'
-                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70'
+                                    ? 'bg-sky-50/80 border-sky-300 hover:bg-sky-50 ring-2 ring-sky-300/40 cursor-pointer'
+                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 cursor-pointer'
                             }`}
                         >
                             {/* Số thứ tự vé */}
                             <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
-                                    selected
+                                    isLockedByActiveExam
+                                        ? 'bg-slate-200 text-slate-500'
+                                        : selected
                                         ? 'bg-[#00A9E3] text-white shadow-xs'
                                         : hasClsReady
                                         ? 'bg-emerald-600 text-white'
@@ -222,7 +280,11 @@ export default function QueuePanel({
                                 {t.ly_do && <span className="truncate text-[11px] text-slate-500">{t.ly_do}</span>}
 
                                 <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                    {hasClsReady ? (
+                                    {isLockedByActiveExam ? (
+                                        <span className="text-[10px] font-semibold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                            <ClinicIcon name="Lock" size={11} /> Khóa gọi
+                                        </span>
+                                    ) : hasClsReady ? (
                                         <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white animate-pulse">
                                             ⭐ CÓ KQ CLS
                                         </span>
@@ -233,7 +295,8 @@ export default function QueuePanel({
                                     )}
 
                                     {isExamining && (
-                                        <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-1 rounded">
+                                        <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse border border-sky-300">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-sky-600" />
                                             Đang khám
                                         </span>
                                     )}

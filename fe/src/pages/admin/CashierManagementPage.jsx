@@ -6,7 +6,9 @@ import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminActi
 import { AppToast } from '../../components/common/AppNotification'
 import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 import VietQrModal from '../../components/common/VietQrModal'
+import ReceiptModal from '../../components/common/ReceiptModal'
 import { QrCode } from '@phosphor-icons/react'
+import { cashierService } from '../../services/cashierService'
 import {
     StatusBadge,
     EmptyState,
@@ -99,9 +101,92 @@ export default function CashierManagementPage() {
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [isQrModalOpen, setIsQrModalOpen] = useState(false)
     const [qrInvoice, setQrInvoice] = useState(null)
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
+    const [liveUnbilled, setLiveUnbilled] = useState([])
+    const [livePendingBills, setLivePendingBills] = useState([])
 
-    const handleOpenQr = (voucher) => {
-        setQrInvoice(voucher || form)
+    const fetchLiveCashierData = async () => {
+        try {
+            const unbilledRes = await cashierService.getUnbilledEncounters()
+            if (unbilledRes?.items) {
+                setLiveUnbilled(unbilledRes.items)
+            }
+            const pendingRes = await cashierService.getPendingBills()
+            if (pendingRes?.items) {
+                setLivePendingBills(pendingRes.items)
+            }
+        } catch {
+        }
+    }
+
+    useEffect(() => {
+        fetchLiveCashierData()
+    }, [])
+
+    const handleSelectUnbilledEncounter = async (enc) => {
+        try {
+            const preview = await cashierService.getInvoicePreview(enc.luot_kham_id)
+            if (preview) {
+                const lines = preview.cac_khoan_thu || preview.items || []
+                const autoItems = lines.map((line, idx) => ({
+                    id: `PREV-${idx}`,
+                    tenKhoan: line.ten_khoan_thu,
+                    soTien: Number(line.thanh_tien),
+                    ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
+                }))
+                setForm({
+                    ...form,
+                    id: null,
+                    invoiceId: null,
+                    luotKhamId: enc.luot_kham_id,
+                    maPhieu: 'DỰ KIẾN LẬP HÓA ĐƠN',
+                    maKCB: preview.ma_kcb || enc.ma_kcb,
+                    maBN: preview.benh_nhan?.mabn || enc.benh_nhan?.mabn || '',
+                    hoTenBN: preview.benh_nhan?.ho_ten || enc.benh_nhan?.ho_ten || '',
+                    tenPhieu: `Thu viện phí BN ${preview.benh_nhan?.ho_ten || enc.benh_nhan?.ho_ten || ''} (Mã KCB: ${preview.ma_kcb || enc.ma_kcb})`,
+                    items: autoItems,
+                    tongTien: Number(preview.thuc_thu_du_kien ?? preview.tong_tien ?? preview.tong_tam_tinh ?? 0),
+                    daThu: false,
+                    hinhThuc: 'Chuyển khoản'
+                })
+                if (preview.canh_bao_gia) {
+                    AppToast.warning(preview.canh_bao_gia)
+                } else {
+                    AppToast.info(`Xem trước chi phí khám và CLS ca khám ${enc.ma_kcb}. Bấm "Lưu phiếu" để lập hóa đơn!`)
+                }
+                return
+            }
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Không thể xem trước hóa đơn')
+        }
+        handleSelectPatientAutoFill(enc.benh_nhan?.mabn, enc.ma_kcb)
+    }
+
+    const handleOpenQr = async (voucher) => {
+        const target = voucher || form
+        if (!target.invoiceId && target.luotKhamId) {
+            try {
+                const created = await cashierService.createInvoice({
+                    luot_kham_id: target.luotKhamId,
+                    mien_giam: 0
+                })
+                const updatedTarget = {
+                    ...target,
+                    id: created.id,
+                    invoiceId: created.id,
+                    maPhieu: created.ma_hoa_don
+                }
+                setForm(updatedTarget)
+                setQrInvoice(updatedTarget)
+                setIsQrModalOpen(true)
+                fetchLiveCashierData()
+                return
+            } catch (err) {
+                AppToast.error(err?.response?.data?.message || err?.message || 'Không thể lập hóa đơn để tạo mã VietQR')
+                return
+            }
+        }
+        setQrInvoice(target)
         setIsQrModalOpen(true)
     }
 
@@ -162,8 +247,36 @@ export default function CashierManagementPage() {
     const [newItemAmount, setNewItemAmount] = useState(khoanThuCatalog[0]?.donGiaMacDinh || 120000)
     const [newItemNote, setNewItemNote] = useState('')
 
+    const allVouchers = useMemo(() => {
+        const combined = [...vouchers]
+        livePendingBills.forEach((pb) => {
+            const alreadyExists = combined.some(
+                (v) => v.id === pb.id || v.invoiceId === pb.id || v.maPhieu === pb.ma_hoa_don
+            )
+            if (!alreadyExists) {
+                combined.unshift({
+                    id: pb.id,
+                    invoiceId: pb.id,
+                    maPhieu: pb.ma_hoa_don,
+                    maKCB: `KCB-${pb.luot_kham_id}`,
+                    maBN: pb.benh_nhan?.mabn || '',
+                    hoTenBN: pb.benh_nhan?.ho_ten || 'Chưa rõ',
+                    soDienThoai: pb.benh_nhan?.so_dien_thoai || '',
+                    tongTien: Number(pb.thuc_thu || pb.tong_tien || 0),
+                    daThu: false,
+                    ngayThu: pb.thoi_gian_tao ? new Date(pb.thoi_gian_tao).toLocaleString('vi-VN') : '',
+                    hinhThuc: 'Tiền mặt',
+                    tenPhieu: `Viện phí ca khám #${pb.luot_kham_id}`,
+                    items: [],
+                    daKhoaSo: false
+                })
+            }
+        })
+        return combined
+    }, [vouchers, livePendingBills])
+
     const filteredVouchers = useMemo(() => {
-        return vouchers.filter((v) => {
+        return allVouchers.filter((v) => {
             const matchText =
                 !searchText ||
                 v.maPhieu?.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -175,13 +288,13 @@ export default function CashierManagementPage() {
                 (statusFilter === 'PENDING' && !v.daThu)
             return matchText && matchStatus
         })
-    }, [vouchers, searchText, statusFilter])
+    }, [allVouchers, searchText, statusFilter])
 
-    const totalThu = vouchers
+    const totalThu = allVouchers
         .filter((v) => v.daThu)
         .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
 
-    const paidCount = vouchers.filter((v) => v.daThu).length
+    const paidCount = allVouchers.filter((v) => v.daThu).length
 
     const handleSelectPatientAutoFill = (maBN, specificKCB) => {
         const patient = patients.find((p) => p.maBN === maBN)
@@ -236,19 +349,75 @@ export default function CashierManagementPage() {
             AppToast.error('Vui lòng nhập Tên phiếu thu viện phí!')
             return
         }
-        const calculatedTotal = (form.items || []).reduce((sum, i) => sum + (Number(i.soTien) || 0), 0)
-        const payload = { ...form, loaiPhieu: 'Phiếu thu', tongTien: calculatedTotal }
+        let activeInvoiceId = form.invoiceId
+        let activeMaPhieu = form.maPhieu
+        let activeId = form.id
 
-        const exists = vouchers.some((v) => v.id === form.id && form.id)
+        if (!activeInvoiceId && form.luotKhamId) {
+            try {
+                const created = await cashierService.createInvoice({
+                    luot_kham_id: form.luotKhamId,
+                    mien_giam: 0
+                })
+                activeInvoiceId = created.id
+                activeMaPhieu = created.ma_hoa_don
+                activeId = created.id
+                setForm((prev) => ({
+                    ...prev,
+                    id: created.id,
+                    invoiceId: created.id,
+                    maPhieu: created.ma_hoa_don
+                }))
+                fetchLiveCashierData()
+            } catch (err) {
+                AppToast.error(err?.response?.data?.message || err?.message || 'Không thể lập hóa đơn viện phí!')
+                return
+            }
+        }
+
+        if (form.daThu && !activeInvoiceId) {
+            AppToast.warning('Phiếu thu chưa liên kết với Hóa đơn viện phí Backend. Vui lòng lập hóa đơn từ ca khám trước khi xác nhận Đã thu!')
+            return
+        }
+
+        const calculatedTotal = (form.items || []).reduce((sum, i) => sum + (Number(i.soTien) || 0), 0)
+        const payload = {
+            ...form,
+            id: activeId || form.id,
+            invoiceId: activeInvoiceId,
+            maPhieu: activeMaPhieu,
+            loaiPhieu: 'Phiếu thu',
+            tongTien: calculatedTotal
+        }
+
+        const exists = vouchers.some((v) => v.id === payload.id && payload.id)
         let updated
         if (exists) {
-            updated = vouchers.map((v) => (v.id === form.id ? payload : v))
+            updated = vouchers.map((v) => (v.id === payload.id ? payload : v))
         } else {
             const newVoucher = { ...payload, id: payload.maPhieu || `PT-${Date.now().toString().slice(-5)}` }
             updated = [newVoucher, ...vouchers]
             setForm(newVoucher)
         }
 
+        if (activeInvoiceId && form.daThu) {
+            try {
+                const methodMap = {
+                    'Tiền mặt': 'tien_mat',
+                    'Chuyển khoản': 'chuyen_khoan',
+                    'Thẻ POS': 'the_pos'
+                }
+                await cashierService.payInvoice(activeInvoiceId, {
+                    phuong_thuc_thanh_toan: methodMap[form.hinhThuc] || 'tien_mat',
+                    so_tien_khach_tra: calculatedTotal,
+                    ghi_chu: form.ghiChu || 'Thanh toán tại quầy'
+                })
+                fetchLiveCashierData()
+            } catch (err) {
+                AppToast.error(err?.response?.data?.message || err?.message || 'Thanh toán viện phí thất bại!')
+                return
+            }
+        }
         await dispatch(
             updateClinicCollectionAsync({
                 collectionKey: 'vouchers',
@@ -381,7 +550,37 @@ export default function CashierManagementPage() {
                             </button>
                         </div>
 
-                        {pendingBillRegistrations.length > 0 && (
+                        {liveUnbilled.length > 0 ? (
+                            <div className="mb-3 p-2.5 rounded-xl bg-sky-50/90 border border-sky-200">
+                                <div className="flex items-center justify-between text-xs font-bold text-sky-900 mb-1.5">
+                                    <span className="flex items-center gap-1.5">
+                                        <Receipt size={14} weight="bold" className="text-sky-600" />
+                                        <span>CA KHÁM CHỜ GOM CHI PHÍ ({liveUnbilled.length})</span>
+                                    </span>
+                                    <span className="text-[10px] text-sky-600 font-semibold">Tự động gom</span>
+                                </div>
+                                <div className="space-y-1 max-h-36 overflow-y-auto">
+                                    {liveUnbilled.map((u) => (
+                                        <div
+                                            key={u.luot_kham_id}
+                                            onClick={() => handleSelectUnbilledEncounter(u)}
+                                            className="px-2 py-1.5 rounded-lg bg-white hover:bg-sky-100 text-xs flex items-center justify-between cursor-pointer transition border border-sky-100"
+                                        >
+                                            <div>
+                                                <span className="font-bold text-[#003553]">{u.benh_nhan?.ho_ten}</span>
+                                                <span className="ml-1.5 font-mono text-[10px] text-slate-500">({u.ma_kcb})</span>
+                                                <div className="text-[10px] text-slate-500">
+                                                    BS: {u.bac_si_kham || 'Phụ trách'} | {u.so_chi_dinh} CLS
+                                                </div>
+                                            </div>
+                                            <span className="font-bold text-emerald-700 font-mono text-[11px]">
+                                                {Number(u.tam_tinh || 0).toLocaleString('vi-VN')} đ
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (pendingBillRegistrations.length > 0 && (
                             <div className="mb-3 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200">
                                 <div className="flex items-center justify-between text-xs font-bold text-amber-900 mb-1.5">
                                     <span className="flex items-center gap-1.5">
@@ -411,7 +610,7 @@ export default function CashierManagementPage() {
                                     })}
                                 </div>
                             </div>
-                        )}
+                        ))}
 
                         <div className="grid grid-cols-12 gap-2 mb-3">
                             <div className="col-span-7 relative">
@@ -459,7 +658,23 @@ export default function CashierManagementPage() {
                                     {filteredVouchers.map((v, idx) => (
                                         <tr
                                             key={v.id}
-                                            onClick={() => setForm({ ...v })}
+                                            onClick={async () => {
+                                                setForm({ ...v })
+                                                if (v.invoiceId && (!v.items || v.items.length === 0)) {
+                                                    try {
+                                                        const detail = await cashierService.getInvoiceDetail(v.invoiceId)
+                                                        if (detail?.chi_tiet_hoa_don) {
+                                                            const lines = detail.chi_tiet_hoa_don.map((line) => ({
+                                                                id: `LINE-${line.id}`,
+                                                                tenKhoan: line.ten_khoan_thu,
+                                                                soTien: Number(line.thanh_tien),
+                                                                ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
+                                                            }))
+                                                            setForm((prev) => ({ ...prev, items: lines }))
+                                                        }
+                                                    } catch {}
+                                                }
+                                            }}
                                             className={`cursor-pointer ${
                                                 form.id === v.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
                                             }`}
@@ -550,7 +765,7 @@ export default function CashierManagementPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => { printDocument(); AppToast.success(`Đang mở lệnh in Biên lai ${form.maPhieu}...`); }}
+                                    onClick={() => setIsReceiptModalOpen(true)}
                                     className="medpro-btn-amber text-xs font-bold"
                                 >
                                     <Printer size={15} weight="bold" />
@@ -774,11 +989,39 @@ export default function CashierManagementPage() {
                 </div>
             )}
 
-            {/* Modal VietQR thanh toán */}
             <VietQrModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
+                bankBin={clinicData?.clinicSettings?.bankInfo?.bankBin || '970422'}
+                bankName={clinicData?.clinicSettings?.bankInfo?.bankName || 'MBBank (Ngân hàng TMCP Quân Đội)'}
+                accountNumber={clinicData?.clinicSettings?.bankInfo?.accountNumber || '0901234567'}
+                accountName={clinicData?.clinicSettings?.bankInfo?.accountName || clinicData?.clinicSettings?.tenPhongKham || 'PHONG KHAM CLINIC AI'}
+                onConfirmPayment={async (inv) => {
+                    const targetId = inv?.invoiceId || inv?.id
+                    if (!targetId) return
+                    try {
+                        const targetAmount = inv?.thuc_thu !== undefined ? inv.thuc_thu : (inv?.thucThu !== undefined ? inv.thucThu : (inv?.tong_tien !== undefined ? inv.tong_tien : (inv?.tongTien ?? form.tongTien ?? 0)))
+                        await cashierService.payInvoice(targetId, {
+                            phuong_thuc_thanh_toan: 'chuyen_khoan',
+                            so_tien_khach_tra: Number(targetAmount),
+                            ghi_chu: 'Thanh toán qua quét mã VietQR'
+                        })
+                        fetchLiveCashierData()
+                        setForm((prev) => ({ ...prev, daThu: true }))
+                        AppToast.success(`Hóa đơn #${targetId} đã được gạch nợ thành công!`)
+                    } catch (err) {
+                        AppToast.error(err?.response?.data?.message || err?.message || 'Lỗi khi gạch nợ chuyển khoản')
+                        throw err
+                    }
+                }}
+            />
+
+            <ReceiptModal
+                isOpen={isReceiptModalOpen}
+                onClose={() => setIsReceiptModalOpen(false)}
+                voucher={form}
+                clinicInfo={clinicData?.clinicSettings || {}}
             />
         </div>
     )

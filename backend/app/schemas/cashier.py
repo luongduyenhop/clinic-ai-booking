@@ -31,7 +31,6 @@ class InvoiceCreateRequest(BaseModel):
     luot_kham_id: int = Field(..., description="ID lượt khám cần xuất viện phí")
     mien_giam: Decimal = Field(Decimal("0.00"), ge=0, description="Số tiền miễn giảm nếu có")
     ghi_chu: Optional[str] = None
-    items: Optional[List[InvoiceLineItemCreate]] = Field(None, description="Danh sách mục tùy chỉnh nếu không auto-generate")
 
 
 class InvoicePayRequest(BaseModel):
@@ -104,3 +103,44 @@ class CloseShiftResponse(BaseModel):
     ok: bool
     thoi_gian_dong_so: datetime
     tong_ket: ShiftSummaryResponse
+
+
+class UnbilledEncounterItem(BaseModel):
+    luot_kham_id: int
+    ma_kcb: Optional[str] = None
+    benh_nhan: PatientBrief
+    bac_si_kham: Optional[str] = None
+    ngay_kham: Optional[str] = None
+    so_chi_dinh: int = 0
+    so_thuoc: int = 0
+    tam_tinh: Decimal = Decimal("0.00")
+    thoi_gian_bat_dau: Optional[datetime] = None
+    is_locked: bool = False
+    canh_bao_gia: Optional[str] = None
+
+
+class InvoicePreviewLine(BaseModel):
+    loai_muc: str
+    muc_tham_chieu_id: Optional[int] = None
+    ten_khoan_thu: str
+    so_luong: int
+    don_gia: Decimal
+    thanh_tien: Decimal
+    ghi_chu: Optional[str] = None
+
+
+class InvoicePreviewResponse(BaseModel):
+    luot_kham_id: int
+    ma_kcb: Optional[str] = None
+    benh_nhan: PatientBrief
+    bac_si_kham: Optional[str] = None
+    ngay_kham: Optional[str] = None
+    cac_khoan_thu: List[InvoicePreviewLine] = []
+    tong_tien: Decimal
+    mien_giam: Decimal = Decimal("0.00")
+    thuc_thu_du_kien: Decimal
+
+
+class UnbilledEncountersListResponse(BaseModel):
+    items: List[UnbilledEncounterItem]
+    total: int

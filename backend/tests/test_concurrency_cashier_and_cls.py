@@ -84,7 +84,21 @@ async def test_subclinical_status_race_and_reexecution_guard(api_client, booking
     )
     order_id = res_order.json()["data"]["id"]
 
-    # Kỹ thuật viên hoàn tất kết quả
+    res_inv = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_inv.status_code == 201
+    inv_id = res_inv.json()["data"]["id"]
+    thuc_thu = float(res_inv.json()["data"]["thuc_thu"])
+    res_pay = await api_client.post(
+        f"/api/v1/cashier/invoices/{inv_id}/pay",
+        json={"phuong_thuc_thanh_toan": "tien_mat", "so_tien_khach_tra": thuc_thu},
+        headers=token_admin
+    )
+    assert res_pay.status_code == 200
+
     await api_client.post(
         f"/api/v1/subclinical/orders/{order_id}/start",
         headers=token_admin

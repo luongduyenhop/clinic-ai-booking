@@ -35,12 +35,11 @@ export default function VietQrModal({
     const invoiceId = invoice.id || invoice.ma_hoa_don || invoice.maPhieu || '001'
     const patientCode = invoice.ma_benh_nhan || invoice.maBN || 'BN'
     const patientName = invoice.ten_benh_nhan || invoice.hoTenBN || invoice.benh_nhan?.ho_ten || 'Người bệnh'
-    const amount = Number(invoice.thuc_thu || invoice.tong_tien || invoice.tongTien || 0)
+    const rawAmount = invoice.thuc_thu !== undefined ? invoice.thuc_thu : (invoice.thucThu !== undefined ? invoice.thucThu : (invoice.tong_tien !== undefined ? invoice.tong_tien : invoice.tongTien))
+    const amount = Math.max(0, Number(rawAmount ?? 0))
 
-    // Nội dung chuyển khoản chuẩn theo mã hóa đơn lưu trữ tại backend
     const transferContent = `CLINIC HD ${invoiceId} ${patientCode}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
 
-    // URL ảnh VietQR chuẩn NAPAS 247 QuickLink
     const qrImageUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
         transferContent
     )}&accountName=${encodeURIComponent(accountName)}`
@@ -123,23 +122,32 @@ export default function VietQrModal({
                         </div>
                     </div>
 
-                    {/* QR Code Container */}
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-                        <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
-                            <img
-                                src={qrImageUrl}
-                                alt={`VietQR thanh toán hóa đơn #${invoiceId}`}
-                                className="w-56 h-56 object-contain rounded-lg"
-                                loading="lazy"
-                            />
+                    {amount <= 0 ? (
+                        <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 rounded-2xl border border-emerald-200/80 text-center">
+                            <Check size={40} weight="bold" className="text-emerald-600 mb-2" />
+                            <div className="text-sm font-bold text-emerald-900">Hóa đơn miễn giảm 100% (0 VNĐ)</div>
+                            <p className="text-xs text-emerald-700 mt-1 max-w-xs">
+                                Không phát sinh chi phí cần thanh toán qua chuyển khoản ngân hàng. Thu ngân có thể xác nhận gạch nợ ngay.
+                            </p>
                         </div>
-                        <div className="mt-3 text-center">
-                            <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Số tiền cần thanh toán</div>
-                            <div className="text-2xl font-black text-rose-600 font-mono mt-0.5">
-                                {amount.toLocaleString('vi-VN')} đ
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                            <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+                                <img
+                                    src={qrImageUrl}
+                                    alt={`VietQR thanh toán hóa đơn #${invoiceId}`}
+                                    className="w-56 h-56 object-contain rounded-lg"
+                                    loading="lazy"
+                                />
+                            </div>
+                            <div className="mt-3 text-center">
+                                <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Số tiền cần thanh toán</div>
+                                <div className="text-2xl font-black text-rose-600 font-mono mt-0.5">
+                                    {amount.toLocaleString('vi-VN')} đ
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Transaction Details */}
                     <div className="space-y-2.5 text-xs">

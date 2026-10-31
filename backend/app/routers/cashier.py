@@ -3,22 +3,43 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.cashier import (
     CloseShiftRequest,
     CloseShiftResponse,
     InvoiceCreateRequest,
     InvoiceLineItemResponse,
     InvoicePayRequest,
+    InvoicePreviewResponse,
     InvoiceResponse,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    UnbilledEncountersListResponse,
 )
 from app.services.cashier_service import cashier_service
 
 router = APIRouter(prefix="/cashier", tags=["7. Thu Ngân & Quản Lý Viện Phí (Cashier & Billing)"])
+cashier_role_guard = require_roles([VaiTroEnum.THU_NGAN, VaiTroEnum.ADMIN, VaiTroEnum.LE_TAN])
+
+
+@router.get(
+    "/unbilled-encounters",
+    response_model=ResponseEnvelope[UnbilledEncountersListResponse],
+    summary="Lấy danh sách các lượt khám chưa lập hóa đơn viện phí"
+)
+async def get_unbilled_encounters(
+    page: int = Query(1, ge=1, description="Số trang"),
+    page_size: int = Query(50, ge=1, le=100, description="Kích thước trang"),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.get_unbilled_encounters(page=page, page_size=page_size, db=db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy danh sách {len(result.items)} ca khám chờ lập hóa đơn thành công"
+    )
 
 
 @router.get(
@@ -30,13 +51,30 @@ async def get_pending_bills(
     ma_kcb: Optional[str] = Query(None, description="Lọc theo mã KCB hoặc mã bệnh nhân"),
     page: int = Query(1, ge=1, description="Số trang"),
     page_size: int = Query(50, ge=1, le=100, description="Kích thước trang"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     result = await cashier_service.get_pending_bills(ma_kcb=ma_kcb, page=page, page_size=page_size, db=db)
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Lấy danh sách {len(result.items)} hóa đơn chờ thu thành công"
+    )
+
+
+@router.get(
+    "/encounters/{luot_kham_id}/invoice-preview",
+    response_model=ResponseEnvelope[InvoicePreviewResponse],
+    summary="Xem trước hóa đơn dự kiến của ca khám (chỉ đọc, không tạo dữ liệu)"
+)
+async def preview_invoice(
+    luot_kham_id: int,
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.preview_invoice_for_encounter(luot_kham_id=luot_kham_id, db=db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy hóa đơn dự kiến thành công"
     )
 
 
@@ -48,7 +86,7 @@ async def get_pending_bills(
 )
 async def create_invoice(
     payload: InvoiceCreateRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     invoice = await cashier_service.create_invoice_for_encounter(
@@ -101,7 +139,7 @@ async def create_invoice(
 )
 async def get_invoice(
     invoice_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     invoice = await cashier_service.get_invoice_detail(invoice_id, db)
@@ -150,7 +188,7 @@ async def get_invoice(
 async def pay_invoice(
     invoice_id: int,
     payload: InvoicePayRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     invoice = await cashier_service.pay_invoice(
@@ -204,7 +242,7 @@ async def pay_invoice(
 async def cancel_invoice(
     invoice_id: int,
     ly_do: str = Query("Lập sai thông tin", description="Lý do hủy hóa đơn"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     invoice = await cashier_service.cancel_invoice(
@@ -225,7 +263,7 @@ async def cancel_invoice(
     summary="Báo cáo tổng kết doanh thu và số lượng phiếu thu trong ca trực"
 )
 async def get_shift_summary(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     result = await cashier_service.get_shift_summary(current_user.nguoi_dung_id, db)
@@ -242,7 +280,7 @@ async def get_shift_summary(
 )
 async def close_shift(
     payload: CloseShiftRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     result = await cashier_service.close_shift(

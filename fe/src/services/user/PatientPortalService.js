@@ -1,7 +1,7 @@
 import { http } from '../BaseService.js'
 import { bookingService } from './BookingService.js'
 import { doctors, specialties } from '../../data/user/publicPortalData.js'
-import { demoAppointments, doctorShiftPatterns, labResults, medicalHistory, prescriptions } from '../../data/user/patientPortalData.js'
+import { demoAppointments, doctorShiftPatterns, medicalHistory } from '../../data/user/patientPortalData.js'
 
 const FAMILY_STORAGE_KEY = 'clinic_patient_family_members_v1'
 
@@ -147,11 +147,62 @@ class PatientPortalService {
         })
     }
 
-    async getPortalData({ page = 1 } = {}) {
+    async getPrescriptionsPage(page = 1, signal) {
+        const response = await http.get('/api/v1/patient/prescriptions', { params: { page, page_size: 20 }, signal })
+        const items = response.data.data
+        return { items: items.map((rx) => ({
+                id: `rx-${rx.id}`,
+                code: rx.ma_don_thuoc,
+                visitId: `visit-${rx.luot_kham_id}`,
+                date: rx.ngay_ke_don?.slice(0, 10),
+                doctor: rx.bac_si_ho_ten,
+                diagnosis: rx.chan_doan,
+                status: rx.da_ky_so ? 'Đã ký điện tử' : rx.trang_thai,
+                signedAt: rx.ngay_ky,
+                note: rx.loi_dan_uong_thuoc || 'Dùng thuốc đúng theo hướng dẫn của bác sĩ.',
+                medicines: rx.danh_sach_thuoc.map((medicine) => ({
+                    id: medicine.id,
+                    name: `${medicine.ten_thuoc} ${medicine.ham_luong || ''}`.trim(),
+                    quantity: `${medicine.so_luong} ${medicine.don_vi_tinh}`,
+                    duration: `${medicine.so_ngay_dung} ngày`,
+                    instruction: medicine.cach_dung,
+                    doses: [
+                        { label: 'Sáng', value: medicine.lieu_sang || '—' },
+                        { label: 'Trưa', value: medicine.lieu_trua || '—' },
+                        { label: 'Chiều', value: medicine.lieu_chieu || '—' },
+                        { label: 'Tối', value: medicine.lieu_toi || '—' },
+                    ],
+                })),
+            })), meta: response.data.meta }
+    }
+
+    async getLabResultsPage(page = 1, signal) {
+        const response = await http.get('/api/v1/patient/lab-results', { params: { page, page_size: 20 }, signal })
+        const items = response.data.data
+        return { items: items.map((result) => ({
+                id: `lab-${result.id}`,
+                code: result.ma_dich_vu,
+                date: result.ngay_tra_ket_qua?.slice(0, 10),
+                visitId: `visit-${result.luot_kham_id}`,
+                type: result.loai_ket_qua === 'CHAN_DOAN_HINH_ANH' ? 'Chẩn đoán hình ảnh' : 'Xét nghiệm',
+                name: result.ten_dich_vu,
+                department: result.loai_ket_qua === 'CHAN_DOAN_HINH_ANH' ? 'Khoa Chẩn đoán hình ảnh' : 'Khoa Xét nghiệm',
+                status: 'Đã có kết quả',
+                summary: result.ket_luan,
+                details: result.chi_tiet.map((detail) => ({
+                    label: detail.ten_chi_so,
+                    value: detail.gia_tri,
+                    reference: detail.khoang_tham_chieu || '—',
+                })),
+                attachments: result.tep_dinh_kem,
+            })), meta: response.data.meta }
+    }
+
+    async getPortalData() {
         const savedAppointments = await bookingService.getBookings()
-        const [prescriptionResponse, labResponse] = await Promise.allSettled([
-            http.get('/api/v1/patient/prescriptions', { params: { page, page_size: 20 } }),
-            http.get('/api/v1/patient/lab-results', { params: { page, page_size: 20 } }),
+        // Dashboard summaries always start at page 1. Detail screens load independently.
+        const [rxSummary, labSummary] = await Promise.allSettled([
+            this.getPrescriptionsPage(1), this.getLabResultsPage(1),
         ])
         await delay()
         const appointmentMap = new Map(
@@ -232,64 +283,18 @@ class PatientPortalService {
             console.warn('Error reading completed encounters in portal:', e)
         }
 
-        if (prescriptionResponse.status === 'fulfilled') {
-            const apiPrescriptions = prescriptionResponse.value?.data?.data || []
-            dynamicPrescriptions.splice(0, dynamicPrescriptions.length, ...apiPrescriptions.map((rx) => ({
-                id: `rx-${rx.id}`,
-                code: rx.ma_don_thuoc,
-                visitId: `visit-${rx.luot_kham_id}`,
-                date: rx.ngay_ke_don?.slice(0, 10),
-                doctor: rx.bac_si_ho_ten,
-                diagnosis: rx.chan_doan,
-                status: rx.da_ky_so ? 'Đã ký điện tử' : rx.trang_thai,
-                signedAt: rx.ngay_ky,
-                note: rx.loi_dan_uong_thuoc || 'Dùng thuốc đúng theo hướng dẫn của bác sĩ.',
-                medicines: rx.danh_sach_thuoc.map((medicine) => ({
-                    id: medicine.id,
-                    name: `${medicine.ten_thuoc} ${medicine.ham_luong || ''}`.trim(),
-                    quantity: `${medicine.so_luong} ${medicine.don_vi_tinh}`,
-                    duration: `${medicine.so_ngay_dung} ngày`,
-                    instruction: medicine.cach_dung,
-                    doses: [
-                        { label: 'Sáng', value: medicine.lieu_sang || '—' },
-                        { label: 'Trưa', value: medicine.lieu_trua || '—' },
-                        { label: 'Chiều', value: medicine.lieu_chieu || '—' },
-                        { label: 'Tối', value: medicine.lieu_toi || '—' },
-                    ],
-                })),
-            })))
-        }
-
-        if (labResponse.status === 'fulfilled') {
-            const apiResults = labResponse.value?.data?.data || []
-            dynamicLabResults.splice(0, dynamicLabResults.length, ...apiResults.map((result) => ({
-                id: `lab-${result.id}`,
-                code: result.ma_dich_vu,
-                date: result.ngay_tra_ket_qua?.slice(0, 10),
-                visitId: `visit-${result.luot_kham_id}`,
-                type: result.loai_ket_qua === 'CHAN_DOAN_HINH_ANH' ? 'Chẩn đoán hình ảnh' : 'Xét nghiệm',
-                name: result.ten_dich_vu,
-                department: result.loai_ket_qua === 'CHAN_DOAN_HINH_ANH' ? 'Khoa Chẩn đoán hình ảnh' : 'Khoa Xét nghiệm',
-                status: 'Đã có kết quả',
-                summary: result.ket_luan,
-                details: result.chi_tiet.map((detail) => ({
-                    label: detail.ten_chi_so,
-                    value: detail.gia_tri,
-                    reference: detail.khoang_tham_chieu || '—',
-                })),
-                attachments: result.tep_dinh_kem,
-            })))
-        }
 
         return {
             appointments: [...appointmentMap.values()].sort((a, b) =>
                 b.appointmentDate.localeCompare(a.appointmentDate)
             ),
             medicalHistory: [...dynamicHistory, ...medicalHistory],
-            prescriptions: dynamicPrescriptions,
-            prescriptionMeta: prescriptionResponse.value?.data?.meta,
-            labResults: dynamicLabResults,
-            labMeta: labResponse.value?.data?.meta,
+            prescriptions: rxSummary.status === 'fulfilled' ? rxSummary.value.items : [],
+            prescriptionMeta: rxSummary.status === 'fulfilled' ? rxSummary.value.meta : null,
+            prescriptionError: rxSummary.status === 'rejected' ? 'Không tải được đơn thuốc' : '',
+            labResults: labSummary.status === 'fulfilled' ? labSummary.value.items : [],
+            labMeta: labSummary.status === 'fulfilled' ? labSummary.value.meta : null,
+            labError: labSummary.status === 'rejected' ? 'Không tải được kết quả CLS' : '',
             doctorSchedules: buildDoctorSchedules(),
             familyMembers: readLocalFamily(),
         }

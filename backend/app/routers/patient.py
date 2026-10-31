@@ -1,12 +1,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.response import ResponseEnvelope, PaginationMeta
-from app.models.medical import DonThuoc, LuotKham, ChiDinh
 from app.models.user import TaiKhoan
 from app.schemas.patient import (
     FamilyMemberCreateRequest,
@@ -158,9 +156,7 @@ async def get_patient_prescriptions(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    prescriptions = await patient_service.get_patient_prescriptions(current_user, db, page, page_size)
-    bn = await patient_service._get_current_benh_nhan(current_user, db)
-    total = (await db.execute(select(func.count()).select_from(DonThuoc).join(LuotKham, DonThuoc.luot_kham_id == LuotKham.id).where(LuotKham.benh_nhan_id == bn.id, DonThuoc.trang_thai != "SUPERSEDED"))).scalar_one()
+    prescriptions, total = await patient_service.get_patient_prescriptions(current_user, db, page, page_size)
     return ResponseEnvelope.success_response(
         meta=PaginationMeta.create(page, page_size, total),
         data=prescriptions,
@@ -179,9 +175,7 @@ async def get_patient_lab_results(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    results = await patient_service.get_patient_lab_results(current_user, db, page, page_size)
-    bn = await patient_service._get_current_benh_nhan(current_user, db)
-    total = (await db.execute(select(func.count()).select_from(ChiDinh).join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id).where(LuotKham.benh_nhan_id == bn.id, ChiDinh.trang_thai == "da_co_ket_qua"))).scalar_one()
+    results, total = await patient_service.get_patient_lab_results(current_user, db, page, page_size)
     return ResponseEnvelope.success_response(
         meta=PaginationMeta.create(page, page_size, total),
         data=results,

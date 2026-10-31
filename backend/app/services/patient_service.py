@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -282,16 +282,16 @@ class PatientService:
 
     async def get_patient_prescriptions(
         self, user: TaiKhoan, db: AsyncSession, page: int = 1, page_size: int = 20
-    ) -> List[PatientPrescriptionResponse]:
+    ) -> tuple[List[PatientPrescriptionResponse], int]:
         """Trả đơn thuốc của chính bệnh nhân đang đăng nhập, chống IDOR."""
         bn = await self._get_current_benh_nhan(user, db)
+        filters = (LuotKham.benh_nhan_id == bn.id, DonThuoc.trang_thai != "SUPERSEDED")
+        count_stmt = select(func.count()).select_from(DonThuoc).join(LuotKham, DonThuoc.luot_kham_id == LuotKham.id).where(*filters)
+        total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
             select(DonThuoc)
             .join(LuotKham, DonThuoc.luot_kham_id == LuotKham.id)
-            .where(
-                LuotKham.benh_nhan_id == bn.id,
-                DonThuoc.trang_thai != "SUPERSEDED",
-            )
+            .where(*filters)
             .options(
                 selectinload(DonThuoc.danh_sach_chi_tiet),
                 selectinload(DonThuoc.bac_si_ke_don).selectinload(BacSi.nguoi_dung),
@@ -332,20 +332,20 @@ class PatientService:
                     so_ngay_dung=item.so_ngay_dung,
                 ) for item in rx.danh_sach_chi_tiet],
             ))
-        return results
+        return results, total
 
     async def get_patient_lab_results(
         self, user: TaiKhoan, db: AsyncSession, page: int = 1, page_size: int = 20
-    ) -> List[PatientLabResultResponse]:
+    ) -> tuple[List[PatientLabResultResponse], int]:
         """Trả kết quả CLS và URL file chất lượng gốc của chính bệnh nhân."""
         bn = await self._get_current_benh_nhan(user, db)
+        filters = (LuotKham.benh_nhan_id == bn.id, ChiDinh.trang_thai == "da_co_ket_qua")
+        count_stmt = select(func.count()).select_from(ChiDinh).join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id).where(*filters)
+        total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
             select(ChiDinh)
             .join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id)
-            .where(
-                LuotKham.benh_nhan_id == bn.id,
-                ChiDinh.trang_thai == "da_co_ket_qua",
-            )
+            .where(*filters)
             .options(
                 selectinload(ChiDinh.dich_vu),
                 selectinload(ChiDinh.ket_qua),
@@ -401,7 +401,7 @@ class PatientService:
                 chi_tiet=details,
                 tep_dinh_kem=attachments,
             ))
-        return results
+        return results, total
 
     # ── 4. Khảo sát & Đánh giá dịch vụ sau khám ─────────────────────────
     async def create_service_feedback(

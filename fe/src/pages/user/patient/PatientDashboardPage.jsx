@@ -47,8 +47,8 @@ export default function PatientDashboardPage() {
     const cards = [
         { label: 'Lịch hẹn', value: portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
         { label: 'Lần khám', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/lich-su-kham' },
-        { label: 'Đơn thuốc', value: portalData.prescriptions.length, icon: Pill, to: '/benh-nhan/don-thuoc' },
-        { label: 'Kết quả CLS', value: portalData.labResults.length, icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
+        { label: 'Đơn thuốc', value: portalData.prescriptionError ? '—' : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length), icon: Pill, to: '/benh-nhan/don-thuoc' },
+        { label: 'Kết quả CLS', value: portalData.labError ? '—' : (portalData.labMeta?.total_items ?? portalData.labResults.length), icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
     ]
 
     const handleFindLostCode = async (e) => {

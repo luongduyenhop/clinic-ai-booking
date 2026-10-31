@@ -1,12 +1,14 @@
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
 import pytest
 
 from app.models.medical import ChiDinh, DichVu
+from app.services.patient_service import patient_service
 
 
 @pytest.mark.asyncio
-async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_client, booking, db_session):
+async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_client, booking, db_session, monkeypatch):
     now = datetime.now(timezone.utc)
     appointment = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
     encounter_response = await api_client.post(
@@ -89,10 +91,13 @@ async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_clien
     assert other_patient.status_code == 200
     assert other_patient.json()["data"] == []
 
+    lookup = AsyncMock(wraps=patient_service._get_current_benh_nhan)
+    monkeypatch.setattr(patient_service, '_get_current_benh_nhan', lookup)
     page = await api_client.get(
         "/api/v1/patient/prescriptions?page=1&page_size=1", headers=booking.tokens["bn_a"]
     )
     assert page.status_code == 200
+    assert lookup.await_count == 1
     assert page.json()["meta"]["page_size"] == 1
     assert page.json()["meta"]["total_items"] >= 1
     next_page = await api_client.get(
@@ -103,3 +108,12 @@ async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_clien
         "/api/v1/patient/lab-results?page_size=1000", headers=booking.tokens["bn_a"]
     )
     assert invalid_page.status_code == 422
+
+    lookup.reset_mock()
+    lab_page = await api_client.get(
+        '/api/v1/patient/lab-results?page=1&page_size=1', headers=booking.tokens['bn_a']
+    )
+    assert lab_page.status_code == 200
+    assert lookup.await_count == 1
+    assert lab_page.json()['meta']['page'] == 1
+    assert lab_page.json()['meta']['total_items'] >= 1

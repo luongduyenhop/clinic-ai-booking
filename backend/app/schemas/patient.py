@@ -124,21 +124,55 @@ class ServiceFeedbackResponse(BaseModel):
 
 
 # ── 5. Sổ khám bệnh điện tử cá nhân (EMR Health Records) ───────────
+class PatientVitalSignsResponse(BaseModel):
+    """Sinh hiệu được ghi nhận tại mỗi đợt khám."""
+
+    mach_lan_phut: Optional[int] = None
+    nhiet_do_c: Optional[float] = None
+    huyet_ap_tam_thu: Optional[int] = None
+    huyet_ap_tam_truong: Optional[int] = None
+    nhip_tho_lan_phut: Optional[int] = None
+    can_nang_kg: Optional[float] = None
+    chieu_cao_cm: Optional[float] = None
+    spo2: Optional[float] = None
+    bmi: Optional[float] = None
+
+
+class PatientDiagnosisResponse(BaseModel):
+    """Chẩn đoán ICD-10 trong một đợt khám."""
+
+    ma_icd10: str
+    ten_benh_chan_doan: str
+    loai_chan_doan: str
+    ghi_chu_chuyen_mon: Optional[str] = None
+
+
 class PatientMedicalRecordSummaryResponse(BaseModel):
     luot_kham_id: int
-    ngay_kham: date
+    ngay_kham: Optional[date] = None
+    thoi_gian_bat_dau: Optional[datetime] = None
+    thoi_gian_ket_thuc: Optional[datetime] = None
+    ly_do_vao_kham: Optional[str] = None
+    trieu_chung: Optional[str] = None
+    benh_su: Optional[str] = None
+    ket_luan_dieu_tri: Optional[str] = None
+    bac_si_id: Optional[int] = None
     bac_si_ho_ten: str
+    bac_si_hoc_vi: Optional[str] = None
     chuyen_khoa: str
     phong_kham: str
     chan_doan_chinh: str
     ma_icd10: str
+    sinh_hieu: PatientVitalSignsResponse
+    danh_sach_chan_doan: List[PatientDiagnosisResponse] = Field(default_factory=list)
     loi_dan_bac_si: Optional[str] = None
     ngay_hen_tai_kham: Optional[date] = None
+    chi_dinh_cls: List[Dict[str, Any]] = Field(default_factory=list)
+    don_thuoc_chi_tiet: List[Dict[str, Any]] = Field(default_factory=list)
     tong_so_chi_dinh_cls: int = 0
     co_don_thuoc: bool = False
     so_loai_thuoc: int = 0
     trang_thai_luot_kham: str = "DA_KHAM"
-
 
 # ── 6. Tra cứu đơn thuốc và kết quả CLS trên Cổng Bệnh nhân ─────────
 class PatientPrescriptionItemResponse(BaseModel):

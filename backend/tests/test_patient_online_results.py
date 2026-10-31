@@ -88,3 +88,18 @@ async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_clien
     )
     assert other_patient.status_code == 200
     assert other_patient.json()["data"] == []
+
+    page = await api_client.get(
+        "/api/v1/patient/prescriptions?page=1&page_size=1", headers=booking.tokens["bn_a"]
+    )
+    assert page.status_code == 200
+    assert page.json()["meta"]["page_size"] == 1
+    assert page.json()["meta"]["total_items"] >= 1
+    next_page = await api_client.get(
+        "/api/v1/patient/prescriptions?page=999&page_size=1", headers=booking.tokens["bn_a"]
+    )
+    assert next_page.json()["data"] == []
+    invalid_page = await api_client.get(
+        "/api/v1/patient/lab-results?page_size=1000", headers=booking.tokens["bn_a"]
+    )
+    assert invalid_page.status_code == 422

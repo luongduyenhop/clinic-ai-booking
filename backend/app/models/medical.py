@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index, text
 from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
@@ -466,6 +466,16 @@ class HoaDon(BaseModelWithTimestamp):
     ngay_thanh_toan = Column(DateTime(timezone=True), nullable=True)
     phuong_thuc_thanh_toan = Column(String(30), default="tien_mat", nullable=True)
     goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)
+
+    __table_args__ = (
+        Index(
+            "uq_hoa_don_luot_kham_hieu_luc",
+            "luot_kham_id",
+            unique=True,
+            postgresql_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+            sqlite_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+        ),
+    )
 
     def __init__(self, **kwargs):
         if "thuc_thu" in kwargs and "so_tien_phai_thu" not in kwargs:

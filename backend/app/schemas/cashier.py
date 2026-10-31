@@ -116,6 +116,29 @@ class UnbilledEncounterItem(BaseModel):
     tam_tinh: Decimal = Decimal("0.00")
     thoi_gian_bat_dau: Optional[datetime] = None
     is_locked: bool = False
+    canh_bao_gia: Optional[str] = None
+
+
+class InvoicePreviewLine(BaseModel):
+    loai_muc: str
+    muc_tham_chieu_id: Optional[int] = None
+    ten_khoan_thu: str
+    so_luong: int
+    don_gia: Decimal
+    thanh_tien: Decimal
+    ghi_chu: Optional[str] = None
+
+
+class InvoicePreviewResponse(BaseModel):
+    luot_kham_id: int
+    ma_kcb: Optional[str] = None
+    benh_nhan: PatientBrief
+    bac_si_kham: Optional[str] = None
+    ngay_kham: Optional[str] = None
+    cac_khoan_thu: List[InvoicePreviewLine] = []
+    tong_tien: Decimal
+    mien_giam: Decimal = Decimal("0.00")
+    thuc_thu_du_kien: Decimal
 
 
 class UnbilledEncountersListResponse(BaseModel):

@@ -481,3 +481,109 @@ async def test_cashier_and_subclinical_rbac_forbidden(api_client, booking):
     )
     assert res_start_cls.status_code == 403
 
+
+
+@pytest.mark.asyncio
+async def test_cashier_invoice_preview_read_only(api_client, booking, db_session):
+    token_admin = booking.tokens["admin"]
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_start = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kham kiem tra preview"},
+        headers=token_bs
+    )
+    assert res_start.status_code == 201
+    enc_id = res_start.json()["data"]["id"]
+
+    dv = DichVu(
+        ma_dich_vu=f"CLS-PREV-{booking.suffix}",
+        ten_dich_vu="Sieu am o bung tong quat",
+        don_gia=200000.00,
+        don_vi_tinh="Lan",
+        is_active=True
+    )
+    db_session.add(dv)
+    await db_session.flush()
+
+    res_order = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/orders",
+        json={"dich_vu_id": dv.id, "so_luong": 1},
+        headers=token_bs
+    )
+    assert res_order.status_code == 201
+
+    res_prev = await api_client.get(
+        f"/api/v1/cashier/encounters/{enc_id}/invoice-preview",
+        headers=token_admin
+    )
+    assert res_prev.status_code == 200
+    prev_data = res_prev.json()["data"]
+    assert prev_data["luot_kham_id"] == enc_id
+    assert len(prev_data["cac_khoan_thu"]) == 2
+    assert Decimal(str(prev_data["tong_tien"])) > Decimal("200000.00")
+
+    res_unbilled = await api_client.get(
+        "/api/v1/cashier/unbilled-encounters",
+        headers=token_admin
+    )
+    assert res_unbilled.status_code == 200
+    unbilled_ids = [it["luot_kham_id"] for it in res_unbilled.json()["data"]["items"]]
+    assert enc_id in unbilled_ids
+
+
+@pytest.mark.asyncio
+async def test_cashier_pricing_from_master_dich_vu_when_doctor_has_no_fee(api_client, booking, db_session):
+    token_admin = booking.tokens["admin"]
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    booking.bs_x.gia_kham_mac_dinh = 0.0
+    await db_session.flush()
+
+    res_start = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kham vang lai tra gia dich vu"},
+        headers=token_bs
+    )
+    assert res_start.status_code == 201
+    enc_id = res_start.json()["data"]["id"]
+
+    res_no_config = await api_client.get(
+        f"/api/v1/cashier/encounters/{enc_id}/invoice-preview",
+        headers=token_admin
+    )
+    assert res_no_config.status_code == 422
+    assert "KHAM_LAM_SANG_CO_BAN" in res_no_config.json()["message"]
+
+    dv_kham = DichVu(
+        ma_dich_vu="KHAM_LAM_SANG_CO_BAN",
+        ten_dich_vu="Khám lâm sàng cơ bản",
+        don_gia=150000.00,
+        don_vi_tinh="Lượt",
+        is_active=True
+    )
+    db_session.add(dv_kham)
+    await db_session.flush()
+
+    res_prev = await api_client.get(
+        f"/api/v1/cashier/encounters/{enc_id}/invoice-preview",
+        headers=token_admin
+    )
+    assert res_prev.status_code == 200
+    prev_data = res_prev.json()["data"]
+    cong_kham_line = next(it for it in prev_data["cac_khoan_thu"] if it["loai_muc"] == "cong_kham")
+    assert Decimal(str(cong_kham_line["don_gia"])) == Decimal("150000.00")
+
+    res_bill = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_bill.status_code == 201
+    bill_data = res_bill.json()["data"]
+    inv_cong_kham = next(it for it in bill_data["chi_tiet_hoa_don"] if it["loai_muc"] == "cong_kham")
+    assert Decimal(str(inv_cong_kham["don_gia"])) == Decimal("150000.00")

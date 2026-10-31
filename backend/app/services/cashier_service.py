@@ -3,12 +3,11 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
-    BadRequestException,
     ConflictException,
     NotFoundException,
     UnprocessableEntityException,
@@ -19,10 +18,8 @@ from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.cashier import (
     CloseShiftResponse,
     InvoiceCreateRequest,
-    InvoiceLineItemCreate,
     InvoiceLineItemResponse,
     InvoicePayRequest,
-    InvoiceResponse,
     PatientBrief,
     PendingBillItem,
     PendingBillsListResponse,

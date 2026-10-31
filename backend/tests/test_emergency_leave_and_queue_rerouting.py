@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, datetime, time, timezone
+from app.services.appointment_service import clinic_now
 from app.models.appointment import LichLamViec, HangDoiKham, LichKham, CaLamViecEnum, TrangThaiHangDoiEnum, TrangThaiLichEnum
 from app.models.medical import LuotKham
 from app.models.user import ChuyenKhoa
@@ -11,7 +12,7 @@ async def test_declare_emergency_leave_and_impact_metrics(api_client, booking, d
     Kịch bản 1: Khai báo nghỉ đột xuất và thống kê chính xác số bệnh nhân bị ảnh hưởng (N1, N2, N3).
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
+    today = clinic_now().date()
 
     # Tạo ca làm việc cho bs_x (Ca sáng)
     shift_x = LichLamViec(
@@ -98,7 +99,7 @@ async def test_reassign_queue_preconditions_validation(api_client, booking, db_s
     - Bác sĩ thay thế bị quá tải (vượt giới hạn ca) -> 409 Conflict.
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
+    today = clinic_now().date()
 
     # Tạo chuyên khoa mới (khác chuyên khoa của bs_x)
     ck_diff = ChuyenKhoa(
@@ -200,7 +201,7 @@ async def test_reassign_queue_success_and_stt_rescoping(api_client, booking, db_
     - Chuyển bác sĩ cho cả các lịch hẹn chưa check-in.
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
+    today = clinic_now().date()
 
     # Đồng bộ chuyên khoa
     booking.bs_y.chuyen_khoa_id = booking.bs_x.chuyen_khoa_id
@@ -336,7 +337,7 @@ async def test_postpone_and_cancel_unassigned_flow(api_client, booking, db_sessi
     - Lịch hẹn chưa đến chuyển sang TU_DONG_HUY có ghi chú bảo lưu quyền lợi.
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
+    today = clinic_now().date()
 
     shift_x = LichLamViec(
         bac_si_id=booking.bs_x.id,

@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, datetime, timezone
+from app.services.appointment_service import clinic_now
 from sqlalchemy import select
 from app.models.appointment import HangDoiKham, CaLamViecEnum, TrangThaiHangDoiEnum
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
@@ -31,7 +32,7 @@ async def _tao_ca_kham_san_sang_hoan_tat(api_client, booking, db_session, trang_
             lich_kham_id=lich_id,
             benh_nhan_id=booking.bn_a.id,
             bac_si_id=booking.bs_x.id,
-            ngay_kham=date.today(),
+            ngay_kham=clinic_now().date(),
             ca_kham=CaLamViecEnum.SANG.value,
             so_thu_tu_kham=i,
             trang_thai=tt,

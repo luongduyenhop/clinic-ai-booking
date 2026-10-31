@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from app.models.appointment import LichKham, TrangThaiLichEnum
 
@@ -18,8 +18,9 @@ async def test_arrival_window_early_on_time_and_late(api_client, booking, db_ses
     - Đến muộn > 15p -> den_muon, ưu tiên 5
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
     now_clinic = _get_clinic_now()
+    # Lấy ngày theo giờ phòng khám: CI chạy UTC nên date.today() lùi 1 ngày trong khung 0h-7h giờ VN
+    today = now_clinic.date()
 
     # 1. Ca đến sớm: hẹn sau bây giờ 45 phút
     gio_som = (now_clinic + timedelta(minutes=45)).time()

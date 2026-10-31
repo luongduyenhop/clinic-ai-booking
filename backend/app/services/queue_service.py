@@ -22,6 +22,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
 )
 from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
+from app.services.appointment_service import clinic_now
 from app.schemas.queue import (
     CheckInRequest,
     WalkInCheckInRequest,
@@ -151,7 +152,7 @@ class QueueService:
 
         # 3. Ràng buộc ngày khám (Check-in Date Invariant theo chuẩn Bahmni & OpenMRS):
         # Bệnh nhân chỉ được cấp vé vào hàng đợi trong đúng ngày khám đã hẹn
-        today_date = date.today()
+        today_date = clinic_now().date()
         if lich.ngay_kham != today_date:
             if lich.ngay_kham > today_date:
                 raise BadRequestException(
@@ -256,7 +257,7 @@ class QueueService:
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 
-        today = date.today()
+        today = clinic_now().date()
         now = datetime.now(timezone.utc)
 
         # Kiểm tra ca làm việc và giới hạn công suất ca (gioi_han_ca_kham)
@@ -359,7 +360,7 @@ class QueueService:
             raise ForbiddenException("Chức năng gọi số khám chỉ dành cho Bác sĩ!")
 
         doctor_id = bac_si.id if bac_si else 1
-        today = date.today()
+        today = clinic_now().date()
         now = datetime.now(timezone.utc)
 
         # 0. Guard A4 (Concurrency & Khám đè):
@@ -505,7 +506,7 @@ class QueueService:
         db: AsyncSession,
     ) -> DoctorQueueBoardResponse:
         """Lấy toàn bộ dữ liệu bảng hàng đợi phòng khám theo thời gian thực (Display Board)"""
-        target_date = query_date or date.today()
+        target_date = query_date or clinic_now().date()
 
         stmt_bs = (
             select(BacSi)
@@ -561,7 +562,7 @@ class QueueService:
         - Theo dõi từ lúc Check-in đến khi Hoàn tất hoặc Bỏ về.
         - Hiển thị Giờ hẹn vs Giờ đến thực tế, Tổng thời gian chờ, Thời gian ở trạng thái này.
         """
-        target_date = query_date or date.today()
+        target_date = query_date or clinic_now().date()
 
         stmt = (
             select(HangDoiKham)

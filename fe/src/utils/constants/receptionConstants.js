@@ -5,15 +5,28 @@ export const APPOINTMENT_STATUS = {
     RESCHEDULED: 'RESCHEDULED',
     CANCELLED: 'CANCELLED',
     NO_SHOW: 'NO_SHOW',
+    DA_DAT: 'DA_DAT',
+    DA_DEN: 'DA_DEN',
 }
 
 export const APPOINTMENT_STATUS_LABELS = {
     [APPOINTMENT_STATUS.BOOKED]: { label: 'Đã đặt', color: 'blue' },
     [APPOINTMENT_STATUS.CONFIRMED]: { label: 'Đã xác nhận', color: 'cyan' },
-    [APPOINTMENT_STATUS.CHECKED_IN]: { label: 'Đã tiếp nhận', color: 'green' },
+    [APPOINTMENT_STATUS.CHECKED_IN]: { label: 'Đã đến', color: 'green' },
     [APPOINTMENT_STATUS.RESCHEDULED]: { label: 'Đã đổi lịch', color: 'orange' },
     [APPOINTMENT_STATUS.CANCELLED]: { label: 'Đã hủy', color: 'red' },
     [APPOINTMENT_STATUS.NO_SHOW]: { label: 'Vắng mặt', color: 'default' },
+    [APPOINTMENT_STATUS.DA_DAT]: { label: 'Đã đặt', color: 'blue' },
+    [APPOINTMENT_STATUS.DA_DEN]: { label: 'Đã đến', color: 'green' },
+    da_dat: { label: 'Đã đặt', color: 'blue' },
+    da_den: { label: 'Đã đến', color: 'green' },
+    da_xac_nhan: { label: 'Đã đặt', color: 'blue' },
+    cho_xac_nhan: { label: 'Chờ xác nhận', color: 'gold' },
+    da_tiep_nhan: { label: 'Đã đến', color: 'green' },
+    dang_kham: { label: 'Đang khám', color: 'purple' },
+    da_kham: { label: 'Đã khám', color: 'cyan' },
+    da_huy: { label: 'Đã hủy', color: 'red' },
+    no_show: { label: 'Vắng mặt', color: 'default' },
 }
 
 export const QUEUE_STATUS = {

@@ -32,6 +32,7 @@ class DoctorScheduleSlotsResponse(BaseModel):
 
 class AppointmentCreateRequest(BaseModel):
     """Dữ liệu yêu cầu đặt lịch khám trực tuyến (UC-B03)"""
+    benh_nhan_id: Optional[int] = Field(None, description="Mã bệnh nhân (dành cho lễ tân/admin đặt lịch hộ)")
     bac_si_id: int = Field(..., description="Mã bác sĩ muốn khám")
     ngay_kham: date = Field(..., description="Ngày hẹn khám (YYYY-MM-DD)")
     gio_kham: ClinicLocalTime = Field(..., description="Khung giờ khám được chọn (HH:MM:SS)")

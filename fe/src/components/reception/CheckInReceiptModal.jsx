@@ -65,19 +65,19 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                 <div className="space-y-1.5 text-xs border-b border-slate-200 pb-3">
                     <div className="flex justify-between">
                         <span className="text-slate-500">Người bệnh:</span>
-                        <span className="font-bold text-slate-900">{patient?.fullName || 'N/A'}</span>
+                        <span className="font-bold text-slate-900">{queueEntry.patientName || patient?.fullName || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Mã hồ sơ:</span>
-                        <span className="font-mono font-semibold">{patient?.patientCode || 'N/A'}</span>
+                        <span className="font-mono font-semibold">{patient?.patientCode || (queueEntry.patientId ? `BN-${queueEntry.patientId}` : 'N/A')}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Số điện thoại:</span>
-                        <span>{patient?.phone || 'N/A'}</span>
+                        <span>{queueEntry.phone || patient?.phone || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Đối tượng:</span>
-                        <span className="font-medium text-slate-700">Khám dịch vụ tư nhân</span>
+                        <span className="font-medium text-slate-700">Khám theo lịch hẹn đặt trước</span>
                     </div>
                 </div>
 
@@ -85,19 +85,19 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                 <div className="space-y-1.5 text-xs border-b border-slate-200 pb-3">
                     <div className="flex justify-between">
                         <span className="text-slate-500">Chuyên khoa:</span>
-                        <span className="font-semibold text-slate-800">{department?.name || 'N/A'}</span>
+                        <span className="font-semibold text-slate-800">{department?.name || queueEntry.departmentName || 'Khoa khám bệnh'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Phòng khám:</span>
-                        <span className="font-bold text-teal-700">{room?.name || 'N/A'} ({room?.floor})</span>
+                        <span className="font-bold text-teal-700">{queueEntry.roomName || room?.name || 'Theo phân bổ'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Bác sĩ khám:</span>
-                        <span>{doctor?.name || 'Theo phân bổ ca'}</span>
+                        <span>{queueEntry.doctorName || doctor?.name || 'Theo phân bổ ca'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Dịch vụ:</span>
-                        <span className="font-medium">{service?.name || 'Khám bệnh'}</span>
+                        <span className="font-medium">{service?.name || 'Khám chuyên khoa'}</span>
                     </div>
                 </div>
 

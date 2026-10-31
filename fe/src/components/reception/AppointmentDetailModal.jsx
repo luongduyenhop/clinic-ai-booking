@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal, Tag, Descriptions, Button, Input, Select, DatePicker, message, Alert } from 'antd'
 import { useSelector, useDispatch } from 'react-redux'
 import dayjs from 'dayjs'
-import { updateAppointmentAsync, cancelAppointmentAsync } from '../../redux/slices/reception/receptionSlice'
+import { updateAppointmentAsync, cancelAppointmentAsync } from '../../redux/actions/reception/receptionAction'
 import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
 

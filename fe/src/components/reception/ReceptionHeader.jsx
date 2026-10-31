@@ -9,7 +9,7 @@ import {
     ClockCircleOutlined,
     SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import { switchReceptionRoleAsync, resetReceptionDataAsync } from '../../redux/slices/reception/receptionSlice'
+import { switchReceptionRoleAsync, resetReceptionDataAsync } from '../../redux/actions/reception/receptionAction'
 import { RECEPTION_ROLES_OPTIONS } from '../../utils/constants/receptionConstants'
 
 const ROUTE_NAMES = {

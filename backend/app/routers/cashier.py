@@ -12,6 +12,7 @@ from app.schemas.cashier import (
     InvoiceCreateRequest,
     InvoiceLineItemResponse,
     InvoicePayRequest,
+    InvoicePreviewResponse,
     InvoiceResponse,
     PendingBillsListResponse,
     ShiftSummaryResponse,
@@ -57,6 +58,23 @@ async def get_pending_bills(
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Lấy danh sách {len(result.items)} hóa đơn chờ thu thành công"
+    )
+
+
+@router.get(
+    "/encounters/{luot_kham_id}/invoice-preview",
+    response_model=ResponseEnvelope[InvoicePreviewResponse],
+    summary="Xem trước hóa đơn dự kiến của ca khám (chỉ đọc, không tạo dữ liệu)"
+)
+async def preview_invoice(
+    luot_kham_id: int,
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.preview_invoice_for_encounter(luot_kham_id=luot_kham_id, db=db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy hóa đơn dự kiến thành công"
     )
 
 

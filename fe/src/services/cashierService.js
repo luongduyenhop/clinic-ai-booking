@@ -8,6 +8,11 @@ class CashierService {
         return response.data?.data || { items: [], total: 0 }
     }
 
+    async getInvoicePreview(luotKhamId) {
+        const response = await http.get(`/api/v1/cashier/encounters/${luotKhamId}/invoice-preview`)
+        return response.data?.data
+    }
+
     async getPendingBills(maKcb = null, page = 1, pageSize = 50) {
         const params = { page, page_size: pageSize }
         if (maKcb) {

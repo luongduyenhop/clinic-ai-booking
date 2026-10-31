@@ -1,0 +1,924 @@
+// =============================================================================
+// ERD HIỆN TRẠNG DỰ ÁN CLINIC-AI (CURRENT STATE - 45 BẢNG CSDL POSTGRESQL)
+// Sinh tự động từ SQLAlchemy Base.metadata. Tương thích 100% với dbdiagram.io
+// =============================================================================
+
+Table chuyen_khoa {
+  ma_chuyen_khoa varchar(50) [not null, unique]
+  ten_chuyen_khoa varchar(100) [not null, unique]
+  mo_ta text
+  vi_tri_phong varchar(50)
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Danh mục chuyên khoa y tế (Nội, Ngoại, Nhi, Sản, Mắt, Tai Mũi Họng, v.v.)'
+}
+
+Table phong_kham {
+  ma_phong varchar(50) [not null, unique]
+  ten_phong varchar(100) [not null]
+  chuyen_khoa_id int
+  tang varchar(20) [not null]
+  loai_phong varchar(30) [not null]
+  thiet_bi_chinh text
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Phòng khám vật lý, vị trí tầng, loại phòng (khám, thủ thuật, xét nghiệm)'
+}
+
+Table nguoi_dung {
+  ho_ten varchar(150) [not null]
+  email varchar(100) [unique]
+  so_dien_thoai varchar(20) [unique]
+  ngay_sinh date
+  gioi_tinh varchar(10)
+  dia_chi varchar(255)
+  cccd_so varchar(20) [unique]
+  is_deleted boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Thông tin định danh chung của mọi cá nhân (họ tên, sđt, cccd, email, địa chỉ)'
+}
+
+Table tai_khoan {
+  nguoi_dung_id int [not null, unique]
+  email varchar(100) [not null, unique]
+  mat_khau_hash varchar(255) [not null]
+  vai_tro varchar(20) [not null]
+  is_active boolean [not null]
+  otp_code varchar(10)
+  otp_expired_at datetime
+  last_login_at datetime
+  refresh_token varchar(255) [unique]
+  refresh_token_expired_at datetime
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Tài khoản bảo mật, thông tin đăng nhập, vai trò RBAC, hash mật khẩu và token'
+}
+
+Table benh_nhan {
+  nguoi_dung_id int [not null, unique]
+  ma_dinh_danh_y_te varchar(50) [not null, unique]
+  nhom_mau varchar(10)
+  tien_su_benh text
+  di_ung_thuoc text
+  diem_tin_nhiem int [not null]
+  so_lan_no_show int [not null]
+  is_blocked_booking boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hồ sơ y tế bệnh nhân (mã định danh y tế BN, nhóm máu, tiền sử dị ứng, BHYT)'
+}
+
+Table bac_si {
+  nguoi_dung_id int [not null, unique]
+  chuyen_khoa_id int
+  hoc_vi varchar(50) [not null]
+  chung_chi_hanh_nghe varchar(100) [not null, unique]
+  nam_kinh_nghiem int [not null]
+  mo_ta_chuyen_sau text
+  gia_kham_mac_dinh numeric(12, 2) [not null]
+  phong_kham_id int
+  is_active boolean [not null]
+  ngay_cap datetime
+  ngay_het_han datetime
+  pham_vi_chuyen_mon json
+  trang_thai_giay_phep varchar(50) [not null]
+  tep_dinh_kem_url varchar(500)
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Thông tin bác sĩ (chứng chỉ hành nghề, học vị, chuyên khoa, số năm kinh nghiệm)'
+}
+
+Table ho_so_nguoi_than {
+  benh_nhan_chinh_id int [not null]
+  ho_ten varchar(150) [not null]
+  quan_he varchar(50) [not null]
+  ngay_sinh date [not null]
+  gioi_tinh varchar(10) [not null]
+  so_dien_thoai varchar(20)
+  cccd_so varchar(20)
+  tien_su_benh text
+  di_ung_thuoc text
+  nhom_mau varchar(10)
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Mối quan hệ bảo hộ/người thân của bệnh nhân (bố mẹ, vợ chồng, người giám hộ)'
+}
+
+Table lich_lam_viec {
+  bac_si_id int [not null]
+  ngay_lam_viec date [not null]
+  ca_lam_viec varchar(20) [not null]
+  gio_bat_dau time [not null]
+  gio_ket_thuc time [not null]
+  gioi_han_ca_kham int [not null]
+  phong_kham_id int
+  han_muc_dat_truoc int [not null]
+  han_muc_vang_lai int [not null]
+  is_active boolean [not null]
+  ghi_chu_nghi text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Ca làm việc của bác sĩ theo ngày (Sáng, Chiều, Tối), số slot tối đa và slot đã đặt'
+}
+
+Table lich_kham {
+  ma_lich_kham varchar(50) [not null, unique]
+  benh_nhan_id int [not null]
+  bac_si_id int [not null]
+  ngay_kham date [not null]
+  gio_kham time [not null]
+  thoi_luong_phut int [not null]
+  so_thu_tu int [not null]
+  ly_do_kham varchar(255)
+  trieu_chung_ban_dau text
+  trang_thai varchar(30) [not null]
+  is_reconfirmed_24h boolean [not null]
+  thoi_gian_xac_nhan datetime
+  thoi_gian_huy datetime
+  ly_do_huy text
+  nguoi_huy_vai_tro varchar(20)
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Phiếu hẹn khám (ngày hẹn, khung giờ, triệu chứng ban đầu, trạng thái hẹn, kênh đặt)'
+}
+
+Table danh_sach_cho {
+  benh_nhan_id int [not null]
+  bac_si_id int [not null]
+  ngay_mong_muon date [not null]
+  ca_mong_muon varchar(20) [not null]
+  trieu_chung text
+  thu_tu_uu_tien int [not null]
+  trang_thai varchar(30) [not null]
+  thoi_gian_thong_bao datetime
+  thoi_gian_het_han_giu_slot datetime
+  slot_duoc_cap_id int
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hàng đợi chờ slot hủy (Waitlist) khi ca khám đã kín chỗ'
+}
+
+Table phan_tich_ai {
+  lich_kham_id int [unique]
+  benh_nhan_id int
+  trieu_chung_nhap text [not null]
+  chuyen_khoa_goi_y_id int
+  do_tin_cay numeric(5, 4) [not null]
+  co_dau_hieu_cap_cuu boolean [not null]
+  tu_khoa_cap_cuu_phat_hien varchar(100)
+  mo_hinh_ap_dung varchar(50) [not null]
+  thoi_gian_suy_luan_ms numeric(8, 2)
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Kết quả phân tích triệu chứng AI Triage, gợi ý chuyên khoa, độ khẩn cấp, red flags'
+}
+
+Table danh_gia_ai {
+  phan_tich_ai_id int [not null, unique]
+  nguoi_danh_gia_id int
+  vai_tro_nguoi_danh_gia varchar(20) [not null]
+  so_sao int
+  chuyen_khoa_thuc_te_id int
+  nhan_xet text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Phản hồi/đánh giá của bác sĩ về độ chính xác của gợi ý AI'
+}
+
+Table hang_doi_kham {
+  lich_kham_id int
+  benh_nhan_id int [not null]
+  bac_si_id int [not null]
+  ngay_kham date [not null]
+  ca_kham varchar(20) [not null]
+  so_thu_tu_kham int [not null]
+  loai_hang_doi varchar(30) [not null]
+  muc_do_uu_tien int [not null]
+  trang_thai varchar(30) [not null]
+  thoi_gian_check_in datetime [not null]
+  thoi_gian_goi_kham datetime
+  thoi_gian_bat_dau datetime
+  thoi_gian_ket_thuc datetime
+  so_lan_goi int [not null]
+  nguoi_tiep_nhan_id int
+  ghi_chu_dieu_phoi text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hàng đợi tiếp đón tại phòng khám theo 5 bậc ưu tiên (P1 cấp cứu -> P5 thông thường)'
+}
+
+Table lich_dinh_ky_bac_si {
+  bac_si_id int [not null]
+  thu_trong_tuan int [not null]
+  ca_lam_viec varchar(20) [not null]
+  gio_bat_dau time [not null]
+  gio_ket_thuc time [not null]
+  phong_kham_id int
+  thoi_luong_slot_phut int [not null]
+  gioi_han_ca_kham int [not null]
+  han_muc_dat_truoc int [not null]
+  han_muc_vang_lai int [not null]
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Mẫu lịch làm việc định kỳ hàng tuần của bác sĩ để tự động sinh lịch'
+}
+
+Table nghi_phep_bac_si {
+  bac_si_id int [not null]
+  loai_nghi varchar(30) [not null]
+  tu_ngay date [not null]
+  den_ngay date [not null]
+  ca_lam_viec varchar(20)
+  ly_do text [not null]
+  trang_thai varchar(30) [not null]
+  nguoi_duyet_id int
+  ghi_chu_duyet text
+  so_ca_anh_huong int [not null]
+  so_lich_anh_huong int [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Đăng ký nghỉ phép của bác sĩ để khóa slot và tự động điều phối lịch khám'
+}
+
+Table khai_niem {
+  ma_khai_niem varchar(50) [not null, unique]
+  ten_khai_niem varchar(255) [not null]
+  loai_khai_niem varchar(50) [not null]
+  chuyen_khoa_id int
+  mo_ta text
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Từ điển thuật ngữ y khoa mở rộng (Concept dictionary theo kiến trúc OpenMRS)'
+}
+
+Table tu_khoa_cap_cuu {
+  tu_khoa varchar(100) [not null, unique]
+  muc_do_nguy_hiem varchar(30) [not null]
+  huong_dan_xu_tri varchar(255) [not null]
+  van_ban_byt_ref varchar(150)
+  ngay_ban_hanh date
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Từ điển từ khóa triệu chứng nguy cấp (Red flags) phục vụ AI Triage cảnh báo khẩn'
+}
+
+Table dich_vu {
+  ma_dich_vu varchar(50) [not null, unique]
+  ten_dich_vu varchar(150) [not null]
+  chuyen_khoa_id int
+  don_gia numeric(12, 2) [not null]
+  don_vi_tinh varchar(30) [not null]
+  quy_trinh_thuc_hien text
+  is_active boolean [not null]
+  ma_nhom_byt varchar(50)
+  ma_tu_dong_bhyt varchar(50)
+  phong_thuc_hien_id int
+  thoi_gian_tra_ket_qua_phut int [not null]
+  huong_dan_chuan_bi text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Danh mục dịch vụ y tế kỹ thuật (khám, xét nghiệm máu, X-quang, siêu âm, nội soi)'
+}
+
+Table luot_kham {
+  lich_kham_id int [not null, unique]
+  bac_si_id int [not null]
+  benh_nhan_id int [not null]
+  thoi_gian_bat_dau datetime [not null]
+  thoi_gian_ket_thuc datetime
+  ly_do_vao_kham text
+  benh_su text
+  mach_lan_phut int
+  nhiet_do_c numeric(4, 1)
+  huyet_ap_tam_thu int
+  huyet_ap_tam_truong int
+  nhip_tho_lan_phut int
+  can_nang_kg numeric(5, 2)
+  chieu_cao_cm numeric(5, 2)
+  kham_lam_sang_bo_phan text
+  ket_luan_dieu_tri text
+  loi_dan_bac_si text
+  ngay_hen_tai_kham date
+  is_locked boolean [not null]
+  thoi_gian_khoa datetime
+  nguoi_khoa_id int
+  tiep_quan_boi_id int
+  ly_do_tiep_quan text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Phiếu khám lâm sàng / Encounter EMR ngoại trú (bệnh sử, khám thực thể, kết luận, cờ khóa TT32)'
+}
+
+Table chan_doan {
+  luot_kham_id int [not null]
+  khai_niem_id int
+  ma_icd10 varchar(50) [not null]
+  ten_benh_chan_doan varchar(255) [not null]
+  loai_chan_doan varchar(20) [not null]
+  ghi_chu_chuyen_mon text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Chẩn đoán bệnh theo mã danh mục bệnh tật quốc tế ICD-10 (chính và phụ)'
+}
+
+Table chi_dinh {
+  luot_kham_id int [not null]
+  dich_vu_id int [not null]
+  so_luong int [not null]
+  don_gia_tai_thoi_diem numeric(12, 2) [not null]
+  trang_thai varchar(30) [not null]
+  bac_si_chi_dinh_id int
+  ket_qua_chi_tiet text
+  tep_dinh_kem_url varchar(255)
+  thoi_gian_tra_ket_qua datetime
+  ket_qua_phan_loai varchar(20)
+  phong_thuc_hien_id int
+  ky_thuat_vien_id int
+  thoi_gian_lay_mau datetime
+  thoi_gian_thuc_hien datetime
+  file_dinh_kem_urls json
+  tri_so_chi_tiet json
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Chỉ định cận lâm sàng (trạng thái, kết quả đo, kết luận bác sĩ CLS, khoảng tham chiếu)'
+}
+
+Table don_thuoc {
+  luot_kham_id int [not null]
+  bac_si_ke_don_id int [not null]
+  ngay_ke_don datetime [not null]
+  loi_dan_uong_thuoc text
+  ghi_chu_duoc_lam_sang text
+  trang_thai varchar(50) [not null]
+  ma_don_quoc_gia varchar(100)
+  chu_ky_so text
+  ngay_ky datetime
+  idempotency_key varchar(100)
+  bien_nhan_giao_dich varchar(255)
+  thoi_gian_gui_cong datetime
+  ma_ket_qua_cong varchar(100)
+  thong_diep_cong text
+  superseded_by_id int
+  thay_the_cho_don_id int
+  ly_do_thay_the text
+  nguoi_ky_id int
+  du_lieu_don_thuoc_hash varchar(100)
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Đơn thuốc điện tử ngoại trú (lời dặn, mã đơn quốc gia, trạng thái phát thuốc)'
+}
+
+Table chi_tiet_don_thuoc {
+  don_thuoc_id int [not null]
+  ten_thuoc varchar(150) [not null]
+  hoat_chat varchar(150)
+  ham_luong varchar(50)
+  don_vi_tinh varchar(30) [not null]
+  so_luong int [not null]
+  cach_dung text [not null]
+  so_ngay_dung int [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Chi tiết từng loại thuốc, liều dùng, đường dùng, chia 4 cữ Sáng-Trưa-Chiều-Tối'
+}
+
+Table bien_ban_dinh_chinh {
+  luot_kham_id int [not null]
+  thuc_the_loai varchar(50) [not null]
+  thuc_the_id int [not null]
+  ly_do_ma varchar(50)
+  ly_do_text text [not null]
+  noi_dung_cu_json json
+  noi_dung_moi_json json [not null]
+  muc_do_nghiem_trong varchar(20) [not null]
+  ma_kiem_thao varchar(100)
+  thoi_gian_kiem_thao datetime
+  requested_by_id int [not null]
+  approved_by_id int
+  approved_at datetime
+  trang_thai varchar(50) [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Biên bản đính chính bệnh án sau khi đã khóa theo quy trình 4 mắt TT 32/2023/TT-BYT'
+}
+
+Table hoa_don {
+  ma_hoa_don varchar(50) [not null, unique]
+  luot_kham_id int [not null]
+  benh_nhan_id int [not null]
+  thu_ngan_id int [not null]
+  tong_tien numeric(15, 2) [not null]
+  mien_giam numeric(15, 2) [not null]
+  thuc_thu numeric(15, 2) [not null]
+  phuong_thuc_thanh_toan varchar(30) [not null]
+  trang_thai varchar(30) [not null]
+  so_hoa_don_in varchar(50)
+  ghi_chu text
+  ngay_thanh_toan datetime
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hóa đơn viện phí / tài chính, tổng tiền, bảo hiểm miễn giảm, trạng thái thanh toán'
+}
+
+Table chi_tiet_hoa_don {
+  hoa_don_id int [not null]
+  loai_muc varchar(30) [not null]
+  muc_tham_chieu_id int
+  ten_khoan_thu varchar(255) [not null]
+  so_luong int [not null]
+  don_gia numeric(15, 2) [not null]
+  thanh_tien numeric(15, 2) [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Chi tiết từng khoản mục viện phí cấu thành nên hóa đơn'
+}
+
+Table phieu_thu_chi {
+  ma_phieu varchar(50) [not null, unique]
+  loai_phieu varchar(20) [not null]
+  hoa_don_id int
+  nguoi_giao_dich varchar(255) [not null]
+  so_tien numeric(15, 2) [not null]
+  phuong_thuc varchar(30) [not null]
+  ly_do text [not null]
+  nhan_vien_id int [not null]
+  thoi_gian datetime [not null]
+  trang_thai_khoa_so boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Phiếu giao dịch thu chi tiền mặt/chuyển khoản thực tế tại quầy thu ngân'
+}
+
+Table luot_kham_the_luc {
+  luot_kham_id int [not null, unique]
+  chieu_cao numeric(5, 1)
+  can_nang numeric(5, 1)
+  bmi numeric(4, 1)
+  mach int
+  huyet_ap_tam_thu int
+  huyet_ap_tam_truong int
+  nhiet_do numeric(4, 1)
+  nhip_tho int
+  thi_luc_mat_phai varchar(20)
+  thi_luc_mat_trai varchar(20)
+  tai_mui_hong text
+  rang_ham_mat text
+  tuan_hoan text
+  ho_hap text
+  tieu_hoa text
+  than_kinh text
+  da_lieu text
+  phan_loai_the_luc varchar(10)
+  bac_si_ket_luan_id int
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hồ sơ khám thể lực chuyên sâu (tai, mũi, họng, răng hàm mặt, mắt)'
+}
+
+Table khoa_so_ca_truc {
+  ma_khoa_so varchar(50) [not null, unique]
+  ca_lam_viec varchar(20) [not null]
+  ngay_khoa_so date [not null]
+  thu_ngan_giao_id int [not null]
+  thu_ngan_nhan_id int
+  tong_tien_mat_he_thong numeric(15, 2) [not null]
+  tong_chuyen_khoan_he_thong numeric(15, 2) [not null]
+  tong_the_pos_he_thong numeric(15, 2) [not null]
+  tien_mat_thuc_te numeric(15, 2) [not null]
+  chenh_lech_tien_mat numeric(15, 2) [not null]
+  tong_so_phieu_thu int [not null]
+  tong_so_phieu_chi int [not null]
+  trang_thai varchar(30) [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Biên bản bàn giao và khóa sổ doanh thu tiền mặt ca trực của thu ngân'
+}
+
+Table danh_gia_dich_vu {
+  luot_kham_id int [not null, unique]
+  benh_nhan_id int [not null]
+  bac_si_id int [not null]
+  so_sao_bac_si int [not null]
+  so_sao_phong_kham int [not null]
+  tieu_chi_hai_long json
+  nhan_xet text
+  an_danh boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Khảo sát sự hài lòng của bệnh nhân sau khi kết thúc lượt khám'
+}
+
+Table giay_phep_co_so {
+  so_giay_phep varchar(100) [not null, unique]
+  ten_co_so varchar(255) [not null]
+  ngay_cap datetime [not null]
+  ngay_het_han datetime
+  pham_vi_hoat_dong text
+  trang_thai varchar(50) [not null]
+  tep_dinh_kem_url varchar(500)
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Giấy phép hoạt động khám chữa bệnh của cơ sở y tế theo quy định Bộ Y tế'
+}
+
+Table lich_su_giay_phep_bac_si {
+  bac_si_id int [not null]
+  trang_thai_cu varchar(50)
+  trang_thai_moi varchar(50) [not null]
+  nguoi_thuc_hien_id int
+  ly_do text [not null]
+  ngay_hieu_luc datetime [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Lịch sử cấp đổi, đình chỉ hoặc gia hạn chứng chỉ hành nghề của bác sĩ'
+}
+
+Table nhat_ky_truy_cap_y_te {
+  user_id int [not null]
+  user_role varchar(50) [not null]
+  patient_id int [not null]
+  action varchar(50) [not null]
+  resource_type varchar(50) [not null]
+  resource_id int
+  purpose varchar(255) [not null]
+  client_ip varchar(50)
+  timestamp datetime [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Audit log ghi vết truy cập và thay đổi dữ liệu bệnh án theo chuẩn an toàn TT32'
+}
+
+Table hop_dong_kham_doan {
+  ma_hop_dong varchar(50) [not null, unique]
+  ten_cong_ty varchar(255) [not null]
+  ma_so_thue varchar(50)
+  nguoi_dai_dien varchar(150) [not null]
+  so_dien_thoai varchar(30) [not null]
+  so_luong_nhan_vien int [not null]
+  ngay_bat_dau date [not null]
+  ngay_ket_thuc date [not null]
+  gia_tri_hop_dong numeric(15, 2) [not null]
+  trang_thai varchar(30) [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Hợp đồng khám sức khỏe định kỳ cho doanh nghiệp/cơ quan'
+}
+
+Table nhan_vien_kham_doan {
+  hop_dong_id int [not null]
+  ma_nhan_vien varchar(50) [not null]
+  ho_ten varchar(150) [not null]
+  ngay_sinh date
+  gioi_tinh varchar(10)
+  phong_ban varchar(100)
+  so_dien_thoai varchar(30)
+  cccd_so varchar(20)
+  benh_nhan_id int
+  phan_loai_suc_khoe varchar(20)
+  trang_thai_kham varchar(30) [not null]
+  ket_luan text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Danh sách nhân sự thuộc đoàn khám sức khỏe doanh nghiệp'
+}
+
+Table goi_dich_vu {
+  ma_goi varchar(50) [not null, unique]
+  ten_goi varchar(255) [not null]
+  chuyen_khoa_chinh_id int
+  doi_tuong_ap_dung varchar(100) [not null]
+  don_gia_niem_yet numeric(15, 2) [not null]
+  don_gia_khuyen_mai numeric(15, 2) [not null]
+  mo_ta text
+  is_active boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Danh mục gói khám sức khỏe tổng quát, tầm soát chuyên sâu'
+}
+
+Table chi_tiet_goi_dich_vu {
+  goi_dich_vu_id int [not null]
+  dich_vu_id int [not null]
+  so_luong int [not null]
+  ghi_chu text
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Danh sách các dịch vụ thành phần nằm trong gói khám'
+}
+
+Table dang_ky_goi_kham {
+  ma_dang_ky varchar(50) [not null, unique]
+  benh_nhan_id int [not null]
+  goi_dich_vu_id int [not null]
+  ngay_dang_ky date [not null]
+  han_su_dung date [not null]
+  tong_so_dich_vu int [not null]
+  so_dich_vu_da_dung int [not null]
+  trang_thai varchar(30) [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Hợp đồng mua gói dịch vụ khám của bệnh nhân'
+}
+
+Table lieu_trinh_dieu_tri {
+  ma_lieu_trinh varchar(50) [not null, unique]
+  ten_lieu_trinh varchar(255) [not null]
+  benh_nhan_id int [not null]
+  bac_si_phu_trach_id int [not null]
+  tong_so_buoi int [not null]
+  so_buoi_da_thuc_hien int [not null]
+  ngay_bat_dau date [not null]
+  ngay_du_kien_ket_thuc date
+  muc_tieu_dieu_tri text
+  trang_thai varchar(30) [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Kế hoạch điều trị dài ngày (Vật lý trị liệu, nha khoa, phục hồi chức năng)'
+}
+
+Table buoi_dieu_tri {
+  lieu_trinh_id int [not null]
+  so_thu_tu_buoi int [not null]
+  ngay_thuc_hien datetime [not null]
+  ky_thuat_vien_id int
+  noi_dung_thuc_hien text
+  danh_gia_tien_trien text
+  trang_thai varchar(30) [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Từng buổi thực hiện thủ thuật trong liệu trình điều trị'
+}
+
+Table mau_bieu_y_te {
+  ma_mau varchar(50) [not null, unique]
+  ten_mau varchar(255) [not null]
+  loai_mau varchar(30) [not null]
+  chuyen_khoa_id int
+  bac_si_tao_id int
+  noi_dung_text text [not null]
+  is_public boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Mẫu biểu văn bản y tế động phục vụ in ấn và liên thông báo cáo'
+}
+
+Table cau_hoi_y_khoa {
+  tieu_de varchar(255) [not null]
+  chuyen_muc varchar(50) [not null]
+  cau_hoi text [not null]
+  cau_tra_loi text
+  bac_si_tra_loi_id int
+  luot_xem int [not null]
+  is_published boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Cổng hỏi đáp sức khỏe trực tuyến bác sĩ - bệnh nhân'
+}
+
+Table bai_viet_tin_tuc {
+  tieu_de varchar(255) [not null]
+  slug varchar(255) [not null, unique]
+  chuyen_muc varchar(50) [not null]
+  anh_dai_dien_url varchar(500)
+  tom_tat text
+  noi_dung_html text [not null]
+  tac_gia varchar(150) [not null]
+  luot_xem int [not null]
+  is_published boolean [not null]
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: '[Phase 2] Bài viết cẩm nang y tế, tin tức sức khỏe phòng khám'
+}
+
+Table thong_bao {
+  tai_khoan_id int [not null]
+  tieu_de varchar(255) [not null]
+  noi_dung text [not null]
+  loai_thong_bao varchar(50) [not null]
+  lien_ket_url varchar(255)
+  du_lieu_phu_json json
+  da_doc boolean [not null]
+  thoi_gian_doc datetime
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Hệ thống tin nhắn/thông báo đẩy cho bệnh nhân và nhân viên y tế'
+}
+
+Table he_thong_trang_thai_bff {
+  collection_key varchar(100) [not null, unique]
+  data_json json [not null]
+  updated_by_id int
+  id int [pk, increment]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  Note: 'Lưu trữ trạng thái tiến trình giao dịch nghiệp vụ phía Backend For Frontend'
+}
+
+// =============================================================================
+// QUAN HỆ KHÓA NGOẠI (FOREIGN KEY REFERENCES)
+// =============================================================================
+
+Ref: phong_kham.chuyen_khoa_id > chuyen_khoa.id
+Ref: tai_khoan.nguoi_dung_id - nguoi_dung.id
+Ref: benh_nhan.nguoi_dung_id - nguoi_dung.id
+Ref: bac_si.nguoi_dung_id - nguoi_dung.id
+Ref: bac_si.chuyen_khoa_id > chuyen_khoa.id
+Ref: bac_si.phong_kham_id > phong_kham.id
+Ref: ho_so_nguoi_than.benh_nhan_chinh_id > benh_nhan.id
+Ref: lich_lam_viec.bac_si_id > bac_si.id
+Ref: lich_lam_viec.phong_kham_id > phong_kham.id
+Ref: lich_kham.benh_nhan_id > benh_nhan.id
+Ref: lich_kham.bac_si_id > bac_si.id
+Ref: danh_sach_cho.benh_nhan_id > benh_nhan.id
+Ref: danh_sach_cho.bac_si_id > bac_si.id
+Ref: danh_sach_cho.slot_duoc_cap_id > lich_kham.id
+Ref: phan_tich_ai.lich_kham_id - lich_kham.id
+Ref: phan_tich_ai.benh_nhan_id > benh_nhan.id
+Ref: phan_tich_ai.chuyen_khoa_goi_y_id > chuyen_khoa.id
+Ref: danh_gia_ai.phan_tich_ai_id - phan_tich_ai.id
+Ref: danh_gia_ai.nguoi_danh_gia_id > nguoi_dung.id
+Ref: danh_gia_ai.chuyen_khoa_thuc_te_id > chuyen_khoa.id
+Ref: hang_doi_kham.lich_kham_id > lich_kham.id
+Ref: hang_doi_kham.benh_nhan_id > benh_nhan.id
+Ref: hang_doi_kham.bac_si_id > bac_si.id
+Ref: hang_doi_kham.nguoi_tiep_nhan_id > tai_khoan.id
+Ref: lich_dinh_ky_bac_si.bac_si_id > bac_si.id
+Ref: lich_dinh_ky_bac_si.phong_kham_id > phong_kham.id
+Ref: nghi_phep_bac_si.bac_si_id > bac_si.id
+Ref: nghi_phep_bac_si.nguoi_duyet_id > tai_khoan.id
+Ref: khai_niem.chuyen_khoa_id > chuyen_khoa.id
+Ref: dich_vu.chuyen_khoa_id > chuyen_khoa.id
+Ref: dich_vu.phong_thuc_hien_id > phong_kham.id
+Ref: luot_kham.lich_kham_id - lich_kham.id
+Ref: luot_kham.bac_si_id > bac_si.id
+Ref: luot_kham.benh_nhan_id > benh_nhan.id
+Ref: luot_kham.nguoi_khoa_id > nguoi_dung.id
+Ref: luot_kham.tiep_quan_boi_id > bac_si.id
+Ref: chan_doan.luot_kham_id > luot_kham.id
+Ref: chan_doan.khai_niem_id > khai_niem.id
+Ref: chi_dinh.luot_kham_id > luot_kham.id
+Ref: chi_dinh.dich_vu_id > dich_vu.id
+Ref: chi_dinh.bac_si_chi_dinh_id > bac_si.id
+Ref: chi_dinh.phong_thuc_hien_id > phong_kham.id
+Ref: chi_dinh.ky_thuat_vien_id > nguoi_dung.id
+Ref: don_thuoc.luot_kham_id > luot_kham.id
+Ref: don_thuoc.bac_si_ke_don_id > bac_si.id
+Ref: don_thuoc.superseded_by_id > don_thuoc.id
+Ref: don_thuoc.thay_the_cho_don_id > don_thuoc.id
+Ref: don_thuoc.nguoi_ky_id > bac_si.id
+Ref: chi_tiet_don_thuoc.don_thuoc_id > don_thuoc.id
+Ref: bien_ban_dinh_chinh.luot_kham_id > luot_kham.id
+Ref: bien_ban_dinh_chinh.requested_by_id > nguoi_dung.id
+Ref: bien_ban_dinh_chinh.approved_by_id > nguoi_dung.id
+Ref: hoa_don.luot_kham_id > luot_kham.id
+Ref: hoa_don.benh_nhan_id > benh_nhan.id
+Ref: hoa_don.thu_ngan_id > nguoi_dung.id
+Ref: chi_tiet_hoa_don.hoa_don_id > hoa_don.id
+Ref: phieu_thu_chi.hoa_don_id > hoa_don.id
+Ref: phieu_thu_chi.nhan_vien_id > nguoi_dung.id
+Ref: luot_kham_the_luc.luot_kham_id - luot_kham.id
+Ref: luot_kham_the_luc.bac_si_ket_luan_id > bac_si.id
+Ref: khoa_so_ca_truc.thu_ngan_giao_id > nguoi_dung.id
+Ref: khoa_so_ca_truc.thu_ngan_nhan_id > nguoi_dung.id
+Ref: danh_gia_dich_vu.luot_kham_id - luot_kham.id
+Ref: danh_gia_dich_vu.benh_nhan_id > benh_nhan.id
+Ref: danh_gia_dich_vu.bac_si_id > bac_si.id
+Ref: lich_su_giay_phep_bac_si.bac_si_id > bac_si.id
+Ref: lich_su_giay_phep_bac_si.nguoi_thuc_hien_id > tai_khoan.id
+Ref: nhan_vien_kham_doan.hop_dong_id > hop_dong_kham_doan.id
+Ref: nhan_vien_kham_doan.benh_nhan_id > benh_nhan.id
+Ref: goi_dich_vu.chuyen_khoa_chinh_id > chuyen_khoa.id
+Ref: chi_tiet_goi_dich_vu.goi_dich_vu_id > goi_dich_vu.id
+Ref: chi_tiet_goi_dich_vu.dich_vu_id > dich_vu.id
+Ref: dang_ky_goi_kham.benh_nhan_id > benh_nhan.id
+Ref: dang_ky_goi_kham.goi_dich_vu_id > goi_dich_vu.id
+Ref: lieu_trinh_dieu_tri.benh_nhan_id > benh_nhan.id
+Ref: lieu_trinh_dieu_tri.bac_si_phu_trach_id > bac_si.id
+Ref: buoi_dieu_tri.lieu_trinh_id > lieu_trinh_dieu_tri.id
+Ref: buoi_dieu_tri.ky_thuat_vien_id > nguoi_dung.id
+Ref: mau_bieu_y_te.chuyen_khoa_id > chuyen_khoa.id
+Ref: mau_bieu_y_te.bac_si_tao_id > bac_si.id
+Ref: cau_hoi_y_khoa.bac_si_tra_loi_id > bac_si.id
+Ref: thong_bao.tai_khoan_id > tai_khoan.id
+
+// =============================================================================
+// NHÓM BẢNG THEO PHÂN HỆ (TABLE GROUPS)
+// =============================================================================
+
+TableGroup QuanTri_Va_HeThong {
+  nguoi_dung
+  tai_khoan
+  he_thong_trang_thai_bff
+  nhat_ky_truy_cap_y_te
+  tu_khoa_cap_cuu
+  thong_bao
+  hop_dong_kham_doan
+  nhan_vien_kham_doan
+  goi_dich_vu
+  chi_tiet_goi_dich_vu
+  dang_ky_goi_kham
+  lieu_trinh_dieu_tri
+  buoi_dieu_tri
+  bai_viet_tin_tuc
+  cau_hoi_y_khoa
+  danh_gia_dich_vu
+}
+
+TableGroup TaiKhoan_NhanSu_CoSo {
+  benh_nhan
+  bac_si
+  ho_so_nguoi_than
+  chuyen_khoa
+  phong_kham
+  giay_phep_co_so
+  lich_su_giay_phep_bac_si
+}
+
+TableGroup DatLich_TiepDon {
+  lich_kham
+  lich_lam_viec
+  hang_doi_kham
+  danh_sach_cho
+  lich_dinh_ky_bac_si
+  nghi_phep_bac_si
+  phan_tich_ai
+  danh_gia_ai
+}
+
+TableGroup KhamBenh_BenhAn_EMR {
+  luot_kham
+  luot_kham_the_luc
+  chan_doan
+  khai_niem
+  bien_ban_dinh_chinh
+  mau_bieu_y_te
+}
+
+TableGroup CLS_DonThuoc_VienPhi {
+  chi_dinh
+  dich_vu
+  don_thuoc
+  chi_tiet_don_thuoc
+  hoa_don
+  chi_tiet_hoa_don
+  phieu_thu_chi
+  khoa_so_ca_truc
+}

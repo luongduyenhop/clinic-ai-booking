@@ -1,0 +1,3268 @@
+{
+  "schemaVersion": "2.0.0-promax",
+  "authSeed": {
+    "accessToken": "demo-clinic-ai-admin-token",
+    "refreshToken": "demo-clinic-ai-refresh-token",
+    "role": "ADMIN",
+    "user": {
+      "id": "USR-ADMIN-01",
+      "fullName": "BS.CKII Nguyễn Minh Hoàng (Admin)",
+      "shortName": "BS.CKII Nguyễn Minh Hoàng",
+      "email": "admin@clinic-ai.vn",
+      "department": "Ban Giám Đốc / Nội Tổng Quát",
+      "licenseNo": "004512/HNO-CCHN"
+    },
+    "defaultLoginCredentials": {
+      "usernameOrEmail": "admin@clinic-ai.vn",
+      "password": "password123"
+    }
+  },
+  "navigationConfig": {
+    "headerWorkflowTabs": [
+      {
+        "label": "Lịch hẹn",
+        "path": "/admin/lich-hen",
+        "icon": "CalendarCheck",
+        "hasDropdown": true,
+        "dropdownTitle": "QUẢN LÝ LỊCH HẸN & DỊCH VỤ",
+        "submenu": [
+          {
+            "label": "Lịch hẹn khám & Telemedicine",
+            "path": "/admin/lich-hen",
+            "icon": "CalendarCheck",
+            "desc": "Danh sách lịch hẹn khám trực tuyến"
+          },
+          {
+            "label": "Gói dịch vụ khám (/goidichvu)",
+            "path": "/admin/goi-dich-vu",
+            "icon": "Package",
+            "desc": "Đăng ký & theo dõi gói khám tổng quát"
+          },
+          {
+            "label": "Liệu trình điều trị (/lieutrinh)",
+            "path": "/admin/lieu-trinh",
+            "icon": "ClipboardText",
+            "desc": "Phục hồi chức năng & vật lý trị liệu"
+          }
+        ]
+      },
+      {
+        "label": "Đăng ký",
+        "path": "/admin/dang-ky-kham",
+        "icon": "ClipboardText",
+        "badge": "F2",
+        "badgeColor": "bg-sky-500"
+      },
+      {
+        "label": "Khám bệnh",
+        "path": "/admin/kham-benh",
+        "icon": "Stethoscope",
+        "badge": "F7",
+        "badgeColor": "bg-emerald-500",
+        "hasDropdown": true,
+        "dropdownTitle": "BÀN KHÁM LÂM SÀNG & CHUYÊN MÔN",
+        "submenu": [
+          {
+            "label": "Bàn khám lâm sàng & Ký số",
+            "path": "/admin/kham-benh",
+            "icon": "Stethoscope",
+            "desc": "Khám lâm sàng, sinh hiệu, ICD-10 & kê đơn"
+          },
+          {
+            "label": "Chỉ định dịch vụ & CLS (F7)",
+            "path": "/admin/kham-benh?tab=KE_DICH_VU",
+            "icon": "ClipboardText",
+            "desc": "Kê dịch vụ kỹ thuật & chỉ định cận lâm sàng"
+          },
+          {
+            "label": "Khám sức khỏe (Thông tư 32)",
+            "path": "/admin/kham-benh?tab=KHAM_SUC_KHOE",
+            "icon": "Scales",
+            "desc": "Phân loại sức khỏe I - V cho cá nhân & đoàn"
+          }
+        ]
+      },
+      {
+        "label": "Cận lâm sàng",
+        "path": "/admin/can-lam-sang",
+        "icon": "Microscope",
+        "hasDropdown": true,
+        "dropdownTitle": "CHỈ ĐỊNH & KẾT QUẢ CẬN LÂM SÀNG",
+        "submenu": [
+          {
+            "label": "Tất cả chỉ định Cận lâm sàng",
+            "path": "/admin/can-lam-sang",
+            "icon": "Microscope",
+            "desc": "Toàn bộ danh sách chỉ định chờ thực hiện"
+          },
+          {
+            "label": "Mẫu bệnh phẩm",
+            "path": "/admin/can-lam-sang?filter=BENH_PHAM",
+            "icon": "Drop",
+            "desc": "Tiếp nhận mẫu máu, nước tiểu, dịch xét nghiệm"
+          },
+          {
+            "label": "Xét nghiệm máu & Sinh hóa",
+            "path": "/admin/can-lam-sang?filter=XET_NGHIEM",
+            "icon": "Drop",
+            "desc": "Huyết học, sinh hóa máu, miễn dịch"
+          },
+          {
+            "label": "Chẩn đoán hình ảnh: Siêu âm",
+            "path": "/admin/can-lam-sang?filter=SIEU_AM",
+            "icon": "Waveform",
+            "desc": "Siêu âm tổng quát, tim mạch, ổ bụng"
+          },
+          {
+            "label": "Chẩn đoán hình ảnh: X-Quang",
+            "path": "/admin/can-lam-sang?filter=X_QUANG",
+            "icon": "Scan",
+            "desc": "X-Quang tim phổi thẳng, xương khớp kỹ thuật số"
+          },
+          {
+            "label": "Nội soi Tai Mũi Họng",
+            "path": "/admin/can-lam-sang?filter=NOI_SOI",
+            "icon": "Eye",
+            "desc": "Nội soi tai mũi họng ống mềm độ phân giải cao"
+          },
+          {
+            "label": "Điện tâm đồ (ECG)",
+            "path": "/admin/can-lam-sang?filter=DIEN_TIM",
+            "icon": "Pulse",
+            "desc": "Đo điện tim 12 chuyển đạo tiêu chuẩn"
+          }
+        ]
+      },
+      {
+        "label": "PT - TT",
+        "path": "/admin/pt-tt",
+        "icon": "FirstAidKit"
+      },
+      {
+        "label": "Viện phí",
+        "path": "/admin/thu-chi",
+        "icon": "Receipt",
+        "hasDropdown": true,
+        "dropdownTitle": "QUẢN LÝ VIỆN PHÍ & HÓA ĐƠN",
+        "submenu": [
+          {
+            "label": "Quản lý Thu viện phí & Hóa đơn",
+            "path": "/admin/thu-chi?tab=THU_CHI",
+            "icon": "Receipt",
+            "desc": "Lập phiếu thu, thanh toán viện phí & in biên lai thu tiền"
+          },
+          {
+            "label": "Lập Phiếu thu viện phí mới",
+            "path": "/admin/thu-chi?type=PT",
+            "icon": "PlusCircle",
+            "desc": "Thu tiền khám, viện phí, xét nghiệm tự động"
+          },
+          {
+            "label": "Khóa sổ ca thu ngân (/khoaso)",
+            "path": "/admin/thu-chi?tab=KHOA_SO",
+            "icon": "FloppyDisk",
+            "desc": "Cân đối doanh thu viện phí & chốt ca cuối ngày"
+          }
+        ]
+      },
+      {
+        "label": "Báo cáo",
+        "path": "/admin/bao-cao",
+        "icon": "ChartBar",
+        "hasDropdown": true,
+        "dropdownTitle": "BÁO CÁO THỐNG KÊ & LIÊN THÔNG",
+        "submenu": [
+          {
+            "label": "Thống kê doanh thu phòng khám",
+            "path": "/admin/bao-cao",
+            "icon": "ChartBar",
+            "desc": "Tổng quan doanh thu khám, CLS và dịch vụ"
+          },
+          {
+            "label": "Số liệu thu chi & Khóa sổ ca",
+            "path": "/admin/thu-chi?tab=KHOA_SO",
+            "icon": "Receipt",
+            "desc": "Báo cáo dòng tiền theo từng ca làm việc"
+          },
+          {
+            "label": "Báo cáo liên thông Cổng Quốc gia",
+            "path": "/admin/tuan-thu",
+            "icon": "Scales",
+            "desc": "Tỷ lệ đồng bộ đơn thuốc TT 26 & HSSK"
+          }
+        ]
+      }
+    ],
+    "reportSubmenu": [
+      {
+        "label": "Thống kê doanh thu phòng khám",
+        "path": "/admin/bao-cao"
+      },
+      {
+        "label": "Số liệu thu chi & Khóa sổ ca",
+        "path": "/admin/thu-chi?tab=KHOA_SO"
+      },
+      {
+        "label": "Báo cáo liên thông Cổng Quốc gia",
+        "path": "/admin/tuan-thu"
+      }
+    ],
+    "sidebarSections": [
+      {
+        "id": "tclinic-nav",
+        "title": "HỆ THỐNG ĐIỀU HÀNH CHUẨN T-CLINIC",
+        "menus": [
+          {
+            "id": "dashboard",
+            "title": "Trang chủ",
+            "icon": "HouseLine",
+            "path": "/admin"
+          },
+          {
+            "id": "patients",
+            "title": "Quản lý bệnh nhân",
+            "icon": "IdentificationCard",
+            "children": [
+              {
+                "label": "Hồ sơ bệnh nhân",
+                "path": "/admin/benh-nhan"
+              },
+              {
+                "label": "Hồ sơ gia đình",
+                "path": "/admin/benh-nhan?tab=GIA_DINH"
+              }
+            ]
+          },
+          {
+            "id": "clinical",
+            "title": "Khám lâm sàng",
+            "icon": "Stethoscope",
+            "children": [
+              {
+                "label": "Bàn khám chung",
+                "path": "/admin/kham-benh"
+              },
+              {
+                "label": "Khám Nội khoa",
+                "path": "/admin/kham-chuyen-khoa/noi-khoa"
+              },
+              {
+                "label": "Khám Ngoại khoa",
+                "path": "/admin/kham-chuyen-khoa/ngoai-khoa"
+              },
+              {
+                "label": "Khám Mắt (Nhãn khoa)",
+                "path": "/admin/kham-chuyen-khoa/mat"
+              },
+              {
+                "label": "Khám Tai Mũi Họng",
+                "path": "/admin/kham-chuyen-khoa/tai-mui-hong"
+              },
+              {
+                "label": "Khám Răng Hàm Mặt",
+                "path": "/admin/kham-chuyen-khoa/rang-ham-mat"
+              }
+            ]
+          },
+          {
+            "id": "packages",
+            "title": "Gói dịch vụ",
+            "icon": "Storefront",
+            "children": [
+              {
+                "label": "Gói dịch vụ",
+                "path": "/admin/goi-dich-vu"
+              },
+              {
+                "label": "Thanh toán gói",
+                "path": "/admin/goi-dich-vu?tab=THANH_TOAN"
+              },
+              {
+                "label": "Hoá đơn gói",
+                "path": "/admin/goi-dich-vu?tab=HOA_DON"
+              },
+              {
+                "label": "Mẫu gói dịch vụ",
+                "path": "/admin/goi-dich-vu?tab=MAU_GOI"
+              }
+            ]
+          },
+          {
+            "id": "courses",
+            "title": "Liệu trình",
+            "icon": "ClipboardText",
+            "children": [
+              {
+                "label": "Liệu trình",
+                "path": "/admin/lieu-trinh"
+              },
+              {
+                "label": "Hóa đơn",
+                "path": "/admin/lieu-trinh?tab=HOA_DON"
+              },
+              {
+                "label": "Danh mục liệu trình",
+                "path": "/admin/lieu-trinh?tab=DANH_MUC"
+              },
+              {
+                "label": "Lịch liệu trình",
+                "path": "/admin/lieu-trinh?tab=LICH"
+              },
+              {
+                "label": "Báo cáo liệu trình",
+                "path": "/admin/lieu-trinh?tab=BAO_CAO"
+              },
+              {
+                "label": "Danh mục bài tập",
+                "path": "/admin/lieu-trinh?tab=BAI_TAP"
+              }
+            ]
+          },
+          {
+            "id": "compliance",
+            "title": "Liên thông dữ liệu quốc gia",
+            "icon": "Cloud",
+            "children": [
+              {
+                "label": "Đồng bộ đơn thuốc",
+                "path": "/admin/don-thuoc-quoc-gia"
+              },
+              {
+                "label": "Lịch sử đồng bộ",
+                "path": "/admin/tuan-thu?tab=DON_THUOC"
+              },
+              {
+                "label": "Đồng bộ sổ sức khỏe",
+                "path": "/admin/tuan-thu?tab=HSSK"
+              },
+              {
+                "label": "Lịch sử HSSK",
+                "path": "/admin/tuan-thu?tab=AUDIT"
+              }
+            ]
+          },
+          {
+            "id": "news",
+            "title": "Tin tức",
+            "icon": "Newspaper",
+            "children": [
+              {
+                "label": "Tin tức",
+                "path": "/admin/tin-tuc"
+              },
+              {
+                "label": "Danh mục tin tức",
+                "path": "/admin/danh-muc-tin-tuc"
+              }
+            ]
+          },
+          {
+            "id": "catalogs",
+            "title": "Quản lý danh mục",
+            "icon": "Folders",
+            "children": [
+              {
+                "label": "Danh mục chung",
+                "path": "/admin/danh-muc/chung"
+              },
+              {
+                "label": "Khoa phòng",
+                "path": "/admin/danh-muc/khoa-phong"
+              },
+              {
+                "label": "Địa chỉ",
+                "path": "/admin/danh-muc/dia-chi"
+              },
+              {
+                "label": "Danh mục bệnh (ICD-10)",
+                "path": "/admin/danh-muc/benh"
+              },
+              {
+                "label": "Thuốc kê đơn (BYT)",
+                "path": "/admin/danh-muc/thuoc-vat-tu"
+              },
+              {
+                "label": "Danh mục dịch vụ",
+                "path": "/admin/danh-muc/dich-vu"
+              }
+            ]
+          },
+          {
+            "id": "templates",
+            "title": "Quản lý mẫu",
+            "icon": "FileText",
+            "children": [
+              {
+                "label": "Đơn thuốc mẫu",
+                "path": "/admin/quan-ly-mau/don-thuoc-mau"
+              },
+              {
+                "label": "Kê gói dịch vụ",
+                "path": "/admin/quan-ly-mau/dinh-muc-vat-tu"
+              },
+              {
+                "label": "Mẫu kết quả CLS",
+                "path": "/admin/quan-ly-mau/mau-ket-qua-cls"
+              },
+              {
+                "label": "Mẫu in",
+                "path": "/admin/quan-ly-mau/mau-in"
+              },
+              {
+                "label": "Mẫu báo cáo",
+                "path": "/admin/quan-ly-mau/mau-bao-cao"
+              },
+              {
+                "label": "Gõ tắt",
+                "path": "/admin/quan-ly-mau/go-tat"
+              }
+            ]
+          },
+          {
+            "id": "users",
+            "title": "Phân quyền vai trò",
+            "icon": "ShieldCheck",
+            "children": [
+              {
+                "label": "Quản lý nhân viên & CCHN",
+                "path": "/admin/nhan-vien"
+              },
+              {
+                "label": "Phân quyền vai trò",
+                "path": "/admin/phan-quyen"
+              }
+            ]
+          },
+          {
+            "id": "settings",
+            "title": "Cài đặt",
+            "icon": "Gear",
+            "path": "/admin/cai-dat"
+          },
+          {
+            "id": "download-app",
+            "title": "Tải ứng dụng",
+            "icon": "DownloadSimple",
+            "path": "/admin/tai-ung-dung"
+          }
+        ]
+      }
+    ],
+    "sidebarMenus": [
+      {
+        "id": "dashboard",
+        "title": "Trang chủ",
+        "icon": "HouseLine",
+        "path": "/admin"
+      },
+      {
+        "id": "reception",
+        "title": "Tiếp đón & Đăng ký",
+        "icon": "ClipboardText",
+        "path": "/admin/dang-ky-kham"
+      },
+      {
+        "id": "patients",
+        "title": "Quản lý bệnh nhân",
+        "icon": "Users",
+        "path": "/admin/benh-nhan"
+      },
+      {
+        "id": "clinical",
+        "title": "Khám lâm sàng",
+        "icon": "Stethoscope",
+        "path": "/admin/kham-benh"
+      },
+      {
+        "id": "appointments",
+        "title": "Quản lý Lịch hẹn",
+        "icon": "CalendarCheck",
+        "path": "/admin/lich-hen"
+      },
+      {
+        "id": "cashier",
+        "title": "Thu viện phí & Hóa đơn",
+        "icon": "Receipt",
+        "path": "/admin/thu-chi"
+      },
+      {
+        "id": "compliance",
+        "title": "Liên thông Quốc gia",
+        "icon": "Scales",
+        "path": "/admin/tuan-thu"
+      },
+      {
+        "id": "catalogs",
+        "title": "Quản lý danh mục",
+        "icon": "Folders",
+        "path": "/admin/danh-muc/chung"
+      },
+      {
+        "id": "templates",
+        "title": "Quản lý mẫu",
+        "icon": "FileText",
+        "path": "/admin/quan-ly-mau/mau-in"
+      },
+      {
+        "id": "users",
+        "title": "Phân quyền & CCHN",
+        "icon": "ShieldCheck",
+        "path": "/admin/phan-quyen"
+      }
+    ],
+    "publicPortalModules": [
+      {
+        "title": "1. Đăng ký khám",
+        "desc": "Tiếp đón bệnh nhân, tra cứu lịch hẹn & AI gợi ý chuyên khoa",
+        "path": "/admin/dang-ky-kham",
+        "icon": "ClipboardText"
+      },
+      {
+        "title": "2. Quản lý bệnh nhân",
+        "desc": "Hồ sơ hành chính & tài khoản người bệnh chuẩn hóa",
+        "path": "/admin/benh-nhan",
+        "icon": "Users"
+      },
+      {
+        "title": "3. Khám bệnh & Cận lâm sàng",
+        "desc": "Khám lâm sàng, sinh hiệu, ICD-10, Kê dịch vụ, X-Quang & Đơn thuốc QG",
+        "path": "/admin/kham-benh",
+        "icon": "Stethoscope"
+      },
+      {
+        "title": "4. Quản lý Lịch hẹn",
+        "desc": "Tiếp nhận, xác nhận lịch khám trực tuyến & thống kê",
+        "path": "/admin/lich-hen",
+        "icon": "CalendarCheck"
+      },
+      {
+        "title": "5. Thu viện phí & Hóa đơn",
+        "desc": "Lập phiếu thu viện phí, thanh toán không tiền mặt (VietQR) & in biên lai thu tiền",
+        "path": "/admin/thu-chi",
+        "icon": "Receipt"
+      },
+      {
+        "title": "6. Quản lý Danh mục & Mẫu",
+        "desc": "Danh mục hành chính (5 tab), ICD-10, Thuốc, Dịch vụ & 7 loại Mẫu",
+        "path": "/admin/danh-muc/chung",
+        "icon": "Folders"
+      }
+    ],
+    "dashboardQuickModules": [
+      {
+        "step": "Video 01",
+        "title": "Đăng ký khám & Tiếp đón",
+        "desc": "Tra cứu lịch hẹn, tạo lượt KCB mới & AI Gợi ý Chuyên khoa từ triệu chứng",
+        "path": "/admin/dang-ky-kham",
+        "icon": "ClipboardText",
+        "badge": "Tiếp đón & AI Triage"
+      },
+      {
+        "step": "Video 02",
+        "title": "Quản lý Bệnh nhân",
+        "desc": "Lập hồ sơ hành chính, tải ảnh đại diện, quản lý địa chỉ 3 cấp & lịch sử khám",
+        "path": "/admin/benh-nhan",
+        "icon": "Users",
+        "badge": "Hồ sơ BN"
+      },
+      {
+        "step": "Video 03A",
+        "title": "Khám bệnh Lâm sàng",
+        "desc": "Đo sinh hiệu, chẩn đoán ICD-10, chỉ định dịch vụ/gói khám & Kê đơn thuốc QG",
+        "path": "/admin/kham-benh",
+        "icon": "Stethoscope",
+        "badge": "Bác sĩ Khám"
+      },
+      {
+        "step": "Video 03B",
+        "title": "Cận lâm sàng & PT-TT",
+        "desc": "Thực hiện X-Quang, Siêu âm, Thủ thuật, chọn mẫu kết quả & tải ảnh DICOM",
+        "path": "/admin/can-lam-sang",
+        "icon": "Microscope",
+        "badge": "Chẩn đoán hình ảnh"
+      },
+      {
+        "step": "Video 04",
+        "title": "Quản lý Lịch hẹn",
+        "desc": "Xác nhận lịch hẹn trực tuyến, lọc theo trạng thái & chuyển thẳng vào phòng khám",
+        "path": "/admin/lich-hen",
+        "icon": "CalendarCheck",
+        "badge": "Lịch hẹn Online"
+      },
+      {
+        "step": "Video 05",
+        "title": "Thu viện phí",
+        "desc": "Lập phiếu thu viện phí tự động từ chỉ định dịch vụ & in biên lai thu tiền",
+        "path": "/admin/thu-chi",
+        "icon": "Receipt",
+        "badge": "Tài chính"
+      },
+      {
+        "step": "Video 06",
+        "title": "Tin tức & Danh mục tin",
+        "desc": "Biên tập bài viết truyền thông y tế, phân loại chuyên mục & thống kê lượt xem",
+        "path": "/admin/tin-tuc",
+        "icon": "Newspaper",
+        "badge": "Truyền thông"
+      },
+      {
+        "step": "Video 07",
+        "title": "Quản lý Danh mục",
+        "desc": "Danh mục chung (5 tab), Địa chỉ, Khoa phòng, Bệnh ICD-10, Thuốc & Dịch vụ",
+        "path": "/admin/danh-muc/chung",
+        "icon": "Folders",
+        "badge": "6 Phân hệ Danh mục"
+      },
+      {
+        "step": "Video 09",
+        "title": "Phân quyền & Nhân sự CCHN",
+        "desc": "Ma trận 23 quyền hạn theo vai trò & Kiểm soát hạn Chứng chỉ hành nghề (INT-05)",
+        "path": "/admin/phan-quyen",
+        "icon": "ShieldCheck",
+        "badge": "23 Quyền & CCHN"
+      },
+      {
+        "step": "Video 10",
+        "title": "Quản lý 7 Loại Mẫu",
+        "desc": "Mẫu in, Mẫu báo cáo, Email, Kết quả CLS, Đơn thuốc mẫu, Tiêu hao & Gói dịch vụ",
+        "path": "/admin/quan-ly-mau/mau-in",
+        "icon": "FileText",
+        "badge": "7 Loại Mẫu"
+      },
+      {
+        "step": "Pháp lý",
+        "title": "Tuân thủ Pháp lý & Kiểm toán",
+        "desc": "Sổ đăng ký nghĩa vụ pháp lý, trạng thái liên thông đơn thuốc & Nhật ký Audit",
+        "path": "/admin/tuan-thu",
+        "icon": "Scales",
+        "badge": "INT-03 / 04 / 05"
+      }
+    ]
+  },
+  "masterOptions": {
+    "genders": [
+      "Nữ",
+      "Nam",
+      "Khác"
+    ],
+    "maritalStatuses": [
+      "Độc thân",
+      "Đã kết hôn",
+      "Khác"
+    ],
+    "countries": [
+      "Việt Nam",
+      "Nước ngoài"
+    ],
+    "bloodTypes": [
+      "O+",
+      "A+",
+      "B+",
+      "AB+",
+      "O-",
+      "A-",
+      "B-",
+      "AB-"
+    ],
+    "specialties": [
+      "Nội tổng quát",
+      "Nội tổng quát - Tim mạch",
+      "Tai mũi họng",
+      "Cơ xương khớp",
+      "Chẩn đoán hình ảnh",
+      "Tiêu hóa - Gan mật",
+      "Phục hồi chức năng"
+    ],
+    "registrationStatuses": [
+      "Chờ khám",
+      "Đang khám",
+      "Chờ CLS",
+      "Đã khám",
+      "Đã hủy"
+    ],
+    "appointmentStatuses": [
+      "Chờ xác nhận",
+      "Xác nhận",
+      "Đang khám",
+      "Kết thúc khám",
+      "Từ chối"
+    ],
+    "appointmentConfirmationActions": [
+      "Từ chối",
+      "Xác nhận",
+      "Đang khám",
+      "Kết thúc khám"
+    ],
+    "paraclinicalStatuses": [
+      "Chờ thực hiện",
+      "Đang thực hiện",
+      "Đã có kết quả"
+    ],
+    "paraclinicalModalities": [
+      "X-Quang",
+      "Siêu âm",
+      "Nội soi",
+      "Điện tim (ECG)",
+      "Xét nghiệm",
+      "PT - TT"
+    ],
+    "paymentMethods": [
+      {
+        "value": "Tiền mặt",
+        "label": "Tiền mặt"
+      },
+      {
+        "value": "Chuyển khoản",
+        "label": "Chuyển khoản (VietQR)"
+      },
+      {
+        "value": "Thẻ POS",
+        "label": "Thẻ POS"
+      }
+    ],
+    "voucherTypes": [
+      "Phiếu thu"
+    ],
+    "serviceOrderCategoryTabs": [
+      "Tất cả",
+      "Khám bệnh",
+      "Siêu âm",
+      "X-Quang",
+      "Thăm dò chức năng",
+      "Thủ thuật - VLTL"
+    ],
+    "prescriptionFsmSteps": [
+      {
+        "code": "DRAFT",
+        "label": "1. Nháp (DRAFT)"
+      },
+      {
+        "code": "VALIDATED",
+        "label": "2. Đã kiểm tra (VALIDATED)"
+      },
+      {
+        "code": "SIGNED",
+        "label": "3. Đã ký số (SIGNED)"
+      },
+      {
+        "code": "ISSUED",
+        "label": "4. Đã phát hành (ISSUED)"
+      },
+      {
+        "code": "SUBMISSION_PENDING",
+        "label": "5. Chờ gửi Cổng QG"
+      },
+      {
+        "code": "SUBMITTED",
+        "label": "6. Đã gửi (SUBMITTED)"
+      },
+      {
+        "code": "ACCEPTED",
+        "label": "7. Cổng QG Tiếp nhận (ACCEPTED)"
+      }
+    ],
+    "licenseStatuses": [
+      {
+        "code": "ACTIVE",
+        "label": "ACTIVE (Đủ điều kiện hành nghề)"
+      },
+      {
+        "code": "EXPIRING_SOON",
+        "label": "EXPIRING_SOON (Sắp hết hạn < 60 ngày)"
+      },
+      {
+        "code": "EXPIRED",
+        "label": "EXPIRED (Hết hạn - Chặn phân công)"
+      },
+      {
+        "code": "SUSPENDED",
+        "label": "SUSPENDED (Đình chỉ - Chặn phân công)"
+      }
+    ],
+    "staffRoleOptions": [
+      "Admin / Phụ trách chuyên môn",
+      "Bác sĩ khám bệnh",
+      "Bác sĩ Cận lâm sàng",
+      "Lễ tân - Tiếp đón",
+      "Thu ngân - Viện phí",
+      "Điều dưỡng / Kỹ thuật viên"
+    ],
+    "generalCatalogSubTabs": [
+      {
+        "key": "goTat",
+        "label": "1. Danh mục Gõ tắt",
+        "codeLabel": "Mã gõ tắt",
+        "nameLabel": "Nội dung diễn giải đầy đủ",
+        "icon": "Lightning"
+      },
+      {
+        "key": "donViTinh",
+        "label": "2. Đơn vị tính",
+        "codeLabel": "Mã ĐVT",
+        "nameLabel": "Tên đơn vị tính",
+        "icon": "Package"
+      },
+      {
+        "key": "khoanThu",
+        "label": "3. Danh mục Khoản thu",
+        "codeLabel": "Mã khoản thu",
+        "nameLabel": "Tên khoản thu viện phí",
+        "icon": "CurrencyCircleDollar"
+      },
+      {
+        "key": "phuongPhapTruDau",
+        "label": "5. Phương pháp trừ đau",
+        "codeLabel": "Mã PP",
+        "nameLabel": "Tên phương pháp vô cảm / trừ đau",
+        "icon": "Syringe"
+      }
+    ],
+    "catalogRouteMap": {
+      "chung": {
+        "title": "Danh mục chung (5 phân mục)",
+        "path": "/admin/danh-muc/chung",
+        "icon": "SlidersHorizontal"
+      },
+      "dia-chi": {
+        "title": "Danh mục Địa chỉ Hành chính",
+        "path": "/admin/danh-muc/dia-chi",
+        "icon": "MapPin"
+      },
+      "khoa-phong": {
+        "title": "Danh mục Khoa phòng & Buồng khám",
+        "path": "/admin/danh-muc/khoa-phong",
+        "icon": "Buildings"
+      },
+      "benh": {
+        "title": "Danh mục Bệnh lý Quốc tế (ICD-10)",
+        "path": "/admin/danh-muc/benh",
+        "icon": "Heartbeat"
+      },
+      "thuoc-vat-tu": {
+        "title": "Danh mục Thuốc & Vật tư Y tế",
+        "path": "/admin/danh-muc/thuoc-vat-tu",
+        "icon": "Pill"
+      },
+      "dich-vu": {
+        "title": "Danh mục Dịch vụ Kỹ thuật Y tế",
+        "path": "/admin/danh-muc/dich-vu",
+        "icon": "Stethoscope"
+      }
+    },
+    "templateTypes": [
+      {
+        "key": "mau-in",
+        "label": "1. Mẫu in",
+        "title": "Quản lý Mẫu in (Phiếu khám, Đơn thuốc, Biên lai)",
+        "fileExt": ".docx",
+        "icon": "Printer"
+      },
+      {
+        "key": "mau-bao-cao",
+        "label": "2. Mẫu báo cáo",
+        "title": "Quản lý Mẫu báo cáo thống kê & Sở Y tế",
+        "fileExt": ".xlsx",
+        "icon": "ChartBar"
+      },
+      {
+        "key": "mau-email",
+        "label": "3. Mẫu email",
+        "title": "Quản lý Mẫu Email thông báo & Chăm sóc bệnh nhân",
+        "fileExt": ".html",
+        "icon": "EnvelopeSimple"
+      },
+      {
+        "key": "mau-ket-qua-cls",
+        "label": "4. Mẫu kết quả CLS",
+        "title": "Quản lý Mẫu Kết quả Cận lâm sàng (X-Quang, Siêu âm, Nội soi)",
+        "fileExt": ".docx",
+        "icon": "Microscope"
+      },
+      {
+        "key": "don-thuoc-mau",
+        "label": "5. Đơn thuốc mẫu",
+        "title": "Quản lý Đơn thuốc mẫu theo Phác đồ Chuyên khoa",
+        "fileExt": ".json",
+        "icon": "Pill"
+      },
+      {
+        "key": "mau-tieu-hao",
+        "label": "6. Mẫu tiêu hao",
+        "title": "Quản lý Định mức Vật tư tiêu hao theo Dịch vụ",
+        "fileExt": ".json",
+        "icon": "Package"
+      },
+      {
+        "key": "ke-goi-dich-vu",
+        "label": "7. Kê gói dịch vụ",
+        "title": "Quản lý Gói khám sức khỏe & Kê gói dịch vụ",
+        "fileExt": ".json",
+        "icon": "FirstAidKit"
+      }
+    ]
+  },
+  "formDefaults": {
+    "defaultReceptionist": "Lễ tân Nguyễn Mai Phương",
+    "defaultCashier": "Thu ngân Lê Thanh Huyền",
+    "defaultDoctor": "BS.CKII Nguyễn Minh Hoàng",
+    "defaultClinicRoom": "Phòng số 1 (Phòng khám Nội)",
+    "defaultSpecialty": "Nội tổng quát",
+    "defaultProvince": "Thành phố Hà Nội",
+    "defaultDistrict": "Quận Cầu Giấy",
+    "defaultWard": "Phường Dịch Vọng",
+    "defaultVitals": {
+      "mach": "78",
+      "nhietDo": "36.7",
+      "huyetAp": "120/80",
+      "nhipTho": "18",
+      "chieuCao": "165",
+      "canNang": "58",
+      "bmi": "21.3"
+    }
+  },
+  "patients": [
+    {
+      "id": "BN0000150",
+      "maBN": "BN0000150",
+      "hoTen": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "tuoi": "38 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "cccd": "001188012345",
+      "email": "nguyenthib88@gmail.com",
+      "tinhThanh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Cầu Giấy",
+      "phuongXa": "Phường Dịch Vọng",
+      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "taiKhoan": "0325351112",
+      "nhomMau": "O+",
+      "diUng": "Không ghi nhận dị ứng thuốc",
+      "ngayTao": "26/09/2026",
+      "trangThai": "Đang hoạt động"
+    },
+    {
+      "id": "BN0000149",
+      "maBN": "BN0000149",
+      "hoTen": "Nguyễn Văn An",
+      "ngaySinh": "1979-11-20",
+      "tuoi": "47 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0987564113",
+      "cccd": "001079054321",
+      "email": "nguyenvanan79@gmail.com",
+      "tinhThanh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Đống Đa",
+      "phuongXa": "Phường Láng Hạ",
+      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
+      "taiKhoan": "0987564113",
+      "nhomMau": "A+",
+      "diUng": "Dị ứng nhẹ với Penicillin",
+      "ngayTao": "26/09/2026",
+      "trangThai": "Đang hoạt động"
+    },
+    {
+      "id": "BN0000144",
+      "maBN": "BN0000144",
+      "hoTen": "Đinh Công Minh",
+      "ngaySinh": "1995-03-08",
+      "tuoi": "31 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0912445889",
+      "cccd": "036095008812",
+      "email": "dinhcongminh95@gmail.com",
+      "tinhThanh": "Tỉnh Nam Định",
+      "quanHuyen": "Thành phố Nam Định",
+      "phuongXa": "Phường Bà Triệu",
+      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "taiKhoan": "0912445889",
+      "nhomMau": "B+",
+      "diUng": "Không",
+      "ngayTao": "25/09/2026",
+      "trangThai": "Đang hoạt động"
+    },
+    {
+      "id": "BN0000138",
+      "maBN": "BN0000138",
+      "hoTen": "Trần Thị Thu Hà",
+      "ngaySinh": "2001-08-19",
+      "tuoi": "25 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0978123990",
+      "cccd": "001301099881",
+      "email": "tranthuha01@gmail.com",
+      "tinhThanh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Thanh Xuân",
+      "phuongXa": "Phường Nhân Chính",
+      "diaChi": "Khu đô thị Trung Hòa Nhân Chính, Thanh Xuân, Hà Nội",
+      "taiKhoan": "0978123990",
+      "nhomMau": "AB+",
+      "diUng": "Không",
+      "ngayTao": "24/09/2026",
+      "trangThai": "Đang hoạt động"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "LH260922001",
+      "maLH": "LH260922001",
+      "maBN": "BN0000150",
+      "hoTen": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "tuoi": "38 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "taiKhoan": "0325351112",
+      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "ngayDatLich": "2026-10-12T08:30",
+      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "chuyenKhoa": "Nội tổng quát",
+      "phongKham": "Phòng số 1 - Nội tổng quát",
+      "trieuChung": "Đau tức ngực trái âm ỉ kèm khó thở khi gắng sức, mệt mỏi 3 ngày nay",
+      "ghiChu": "Bệnh nhân đặt lịch trực tuyến qua cổng Medpro Clinic-AI",
+      "trangThai": "Xác nhận",
+      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "ngayXacNhan": "2026-10-12 07:45",
+      "noiDungXacNhan": "Đã gọi điện xác nhận lịch hẹn khám lúc 08:30 tại Phòng số 1."
+    },
+    {
+      "id": "LH260922002",
+      "maLH": "LH260922002",
+      "maBN": "BN0000149",
+      "hoTen": "Nguyễn Văn An",
+      "ngaySinh": "1979-11-20",
+      "tuoi": "47 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0987564113",
+      "taiKhoan": "0987564113",
+      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
+      "ngayDatLich": "2026-10-12T09:15",
+      "bacSi": "ThS.BS Trần Quốc Tuấn",
+      "chuyenKhoa": "Tai mũi họng",
+      "phongKham": "Phòng số 3 - Tai Mũi Họng",
+      "trieuChung": "Ho khan kéo dài, đau rát họng, nghẹt mũi về đêm",
+      "ghiChu": "Tái khám theo hẹn",
+      "trangThai": "Đang khám",
+      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "ngayXacNhan": "2026-10-12 08:00",
+      "noiDungXacNhan": "Bệnh nhân đã đến quầy tiếp đón và chuyển vào phòng khám."
+    },
+    {
+      "id": "LH260922003",
+      "maLH": "LH260922003",
+      "maBN": "BN0000144",
+      "hoTen": "Đinh Công Minh",
+      "ngaySinh": "1995-03-08",
+      "tuoi": "31 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0912445889",
+      "taiKhoan": "0912445889",
+      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "ngayDatLich": "2026-10-12T10:00",
+      "bacSi": "BS.CKI Lê Thu Trang",
+      "chuyenKhoa": "Cơ xương khớp",
+      "phongKham": "Phòng số 2 - Cơ xương khớp",
+      "trieuChung": "Đau mỏi vùng cột sống thắt lưng lan xuống chân phải",
+      "ghiChu": "Cần chụp X-Quang cột sống",
+      "trangThai": "Chờ xác nhận",
+      "nhanVienXacNhan": "",
+      "ngayXacNhan": "",
+      "noiDungXacNhan": ""
+    },
+    {
+      "id": "LH260922004",
+      "maLH": "LH260922004",
+      "maBN": "BN0000138",
+      "hoTen": "Trần Thị Thu Hà",
+      "ngaySinh": "2001-08-19",
+      "tuoi": "25 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0978123990",
+      "taiKhoan": "0978123990",
+      "diaChi": "Khu đô thị Trung Hòa Nhân Chính, Thanh Xuân, Hà Nội",
+      "ngayDatLich": "2026-10-11T14:30",
+      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "chuyenKhoa": "Nội tổng quát",
+      "phongKham": "Phòng số 1 - Nội tổng quát",
+      "trieuChung": "Khám sức khỏe tổng quát định kỳ",
+      "ghiChu": "Đăng ký gói khám tổng quát cơ bản",
+      "trangThai": "Kết thúc khám",
+      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "ngayXacNhan": "2026-10-11 13:50",
+      "noiDungXacNhan": "Đã hoàn thành đợt khám."
+    }
+  ],
+  "registrations": [
+    {
+      "id": "KCB260922003",
+      "stt": 1,
+      "maKCB": "2209260003",
+      "maBN": "BN0000150",
+      "hoTen": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "tuoi": "38 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "maLichHen": "LH260922001",
+      "taiKhoan": "0325351112",
+      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "phongKham": "Phòng số 1 (Phòng khám Nội)",
+      "chuyenKhoa": "Nội tổng quát",
+      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "ngayDangKy": "2026-10-12 08:35",
+      "uuTien": true,
+      "trieuChung": "Đau tức ngực trái âm ỉ kèm khó thở khi gắng sức, mệt mỏi 3 ngày nay",
+      "ghiChu": "Bệnh nhân có tiền sử tăng huyết áp nhẹ",
+      "trangThai": "Đang khám",
+      "emrLocked": false,
+      "vitals": {
+        "mach": "82",
+        "nhietDo": "36.8",
+        "huyetAp": "135/85",
+        "nhipTho": "19",
+        "chieuCao": "160",
+        "canNang": "56",
+        "bmi": "21.9"
+      },
+      "clinicalNotes": {
+        "trieuChungBanDau": "Đau tức ngực trái âm ỉ, hồi hộp đánh trống ngực khi leo cầu thang.",
+        "ketQuaKham": "Tim nhịp đều 82 chu kỳ/phút, phổi thông khí rõ hai bên, không nghe rales bệnh lý. Bụng mềm không chướng.",
+        "huongXuTri": "Chỉ định chụp X-Quang tim phổi thẳng, Siêu âm ổ bụng tổng quát và Điện tâm đồ thường. Kê đơn điều trị ngoại trú 7 ngày.",
+        "chanDoanSoBo": "Theo dõi Tăng huyết áp vô căn / Rối loạn thần kinh tim",
+        "chanDoanXacDinh": "I10 - Tăng huyết áp vô căn (nguyên phát); J02 - Viêm họng cấp nhẹ kèm theo"
+      },
+      "icdList": [
+        {
+          "maICD": "I10",
+          "tenBenh": "Bệnh tăng huyết áp vô căn (nguyên phát)",
+          "dienGiai": "Bệnh chính - Kiểm soát huyết áp"
+        },
+        {
+          "maICD": "J02",
+          "tenBenh": "Viêm họng cấp",
+          "dienGiai": "Bệnh kèm theo"
+        }
+      ],
+      "services": [
+        {
+          "id": "SRV-ORD-01",
+          "maDV": "DV008",
+          "tenDV": "Chụp Xquang tim phổi thẳng",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 150000,
+          "thanhTien": 150000,
+          "phongTH": "Phòng X-Quang 1",
+          "trangThaiCLS": "Đã có kết quả"
+        },
+        {
+          "id": "SRV-ORD-02",
+          "maDV": "DV005",
+          "tenDV": "Siêu âm ổ bụng tổng quát",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 180000,
+          "thanhTien": 180000,
+          "phongTH": "Phòng Siêu âm 2",
+          "trangThaiCLS": "Chờ thực hiện"
+        },
+        {
+          "id": "SRV-ORD-03",
+          "maDV": "DV001",
+          "tenDV": "Khám nội tổng quát",
+          "dvt": "Lượt",
+          "soLuong": 1,
+          "donGia": 120000,
+          "thanhTien": 120000,
+          "phongTH": "Phòng số 1 (Phòng khám Nội)",
+          "trangThaiCLS": "Hoàn thành"
+        }
+      ],
+      "prescription": {
+        "maDon": "DTQG-2026-000150",
+        "trangThaiFSM": "SIGNED",
+        "maLienThongQuocGia": "VN-RX-8849201-C",
+        "ngayKy": "2026-10-12 09:05",
+        "loiDanBacSi": "Uống thuốc đúng giờ sau ăn. Hạn chế ăn mặn, đo huyết áp mỗi sáng. Tái khám sau 7 ngày.",
+        "items": [
+          {
+            "id": "RX-1",
+            "maThuoc": "TH001",
+            "tenThuoc": "Amlodipin 5mg (Stamlo)",
+            "hoatChat": "Amlodipin besylat 5mg",
+            "dvt": "Viên",
+            "soLuong": 14,
+            "lieuDung": "Ngày uống 1 viên vào buổi sáng sau ăn",
+            "ghiChu": "Kiểm soát huyết áp"
+          },
+          {
+            "id": "RX-2",
+            "maThuoc": "TH002",
+            "tenThuoc": "Magne-B6 Corbière",
+            "hoatChat": "Magnesium lactat 470mg + Pyridoxin HCl 5mg",
+            "dvt": "Viên",
+            "soLuong": 20,
+            "lieuDung": "Ngày uống 2 viên chia 2 lần Sáng - Chiều",
+            "ghiChu": "Hỗ trợ thần kinh tim"
+          }
+        ]
+      },
+      "amendmentHistory": [],
+      "specialtyExams": {
+        "noiKhoa": {
+          "tuanHoan": "T1, T2 rõ, mạch 82 lần/phút, HA 135/85 mmHg, không âm thổi bệnh lý",
+          "hoHap": "Lồng ngực cân đối, rì rào phế nang 2 phế trường êm dịu, không rale ẩm rale rít",
+          "tieuHoa": "Bụng mềm, không chướng, gan lách không to sờ không chạm, không điểm đau",
+          "thanKinh": "Tỉnh táo, tiếp xúc tốt, phản xạ gân xương bình thường, không yếu liệt",
+          "coXuongKhop": "Vận động các khớp ngoại vi trong giới hạn bình thường"
+        },
+        "ngoaiKhoa": {
+          "khamNgoaiTongQuat": "Thể trạng trung bình, niêm mạc mắt hồng, không sờ thấy u bướu bất thường",
+          "vetMoVetThuong": "Vết mổ bắt con cũ vùng hạ vị lành sẹo tốt, mềm mại không lồi",
+          "uBuouHach": "Hạch ngoại vi vùng cổ, nách, bẹn không sờ thấy",
+          "thoatVi": "Thành bụng vững chắc, các lỗ bẹn 2 bên bình thường",
+          "tieuPhauDeNghi": "Không có chỉ định phẫu thuật/thủ thuật"
+        },
+        "mat": {
+          "thiLucKhongKinhP": "9/10",
+          "thiLucKhongKinhT": "10/10",
+          "thiLucCoKinhP": "10/10",
+          "thiLucCoKinhT": "10/10",
+          "nhanApP": "16",
+          "nhanApT": "16",
+          "ketMac": "Bình thường, không sung huyết",
+          "giacMac": "Trong suốt, nhẵn bóng",
+          "tienPhong": "Sâu sạch, phản xạ đồng tử tốt",
+          "dongTu": "Đồng tử tròn đều 2 bên (2.5mm)",
+          "theThuyTinh": "Trong suốt",
+          "dayMat": "Gai thị hồng rõ, tỷ lệ C/D 0.3"
+        },
+        "tmh": {
+          "taiPhai": "Màng nhĩ sáng bóng, nón sáng rõ",
+          "taiTrai": "Màng nhĩ sáng bóng, không thủng",
+          "mui": "Niêm mạc hồng hào, cuốn mũi dưới bình thường, vách ngăn thẳng",
+          "hong": "Niêm mạc họng xung huyết nhẹ",
+          "amidan": "Amidan Độ I, không hốc mủ",
+          "thanhQuan": "Dây thanh âm trắng bóng, di động tốt"
+        },
+        "rhm": {
+          "teethStatus": {
+            "11": "BT",
+            "12": "BT",
+            "13": "BT",
+            "14": "BT",
+            "15": "BT",
+            "16": "T",
+            "17": "BT",
+            "18": "BT",
+            "21": "BT",
+            "22": "BT",
+            "23": "BT",
+            "24": "BT",
+            "25": "BT",
+            "26": "S",
+            "27": "BT",
+            "28": "BT",
+            "31": "BT",
+            "32": "BT",
+            "33": "BT",
+            "34": "BT",
+            "35": "BT",
+            "36": "BT",
+            "37": "BT",
+            "38": "BT",
+            "41": "BT",
+            "42": "BT",
+            "43": "BT",
+            "44": "BT",
+            "45": "BT",
+            "46": "BT",
+            "47": "BT",
+            "48": "BT"
+          },
+          "selectedTooth": "16",
+          "nuouLoi": "Nướu viền hơi đỏ quanh R26, gai nướu săn chắc",
+          "caoRang": "Độ 1 (Vôi răng nhẹ mặt trong hàm dưới)",
+          "chayMauKhamBOP": "Dương tính nhẹ (+) tại kẽ R25-R26",
+          "khopCan": "Khớp cắn Loại I",
+          "khopThaiDuongHam": "Khớp hoạt động bình thường, há ngậm êm"
+        }
+      }
+    },
+    {
+      "id": "KCB260922002",
+      "stt": 2,
+      "maKCB": "2209260002",
+      "maBN": "BN0000149",
+      "hoTen": "Nguyễn Văn An",
+      "ngaySinh": "1979-11-20",
+      "tuoi": "47 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0987564113",
+      "maLichHen": "LH260922002",
+      "taiKhoan": "0987564113",
+      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
+      "phongKham": "Phòng số 3 (Tai Mũi Họng)",
+      "chuyenKhoa": "Tai mũi họng",
+      "bacSi": "ThS.BS Trần Quốc Tuấn",
+      "ngayDangKy": "2026-10-12 08:50",
+      "uuTien": false,
+      "trieuChung": "Ho khan kéo dài, đau rát họng, nghẹt mũi về đêm",
+      "ghiChu": "",
+      "trangThai": "Chờ khám",
+      "emrLocked": false,
+      "vitals": {
+        "mach": "78",
+        "nhietDo": "37.4",
+        "huyetAp": "120/80",
+        "nhipTho": "18",
+        "chieuCao": "170",
+        "canNang": "68",
+        "bmi": "23.5"
+      },
+      "clinicalNotes": {
+        "trieuChungBanDau": "Đau rát họng 5 ngày, khàn tiếng nhẹ.",
+        "ketQuaKham": "Niêm mạc họng xung huyết đỏ, amidan hai bên sưng nhẹ.",
+        "huongXuTri": "Nội soi Tai Mũi Họng ống mềm.",
+        "chanDoanSoBo": "Viêm mũi họng cấp",
+        "chanDoanXacDinh": "J00 - Viêm mũi họng cấp [cảm thường]"
+      },
+      "icdList": [
+        {
+          "maICD": "J00",
+          "tenBenh": "Viêm mũi họng cấp [cảm thường]",
+          "dienGiai": "Bệnh chính"
+        }
+      ],
+      "services": [
+        {
+          "id": "SRV-ORD-04",
+          "maDV": "DV009",
+          "tenDV": "Nội soi Tai Mũi Họng ống mềm",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 200000,
+          "thanhTien": 200000,
+          "phongTH": "Phòng số 3 (Tai Mũi Họng)",
+          "trangThaiCLS": "Chờ thực hiện"
+        }
+      ],
+      "prescription": {
+        "maDon": "DTQG-2026-000149",
+        "trangThaiFSM": "DRAFT",
+        "maLienThongQuocGia": "",
+        "ngayKy": "",
+        "loiDanBacSi": "Súc họng nước muối ấm ngày 3 lần, giữ ấm vùng cổ.",
+        "items": [
+          {
+            "id": "RX-3",
+            "maThuoc": "TH004",
+            "tenThuoc": "Alphachymotrypsin 4.2mg",
+            "hoatChat": "Chymotrypsin 4200 IU",
+            "dvt": "Viên",
+            "soLuong": 20,
+            "lieuDung": "Ngậm dưới lưỡi 4 viên/ngày chia 2 lần",
+            "ghiChu": "Giảm phù nề họng"
+          }
+        ]
+      },
+      "amendmentHistory": [],
+      "specialtyExams": {
+        "noiKhoa": {
+          "tuanHoan": "T1, T2 đều, rõ, không tiếng thổi",
+          "hoHap": "Phổi thông khí rõ, không rales",
+          "tieuHoa": "Bụng mềm, không chướng",
+          "thanKinh": "Tỉnh táo, tiếp xúc tốt",
+          "coXuongKhop": "Vận động bình thường"
+        },
+        "ngoaiKhoa": {
+          "khamNgoaiTongQuat": "Thể trạng khá, da niêm bình thường",
+          "vetMoVetThuong": "Không có vết thương/vết mổ cũ",
+          "uBuouHach": "Hạch góc hàm 2 bên sưng đau nhẹ (0.8cm, mềm di động)",
+          "thoatVi": "Thành bụng vững",
+          "tieuPhauDeNghi": "Chưa có chỉ định can thiệp ngoại khoa"
+        },
+        "mat": {
+          "thiLucKhongKinhP": "10/10",
+          "thiLucKhongKinhT": "10/10",
+          "thiLucCoKinhP": "10/10",
+          "thiLucCoKinhT": "10/10",
+          "nhanApP": "15",
+          "nhanApT": "15",
+          "ketMac": "Không sung huyết",
+          "giacMac": "Trong suốt",
+          "tienPhong": "Sâu sạch",
+          "dongTu": "Tròn đều 2.5mm",
+          "theThuyTinh": "Trong suốt",
+          "dayMat": "Bình thường"
+        },
+        "tmh": {
+          "taiPhai": "Màng nhĩ sáng bóng, nón sáng rõ",
+          "taiTrai": "Màng nhĩ sáng bóng, nón sáng rõ",
+          "mui": "Niêm mạc hốc mũi phù nề nhẹ, cuốn mũi dưới phì đại độ I, sàn mũi có ít dịch trong",
+          "hong": "Niêm mạc họng đỏ rực, nhiều hạt lympho thành sau họng nổi rõ",
+          "amidan": "Amidan quá phát Độ II, sung huyết đỏ, không chấm mủ",
+          "thanhQuan": "Dây thanh âm xung huyết mép nhẹ, khép kín khi phát âm"
+        },
+        "rhm": {
+          "teethStatus": {
+            "11": "BT",
+            "12": "BT",
+            "13": "BT",
+            "14": "BT",
+            "15": "BT",
+            "16": "BT",
+            "17": "BT",
+            "18": "BT",
+            "21": "BT",
+            "22": "BT",
+            "23": "BT",
+            "24": "BT",
+            "25": "BT",
+            "26": "BT",
+            "27": "BT",
+            "28": "BT",
+            "31": "BT",
+            "32": "BT",
+            "33": "BT",
+            "34": "BT",
+            "35": "BT",
+            "36": "BT",
+            "37": "BT",
+            "38": "M",
+            "41": "BT",
+            "42": "BT",
+            "43": "BT",
+            "44": "BT",
+            "45": "BT",
+            "46": "BT",
+            "47": "BT",
+            "48": "M"
+          },
+          "selectedTooth": "48",
+          "nuouLoi": "Nướu hồng, không viêm",
+          "caoRang": "Độ 2 (Vôi răng trung bình hàm dưới)",
+          "chayMauKhamBOP": "Âm tính (-)",
+          "khopCan": "Khớp cắn Loại I",
+          "khopThaiDuongHam": "Khớp bình thường, không đau"
+        }
+      }
+    },
+    {
+      "id": "KCB260922001",
+      "stt": 3,
+      "maKCB": "2209260001",
+      "maBN": "BN0000144",
+      "hoTen": "Đinh Công Minh",
+      "ngaySinh": "1995-03-08",
+      "tuoi": "31 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0912445889",
+      "maLichHen": "LH260922003",
+      "taiKhoan": "0912445889",
+      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "phongKham": "Phòng số 2 (Cơ xương khớp)",
+      "chuyenKhoa": "Cơ xương khớp",
+      "bacSi": "BS.CKI Lê Thu Trang",
+      "ngayDangKy": "2026-10-12 09:10",
+      "uuTien": false,
+      "trieuChung": "Đau mỏi vùng cột sống thắt lưng lan xuống chân phải",
+      "ghiChu": "",
+      "trangThai": "Đã khám",
+      "emrLocked": true,
+      "vitals": {
+        "mach": "75",
+        "nhietDo": "36.6",
+        "huyetAp": "120/75",
+        "nhipTho": "18",
+        "chieuCao": "172",
+        "canNang": "65",
+        "bmi": "22.0"
+      },
+      "clinicalNotes": {
+        "trieuChungBanDau": "Đau thắt lưng sau mang vác nặng.",
+        "ketQuaKham": "Cơ cạnh sống thắt lưng co cứng nhẹ, nghiệm pháp Lasègue âm tính.",
+        "huongXuTri": "Vật lý trị liệu kết hợp thuốc giãn cơ.",
+        "chanDoanSoBo": "Đau lưng vùng thấp",
+        "chanDoanXacDinh": "M54.5 - Đau thắt lưng"
+      },
+      "icdList": [
+        {
+          "maICD": "M54.5",
+          "tenBenh": "Đau vùng thắt lưng",
+          "dienGiai": "Bệnh chính"
+        }
+      ],
+      "services": [
+        {
+          "id": "SRV-ORD-05",
+          "maDV": "DV012",
+          "tenDV": "Chiếu đèn hồng ngoại & Điện xung trị liệu",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 150000,
+          "thanhTien": 150000,
+          "phongTH": "Phòng PT-TT & Phục hồi chức năng",
+          "trangThaiCLS": "Hoàn thành"
+        }
+      ],
+      "prescription": {
+        "maDon": "DTQG-2026-000144",
+        "trangThaiFSM": "ACCEPTED",
+        "maLienThongQuocGia": "VN-RX-8849102-A",
+        "ngayKy": "2026-10-12 09:30",
+        "loiDanBacSi": "Tránh bê vác nặng, tập bài tập giãn cơ lưng.",
+        "items": [
+          {
+            "id": "RX-4",
+            "maThuoc": "TH005",
+            "tenThuoc": "Myonal 50mg",
+            "hoatChat": "Eperison HCl 50mg",
+            "dvt": "Viên",
+            "soLuong": 14,
+            "lieuDung": "Uống sáng 1 viên, tối 1 viên sau ăn",
+            "ghiChu": "Giãn cơ vân"
+          }
+        ]
+      },
+      "amendmentHistory": [],
+      "specialtyExams": {
+        "noiKhoa": {
+          "tuanHoan": "T1, T2 đều, rõ, mạch 75 lần/phút",
+          "hoHap": "Phổi trong, không rale",
+          "tieuHoa": "Bụng mềm, không chướng",
+          "thanKinh": "Tỉnh táo, Glasgow 15đ, phản xạ gân xương bánh chè bình thường",
+          "coXuongKhop": "Co cứng cơ cạnh cột sống thắt lưng L4-L5 bên phải, tầm vận động cột sống hạn chế khi cúi"
+        },
+        "ngoaiKhoa": {
+          "khamNgoaiTongQuat": "Thể trạng tốt, dáng đi hơi lệch phải do đau lưng",
+          "vetMoVetThuong": "Sẹo mổ nội soi ruột thừa cũ hố chậu phải lành tốt, mềm mại, không thoát vị vết mổ",
+          "uBuouHach": "Không sờ thấy u cục hay hạch ngoại vi",
+          "thoatVi": "Thành bụng tốt, không phồng lỗ bẹn",
+          "tieuPhauDeNghi": "Không có chỉ định phẫu thuật"
+        },
+        "mat": {
+          "thiLucKhongKinhP": "10/10",
+          "thiLucKhongKinhT": "10/10",
+          "thiLucCoKinhP": "10/10",
+          "thiLucCoKinhT": "10/10",
+          "nhanApP": "16",
+          "nhanApT": "16",
+          "ketMac": "Bình thường",
+          "giacMac": "Trong",
+          "tienPhong": "Sâu sạch",
+          "dongTu": "Tròn 2.5mm",
+          "theThuyTinh": "Trong suốt",
+          "dayMat": "Bình thường"
+        },
+        "tmh": {
+          "taiPhai": "Màng nhĩ bình thường",
+          "taiTrai": "Màng nhĩ bình thường",
+          "mui": "Thông thoáng, không nghẹt",
+          "hong": "Bình thường",
+          "amidan": "Không quá phát (Độ 0)",
+          "thanhQuan": "Bình thường"
+        },
+        "rhm": {
+          "teethStatus": {
+            "11": "BT",
+            "12": "BT",
+            "13": "BT",
+            "14": "BT",
+            "15": "BT",
+            "16": "BT",
+            "17": "BT",
+            "18": "BT",
+            "21": "BT",
+            "22": "BT",
+            "23": "BT",
+            "24": "BT",
+            "25": "BT",
+            "26": "BT",
+            "27": "BT",
+            "28": "BT",
+            "31": "BT",
+            "32": "BT",
+            "33": "BT",
+            "34": "BT",
+            "35": "BT",
+            "36": "S",
+            "37": "BT",
+            "38": "BT",
+            "41": "BT",
+            "42": "BT",
+            "43": "BT",
+            "44": "BT",
+            "45": "BT",
+            "46": "BT",
+            "47": "BT",
+            "48": "BT"
+          },
+          "selectedTooth": "36",
+          "nuouLoi": "Nướu săn chắc",
+          "caoRang": "Độ 1",
+          "chayMauKhamBOP": "Âm tính (-)",
+          "khopCan": "Khớp cắn Loại I",
+          "khopThaiDuongHam": "Bình thường"
+        }
+      }
+    }
+  ],
+  "paraclinicalTasks": [
+    {
+      "id": "CLS-001",
+      "stt": 1,
+      "maKCB": "2209260003",
+      "maBN": "BN0000150",
+      "hoTen": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "tuoi": "38 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "maDV": "DV008",
+      "tenDV": "Chụp Xquang tim phổi thẳng",
+      "loaiCLS": "X-Quang",
+      "phongTH": "Phòng X-Quang 1",
+      "bacSiChiDinh": "BS.CKII Nguyễn Minh Hoàng",
+      "bacSiThucHien": "BS.CKI Phạm Quang Huy",
+      "ngayThucHien": "2026-10-12 08:55",
+      "trangThai": "Đã có kết quả",
+      "mauKetQua": "MAU-CLS-01",
+      "moTa": "- Lồng ngực cân đối hai bên, xương sườn và xương đòn không thấy tổn thương gãy hay tiêu xương.\n- Nhu mô phổi hai bên sáng đều, không thấy hình mờ thâm nhiễm hay nốt mờ bất thường.\n- Rốn phổi hai bên cấu trúc bình thường.\n- Bóng tim không to, chỉ số tim/lồng ngực < 0.5.\n- Góc sườn hoành và tâm hoành hai bên sáng nhọn.",
+      "ketLuan": "Hình ảnh tim phổi thẳng hiện tại trong giới hạn bình thường.",
+      "deNghi": "Theo dõi định kỳ và kết hợp lâm sàng tim mạch.",
+      "hinhAnh": [
+        {
+          "id": "IMG-01",
+          "tenAnh": "XQuang_TimPhoi_BN0000150.jpg",
+          "ghiChu": "Phim X-Quang ngực thẳng chuẩn kỹ thuật số DICOM",
+          "thoiGian": "2026-10-12 08:54"
+        }
+      ]
+    },
+    {
+      "id": "CLS-002",
+      "stt": 2,
+      "maKCB": "2209260003",
+      "maBN": "BN0000150",
+      "hoTen": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "tuoi": "38 tuổi",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "maDV": "DV005",
+      "tenDV": "Siêu âm ổ bụng tổng quát",
+      "loaiCLS": "Siêu âm",
+      "phongTH": "Phòng Siêu âm 2",
+      "bacSiChiDinh": "BS.CKII Nguyễn Minh Hoàng",
+      "bacSiThucHien": "BS.CKI Vũ Thị Lan",
+      "ngayThucHien": "2026-10-12 09:10",
+      "trangThai": "Chờ thực hiện",
+      "mauKetQua": "MAU-CLS-02",
+      "moTa": "- Gan: Kích thước bình thường, bờ đều, nhu mô đồng nhất, tĩnh mạch cửa không giãn.\n- Túi mật: Thành không dày, lòng không có sỏi.\n- Tụy, Lách: Cấu trúc siêu âm bình thường.\n- Thận phải & Thận trái: Đài bể thận không giãn, không có sỏi cản âm.\n- Bàng quang: Thành nhẵn, nước tiểu trong.",
+      "ketLuan": "Siêu âm ổ bụng tổng quát chưa phát hiện bất thường.",
+      "deNghi": "Kiểm tra định kỳ 6 tháng/lần.",
+      "hinhAnh": []
+    },
+    {
+      "id": "CLS-003",
+      "stt": 3,
+      "maKCB": "2209260001",
+      "maBN": "BN0000144",
+      "hoTen": "Đinh Công Minh",
+      "ngaySinh": "1995-03-08",
+      "tuoi": "31 tuổi",
+      "gioiTinh": "Nam",
+      "dienThoai": "0912445889",
+      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "maDV": "DV012",
+      "tenDV": "Chiếu đèn hồng ngoại & Điện xung trị liệu",
+      "loaiCLS": "PT - TT",
+      "phongTH": "Phòng PT-TT & Phục hồi chức năng",
+      "bacSiChiDinh": "BS.CKI Lê Thu Trang",
+      "bacSiThucHien": "BS.CKI Lê Thu Trang",
+      "ngayThucHien": "2026-10-12 09:20",
+      "trangThai": "Đã có kết quả",
+      "mauKetQua": "MAU-CLS-03",
+      "moTa": "- Tiến hành chiếu đèn hồng ngoại vùng thắt lưng L3-S1 trong 15 phút.\n- Kết hợp điện xung giảm đau tần số trung bình 20 phút.\n- Bệnh nhân đáp ứng tốt, không bỏng rát da.",
+      "ketLuan": "Hoàn thành thủ thuật Vật lý trị liệu vùng cột sống thắt lưng buổi 1.",
+      "deNghi": "Duy trì liệu trình 5 buổi liên tiếp.",
+      "hinhAnh": []
+    }
+  ],
+  "vouchers": [
+    {
+      "id": "PT260922001",
+      "maPhieu": "PT260922001",
+      "loaiPhieu": "Phiếu thu",
+      "tenPhieu": "Thu viện phí BN Nguyễn Thị B (Mã KCB: 2209260003)",
+      "maBN": "BN0000150",
+      "hoTenBN": "Nguyễn Thị B",
+      "ngayThu": "2026-10-12 08:40",
+      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "hinhThuc": "Chuyển khoản",
+      "daThu": true,
+      "ghiChu": "Đã thanh toán qua mã VietQR ngân hàng",
+      "items": [
+        {
+          "id": "VI-1",
+          "tenKhoan": "Khám nội tổng quát",
+          "soTien": 120000,
+          "ghiChu": "Phòng số 1"
+        },
+        {
+          "id": "VI-2",
+          "tenKhoan": "Chụp Xquang tim phổi thẳng",
+          "soTien": 150000,
+          "ghiChu": "Phòng X-Quang 1"
+        },
+        {
+          "id": "VI-3",
+          "tenKhoan": "Siêu âm ổ bụng tổng quát",
+          "soTien": 180000,
+          "ghiChu": "Phòng Siêu âm 2"
+        }
+      ],
+      "tongTien": 450000
+    },
+    {
+      "id": "PT260922002",
+      "maPhieu": "PT260922002",
+      "loaiPhieu": "Phiếu thu",
+      "tenPhieu": "Thu viện phí BN Nguyễn Văn An (Mã KCB: 2209260002)",
+      "maBN": "BN0000149",
+      "hoTenBN": "Nguyễn Văn An",
+      "ngayThu": "2026-10-12 08:55",
+      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "hinhThuc": "Tiền mặt",
+      "daThu": true,
+      "ghiChu": "Thu tiền tại quầy viện phí tầng 1",
+      "items": [
+        {
+          "id": "VI-4",
+          "tenKhoan": "Nội soi Tai Mũi Họng ống mềm",
+          "soTien": 200000,
+          "ghiChu": "Phòng số 3"
+        }
+      ],
+      "tongTien": 200000
+    },
+    {
+      "id": "PT260922003",
+      "maPhieu": "PT260922003",
+      "loaiPhieu": "Phiếu thu",
+      "tenPhieu": "Thu tiền thủ thuật BN Đinh Công Minh (Mã KCB: 2209260001)",
+      "maBN": "BN0000144",
+      "hoTenBN": "Đinh Công Minh",
+      "ngayThu": "2026-10-12 09:15",
+      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "hinhThuc": "Tiền mặt",
+      "daThu": false,
+      "ghiChu": "Đang chờ bệnh nhân hoàn tất thủ thuật",
+      "items": [
+        {
+          "id": "VI-5",
+          "tenKhoan": "Chiếu đèn hồng ngoại & Điện xung trị liệu",
+          "soTien": 150000,
+          "ghiChu": "Phòng PT-TT"
+        }
+      ],
+      "tongTien": 150000
+    }
+  ],
+  "newsCategories": [
+    {
+      "id": "DMTT-01",
+      "stt": 1,
+      "tenDanhMuc": "Tin y tế & Sức khỏe cộng đồng",
+      "moTa": "Cập nhật thông tin y khoa, phòng chống dịch bệnh theo khuyến cáo Bộ Y tế",
+      "thuTu": 1,
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-09-15",
+      "trangThai": true
+    },
+    {
+      "id": "DMTT-02",
+      "stt": 2,
+      "tenDanhMuc": "Hoạt động Phòng khám Clinic-AI",
+      "moTa": "Tin tức sự kiện, lịch nghỉ lễ, chương trình ưu đãi gói khám sức khỏe",
+      "thuTu": 2,
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-09-16",
+      "trangThai": true
+    },
+    {
+      "id": "DMTT-03",
+      "stt": 3,
+      "tenDanhMuc": "Kiến thức Chuyên khoa & Dinh dưỡng",
+      "moTa": "Bài viết chuyên môn từ đội ngũ Bác sĩ CKII của phòng khám",
+      "thuTu": 3,
+      "nguoiTao": "BS.CKII Nguyễn Minh Hoàng",
+      "ngayTao": "2026-09-20",
+      "trangThai": true
+    }
+  ],
+  "newsArticles": [
+    {
+      "id": "TT-01",
+      "stt": 1,
+      "tieuDe": "Triển khai Liên thông Đơn thuốc Điện tử Quốc gia theo Thông tư 26/2025/TT-BYT",
+      "danhMuc": "Hoạt động Phòng khám Clinic-AI",
+      "moTa": "Phòng khám Clinic-AI chính thức hoàn tất tích hợp chữ ký số bác sĩ và đồng bộ mã đơn thuốc quốc gia.",
+      "noiDung": "Nhằm tuân thủ quy định của Bộ Y tế tại Thông tư 26/2025/TT-BYT và Thông tư 13/2025/TT-BYT, toàn bộ đơn thuốc ngoại trú tại Clinic-AI đều được kiểm tra tương tác thuốc, ký số và cấp mã liên thông quốc gia minh bạch.",
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-10-01",
+      "luotXem": 342,
+      "trangThai": true
+    },
+    {
+      "id": "TT-02",
+      "stt": 2,
+      "tieuDe": "5 dấu hiệu cảnh báo sớm bệnh lý Tăng huyết áp và Tim mạch ở người trẻ",
+      "danhMuc": "Kiến thức Chuyên khoa & Dinh dưỡng",
+      "moTa": "Đau đầu buổi sáng, hồi hộp đánh trống ngực, mệt mỏi khi gắng sức là các triệu chứng cần khám chuyên khoa Nội Tim mạch.",
+      "noiDung": "Bác sĩ CKII Nguyễn Minh Hoàng khuyến cáo người bệnh từ 30 tuổi trở lên nên kiểm tra huyết áp, điện tâm đồ và xét nghiệm mỡ máu định kỳ 6 tháng/lần.",
+      "nguoiTao": "BS.CKII Nguyễn Minh Hoàng",
+      "ngayTao": "2026-10-05",
+      "luotXem": 518,
+      "trangThai": true
+    },
+    {
+      "id": "TT-03",
+      "stt": 3,
+      "tieuDe": "Hướng dẫn đặt lịch khám thông minh cùng Trợ lý AI Gợi ý Chuyên khoa",
+      "danhMuc": "Tin y tế & Sức khỏe cộng đồng",
+      "moTa": "Chỉ cần nhập triệu chứng, hệ thống AI sẽ định hướng đúng chuyên khoa và khung giờ bác sĩ đang trực.",
+      "noiDung": "Lưu ý: Trợ lý AI chỉ hỗ trợ phân luồng và gợi ý chuyên khoa phù hợp để tiết kiệm thời gian chờ đợi, hoàn toàn không thay thế chẩn đoán lâm sàng của Bác sĩ.",
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-10-10",
+      "luotXem": 289,
+      "trangThai": true
+    }
+  ],
+  "catalogs": {
+    "goTat": [
+      {
+        "id": "GT-01",
+        "ma": "BT",
+        "noiDung": "Bình thường, chưa phát hiện dấu hiệu bệnh lý",
+        "thuTu": 1,
+        "trangThai": true
+      },
+      {
+        "id": "GT-02",
+        "ma": "THA",
+        "noiDung": "Tăng huyết áp vô căn đang điều trị duy trì",
+        "thuTu": 2,
+        "trangThai": true
+      },
+      {
+        "id": "GT-03",
+        "ma": "TMPL",
+        "noiDung": "Tim nhịp đều, phổi thông khí rõ hai bên, không nghe rales",
+        "thuTu": 3,
+        "trangThai": true
+      },
+      {
+        "id": "GT-04",
+        "ma": "BM",
+        "noiDung": "Bụng mềm, gan lách không sờ chạm, phản ứng thành bụng âm tính",
+        "thuTu": 4,
+        "trangThai": true
+      }
+    ],
+    "donViTinh": [
+      {
+        "id": "DVT-01",
+        "ma": "VIEN",
+        "ten": "Viên",
+        "moTa": "Đơn vị tính thuốc viên nén / viên nang",
+        "thuTu": 1,
+        "trangThai": true
+      },
+      {
+        "id": "DVT-02",
+        "ma": "ONG",
+        "ten": "Ống",
+        "moTa": "Đơn vị tính thuốc tiêm / dung dịch uống",
+        "thuTu": 2,
+        "trangThai": true
+      },
+      {
+        "id": "DVT-03",
+        "ma": "CHAI",
+        "ten": "Chai / Lọ",
+        "moTa": "Si-rô, thuốc nhỏ mắt, dung dịch sát khuẩn",
+        "thuTu": 3,
+        "trangThai": true
+      },
+      {
+        "id": "DVT-04",
+        "ma": "LAN",
+        "ten": "Lần / Lượt",
+        "moTa": "Đơn vị tính dịch vụ kỹ thuật & khám bệnh",
+        "thuTu": 4,
+        "trangThai": true
+      }
+    ],
+    "khoanThu": [
+      {
+        "id": "KT-01",
+        "ma": "KT_KHAM",
+        "ten": "Thu tiền công khám lâm sàng",
+        "donGiaMacDinh": 120000,
+        "thuTu": 1,
+        "trangThai": true
+      },
+      {
+        "id": "KT-02",
+        "ma": "KT_XQUANG",
+        "ten": "Thu tiền chụp X-Quang kỹ thuật số",
+        "donGiaMacDinh": 150000,
+        "thuTu": 2,
+        "trangThai": true
+      },
+      {
+        "id": "KT-03",
+        "ma": "KT_SIEUAM",
+        "ten": "Thu tiền Siêu âm chẩn đoán",
+        "donGiaMacDinh": 180000,
+        "thuTu": 3,
+        "trangThai": true
+      },
+      {
+        "id": "KT-04",
+        "ma": "KT_THUTHUAT",
+        "ten": "Thu tiền Thủ thuật - Vật lý trị liệu",
+        "donGiaMacDinh": 150000,
+        "thuTu": 4,
+        "trangThai": true
+      }
+    ],
+    "phuongPhapTruDau": [
+      {
+        "id": "PPTD-01",
+        "ma": "TD_TE_TAI_CHO",
+        "ten": "Gây tê tại chỗ bằng Lidocain 2%",
+        "moTa": "Áp dụng cho tiểu phẫu và thủ thuật ngoại khoa nhỏ",
+        "thuTu": 1,
+        "trangThai": true
+      },
+      {
+        "id": "PPTD-02",
+        "ma": "TD_TE_BEM",
+        "ten": "Gây tê bề mặt niêm mạc (Xylocain spray)",
+        "moTa": "Áp dụng cho nội soi Tai Mũi Họng / Tiêu hóa",
+        "thuTu": 2,
+        "trangThai": true
+      },
+      {
+        "id": "PPTD-03",
+        "ma": "TD_VAT_LY",
+        "ten": "Giảm đau bằng điện xung & nhiệt trị liệu",
+        "moTa": "Áp dụng cho phục hồi chức năng cơ xương khớp",
+        "thuTu": 3,
+        "trangThai": true
+      }
+    ],
+    "diaChi": [
+      {
+        "id": "DC-01",
+        "maTinh": "01",
+        "tenTinh": "Thành phố Hà Nội",
+        "quanHuyen": "Quận Cầu Giấy",
+        "phuongXa": "Phường Dịch Vọng",
+        "trangThai": true
+      },
+      {
+        "id": "DC-02",
+        "maTinh": "01",
+        "tenTinh": "Thành phố Hà Nội",
+        "quanHuyen": "Quận Đống Đa",
+        "phuongXa": "Phường Láng Hạ",
+        "trangThai": true
+      },
+      {
+        "id": "DC-03",
+        "maTinh": "01",
+        "tenTinh": "Thành phố Hà Nội",
+        "quanHuyen": "Quận Thanh Xuân",
+        "phuongXa": "Phường Nhân Chính",
+        "trangThai": true
+      },
+      {
+        "id": "DC-04",
+        "maTinh": "36",
+        "tenTinh": "Tỉnh Nam Định",
+        "quanHuyen": "Thành phố Nam Định",
+        "phuongXa": "Phường Bà Triệu",
+        "trangThai": true
+      },
+      {
+        "id": "DC-05",
+        "maTinh": "79",
+        "tenTinh": "Thành phố Hồ Chí Minh",
+        "quanHuyen": "Quận 1",
+        "phuongXa": "Phường Bến Nghé",
+        "trangThai": true
+      },
+      {
+        "id": "DC-06",
+        "maTinh": "48",
+        "tenTinh": "Thành phố Đà Nẵng",
+        "quanHuyen": "Quận Hải Châu",
+        "phuongXa": "Phường Thạch Thang",
+        "trangThai": true
+      }
+    ],
+    "khoaPhong": [
+      {
+        "id": "KP-01",
+        "maPhong": "PK01",
+        "tenPhong": "Phòng số 1 (Phòng khám Nội)",
+        "chuyenKhoa": "Nội tổng quát",
+        "tang": "Tầng 1",
+        "bacSiPhuTrach": "BS.CKII Nguyễn Minh Hoàng",
+        "trangThai": true
+      },
+      {
+        "id": "KP-02",
+        "maPhong": "PK02",
+        "tenPhong": "Phòng số 2 (Cơ xương khớp)",
+        "chuyenKhoa": "Cơ xương khớp",
+        "tang": "Tầng 1",
+        "bacSiPhuTrach": "BS.CKI Lê Thu Trang",
+        "trangThai": true
+      },
+      {
+        "id": "KP-03",
+        "maPhong": "PK03",
+        "tenPhong": "Phòng số 3 (Tai Mũi Họng)",
+        "chuyenKhoa": "Tai mũi họng",
+        "tang": "Tầng 2",
+        "bacSiPhuTrach": "ThS.BS Trần Quốc Tuấn",
+        "trangThai": true
+      },
+      {
+        "id": "KP-04",
+        "maPhong": "CLS01",
+        "tenPhong": "Phòng X-Quang 1",
+        "chuyenKhoa": "Chẩn đoán hình ảnh",
+        "tang": "Tầng 1",
+        "bacSiPhuTrach": "BS.CKI Phạm Quang Huy",
+        "trangThai": true
+      },
+      {
+        "id": "KP-05",
+        "maPhong": "CLS02",
+        "tenPhong": "Phòng Siêu âm 2",
+        "chuyenKhoa": "Chẩn đoán hình ảnh",
+        "tang": "Tầng 2",
+        "bacSiPhuTrach": "BS.CKI Vũ Thị Lan",
+        "trangThai": true
+      },
+      {
+        "id": "KP-06",
+        "maPhong": "PTTT01",
+        "tenPhong": "Phòng PT-TT & Phục hồi chức năng",
+        "chuyenKhoa": "Cơ xương khớp",
+        "tang": "Tầng 2",
+        "bacSiPhuTrach": "BS.CKI Lê Thu Trang",
+        "trangThai": true
+      }
+    ],
+    "danhMucBenh": [
+      {
+        "id": "ICD-I10",
+        "maICD": "I10",
+        "tenBenh": "Bệnh tăng huyết áp vô căn (nguyên phát)",
+        "chuongBenh": "Chương IX: Bệnh hệ tuần hoàn",
+        "truyenNhiem": false,
+        "trangThai": true
+      },
+      {
+        "id": "ICD-J00",
+        "maICD": "J00",
+        "tenBenh": "Viêm mũi họng cấp [cảm thường]",
+        "chuongBenh": "Chương X: Bệnh hệ hô hấp",
+        "truyenNhiem": false,
+        "trangThai": true
+      },
+      {
+        "id": "ICD-J02",
+        "maICD": "J02",
+        "tenBenh": "Viêm họng cấp",
+        "chuongBenh": "Chương X: Bệnh hệ hô hấp",
+        "truyenNhiem": false,
+        "trangThai": true
+      },
+      {
+        "id": "ICD-K29",
+        "maICD": "K29",
+        "tenBenh": "Viêm dạ dày và tá tràng",
+        "chuongBenh": "Chương XI: Bệnh hệ tiêu hóa",
+        "truyenNhiem": false,
+        "trangThai": true
+      },
+      {
+        "id": "ICD-M54.5",
+        "maICD": "M54.5",
+        "tenBenh": "Đau vùng thắt lưng",
+        "chuongBenh": "Chương XIII: Bệnh hệ cơ-xương-khớp",
+        "truyenNhiem": false,
+        "trangThai": true
+      },
+      {
+        "id": "ICD-A97",
+        "maICD": "A97",
+        "tenBenh": "Sốt xuất huyết Dengue (Bệnh truyền nhiễm nhóm B cần báo cáo)",
+        "chuongBenh": "Chương I: Bệnh nhiễm trùng và ký sinh trùng",
+        "truyenNhiem": true,
+        "trangThai": true
+      }
+    ],
+    "thuocVatTu": [
+      {
+        "id": "TH001",
+        "maThuoc": "TH001",
+        "tenThuoc": "Amlodipin 5mg (Stamlo)",
+        "hoatChat": "Amlodipin besylat 5mg",
+        "dvt": "Viên",
+        "nhomThuoc": "Thuốc Tim mạch - Huyết áp",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      },
+      {
+        "id": "TH002",
+        "maThuoc": "TH002",
+        "tenThuoc": "Magne-B6 Corbière",
+        "hoatChat": "Magnesium lactat 470mg + Vitamin B6 5mg",
+        "dvt": "Viên",
+        "nhomThuoc": "Vitamin & Khoáng chất",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      },
+      {
+        "id": "TH003",
+        "maThuoc": "TH003",
+        "tenThuoc": "Augmentin 1g",
+        "hoatChat": "Amoxicillin 875mg + Acid Clavulanic 125mg",
+        "dvt": "Viên",
+        "nhomThuoc": "Kháng sinh kê đơn",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      },
+      {
+        "id": "TH004",
+        "maThuoc": "TH004",
+        "tenThuoc": "Alphachymotrypsin 4.2mg",
+        "hoatChat": "Chymotrypsin 4200 IU",
+        "dvt": "Viên",
+        "nhomThuoc": "Kháng viêm - Giảm phù nề",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      },
+      {
+        "id": "TH005",
+        "maThuoc": "TH005",
+        "tenThuoc": "Myonal 50mg",
+        "hoatChat": "Eperison HCl 50mg",
+        "dvt": "Viên",
+        "nhomThuoc": "Thuốc Giãn cơ xương khớp",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      },
+      {
+        "id": "TH006",
+        "maThuoc": "TH006",
+        "tenThuoc": "Nexium Mups 40mg",
+        "hoatChat": "Esomeprazol 40mg",
+        "dvt": "Viên",
+        "nhomThuoc": "Thuốc Dạ dày - Tiêu hóa",
+        "trangThai": true,
+        "duongDung": "Uống sau ăn"
+      }
+    ],
+    "dichVu": [
+      {
+        "id": "DV001",
+        "maDV": "DV001",
+        "tenDV": "Khám nội tổng quát",
+        "nhomDV": "Khám bệnh",
+        "dvt": "Lượt",
+        "donGia": 120000,
+        "phongTH": "Phòng số 1 (Phòng khám Nội)",
+        "trangThai": true
+      },
+      {
+        "id": "DV002",
+        "maDV": "DV002",
+        "tenDV": "Khám chuyên khoa Cơ xương khớp",
+        "nhomDV": "Khám bệnh",
+        "dvt": "Lượt",
+        "donGia": 120000,
+        "phongTH": "Phòng số 2 (Cơ xương khớp)",
+        "trangThai": true
+      },
+      {
+        "id": "DV005",
+        "maDV": "DV005",
+        "tenDV": "Siêu âm ổ bụng tổng quát",
+        "nhomDV": "Siêu âm",
+        "dvt": "Lần",
+        "donGia": 180000,
+        "phongTH": "Phòng Siêu âm 2",
+        "trangThai": true
+      },
+      {
+        "id": "DV006",
+        "maDV": "DV006",
+        "tenDV": "Siêu âm tuyến giáp Doppler màu",
+        "nhomDV": "Siêu âm",
+        "dvt": "Lần",
+        "donGia": 200000,
+        "phongTH": "Phòng Siêu âm 2",
+        "trangThai": true
+      },
+      {
+        "id": "DV008",
+        "maDV": "DV008",
+        "tenDV": "Chụp Xquang tim phổi thẳng",
+        "nhomDV": "X-Quang",
+        "dvt": "Lần",
+        "donGia": 150000,
+        "phongTH": "Phòng X-Quang 1",
+        "trangThai": true
+      },
+      {
+        "id": "DV009",
+        "maDV": "DV009",
+        "tenDV": "Nội soi Tai Mũi Họng ống mềm",
+        "nhomDV": "Thăm dò chức năng",
+        "dvt": "Lần",
+        "donGia": 200000,
+        "phongTH": "Phòng số 3 (Tai Mũi Họng)",
+        "trangThai": true
+      },
+      {
+        "id": "DV010",
+        "maDV": "DV010",
+        "tenDV": "Điện tâm đồ thường (ECG 12 chuyển đạo)",
+        "nhomDV": "Thăm dò chức năng",
+        "dvt": "Lần",
+        "donGia": 100000,
+        "phongTH": "Phòng số 1 (Phòng khám Nội)",
+        "trangThai": true
+      },
+      {
+        "id": "DV012",
+        "maDV": "DV012",
+        "tenDV": "Chiếu đèn hồng ngoại & Điện xung trị liệu",
+        "nhomDV": "Thủ thuật - VLTL",
+        "dvt": "Lần",
+        "donGia": 150000,
+        "phongTH": "Phòng PT-TT & Phục hồi chức năng",
+        "trangThai": true
+      }
+    ]
+  },
+  "guideCategories": [
+    {
+      "id": "DMHD-01",
+      "stt": 1,
+      "tenDanhMuc": "Hướng dẫn quy trình khám chữa bệnh",
+      "moTa": "Các bước tiếp đón, khám lâm sàng, cận lâm sàng và thanh toán viện phí",
+      "thuTu": 1,
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-09-10",
+      "trangThai": true
+    },
+    {
+      "id": "DMHD-02",
+      "stt": 2,
+      "tenDanhMuc": "Hướng dẫn chuẩn bị trước khi Xét nghiệm & Nội soi",
+      "moTa": "Lưu ý nhịn ăn, uống nước trước khi siêu âm ổ bụng hoặc xét nghiệm máu",
+      "thuTu": 2,
+      "nguoiTao": "Admin",
+      "ngayTao": "2026-09-12",
+      "trangThai": true
+    }
+  ],
+  "guides": [
+    {
+      "id": "HD-01",
+      "stt": 1,
+      "danhMuc": "Hướng dẫn quy trình khám chữa bệnh",
+      "tieuDe": "Quy trình 5 bước khám bệnh nhanh tại Phòng khám Đa khoa Clinic-AI",
+      "tieuDePhu": "Tiết kiệm 60% thời gian chờ đợi khi đã đặt lịch trước qua hệ thống trực tuyến",
+      "moTa": "Hướng dẫn chi tiết từ quầy tiếp đón ưu tiên, khám lâm sàng bác sĩ chuyên khoa, thực hiện cận lâm sàng đến nhận đơn thuốc điện tử.",
+      "noiDung": "Bước 1: Xuất trình mã đặt lịch tại Quầy Tiếp đón hoặc Kiosk.\nBước 2: Đo sinh hiệu và vào thẳng Phòng khám chuyên khoa.\nBước 3: Thực hiện chỉ định Cận lâm sàng (X-Quang, Siêu âm).\nBước 4: Bác sĩ kết luận và ký số Đơn thuốc điện tử.\nBước 5: Thanh toán viện phí không tiền mặt và nhận thuốc.",
+      "hienThiTrangChu": true,
+      "guiThongBao": true,
+      "ngayTao": "2026-09-25",
+      "trangThai": true
+    },
+    {
+      "id": "HD-02",
+      "stt": 2,
+      "danhMuc": "Hướng dẫn chuẩn bị trước khi Xét nghiệm & Nội soi",
+      "tieuDe": "Những điều người bệnh cần lưu ý trước khi Siêu âm ổ bụng và Xét nghiệm sinh hóa máu",
+      "tieuDePhu": "Nhịn ăn tối thiểu 6–8 giờ để kết quả đường huyết, mỡ máu và siêu âm túi mật chính xác nhất",
+      "moTa": "Cẩm nang chuẩn bị tại nhà trước buổi khám sức khỏe tổng quát.",
+      "noiDung": "1. Nhịn ăn sáng (chỉ uống nước lọc) từ 6-8 tiếng trước khi lấy máu xét nghiệm Glucose, Cholesterol, Triglyceride.\n2. Uống khoảng 300-500ml nước lọc và nhịn tiểu 45 phút trước khi siêu âm bụng dưới (Bàng quang, Tiền liệt tuyến, Tử cung phần phụ).",
+      "hienThiTrangChu": true,
+      "guiThongBao": false,
+      "ngayTao": "2026-09-28",
+      "trangThai": true
+    }
+  ],
+  "qaList": [
+    {
+      "id": "QA-01",
+      "nguoiHoi": "Nguyễn Thị B (0325351112)",
+      "chuyenKhoa": "Nội tổng quát",
+      "cauHoi": "Thưa bác sĩ, tôi đang uống thuốc huyết áp Amlodipin 5mg vào buổi sáng nhưng hôm nay quên uống lúc 8h thì buổi trưa uống bù được không ạ?",
+      "traLoi": "Chào chị B, nếu chị nhớ ra trong vòng vài giờ (trước buổi chiều) thì có thể uống bổ sung ngay 1 viên. Tuyệt đối không uống gấp đôi liều vào ngày hôm sau.",
+      "bacSiTraLoi": "BS.CKII Nguyễn Minh Hoàng",
+      "ngayHoi": "2026-10-12 08:15",
+      "trangThai": "Đã trả lời"
+    },
+    {
+      "id": "QA-02",
+      "nguoiHoi": "Lê Hoàng Nam (0904112334)",
+      "chuyenKhoa": "Cơ xương khớp",
+      "cauHoi": "Tôi bị đau cổ vai gáy kèm tê bì bàn tay phải khi ngồi máy tính lâu thì nên khám chuyên khoa nào?",
+      "traLoi": "",
+      "bacSiTraLoi": "",
+      "ngayHoi": "2026-10-12 09:05",
+      "trangThai": "Chờ phản hồi"
+    }
+  ],
+  "staffList": [
+    {
+      "id": "NV-001",
+      "maNV": "NV001",
+      "hoTen": "BS.CKII Nguyễn Minh Hoàng",
+      "taiKhoan": "admin@clinic-ai.vn",
+      "dienThoai": "0901234567",
+      "vaiTro": "Admin / Phụ trách chuyên môn",
+      "khoaPhong": "Phòng số 1 (Phòng khám Nội)",
+      "chuyenKhoa": "Nội tổng quát, Tim mạch",
+      "soCCHN": "004512/HNO-CCHN",
+      "ngayCapCCHN": "2020-04-15",
+      "ngayHetHanCCHN": "2028-04-15",
+      "trangThaiCCHN": "ACTIVE",
+      "trangThai": true
+    },
+    {
+      "id": "NV-002",
+      "maNV": "NV002",
+      "hoTen": "ThS.BS Trần Quốc Tuấn",
+      "taiKhoan": "bstuan@clinic-ai.vn",
+      "dienThoai": "0912345678",
+      "vaiTro": "Bác sĩ khám bệnh",
+      "khoaPhong": "Phòng số 3 (Tai Mũi Họng)",
+      "chuyenKhoa": "Tai mũi họng",
+      "soCCHN": "008921/HNO-CCHN",
+      "ngayCapCCHN": "2021-11-10",
+      "ngayHetHanCCHN": "2026-11-25",
+      "trangThaiCCHN": "EXPIRING_SOON",
+      "trangThai": true
+    },
+    {
+      "id": "NV-003",
+      "maNV": "NV003",
+      "hoTen": "BS.CKI Lê Thu Trang",
+      "taiKhoan": "bstrang@clinic-ai.vn",
+      "dienThoai": "0988776655",
+      "vaiTro": "Bác sĩ khám bệnh",
+      "khoaPhong": "Phòng số 2 (Cơ xương khớp)",
+      "chuyenKhoa": "Cơ xương khớp, Phục hồi chức năng",
+      "soCCHN": "006110/HNO-CCHN",
+      "ngayCapCCHN": "2019-06-20",
+      "ngayHetHanCCHN": "2029-06-20",
+      "trangThaiCCHN": "ACTIVE",
+      "trangThai": true
+    },
+    {
+      "id": "NV-004",
+      "maNV": "NV004",
+      "hoTen": "BS.CKI Phạm Quang Huy",
+      "taiKhoan": "bshuy_cls@clinic-ai.vn",
+      "dienThoai": "0933445566",
+      "vaiTro": "Bác sĩ Cận lâm sàng",
+      "khoaPhong": "Phòng X-Quang 1",
+      "chuyenKhoa": "Chẩn đoán hình ảnh",
+      "soCCHN": "003219/HNO-CCHN",
+      "ngayCapCCHN": "2018-01-10",
+      "ngayHetHanCCHN": "2025-12-31",
+      "trangThaiCCHN": "EXPIRED",
+      "trangThai": true
+    },
+    {
+      "id": "NV-005",
+      "maNV": "NV005",
+      "hoTen": "Nguyễn Mai Phương",
+      "taiKhoan": "letan@clinic-ai.vn",
+      "dienThoai": "0966554433",
+      "vaiTro": "Lễ tân - Tiếp đón",
+      "khoaPhong": "Quầy Tiếp đón Tầng 1",
+      "chuyenKhoa": "Hành chính - Tiếp đón",
+      "soCCHN": "N/A",
+      "ngayCapCCHN": "",
+      "ngayHetHanCCHN": "",
+      "trangThaiCCHN": "ACTIVE",
+      "trangThai": true
+    }
+  ],
+  "permissionModules": [
+    "1. Quản lý người dùng & Tài khoản nhân viên",
+    "2. Quản lý Hồ sơ Bệnh nhân",
+    "3. Tiếp đón & Đăng ký khám bệnh",
+    "4. Quản lý Lịch hẹn trực tuyến",
+    "5. Khám bệnh Lâm sàng & Chẩn đoán ICD-10",
+    "6. Chỉ định Dịch vụ kỹ thuật & Gói khám",
+    "7. Kê đơn thuốc điện tử & Liên thông Quốc gia (INT-04)",
+    "8. Quản lý Thu chi & Viện phí (Phiếu thu / Phiếu chi)",
+    "9. Cận lâm sàng: Chẩn đoán hình ảnh (X-Quang / Siêu âm)",
+    "10. Cận lâm sàng: Xét nghiệm Sinh hóa - Huyết học",
+    "11. Phẫu thuật - Thủ thuật & Phục hồi chức năng (PT-TT)",
+    "12. Quản lý Danh mục chung (Gõ tắt, ĐVT, Khoản thu/chi, Trừ đau)",
+    "13. Quản lý Danh mục Hành chính (Địa chỉ, Khoa phòng)",
+    "14. Quản lý Danh mục Y tế (ICD-10, Thuốc & Vật tư, Dịch vụ)",
+    "15. Quản lý Tin tức & Danh mục tin tức",
+    "16. Quản lý Hướng dẫn quy trình & Danh mục hướng dẫn",
+    "17. Tư vấn & Hỏi đáp bệnh nhân",
+    "18. Quản lý Mẫu in, Mẫu báo cáo, Mẫu Email",
+    "19. Quản lý Mẫu kết quả CLS, Đơn thuốc mẫu, Gói dịch vụ",
+    "20. Phân quyền vai trò người dùng",
+    "21. Quản lý Chứng chỉ hành nghề & Giấy phép (INT-05)",
+    "22. Đính chính Bệnh án điện tử bất biến (INT-03)",
+    "23. Báo cáo Thống kê & Nhật ký Kiểm toán (Audit Trail)"
+  ],
+  "roles": [
+    {
+      "id": "ROLE-ADMIN",
+      "tenVaiTro": "Admin / Người phụ trách chuyên môn",
+      "moTa": "Toàn quyền quản trị hệ thống, phê duyệt đính chính bệnh án, giám sát tuân thủ pháp lý",
+      "fullAccess": true
+    },
+    {
+      "id": "ROLE-DOCTOR",
+      "tenVaiTro": "Bác sĩ khám bệnh",
+      "moTa": "Khám lâm sàng, chỉ định dịch vụ, kê đơn thuốc điện tử, ký số và xem hồ sơ bệnh án",
+      "viewUpTo": 15,
+      "addIndices": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        13
+      ],
+      "editIndices": [
+        3,
+        4,
+        5,
+        6,
+        13
+      ],
+      "deleteIndices": [],
+      "printIndices": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "id": "ROLE-RECEPTION",
+      "tenVaiTro": "Lễ tân - Tiếp đón",
+      "moTa": "Quản lý lịch hẹn, tiếp đón đăng ký khám, tạo mới và cập nhật hồ sơ hành chính bệnh nhân",
+      "viewIndices": [
+        1,
+        2,
+        3,
+        8,
+        12,
+        13
+      ],
+      "addIndices": [
+        1,
+        2,
+        3
+      ],
+      "editIndices": [
+        1,
+        2,
+        3
+      ],
+      "deleteIndices": [],
+      "printIndices": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "ROLE-CASHIER",
+      "tenVaiTro": "Thu ngân - Viện phí",
+      "moTa": "Lập phiếu thu, phiếu chi, hoàn ứng viện phí và in biên lai thu tiền",
+      "viewIndices": [
+        2,
+        3,
+        8,
+        9
+      ],
+      "addIndices": [
+        8
+      ],
+      "editIndices": [
+        8
+      ],
+      "deleteIndices": [],
+      "printIndices": [
+        8,
+        9
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "MAU-01",
+      "loaiMau": "mau-in",
+      "danhMuc": "Khám chữa bệnh",
+      "loaiDichVu": "Đơn thuốc & Chỉ định",
+      "tenMau": "Mẫu in Phiếu khám bệnh & Đơn thuốc Quốc gia (Khổ A4/A5)",
+      "tenFile": "Mau_PhieuKham_DonThuoc_TT26_2025.docx",
+      "noiDung": "Header: PHÒNG KHÁM ĐA KHOA CLINIC-AI | Mã KCB, Họ tên BN, Chẩn đoán ICD-10, Bảng thuốc, Mã QR Liên thông Quốc gia, Chữ ký số Bác sĩ.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-02",
+      "loaiMau": "mau-in",
+      "danhMuc": "Tài chính - Viện phí",
+      "loaiDichVu": "Phiếu thu tiền",
+      "tenMau": "Mẫu in Phiếu thu viện phí kiêm Biên lai thanh toán",
+      "tenFile": "Mau_PhieuThu_VienPhi_A5.docx",
+      "noiDung": "Header: BIÊN LAI THU TIỀN VIỆN PHÍ | Danh sách dịch vụ, Tổng tiền bằng số & bằng chữ, Chữ ký Thu ngân & Người nộp.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-03",
+      "loaiMau": "mau-bao-cao",
+      "danhMuc": "Báo cáo Quản trị & Sở Y tế",
+      "loaiDichVu": "Báo cáo tổng hợp",
+      "tenMau": "Báo cáo hoạt động Khám chữa bệnh & Liên thông Đơn thuốc tháng",
+      "tenFile": "BC_HoatDongKCB_LienThong_SYT.xlsx",
+      "noiDung": "Tổng hợp lượt khám theo chuyên khoa, doanh thu dịch vụ, tỷ lệ hoàn thành gửi đơn thuốc quốc gia.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-04",
+      "loaiMau": "mau-email",
+      "danhMuc": "Chăm sóc bệnh nhân",
+      "loaiDichVu": "Thông báo lịch hẹn",
+      "tenMau": "Email xác nhận đặt lịch khám & Hướng dẫn chuẩn bị trước khám",
+      "tenFile": "Email_XacNhanLichHen_ClinicAI.html",
+      "noiDung": "Kính gửi Quý bệnh nhân {{hoTen}}, Lịch hẹn {{maLH}} tại {{phongKham}} cùng {{bacSi}} vào lúc {{ngayDatLich}} đã được xác nhận.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-CLS-01",
+      "loaiMau": "mau-ket-qua-cls",
+      "danhMuc": "Chẩn đoán hình ảnh",
+      "loaiDichVu": "X-Quang",
+      "tenMau": "Mẫu kết quả Chụp X-Quang Tim phổi thẳng bình thường",
+      "tenFile": "CLS_XQuang_TimPhoiThang.docx",
+      "noiDung": "- Lồng ngực cân đối hai bên, xương sườn và xương đòn không thấy tổn thương.\n- Nhu mô phổi hai bên sáng đều, không thấy hình mờ bất thường.\n- Bóng tim không to, chỉ số tim/ngực < 0.5.\n- Góc sườn hoành hai bên sáng nhọn.\n=> KẾT LUẬN: Hình ảnh tim phổi thẳng hiện tại bình thường.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-CLS-02",
+      "loaiMau": "mau-ket-qua-cls",
+      "danhMuc": "Chẩn đoán hình ảnh",
+      "loaiDichVu": "Siêu âm",
+      "tenMau": "Mẫu kết quả Siêu âm Ổ bụng tổng quát bình thường",
+      "tenFile": "CLS_SieuAm_OBungTongQuat.docx",
+      "noiDung": "- Gan: Kích thước bình thường, nhu mô đồng nhất.\n- Túi mật: Thành mỏng, không sỏi.\n- Thận hai bên: Không sỏi, đài bể thận không giãn.\n- Bàng quang: Thành nhẵn, nước tiểu trong.\n=> KẾT LUẬN: Siêu âm ổ bụng tổng quát chưa phát hiện bất thường.",
+      "trangThai": true
+    },
+    {
+      "id": "MAU-DT-01",
+      "loaiMau": "don-thuoc-mau",
+      "danhMuc": "Đơn thuốc Nội khoa",
+      "loaiDichVu": "Tim mạch - Huyết áp",
+      "tenMau": "Đơn thuốc mẫu Tăng huyết áp độ 1 (Ngoại trú 14 ngày)",
+      "tenFile": "DTM_TangHuyetAp_I10.json",
+      "noiDung": "1. Amlodipin 5mg x 14 viên (Sáng 1 viên sau ăn) | 2. Magne-B6 x 20 viên (Sáng 1 viên, Chiều 1 viên).",
+      "items": [
+        {
+          "maThuoc": "TH001",
+          "tenThuoc": "Amlodipin 5mg (Stamlo)",
+          "dvt": "Viên",
+          "soLuong": 14,
+          "lieuDung": "Ngày uống 1 viên buổi sáng sau ăn",
+          "ghiChu": "Kiểm soát huyết áp"
+        },
+        {
+          "maThuoc": "TH002",
+          "tenThuoc": "Magne-B6 Corbière",
+          "dvt": "Viên",
+          "soLuong": 20,
+          "lieuDung": "Ngày uống 2 viên chia 2 lần Sáng - Chiều",
+          "ghiChu": "Hỗ trợ thần kinh tim"
+        }
+      ],
+      "trangThai": true
+    },
+    {
+      "id": "MAU-DT-02",
+      "loaiMau": "don-thuoc-mau",
+      "danhMuc": "Đơn thuốc Tai Mũi Họng",
+      "loaiDichVu": "Viêm họng cấp",
+      "tenMau": "Đơn thuốc mẫu Viêm mũi họng cấp người lớn (5 ngày)",
+      "tenFile": "DTM_ViemHongCap_J02.json",
+      "noiDung": "1. Augmentin 1g x 10 viên (Sáng 1v, Tối 1v) | 2. Alphachymotrypsin 4.2mg x 20 viên (Ngậm 4v/ngày).",
+      "items": [
+        {
+          "maThuoc": "TH003",
+          "tenThuoc": "Augmentin 1g",
+          "dvt": "Viên",
+          "soLuong": 10,
+          "lieuDung": "Uống sáng 1 viên, tối 1 viên ngay đầu bữa ăn",
+          "ghiChu": "Kháng sinh đủ 5 ngày"
+        },
+        {
+          "maThuoc": "TH004",
+          "tenThuoc": "Alphachymotrypsin 4.2mg",
+          "dvt": "Viên",
+          "soLuong": 20,
+          "lieuDung": "Ngậm dưới lưỡi 4 viên/ngày chia 2 lần",
+          "ghiChu": "Giảm phù nề họng"
+        }
+      ],
+      "trangThai": true
+    },
+    {
+      "id": "MAU-TH-01",
+      "loaiMau": "mau-tieu-hao",
+      "danhMuc": "Vật tư tiêu hao CLS",
+      "loaiDichVu": "Chụp X-Quang & Siêu âm",
+      "tenMau": "Định mức tiêu hao Chụp X-Quang kỹ thuật số (1 ca)",
+      "tenFile": "DinhMuc_TieuHao_XQuang.json",
+      "noiDung": "01 Phim X-Quang khô cỡ 35x43cm + 01 Bao đựng phim + 01 Đôi găng tay y tế.",
+      "trangThai": true
+    },
+    {
+      "id": "GOI-DV-01",
+      "loaiMau": "ke-goi-dich-vu",
+      "danhMuc": "Gói khám sức khỏe",
+      "loaiDichVu": "Khám tổng quát",
+      "tenMau": "Gói khám Sức khỏe Tổng quát Cơ bản (Gói DV số 1)",
+      "tenFile": "GoiKham_TongQuat_CoBan.json",
+      "noiDung": "Bao gồm: Khám nội tổng quát (120.000đ) + Chụp Xquang tim phổi thẳng (150.000đ) + Siêu âm ổ bụng tổng quát (180.000đ) + Điện tâm đồ (100.000đ).",
+      "services": [
+        {
+          "maDV": "DV001",
+          "tenDV": "Khám nội tổng quát",
+          "dvt": "Lượt",
+          "soLuong": 1,
+          "donGia": 120000,
+          "phongTH": "Phòng số 1 (Phòng khám Nội)"
+        },
+        {
+          "maDV": "DV008",
+          "tenDV": "Chụp Xquang tim phổi thẳng",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 150000,
+          "phongTH": "Phòng X-Quang 1"
+        },
+        {
+          "maDV": "DV005",
+          "tenDV": "Siêu âm ổ bụng tổng quát",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 180000,
+          "phongTH": "Phòng Siêu âm 2"
+        },
+        {
+          "maDV": "DV010",
+          "tenDV": "Điện tâm đồ thường (ECG 12 chuyển đạo)",
+          "dvt": "Lần",
+          "soLuong": 1,
+          "donGia": 100000,
+          "phongTH": "Phòng số 1 (Phòng khám Nội)"
+        }
+      ],
+      "trangThai": true
+    }
+  ],
+  "complianceObligations": [
+    {
+      "id": "LAW-03",
+      "maVanBan": "Thông tư 26/2025/TT-BYT",
+      "tenNghiaVu": "Kê đơn thuốc ngoại trú điện tử & Liên thông Hệ thống đơn thuốc quốc gia",
+      "nguoiChiuTrachNhiem": "Bác sĩ khám bệnh & Phụ trách chuyên môn",
+      "hanApDung": "Trước 01/01/2026",
+      "trangThai": "Đang tuân thủ (100%)"
+    },
+    {
+      "id": "LAW-04",
+      "maVanBan": "Thông tư 13/2025/TT-BYT",
+      "tenNghiaVu": "Hồ sơ Bệnh án điện tử (EMR) bất biến & Biên bản đính chính có lịch sử",
+      "nguoiChiuTrachNhiem": "Người phụ trách chuyên môn",
+      "hanApDung": "Trước 31/12/2026",
+      "trangThai": "Đang tuân thủ (100%)"
+    },
+    {
+      "id": "LAW-02",
+      "maVanBan": "Luật KCB 15/2023/QH15 & NĐ 96/2023/NĐ-CP",
+      "tenNghiaVu": "Kiểm soát thời hạn & phạm vi chuyên môn Chứng chỉ hành nghề (CCHN) trước khi phân công",
+      "nguoiChiuTrachNhiem": "Quản trị nhân sự & Giám đốc chuyên môn",
+      "hanApDung": "Thường xuyên",
+      "trangThai": "Phát hiện 1 CCHN hết hạn & 1 sắp hết hạn"
+    },
+    {
+      "id": "LAW-05",
+      "maVanBan": "NĐ 102/2025/NĐ-CP & Luật BVDLCN 91/2025/QH15",
+      "tenNghiaVu": "Nhật ký kiểm toán truy cập dữ liệu sức khỏe cá nhân (Health Data Access Audit Log)",
+      "nguoiChiuTrachNhiem": "Quản trị hệ thống & Phụ trách tuân thủ",
+      "hanApDung": "Thường xuyên",
+      "trangThai": "Đang ghi vết tự động"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "AUD-1001",
+      "thoiGian": "2026-10-12 09:05:12",
+      "nguoiDung": "BS.CKII Nguyễn Minh Hoàng",
+      "vaiTro": "ADMIN",
+      "hanhDong": "SIGN_PRESCRIPTION",
+      "doiTuong": "Đơn thuốc DTQG-2026-000150 (BN0000150)",
+      "mucDich": "Ký số đơn thuốc ngoại trú theo TT 26/2025/TT-BYT",
+      "ip": "192.168.1.15",
+      "ketQua": "THÀNH CÔNG"
+    },
+    {
+      "id": "AUD-1002",
+      "thoiGian": "2026-10-12 08:55:40",
+      "nguoiDung": "BS.CKI Phạm Quang Huy",
+      "vaiTro": "BAC_SI",
+      "hanhDong": "UPLOAD_DICOM_CLS",
+      "doiTuong": "DV008 - Chụp Xquang tim phổi thẳng (BN0000150)",
+      "mucDich": "Trả kết quả và hình ảnh Cận lâm sàng",
+      "ip": "192.168.1.28",
+      "ketQua": "THÀNH CÔNG"
+    },
+    {
+      "id": "AUD-1003",
+      "thoiGian": "2026-10-12 08:42:05",
+      "nguoiDung": "Hệ thống Kiểm soát CCHN (INT-05)",
+      "vaiTro": "SYSTEM",
+      "hanhDong": "BLOCK_ASSIGNMENT_EXPIRED_LICENSE",
+      "doiTuong": "BS.CKI Phạm Quang Huy (003219/HNO-CCHN)",
+      "mucDich": "Chặn phân công ca khám mới do CCHN quá hạn 31/12/2025",
+      "ip": "127.0.0.1",
+      "ketQua": "ĐÃ CHẶN (403)"
+    },
+    {
+      "id": "AUD-1004",
+      "thoiGian": "2026-10-12 08:35:19",
+      "nguoiDung": "Nguyễn Mai Phương",
+      "vaiTro": "LE_TAN",
+      "hanhDong": "CREATE_REGISTRATION",
+      "doiTuong": "Mã KCB 2209260003 (BN0000150 - Nguyễn Thị B)",
+      "mucDich": "Tiếp đón bệnh nhân từ lịch hẹn LH260922001",
+      "ip": "192.168.1.10",
+      "ketQua": "THÀNH CÔNG"
+    }
+  ],
+  "roleWorkbenches": {
+    "pendingReceptionTasks": [
+      {
+        "id": "RT-01",
+        "label": "Lịch đặt hẹn khám chờ xác nhận",
+        "count": 14,
+        "route": "/admin/lich-hen",
+        "badgeVariant": "info",
+        "icon": "calendar"
+      },
+      {
+        "id": "RT-02",
+        "label": "Lịch đăng ký khám từ xa (Telemedicine)",
+        "count": 15,
+        "route": "/admin/lich-hen",
+        "badgeVariant": "info",
+        "icon": "phone"
+      },
+      {
+        "id": "RT-03",
+        "label": "Lượt đăng ký Gói dịch vụ sức khỏe",
+        "count": 24,
+        "route": "/admin/lich-hen",
+        "badgeVariant": "warning",
+        "icon": "package"
+      },
+      {
+        "id": "RT-04",
+        "label": "Câu hỏi bệnh nhân chờ phản hồi",
+        "count": 2,
+        "route": "/admin/hoi-dap",
+        "badgeVariant": "danger",
+        "icon": "chat"
+      }
+    ],
+    "doctorSchedules": [
+      {
+        "id": "DS-01",
+        "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+        "phong": "Phòng số 1 (Phòng khám Nội)",
+        "caTruc": "07:30 - 17:00",
+        "soCaCho": 4,
+        "soCaDaKham": 12,
+        "khamTuXa": 3
+      },
+      {
+        "id": "DS-02",
+        "bacSi": "BS.CKI Lê Thu Trang",
+        "phong": "Phòng số 2 (Cơ xương khớp)",
+        "caTruc": "08:00 - 17:00",
+        "soCaCho": 2,
+        "soCaDaKham": 9,
+        "khamTuXa": 2
+      },
+      {
+        "id": "DS-03",
+        "bacSi": "ThS.BS Trần Quốc Tuấn",
+        "phong": "Phòng số 3 (Tai Mũi Họng)",
+        "caTruc": "08:00 - 16:30",
+        "soCaCho": 3,
+        "soCaDaKham": 8,
+        "khamTuXa": 1
+      }
+    ],
+    "accountantSummary": {
+      "doanhThuDichVu": 14850000,
+      "doanhThuNhaThuoc": 6780000,
+      "doanhThuGoiKham": 18500000,
+      "doanhThuKhamDoan": 45000000,
+      "hinhThucThu": [
+        {
+          "hinhThuc": "Chuyển khoản VietQR",
+          "tyLe": 58,
+          "soTien": 49375400
+        },
+        {
+          "hinhThuc": "Tiền mặt tại quầy",
+          "tyLe": 27,
+          "soTien": 22985100
+        },
+        {
+          "hinhThuc": "Cà thẻ POS / Kết hợp",
+          "tyLe": 15,
+          "soTien": 12769500
+        }
+      ]
+    }
+  },
+  "addressShortcuts": [
+    {
+      "code": "cg",
+      "label": "cg — Dịch Vọng, Cầu Giấy, Hà Nội",
+      "tenTinh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Cầu Giấy",
+      "phuongXa": "Phường Dịch Vọng",
+      "diaChiGoiY": "Phường Dịch Vọng, Quận Cầu Giấy, Thành phố Hà Nội"
+    },
+    {
+      "code": "dd",
+      "label": "dd — Láng Hạ, Đống Đa, Hà Nội",
+      "tenTinh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Đống Đa",
+      "phuongXa": "Phường Láng Hạ",
+      "diaChiGoiY": "Phường Láng Hạ, Quận Đống Đa, Thành phố Hà Nội"
+    },
+    {
+      "code": "tx",
+      "label": "tx — Nhân Chính, Thanh Xuân, Hà Nội",
+      "tenTinh": "Thành phố Hà Nội",
+      "quanHuyen": "Quận Thanh Xuân",
+      "phuongXa": "Phường Nhân Chính",
+      "diaChiGoiY": "Phường Nhân Chính, Quận Thanh Xuân, Thành phố Hà Nội"
+    },
+    {
+      "code": "nd",
+      "label": "nd — Bà Triệu, TP. Nam Định",
+      "tenTinh": "Tỉnh Nam Định",
+      "quanHuyen": "Thành phố Nam Định",
+      "phuongXa": "Phường Bà Triệu",
+      "diaChiGoiY": "Phường Bà Triệu, Thành phố Nam Định, Tỉnh Nam Định"
+    },
+    {
+      "code": "hcm",
+      "label": "hcm — Bến Nghé, Quận 1, TP.HCM",
+      "tenTinh": "Thành phố Hồ Chí Minh",
+      "quanHuyen": "Quận 1",
+      "phuongXa": "Phường Bến Nghé",
+      "diaChiGoiY": "Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh"
+    },
+    {
+      "code": "dn",
+      "label": "dn — Thạch Thang, Hải Châu, Đà Nẵng",
+      "tenTinh": "Thành phố Đà Nẵng",
+      "quanHuyen": "Quận Hải Châu",
+      "phuongXa": "Phường Thạch Thang",
+      "diaChiGoiY": "Phường Thạch Thang, Quận Hải Châu, Thành phố Đà Nẵng"
+    }
+  ],
+  "referrers": [
+    "Khách tự đến / Đặt qua Medpro-ClinicAI",
+    "BS. Nguyễn Tùng (Bệnh viện Đa khoa Tỉnh)",
+    "CTV Y tế Nguyễn Thị Hồng Loan",
+    "Khách hàng doanh nghiệp (Hợp đồng Khám đoàn)",
+    "Bác sĩ gia đình giới thiệu"
+  ],
+  "servicePackageRegistrations": [
+    {
+      "id": "GDV-261012-01",
+      "maLH": "GDV261001",
+      "maBN": "BN0000150",
+      "tenBN": "Nguyễn Thị B",
+      "dienThoai": "0325351112",
+      "tenGoi": "Gói khám Sức khỏe Tổng quát Cơ bản (Gói DV số 1)",
+      "ngayTao": "2026-10-12 08:15",
+      "ngayKham": "2026-10-12",
+      "tongTien": 550000,
+      "giamGia": 55000,
+      "thanhTien": 495000,
+      "trangThai": "Đang khám",
+      "thanhToan": "Đã thu tiền",
+      "nhanVienXacNhan": "Nguyễn Mai Phương"
+    },
+    {
+      "id": "GDV-261012-02",
+      "maLH": "GDV261002",
+      "maBN": "BN0000148",
+      "tenBN": "Phạm Thu Hương",
+      "dienThoai": "0936881920",
+      "tenGoi": "Gói Tầm soát Tim mạch & Huyết áp Chuyên sâu",
+      "ngayTao": "2026-10-12 09:00",
+      "ngayKham": "2026-10-14",
+      "tongTien": 1250000,
+      "giamGia": 125000,
+      "thanhTien": 1125000,
+      "trangThai": "Xác nhận",
+      "thanhToan": "Chờ thanh toán",
+      "nhanVienXacNhan": "Nguyễn Mai Phương"
+    },
+    {
+      "id": "GDV-261011-03",
+      "maLH": "GDV261003",
+      "maBN": "BN0000144",
+      "tenBN": "Đinh Công Minh",
+      "dienThoai": "0912445889",
+      "tenGoi": "Gói Tầm soát Cơ xương khớp & Cột sống",
+      "ngayTao": "2026-10-11 14:20",
+      "ngayKham": "2026-10-11",
+      "tongTien": 850000,
+      "giamGia": 0,
+      "thanhTien": 850000,
+      "trangThai": "Kết thúc khám",
+      "thanhToan": "Đã thu tiền",
+      "nhanVienXacNhan": "Nguyễn Mai Phương"
+    }
+  ],
+  "treatmentCourses": [
+    {
+      "id": "LT-2610-01",
+      "maDangKy": "LT2610001",
+      "maBN": "BN0000144",
+      "tenBN": "Đinh Công Minh",
+      "dienThoai": "0912445889",
+      "tuoi": "31 tuổi",
+      "tenLieuTrinh": "Liệu trình Phục hồi chức năng Cột sống thắt lưng (10 buổi)",
+      "bacSi": "BS.CKI Lê Thu Trang",
+      "ngayDangKy": "2026-10-10",
+      "soBuoiDaTap": 3,
+      "tongSoBuoi": 10,
+      "lichLapLai": [
+        "T2",
+        "T4",
+        "T6"
+      ],
+      "thanhTien": 2500000,
+      "thanhToan": "Đã thanh toán trọn gói",
+      "trangThai": "Đang điều trị",
+      "baiTap": "Chiếu đèn hồng ngoại 15p + Điện xung giảm đau 20p + Kéo giãn cột sống thắt lưng"
+    },
+    {
+      "id": "LT-2610-02",
+      "maDangKy": "LT2610002",
+      "maBN": "BN0000146",
+      "tenBN": "Vũ Thị Ngọc Ánh",
+      "dienThoai": "0978123990",
+      "tuoi": "28 tuổi",
+      "tenLieuTrinh": "Liệu trình Vật lý trị liệu Hội chứng Cổ Vai Gáy (7 buổi)",
+      "bacSi": "BS.CKI Lê Thu Trang",
+      "ngayDangKy": "2026-10-08",
+      "soBuoiDaTap": 5,
+      "tongSoBuoi": 7,
+      "lichLapLai": [
+        "T3",
+        "T5",
+        "T7"
+      ],
+      "thanhTien": 1750000,
+      "thanhToan": "Đã tạm ứng 50%",
+      "trangThai": "Đang điều trị",
+      "baiTap": "Siêu âm trị liệu vùng cơ thang + Xoa bóp bấm huyệt cổ vai gáy"
+    }
+  ],
+  "corporateCheckups": [
+    {
+      "id": "DOAN-01",
+      "maDoan": "00000024",
+      "tenDoan": "Công ty Cổ phần Công nghệ ThinkLabs",
+      "dotKham": "Khám sức khỏe định kỳ Quý IV - 2026",
+      "nguoiLienHe": "Bà Nguyễn Thị Loan (Trưởng phòng Nhân sự)",
+      "dienThoai": "0829680678",
+      "maSoThue": "0102455523",
+      "diaChi": "Khu Công nghệ cao Hòa Lạc, Hà Nội",
+      "soHopDong": "HĐ-KSK/2026/TL-024",
+      "ngayHopDong": "2026-10-01",
+      "soLuongNhanVien": 85,
+      "daKham": 62,
+      "tongTien": 68000000,
+      "tamUng": 40000000,
+      "chietKhau": 10,
+      "trangThai": "Đang triển khai khám"
+    },
+    {
+      "id": "DOAN-02",
+      "maDoan": "00000015",
+      "tenDoan": "Công ty Cổ phần Sản xuất Hapico",
+      "dotKham": "Khám sức khỏe định kỳ Năm 2026 (Theo TT 32/2023/TT-BYT)",
+      "nguoiLienHe": "Ông Đinh Văn Dũng",
+      "dienThoai": "0934681101",
+      "maSoThue": "0108891234",
+      "diaChi": "49 Trần Điền, Định Công, Hoàng Mai, Hà Nội",
+      "soHopDong": "HĐ-KSK/2026/HPC-015",
+      "ngayHopDong": "2026-09-20",
+      "soLuongNhanVien": 120,
+      "daKham": 120,
+      "tongTien": 96000000,
+      "tamUng": 96000000,
+      "chietKhau": 12,
+      "trangThai": "Đã hoàn thành & Đồng bộ HSSK"
+    }
+  ],
+  "healthCheckupClassifications": [
+    {
+      "id": "CLS-SYS-01",
+      "heCoQuan": "a) Tuần hoàn",
+      "ketQuaMacDinh": "Nhịp tim đều, tiếng T1 T2 rõ, không có tiếng thổi bệnh lý",
+      "maICD": "I10",
+      "phanLoai": "Loại II"
+    },
+    {
+      "id": "CLS-SYS-02",
+      "heCoQuan": "b) Hô hấp",
+      "ketQuaMacDinh": "Lồng ngực cân đối, rì rào phế nang êm dịu hai phế trường",
+      "maICD": "",
+      "phanLoai": "Loại I"
+    },
+    {
+      "id": "CLS-SYS-03",
+      "heCoQuan": "c) Tiêu hóa",
+      "ketQuaMacDinh": "Bụng mềm, gan lách không to, không có điểm đau khu trú",
+      "maICD": "",
+      "phanLoai": "Loại I"
+    },
+    {
+      "id": "CLS-SYS-04",
+      "heCoQuan": "d) Thận - Tiết niệu",
+      "ketQuaMacDinh": "Chạm thận âm tính, bập bềnh thận âm tính hai bên",
+      "maICD": "",
+      "phanLoai": "Loại I"
+    },
+    {
+      "id": "CLS-SYS-05",
+      "heCoQuan": "e) Cơ - Xương - Khớp",
+      "ketQuaMacDinh": "Các khớp vận động trong giới hạn bình thường, cột sống không gù vẹo",
+      "maICD": "M54.5",
+      "phanLoai": "Loại II"
+    },
+    {
+      "id": "CLS-SYS-06",
+      "heCoQuan": "g) Mắt - Tai Mũi Họng - Răng Hàm Mặt",
+      "ketQuaMacDinh": "Thị lực hai mắt 10/10, niêm mạc mũi họng hồng, răng không sâu",
+      "maICD": "J02",
+      "phanLoai": "Loại I"
+    }
+  ],
+  "cashierClosings": [
+    {
+      "id": "KS-20261011",
+      "maKyKhoaSo": "KS-2026-10-11",
+      "ngayKhoaSo": "2026-10-11 23:00",
+      "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
+      "tongThuDichVu": 12450000,
+      "tongChi": 1250000,
+      "tonQuyCuoiNgay": 16520000,
+      "cheDo": "Tự động khóa sổ sau 23:00",
+      "trangThai": "Đã khóa sổ (Bất biến)"
+    },
+    {
+      "id": "KS-20261012",
+      "maKyKhoaSo": "KS-2026-10-12",
+      "ngayKhoaSo": "Đang mở trong ngày",
+      "nguoiKhoaSo": "Thu ngân Lê Thanh Huyền",
+      "tongThuDichVu": 800000,
+      "tongChi": 0,
+      "tonQuyCuoiNgay": 800000,
+      "cheDo": "Chờ chốt ca 23:00",
+      "trangThai": "Đang mở sổ"
+    }
+  ],
+  "nationalDrugSync": [
+    {
+      "id": "DQG-SYNC-01",
+      "phanMuc": "Hóa đơn bán thuốc",
+      "maPhieu": "HĐT-261012-001",
+      "maKCB": "2209260003",
+      "benhNhan": "Nguyễn Thị B",
+      "ngayLap": "2026-10-12 09:10",
+      "nguoiLap": "DS. Trần Minh Châu",
+      "maLienThongDQG": "DQG-INV-9920184",
+      "trangThai": "Đã đồng bộ Dược QG"
+    },
+    {
+      "id": "DQG-SYNC-02",
+      "phanMuc": "Phiếu nhập hàng",
+      "maPhieu": "PNK-261010-008",
+      "maKCB": "N/A (Nhập kho nhà thuốc)",
+      "benhNhan": "Công ty Dược phẩm TW1 (CPC1)",
+      "ngayLap": "2026-10-10 15:20",
+      "nguoiLap": "DS. Trần Minh Châu",
+      "maLienThongDQG": "DQG-IMP-8810293",
+      "trangThai": "Đã đồng bộ Dược QG"
+    },
+    {
+      "id": "DQG-SYNC-03",
+      "phanMuc": "Tồn đầu kỳ",
+      "maPhieu": "TĐK-2026-T10",
+      "maKCB": "Chốt tồn kho đầu tháng 10/2026",
+      "benhNhan": "Kho Dược Phòng khám Clinic-AI",
+      "ngayLap": "2026-10-01 07:30",
+      "nguoiLap": "BS.CKII Nguyễn Minh Hoàng",
+      "maLienThongDQG": "DQG-INIT-7701920",
+      "trangThai": "Đã đồng bộ Dược QG"
+    }
+  ],
+  "nationalEhrSync": [
+    {
+      "id": "HSSK-01",
+      "maKCB": "2610060003",
+      "benhNhan": "Vũ Đức Nhân",
+      "ngaySinh": "2003-03-02",
+      "gioiTinh": "Nam",
+      "dienThoai": "0862356860",
+      "mauKham": "Mẫu người từ 18 tuổi (TT 32/2023/TT-BYT)",
+      "phanLoaiSucKhoe": "Loại I",
+      "ngayKetLuan": "2026-10-12",
+      "idempotencyKey": "HSSK-IDEM-2610060003-V1",
+      "trangThai": "Đã đồng bộ HSSK",
+      "ngayDongBo": "2026-10-12 09:40"
+    },
+    {
+      "id": "HSSK-02",
+      "maKCB": "2610060002",
+      "benhNhan": "Quang Tùng",
+      "ngaySinh": "2020-09-03",
+      "gioiTinh": "Nam",
+      "dienThoai": "0942512227",
+      "mauKham": "Mẫu người từ 06 đến dưới 18 tuổi",
+      "phanLoaiSucKhoe": "Loại II",
+      "ngayKetLuan": "2026-10-12",
+      "idempotencyKey": "HSSK-IDEM-2610060002-V1",
+      "trangThai": "Chưa đồng bộ",
+      "ngayDongBo": "Chờ gửi cổng"
+    },
+    {
+      "id": "HSSK-03",
+      "maKCB": "2209260003",
+      "benhNhan": "Nguyễn Thị B",
+      "ngaySinh": "1988-05-12",
+      "gioiTinh": "Nữ",
+      "dienThoai": "0325351112",
+      "mauKham": "Mẫu người từ 18 tuổi (TT 32/2023/TT-BYT)",
+      "phanLoaiSucKhoe": "Loại II",
+      "ngayKetLuan": "2026-10-12",
+      "idempotencyKey": "HSSK-IDEM-2209260003-V1",
+      "trangThai": "Đã đồng bộ HSSK",
+      "ngayDongBo": "2026-10-12 09:15"
+    }
+  ],
+  "clinicSettings": {
+    "tenPhongKham": "Phòng Khám Đa Khoa Quốc Tế Clinic-AI (Mô hình chuẩn tClinic)",
+    "maCoSoKCB": "01-08924",
+    "giayPhepHoatDong": "Số 1428/HNO-GPHĐ (Cấp ngày 10/01/2023)",
+    "dienThoai": "1900 2115",
+    "email": "cskh@clinic-ai.vn",
+    "diaChi": "Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
+    "heThong": {
+      "batBuocICD10": true,
+      "thuTienTruocCLS": true,
+      "tuDongKhoaSoSauGio": "23:00 (Sau 1 ngày)"
+    },
+    "congLienThong": {
+      "donThuocQuocGiaUrl": "https://donthuocquocgia.vn/api/v1",
+      "maLienThongCoSo": "LT_0108924_CLINICAI",
+      "hoaDonDienTu": "MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)",
+      "chuKySo": "VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)"
+    }
+  },
+  "systemNotifications": [
+    {
+      "id": "notif-01",
+      "type": "exam",
+      "title": "Bệnh nhân mới tiếp đón",
+      "content": "BN Nguyễn Thị B (Mã KCB: 2209260003) đang chờ khám tại Phòng khám Nội 1.",
+      "time": "5 phút trước",
+      "unread": true,
+      "link": "/admin/kham-benh"
+    },
+    {
+      "id": "notif-02",
+      "type": "cls",
+      "title": "Kết quả Cận lâm sàng sẵn sàng",
+      "content": "Chụp X-Quang tim phổi thẳng của BN Đinh Công Minh đã có kết quả và hình ảnh.",
+      "time": "12 phút trước",
+      "unread": true,
+      "link": "/admin/can-lam-sang"
+    },
+    {
+      "id": "notif-03",
+      "type": "prescription",
+      "title": "Liên thông Đơn thuốc Quốc gia thành công",
+      "content": "Đơn thuốc ĐTQG-2026-000150 đã được Cổng Đơn thuốc Quốc gia xác nhận (Receipt: REC-77491).",
+      "time": "25 phút trước",
+      "unread": true,
+      "link": "/admin/tuan-thu"
+    },
+    {
+      "id": "notif-04",
+      "type": "cashier",
+      "title": "Phiếu thu viện phí mới",
+      "content": "Thu ngân đã thu 495.000 đ cho Gói khám Sức khỏe tổng quát cơ bản (BN Nguyễn Thị B).",
+      "time": "40 phút trước",
+      "unread": false,
+      "link": "/admin/thu-chi"
+    }
+  ]
+}

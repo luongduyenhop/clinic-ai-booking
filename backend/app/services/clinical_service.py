@@ -1540,9 +1540,15 @@ class ClinicalService:
 
                             if existing_rx:
                                 # Xóa danh sách chi tiết cũ để nạp danh sách mới khi đơn ở DRAFT
-                                for old_item in list(existing_rx.danh_sach_chi_tiet or []):
+                                cur_items = (
+                                    await db.execute(
+                                        select(ChiTietDonThuoc).where(ChiTietDonThuoc.don_thuoc_id == existing_rx.id)
+                                    )
+                                ).scalars().all()
+                                for old_item in cur_items:
                                     await db.delete(old_item)
-                                await db.flush()
+                                if cur_items:
+                                    await db.flush()
 
                                 items_for_hash = []
                                 for m in med_items:

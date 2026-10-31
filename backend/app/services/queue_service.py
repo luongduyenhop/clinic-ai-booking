@@ -78,15 +78,8 @@ class QueueService:
                 "KHOA_TMH": "TMH",
                 "KHOA_RHM": "RHM",
                 "KHOA_DA_LIEU": "DL",
-                "KHOA_TIM_MACH": "TM",
-                "KHOA_TIEU_HOA": "TH",
-                "KHOA_THAN_KINH": "TK",
-                "KHOA_HO_HAP": "HH",
-                "KHOA_XUONG_KHOP": "XK",
                 "KHOA_MAT": "MAT",
-                "KHOA_NGOAI": "NGOAI",
-                "KHOA_NHI": "NHI",
-                "KHOA_SAN": "SAN",
+                "KHOA_NGOAI": "NGOAI"
             }
             if ma_ck in prefix_map:
                 prefix = prefix_map[ma_ck]

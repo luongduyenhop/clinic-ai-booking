@@ -262,7 +262,7 @@ async def test_phan_quyen_nhap_ket_qua_xet_nghiem(api_client, booking, db_sessio
     order_id = await _tao_ca_xet_nghiem(api_client, booking, db_session, booking.bn_a)
     tpl = f"/api/v1/subclinical/orders/{order_id}/lab-template"
     url = f"/api/v1/subclinical/orders/{order_id}/lab-results"
-    body = {"chi_so": {"WBC": 5}}
+    body = {"chi_so": {"WBC": 5}, "ket_luan": "Các chỉ số trong giới hạn bình thường"}
 
     for key in ("bn_a", "le_tan"):
         assert (await api_client.get(tpl, headers=booking.tokens[key])).status_code == 403

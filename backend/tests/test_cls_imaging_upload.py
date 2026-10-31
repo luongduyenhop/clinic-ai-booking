@@ -223,10 +223,10 @@ async def test_xoa_anh_truoc_khi_duyet_va_khoa_sau_duyet(api_client, booking, db
     b = (await _upload(api_client, order_id, ktv, data=PNG, name="b.png", content_type="image/png")).json()["data"]
 
     url_kq = f"/api/v1/subclinical/orders/{order_id}/imaging-result"
-    res_tra = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Mô tả", "ket_luan": "Kết luận"}, headers=ktv)
-    assert res_tra.status_code == 200
+    res_nhap = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Mô tả", "ket_luan": "Kết luận", "hoan_tat": False}, headers=ktv)
+    assert res_nhap.status_code == 200
 
-    # Đã trả nhưng chưa duyệt: vẫn xóa được, phiếu kết quả cập nhật theo
+    # Lưu nháp: vẫn xóa được, phiếu kết quả cập nhật theo
     res_del = await api_client.delete(a["url"], headers=ktv)
     assert res_del.status_code == 200, res_del.text
     assert not (upload_dir / str(order_id) / a["file_id"]).exists()
@@ -238,10 +238,9 @@ async def test_xoa_anh_truoc_khi_duyet_va_khoa_sau_duyet(api_client, booking, db
     await db_session.refresh(order)
     assert order.file_dinh_kem_urls == [b["url"]] and order.tep_dinh_kem_url == b["url"]
 
-    # Sau khi duyệt: khóa thêm/xóa ảnh và sửa kết quả
-    phieu.trang_thai = "DA_DUYET"
-    phieu.thoi_gian_duyet = datetime.now(timezone.utc)
-    await db_session.commit()
+    # Sau khi trả kết quả chính thức: khóa thêm/xóa ảnh và sửa kết quả
+    res_final = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Mô tả chuẩn", "ket_luan": "Kết luận chuẩn", "hoan_tat": True}, headers=ktv)
+    assert res_final.status_code == 200
     assert (await api_client.delete(b["url"], headers=ktv)).status_code == 409
     assert (await _upload(api_client, order_id, ktv)).status_code == 409
     res_sua = await api_client.post(url_kq, json={"mo_ta_hinh_anh": "Sửa", "ket_luan": "Sửa"}, headers=ktv)

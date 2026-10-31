@@ -237,7 +237,12 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
                     const url = res?.data?.data?.url
                     if (url) {
                         urlsRef.current = [...urlsRef.current, url]
-                        onChange(urlsRef.current)
+                        if (typeof onChange === 'function') {
+                            onChange((prev) => {
+                                const base = Array.isArray(prev) ? prev : urlsRef.current
+                                return base.includes(url) ? base : [...base, url]
+                            })
+                        }
                     }
                 } catch (e) {
                     setErrors((errs) => [...errs, `${job.file.name}: ${apiError(e)}`])
@@ -254,7 +259,12 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
         try {
             await clinicalService.deleteClsImage(url)
             urlsRef.current = urlsRef.current.filter((u) => u !== url)
-            onChange(urlsRef.current)
+            if (typeof onChange === 'function') {
+                onChange((prev) => {
+                    const base = Array.isArray(prev) ? prev : urlsRef.current
+                    return base.filter((u) => u !== url)
+                })
+            }
         } catch (e) {
             AppToast.error(apiError(e))
         } finally {

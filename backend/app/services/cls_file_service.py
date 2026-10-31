@@ -318,7 +318,14 @@ class ClsFileService:
 
     @staticmethod
     def _phieu_approved(phieu: Optional[PhieuKetQuaCLS]) -> bool:
-        return bool(phieu and (phieu.trang_thai == "DA_DUYET" or phieu.bac_si_duyet_id or phieu.thoi_gian_duyet))
+        return bool(
+            phieu
+            and (
+                phieu.trang_thai in ("DA_DUYET", "DA_CO_KET_QUA")
+                or phieu.bac_si_duyet_id
+                or phieu.thoi_gian_duyet
+            )
+        )
 
     async def _ensure_not_approved(self, order: ChiDinh, db: AsyncSession) -> None:
         if self._phieu_approved(await self._latest_phieu(order.id, db)):

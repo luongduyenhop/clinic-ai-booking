@@ -88,6 +88,94 @@ class ReceptionService {
         return this.data.activeRole
     }
 
+    async searchAppointments(query, queryDate) {
+        try {
+            const params = { q: query }
+            if (queryDate) params.query_date = queryDate
+            const res = await http.get('/api/v1/reception/search-appointments', { params })
+            return res?.data?.data || []
+        } catch (err) {
+            console.error('searchAppointments error:', err)
+            throw err
+        }
+    }
+
+    async searchPatientByPhone(phone) {
+        try {
+            const cleanPhone = String(phone || '').trim()
+            if (!cleanPhone) return null
+            const res = await http.post('/api/v1/patient/find-lost-code', { keyword: cleanPhone })
+            const list = res?.data?.data || []
+            if (list.length > 0) {
+                const p = list[0]
+                let allergy = ''
+                if (p.benh_nhan_id) {
+                    try {
+                        const sumRes = await http.get(`/api/v1/reception/patients/${p.benh_nhan_id}/history-summary`)
+                        allergy = sumRes?.data?.data?.tien_su_di_ung || ''
+                    } catch {
+                        // Bỏ qua nếu chưa có tóm tắt
+                    }
+                }
+                return {
+                    id: p.benh_nhan_id,
+                    patientCode: p.ma_ho_so,
+                    fullName: p.ho_ten,
+                    phone: p.so_dien_thoai,
+                    gender: p.gioi_tinh === 'Nữ' ? 'FEMALE' : p.gioi_tinh === 'Nam' ? 'MALE' : 'OTHER',
+                    dob: p.ngay_sinh || '',
+                    birthYear: p.ngay_sinh ? new Date(p.ngay_sinh).getFullYear() : undefined,
+                    identityCard: p.cccd_so || '',
+                    bloodType: p.nhom_mau || '',
+                    address: p.dia_chi || '',
+                    allergies: allergy,
+                }
+            }
+            return null
+        } catch (err) {
+            console.warn('searchPatientByPhone error:', err)
+            return null
+        }
+    }
+
+    async fetchRosterResources(queryDate, caKham) {
+        try {
+            const params = {}
+            if (queryDate) params.query_date = queryDate
+            if (caKham) params.ca_kham = caKham
+            const res = await http.get('/api/v1/reception/resources/roster', { params })
+            return res?.data?.data || []
+        } catch (err) {
+            console.warn('fetchRosterResources error:', err)
+            return []
+        }
+    }
+
+    async fetchRoomResources(chuyenKhoaId) {
+        try {
+            const params = {}
+            if (chuyenKhoaId) params.chuyen_khoa_id = chuyenKhoaId
+            const res = await http.get('/api/v1/reception/resources/rooms', { params })
+            return res?.data?.data || []
+        } catch (err) {
+            console.warn('fetchRoomResources error:', err)
+            return []
+        }
+    }
+
+    async fetchShiftDashboard(queryDate, caKham) {
+        try {
+            const params = {}
+            if (queryDate) params.query_date = queryDate
+            if (caKham) params.ca_kham = caKham
+            const res = await http.get('/api/v1/reception/dashboard/shift-summary', { params })
+            return res?.data?.data || null
+        } catch (err) {
+            console.warn('fetchShiftDashboard error:', err)
+            return null
+        }
+    }
+
     // ==================== APPOINTMENTS ====================
     async createAppointment(appointmentPayload, actor) {
         await delay()
@@ -175,6 +263,35 @@ class ReceptionService {
 
     // ==================== CHECK-IN & QUEUE ====================
     async checkInAppointment({ appointmentId, priority = 'NORMAL', priorityReason = '', notes = '' }, actor) {
+        if (appointmentId && !isNaN(Number(appointmentId))) {
+            const body = {
+                lich_kham_id: Number(appointmentId),
+                ghi_chu: notes || null,
+                ly_do_uu_tien: priority === 'PRIORITY' ? (priorityReason || 'NGUOI_GIA_80') : null,
+            }
+            const res = await http.post('/api/v1/reception/check-in', body)
+            if (res?.data?.data) {
+                const ticket = res.data.data
+                const newQueueEntry = {
+                    id: ticket.id,
+                    ticketNumber: ticket.so_thu_tu_kham ? `#${ticket.so_thu_tu_kham}` : String(ticket.id),
+                    so_thu_tu_kham: ticket.so_thu_tu_kham,
+                    patientId: ticket.benh_nhan_id,
+                    appointmentId: ticket.lich_kham_id,
+                    patientName: ticket.ten_benh_nhan,
+                    phone: ticket.so_dien_thoai,
+                    doctorName: ticket.ten_bac_si,
+                    roomName: ticket.phong_kham,
+                    isWalkIn: false,
+                    checkInTime: getTimeString(),
+                    status: QUEUE_STATUS.WAITING,
+                    priority,
+                    priorityReason,
+                    notes,
+                }
+                return { queueEntry: newQueueEntry, ticket }
+            }
+        }
         await delay()
         const appIndex = this.data.appointments.findIndex((a) => a.id === appointmentId)
         if (appIndex === -1) throw new Error('Không tìm thấy lịch hẹn cần check-in')
@@ -240,7 +357,49 @@ class ReceptionService {
         return { queueEntry: newQueueEntry, appointment }
     }
 
-    async registerWalkIn({ patientId, departmentId, doctorId, roomId, serviceId, priority = 'NORMAL', priorityReason = '', notes = '' }, actor) {
+    async registerWalkIn({ fullName, phone, gender, birthYear, patientId, departmentId, doctorId, roomId, serviceId, priority = 'NORMAL', priorityReason = '', notes = '' }, actor) {
+        // Ưu tiên kết nối Backend API thật (/api/v1/reception/walk-in-quick)
+        try {
+            const body = {
+                ho_ten: fullName || (this.data.patients.find(p => p.id === patientId)?.fullName) || 'Bệnh nhân vãng lai',
+                so_dien_thoai: phone || (this.data.patients.find(p => p.id === patientId)?.phone) || '0900000000',
+                gioi_tinh: gender === 'FEMALE' ? 'Nữ' : gender === 'MALE' ? 'Nam' : 'Khác',
+                nam_sinh: birthYear ? Number(birthYear) : 1990,
+                bac_si_id: doctorId && !isNaN(Number(doctorId)) ? Number(doctorId) : undefined,
+                chuyen_khoa_id: departmentId && !isNaN(Number(departmentId)) ? Number(departmentId) : undefined,
+                ca_kham: new Date().getHours() < 12 ? 'sang' : 'chieu',
+                ly_do_kham: notes || 'Khám bệnh vãng lai',
+                ly_do_uu_tien: priority === 'PRIORITY' ? (priorityReason || 'NGUOI_GIA_80') : null,
+            }
+
+            const res = await http.post('/api/v1/reception/walk-in-quick', body)
+            if (res?.data?.data) {
+                const ticket = res.data.data
+                const newQueueEntry = {
+                    id: ticket.id,
+                    ticketNumber: ticket.so_thu_tu_kham ? `W${ticket.so_thu_tu_kham}` : String(ticket.id),
+                    so_thu_tu_kham: ticket.so_thu_tu_kham,
+                    patientId: ticket.benh_nhan_id,
+                    patientName: ticket.ten_benh_nhan || body.ho_ten,
+                    phone: ticket.so_dien_thoai || body.so_dien_thoai,
+                    doctorName: ticket.ten_bac_si,
+                    roomName: ticket.phong_kham,
+                    isWalkIn: true,
+                    checkInTime: getTimeString(),
+                    status: QUEUE_STATUS.WAITING,
+                    priority,
+                    priorityReason,
+                    notes,
+                }
+                return { queueEntry: newQueueEntry, ticket }
+            }
+        } catch (apiErr) {
+            console.warn('Backend walk-in-quick API error, fallback local storage:', apiErr)
+            if (phone && phone.length === 10) {
+                throw apiErr
+            }
+        }
+
         await delay()
         const queueCount = this.data.queueEntries.length + 1
         const ticketNumber = `W${String(queueCount + 100)}`

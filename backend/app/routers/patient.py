@@ -186,7 +186,7 @@ async def find_lost_patient_code(
         .where(
             or_(
                 NguoiDung.so_dien_thoai.ilike(f"%{keyword}%"),
-                BenhNhan.cccd_so.ilike(f"%{keyword}%"),
+                NguoiDung.cccd_so.ilike(f"%{keyword}%"),
                 NguoiDung.ho_ten.ilike(f"%{keyword}%"),
             )
         )
@@ -201,7 +201,8 @@ async def find_lost_patient_code(
             "so_dien_thoai": nd.so_dien_thoai,
             "ngay_sinh": nd.ngay_sinh.isoformat() if nd.ngay_sinh else None,
             "gioi_tinh": nd.gioi_tinh,
-            "cccd_so": bn.cccd_so,
+            "dia_chi": nd.dia_chi,
+            "cccd_so": nd.cccd_so,
             "nhom_mau": bn.nhom_mau,
         }
         for bn, nd in rows

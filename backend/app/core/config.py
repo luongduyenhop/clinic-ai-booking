@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
+    INITIAL_ADMIN_EMAIL: str = "admin@clinic.com"
+    INITIAL_ADMIN_PASSWORD: Optional[str] = None
 
     # Database
     POSTGRES_SERVER: str = "localhost"

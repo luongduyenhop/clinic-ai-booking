@@ -1,311 +1,489 @@
 import asyncio
-from datetime import date, time, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, Base
 from app.core.security import hash_password
-from app.models.user import ChuyenKhoa, NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
-from app.models.appointment import LichLamViec, LichKham, CaLamViecEnum, TrangThaiLichEnum
-from app.models.medical import TuKhoaCapCuu, DichVu, KhaiNiem, LuotKham, ChanDoan, DonThuoc, ChiTietDonThuoc
+from app.core.seed_5_departments import (
+    DEPARTMENTS_DATA,
+    ROOMS_DATA,
+    DOCTORS_DATA,
+    SPECIFIC_SERVICES,
+)
+from app.core.production_seed import (
+    MASTER_ICD10,
+    MASTER_DRUGS,
+    MASTER_SERVICES,
+)
+from app.models.user import (
+    ChuyenKhoa,
+    PhongKham,
+    NguoiDung,
+    TaiKhoan,
+    BenhNhan,
+    BacSi,
+    VaiTroEnum,
+)
+from app.models.appointment import (
+    LichLamViec,
+    LichKham,
+    CaLamViecEnum,
+    TrangThaiLichEnum,
+)
+from app.models.medical import (
+    TuKhoaCapCuu,
+    DichVu,
+    KhaiNiem,
+    LuotKham,
+    ChanDoan,
+    DonThuoc,
+    ChiTietDonThuoc,
+    Thuoc,
+)
 
 
-async def seed_database():
-    """Khởi tạo tập dữ liệu ban đầu cho toàn bộ 18 bảng CSDL PostgreSQL phòng khám theo chuẩn OpenMRS"""
-    print("🌱 [SEEDING] Đang kết nối PostgreSQL và khởi tạo dữ liệu mẫu...")
+async def _execute_seeding(session):
+    valid_mas = {item["ma"] for item in DEPARTMENTS_DATA}
+    stmt_deactivate_legacy = select(ChuyenKhoa).where(
+        ~ChuyenKhoa.ma_chuyen_khoa.in_(valid_mas),
+        ChuyenKhoa.is_active.is_(True),
+    )
+    legacy_depts = (await session.execute(stmt_deactivate_legacy)).scalars().all()
+    for old_dept in legacy_depts:
+        old_dept.is_active = False
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with AsyncSessionLocal() as session:
-        # 1. Kiểm tra nếu đã có dữ liệu thì không seed đè
-        stmt_check = select(ChuyenKhoa)
-        existing = (await session.execute(stmt_check)).first()
-        if existing:
-            print("⚠️ [SEEDING] CSDL đã có dữ liệu từ trước. Bỏ qua bước seed!")
-            return
-
-        # 2. Seed Danh mục Chuyên khoa (OpenMRS Department)
-        chuyen_khoas = [
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_NOI", ten_chuyen_khoa="Nội tổng quát", mo_ta="Khám và điều trị các bệnh lý nội khoa tổng hợp", vi_tri_phong="Phòng 101 - Tầng 1"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_TIM_MACH", ten_chuyen_khoa="Tim mạch", mo_ta="Chuyên sâu bệnh lý tim, mạch máu và tăng huyết áp", vi_tri_phong="Phòng 201 - Tầng 2"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_TIEU_HOA", ten_chuyen_khoa="Tiêu hóa", mo_ta="Khám dạ dày, đại tràng, gan mật tụy", vi_tri_phong="Phòng 202 - Tầng 2"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_TMH", ten_chuyen_khoa="Tai - Mũi - Họng", mo_ta="Khám và điều trị các bệnh lý tai mũi họng và tiền đình", vi_tri_phong="Phòng 203 - Tầng 2"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_THAN_KINH", ten_chuyen_khoa="Thần kinh", mo_ta="Khám đau đầu mạn tính, mất ngủ, chóng mặt, đột quỵ", vi_tri_phong="Phòng 301 - Tầng 3"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_DA_LIEU", ten_chuyen_khoa="Da liễu", mo_ta="Điều trị dị ứng da, mẩn đỏ, mề đay, nấm da, mụn", vi_tri_phong="Phòng 302 - Tầng 3"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_HO_HAP", ten_chuyen_khoa="Hô hấp", mo_ta="Điều trị ho dai dẳng, hen phế quản, viêm phổi phế quản", vi_tri_phong="Phòng 303 - Tầng 3"),
-            ChuyenKhoa(ma_chuyen_khoa="KHOA_XUONG_KHOP", ten_chuyen_khoa="Cơ xương khớp", mo_ta="Khám đau khớp gối, thoái hóa cột sống, loãng xương", vi_tri_phong="Phòng 401 - Tầng 4"),
-        ]
-        session.add_all(chuyen_khoas)
-        await session.flush()
-
-        # 3. Seed Từ khóa Cấp cứu Nguy hiểm (Red Flags Rules)
-        tu_khoa_cap_cuu = [
-            TuKhoaCapCuu(tu_khoa="đau ngực dữ dội", muc_do_nguy_hiem="rat_nguy_hiem", huong_dan_xu_tri="Nghi ngờ nhồi máu cơ tim cấp. Gọi ngay cấp cứu 115!"),
-            TuKhoaCapCuu(tu_khoa="khó thở cấp", muc_do_nguy_hiem="rat_nguy_hiem", huong_dan_xu_tri="Suy hô hấp cấp tính. Hãy gọi 115 hoặc đưa đến phòng Cấp cứu ngay lập tức."),
-            TuKhoaCapCuu(tu_khoa="ngất xỉu", muc_do_nguy_hiem="nguy_hiem", huong_dan_xu_tri="Mất ý thức đột ngột. Gọi cấp cứu 115 ngay lập tức!"),
-            TuKhoaCapCuu(tu_khoa="co giật", muc_do_nguy_hiem="rat_nguy_hiem", huong_dan_xu_tri="Cơn co giật toàn thân. Cho bệnh nhân nằm nghiêng thông thoáng và gọi 115."),
-            TuKhoaCapCuu(tu_khoa="liệt nửa người", muc_do_nguy_hiem="rat_nguy_hiem", huong_dan_xu_tri="Dấu hiệu đột quỵ não cấp (giờ vàng). Gọi 115 khẩn cấp!"),
-            TuKhoaCapCuu(tu_khoa="nôn ra máu", muc_do_nguy_hiem="rat_nguy_hiem", huong_dan_xu_tri="Xuất huyết tiêu hóa cấp tính. Cần đến bệnh viện cấp cứu ngay!"),
-        ]
-        session.add_all(tu_khoa_cap_cuu)
-
-        # 4. Seed Danh mục Dịch vụ Cận lâm sàng (OpenMRS Medical Service)
-        dich_vus = [
-            DichVu(ma_dich_vu="DV_XN_MAU", ten_dich_vu="Tổng phân tích tế bào máu ngoại vi (18 chỉ số)", don_gia=120000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_XQ_NGUC", ten_dich_vu="Chụp X-quang tim phổi thẳng kỹ thuật số (CR/DR)", don_gia=180000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_SA_BUNG", ten_dich_vu="Siêu âm ổ bụng tổng quát màu Doppler", don_gia=200000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_ECG", ten_dich_vu="Điện tâm đồ (ECG) 12 chuyển đạo", don_gia=100000.00, don_vi_tinh="Lần"),
-            DichVu(ma_dich_vu="DV_NS_TMH", ten_dich_vu="Nội soi Tai - Mũi - Họng ống mềm", don_gia=250000.00, don_vi_tinh="Lần"),
-        ]
-        session.add_all(dich_vus)
-
-        # 5. Seed Từ điển Khái niệm Y tế Chuẩn hóa ICD-10 (OpenMRS Concept Dictionary)
-        khai_niems = [
-            KhaiNiem(ma_khai_niem="I10", ten_khai_niem="Bệnh tăng huyết áp vô căn (nguyên phát)", loai_khai_niem="benh_icd10"),
-            KhaiNiem(ma_khai_niem="K29", ten_khai_niem="Viêm dạ dày và tá tràng", loai_khai_niem="benh_icd10"),
-            KhaiNiem(ma_khai_niem="H81", ten_khai_niem="Rối loạn chức năng tiền đình", loai_khai_niem="benh_icd10"),
-            KhaiNiem(ma_khai_niem="J00", ten_khai_niem="Viêm mũi họng cấp (cảm thường)", loai_khai_niem="benh_icd10"),
-            KhaiNiem(ma_khai_niem="M17", ten_khai_niem="Thoái hóa khớp gối", loai_khai_niem="benh_icd10"),
-        ]
-        session.add_all(khai_niems)
-
-        # 6. Seed Tài khoản Quản trị viên (Admin)
-        nd_admin = NguoiDung(
-            ho_ten="Quản Trị Viên Hệ Thống",
-            email="admin@clinic.com",
-            so_dien_thoai="0988000001",
-            ngay_sinh=date(1990, 1, 1),
-            gioi_tinh="Nam"
-        )
-        session.add(nd_admin)
-        await session.flush()
-
-        tk_admin = TaiKhoan(
-            nguoi_dung_id=nd_admin.id,
-            email="admin@clinic.com",
-            mat_khau_hash=hash_password("Admin@123456"),
-            vai_tro=VaiTroEnum.ADMIN.value,
-            is_active=True
-        )
-        session.add(tk_admin)
-
-        # 6a2. Seed Tài khoản Admin mặc định của Frontend (admin@clinic-ai.vn / password123)
-        nd_fe_admin = NguoiDung(
-            ho_ten="BS.CKII Nguyễn Minh Hoàng (Admin)",
-            email="admin@clinic-ai.vn",
-            so_dien_thoai="0988999001",
-            ngay_sinh=date(1985, 6, 15),
-            gioi_tinh="Nam"
-        )
-        session.add(nd_fe_admin)
-        await session.flush()
-
-        tk_fe_admin = TaiKhoan(
-            nguoi_dung_id=nd_fe_admin.id,
-            email="admin@clinic-ai.vn",
-            mat_khau_hash=hash_password("password123"),
-            vai_tro=VaiTroEnum.ADMIN.value,
-            is_active=True
-        )
-        session.add(tk_fe_admin)
-
-        # 6b. Seed Tài khoản Tiếp đón / Điều dưỡng (Receptionist)
-        nd_letan = NguoiDung(
-            ho_ten="Điều Dưỡng Lê Tân",
-            email="letan@clinic.com",
-            so_dien_thoai="0988000002",
-            ngay_sinh=date(1995, 5, 10),
-            gioi_tinh="Nữ"
-        )
-        session.add(nd_letan)
-        await session.flush()
-
-        tk_letan = TaiKhoan(
-            nguoi_dung_id=nd_letan.id,
-            email="letan@clinic.com",
-            mat_khau_hash=hash_password("LeTan@123456"),
-            vai_tro=VaiTroEnum.LE_TAN.value,
-            is_active=True
-        )
-        session.add(tk_letan)
-
-        # 7. Seed Bác sĩ chuyên khoa mẫu (OpenMRS Providers)
-        bac_si_samples = [
-            ("BS. CKI Nguyễn Văn An", "an.doctor@clinic.com", "0988000101", "BSCKI", chuyen_khoas[1].id, 8, "Chuyên sâu tăng huyết áp và bệnh mạch vành", 250000.00),
-            ("ThS. BS Trần Thị Bích", "bich.doctor@clinic.com", "0988000102", "ThS.BS", chuyen_khoas[2].id, 10, "Chuyên điều trị dạ dày, đại tràng và trào ngược dạ dày thực quản", 200000.00),
-            ("BS. Lê Hoàng Long", "long.doctor@clinic.com", "0988000103", "BS", chuyen_khoas[3].id, 6, "Nội soi TMH và điều trị hội chứng tiền đình", 200000.00),
-            ("PGS.TS Phạm Đức Minh", "minh.doctor@clinic.com", "0988000104", "PGS.TS", chuyen_khoas[0].id, 20, "Trưởng khoa Nội tổng hợp - chuyên gia chẩn đoán bệnh lý mạn tính", 300000.00),
-        ]
-
-        created_doctors = []
-        for name, email, phone, title, ck_id, exp_years, desc, price in bac_si_samples:
-            nd = NguoiDung(ho_ten=name, email=email, so_dien_thoai=phone, ngay_sinh=date(1985, 5, 20), gioi_tinh="Nam")
-            session.add(nd)
-            await session.flush()
-
-            tk = TaiKhoan(
-                nguoi_dung_id=nd.id,
-                email=email,
-                mat_khau_hash=hash_password("Doctor@123456"),
-                vai_tro=VaiTroEnum.BAC_SI.value,
-                is_active=True
+    dept_map = {}
+    for item in DEPARTMENTS_DATA:
+        stmt = select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == item["ma"])
+        existing_ck = (await session.execute(stmt)).scalar_one_or_none()
+        if existing_ck:
+            dept_map[item["ma"]] = existing_ck.id
+        else:
+            new_ck = ChuyenKhoa(
+                ma_chuyen_khoa=item["ma"],
+                ten_chuyen_khoa=item["ten"],
+                mo_ta=item["mo_ta"],
+                vi_tri_phong=item["vi_tri"],
+                is_active=True,
             )
-            session.add(tk)
-
-            bs = BacSi(
-                nguoi_dung_id=nd.id,
-                chuyen_khoa_id=ck_id,
-                hoc_vi=title,
-                chung_chi_hanh_nghe=f"CCHN-{phone}",
-                nam_kinh_nghiem=exp_years,
-                mo_ta_chuyen_sau=desc,
-                gia_kham_mac_dinh=price,
-                is_active=True
-            )
-            session.add(bs)
+            session.add(new_ck)
             await session.flush()
-            created_doctors.append(bs)
+            dept_map[item["ma"]] = new_ck.id
 
-        # 8. Seed Lịch làm việc 14 ngày cho các Bác sĩ (OpenMRS Appointment Blocks)
-        today = date.today()
-        for i in range(14):
-            work_date = today + timedelta(days=i)
-            for bs in created_doctors:
-                # Ca sáng: 07:30 - 11:30 (8 slots 30p)
+    room_map = {}
+    for item in ROOMS_DATA:
+        stmt = select(PhongKham).where(PhongKham.ma_phong == item["ma"])
+        existing_room = (await session.execute(stmt)).scalar_one_or_none()
+        if existing_room:
+            room_map[item["ma"]] = existing_room.id
+        else:
+            dept_id = dept_map.get(item["dept_ma"])
+            new_room = PhongKham(
+                ma_phong=item["ma"],
+                ten_phong=item["ten"],
+                chuyen_khoa_id=dept_id,
+                tang=item["tang"],
+                loai_phong=item["loai"],
+                is_active=True,
+            )
+            session.add(new_room)
+            await session.flush()
+            room_map[item["ma"]] = new_room.id
+
+    red_flags_data = [
+        ("đau ngực dữ dội", "rat_nguy_hiem", "Nghi ngờ nhồi máu cơ tim cấp. Gọi ngay cấp cứu 115!"),
+        ("khó thở cấp", "rat_nguy_hiem", "Suy hô hấp cấp tính. Hãy gọi 115 hoặc đưa đến phòng Cấp cứu ngay lập tức."),
+        ("ngất xỉu", "nguy_hiem", "Mất ý thức đột ngột. Gọi cấp cứu 115 ngay lập tức!"),
+        ("co giật", "rat_nguy_hiem", "Cơn co giật toàn thân. Cho bệnh nhân nằm nghiêng thông thoáng và gọi 115."),
+        ("liệt nửa người", "rat_nguy_hiem", "Dấu hiệu đột quỵ não cấp (giờ vàng). Gọi 115 khẩn cấp!"),
+        ("nôn ra máu", "rat_nguy_hiem", "Xuất huyết tiêu hóa cấp tính. Cần đến bệnh viện cấp cứu ngay!"),
+    ]
+    for keyword, severity, guide in red_flags_data:
+        stmt = select(TuKhoaCapCuu).where(TuKhoaCapCuu.tu_khoa == keyword)
+        existing_rf = (await session.execute(stmt)).scalar_one_or_none()
+        if not existing_rf:
+            session.add(
+                TuKhoaCapCuu(
+                    tu_khoa=keyword,
+                    muc_do_nguy_hiem=severity,
+                    huong_dan_xu_tri=guide,
+                )
+            )
+
+    stmt_icd = select(KhaiNiem.ma_khai_niem)
+    existing_icds = set((await session.execute(stmt_icd)).scalars().all())
+    for code, name, concept_type in MASTER_ICD10:
+        if code not in existing_icds:
+            session.add(
+                KhaiNiem(
+                    ma_khai_niem=code,
+                    ten_khai_niem=name,
+                    loai_khai_niem=concept_type,
+                    is_active=True,
+                )
+            )
+            existing_icds.add(code)
+
+    stmt_drugs = select(Thuoc.ma_thuoc_noi_bo)
+    existing_drugs = set((await session.execute(stmt_drugs)).scalars().all())
+    for code, name, act, strength, unit, route, _ in MASTER_DRUGS:
+        if code not in existing_drugs:
+            session.add(
+                Thuoc(
+                    ma_thuoc_noi_bo=code,
+                    ten_thuoc=name,
+                    hoat_chat=act,
+                    ham_luong=strength,
+                    don_vi_tinh=unit,
+                    duong_dung=route,
+                    trang_thai_danh_muc="DA_DUYET",
+                    is_active=True,
+                )
+            )
+            existing_drugs.add(code)
+
+    stmt_all_services = select(DichVu)
+    existing_services_list = (await session.execute(stmt_all_services)).scalars().all()
+    service_map = {svc.ma_dich_vu: svc for svc in existing_services_list}
+
+    for s in SPECIFIC_SERVICES:
+        code = s["ma"]
+        dept_id = dept_map.get(s["dept_ma"])
+        if code not in service_map:
+            new_svc = DichVu(
+                ma_dich_vu=code,
+                ten_dich_vu=s["ten"],
+                don_gia=s["gia"],
+                don_vi_tinh=s["dvt"],
+                chuyen_khoa_id=dept_id,
+                is_active=True,
+            )
+            session.add(new_svc)
+            service_map[code] = new_svc
+
+    for code, name, price, unit, category in MASTER_SERVICES:
+        if code not in service_map:
+            room_id = room_map.get("LAB01") if category == "XN" else (room_map.get("CDHA01") if category in ["CDHA", "TDCN"] else None)
+            new_svc = DichVu(
+                ma_dich_vu=code,
+                ten_dich_vu=name,
+                don_gia=price,
+                don_vi_tinh=unit,
+                ma_nhom_byt=category,
+                phong_thuc_hien_id=room_id,
+                is_active=True,
+            )
+            session.add(new_svc)
+            service_map[code] = new_svc
+
+    await session.flush()
+
+    is_dev_or_test = settings.ENVIRONMENT.lower() in ("development", "test", "local") or settings.DEBUG
+
+    if is_dev_or_test:
+        system_staff = [
+            ("Quản Trị Viên Hệ Thống", "admin@clinic.com", "0988000001", "Admin@123456", VaiTroEnum.ADMIN.value),
+            ("BS.CKII Nguyễn Minh Hoàng (Admin)", "admin@clinic-ai.vn", "0988999001", "password123", VaiTroEnum.ADMIN.value),
+            ("Điều Dưỡng Lê Tân", "letan@clinic.com", "0988000002", "LeTan@123456", VaiTroEnum.LE_TAN.value),
+            ("Kỹ Thuật Viên Xét Nghiệm & CĐHA", "ktv@clinic.com", "0988000003", "Ktv@123456", VaiTroEnum.KY_THUAT_VIEN.value),
+            ("Thu Ngân Viện Phí", "thungan@clinic.com", "0988000004", "ThuNgan@123456", VaiTroEnum.THU_NGAN.value),
+        ]
+        for name, email, phone, pwd, role in system_staff:
+            stmt_user = select(NguoiDung).where(NguoiDung.email == email)
+            user = (await session.execute(stmt_user)).scalar_one_or_none()
+            if not user:
+                user = NguoiDung(
+                    ho_ten=name,
+                    email=email,
+                    so_dien_thoai=phone,
+                    ngay_sinh=date(1990, 1, 1),
+                    gioi_tinh="Nam" if "Nguyễn" in name or "Lê" not in name else "Nữ",
+                )
+                session.add(user)
+                await session.flush()
+
+            stmt_account = select(TaiKhoan).where(TaiKhoan.email == email)
+            account = (await session.execute(stmt_account)).scalar_one_or_none()
+            if not account:
+                account = TaiKhoan(
+                    nguoi_dung_id=user.id,
+                    email=email,
+                    mat_khau_hash=hash_password(pwd),
+                    vai_tro=role,
+                    is_active=True,
+                )
+                session.add(account)
+    else:
+        stmt_admin_check = select(TaiKhoan).where(TaiKhoan.vai_tro == VaiTroEnum.ADMIN.value)
+        has_admin = (await session.execute(stmt_admin_check)).first() is not None
+        if not has_admin and settings.INITIAL_ADMIN_PASSWORD:
+            admin_email = settings.INITIAL_ADMIN_EMAIL or "admin@clinic.com"
+            stmt_user = select(NguoiDung).where(NguoiDung.email == admin_email)
+            user = (await session.execute(stmt_user)).scalar_one_or_none()
+            if not user:
+                user = NguoiDung(
+                    ho_ten="Quản Trị Viên Hệ Thống",
+                    email=admin_email,
+                    so_dien_thoai="0988000001",
+                    ngay_sinh=date(1990, 1, 1),
+                    gioi_tinh="Nam",
+                )
+                session.add(user)
+                await session.flush()
+            session.add(
+                TaiKhoan(
+                    nguoi_dung_id=user.id,
+                    email=admin_email,
+                    mat_khau_hash=hash_password(settings.INITIAL_ADMIN_PASSWORD),
+                    vai_tro=VaiTroEnum.ADMIN.value,
+                    is_active=True,
+                )
+            )
+
+    created_doctors = []
+    if is_dev_or_test:
+        for doc in DOCTORS_DATA:
+            stmt_user = select(NguoiDung).where(NguoiDung.email == doc["email"])
+            user = (await session.execute(stmt_user)).scalar_one_or_none()
+            if not user:
+                user = NguoiDung(
+                    ho_ten=doc["ho_ten"],
+                    email=doc["email"],
+                    so_dien_thoai=doc["sdt"],
+                    ngay_sinh=date(1982, 6, 15),
+                    gioi_tinh="Nam" if any(w in doc["ho_ten"] for w in ["Minh", "Hoàng", "Phương", "Long", "Huy"]) else "Nữ",
+                    dia_chi="Hà Nội",
+                )
+                session.add(user)
+                await session.flush()
+
+            stmt_account = select(TaiKhoan).where(TaiKhoan.email == doc["email"])
+            account = (await session.execute(stmt_account)).scalar_one_or_none()
+            if not account:
+                account = TaiKhoan(
+                    nguoi_dung_id=user.id,
+                    email=doc["email"],
+                    mat_khau_hash=hash_password("Doctor@123456"),
+                    vai_tro=VaiTroEnum.BAC_SI.value,
+                    is_active=True,
+                )
+                session.add(account)
+
+            dept_id = dept_map.get(doc["dept_ma"])
+            room_id = room_map.get(doc["room_ma"])
+            stmt_doctor = select(BacSi).where(BacSi.nguoi_dung_id == user.id)
+            doctor = (await session.execute(stmt_doctor)).scalar_one_or_none()
+            if doctor:
+                if doctor.phong_kham_id is None and room_id is not None:
+                    doctor.phong_kham_id = room_id
+            else:
+                doctor = BacSi(
+                    nguoi_dung_id=user.id,
+                    chuyen_khoa_id=dept_id,
+                    phong_kham_id=room_id,
+                    hoc_vi=doc["hoc_vi"],
+                    chung_chi_hanh_nghe=f"CCHN-{doc['sdt']}",
+                    nam_kinh_nghiem=doc["kinh_nghiem"],
+                    mo_ta_chuyen_sau=doc["mo_ta"],
+                    gia_kham_mac_dinh=doc["gia_kham"],
+                    is_active=True,
+                )
+                session.add(doctor)
+                await session.flush()
+            created_doctors.append(doctor)
+    else:
+        stmt_all_docs = select(BacSi)
+        created_doctors = list((await session.execute(stmt_all_docs)).scalars().all())
+
+    today = date.today()
+    for i in range(14):
+        work_date = today + timedelta(days=i)
+        for doctor in created_doctors:
+            if not doctor.phong_kham_id:
+                continue
+
+            stmt_morning = select(LichLamViec).where(
+                LichLamViec.bac_si_id == doctor.id,
+                LichLamViec.ngay_lam_viec == work_date,
+                LichLamViec.ca_lam_viec == CaLamViecEnum.SANG.value,
+            )
+            morning_shift = (await session.execute(stmt_morning)).scalar_one_or_none()
+            if morning_shift:
+                if morning_shift.phong_kham_id is None:
+                    morning_shift.phong_kham_id = doctor.phong_kham_id
+            else:
                 session.add(
                     LichLamViec(
-                        bac_si_id=bs.id,
+                        bac_si_id=doctor.id,
+                        phong_kham_id=doctor.phong_kham_id,
                         ngay_lam_viec=work_date,
                         ca_lam_viec=CaLamViecEnum.SANG.value,
                         gio_bat_dau=time(7, 30),
                         gio_ket_thuc=time(11, 30),
                         gioi_han_ca_kham=8,
-                        is_active=True
+                        han_muc_dat_truoc=6,
+                        han_muc_vang_lai=2,
+                        is_active=True,
                     )
                 )
-                # Ca chiều: 13:30 - 17:00 (7 slots 30p)
+
+            stmt_afternoon = select(LichLamViec).where(
+                LichLamViec.bac_si_id == doctor.id,
+                LichLamViec.ngay_lam_viec == work_date,
+                LichLamViec.ca_lam_viec == CaLamViecEnum.CHIEU.value,
+            )
+            afternoon_shift = (await session.execute(stmt_afternoon)).scalar_one_or_none()
+            if afternoon_shift:
+                if afternoon_shift.phong_kham_id is None:
+                    afternoon_shift.phong_kham_id = doctor.phong_kham_id
+            else:
                 session.add(
                     LichLamViec(
-                        bac_si_id=bs.id,
+                        bac_si_id=doctor.id,
+                        phong_kham_id=doctor.phong_kham_id,
                         ngay_lam_viec=work_date,
                         ca_lam_viec=CaLamViecEnum.CHIEU.value,
                         gio_bat_dau=time(13, 30),
                         gio_ket_thuc=time(17, 0),
                         gioi_han_ca_kham=7,
-                        is_active=True
+                        han_muc_dat_truoc=5,
+                        han_muc_vang_lai=2,
+                        is_active=True,
                     )
                 )
 
-        # 9. Seed Bệnh nhân mẫu sẵn sàng test (OpenMRS Patient)
-        nd_patient = NguoiDung(
-            ho_ten="Nguyễn Thị Bệnh Nhân",
-            email="patient@test.com",
-            so_dien_thoai="0912345678",
-            ngay_sinh=date(1998, 10, 15),
-            gioi_tinh="Nữ",
-            dia_chi="Cầu Giấy, Hà Nội"
-        )
-        session.add(nd_patient)
-        await session.flush()
+    if is_dev_or_test:
+        patient_email = "patient@test.com"
+        stmt_pt_user = select(NguoiDung).where(NguoiDung.email == patient_email)
+        patient_user = (await session.execute(stmt_pt_user)).scalar_one_or_none()
+        if not patient_user:
+            patient_user = NguoiDung(
+                ho_ten="Nguyễn Thị Bệnh Nhân",
+                email=patient_email,
+                so_dien_thoai="0912345678",
+                ngay_sinh=date(1998, 10, 15),
+                gioi_tinh="Nữ",
+                dia_chi="Cầu Giấy, Hà Nội",
+            )
+            session.add(patient_user)
+            await session.flush()
 
-        tk_patient = TaiKhoan(
-            nguoi_dung_id=nd_patient.id,
-            email="patient@test.com",
-            mat_khau_hash=hash_password("Patient@123456"),
-            vai_tro=VaiTroEnum.BENH_NHAN.value,
-            is_active=True
-        )
-        session.add(tk_patient)
+        stmt_pt_account = select(TaiKhoan).where(TaiKhoan.email == patient_email)
+        patient_account = (await session.execute(stmt_pt_account)).scalar_one_or_none()
+        if not patient_account:
+            patient_account = TaiKhoan(
+                nguoi_dung_id=patient_user.id,
+                email=patient_email,
+                mat_khau_hash=hash_password("Patient@123456"),
+                vai_tro=VaiTroEnum.BENH_NHAN.value,
+                is_active=True,
+            )
+            session.add(patient_account)
 
-        bn_profile = BenhNhan(
-            nguoi_dung_id=nd_patient.id,
-            ma_dinh_danh_y_te="BN-2026-0001",
-            nhom_mau="O+",
-            tien_su_benh="Viêm dạ dày nhẹ",
-            di_ung_thuoc="Dị ứng Penicillin",
-            diem_tin_nhiem=100,
-            so_lan_no_show=0
-        )
-        session.add(bn_profile)
-        await session.flush()
+        stmt_patient = select(BenhNhan).where(BenhNhan.nguoi_dung_id == patient_user.id)
+        patient_profile = (await session.execute(stmt_patient)).scalar_one_or_none()
+        if not patient_profile:
+            patient_profile = BenhNhan(
+                nguoi_dung_id=patient_user.id,
+                ma_dinh_danh_y_te="BN-2026-0001",
+                nhom_mau="O+",
+                tien_su_benh="Viêm dạ dày nhẹ",
+                di_ung_thuoc="Dị ứng Penicillin",
+                diem_tin_nhiem=100,
+                so_lan_no_show=0,
+            )
+            session.add(patient_profile)
+            await session.flush()
 
-        # 10. Seed 1 Lịch khám & Phiên khám mẫu hoàn chỉnh (OpenMRS Encounter + Diagnosis + Prescription)
-        lich_mau = LichKham(
-            ma_lich_kham="LK-20260918-01001",
-            benh_nhan_id=bn_profile.id,
-            bac_si_id=created_doctors[0].id,
-            ngay_kham=today - timedelta(days=2),
-            gio_kham=time(8, 30),
-            so_thu_tu=1,
-            ly_do_kham="Hồi hộp, tức ngực trái khi gắng sức",
-            trieu_chung_ban_dau="Thỉnh thoảng đau nhói ngực trái, hồi hộp",
-            trang_thai=TrangThaiLichEnum.DA_KHAM.value,
-            is_reconfirmed_24h=True
-        )
-        session.add(lich_mau)
-        await session.flush()
+        sample_appointment_code = "LK-20260918-01001"
+        stmt_sample_app = select(LichKham).where(LichKham.ma_lich_kham == sample_appointment_code)
+        sample_app = (await session.execute(stmt_sample_app)).scalar_one_or_none()
+        if not sample_app and created_doctors:
+            sample_app = LichKham(
+                ma_lich_kham=sample_appointment_code,
+                benh_nhan_id=patient_profile.id,
+                bac_si_id=created_doctors[0].id,
+                ngay_kham=today - timedelta(days=2),
+                gio_kham=time(8, 30),
+                so_thu_tu=1,
+                ly_do_kham="Hồi hộp, tức ngực trái khi gắng sức",
+                trieu_chung_ban_dau="Thỉnh thoảng đau nhói ngực trái, hồi hộp",
+                trang_thai=TrangThaiLichEnum.DA_KHAM.value,
+                is_reconfirmed_24h=True,
+            )
+            session.add(sample_app)
+            await session.flush()
 
-        # Phiên khám thực tế (Encounter)
-        luot_kham_mau = LuotKham(
-            lich_kham_id=lich_mau.id,
-            bac_si_id=created_doctors[0].id,
-            benh_nhan_id=bn_profile.id,
-            thoi_gian_bat_dau=datetime.now(timezone.utc) - timedelta(days=2, hours=3),
-            thoi_gian_ket_thuc=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=30),
-            ly_do_vao_kham="Đau nhói ngực trái, mệt khi leo cầu thang",
-            benh_su="Bị khoảng 1 tuần nay, không sốt, không khó thở khi nghỉ",
-            mach_lan_phut=78,
-            nhiet_do_c=36.8,
-            huyet_ap_tam_thu=135,
-            huyet_ap_tam_truong=85,
-            ket_luan_dieu_tri="Theo dõi tăng huyết áp độ 1, rối loạn thần kinh tim",
-            loi_dan_bac_si="Hạn chế ăn mặn, tập thể dục nhẹ nhàng, tái khám sau 2 tuần",
-            ngay_hen_tai_kham=today + timedelta(days=12),
-            is_locked=True,
-            thoi_gian_khoa=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=30)
-        )
-        session.add(luot_kham_mau)
-        await session.flush()
+            encounter = LuotKham(
+                lich_kham_id=sample_app.id,
+                bac_si_id=created_doctors[0].id,
+                benh_nhan_id=patient_profile.id,
+                thoi_gian_bat_dau=datetime.now(timezone.utc) - timedelta(days=2, hours=3),
+                thoi_gian_ket_thuc=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=30),
+                ly_do_vao_kham="Đau nhói ngực trái, mệt khi leo cầu thang",
+                benh_su="Bị khoảng 1 tuần nay, không sốt, không khó thở khi nghỉ",
+                mach_lan_phut=78,
+                nhiet_do_c=36.8,
+                huyet_ap_tam_thu=135,
+                huyet_ap_tam_truong=85,
+                ket_luan_dieu_tri="Theo dõi tăng huyết áp độ 1, rối loạn thần kinh tim",
+                loi_dan_bac_si="Hạn chế ăn mặn, tập thể dục nhẹ nhàng, tái khám sau 2 tuần",
+                ngay_hen_tai_kham=today + timedelta(days=12),
+                is_locked=True,
+                thoi_gian_khoa=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=30),
+            )
+            session.add(encounter)
+            await session.flush()
 
-        # Chẩn đoán ICD-10 gắn vào phiên khám
-        chan_doan_mau = ChanDoan(
-            luot_kham_id=luot_kham_mau.id,
-            khai_niem_id=khai_niems[0].id,
-            ma_icd10="I10",
-            ten_benh_chan_doan="Bệnh tăng huyết áp vô căn (nguyên phát)",
-            loai_chan_doan="chinh"
-        )
-        session.add(chan_doan_mau)
+            stmt_concept = select(KhaiNiem).where(KhaiNiem.ma_khai_niem == "I10")
+            concept = (await session.execute(stmt_concept)).scalar_one_or_none()
+            if concept:
+                session.add(
+                    ChanDoan(
+                        luot_kham_id=encounter.id,
+                        khai_niem_id=concept.id,
+                        ma_icd10="I10",
+                        ten_benh_chan_doan="Bệnh tăng huyết áp vô căn (nguyên phát)",
+                        loai_chan_doan="chinh",
+                    )
+                )
 
-        # Đơn thuốc mẫu kèm chi tiết
-        don_thuoc_mau = DonThuoc(
-            luot_kham_id=luot_kham_mau.id,
-            bac_si_ke_don_id=created_doctors[0].id,
-            ngay_ke_don=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=35),
-            loi_dan_uong_thuoc="Uống thuốc đều đặn vào buổi sáng sau ăn no"
-        )
-        session.add(don_thuoc_mau)
-        await session.flush()
+            prescription = DonThuoc(
+                luot_kham_id=encounter.id,
+                bac_si_ke_don_id=created_doctors[0].id,
+                ngay_ke_don=datetime.now(timezone.utc) - timedelta(days=2, hours=2, minutes=35),
+                loi_dan_uong_thuoc="Uống thuốc đều đặn vào buổi sáng sau ăn no",
+            )
+            session.add(prescription)
+            await session.flush()
 
-        thuoc_1 = ChiTietDonThuoc(
-            don_thuoc_id=don_thuoc_mau.id,
-            ten_thuoc="Amlodipine 5mg",
-            hoat_chat="Amlodipine besylate",
-            ham_luong="5mg",
-            don_vi_tinh="Viên",
-            so_luong=14,
-            cach_dung="Sáng 1 viên sau ăn",
-            so_ngay_dung=14
-        )
-        session.add(thuoc_1)
+            session.add(
+                ChiTietDonThuoc(
+                    don_thuoc_id=prescription.id,
+                    ten_thuoc="Amlodipine 5mg",
+                    hoat_chat="Amlodipine besylate",
+                    ham_luong="5mg",
+                    don_vi_tinh="Viên",
+                    so_luong=14,
+                    cach_dung="Sáng 1 viên sau ăn",
+                    so_ngay_dung=14,
+                )
+            )
 
-        await session.commit()
-        print("✅ [SEEDING COMPLETED] Đã khởi tạo thành công trọn vẹn 18 bảng CSDL chuẩn OpenMRS:")
-        print("   - 8 Chuyên khoa + 6 Từ khóa Red Flags + 5 Dịch vụ + 5 Khái niệm ICD-10")
-        print("   - 4 Bác sĩ chuyên khoa + Lịch trực 14 ngày (sáng/chiều)")
-        print("   - 1 Ca khám mẫu + Đơn thuốc + Chẩn đoán ICD-10 (Read-only)")
-        print("   - Tài khoản Admin:      admin@clinic.com   / Admin@123456")
-        print("   - Tài khoản Bác sĩ:     an.doctor@clinic.com / Doctor@123456")
-        print("   - Tài khoản Bệnh nhân:  patient@test.com   / Patient@123456")
+    await session.flush()
+
+
+async def seed_database(session=None):
+    if session is not None:
+        await _execute_seeding(session)
+        return
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSessionLocal() as db_sess:
+        await _execute_seeding(db_sess)
+        await db_sess.commit()
 
 
 if __name__ == "__main__":

@@ -233,7 +233,7 @@ async def seed_production_catalogs(session):
                 ham_luong=hl,
                 don_vi_tinh=dvt,
                 duong_dung=hd,
-                don_gia_niem_yet=gia,
+                trang_thai_danh_muc="DA_DUYET",
                 is_active=True
             ))
             existing_thuocs.add(ma)

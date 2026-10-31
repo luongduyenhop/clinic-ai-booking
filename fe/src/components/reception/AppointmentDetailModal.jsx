@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { Modal, Tag, Descriptions, Button, Input, Select, DatePicker, message, Alert } from 'antd'
-import { useSelector, useDispatch } from 'react-redux'
+import { Modal, Tag, Descriptions, Button, Input, DatePicker, message, Alert } from 'antd'
+import { useDispatch, useSelector } from 'react-redux'
 import dayjs from 'dayjs'
-import { updateAppointmentAsync, cancelAppointmentAsync } from '../../redux/slices/reception/receptionSlice'
-import { APPOINTMENT_STATUS, APPOINTMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
+import { updateAppointmentAsync, cancelAppointmentAsync } from '../../redux/actions/reception/receptionAction'
+import { APPOINTMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
 
 export default function AppointmentDetailModal({ appointment, open, onClose, onCheckInClick }) {
     const dispatch = useDispatch()
-    const { patients, departments, doctors, rooms, services, activeRole } = useSelector((state) => state.reception)
+    const { patients, departments, doctors, rooms, services } = useSelector((state) => state.reception)
 
     const [isCancelling, setIsCancelling] = useState(false)
     const [cancelReason, setCancelReason] = useState('')
@@ -20,15 +20,24 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
     if (!appointment) return null
 
-    const patient = patients.find((p) => p.id === appointment.patientId)
-    const department = departments.find((d) => d.id === appointment.departmentId)
-    const doctor = doctors.find((d) => d.id === appointment.doctorId)
+    const patient = patients.find((p) => p.id === (appointment.patientId || appointment.benh_nhan_id))
+    const department = departments.find((d) => d.id === (appointment.departmentId || appointment.chuyen_khoa_id))
+    const doctor = doctors.find((d) => d.id === (appointment.doctorId || appointment.bac_si_id))
     const room = rooms.find((r) => r.id === appointment.roomId)
     const service = services.find((s) => s.id === appointment.serviceId)
 
-    const statusConfig = APPOINTMENT_STATUS_LABELS[appointment.status] || { label: appointment.status, color: 'default' }
-    const canCheckIn = appointment.status === APPOINTMENT_STATUS.BOOKED || appointment.status === APPOINTMENT_STATUS.CONFIRMED
-    const canCancel = appointment.status !== APPOINTMENT_STATUS.CANCELLED && appointment.status !== APPOINTMENT_STATUS.CHECKED_IN
+    const rawSt = String(appointment.status || appointment.trang_thai_lich || '').toLowerCase()
+    const statusConfig = APPOINTMENT_STATUS_LABELS[rawSt] || APPOINTMENT_STATUS_LABELS[rawSt.toUpperCase()] || { label: appointment.status || 'Chờ khám', color: 'default' }
+    const canCheckIn = rawSt === 'da_dat' || rawSt === 'booked' || rawSt === 'confirmed' || rawSt === 'da_xac_nhan' || rawSt === 'cho_xac_nhan'
+    const canCancel = rawSt !== 'cancelled' && rawSt !== 'da_huy' && rawSt !== 'checked_in' && rawSt !== 'da_den' && rawSt !== 'da_tiep_nhan'
+
+    const patientName = appointment.ten_benh_nhan || patient?.fullName || 'N/A'
+    const patientPhone = appointment.so_dien_thoai || patient?.phone || 'N/A'
+    const depName = appointment.ten_chuyen_khoa || department?.name || 'N/A'
+    const docName = appointment.ten_bac_si || doctor?.name || 'Theo phân bổ'
+    const roomName = appointment.phong_kham || room?.name || 'Theo phân bổ ca'
+    const appDate = appointment.appointmentDate || appointment.ngay_kham
+    const appTime = appointment.timeSlot || appointment.gio_kham
 
     const handleConfirmCancel = async () => {
         if (!cancelReason.trim()) {
@@ -210,36 +219,36 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                 {/* Patient Information */}
                 <Descriptions title="Thông tin người bệnh" bordered size="small" column={{ xs: 1, sm: 2 }}>
-                    <Descriptions.Item label="Mã bệnh nhân">{patient?.patientCode || 'N/A'}</Descriptions.Item>
+                    <Descriptions.Item label="Mã bệnh nhân">{patient?.patientCode || (appointment.benh_nhan_id ? `BN-${appointment.benh_nhan_id}` : 'N/A')}</Descriptions.Item>
                     <Descriptions.Item label="Họ và tên">
-                        <span className="font-bold text-slate-900">{patient?.fullName || 'N/A'}</span>
+                        <span className="font-bold text-slate-900">{patientName}</span>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Số điện thoại">{patient?.phone || 'N/A'}</Descriptions.Item>
+                    <Descriptions.Item label="Số điện thoại">{patientPhone}</Descriptions.Item>
                     <Descriptions.Item label="CCCD/Định danh">{patient?.identityCard || 'Chưa có'}</Descriptions.Item>
                     <Descriptions.Item label="Ngày sinh">
                         {patient?.dob ? dayjs(patient.dob).format('DD/MM/YYYY') : 'N/A'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Đối tượng khám">
-                        <span className="font-semibold text-slate-700">Khám dịch vụ tư nhân (100%)</span>
+                        <span className="font-semibold text-slate-700">Khám theo lịch hẹn đặt trước</span>
                     </Descriptions.Item>
                 </Descriptions>
 
                 {/* Appointment Information */}
                 <Descriptions title="Thông tin khám & Dịch vụ" bordered size="small" column={{ xs: 1, sm: 2 }}>
-                    <Descriptions.Item label="Ngày khám">{appointment.appointmentDate}</Descriptions.Item>
+                    <Descriptions.Item label="Ngày khám">{appDate}</Descriptions.Item>
                     <Descriptions.Item label="Khung giờ khám">
-                        <span className="font-bold text-sky-700">{appointment.timeSlot}</span>
+                        <span className="font-bold text-sky-700">{appTime}</span>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Chuyên khoa">{department?.name || 'N/A'}</Descriptions.Item>
+                    <Descriptions.Item label="Chuyên khoa">{depName}</Descriptions.Item>
                     <Descriptions.Item label="Bác sĩ phụ trách">
-                        <span className="font-medium">{doctor?.name || 'N/A'}</span>
+                        <span className="font-medium">{docName}</span>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Phòng khám dự kiến">{room?.name || 'N/A'}</Descriptions.Item>
+                    <Descriptions.Item label="Phòng khám dự kiến">{roomName}</Descriptions.Item>
                     <Descriptions.Item label="Dịch vụ yêu cầu">
-                        {service?.name || 'Khám bệnh'} ({formatCurrency(service?.price || 0)})
+                        {service?.name || 'Khám bệnh chuyên khoa'} ({formatCurrency(service?.price || 150000)})
                     </Descriptions.Item>
                     <Descriptions.Item label="Kênh đăng ký">
-                        <Tag>{appointment.type || 'ONLINE'}</Tag>
+                        <Tag color="cyan">{appointment.type || 'Cổng Bệnh nhân (An)'}</Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Ghi chú người bệnh">
                         {appointment.notes || 'Không có ghi chú'}

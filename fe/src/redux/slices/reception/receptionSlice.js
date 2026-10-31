@@ -1,119 +1,18 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { receptionService } from '../../../services/reception/receptionService'
+import { createSlice } from '@reduxjs/toolkit'
+import {
+    fetchReceptionDataAsync,
+    resetReceptionDataAsync,
+    switchReceptionRoleAsync,
+    fetchFlowBoardAsync,
+    fetchAppointmentsAsync,
+    checkInAppointmentAsync,
+    registerWalkInQuickAsync,
+    registerWalkInAsync,
+    searchPatientsAsync,
+} from '../../actions/reception/receptionAction'
 
-export const fetchReceptionDataAsync = createAsyncThunk('reception/fetchAll', async () => {
-    return await receptionService.fetchAllData()
-})
-
-export const resetReceptionDataAsync = createAsyncThunk('reception/resetAll', async () => {
-    return await receptionService.resetAllData()
-})
-
-export const switchReceptionRoleAsync = createAsyncThunk('reception/switchRole', async (role) => {
-    return await receptionService.switchRole(role)
-})
-
-export const createAppointmentAsync = createAsyncThunk('reception/createAppointment', async ({ payload, actor }, { dispatch }) => {
-    const res = await receptionService.createAppointment(payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const updateAppointmentAsync = createAsyncThunk('reception/updateAppointment', async ({ id, updates, actor }, { dispatch }) => {
-    const res = await receptionService.updateAppointment(id, updates, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const cancelAppointmentAsync = createAsyncThunk('reception/cancelAppointment', async ({ id, reason, actor }, { dispatch }) => {
-    const res = await receptionService.cancelAppointment(id, reason, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const checkInAppointmentAsync = createAsyncThunk('reception/checkInAppointment', async ({ payload, actor }, { dispatch }) => {
-    const res = await receptionService.checkInAppointment(payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const registerWalkInAsync = createAsyncThunk('reception/registerWalkIn', async ({ payload, actor }, { dispatch }) => {
-    const res = await receptionService.registerWalkIn(payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const callQueueEntryAsync = createAsyncThunk('reception/callQueue', async ({ queueId, actor }, { dispatch }) => {
-    const res = await receptionService.callQueueEntry(queueId, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const markAbsentAsync = createAsyncThunk('reception/markAbsent', async ({ queueId, actor }, { dispatch }) => {
-    const res = await receptionService.markAbsent(queueId, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const deferQueueEntryAsync = createAsyncThunk('reception/deferQueue', async ({ queueId, reason, actor }, { dispatch }) => {
-    const res = await receptionService.deferQueueEntry(queueId, reason, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const resumeQueueEntryAsync = createAsyncThunk('reception/resumeQueue', async ({ queueId, actor }, { dispatch }) => {
-    const res = await receptionService.resumeQueueEntry(queueId, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const transferRoomAsync = createAsyncThunk('reception/transferRoom', async ({ queueId, updates, actor }, { dispatch }) => {
-    const res = await receptionService.transferRoom(queueId, updates, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const reorderQueueAsync = createAsyncThunk('reception/reorderQueue', async ({ queueId, payload, actor }, { dispatch }) => {
-    const res = await receptionService.reorderQueue(queueId, payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const cancelQueueEntryAsync = createAsyncThunk('reception/cancelQueue', async ({ queueId, reason, actor }, { dispatch }) => {
-    const res = await receptionService.cancelQueueEntry(queueId, reason, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const emergencyHandoverAsync = createAsyncThunk('reception/emergencyHandover', async ({ payload, actor }, { dispatch }) => {
-    const res = await receptionService.emergencyHandover(payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const createPatientAsync = createAsyncThunk('reception/createPatient', async ({ payload, actor }, { dispatch }) => {
-    const res = await receptionService.createPatient(payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const updatePatientAsync = createAsyncThunk('reception/updatePatient', async ({ id, updates, actor }, { dispatch }) => {
-    const res = await receptionService.updatePatient(id, updates, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const resolveTaskAsync = createAsyncThunk('reception/resolveTask', async ({ taskId, resolutionNote, actor }, { dispatch }) => {
-    const res = await receptionService.resolveTask(taskId, resolutionNote, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
-
-export const updateInvoiceStatusAsync = createAsyncThunk('reception/updateInvoice', async ({ invoiceId, payload, actor }, { dispatch }) => {
-    const res = await receptionService.updateInvoiceStatus(invoiceId, payload, actor)
-    dispatch(fetchReceptionDataAsync())
-    return res
-})
+// Re-export all actions for seamless backward compatibility
+export * from '../../actions/reception/receptionAction'
 
 const initialState = {
     departments: [],
@@ -121,13 +20,30 @@ const initialState = {
     rooms: [],
     services: [],
     patients: [],
+    patientPagination: {
+        page: 1,
+        pageSize: 15,
+        totalItems: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+    },
     appointments: [],
+    appointmentsPagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+    },
     queueEntries: [],
     tasks: [],
     auditLogs: [],
     invoices: [],
     activeRole: 'RECEPTIONIST',
     loading: false,
+    queueLoading: false,
     error: null,
     isInitialized: false,
 }
@@ -139,21 +55,131 @@ const receptionSlice = createSlice({
         setActiveRoleLocally: (state, action) => {
             state.activeRole = action.payload
         },
+        clearReceptionError: (state) => {
+            state.error = null
+        },
     },
     extraReducers: (builder) => {
         builder
+            // ── Khởi tạo toàn bộ dữ liệu ──────────────────────────────
             .addCase(fetchReceptionDataAsync.pending, (state) => {
                 if (!state.isInitialized) state.loading = true
+                state.error = null
             })
             .addCase(fetchReceptionDataAsync.fulfilled, (state, action) => {
                 state.loading = false
                 state.isInitialized = true
-                Object.assign(state, action.payload)
+                if (action.payload) {
+                    if (action.payload.departments) state.departments = action.payload.departments
+                    if (action.payload.rooms) state.rooms = action.payload.rooms
+                    if (action.payload.doctors) state.doctors = action.payload.doctors
+                    if (action.payload.queueEntries) state.queueEntries = action.payload.queueEntries
+                }
             })
             .addCase(fetchReceptionDataAsync.rejected, (state, action) => {
                 state.loading = false
-                state.error = action.error?.message || 'Lỗi tải dữ liệu lễ tân'
+                state.error = action.payload || 'Lỗi tải dữ liệu lễ tân'
             })
+
+            // ── Tải danh sách lịch hẹn đặt trước ──────────────────────
+            .addCase(fetchAppointmentsAsync.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchAppointmentsAsync.fulfilled, (state, action) => {
+                state.loading = false
+                if (action.payload?.items) {
+                    state.appointments = action.payload.items
+                    state.appointmentsPagination = action.payload.meta || state.appointmentsPagination
+                }
+            })
+            .addCase(fetchAppointmentsAsync.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload
+            })
+
+            // ── Check-in ca đặt trước (1 Chạm) ────────────────────────
+            .addCase(checkInAppointmentAsync.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(checkInAppointmentAsync.fulfilled, (state, action) => {
+                state.loading = false
+                const ticket = action.payload?.ticket || action.payload
+                const aptId = action.payload?.appointmentId
+
+                if (ticket) {
+                    const idx = state.queueEntries.findIndex((q) => q.id === ticket.id || (q.backendId && q.backendId === ticket.backendId))
+                    if (idx >= 0) {
+                        state.queueEntries[idx] = ticket
+                    } else {
+                        state.queueEntries.unshift(ticket)
+                    }
+                }
+
+                // Chuyển trạng thái lịch hẹn tương ứng sang DA_DEN
+                if (aptId) {
+                    const app = state.appointments.find((a) => a.id === aptId || a.id === Number(aptId))
+                    if (app) {
+                        app.status = 'DA_DEN'
+                        app.trang_thai_lich = 'da_tiep_nhan'
+                        app.so_thu_tu_kham = ticket?.so_thu_tu_kham || ticket?.ticketNumber
+                        app.ticket_id = ticket?.backendId || ticket?.id
+                    }
+                }
+            })
+            .addCase(checkInAppointmentAsync.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload
+            })
+
+            // ── Tải bảng hàng đợi Flow Board ──────────────────────────
+            .addCase(fetchFlowBoardAsync.pending, (state) => {
+                state.queueLoading = true
+            })
+            .addCase(fetchFlowBoardAsync.fulfilled, (state, action) => {
+                state.queueLoading = false
+                if (Array.isArray(action.payload)) {
+                    state.queueEntries = action.payload
+                }
+            })
+            .addCase(fetchFlowBoardAsync.rejected, (state, action) => {
+                state.queueLoading = false
+                state.error = action.payload
+            })
+
+            // ── Tiếp nhận nhanh 30 giây (Walk-in Quick) ───────────────
+            .addCase(registerWalkInQuickAsync.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(registerWalkInQuickAsync.fulfilled, (state, action) => {
+                state.loading = false
+                if (action.payload) {
+                    state.queueEntries.unshift(action.payload)
+                }
+            })
+            .addCase(registerWalkInQuickAsync.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload
+            })
+
+            // ── Tiếp nhận vãng lai chi tiết ───────────────────────────
+            .addCase(registerWalkInAsync.fulfilled, (state, action) => {
+                if (action.payload) {
+                    state.queueEntries.unshift(action.payload)
+                }
+            })
+
+            // ── Tìm kiếm bệnh nhân theo SĐT có phân trang ─────────────
+            .addCase(searchPatientsAsync.fulfilled, (state, action) => {
+                if (action.payload?.items) {
+                    state.patients = action.payload.items
+                    state.patientPagination = action.payload.meta || state.patientPagination
+                }
+            })
+
+            // ── Reset & chuyển vai trò ─────────────────────────────────
             .addCase(resetReceptionDataAsync.fulfilled, (state, action) => {
                 Object.assign(state, action.payload)
             })
@@ -163,5 +189,5 @@ const receptionSlice = createSlice({
     },
 })
 
-export const { setActiveRoleLocally } = receptionSlice.actions
+export const { setActiveRoleLocally, clearReceptionError } = receptionSlice.actions
 export default receptionSlice.reducer

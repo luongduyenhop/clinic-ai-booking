@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { Spin } from 'antd'
-import { fetchReceptionDataAsync } from '../redux/slices/reception/receptionSlice'
+import { fetchReceptionDataAsync } from '../redux/actions/reception/receptionAction'
 import ReceptionSidebar from '../components/reception/ReceptionSidebar'
 import ReceptionHeader from '../components/reception/ReceptionHeader'
 

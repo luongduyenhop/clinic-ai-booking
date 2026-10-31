@@ -559,9 +559,18 @@ class BffAdminService:
                             await db.execute(select(HoaDon).where(HoaDon.ma_hoa_don == hd_code))
                         ).scalar_one_or_none()
                         if not existing_hd:
+                            active_lk_hd = (
+                                await db.execute(
+                                    select(HoaDon.id).where(
+                                        HoaDon.luot_kham_id == first_lk.id,
+                                        HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+                                    )
+                                )
+                            ).scalars().first()
+                            assigned_lk_id = None if active_lk_hd else first_lk.id
                             existing_hd = HoaDon(
                                 ma_hoa_don=hd_code,
-                                luot_kham_id=first_lk.id,
+                                luot_kham_id=assigned_lk_id,
                                 benh_nhan_id=first_bn.id,
                                 thu_ngan_id=staff_id,
                                 tong_tien=amount,

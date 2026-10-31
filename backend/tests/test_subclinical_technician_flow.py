@@ -342,6 +342,15 @@ async def test_chi_dinh_tu_ban_kham_workspace_ghi_vao_chi_dinh_va_ktv_thay(api_c
     )
     assert res_missing.status_code == 404
 
+    body_admin = {
+        **body,
+        "workspace_encounter_id": f"6002-admin-{booking.suffix}",
+        "benh_nhan": {"ma": f"WS-ADMIN-{booking.suffix}", "ho_ten": "Bệnh Nhân Admin", "gioi_tinh": "Nữ", "tuoi": 25},
+    }
+    res_admin = await api_client.post("/api/v1/subclinical/workspace-orders", json=body_admin, headers=booking.tokens["admin"])
+    assert res_admin.status_code == 201
+    assert len(res_admin.json()["data"]["orders"]) == 2
+
 
 @pytest.mark.asyncio
 async def test_workspace_state_khong_ghi_lai_chi_dinh_da_co_tren_server(api_client, booking, db_session):

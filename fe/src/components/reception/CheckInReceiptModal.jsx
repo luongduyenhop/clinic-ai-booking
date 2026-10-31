@@ -14,6 +14,12 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
     const room = rooms.find((r) => r.id === queueEntry.roomId)
     const service = services.find((s) => s.id === queueEntry.serviceId)
 
+    const patientFullName = queueEntry.patientName || patient?.fullName || 'Bệnh nhân'
+    const patientCodeStr = queueEntry.patientCode || patient?.patientCode || (queueEntry.patientId ? `BN-00${queueEntry.patientId}` : 'BN-2026')
+    const patientPhoneStr = queueEntry.phone || patient?.phone || 'N/A'
+    const doctorNameStr = queueEntry.doctorName || doctor?.name || 'Theo phân bổ ca'
+    const roomNameStr = queueEntry.roomName || room?.name || 'Phòng khám đa khoa'
+
     const handlePrint = () => {
         window.print()
     }
@@ -65,15 +71,15 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                 <div className="space-y-1.5 text-xs border-b border-slate-200 pb-3">
                     <div className="flex justify-between">
                         <span className="text-slate-500">Người bệnh:</span>
-                        <span className="font-bold text-slate-900">{patient?.fullName || 'N/A'}</span>
+                        <span className="font-bold text-slate-900">{patientFullName}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Mã hồ sơ:</span>
-                        <span className="font-mono font-semibold">{patient?.patientCode || 'N/A'}</span>
+                        <span className="font-mono font-semibold">{patientCodeStr}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Số điện thoại:</span>
-                        <span>{patient?.phone || 'N/A'}</span>
+                        <span>{patientPhoneStr}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Đối tượng:</span>
@@ -85,15 +91,15 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                 <div className="space-y-1.5 text-xs border-b border-slate-200 pb-3">
                     <div className="flex justify-between">
                         <span className="text-slate-500">Chuyên khoa:</span>
-                        <span className="font-semibold text-slate-800">{department?.name || 'N/A'}</span>
+                        <span className="font-semibold text-slate-800">{department?.name || 'Đa khoa'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Phòng khám:</span>
-                        <span className="font-bold text-teal-700">{room?.name || 'N/A'} ({room?.floor})</span>
+                        <span className="font-bold text-teal-700">{roomNameStr}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Bác sĩ khám:</span>
-                        <span>{doctor?.name || 'Theo phân bổ ca'}</span>
+                        <span>{doctorNameStr}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-slate-500">Dịch vụ:</span>

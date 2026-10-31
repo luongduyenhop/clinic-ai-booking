@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user,require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.cashier import (
     CloseShiftRequest,
     CloseShiftResponse,
@@ -15,6 +15,8 @@ from app.schemas.cashier import (
     InvoiceResponse,
     PendingBillsListResponse,
     ShiftSummaryResponse,
+    RefundInvoiceRequest,
+    RefundInvoiceResponse,
 )
 from app.services.cashier_service import cashier_service
 
@@ -248,9 +250,35 @@ async def close_shift(
     result = await cashier_service.close_shift(
         thu_ngan_user_id=current_user.nguoi_dung_id,
         ghi_chu=payload.ghi_chu,
+        tien_mat_thuc_te=payload.tien_mat_thuc_te,
         db=db
     )
     return ResponseEnvelope.success_response(
         data=result,
         message="Khóa sổ ca trực thành công"
+    )
+
+
+@router.post(
+    "/refund",
+    response_model=ResponseEnvelope[RefundInvoiceResponse],
+    summary="Hoàn tiền viện phí và lập phiếu chi trả lại bệnh nhân (FC-16)"
+)
+async def refund_invoice(
+    payload: RefundInvoiceRequest,
+    current_user: TaiKhoan = Depends(require_roles([
+            VaiTroEnum.LE_TAN,
+            VaiTroEnum.THU_NGAN,
+            VaiTroEnum.ADMIN,
+        ])),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.refund_invoice(
+        payload=payload,
+        thu_ngan_user_id=current_user.nguoi_dung_id,
+        db=db
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Hoàn tiền thành công {result.so_tien_hoan:,.0f}đ cho hóa đơn {result.ma_hoa_don}"
     )

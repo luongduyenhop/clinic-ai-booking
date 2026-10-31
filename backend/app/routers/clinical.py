@@ -1,6 +1,9 @@
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -646,13 +649,9 @@ async def copy_old_prescription(
 # ==============================================================================
 # ĐỒNG BỘ TRẠNG THÁI BÀN KHÁM BÁC SĨ & CẬN LÂM SÀNG XUỐNG CSDL POSTGRESQL
 # ==============================================================================
-from decimal import Decimal
-import json
 from sqlalchemy import select
 from app.core.dependencies import get_optional_current_user
 from app.models.bff_store import HeThongTrangThaiBff
-from app.models.medical import ChiDinh, DichVu
-from app.services.bff_admin_service import bff_admin_service
 
 
 @router.get(
@@ -684,88 +683,24 @@ async def save_clinical_workspace_state(
     current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = current_user.id if current_user else None
-    stmt = select(HeThongTrangThaiBff).where(
-        HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
-    )
-    row = (await db.execute(stmt)).scalar_one_or_none()
-    if row:
-        row.data_json = payload
-        row.updated_by_id = user_id
-    else:
-        db.add(
-            HeThongTrangThaiBff(
-                collection_key="doctor_clinical_workspace",
-                data_json=payload,
-                updated_by_id=user_id,
-            )
-        )
-
-    # Đồng bộ xuống các bảng quan hệ PostgreSQL (luot_kham, chi_dinh_can_lam_sang, chan_doan, don_thuoc)
     try:
-        _, first_bn, first_bs, first_lk = await bff_admin_service._ensure_default_entities(db)
-        encounters = payload.get("encounters") or {}
-        if isinstance(encounters, dict) and first_lk:
-            for enc_key, enc_data in encounters.items():
-                if not isinstance(enc_data, dict):
-                    continue
-                orders = enc_data.get("danh_sach_chi_dinh") or []
-                for ord_item in orders:
-                    if not isinstance(ord_item, dict):
-                        continue
-                    ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
-                    ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
-                    dv = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == ma_dv))).scalar_one_or_none()
-                    if not dv:
-                        dv = DichVu(
-                            ma_dich_vu=ma_dv,
-                            ten_dich_vu=ten_dv,
-                            don_gia=Decimal("150000"),
-                            don_vi_tinh="Lần",
-                            ma_nhom_byt=str(ord_item.get("nhom_dich_vu") or "xet_nghiem")[:50],
-                            is_active=True,
-                        )
-                        db.add(dv)
-                        await db.flush()
-
-                    existing_order = (
-                        await db.execute(
-                            select(ChiDinh).where(
-                                ChiDinh.luot_kham_id == first_lk.id,
-                                ChiDinh.dich_vu_id == dv.id,
-                            )
-                        )
-                    ).scalars().first()
-                    ket_qua_raw = ord_item.get("ket_qua_chi_tiet")
-                    ket_qua_str = (
-                        json.dumps(ket_qua_raw, ensure_ascii=False)
-                        if isinstance(ket_qua_raw, (dict, list))
-                        else (str(ket_qua_raw) if ket_qua_raw else None)
-                    )
-                    if existing_order:
-                        existing_order.trang_thai = str(ord_item.get("trang_thai") or existing_order.trang_thai)
-                        existing_order.ket_qua_phan_loai = ord_item.get("ket_qua_phan_loai")
-                        existing_order.ket_qua_chi_tiet = ket_qua_str
-                        existing_order.tep_dinh_kem_url = ord_item.get("tep_dinh_kem_url")
-                    else:
-                        db.add(
-                            ChiDinh(
-                                luot_kham_id=first_lk.id,
-                                dich_vu_id=dv.id,
-                                so_luong=1,
-                                don_gia_tai_thoi_diem=dv.don_gia or Decimal("150000"),
-                                trang_thai=str(ord_item.get("trang_thai") or "da_chi_dinh"),
-                                bac_si_chi_dinh_id=first_bs.id if first_bs else None,
-                                ket_qua_phan_loai=ord_item.get("ket_qua_phan_loai"),
-                                ket_qua_chi_tiet=ket_qua_str,
-                                tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
-                            )
-                        )
-    except Exception:
-        pass
-
-    await db.commit()
-    return ResponseEnvelope.success_response(
-        data={"saved": True},
-        message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
-    )
+        user = (
+            current_user
+            if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int)
+            else None
+        )
+        result = await clinical_service.sync_workspace_to_postgres(
+            db=db,
+            payload=payload,
+            current_user=user,
+        )
+        return ResponseEnvelope.success_response(
+            data=result,
+            message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
+        )
+    except Exception as e:
+        logger.error(f"Error syncing clinical workspace state: {e}", exc_info=True)
+        return ResponseEnvelope.error_response(
+            code=500,
+            message="Lỗi hệ thống khi đồng bộ dữ liệu lâm sàng. Vui lòng liên hệ quản trị viên.",
+        )

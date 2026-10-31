@@ -149,14 +149,14 @@ class PatientDiagnosisResponse(BaseModel):
 
 class PatientMedicalRecordSummaryResponse(BaseModel):
     luot_kham_id: int
-    ngay_kham: date
-    thoi_gian_bat_dau: datetime
+    ngay_kham: Optional[date] = None
+    thoi_gian_bat_dau: Optional[datetime] = None
     thoi_gian_ket_thuc: Optional[datetime] = None
     ly_do_vao_kham: Optional[str] = None
     trieu_chung: Optional[str] = None
     benh_su: Optional[str] = None
     ket_luan_dieu_tri: Optional[str] = None
-    bac_si_id: int
+    bac_si_id: Optional[int] = None
     bac_si_ho_ten: str
     bac_si_hoc_vi: Optional[str] = None
     chuyen_khoa: str
@@ -167,6 +167,8 @@ class PatientMedicalRecordSummaryResponse(BaseModel):
     danh_sach_chan_doan: List[PatientDiagnosisResponse] = Field(default_factory=list)
     loi_dan_bac_si: Optional[str] = None
     ngay_hen_tai_kham: Optional[date] = None
+    chi_dinh_cls: List[Dict[str, Any]] = Field(default_factory=list)
+    don_thuoc_chi_tiet: List[Dict[str, Any]] = Field(default_factory=list)
     tong_so_chi_dinh_cls: int = 0
     co_don_thuoc: bool = False
     so_loai_thuoc: int = 0

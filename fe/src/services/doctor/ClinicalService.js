@@ -292,7 +292,7 @@ export class ClinicalService extends BaseServices {
                     ma_dich_vu: s.ma_dich_vu,
                     ten_dich_vu: s.ten_dich_vu,
                     nhom_dich_vu: s.nhom_dich_vu,
-                    trang_thai: 'da_chi_dinh',
+                    trang_thai: 'CHO_THUC_HIEN',
                     ket_qua_phan_loai: null,
                     ket_qua_chi_tiet: null,
                     tep_dinh_kem_url: null,
@@ -315,10 +315,61 @@ export class ClinicalService extends BaseServices {
         const enc = db.encounters[encounterId]
         const o = enc?.danh_sach_chi_dinh?.find((x) => x.id === orderId)
         if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
+        if (o.trang_thai !== 'CHO_THUC_HIEN' && o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
+        const oldList = enc.danh_sach_chi_dinh
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
+        try {
+            await this.persistToPostgres()
+            return delay(enc.danh_sach_chi_dinh)
+        } catch (err) {
+            enc.danh_sach_chi_dinh = oldList
+            throw err
+        }
+    }
+
+    signPrescription = async (encounterId, payload = {}) => {
+        const enc = db.encounters[encounterId]
+        if (!enc) return reject('Không tìm thấy lượt khám')
+
+        if (enc.is_locked || enc.trang_thai_don_thuoc === 'SIGNED' || enc.don_thuoc?.trang_thai === 'SIGNED') {
+            return delay({
+                success: true,
+                alreadySigned: true,
+                message: 'Đơn thuốc đã được ký số trước đó và đang được bảo vệ bất biến.',
+                don_thuoc: enc.don_thuoc || {},
+            })
+        }
+
+        const now = new Date().toISOString()
+        const doctorName = enc.ten_bac_si || 'Bác sĩ phụ trách'
+        const sigData = payload.chu_ky_so || `SHA256:SIG:${encounterId}:${Date.now()}`
+
+        enc.trang_thai_don_thuoc = 'SIGNED'
+        if (!enc.don_thuoc) {
+            enc.don_thuoc = {}
+        }
+        enc.don_thuoc.trang_thai = 'SIGNED'
+        enc.don_thuoc.ngay_ky = now
+        enc.don_thuoc.chu_ky_so = sigData
+        enc.don_thuoc.nguoi_ky = doctorName
+        if (payload.danh_sach_thuoc) {
+            enc.don_thuoc.danh_sach_thuoc = payload.danh_sach_thuoc
+            enc.danh_sach_thuoc = payload.danh_sach_thuoc
+        }
+        if (payload.loi_dan_uong_thuoc) {
+            enc.don_thuoc.loi_dan_uong_thuoc = payload.loi_dan_uong_thuoc
+            enc.loi_dan_uong_thuoc = payload.loi_dan_uong_thuoc
+        }
+
         await this.persistToPostgres()
-        return delay(enc.danh_sach_chi_dinh)
+        return delay({
+            success: true,
+            trang_thai: 'SIGNED',
+            ngay_ky: now,
+            chu_ky_so: sigData,
+            nguoi_ky: doctorName,
+            don_thuoc: enc.don_thuoc,
+        })
     }
 
     completeEncounter = async (encounterId, payload) => {
@@ -500,9 +551,15 @@ export class ClinicalService extends BaseServices {
     startOrder = async (orderId) => {
         const o = findOrder(orderId)
         if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai === 'da_chi_dinh') o.trang_thai = 'dang_thuc_hien'
-        await this.persistToPostgres()
-        return delay(o, 150)
+        const oldStatus = o.trang_thai
+        if (o.trang_thai === 'CHO_THUC_HIEN' || o.trang_thai === 'da_chi_dinh') o.trang_thai = 'dang_thuc_hien'
+        try {
+            await this.persistToPostgres()
+            return delay(o, 150)
+        } catch (err) {
+            o.trang_thai = oldStatus
+            throw err
+        }
     }
 
     submitOrderResult = async (orderId, payload) => {

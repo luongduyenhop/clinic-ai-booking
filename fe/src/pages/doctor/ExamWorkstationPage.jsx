@@ -72,8 +72,12 @@ const toFormValues = (enc) => ({
     ...Object.fromEntries(VITAL_FIELDS.map((f) => [f.name, enc?.[f.name] ?? ''])),
     danh_sach_chan_doan: enc?.danh_sach_chan_doan || [],
     ket_luan_dieu_tri: enc?.ket_luan_dieu_tri || '',
-    danh_sach_thuoc: enc?.don_thuoc?.danh_sach_thuoc || [],
-    loi_dan_uong_thuoc: enc?.don_thuoc?.loi_dan_uong_thuoc || '',
+    danh_sach_thuoc: enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || [],
+    loi_dan_uong_thuoc: enc?.loi_dan_uong_thuoc || enc?.don_thuoc?.loi_dan_uong_thuoc || '',
+    trang_thai_don_thuoc: enc?.trang_thai_don_thuoc || enc?.don_thuoc?.trang_thai || 'DRAFT',
+    ngay_ky: enc?.ngay_ky || enc?.don_thuoc?.ngay_ky || '',
+    chu_ky_so: enc?.chu_ky_so || enc?.don_thuoc?.chu_ky_so || '',
+    nguoi_ky: enc?.nguoi_ky || enc?.don_thuoc?.nguoi_ky || '',
     ngay_hen_tai_kham: enc?.ngay_hen_tai_kham || '',
     loi_dan_bac_si: enc?.loi_dan_bac_si || '',
 })
@@ -323,12 +327,20 @@ export default function ExamWorkstationPage() {
             ngay_hen_tai_kham: v.ngay_hen_tai_kham || null,
             don_thuoc: {
                 loi_dan_uong_thuoc: v.loi_dan_uong_thuoc,
+                trang_thai: v.trang_thai_don_thuoc || 'DRAFT',
+                ngay_ky: v.ngay_ky || null,
+                chu_ky_so: v.chu_ky_so || null,
+                nguoi_ky: v.nguoi_ky || null,
                 danh_sach_thuoc: v.danh_sach_thuoc.map((r) => ({
                     ...r,
                     so_luong: computeQuantity(r),
                     cach_dung_day_du: [doseText(r), r.cach_dung].filter(Boolean).join(' – '),
                 })),
             },
+            trang_thai_don_thuoc: v.trang_thai_don_thuoc || 'DRAFT',
+            ngay_ky: v.ngay_ky || null,
+            chu_ky_so: v.chu_ky_so || null,
+            nguoi_ky: v.nguoi_ky || null,
         }
         try {
             await dispatch(completeEncounterAsync({ encounterId: encounter.id, payload })).unwrap()
@@ -352,13 +364,13 @@ export default function ExamWorkstationPage() {
             AppToast.error(`Cần mô tả mục bất thường: ${missingNotes.map(([label]) => label).join(', ')}`)
             return
         }
-        const primary = formik.values.danh_sach_chan_doan.filter((d) => d.loai_chan_doan === 'chinh')
+        const primary = (formik.values.danh_sach_chan_doan || []).filter((d) => d.loai_chan_doan === 'chinh')
         if (primary.length !== 1) {
-            formik.setFieldError('danh_sach_chan_doan', 'Cần đúng 1 chẩn đoán chính (ICD-10) trước khi hoàn tất khám.')
-            AppToast.error('Cần chọn đúng 1 chẩn đoán chính ICD-10 trước khi khóa bệnh án!')
+            formik.setFieldError('danh_sach_chan_doan', 'Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi hoàn tất khám.')
+            AppToast.error('Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi khóa bệnh án!')
             return
         }
-        const pending = (encounter.danh_sach_chi_dinh || []).filter((o) => ['da_chi_dinh', 'dang_thuc_hien'].includes(o.trang_thai)).length
+        const pending = (encounter.danh_sach_chi_dinh || []).filter((o) => ['CHO_THUC_HIEN', 'da_chi_dinh', 'dang_thuc_hien'].includes(o.trang_thai)).length
 
         Modal.confirm({
             title: 'Hoàn tất khám và khóa bệnh án?',

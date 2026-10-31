@@ -12,7 +12,7 @@ import {
 import PrintReceiptModal from '../../components/reception/PrintReceiptModal'
 import { PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
-import { updateInvoiceStatusAsync } from '../../redux/slices/reception/receptionSlice'
+import { updateInvoiceStatusAsync } from '../../redux/actions/reception/receptionAction'
 
 export default function AdministrationPage() {
     const dispatch = useDispatch()

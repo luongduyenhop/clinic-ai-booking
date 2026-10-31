@@ -6,7 +6,7 @@ import {
     transferRoomAsync,
     reorderQueueAsync,
     cancelQueueEntryAsync,
-} from '../../redux/slices/reception/receptionSlice'
+} from '../../redux/actions/reception/receptionAction'
 
 export default function QueueActionModal({ open, onClose, queueEntry, mode }) {
     const dispatch = useDispatch()

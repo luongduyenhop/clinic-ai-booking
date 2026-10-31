@@ -651,6 +651,18 @@ import json
 from sqlalchemy import select
 from app.core.dependencies import get_optional_current_user
 from app.models.bff_store import HeThongTrangThaiBff
+from app.models.medical import (
+    ChiDinh,
+    ChanDoan,
+    DonThuoc,
+    ChiTietDonThuoc,
+    DichVu,
+    LuotKham,
+    KhaiNiem,
+    PhieuKhamChuyenKhoa,
+    LuotKhamTheLuc,
+)
+from app.models.user import BacSi, ChuyenKhoa
 from app.models.medical import ChiDinh, DichVu
 from app.services.bff_admin_service import bff_admin_service
 
@@ -701,7 +713,7 @@ async def save_clinical_workspace_state(
             )
         )
 
-    # Đồng bộ xuống các bảng quan hệ PostgreSQL (luot_kham, chi_dinh_can_lam_sang, chan_doan, don_thuoc)
+    # Đồng bộ xuống các bảng quan hệ PostgreSQL (luot_kham, phieu_kham_chuyen_khoa, chi_dinh_can_lam_sang, chan_doan, don_thuoc)
     try:
         _, first_bn, first_bs, first_lk = await bff_admin_service._ensure_default_entities(db)
         encounters = payload.get("encounters") or {}
@@ -709,6 +721,181 @@ async def save_clinical_workspace_state(
             for enc_key, enc_data in encounters.items():
                 if not isinstance(enc_data, dict):
                     continue
+
+                # 1. Tìm LuotKham tương ứng theo ID hoặc fallback sang first_lk
+                target_lk = None
+                raw_id = enc_data.get("id") or enc_key
+                try:
+                    enc_id = int(raw_id)
+                    target_lk = (await db.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one_or_none()
+                except (ValueError, TypeError):
+                    target_lk = None
+
+                if not target_lk:
+                    target_lk = first_lk
+
+                # 2. Cập nhật sinh hiệu và tính toán BMI chuẩn xác theo AC1
+                def _to_int(val):
+                    try:
+                        return int(val) if val is not None and str(val).strip() != "" else None
+                    except (ValueError, TypeError):
+                        return None
+
+                def _to_dec(val, precision=1):
+                    try:
+                        return Decimal(str(round(float(val), precision))) if val is not None and str(val).strip() != "" else None
+                    except (ValueError, TypeError):
+                        return None
+
+                if "mach_lan_phut" in enc_data:
+                    m = _to_int(enc_data.get("mach_lan_phut"))
+                    if m is not None:
+                        target_lk.mach_lan_phut = m
+
+                if "huyet_ap_tam_thu" in enc_data:
+                    ha1 = _to_int(enc_data.get("huyet_ap_tam_thu"))
+                    if ha1 is not None:
+                        target_lk.huyet_ap_tam_thu = ha1
+
+                if "huyet_ap_tam_truong" in enc_data:
+                    ha2 = _to_int(enc_data.get("huyet_ap_tam_truong"))
+                    if ha2 is not None:
+                        target_lk.huyet_ap_tam_truong = ha2
+
+                if "nhip_tho_lan_phut" in enc_data:
+                    nt = _to_int(enc_data.get("nhip_tho_lan_phut"))
+                    if nt is not None:
+                        target_lk.nhip_tho_lan_phut = nt
+
+                if "nhiet_do_c" in enc_data:
+                    temp = _to_dec(enc_data.get("nhiet_do_c"), 1)
+                    if temp is not None:
+                        target_lk.nhiet_do_c = temp
+
+                if "can_nang_kg" in enc_data:
+                    cn = _to_dec(enc_data.get("can_nang_kg"), 2)
+                    if cn is not None:
+                        target_lk.can_nang_kg = cn
+
+                if "chieu_cao_cm" in enc_data:
+                    cc = _to_dec(enc_data.get("chieu_cao_cm"), 2)
+                    if cc is not None:
+                        target_lk.chieu_cao_cm = cc
+
+                # AC1: Tự động tính BMI = CanNang / (ChieuCao/100)^2
+                if target_lk.can_nang_kg and target_lk.chieu_cao_cm and target_lk.chieu_cao_cm > 0:
+                    h_m = float(target_lk.chieu_cao_cm) / 100.0
+                    bmi_calc = float(target_lk.can_nang_kg) / (h_m * h_m)
+                    target_lk.bmi = Decimal(str(round(bmi_calc, 1)))
+
+                # Cập nhật lý do khám, bệnh sử, triệu chứng lâm sàng
+                if enc_data.get("ly_do_vao_kham"):
+                    target_lk.ly_do_vao_kham = enc_data.get("ly_do_vao_kham")
+                    if not target_lk.trieu_chung:
+                        target_lk.trieu_chung = target_lk.ly_do_vao_kham
+
+                if enc_data.get("benh_su"):
+                    target_lk.benh_su = enc_data.get("benh_su")
+
+                if enc_data.get("kham_lam_sang_bo_phan"):
+                    target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
+
+                # 3. AC2: Lưu dữ liệu vào bảng phieu_kham_chuyen_khoa
+                kham_ck = enc_data.get("kham_chuyen_khoa") or {}
+                items = kham_ck.get("items") or {} if isinstance(kham_ck, dict) else {}
+                extras = kham_ck.get("extras") or {} if isinstance(kham_ck, dict) else {}
+
+                noi_dung_lines = []
+                for label, it in items.items():
+                    if isinstance(it, dict):
+                        status_text = (
+                            "Bình thường"
+                            if it.get("status") == "BT"
+                            else ("Bất thường" if it.get("status") == "BAT" else it.get("status", ""))
+                        )
+                        note_text = f" ({it.get('note')})" if it.get("note") else ""
+                        noi_dung_lines.append(f"{label}: {status_text}{note_text}")
+                for extra_k, extra_v in extras.items():
+                    if extra_v:
+                        noi_dung_lines.append(f"{extra_k}: {extra_v}")
+
+                noi_dung_kham = "\n".join(noi_dung_lines) if noi_dung_lines else enc_data.get("kham_lam_sang_bo_phan")
+
+                chuyen_khoa_id = None
+                bs_id = target_lk.bac_si_id or (first_bs.id if first_bs else None)
+                if bs_id:
+                    bs_obj = (await db.execute(select(BacSi).where(BacSi.id == bs_id))).scalar_one_or_none()
+                    if bs_obj and bs_obj.chuyen_khoa_id:
+                        chuyen_khoa_id = bs_obj.chuyen_khoa_id
+                if not chuyen_khoa_id:
+                    first_ck = (await db.execute(select(ChuyenKhoa).limit(1))).scalar_one_or_none()
+                    chuyen_khoa_id = first_ck.id if first_ck else 1
+
+                phieu_ck = (
+                    await db.execute(
+                        select(PhieuKhamChuyenKhoa).where(
+                            PhieuKhamChuyenKhoa.luot_kham_id == target_lk.id
+                        )
+                    )
+                ).scalars().first()
+
+                phan_loai = "LOAI_1"
+                if target_lk.bmi:
+                    if target_lk.bmi >= 30 or target_lk.bmi < Decimal("18.5"):
+                        phan_loai = "LOAI_3"
+                    elif target_lk.bmi >= 25:
+                        phan_loai = "LOAI_2"
+
+                if phieu_ck:
+                    if noi_dung_kham:
+                        phieu_ck.noi_dung_kham = noi_dung_kham
+                    phieu_ck.phan_loai_suc_khoe = phan_loai
+                    if enc_data.get("ket_luan_dieu_tri"):
+                        phieu_ck.ket_luan_chuyen_khoa = enc_data.get("ket_luan_dieu_tri")
+                elif bs_id and chuyen_khoa_id:
+                    db.add(
+                        PhieuKhamChuyenKhoa(
+                            luot_kham_id=target_lk.id,
+                            bac_si_id=bs_id,
+                            chuyen_khoa_id=chuyen_khoa_id,
+                            noi_dung_kham=noi_dung_kham or "Chưa có bất thường",
+                            ket_luan_chuyen_khoa=enc_data.get("ket_luan_dieu_tri") or "Theo dõi lâm sàng",
+                            phan_loai_suc_khoe=phan_loai,
+                        )
+                    )
+
+                # Đồng bộ vào LuotKhamTheLuc
+                pe_rec = (
+                    await db.execute(
+                        select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == target_lk.id)
+                    )
+                ).scalar_one_or_none()
+                if pe_rec:
+                    pe_rec.mach = target_lk.mach_lan_phut
+                    pe_rec.huyet_ap_tam_thu = target_lk.huyet_ap_tam_thu
+                    pe_rec.huyet_ap_tam_truong = target_lk.huyet_ap_tam_truong
+                    pe_rec.nhiet_do = target_lk.nhiet_do_c
+                    pe_rec.nhip_tho = target_lk.nhip_tho_lan_phut
+                    pe_rec.chieu_cao = target_lk.chieu_cao_cm
+                    pe_rec.can_nang = target_lk.can_nang_kg
+                    pe_rec.bmi = target_lk.bmi
+                elif bs_id:
+                    db.add(
+                        LuotKhamTheLuc(
+                            luot_kham_id=target_lk.id,
+                            mach=target_lk.mach_lan_phut,
+                            huyet_ap_tam_thu=target_lk.huyet_ap_tam_thu,
+                            huyet_ap_tam_truong=target_lk.huyet_ap_tam_truong,
+                            nhiet_do=target_lk.nhiet_do_c,
+                            nhip_tho=target_lk.nhip_tho_lan_phut,
+                            chieu_cao=target_lk.chieu_cao_cm,
+                            can_nang=target_lk.can_nang_kg,
+                            bmi=target_lk.bmi,
+                            bac_si_ket_luan_id=bs_id,
+                        )
+                    )
+
+                # 4. Đồng bộ chỉ định cận lâm sàng
                 orders = enc_data.get("danh_sach_chi_dinh") or []
                 for ord_item in orders:
                     if not isinstance(ord_item, dict):
@@ -731,7 +918,7 @@ async def save_clinical_workspace_state(
                     existing_order = (
                         await db.execute(
                             select(ChiDinh).where(
-                                ChiDinh.luot_kham_id == first_lk.id,
+                                ChiDinh.luot_kham_id == target_lk.id,
                                 ChiDinh.dich_vu_id == dv.id,
                             )
                         )
@@ -750,19 +937,20 @@ async def save_clinical_workspace_state(
                     else:
                         db.add(
                             ChiDinh(
-                                luot_kham_id=first_lk.id,
+                                luot_kham_id=target_lk.id,
                                 dich_vu_id=dv.id,
                                 so_luong=1,
                                 don_gia_tai_thoi_diem=dv.don_gia or Decimal("150000"),
                                 trang_thai=str(ord_item.get("trang_thai") or "da_chi_dinh"),
-                                bac_si_chi_dinh_id=first_bs.id if first_bs else None,
+                                bac_si_chi_dinh_id=bs_id,
                                 ket_qua_phan_loai=ord_item.get("ket_qua_phan_loai"),
                                 ket_qua_chi_tiet=ket_qua_str,
                                 tep_dinh_kem_url=ord_item.get("tep_dinh_kem_url"),
                             )
                         )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("clinical_sync").warning(f"Error syncing clinical data: {e}")
 
     await db.commit()
     return ResponseEnvelope.success_response(

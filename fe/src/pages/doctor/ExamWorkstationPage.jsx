@@ -172,8 +172,10 @@ export default function ExamWorkstationPage() {
             AppToast.success(`Đã gọi số #${ticket.so_thu_tu_kham} · ${ticket.ten_benh_nhan}`)
             selectEncounter(ticket.encounter_id)
             loadQueue()
+            return ticket
         } catch (msg) {
             AppToast.error(msg)
+            throw msg
         } finally {
             setCalling(false)
         }

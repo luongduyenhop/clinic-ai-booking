@@ -11,6 +11,7 @@ import {
     fetchClsWorklistAsync,
     startOrderAsync,
     submitOrderResultAsync,
+    submitLabResultAsync,
 } from '../../actions/doctor/clinicalAction'
 
 const initialState = {
@@ -29,7 +30,7 @@ const initialState = {
     worklistError: null,
 }
 
-const replaceOrder = (list, order) => list.map((o) => (o.id === order.id ? { ...o, ...order } : o))
+const replaceOrder = (list, order) => { const item = order?.data || order; return list.map((o) => (o.id === item?.id ? { ...o, ...item } : o)) }
 
 const clinicalSlice = createSlice({
     name: 'clinical',
@@ -90,8 +91,8 @@ const clinicalSlice = createSlice({
                 state.services = payload || []
             })
 
-            .addCase(fetchClsWorklistAsync.pending, (state) => {
-                state.worklistLoading = true
+            .addCase(fetchClsWorklistAsync.pending, (state, { meta }) => {
+                if (!meta.arg?.silent) state.worklistLoading = true
                 state.worklistError = null
             })
             .addCase(fetchClsWorklistAsync.fulfilled, (state, { payload }) => {
@@ -106,6 +107,9 @@ const clinicalSlice = createSlice({
                 state.worklist = replaceOrder(state.worklist, payload)
             })
             .addCase(submitOrderResultAsync.fulfilled, (state, { payload }) => {
+                state.worklist = replaceOrder(state.worklist, payload)
+            })
+            .addCase(submitLabResultAsync.fulfilled, (state, { payload }) => {
                 state.worklist = replaceOrder(state.worklist, payload)
             })
     },

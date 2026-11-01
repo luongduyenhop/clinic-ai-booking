@@ -306,7 +306,7 @@ async def test_chi_dinh_tu_ban_kham_workspace_ghi_vao_chi_dinh_va_ktv_thay(api_c
     }
 
     # Danh mục dịch vụ trả về nhóm CLS để bàn khám xếp đúng mục
-    res_catalog = await api_client.get("/api/v1/medical/services")
+    res_catalog = await api_client.get("/api/v1/medical/services", headers=token_bs)
     catalog = {s["id"]: s for s in res_catalog.json()["data"]}
     assert catalog[xn.id]["nhom_dich_vu"] == "XET_NGHIEM"
     assert catalog[sa.id]["nhom_dich_vu"] == "CDHA"

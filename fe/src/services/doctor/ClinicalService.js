@@ -581,7 +581,7 @@ export class ClinicalService extends BaseServices {
         return delay(MOCK_SERVICES, 100)
     }
 
-    getServicesCatalog = async () => (await this.getServices()) || []
+    getServicesCatalog = async () => (await this.getServices())?.data || []
 
     searchIcd10 = async (keyword) => {
         try {

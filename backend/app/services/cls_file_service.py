@@ -305,6 +305,27 @@ class ClsFileService:
         if order.trang_thai not in _EDITABLE_STATES:
             raise ConflictException("Cần tiếp nhận ca (bắt đầu thực hiện) trước khi nhập kết quả hình ảnh")
 
+    @staticmethod
+    async def _latest_phieu(order_id: int, db: AsyncSession) -> Optional[PhieuKetQuaCLS]:
+        stmt = (
+            select(PhieuKetQuaCLS)
+            .where(PhieuKetQuaCLS.chi_dinh_id == order_id)
+            .order_by(PhieuKetQuaCLS.lan_thuc_hien.desc())
+            .limit(1)
+        )
+        return (await db.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    def _phieu_approved(phieu: Optional[PhieuKetQuaCLS]) -> bool:
+        return bool(
+            phieu
+            and (
+                phieu.trang_thai in ("DA_DUYET", "DA_CO_KET_QUA")
+                or phieu.bac_si_duyet_id
+                or phieu.thoi_gian_duyet
+            )
+        )
+
     async def _ensure_not_approved(self, order: ChiDinh, db: AsyncSession) -> None:
         if is_phieu_approved(await latest_phieu(order.id, db)):
             raise ConflictException("Kết quả đã được duyệt, không thể thay đổi ảnh!")

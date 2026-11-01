@@ -18,203 +18,14 @@ import {
     Eye,
     Scan
 } from '../../components/common/ClinicIcon'
-import { patientPortalService } from '../../services/user/PatientPortalService'
-
-// Dữ liệu mẫu hồ sơ bệnh án theo chuẩn tClinic và Medpro
-const _MOCK_RECORDS = [
-    {
-        id: 'LK-2026-0042',
-        maKcb: 'KCB-2026-0819-01',
-        ngayKham: '2026-04-10',
-        gioKham: '09:15',
-        chuyenKhoa: 'Khoa Nội Tổng Quát',
-        phongKham: 'Phòng 101',
-        bacSi: 'BS.CKII Nguyễn Minh Hoàng',
-        trangThai: 'da_hoan_thanh',
-        lyDoKham: 'Đau đầu, hồi hộp, hoa mắt chóng mặt khi thay đổi tư thế',
-        tienSu: 'Tăng huyết áp vô căn (đang điều trị ngoại trú)',
-        sinhHieu: {
-            huyetAp: '145/90 mmHg',
-            mach: '82 bpm',
-            nhietDo: '36.8 °C',
-            spo2: '98%',
-            canNang: '68 kg',
-            chieuCao: '170 cm',
-            bmi: '23.5 (Bình thường)'
-        },
-        chanDoan: {
-            icd10Chinh: 'I10 - Bệnh tăng huyết áp nguyên phát (vô căn)',
-            icd10Phu: 'E78.0 - Tăng cholesterol máu thuần túy',
-            ketLuan: 'Tăng huyết áp độ 1 kèm rối loạn lipid máu nhẹ. Chưa có biến chứng tim mạch cấp.'
-        },
-        canLamSang: [
-            {
-                id: 'CLS-01',
-                tenDichVu: 'Tổng phân tích tế bào máu ngoại vi (24 thông số)',
-                loai: 'XetNghiem',
-                ketLuan: 'Số lượng bạch cầu, hồng cầu và tiểu cầu trong giới hạn bình thường.',
-                ngayCoKetQua: '2026-04-10 10:00',
-                chiTiet: [
-                    { chiSo: 'WBC (Bạch cầu)', ketQua: '6.8', donVi: 'G/L', thamChieu: '4.0 - 10.0', trangThai: 'normal' },
-                    { chiSo: 'RBC (Hồng cầu)', ketQua: '4.7', donVi: 'T/L', thamChieu: '3.8 - 5.5', trangThai: 'normal' },
-                    { chiSo: 'HGB (Huyết sắc tố)', ketQua: '142', donVi: 'g/L', thamChieu: '120 - 160', trangThai: 'normal' },
-                    { chiSo: 'PLT (Tiểu cầu)', ketQua: '235', donVi: 'G/L', thamChieu: '150 - 450', trangThai: 'normal' }
-                ]
-            },
-            {
-                id: 'CLS-02',
-                tenDichVu: 'Sinh hóa máu: Glucose, Cholesterol toàn phần, Triglyceride',
-                loai: 'XetNghiem',
-                ketLuan: 'Cholesterol toàn phần hơi cao (5.8 mmol/L), cần điều chỉnh chế độ ăn giảm mỡ động vật.',
-                ngayCoKetQua: '2026-04-10 10:15',
-                chiTiet: [
-                    { chiSo: 'Glucose đói', ketQua: '5.2', donVi: 'mmol/L', thamChieu: '3.9 - 6.4', trangThai: 'normal' },
-                    { chiSo: 'Cholesterol toàn phần', ketQua: '5.8', donVi: 'mmol/L', thamChieu: '< 5.2', trangThai: 'high' },
-                    { chiSo: 'Triglyceride', ketQua: '1.9', donVi: 'mmol/L', thamChieu: '< 2.3', trangThai: 'normal' },
-                    { chiSo: 'Creatinine huyết thanh', ketQua: '78', donVi: 'µmol/L', thamChieu: '53 - 106', trangThai: 'normal' }
-                ]
-            },
-            {
-                id: 'CLS-03',
-                tenDichVu: 'Điện tâm đồ (ECG 12 chuyển đạo)',
-                loai: 'ThamDoChucNang',
-                ketLuan: 'Nhịp xoang đều, tần số 82 chu kỳ/phút. Trục trung gian. Chưa thấy dày thất trái.',
-                ngayCoKetQua: '2026-04-10 09:45',
-                hinhAnhUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&auto=format&fit=crop&q=80'
-            }
-        ],
-        donThuoc: {
-            maDon: 'DT-2026-0188',
-            soNgayDung: 30,
-            loiDanChung: 'Uống thuốc đúng giờ sau ăn sáng. Đo huyết áp mỗi sáng ghi vào sổ nhật ký.',
-            danhSachThuoc: [
-                [
-                    'Amlodipine 5mg',
-                    'Viên',
-                    30,
-                    '1',
-                    '0',
-                    '0',
-                    '0',
-                    'Uống 1 viên vào 08:00 sáng sau ăn no'
-                ],
-                [
-                    'Atorvastatin 10mg',
-                    'Viên',
-                    30,
-                    '0',
-                    '0',
-                    '0',
-                    '1',
-                    'Uống 1 viên vào buổi tối trước khi đi ngủ'
-                ],
-                [
-                    'Ginkgo Biloba 80mg',
-                    'Viên',
-                    60,
-                    '1',
-                    '0',
-                    '1',
-                    '0',
-                    'Uống 1 viên sáng, 1 viên chiều sau ăn'
-                ]
-            ]
-        },
-        taiKham: {
-            ngayHen: '2026-05-10',
-            loiDanTaiKham: 'Tái khám sau 30 ngày để đánh giá đáp ứng huyết áp và xét nghiệm lại lipid máu (nhịn ăn sáng trước khi đến).'
-        },
-        danhGia: null // Chưa đánh giá
-    },
-    {
-        id: 'LK-2026-0018',
-        maKcb: 'KCB-2026-0819-00',
-        ngayKham: '2026-02-15',
-        gioKham: '14:30',
-        chuyenKhoa: 'Khoa Tai Mũi Họng',
-        phongKham: 'Phòng 202',
-        bacSi: 'BS.CKI Lê Hoàng Nam',
-        trangThai: 'da_hoan_thanh',
-        lyDoKham: 'Đau rát họng, ho húng hắng có đờm trắng đục, nghẹt mũi',
-        tienSu: 'Không có tiền sử bệnh lý mạn tính',
-        sinhHieu: {
-            huyetAp: '120/75 mmHg',
-            mach: '78 bpm',
-            nhietDo: '37.3 °C',
-            spo2: '99%',
-            canNang: '68 kg',
-            chieuCao: '170 cm',
-            bmi: '23.5 (Bình thường)'
-        },
-        chanDoan: {
-            icd10Chinh: 'J02.9 - Viêm họng cấp không đặc hiệu',
-            icd10Phu: 'J00 - Viêm mũi họng cấp (cảm thông thường)',
-            ketLuan: 'Viêm mũi họng cấp tính do thời tiết chuyển mùa. Không có dấu hiệu bội nhiễm phổi.'
-        },
-        canLamSang: [
-            {
-                id: 'CLS-10',
-                tenDichVu: 'Nội soi Tai Mũi Họng ống mềm có ghi hình',
-                loai: 'NoiSoi',
-                ketLuan: 'Niêm mạc họng đỏ xung huyết, thành sau họng có vài nang lympho quá phát. Hai dây thanh khép kín tốt.',
-                ngayCoKetQua: '2026-02-15 14:50',
-                hinhAnhUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=600&auto=format&fit=crop&q=80'
-            }
-        ],
-        donThuoc: {
-            maDon: 'DT-2026-0072',
-            soNgayDung: 5,
-            loiDanChung: 'Súc họng nước muối sinh lý ấm ngày 3-4 lần. Tránh nước đá lạnh.',
-            danhSachThuoc: [
-                [
-                    'Cefuroxime 500mg',
-                    'Viên',
-                    10,
-                    '1',
-                    '0',
-                    '0',
-                    '1',
-                    'Uống 1 viên sau ăn sáng, 1 viên sau ăn tối'
-                ],
-                [
-                    'Paracetamol 500mg',
-                    'Viên',
-                    10,
-                    '1',
-                    '1',
-                    '0',
-                    '0',
-                    'Uống khi đau họng hoặc sốt > 38.5°C cách nhau 4-6h'
-                ],
-                [
-                    'Xịt mũi họng thảo dược',
-                    'Lọ',
-                    1,
-                    '1',
-                    '1',
-                    '1',
-                    '1',
-                    'Xịt mỗi bên 1 nhát, ngày 3-4 lần'
-                ]
-            ]
-        },
-        taiKham: {
-            ngayHen: '2026-02-22',
-            loiDanTaiKham: 'Nếu còn ho đờm đục hoặc sốt cao sau 5 ngày vui lòng quay lại khám.'
-        },
-        danhGia: {
-            diemSo: 5,
-            nhanXet: 'Bác sĩ Nam khám rất nhẹ nhàng, nội soi không đau và giải thích đơn thuốc rất chi tiết.',
-            ngayDanhGia: '2026-02-16'
-        }
-    }
-]
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchMedicalRecordsAsync, submitPatientFeedbackAsync } from '../../redux/actions/user/patientPortalAction'
 
 export default function PatientMedicalRecordsPage() {
-    const [records, setRecords] = useState([])
+    const dispatch = useDispatch()
+    const { items: records, loading: isLoading, error: loadError } = useSelector((state) => state.user.user.medicalRecords)
+    const feedback = useSelector((state) => state.user.user.feedbackMutation)
     const [selectedRecordId, setSelectedRecordId] = useState(null)
-    const [isLoading, setIsLoading] = useState(true)
-    const [loadError, setLoadError] = useState('')
     const [activeTab, setActiveTab] = useState('tong_quan') // 'tong_quan' | 'don_thuoc' | 'can_lam_sang' | 'tai_kham'
 
     // Modal đánh giá 5 sao
@@ -225,24 +36,7 @@ export default function PatientMedicalRecordsPage() {
 
     const currentRecord = records.find((r) => r.id === selectedRecordId) || records[0]
 
-    useEffect(() => {
-        let active = true
-        patientPortalService.getMedicalRecords()
-            .then((data) => {
-                if (!active) return
-                setRecords(data)
-                setSelectedRecordId(data[0]?.id ?? null)
-                setLoadError('')
-            })
-            .catch(() => {
-                if (!active) return
-                setLoadError('Không thể tải bệnh án điện tử. Vui lòng thử lại.')
-            })
-            .finally(() => {
-                if (active) setIsLoading(false)
-            })
-        return () => { active = false }
-    }, [])
+    useEffect(() => { dispatch(fetchMedicalRecordsAsync()) }, [dispatch])
 
     const handleOpenRating = () => {
         if (currentRecord.danhGia) {
@@ -254,25 +48,17 @@ export default function PatientMedicalRecordsPage() {
         setRatingModalOpen(true)
     }
 
-    const handleSubmitRating = (e) => {
+    const handleSubmitRating = async (e) => {
         e.preventDefault()
-        setRecords((prev) =>
-            prev.map((rec) => {
-                if (rec.id === currentRecord.id) {
-                    return {
-                        ...rec,
-                        danhGia: {
-                            diemSo: ratingScore,
-                            nhanXet: ratingComment || 'Dịch vụ chu đáo, bác sĩ tư vấn tận tình.',
-                            ngayDanhGia: new Date().toISOString().split('T')[0]
-                        }
-                    }
-                }
-                return rec
-            })
-        )
-        setRatingModalOpen(false)
-        toast.success('Cảm ơn bạn đã đánh giá dịch vụ khám chữa bệnh!')
+        if (feedback.loading) return
+        const result = await dispatch(submitPatientFeedbackAsync({
+            luot_kham_id: Number(currentRecord.id), so_sao_bac_si: ratingScore,
+            so_sao_phong_kham: ratingScore, nhan_xet: ratingComment,
+        }))
+        if (submitPatientFeedbackAsync.fulfilled.match(result)) {
+            setRatingModalOpen(false)
+            toast.success('Cảm ơn bạn đã đánh giá dịch vụ khám chữa bệnh!')
+        } else toast.error(result.payload || 'Không thể lưu đánh giá. Vui lòng thử lại.')
     }
 
     const handlePrintRecord = () => {

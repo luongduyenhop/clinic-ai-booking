@@ -1,6 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { patientPortalService } from '../../../services/user/PatientPortalService'
 import { unwrapApi, unwrapPagedApi, pickErrorMessage } from '../../../utils/helpers/apiHelper'
+import { mapMedicalRecords } from '../../../utils/helpers/patientMedicalMapping'
 import { mapPrescriptions, mapLabResults } from '../../../utils/helpers/patientResultMapping'
 
 export const fetchPrescriptionsAsync = createAsyncThunk('user/fetchPrescriptions', async ({ page = 1 } = {}, { rejectWithValue, signal }) => {
@@ -31,7 +32,7 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
                 appointmentDate: item.ngay_kham, timeSlot: item.gio_kham?.slice(0, 5), status: item.trang_thai, reason: item.ly_do_kham,
             })) : [],
             familyMembers: family.status === 'fulfilled' ? unwrapApi(family.value) : [],
-            medicalHistory: records.status === 'fulfilled' ? records.value.map((record) => ({
+            medicalHistory: records.status === 'fulfilled' ? mapMedicalRecords(unwrapApi(records.value)).map((record) => ({
                 id: record.id, code: record.maKcb, date: record.ngayKham,
                 doctor: record.bacSi, specialty: record.chuyenKhoa, diagnosis: record.chanDoan.icd10Chinh,
                 symptoms: record.lyDoKham, advice: record.chanDoan.ketLuan, status: record.trangThai,
@@ -44,4 +45,22 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
             labError: lab.status === 'rejected' ? pickErrorMessage(lab.reason) : '',
         }
     } catch (error) { return rejectWithValue(pickErrorMessage(error)) }
+})
+export const fetchMedicalRecordsAsync = createAsyncThunk('user/fetchMedicalRecords', async (_, { rejectWithValue }) => {
+    try { return mapMedicalRecords(unwrapApi(await patientPortalService.getMedicalRecords())) }
+    catch (error) { return rejectWithValue(pickErrorMessage(error)) }
+})
+export const findPatientCodeAsync = createAsyncThunk('user/findPatientCode', async (keyword, { rejectWithValue }) => {
+    try { return unwrapApi(await patientPortalService.findLostPatientCode(keyword)) }
+    catch (error) { return rejectWithValue(pickErrorMessage(error)) }
+})
+export const addFamilyMemberAsync = createAsyncThunk('user/addFamilyMember', async (member, { rejectWithValue }) => {
+    try { return unwrapApi(await patientPortalService.addFamilyMember({
+        ...member, quan_he: member.quan_he || member.moi_quan_he,
+    })) }
+    catch (error) { return rejectWithValue(pickErrorMessage(error)) }
+})
+export const submitPatientFeedbackAsync = createAsyncThunk('user/submitPatientFeedback', async (payload, { rejectWithValue }) => {
+    try { return unwrapApi(await patientPortalService.submitFeedback(payload)) }
+    catch (error) { return rejectWithValue(pickErrorMessage(error)) }
 })

@@ -6,9 +6,14 @@ import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 const loadModule = (source) => import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
 const helper = await loadModule(await readFile(new URL('../src/utils/helpers/apiHelper.js', import.meta.url), 'utf8'))
 const mapping = await loadModule(await readFile(new URL('../src/utils/helpers/patientResultMapping.js', import.meta.url), 'utf8'))
+const medicalMapping = await loadModule(await readFile(new URL('../src/utils/helpers/patientMedicalMapping.js', import.meta.url), 'utf8'))
 let rejectRx = false
 const calls = []
 const service = {
+    getMedicalRecords: async () => ({ data: { success: true, data: [] } }),
+    findLostPatientCode: async () => ({ data: { success: true, data: [{ id: 7 }] } }),
+    addFamilyMember: async (member) => ({ data: { success: true, data: { id: 8, ...member } } }),
+    submitFeedback: async (payload) => ({ data: { success: true, data: payload } }),
     getPrescriptionsPage: async (page) => {
         calls.push(['rx', page])
         if (rejectRx) throw new Error('rx failed')
@@ -19,16 +24,16 @@ const service = {
         return { data: { success: true, data: [], meta: { page, total_pages: 1 } } }
     },
 }
-globalThis.__patientTests = { createSlice, createAsyncThunk, patientPortalService: service, ...helper, ...mapping }
+globalThis.__patientTests = { createSlice, createAsyncThunk, patientPortalService: service, ...helper, ...mapping, ...medicalMapping }
 const actionSource = (await readFile(new URL('../src/redux/actions/user/patientPortalAction.js', import.meta.url), 'utf8')).split('\n').filter((line) => !line.startsWith('import ')).join('\n')
-const actions = await loadModule('const { createAsyncThunk, patientPortalService, unwrapApi, unwrapPagedApi, pickErrorMessage, mapPrescriptions, mapLabResults } = globalThis.__patientTests;\n' + actionSource)
+const actions = await loadModule('const { createAsyncThunk, patientPortalService, unwrapApi, unwrapPagedApi, pickErrorMessage, mapPrescriptions, mapLabResults, mapMedicalRecords } = globalThis.__patientTests;\n' + actionSource)
 Object.assign(globalThis.__patientTests, actions, {
     createPatientBookingAsync: createAsyncThunk('test/booking', async () => ({})),
     fetchAvailableSlotsAsync: createAsyncThunk('test/slots', async () => []),
     analyzeSymptomsAsync: createAsyncThunk('test/triage', async () => ({})),
 })
 const sliceSource = (await readFile(new URL('../src/redux/slices/user/userSlice.js', import.meta.url), 'utf8')).split('\n').filter((line) => !line.startsWith('import ')).join('\n')
-const { default: reducer } = await loadModule('const { createSlice, createPatientBookingAsync, fetchAvailableSlotsAsync, analyzeSymptomsAsync, fetchPatientPortalAsync, fetchPrescriptionsAsync, fetchLabResultsAsync } = globalThis.__patientTests;\n' + sliceSource)
+const { default: reducer } = await loadModule('const { createSlice, createPatientBookingAsync, fetchAvailableSlotsAsync, analyzeSymptomsAsync, fetchPatientPortalAsync, fetchPrescriptionsAsync, fetchLabResultsAsync, fetchMedicalRecordsAsync, findPatientCodeAsync, addFamilyMemberAsync, submitPatientFeedbackAsync } = globalThis.__patientTests;\n' + sliceSource)
 
 test('Redux keeps prescription page 2 and lab page 1 independent', async () => {
     const store = configureStore({ reducer })
@@ -62,4 +67,25 @@ test('unknown CLS types are not labeled as blood tests', () => {
 })
 test('API helper preserves backend validation details', () => {
     assert.equal(helper.pickErrorMessage({ response: { data: { detail: [{ msg: 'Invalid page' }] } } }), 'Invalid page')
+})
+test('medical records and patient lookup update their own Redux state', async () => {
+    const store = configureStore({ reducer })
+    await store.dispatch(actions.fetchMedicalRecordsAsync())
+    await store.dispatch(actions.findPatientCodeAsync('0900000000'))
+    assert.deepEqual(store.getState().medicalRecords.items, [])
+    assert.equal(store.getState().medicalRecords.loading, false)
+    assert.deepEqual(store.getState().patientLookup.items, [{ id: 7 }])
+    assert.equal(store.getState().prescriptionsPage.meta, null)
+})
+test('family creation updates Redux only after server confirmation', async () => {
+    const store = configureStore({ reducer })
+    await store.dispatch(actions.addFamilyMemberAsync({ ho_ten: 'Test', moi_quan_he: 'CON' }))
+    assert.equal(store.getState().portalData.familyMembers[0].quan_he, 'CON')
+    assert.equal(store.getState().familyMutation.loading, false)
+})
+test('clinical mapping retains missing values without inventing diagnosis', () => {
+    const [record] = medicalMapping.mapMedicalRecords([{ luot_kham_id: 5 }])
+    assert.equal(record.gioKham, 'Chưa ghi nhận')
+    assert.equal(record.chanDoan.icd10Chinh, 'Chưa có chẩn đoán')
+    assert.deepEqual(record.donThuoc.danhSachThuoc, [])
 })

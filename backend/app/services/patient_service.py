@@ -28,6 +28,23 @@ from app.schemas.patient import (
 class PatientService:
     """Tầng nghiệp vụ chuyên biệt phục vụ Cổng Khách hàng / Bệnh nhân (Patient Portal)"""
 
+    @staticmethod
+    def _lab_result_type(order: ChiDinh) -> str:
+        """Use recorded clinical metadata; attachment presence does not identify a service."""
+        report_type = order.phieu_ket_qua.loai_ket_qua if order.phieu_ket_qua else None
+        if report_type and report_type.strip():
+            return report_type.strip().upper()
+        group = (order.dich_vu.ma_nhom_byt or "").strip().upper() if order.dich_vu else ""
+        return {
+            "XN": "XET_NGHIEM",
+            "XET_NGHIEM": "XET_NGHIEM",
+            "CDHA": "CHAN_DOAN_HINH_ANH",
+            "CHAN_DOAN_HINH_ANH": "CHAN_DOAN_HINH_ANH",
+            "TDCN": "THAM_DO_CHUC_NANG",
+            "NOI_SOI": "NOI_SOI",
+            "TT": "THU_THUAT",
+        }.get(group, "CHUA_PHAN_LOAI")
+
     async def _get_current_benh_nhan(self, user: TaiKhoan, db: AsyncSession) -> BenhNhan:
         if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
             raise ForbiddenException("Chỉ bệnh nhân được truy cập hồ sơ cá nhân")
@@ -394,7 +411,7 @@ class PatientService:
                 ma_dich_vu=service_code,
                 ten_dich_vu=service_name,
                 ngay_tra_ket_qua=result_time,
-                loai_ket_qua="CHAN_DOAN_HINH_ANH" if attachments else "XET_NGHIEM",
+                loai_ket_qua=self._lab_result_type(order),
                 trang_thai=order.trang_thai,
                 ket_luan=result_text or "Đã có kết quả",
                 phan_loai=order.ket_qua_phan_loai or "BINH_THUONG",

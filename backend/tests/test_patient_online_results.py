@@ -47,6 +47,7 @@ async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_clien
     service = DichVu(
         ma_dich_vu=f"XRAY-{booking.suffix}",
         ten_dich_vu="X-quang ngực thẳng",
+        ma_nhom_byt="CDHA",
         don_gia=100000,
     )
     db_session.add(service)
@@ -82,6 +83,7 @@ async def test_patient_reads_own_prescription_and_lab_result_on_portal(api_clien
     assert lab_results.status_code == 200
     lab_result = lab_results.json()["data"][0]
     assert lab_result["ket_luan"] == "Không thấy tổn thương phổi"
+    assert lab_result["loai_ket_qua"] == "CHAN_DOAN_HINH_ANH"
     assert lab_result["tep_dinh_kem"][0]["url"].endswith("xray-original.png")
     assert lab_result["tep_dinh_kem"][0]["loai_tep"] == "HINH_ANH"
 

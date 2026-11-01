@@ -108,9 +108,9 @@ export default function ParaclinicalWorkPage() {
         setSubmitting(true)
         try {
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()
-            if (!final) AppToast.success('Đã lưu nháp kết quả')
-            else if (APPROVAL_GROUPS.includes(group)) AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — bấm “Duyệt & Trả kết quả” để gửi bác sĩ`)
-            else AppToast.success(`Đã trả kết quả ${selected.ten_dich_vu}`)
+            setSelectedId(selected.id)
+            await load(true)
+            AppToast.success(final ? `Đã trả kết quả ${selected.ten_dich_vu}` : 'Đã lưu nháp kết quả')
         } catch (msg) {
             AppToast.error(msg)
         } finally {
@@ -123,6 +123,8 @@ export default function ParaclinicalWorkPage() {
         setSubmitting(true)
         try {
             const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
+            setSelectedId(selected.id)
+            await load(true)
             if (body.luu_nhap) AppToast.success('Đã lưu nháp kết quả xét nghiệm')
             else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã hoàn tất ${selected.ten_dich_vu} — có chỉ số nguy hiểm, kiểm tra kỹ trước khi duyệt`)
             else AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — chờ duyệt & trả`)

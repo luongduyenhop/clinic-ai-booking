@@ -115,6 +115,9 @@ class SubclinicalService:
             )
 
             waited_until = o.thoi_gian_thuc_hien or now
+            if waited_until and waited_until.tzinfo is None:
+                waited_until = waited_until.replace(tzinfo=timezone.utc)
+            created_utc = o.created_at.replace(tzinfo=timezone.utc) if (o.created_at and o.created_at.tzinfo is None) else o.created_at
             items.append(
                 SubclinicalQueueItem(
                     id=o.id,
@@ -129,7 +132,7 @@ class SubclinicalService:
                     trang_thai=o.trang_thai,
                     phong_thuc_hien_id=o.phong_thuc_hien_id or (o.dich_vu.phong_thuc_hien_id if o.dich_vu else None),
                     thoi_gian_chi_dinh=o.created_at,
-                    thoi_gian_cho_phut=max(0, int((waited_until - o.created_at).total_seconds() // 60)),
+                    thoi_gian_cho_phut=max(0, int((waited_until - created_utc).total_seconds() // 60)),
                     ket_qua_chi_tiet=o.ket_qua_chi_tiet,
                     ket_qua_phan_loai=o.ket_qua_phan_loai,
                     tri_so_chi_tiet=o.tri_so_chi_tiet,

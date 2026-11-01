@@ -268,6 +268,7 @@ class ClsLabResultService:
         if kq is None:
             kq = KetQuaCLS(chi_dinh_id=order.id)
             db.add(kq)
+            order.ket_qua = kq
         kq.nguoi_thuc_hien_id = technician_user_id
         kq.ket_qua_chi_tiet = _summary_text(results, chi_so, ket_luan)
         kq.tri_so_chi_tiet = detail

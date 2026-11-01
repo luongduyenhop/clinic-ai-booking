@@ -88,7 +88,7 @@ class ClsApprovalService:
         phieu = await latest_phieu(order.id, db)
         if is_phieu_approved(phieu):
             raise ConflictException("Kết quả này đã được duyệt và trả trước đó!")
-        kq = order.ket_qua
+        kq = order.ket_qua or (await db.execute(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))).scalar_one_or_none()
         if phieu is None or phieu.trang_thai != PHIEU_CHO_DUYET or kq is None:
             raise ConflictException("Chưa có kết quả hoàn tất để duyệt — hãy nhập và bấm Hoàn tất kết quả trước!")
 

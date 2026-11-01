@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import dayjs from 'dayjs'
-import { createAppointmentAsync } from '../../redux/slices/reception/receptionSlice'
+import { createAppointmentAsync } from '../../redux/actions/reception/receptionAction'
 import { initialTimeSlots } from '../../utils/constants/receptionConstants'
 
 export default function AppointmentFormModal({ open, onClose, defaultPatientId }) {

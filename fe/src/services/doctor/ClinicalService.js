@@ -803,6 +803,7 @@ export class ClinicalService extends BaseServices {
         const result = {
             id: orderId,
             trang_thai,
+            trang_thai_ket_qua: kq.trang_thai_ket_qua,
             ket_qua_phan_loai: kq.ket_qua_phan_loai,
             ket_qua_chi_tiet: {
                 loai: 'XET_NGHIEM',
@@ -812,27 +813,77 @@ export class ClinicalService extends BaseServices {
                 ghi_chu: kq.ghi_chu,
             },
         }
-        if (!body.luu_nhap) {
-            result.thoi_gian_tra_ket_qua = kq.thoi_gian_tra_ket_qua
-            await this.syncReturnedResultToWorkspace(orderId, result)
-        }
-        return result
+        return { data: result }
     }
 
-    // Đưa kết quả đã trả về bản sao trên bàn khám để bác sĩ thấy (kèm cờ cảnh báo) và lượt khám được ưu tiên gọi lại
+    approveOrder = async (orderId) => {
+        const res = await this.post(`/api/v1/subclinical/orders/${orderId}/approve`, {})
+        const data = res.data.data
+        const patch = toMirrorPatch(data.ket_qua)
+        await this.syncReturnedResultToWorkspace(orderId, patch)
+        return { data: { id: orderId, ...patch, trang_thai_ket_qua: data.trang_thai_ket_qua, nguoi_duyet: data.nguoi_duyet.ho_ten } }
+    }
+
+    getClsReport = async (orderId) => {
+        const res = await this.get(`/api/v1/subclinical/orders/${orderId}/report`, { __skipGlobalLoading: true })
+        return res?.data?.data
+    }
+
+    pollReturnedResults = async () => {
+        if (this._returnedPollOff) return []
+        if (this._returnedPolling) return []
+        this._returnedPolling = this._pollReturnedResultsOnce()
+        try {
+            return await this._returnedPolling
+        } finally {
+            this._returnedPolling = null
+        }
+    }
+
+    _pollReturnedResultsOnce = async () => {
+        let payload
+        try {
+            const query = this._returnedSince ? `?since=${encodeURIComponent(this._returnedSince)}` : ''
+            const res = await this.get(`/api/v1/subclinical/returned-results${query}`, {
+                __skipGlobalLoading: true,
+                __skipGlobalError: true,
+            })
+            payload = res?.data?.data || {}
+        } catch (e) {
+            if (e?.response?.status === 403) this._returnedPollOff = true
+            return []
+        }
+        if (payload.server_time) this._returnedSince = payload.server_time
+        const isNew = (it) => {
+            const mirror = findMirrorOrder(it.chi_dinh_id)
+            return mirror && !sameInstant(mirror.order.thoi_gian_duyet, it.thoi_gian_duyet)
+        }
+        const fresh = (payload.items || []).filter(isNew)
+        if (fresh.length === 0) return []
+
+        await this.reloadFromPostgres()
+        const changed = []
+        let dirty = false
+        fresh.forEach((it) => {
+            const mirror = findMirrorOrder(it.chi_dinh_id)
+            if (!mirror) return
+            if (isNew(it)) {
+                applyReturnedResult(mirror, toMirrorPatch(it))
+                dirty = true
+            }
+            changed.push({ encounterId: mirror.enc.id, patientName: mirror.enc.benh_nhan?.ho_ten, order: structuredClone(mirror.order) })
+        })
+        if (dirty) await this.persistToPostgres()
+        return changed
+    }
+
     syncReturnedResultToWorkspace = async (orderId, result) => {
         await this.reloadFromPostgres()
         const mirror = findMirrorOrder(orderId)
         if (mirror) {
             const patch = { ...result }
             delete patch.id
-            Object.assign(mirror.order, patch)
-            const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
-            if (ticket) {
-                ticket.trang_thai = 'co_ket_qua_cls'
-                ticket.muc_do_uu_tien = 0
-                ticket.ghi_chu = `${result.ket_qua_phan_loai === 'NGUY_KICH' ? '🚨 KQ CLS NGUY KỊCH' : '⭐ CÓ KQ CLS'}: ${mirror.order.ten_dich_vu}`
-            }
+            applyReturnedResult(mirror, patch)
             await this.persistToPostgres()
         }
         try {

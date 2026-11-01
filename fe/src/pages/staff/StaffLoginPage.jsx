@@ -2,20 +2,18 @@ import { useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
+import { useDispatch } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { setAuth } from '../../redux/slices/authSlice'
 import { getRoleDefaultPath } from '../../utils/constants/System'
 import { authService } from '../../services/user/AuthService'
 import {
     Hospital,
-    LockKey,
     ShieldCheck,
     Stethoscope,
     IdentificationCard,
     Receipt,
     Microscope,
-    Users,
 } from '../../components/common/ClinicIcon'
 
 const STAFF_ACCOUNTS = [
@@ -42,19 +40,19 @@ const STAFF_ACCOUNTS = [
         roleKey: 'DOCTOR',
         role: 'BAC_SI',
         label: 'Bác sĩ Khám bệnh',
-        desc: 'BS. CKII Trần Quốc Huy · Phòng 101 Nội',
-        creds: { email: 'bshuy@clinic-ai.vn', mat_khau: 'Doctor@123456' },
+        desc: 'PGS.TS Phạm Đức Minh · Phòng 101 Nội',
+        creds: { email: 'minh.doctor@clinic.com', mat_khau: 'Doctor@123456' },
         profile: {
             id: 'USER_DOC_01',
-            fullName: 'BS. CKII Trần Quốc Huy',
-            shortName: 'BS. Huy',
+            fullName: 'PGS.TS Phạm Đức Minh',
+            shortName: 'BS. Minh',
             role: 'BAC_SI',
-            email: 'bshuy@clinic-ai.vn',
+            email: 'minh.doctor@clinic.com',
             department: 'Khoa Nội tổng quát',
             room: 'Phòng 101',
             cchn: '001234/BYT-CCHN',
         },
-        defaultPath: '/doctor',
+        defaultPath: '/doctor/kham-benh',
         color: 'from-sky-500 to-sky-700',
         badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
         icon: Stethoscope,
@@ -83,32 +81,32 @@ const STAFF_ACCOUNTS = [
         role: 'THU_NGAN',
         label: 'Thu ngân Viện phí',
         desc: 'Trần Thu Ngân · Quầy Thu ngân & VietQR',
-        creds: { email: 'thungan@clinic-ai.vn', mat_khau: 'ThuNgan@123456' },
+        creds: { email: 'thungan@clinic.com', mat_khau: 'ThuNgan@123456' },
         profile: {
             id: 'USER_CASHIER_01',
             fullName: 'Trần Thu Ngân',
             shortName: 'Thu ngân Ngân',
             role: 'THU_NGAN',
-            email: 'thungan@clinic-ai.vn',
+            email: 'thungan@clinic.com',
             department: 'Phòng Tài Chính - Kế Toán',
         },
-        defaultPath: '/admin/thu-chi',
+        defaultPath: '/staff/cashier',
         color: 'from-emerald-500 to-emerald-700',
         badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
         icon: Receipt,
     },
     {
         roleKey: 'LAB_TECH',
-        role: 'KTV_XET_NGHIEM',
+        role: 'KY_THUAT_VIEN',
         label: 'KTV Xét nghiệm LIS',
         desc: 'CN. Hoàng Thị Yến · Phòng Lab Huyết học',
-        creds: { email: 'yen.lab@clinic-ai.vn', mat_khau: 'LabTech@123456' },
+        creds: { email: 'ktv@clinic.com', mat_khau: 'Ktv@123456' },
         profile: {
             id: 'USER_LAB_01',
             fullName: 'CN. Hoàng Thị Yến',
             shortName: 'KTV. Yến LIS',
-            role: 'KTV_XET_NGHIEM',
-            email: 'yen.lab@clinic-ai.vn',
+            role: 'KY_THUAT_VIEN',
+            email: 'ktv@clinic.com',
             department: 'Khoa Xét Nghiệm & Hóa Sinh LIS',
         },
         defaultPath: '/staff/paraclinical-work?nhom=XET_NGHIEM',
@@ -142,7 +140,7 @@ export default function StaffLoginPage() {
                     userProfile = { ...userProfile, ...data.user, role: staffConfig.role }
                 }
             } catch {
-                // Sử dụng hồ sơ xác thực dự phòng nếu backend offline
+                userProfile = staffConfig.profile
             }
 
             dispatch(
@@ -200,7 +198,6 @@ export default function StaffLoginPage() {
 
     return (
         <div className="min-h-screen bg-[#001D2D] text-slate-100 flex flex-col justify-between selection:bg-[#00B5F1]/30">
-            {/* Header thanh lịch */}
             <header className="h-16 px-6 border-b border-white/10 flex items-center justify-between bg-[#00263C]">
                 <Link to="/" className="flex items-center gap-2.5 group">
                     <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00B5F1] to-[#007EA7] text-white flex items-center justify-center font-bold text-lg shadow-md">
@@ -230,9 +227,7 @@ export default function StaffLoginPage() {
                 </div>
             </header>
 
-            {/* Nội dung chính: 2 cột */}
             <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 sm:py-12 grid lg:grid-cols-12 gap-8 items-center">
-                {/* CỘT TRÁI (5 cols): Form đăng nhập Email & Password */}
                 <div className="lg:col-span-5 bg-[#002A42] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
                     <div>
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#00B5F1]/15 text-[#00B5F1] text-[11px] font-bold uppercase tracking-wider mb-2 border border-[#00B5F1]/30">
@@ -259,7 +254,7 @@ export default function StaffLoginPage() {
                             <input
                                 type="email"
                                 name="email"
-                                placeholder="bshuy@clinic-ai.vn hoặc admin@clinic.com"
+                                placeholder="minh.doctor@clinic.com hoặc admin@clinic.com"
                                 value={formik.values.email}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -305,7 +300,6 @@ export default function StaffLoginPage() {
                         </button>
                     </form>
 
-                    {/* Khuyến cáo an ninh y tế - KHÔNG CÓ NÚT ĐĂNG KÝ */}
                     <div className="p-3.5 rounded-2xl bg-[#001D2D]/90 border border-white/10 text-[11px] text-sky-200/80 leading-relaxed space-y-1">
                         <div className="font-bold text-amber-300 flex items-center gap-1.5">
                             <span>🔒 Quy định an ninh dữ liệu y tế</span>
@@ -318,7 +312,6 @@ export default function StaffLoginPage() {
                     </div>
                 </div>
 
-                {/* CỘT PHẢI (7 cols): Danh sách phím tắt 5 ca trực chuyên môn */}
                 <div className="lg:col-span-7 space-y-4">
                     <div className="border-b border-white/10 pb-3">
                         <span className="text-xs font-bold text-[#00B5F1] uppercase tracking-wider block">
@@ -391,7 +384,6 @@ export default function StaffLoginPage() {
                 </div>
             </main>
 
-            {/* Footer */}
             <footer className="h-12 border-t border-white/10 px-6 flex items-center justify-between text-[11px] text-slate-400 bg-[#001824]">
                 <span>© {new Date().getFullYear()} Clinic-AI HIS. Nền tảng điều hành phòng khám đa khoa.</span>
                 <span>Tiêu chuẩn Thông tư 32/2023/TT-BYT & QCVN Y Tế</span>

@@ -19,6 +19,19 @@ def upgrade() -> None:
 
     existing_indexes = {idx["name"] for idx in inspector.get_indexes("hoa_don")}
     if INDEX_NAME not in existing_indexes:
+        bind.execute(
+            sa.text(
+                "UPDATE hoa_don SET trang_thai = 'da_huy' "
+                "WHERE luot_kham_id IS NOT NULL "
+                "AND trang_thai IN ('chua_thu', 'da_thu') "
+                "AND id NOT IN ("
+                "    SELECT MAX(id) FROM hoa_don "
+                "    WHERE luot_kham_id IS NOT NULL "
+                "    AND trang_thai IN ('chua_thu', 'da_thu') "
+                "    GROUP BY luot_kham_id"
+                ")"
+            )
+        )
         op.create_index(
             INDEX_NAME,
             "hoa_don",

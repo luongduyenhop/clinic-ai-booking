@@ -14,6 +14,7 @@ export const symptomNatures = ['Âm ỉ', 'Đột ngột', 'Nhói', 'Nóng rát'
 export const associatedSymptoms = ['Sốt', 'Chóng mặt', 'Buồn nôn', 'Mệt mỏi', 'Tê yếu', 'Chảy máu', 'Phát ban', 'Không có']
 
 export const redFlagOptions = [
+    { id: 'vomiting_blood', label: 'Nôn ra máu' },
     { id: 'severe_breathing', label: 'Khó thở nặng hoặc tím tái' },
     { id: 'severe_chest_pain', label: 'Đau ngực dữ dội hoặc bóp nghẹt' },
     { id: 'unconscious', label: 'Bất tỉnh hoặc co giật' },

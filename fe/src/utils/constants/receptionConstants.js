@@ -23,15 +23,29 @@ export const QUEUE_STATUS = {
     IN_CONSULTATION: 'IN_CONSULTATION',
     COMPLETED: 'COMPLETED',
     CANCELLED: 'CANCELLED',
+    CHO_KHAM: 'CHO_KHAM',
+    cho_kham: 'cho_kham',
+    dang_kham: 'dang_kham',
+    tam_hoan: 'tam_hoan',
+    da_kham: 'da_kham',
+    bo_kham: 'bo_kham',
+    da_dong_ve: 'da_dong_ve',
 }
 
 export const QUEUE_STATUS_LABELS = {
-    [QUEUE_STATUS.WAITING]: { label: 'Đang chờ', color: 'gold' },
+    [QUEUE_STATUS.WAITING]: { label: 'Chờ khám', color: 'gold' },
     [QUEUE_STATUS.CALLED]: { label: 'Đã gọi', color: 'processing' },
     [QUEUE_STATUS.DEFERRED]: { label: 'Tạm hoãn', color: 'warning' },
     [QUEUE_STATUS.IN_CONSULTATION]: { label: 'Đang khám', color: 'purple' },
     [QUEUE_STATUS.COMPLETED]: { label: 'Hoàn tất', color: 'success' },
     [QUEUE_STATUS.CANCELLED]: { label: 'Đã hủy', color: 'error' },
+    CHO_KHAM: { label: 'Chờ khám', color: 'gold' },
+    cho_kham: { label: 'Chờ khám', color: 'gold' },
+    dang_kham: { label: 'Đang khám', color: 'purple' },
+    tam_hoan: { label: 'Tạm hoãn', color: 'warning' },
+    da_kham: { label: 'Đã hoàn tất', color: 'success' },
+    bo_kham: { label: 'Bỏ khám', color: 'error' },
+    da_dong_ve: { label: 'Đã đóng vé', color: 'default' },
 }
 
 export const PAYMENT_STATUS = {

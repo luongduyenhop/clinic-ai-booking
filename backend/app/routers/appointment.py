@@ -238,8 +238,8 @@ async def process_unconfirmed_appointments(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro != VaiTroEnum.ADMIN.value:
-        raise ForbiddenException("Chỉ Quản trị viên hệ thống (Admin) mới có quyền kích hoạt tiến trình tự động hủy lịch!")
+    if current_user.vai_tro not in (VaiTroEnum.ADMIN.value, VaiTroEnum.LE_TAN.value):
+        raise ForbiddenException("Chỉ Quản trị viên hệ thống hoặc Lễ tân mới có quyền kích hoạt tiến trình tự động hủy lịch!")
     result = await appointment_service.auto_process_unconfirmed_and_waitlist(db, hours_threshold=hours_threshold)
     return ResponseEnvelope.success_response(
         data=result,

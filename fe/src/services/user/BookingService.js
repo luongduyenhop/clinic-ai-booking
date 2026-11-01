@@ -1,5 +1,5 @@
 import { http } from '../BaseService.js'
-import { bookingSlots, doctors } from '../../data/user/publicPortalData.js'
+import { doctors } from '../../data/user/publicPortalData.js'
 
 const STORAGE_KEY = 'clinic_patient_appointments_v2'
 
@@ -43,39 +43,11 @@ class BookingService {
     async getAvailableSlots({ doctorId, appointmentDate }) {
         const doc = doctors.find((d) => d.id === doctorId || String(d.realId) === String(doctorId))
         const realDoctorId = doc ? doc.realId : doctorId
-
-        if (realDoctorId) {
-            try {
-                const res = await http.get(`/api/v1/appointments/doctors/${realDoctorId}/slots`, {
-                    params: { query_date: appointmentDate }
-                })
-                if (res?.data?.data?.slots && Array.isArray(res.data.data.slots)) {
-                    return res.data.data.slots.map((s) => {
-                        const timeStr = s.time_str
-                        const [h, m] = timeStr.split(':').map(Number)
-                        let endM = m + 30
-                        let endH = h
-                        if (endM >= 60) {
-                            endM -= 60
-                            endH += 1
-                        }
-                        const rangeStr = `${timeStr} - ${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
-                        return {
-                            value: rangeStr,
-                            available: s.status === 'available'
-                        }
-                    })
-                }
-            } catch (err) {
-                console.warn('API slots unavailable, using local slot rules:', err)
-            }
-        }
-
-        await delay(80)
-        const booked = readBookings().filter((item) => item.doctorId === doctorId && item.appointmentDate === appointmentDate && item.status !== 'CANCELLED')
-        return bookingSlots.map((slot, index) => ({
-            value: slot,
-            available: !booked.some((item) => item.timeSlot === slot) && (index + String(doctorId).length + Number(appointmentDate.slice(-2))) % 6 !== 0,
+        const res = await http.get(`/api/v1/appointments/doctors/${realDoctorId}/slots`, { params: { query_date: appointmentDate } })
+        if (!Array.isArray(res?.data?.data?.slots)) throw new Error('Dữ liệu khung giờ không hợp lệ')
+        return res.data.data.slots.filter((slot) => slot.status === 'available').map((slot) => ({
+            value: slot.time_str,
+            available: true,
         }))
     }
 
@@ -102,9 +74,10 @@ class BookingService {
                 backendRecord = res.data.data
             }
         } catch (apiErr) {
-            console.warn('Backend create appointment fallback to local cache:', apiErr)
+            throw new Error(apiErr.response?.data?.message || 'Không thể xác nhận lịch hẹn. Vui lòng tải lại khung giờ và thử lại.')
         }
 
+        if (!backendRecord?.id || !backendRecord?.ma_lich_kham) throw new Error('Backend chưa xác nhận lịch hẹn. Vui lòng thử lại.')
         const datePart = payload.appointmentDate.replaceAll('-', '')
         const sequence = String(bookings.length + 1).padStart(4, '0')
         const booking = {

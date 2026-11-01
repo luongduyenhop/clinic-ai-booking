@@ -1,0 +1,101 @@
+﻿disease_key,disease_name_vi,specialty,data_status
+gerd,Trào ngược dạ dày thực quản,Nội tổng quát,synthetic_requires_clinical_review
+hypertension,Tăng huyết áp,Nội tổng quát,synthetic_requires_clinical_review
+type_2_diabetes,Đái tháo đường típ 2,Nội tổng quát,synthetic_requires_clinical_review
+viral_gastroenteritis,Viêm dạ dày ruột do virus,Nội tổng quát,synthetic_requires_clinical_review
+migraine,Đau nửa đầu,Nội tổng quát,synthetic_requires_clinical_review
+appendicitis,Viêm ruột thừa,Ngoại,synthetic_requires_clinical_review
+hemorrhoids,Bệnh trĩ,Ngoại,synthetic_requires_clinical_review
+inguinal_hernia,Thoát vị bẹn,Ngoại,synthetic_requires_clinical_review
+acute_cholecystitis,Viêm túi mật cấp,Ngoại,synthetic_requires_clinical_review
+skin_abscess,Áp xe da,Ngoại,synthetic_requires_clinical_review
+bronchiolitis,Viêm tiểu phế quản ở trẻ,Nhi,synthetic_requires_clinical_review
+hand_foot_mouth_disease,Bệnh tay chân miệng,Nhi,synthetic_requires_clinical_review
+croup,Viêm thanh khí phế quản,Nhi,synthetic_requires_clinical_review
+roseola,Sốt phát ban ở trẻ,Nhi,synthetic_requires_clinical_review
+pediatric_uti,Nhiễm trùng đường tiểu ở trẻ,Nhi,synthetic_requires_clinical_review
+dental_caries,Sâu răng,Răng Hàm Mặt,synthetic_requires_clinical_review
+pulpitis,Viêm tủy răng,Răng Hàm Mặt,synthetic_requires_clinical_review
+gingivitis,Viêm nướu,Răng Hàm Mặt,synthetic_requires_clinical_review
+periodontitis,Viêm nha chu,Răng Hàm Mặt,synthetic_requires_clinical_review
+dental_abscess,Áp xe răng,Răng Hàm Mặt,synthetic_requires_clinical_review
+allergic_rhinitis,Viêm mũi dị ứng,Tai Mũi Họng,synthetic_requires_clinical_review
+acute_sinusitis,Viêm xoang cấp,Tai Mũi Họng,synthetic_requires_clinical_review
+tonsillitis,Viêm amidan,Tai Mũi Họng,synthetic_requires_clinical_review
+acute_otitis_media,Viêm tai giữa cấp,Tai Mũi Họng,synthetic_requires_clinical_review
+otitis_externa,Viêm ống tai ngoài,Tai Mũi Họng,synthetic_requires_clinical_review
+community_acquired_pneumonia,Viêm phổi cộng đồng,Nội tổng quát,synthetic_requires_clinical_review
+bronchial_asthma,Hen phế quản,Nội tổng quát,synthetic_requires_clinical_review
+copd_exacerbation,Đợt cấp COPD,Nội tổng quát,synthetic_requires_clinical_review
+influenza,Cúm,Nội tổng quát,synthetic_requires_clinical_review
+dengue,Sốt xuất huyết Dengue,Nội tổng quát,synthetic_requires_clinical_review
+iron_deficiency_anemia,Thiếu máu thiếu sắt,Nội tổng quát,synthetic_requires_clinical_review
+hyperthyroidism,Cường giáp,Nội tổng quát,synthetic_requires_clinical_review
+hypothyroidism,Suy giáp,Nội tổng quát,synthetic_requires_clinical_review
+gout,Gút,Nội tổng quát,synthetic_requires_clinical_review
+rheumatoid_arthritis,Viêm khớp dạng thấp,Nội tổng quát,synthetic_requires_clinical_review
+chronic_kidney_disease,Bệnh thận mạn,Nội tổng quát,synthetic_requires_clinical_review
+urinary_tract_infection,Nhiễm trùng đường tiết niệu,Nội tổng quát,synthetic_requires_clinical_review
+hepatitis,Viêm gan,Nội tổng quát,synthetic_requires_clinical_review
+peptic_ulcer,Loét dạ dày tá tràng,Nội tổng quát,synthetic_requires_clinical_review
+heart_failure,Suy tim,Nội tổng quát,synthetic_requires_clinical_review
+bowel_obstruction,Tắc ruột,Ngoại,synthetic_requires_clinical_review
+perforated_peptic_ulcer,Thủng ổ loét dạ dày tá tràng,Ngoại,synthetic_requires_clinical_review
+acute_pancreatitis,Viêm tụy cấp,Ngoại,synthetic_requires_clinical_review
+diverticulitis,Viêm túi thừa đại tràng,Ngoại,synthetic_requires_clinical_review
+perianal_abscess,Áp xe hậu môn,Ngoại,synthetic_requires_clinical_review
+anal_fissure,Nứt kẽ hậu môn,Ngoại,synthetic_requires_clinical_review
+pilonidal_sinus,Nang lông vùng cùng cụt,Ngoại,synthetic_requires_clinical_review
+varicose_veins,Suy giãn tĩnh mạch,Ngoại,synthetic_requires_clinical_review
+diabetic_foot_infection,Nhiễm trùng bàn chân đái tháo đường,Ngoại,synthetic_requires_clinical_review
+breast_abscess,Áp xe vú,Ngoại,synthetic_requires_clinical_review
+thyroid_nodule,Nhân tuyến giáp,Ngoại,synthetic_requires_clinical_review
+soft_tissue_tumor,U mô mềm,Ngoại,synthetic_requires_clinical_review
+lipoma,U mỡ,Ngoại,synthetic_requires_clinical_review
+ganglion_cyst,Nang hoạt dịch,Ngoại,synthetic_requires_clinical_review
+traumatic_wound,Vết thương phần mềm,Ngoại,synthetic_requires_clinical_review
+pediatric_pneumonia,Viêm phổi trẻ em,Nhi,synthetic_requires_clinical_review
+acute_diarrhea_child,Tiêu chảy cấp trẻ em,Nhi,synthetic_requires_clinical_review
+measles,Sởi,Nhi,synthetic_requires_clinical_review
+chickenpox,Thủy đậu,Nhi,synthetic_requires_clinical_review
+scarlet_fever,Tinh hồng nhiệt,Nhi,synthetic_requires_clinical_review
+febrile_seizure,Co giật do sốt,Nhi,synthetic_requires_clinical_review
+pediatric_asthma,Hen trẻ em,Nhi,synthetic_requires_clinical_review
+atopic_dermatitis_child,Viêm da cơ địa trẻ em,Nhi,synthetic_requires_clinical_review
+impetigo_child,Chốc lở trẻ em,Nhi,synthetic_requires_clinical_review
+mumps,Quai bị,Nhi,synthetic_requires_clinical_review
+whooping_cough,Ho gà,Nhi,synthetic_requires_clinical_review
+pediatric_meningitis,Viêm màng não trẻ em,Nhi,synthetic_requires_clinical_review
+malnutrition_child,Suy dinh dưỡng trẻ em,Nhi,synthetic_requires_clinical_review
+iron_deficiency_anemia_child,Thiếu máu thiếu sắt trẻ em,Nhi,synthetic_requires_clinical_review
+neonatal_jaundice,Vàng da sơ sinh,Nhi,synthetic_requires_clinical_review
+pericoronitis,Viêm lợi trùm răng khôn,Răng Hàm Mặt,synthetic_requires_clinical_review
+temporomandibular_disorder,Rối loạn khớp thái dương hàm,Răng Hàm Mặt,synthetic_requires_clinical_review
+recurrent_aphthous_ulcer,Loét áp-tơ tái phát,Răng Hàm Mặt,synthetic_requires_clinical_review
+oral_candidiasis,Nấm miệng,Răng Hàm Mặt,synthetic_requires_clinical_review
+oral_lichen_planus,Lichen phẳng miệng,Răng Hàm Mặt,synthetic_requires_clinical_review
+oral_cancer,Ung thư khoang miệng,Răng Hàm Mặt,synthetic_requires_clinical_review
+leukoplakia,Bạch sản niêm mạc miệng,Răng Hàm Mặt,synthetic_requires_clinical_review
+dry_socket,Viêm ổ răng khô,Răng Hàm Mặt,synthetic_requires_clinical_review
+impacted_wisdom_tooth,Răng khôn mọc lệch,Răng Hàm Mặt,synthetic_requires_clinical_review
+tooth_fracture,Gãy răng,Răng Hàm Mặt,synthetic_requires_clinical_review
+tooth_avulsion,Răng bật khỏi ổ,Răng Hàm Mặt,synthetic_requires_clinical_review
+malocclusion,Sai khớp cắn,Răng Hàm Mặt,synthetic_requires_clinical_review
+bruxism,Nghiến răng,Răng Hàm Mặt,synthetic_requires_clinical_review
+salivary_stone,Sỏi tuyến nước bọt,Răng Hàm Mặt,synthetic_requires_clinical_review
+sialadenitis,Viêm tuyến nước bọt,Răng Hàm Mặt,synthetic_requires_clinical_review
+chronic_sinusitis,Viêm xoang mạn,Tai Mũi Họng,synthetic_requires_clinical_review
+nasal_polyps,Polyp mũi,Tai Mũi Họng,synthetic_requires_clinical_review
+deviated_nasal_septum,Vẹo vách ngăn mũi,Tai Mũi Họng,synthetic_requires_clinical_review
+epistaxis,Chảy máu mũi,Tai Mũi Họng,synthetic_requires_clinical_review
+peritonsillar_abscess,Áp xe quanh amidan,Tai Mũi Họng,synthetic_requires_clinical_review
+laryngitis,Viêm thanh quản,Tai Mũi Họng,synthetic_requires_clinical_review
+vocal_cord_nodule,Hạt xơ dây thanh,Tai Mũi Họng,synthetic_requires_clinical_review
+benign_positional_vertigo,Chóng mặt tư thế lành tính,Tai Mũi Họng,synthetic_requires_clinical_review
+menieres_disease,Bệnh Ménière,Tai Mũi Họng,synthetic_requires_clinical_review
+labyrinthitis,Viêm mê nhĩ,Tai Mũi Họng,synthetic_requires_clinical_review
+vestibular_neuritis,Viêm thần kinh tiền đình,Tai Mũi Họng,synthetic_requires_clinical_review
+sudden_hearing_loss,Điếc đột ngột,Tai Mũi Họng,synthetic_requires_clinical_review
+earwax_impaction,Nút ráy tai,Tai Mũi Họng,synthetic_requires_clinical_review
+eustachian_tube_dysfunction,Rối loạn vòi nhĩ,Tai Mũi Họng,synthetic_requires_clinical_review
+obstructive_sleep_apnea,Ngưng thở khi ngủ do tắc nghẽn,Tai Mũi Họng,synthetic_requires_clinical_review

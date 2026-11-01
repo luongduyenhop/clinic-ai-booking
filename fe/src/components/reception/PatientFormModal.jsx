@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import dayjs from 'dayjs'
-import { createPatientAsync, updatePatientAsync } from '../../redux/slices/reception/receptionSlice'
+import { createPatientAsync, updatePatientAsync } from '../../redux/actions/reception/receptionAction'
 
-export default function PatientFormModal({ open, onClose, editPatient, onCreatedSuccess }) {
+export default function PatientFormModal({ open, onClose, editPatient, initialPhone = '', onCreatedSuccess }) {
     const dispatch = useDispatch()
     const { patients } = useSelector((state) => state.reception)
     const [duplicateWarning, setDuplicateWarning] = useState(null)
@@ -18,10 +18,11 @@ export default function PatientFormModal({ open, onClose, editPatient, onCreated
             fullName: editPatient?.fullName || '',
             dob: editPatient?.dob || '1995-01-01',
             gender: editPatient?.gender || 'MALE',
-            phone: editPatient?.phone || '',
+            phone: editPatient?.phone || initialPhone || '',
             identityCard: editPatient?.identityCard || '',
             healthInsurance: editPatient?.healthInsurance || '',
             address: editPatient?.address || '',
+            allergies: editPatient?.allergies || '',
             guardianName: editPatient?.guardianName || '',
             guardianPhone: editPatient?.guardianPhone || '',
             missingDocs: editPatient?.missingDocs || [],
@@ -213,6 +214,19 @@ export default function PatientFormModal({ open, onClose, editPatient, onCreated
                             placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
                             value={formik.values.address}
                             onChange={(e) => formik.setFieldValue('address', e.target.value)}
+                        />
+                    </div>
+
+                    {/* Allergies / Tiền sử dị ứng */}
+                    <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-rose-700 uppercase mb-1">
+                            Tiền sử dị ứng (Thuốc, thức ăn, hóa chất...)
+                        </label>
+                        <Input
+                            placeholder="Ví dụ: Dị ứng Penicillin, Aspirin, hải sản (nếu có)..."
+                            value={formik.values.allergies || ''}
+                            onChange={(e) => formik.setFieldValue('allergies', e.target.value)}
+                            className="border-rose-200 focus:border-rose-500"
                         />
                     </div>
 

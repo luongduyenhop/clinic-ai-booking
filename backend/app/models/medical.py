@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index, text
 from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
@@ -80,6 +80,7 @@ class LuotKham(BaseModelWithTimestamp):
     __tablename__ = "luot_kham"
 
     ma_kcb = Column(String(50), unique=True, nullable=True, index=True)
+    ma_luot_kham = synonym("ma_kcb")
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=True)
     hang_doi_kham_id = Column(Integer, ForeignKey("hang_doi_kham.id", ondelete="SET NULL"), unique=True, nullable=True, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
@@ -90,7 +91,6 @@ class LuotKham(BaseModelWithTimestamp):
     ly_do_vao_kham = Column(Text, nullable=True)
     benh_su = Column(Text, nullable=True)
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
-    ma_luot_kham = synonym("ma_kcb")
     trieu_chung = Column(Text, nullable=True)
     chan_doan_so_bo = Column(String(255), nullable=True)
     tien_su_di_ung = Column(Text, nullable=True)
@@ -466,6 +466,16 @@ class HoaDon(BaseModelWithTimestamp):
     ngay_thanh_toan = Column(DateTime(timezone=True), nullable=True)
     phuong_thuc_thanh_toan = Column(String(30), default="tien_mat", nullable=True)
     goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)
+
+    __table_args__ = (
+        Index(
+            "uq_hoa_don_luot_kham_hieu_luc",
+            "luot_kham_id",
+            unique=True,
+            postgresql_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+            sqlite_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+        ),
+    )
 
     def __init__(self, **kwargs):
         if "thuc_thu" in kwargs and "so_tien_phai_thu" not in kwargs:

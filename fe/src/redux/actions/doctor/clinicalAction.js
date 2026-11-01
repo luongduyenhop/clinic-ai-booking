@@ -1,16 +1,14 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { clinicalService } from '../../../services/doctor/ClinicalService'
-
-const errorMessage = (error) =>
-    error?.response?.data?.message || error?.response?.data?.detail || error?.message || 'Đã có lỗi xảy ra'
+import { unwrapApi, pickErrorMessage } from '../../../utils/helpers/apiHelper'
 
 const thunk = (type, call) =>
     createAsyncThunk(type, async (arg, { rejectWithValue }) => {
         try {
             const response = await call(arg)
-            return response.data?.data ?? response.data
+            return unwrapApi(response)
         } catch (error) {
-            return rejectWithValue(errorMessage(error))
+            return rejectWithValue(pickErrorMessage(error))
         }
     })
 

@@ -19,7 +19,8 @@ export const SERVICE_GROUPS = [
 
 // Trạng thái chỉ định (ChiDinh.trang_thai)
 export const ORDER_STATUS = {
-    da_chi_dinh: { label: 'Chờ làm', badge: 'medpro-badge' },
+    CHO_THUC_HIEN: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
+    da_chi_dinh: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
     dang_thuc_hien: { label: 'Đang làm', badge: 'medpro-badge-info' },
     da_co_ket_qua: { label: 'Có kết quả', badge: 'medpro-badge-success' },
     da_huy: { label: 'Đã hủy', badge: 'medpro-badge-danger' },

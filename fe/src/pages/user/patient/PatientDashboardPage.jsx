@@ -13,8 +13,7 @@ import {
     Users,
     MagnifyingGlass,
 } from '../../../components/common/ClinicIcon'
-import { fetchPatientPortalAsync } from '../../../redux/actions/user/patientPortalAction'
-import { patientPortalService } from '../../../services/user/PatientPortalService'
+import { fetchPatientPortalAsync, findPatientCodeAsync, addFamilyMemberAsync } from '../../../redux/actions/user/patientPortalAction'
 import { AppToast } from '../../../components/common/AppNotification'
 import VietQrModal from '../../../components/common/VietQrModal'
 import { QrCode } from '@phosphor-icons/react'
@@ -25,7 +24,8 @@ export default function PatientDashboardPage() {
 
     const [lookupQuery, setLookupQuery] = useState('')
     const [isQrModalOpen, setIsQrModalOpen] = useState(false)
-    const [lookupResults, setLookupResults] = useState(null)
+    const { items: lookupResults, loading: lookupLoading, error: lookupError } = useSelector((state) => state.user.user.patientLookup)
+    const familyMutation = useSelector((state) => state.user.user.familyMutation)
     const [showAddFamily, setShowAddFamily] = useState(false)
     const [newMember, setNewMember] = useState({
         ho_ten: '',
@@ -47,15 +47,17 @@ export default function PatientDashboardPage() {
     const cards = [
         { label: 'Lịch hẹn', value: portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
         { label: 'Lần khám', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/lich-su-kham' },
-        { label: 'Đơn thuốc', value: portalData.prescriptions.length, icon: Pill, to: '/benh-nhan/don-thuoc' },
-        { label: 'Kết quả CLS', value: portalData.labResults.length, icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
+        { label: 'Đơn thuốc', value: portalData.prescriptionError ? '—' : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length), icon: Pill, to: '/benh-nhan/don-thuoc' },
+        { label: 'Kết quả CLS', value: portalData.labError ? '—' : (portalData.labMeta?.total_items ?? portalData.labResults.length), icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
     ]
 
     const handleFindLostCode = async (e) => {
         e.preventDefault()
         if (!lookupQuery.trim()) return
-        const found = await patientPortalService.findLostPatientCode(lookupQuery)
-        setLookupResults(found)
+        if (lookupLoading) return
+        const result = await dispatch(findPatientCodeAsync(lookupQuery))
+        if (!findPatientCodeAsync.fulfilled.match(result)) { AppToast.error(result.payload || 'Không thể tra cứu'); return }
+        const found = result.payload
         if (found.length) {
             AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin!`)
         } else {
@@ -69,7 +71,9 @@ export default function PatientDashboardPage() {
             AppToast.error('Vui lòng nhập họ tên người thân!')
             return
         }
-        await patientPortalService.addFamilyMember(newMember)
+        if (familyMutation.loading) return
+        const result = await dispatch(addFamilyMemberAsync(newMember))
+        if (!addFamilyMemberAsync.fulfilled.match(result)) { AppToast.error(result.payload || 'Không thể thêm người thân'); return }
         AppToast.success(`Đã thêm hồ sơ người thân "${newMember.ho_ten}" vào Sổ sức khỏe gia đình!`)
         setNewMember({ ho_ten: '', moi_quan_he: 'Con cái', ngay_sinh: '2015-05-10', gioi_tinh: 'Nam', so_dien_thoai: '' })
         setShowAddFamily(false)
@@ -214,7 +218,7 @@ export default function PatientDashboardPage() {
                                     />
                                 </div>
                                 <div className="flex justify-end">
-                                    <button type="submit" className="medpro-btn-primary text-xs py-1.5 px-4">
+                                    <button type="submit" disabled={familyMutation.loading} className="medpro-btn-primary text-xs py-1.5 px-4">
                                         Lưu hồ sơ người thân
                                     </button>
                                 </div>
@@ -273,11 +277,12 @@ export default function PatientDashboardPage() {
                                 onChange={(e) => setLookupQuery(e.target.value)}
                                 className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-[#008EC2]"
                             />
-                            <button type="submit" className="medpro-btn-primary text-xs px-4 py-2 shrink-0">
+                            <button type="submit" disabled={lookupLoading} className="medpro-btn-primary text-xs px-4 py-2 shrink-0">
                                 Tìm mã BN
                             </button>
                         </form>
 
+                        {lookupError && <p role="alert" className="text-sm text-rose-700">{lookupError}</p>}
                         {lookupResults !== null && (
                             <div className="space-y-2 mt-2">
                                 {lookupResults.length > 0 ? (

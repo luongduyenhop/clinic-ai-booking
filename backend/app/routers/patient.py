@@ -1,16 +1,18 @@
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.response import ResponseEnvelope
+from app.core.response import ResponseEnvelope, PaginationMeta
 from app.models.user import TaiKhoan
 from app.schemas.patient import (
     FamilyMemberCreateRequest,
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientMedicalRecordSummaryResponse,
+    PatientLabResultResponse,
+    PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
     ServiceFeedbackCreateRequest,
@@ -140,6 +142,44 @@ async def get_medical_records(
     return ResponseEnvelope.success_response(
         data=records,
         message=f"Tìm thấy {len(records)} lượt khám trong sổ sức khỏe điện tử"
+    )
+
+
+@router.get(
+    "/prescriptions",
+    response_model=ResponseEnvelope[List[PatientPrescriptionResponse]],
+    summary="Bệnh nhân tra cứu đơn thuốc điện tử và liều dùng theo từng buổi"
+)
+async def get_patient_prescriptions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    prescriptions, total = await patient_service.get_patient_prescriptions(current_user, db, page, page_size)
+    return ResponseEnvelope.success_response(
+        meta=PaginationMeta.create(page, page_size, total),
+        data=prescriptions,
+        message=f"Tìm thấy {len(prescriptions)} đơn thuốc điện tử"
+    )
+
+
+@router.get(
+    "/lab-results",
+    response_model=ResponseEnvelope[List[PatientLabResultResponse]],
+    summary="Bệnh nhân xem và tải kết quả xét nghiệm, chẩn đoán hình ảnh"
+)
+async def get_patient_lab_results(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    results, total = await patient_service.get_patient_lab_results(current_user, db, page, page_size)
+    return ResponseEnvelope.success_response(
+        meta=PaginationMeta.create(page, page_size, total),
+        data=results,
+        message=f"Tìm thấy {len(results)} kết quả cận lâm sàng"
     )
 
 

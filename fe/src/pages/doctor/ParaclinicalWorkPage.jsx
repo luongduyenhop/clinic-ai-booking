@@ -278,7 +278,7 @@ export default function ParaclinicalWorkPage() {
                                         <ClinicIcon name="Warning" size={13} weight="bold" /> {selected.benh_nhan.di_ung_thuoc}
                                     </span>
                                 )}
-                                {selected.trang_thai === 'da_chi_dinh' && (
+                                {(selected.trang_thai === 'da_chi_dinh' || selected.trang_thai === 'CHO_THUC_HIEN') && (
                                     <button type="button" className="medpro-btn-amber" onClick={handleStart} disabled={starting}>
                                         {starting ? 'Đang tiếp nhận…' : 'Tiếp nhận & bắt đầu'}
                                     </button>

@@ -75,3 +75,6 @@ pnpm-debug.log*
 fe-clinic-ai-booking/
 .agents/
 
+
+# Ảnh kết quả cận lâm sàng tải lên lúc chạy (dữ liệu y tế, không commit)
+backend/uploads/

@@ -4,13 +4,13 @@ import {
     resetReceptionDataAsync,
     switchReceptionRoleAsync,
     fetchFlowBoardAsync,
+    fetchAppointmentsAsync,
+    checkInAppointmentAsync,
     registerWalkInQuickAsync,
     registerWalkInAsync,
-    checkInAppointmentAsync,
     searchPatientsAsync,
 } from '../../actions/reception/receptionAction'
 
-// Re-export all actions for seamless backward compatibility
 export * from '../../actions/reception/receptionAction'
 
 const initialState = {
@@ -28,6 +28,14 @@ const initialState = {
         hasPrev: false,
     },
     appointments: [],
+    appointmentsPagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+    },
     queueEntries: [],
     tasks: [],
     auditLogs: [],
@@ -52,7 +60,6 @@ const receptionSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // ── Khởi tạo toàn bộ dữ liệu ──────────────────────────────
             .addCase(fetchReceptionDataAsync.pending, (state) => {
                 if (!state.isInitialized) state.loading = true
                 state.error = null
@@ -72,7 +79,55 @@ const receptionSlice = createSlice({
                 state.error = action.payload || 'Lỗi tải dữ liệu lễ tân'
             })
 
-            // ── Tải bảng hàng đợi Flow Board ──────────────────────────
+            .addCase(fetchAppointmentsAsync.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchAppointmentsAsync.fulfilled, (state, action) => {
+                state.loading = false
+                if (action.payload?.items) {
+                    state.appointments = action.payload.items
+                    state.appointmentsPagination = action.payload.meta || state.appointmentsPagination
+                }
+            })
+            .addCase(fetchAppointmentsAsync.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload
+            })
+
+            .addCase(checkInAppointmentAsync.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(checkInAppointmentAsync.fulfilled, (state, action) => {
+                state.loading = false
+                const ticket = action.payload?.ticket || action.payload
+                const aptId = action.payload?.appointmentId
+
+                if (ticket) {
+                    const idx = state.queueEntries.findIndex((q) => q.id === ticket.id || (q.backendId && q.backendId === ticket.backendId))
+                    if (idx >= 0) {
+                        state.queueEntries[idx] = ticket
+                    } else {
+                        state.queueEntries.unshift(ticket)
+                    }
+                }
+
+                if (aptId) {
+                    const app = state.appointments.find((a) => a.id === aptId || a.id === Number(aptId))
+                    if (app) {
+                        app.status = 'DA_DEN'
+                        app.trang_thai_lich = 'da_tiep_nhan'
+                        app.so_thu_tu_kham = ticket?.so_thu_tu_kham || ticket?.ticketNumber
+                        app.ticket_id = ticket?.backendId || ticket?.id
+                    }
+                }
+            })
+            .addCase(checkInAppointmentAsync.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload
+            })
+
             .addCase(fetchFlowBoardAsync.pending, (state) => {
                 state.queueLoading = true
             })
@@ -87,7 +142,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // ── Tiếp nhận nhanh 30 giây (Walk-in Quick) ───────────────
             .addCase(registerWalkInQuickAsync.pending, (state) => {
                 state.loading = true
                 state.error = null
@@ -95,12 +149,7 @@ const receptionSlice = createSlice({
             .addCase(registerWalkInQuickAsync.fulfilled, (state, action) => {
                 state.loading = false
                 if (action.payload) {
-                    const existingIndex = state.queueEntries.findIndex((q) => q.id === action.payload.id || (q.backendId && q.backendId === action.payload.backendId))
-                    if (existingIndex >= 0) {
-                        state.queueEntries[existingIndex] = action.payload
-                    } else {
-                        state.queueEntries.unshift(action.payload)
-                    }
+                    state.queueEntries.unshift(action.payload)
                 }
             })
             .addCase(registerWalkInQuickAsync.rejected, (state, action) => {
@@ -108,21 +157,12 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // ── Tiếp nhận vãng lai chi tiết ───────────────────────────
             .addCase(registerWalkInAsync.fulfilled, (state, action) => {
                 if (action.payload) {
                     state.queueEntries.unshift(action.payload)
                 }
             })
 
-            // ── Check-in có lịch hẹn ───────────────────────────────────
-            .addCase(checkInAppointmentAsync.fulfilled, (state, action) => {
-                if (action.payload) {
-                    state.queueEntries.unshift(action.payload)
-                }
-            })
-
-            // ── Tìm kiếm bệnh nhân theo SĐT có phân trang ─────────────
             .addCase(searchPatientsAsync.fulfilled, (state, action) => {
                 if (action.payload?.items) {
                     state.patients = action.payload.items
@@ -130,7 +170,6 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // ── Reset & chuyển vai trò ─────────────────────────────────
             .addCase(resetReceptionDataAsync.fulfilled, (state, action) => {
                 Object.assign(state, action.payload)
             })

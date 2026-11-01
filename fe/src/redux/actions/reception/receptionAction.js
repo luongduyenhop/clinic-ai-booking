@@ -43,7 +43,6 @@ export function normalizeTicket(ticket, defaultPatient = null) {
     }
 }
 
-// ── 1. Tải toàn bộ danh mục & hàng đợi khởi tạo ─────────────────────────
 export const fetchReceptionDataAsync = createAsyncThunk(
     'reception/fetchAll',
     async (_, { rejectWithValue }) => {
@@ -101,7 +100,6 @@ export const fetchReceptionDataAsync = createAsyncThunk(
     }
 )
 
-// ── 2. Hàng đợi Flow Board ──────────────────────────────────────────────
 export const fetchFlowBoardAsync = createAsyncThunk(
     'reception/fetchFlowBoard',
     async ({ queryDate, doctorId } = {}, { rejectWithValue }) => {
@@ -119,7 +117,59 @@ export const fetchFlowBoardAsync = createAsyncThunk(
     }
 )
 
-// ── 3. Tiếp nhận nhanh 30s (Walk-in Quick) ──────────────────────────────
+export const fetchAppointmentsAsync = createAsyncThunk(
+    'reception/fetchAppointments',
+    async ({ queryDate, caKham, doctorId, specialtyId, status, search, page = 1, pageSize = 20 } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getAppointments({
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+                bac_si_id: doctorId || undefined,
+                chuyen_khoa_id: specialtyId || undefined,
+                trang_thai: status || undefined,
+                search: search || undefined,
+                page,
+                page_size: pageSize,
+            })
+            const paged = unwrapPagedApi(res, pageSize)
+            return paged
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải danh sách lịch hẹn'))
+        }
+    }
+)
+
+export const checkInAppointmentAsync = createAsyncThunk(
+    'reception/checkInAppointment',
+    async ({ appointmentId, payload, actor: _actor } = {}, { dispatch, rejectWithValue }) => {
+        try {
+            const aptId = appointmentId || payload?.appointmentId || payload?.lich_kham_id
+            const res = await receptionService.checkIn({
+                lich_kham_id: Number(aptId) || aptId,
+                ghi_chu: payload?.notes || undefined,
+                ly_do_uu_tien: payload?.priorityReason || (payload?.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : (payload?.priority === 'PRIORITY' ? 'nguoi_gia' : null)),
+            })
+            const data = unwrapApi(res)
+            const ticket = normalizeTicket(data)
+            try {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, {
+                    queueEntry: ticket,
+                    appointment: { id: aptId },
+                })
+            } catch {
+            }
+            dispatch(fetchFlowBoardAsync())
+            return {
+                ...ticket,
+                ticket,
+                appointmentId: aptId,
+            }
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Check-in lịch hẹn thất bại'))
+        }
+    }
+)
+
 export const registerWalkInQuickAsync = createAsyncThunk(
     'reception/registerWalkInQuick',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
@@ -143,7 +193,6 @@ export const registerWalkInQuickAsync = createAsyncThunk(
             try {
                 clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
             } catch {
-                // Event bridge optional
             }
             dispatch(fetchFlowBoardAsync())
             return ticket
@@ -153,7 +202,6 @@ export const registerWalkInQuickAsync = createAsyncThunk(
     }
 )
 
-// ── 4. Tiếp nhận vãng lai chi tiết (Walk-in) ─────────────────────────────
 export const registerWalkInAsync = createAsyncThunk(
     'reception/registerWalkIn',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
@@ -172,7 +220,6 @@ export const registerWalkInAsync = createAsyncThunk(
             try {
                 clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
             } catch {
-                // Event bridge optional
             }
             dispatch(fetchFlowBoardAsync())
             return ticket
@@ -182,35 +229,6 @@ export const registerWalkInAsync = createAsyncThunk(
     }
 )
 
-// ── 5. Check-in cho bệnh nhân đã có lịch hẹn ───────────────────────────
-export const checkInAppointmentAsync = createAsyncThunk(
-    'reception/checkInAppointment',
-    async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
-        try {
-            const res = await receptionService.checkIn({
-                lich_kham_id: Number(payload.appointmentId) || payload.appointmentId,
-                ghi_chu: payload.notes || undefined,
-                ly_do_uu_tien: payload.priorityReason || (payload.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : (payload.priority === 'PRIORITY' ? 'nguoi_gia' : null)),
-            })
-            const data = unwrapApi(res)
-            const ticket = normalizeTicket(data)
-            try {
-                clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, {
-                    queueEntry: ticket,
-                    appointment: { id: payload.appointmentId },
-                })
-            } catch {
-                // Event bridge optional
-            }
-            dispatch(fetchFlowBoardAsync())
-            return ticket
-        } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Check-in lịch hẹn thất bại'))
-        }
-    }
-)
-
-// ── 6. Tìm kiếm bệnh nhân theo SĐT / từ khóa (có phân trang) ───────────
 export const searchPatientsAsync = createAsyncThunk(
     'reception/searchPatients',
     async ({ search, page = 1, pageSize = 15 }, { rejectWithValue }) => {
@@ -243,7 +261,6 @@ export const searchPatientsAsync = createAsyncThunk(
     }
 )
 
-// ── 7. Chi tiết bệnh nhân (tiền sử dị ứng, địa chỉ) ───────────────────
 export const getPatientDetailAsync = createAsyncThunk(
     'reception/getPatientDetail',
     async (patientId, { rejectWithValue }) => {
@@ -269,7 +286,6 @@ export const getPatientDetailAsync = createAsyncThunk(
     }
 )
 
-// ── 8. Tạo mới & Cập nhật bệnh nhân ────────────────────────────────────
 export const createPatientAsync = createAsyncThunk(
     'reception/createPatient',
     async ({ payload, actor: _actor }, { rejectWithValue }) => {
@@ -294,7 +310,6 @@ export const updatePatientAsync = createAsyncThunk(
     }
 )
 
-// ── 9. Thao tác vé hàng đợi (Restore, Close, Leave, Call) ─────────────
 export const resumeQueueEntryAsync = createAsyncThunk(
     'reception/resumeQueue',
     async ({ queueId, actor: _actor }, { dispatch, rejectWithValue }) => {
@@ -369,7 +384,6 @@ export const emergencyHandoverAsync = createAsyncThunk(
     }
 )
 
-// ── 10. Lịch hẹn & Viện phí ─────────────────────────────────────────────
 export const createAppointmentAsync = createAsyncThunk(
     'reception/createAppointment',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
@@ -440,3 +454,4 @@ export const resolveTaskAsync = createAsyncThunk(
     'reception/resolveTask',
     async ({ taskId, resolutionNote }) => ({ taskId, resolutionNote })
 )
+

@@ -11,7 +11,6 @@ from app.schemas.patient import (
     FamilyMemberResponse,
     FamilyMemberUpdateRequest,
     PatientDiagnosisResponse,
-    PatientVitalSignsResponse,
     PatientMedicalRecordSummaryResponse,
     PatientLabAttachmentResponse,
     PatientLabResultDetailResponse,
@@ -20,6 +19,7 @@ from app.schemas.patient import (
     PatientPrescriptionResponse,
     PatientProfileResponse,
     PatientProfileUpdateRequest,
+    PatientVitalSignsResponse,
     ServiceFeedbackCreateRequest,
     ServiceFeedbackResponse,
 )
@@ -48,6 +48,7 @@ class PatientService:
     async def _get_current_benh_nhan(self, user: TaiKhoan, db: AsyncSession) -> BenhNhan:
         if user.vai_tro != VaiTroEnum.BENH_NHAN.value:
             raise ForbiddenException("Chỉ bệnh nhân được truy cập hồ sơ cá nhân")
+
         stmt = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         bn = (await db.execute(stmt)).scalar_one_or_none()
         if not bn:

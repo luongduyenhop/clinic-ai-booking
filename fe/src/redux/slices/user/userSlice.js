@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { createPatientBookingAsync, fetchAvailableSlotsAsync } from '../../actions/user/bookingAction'
 import { analyzeSymptomsAsync } from '../../actions/user/aiTriageAction'
-import { fetchPatientPortalAsync } from '../../actions/user/patientPortalAction'
+import { fetchPatientPortalAsync, fetchPrescriptionsAsync, fetchLabResultsAsync } from '../../actions/user/patientPortalAction'
 
 const initialState = {
     appointments: [],
@@ -15,6 +15,8 @@ const initialState = {
     triageError: null,
     triageResult: null,
     portalData: { appointments: [], medicalHistory: [], prescriptions: [], labResults: [], doctorSchedules: [] },
+    prescriptionsPage: { items: [], meta: null, loading: false, error: '', requestId: null },
+    labResultsPage: { items: [], meta: null, loading: false, error: '', requestId: null },
     portalLoading: false,
     portalError: null,
 }
@@ -52,6 +54,21 @@ const userSlice = createSlice({
             .addCase(fetchPatientPortalAsync.pending, (state) => { state.portalLoading = true; state.portalError = null })
             .addCase(fetchPatientPortalAsync.fulfilled, (state, action) => { state.portalLoading = false; state.portalData = action.payload })
             .addCase(fetchPatientPortalAsync.rejected, (state, action) => { state.portalLoading = false; state.portalError = action.payload || 'Không thể tải dữ liệu bệnh nhân' })
+        for (const [thunk, key] of [[fetchPrescriptionsAsync, 'prescriptionsPage'], [fetchLabResultsAsync, 'labResultsPage']]) {
+            builder
+                .addCase(thunk.pending, (state, action) => {
+                    state[key].loading = true; state[key].error = ''; state[key].requestId = action.meta.requestId
+                })
+                .addCase(thunk.fulfilled, (state, action) => {
+                    if (state[key].requestId !== action.meta.requestId) return
+                    state[key] = { ...action.payload, loading: false, error: '', requestId: null }
+                })
+                .addCase(thunk.rejected, (state, action) => {
+                    if (state[key].requestId !== action.meta.requestId) return
+                    state[key].loading = false; state[key].requestId = null
+                    state[key].error = action.meta.aborted ? '' : action.payload || 'Không thể tải dữ liệu'
+                })
+        }
     },
 })
 

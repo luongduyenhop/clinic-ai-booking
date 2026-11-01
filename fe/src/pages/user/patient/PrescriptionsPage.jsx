@@ -1,10 +1,17 @@
-import usePatientResults from './usePatientResults'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchPrescriptionsAsync } from '../../../redux/actions/user/patientPortalAction'
 import PatientPageHeader from '../../../components/user/patient/PatientPageHeader'
 import { PatientEmpty, PatientError, PatientLoading } from '../../../components/user/patient/PatientPageState'
 import { Pill } from '../../../components/common/ClinicIcon'
 
 export default function PrescriptionsPage() {
-    const { items, meta, loading: portalLoading, error: portalError, setPage, reload } = usePatientResults('prescriptions')
+    const dispatch = useDispatch()
+    const { items, meta, loading: portalLoading, error: portalError } = useSelector((state) => state.user.user.prescriptionsPage)
+    const page = meta?.page || 1
+    useEffect(() => { const request = dispatch(fetchPrescriptionsAsync({ page: 1 })); return () => request.abort() }, [dispatch])
+    const setPage = (value) => dispatch(fetchPrescriptionsAsync({ page: value }))
+    const reload = () => setPage(page)
     const portalData = { prescriptions: items }
     if (portalLoading) return <PatientLoading/>
     if (portalError) return <PatientError message={portalError} onRetry={reload}/>

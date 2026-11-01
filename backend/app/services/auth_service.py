@@ -23,6 +23,7 @@ logger = logging.getLogger("clinic_backend")
 ROLE_MAP = {
     "bac_si": "DOCTOR",
     "le_tan": "RECEPTIONIST",
+    "ky_thuat_vien": "TECHNICIAN",
     "admin": "ADMIN",
     "benh_nhan": "PATIENT",
 }

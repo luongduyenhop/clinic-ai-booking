@@ -112,11 +112,43 @@ const toWorklistItem = (item) => {
         ket_qua_chi_tiet: (hasResult && parseResultDetail(item)) || mirror?.ket_qua_chi_tiet || null,
         ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : mirror?.ket_qua_phan_loai || null,
         tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || mirror?.tep_dinh_kem_url || null,
+        // Phiếu kết quả: NHAP / DA_CO_KET_QUA (KTV hoàn tất, chờ duyệt) / DA_DUYET
+        trang_thai_ket_qua: item.trang_thai_ket_qua || null,
+        thoi_gian_duyet: item.thoi_gian_duyet || null,
+    }
+}
+
+const sameInstant = (a, b) => Boolean(a && b) && Date.parse(a) === Date.parse(b)
+
+// Kết quả đã duyệt từ máy chủ -> các trường của bản sao chỉ định trên bàn khám (cùng cấu trúc ResultView)
+const toMirrorPatch = (r) => ({
+    trang_thai: r.trang_thai,
+    ket_qua_phan_loai: r.ket_qua_phan_loai,
+    ket_qua_chi_tiet: r.ket_qua_chi_tiet,
+    tep_dinh_kem_url: r.tep_dinh_kem_urls?.[0] || null,
+    tep_dinh_kem_urls: r.tep_dinh_kem_urls || [],
+    thoi_gian_tra_ket_qua: r.thoi_gian_tra_ket_qua,
+    thoi_gian_duyet: r.thoi_gian_duyet,
+    nguoi_duyet: r.nguoi_duyet,
+})
+
+// Ghi kết quả vào bản sao và đẩy lượt khám lên đầu hàng đợi để bác sĩ gọi lại kết luận
+// (bệnh nhân đang ở trong phòng khám thì giữ nguyên trạng thái, không đẩy ra khỏi bàn khám)
+const applyReturnedResult = (mirror, patch) => {
+    Object.assign(mirror.order, patch)
+    const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
+    if (ticket && ticket.trang_thai !== 'dang_kham') {
+        ticket.trang_thai = 'co_ket_qua_cls'
+        ticket.muc_do_uu_tien = 0
+        ticket.ghi_chu = `${patch.ket_qua_phan_loai === 'NGUY_KICH' ? '🚨 KQ CLS NGUY KỊCH' : '⭐ CÓ KQ CLS'}: ${mirror.order.ten_dich_vu}`
     }
 }
 
 export class ClinicalService extends BaseServices {
     _hydratedFromPg = false
+    _returnedSince = null
+    _returnedPollOff = false
+    _returnedPolling = null
 
     constructor() {
         super()

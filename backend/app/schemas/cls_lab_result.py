@@ -36,8 +36,10 @@ class LabIndicatorResult(BaseModel):
 
 
 class LabResultSaved(BaseModel):
-    """Kết quả xét nghiệm đã lưu trong ket_qua_cls (bản nháp hoặc đã trả)"""
-    da_tra_ket_qua: bool
+    """Kết quả xét nghiệm đã lưu trong ket_qua_cls (bản nháp, chờ duyệt hoặc đã duyệt & trả)"""
+    da_tra_ket_qua: bool = Field(..., description="Đã duyệt & trả cho bác sĩ")
+    trang_thai_ket_qua: str = Field("NHAP", description="NHAP, DA_CO_KET_QUA (chờ duyệt), DA_DUYET")
+    thoi_gian_duyet: Optional[datetime] = None
     ket_qua_phan_loai: str = Field(..., description="BINH_THUONG, BAT_THUONG, NGUY_KICH")
     chi_so: Dict[str, str]
     chi_tiet: List[LabIndicatorResult]
@@ -66,7 +68,7 @@ class LabResultSubmitRequest(BaseModel):
     )
     ket_luan: Optional[str] = Field(None, max_length=2000)
     ghi_chu: Optional[str] = Field(None, max_length=2000)
-    luu_nhap: bool = Field(False, description="true: chỉ lưu nháp vào ket_qua_cls, chưa trả kết quả cho bác sĩ")
+    luu_nhap: bool = Field(False, description="true: chỉ lưu nháp; false: hoàn tất kết quả, chờ KTV duyệt & trả")
 
 
 class LabResultResponse(BaseModel):

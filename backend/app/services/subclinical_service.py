@@ -19,6 +19,7 @@ from app.schemas.subclinical import (
     SubclinicalResultSubmitRequest,
     SubclinicalServiceBrief,
 )
+from app.services.cls_result_state import is_phieu_approved, latest_phieu
 from app.services.cls_service_group import clinic_day_range, nhom_dich_vu_condition, nhom_dich_vu_of
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class SubclinicalService:
                 selectinload(ChiDinh.dich_vu),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(ChiDinh.phieu_ket_qua),
             )
             .where(ChiDinh.created_at >= day_start, ChiDinh.created_at < day_end)
             .order_by(ChiDinh.created_at.asc(), ChiDinh.id.asc())
@@ -76,10 +78,9 @@ class SubclinicalService:
         elif trang_thai:
             stmt = stmt.where(ChiDinh.trang_thai == trang_thai)
         else:
-            # Mặc định lấy các ca đang chờ thực hiện hoặc đang tiến hành (bao gồm CHO_THUC_HIEN, da_thanh_toan)
-            stmt = stmt.where(
-                ChiDinh.trang_thai.in_(["CHO_THUC_HIEN", "da_chi_dinh", "da_thanh_toan", "dang_thuc_hien"])
-            )
+            # Mặc định chỉ lấy các ca đang chờ thực hiện hoặc đang tiến hành
+            stmt = stmt.where(ChiDinh.trang_thai.in_(["CHO_THUC_HIEN", "da_thanh_toan", "da_chi_dinh", "dang_thuc_hien"]))
+
         orders = (await db.execute(stmt)).scalars().all()
 
         now = datetime.now(timezone.utc)
@@ -133,6 +134,8 @@ class SubclinicalService:
                     ket_qua_phan_loai=o.ket_qua_phan_loai,
                     tri_so_chi_tiet=o.tri_so_chi_tiet,
                     file_dinh_kem_urls=o.file_dinh_kem_urls,
+                    trang_thai_ket_qua=o.phieu_ket_qua.trang_thai if o.phieu_ket_qua else None,
+                    thoi_gian_duyet=o.phieu_ket_qua.thoi_gian_duyet if o.phieu_ket_qua else None,
                 )
             )
 
@@ -189,14 +192,10 @@ class SubclinicalService:
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
 
-        if order.trang_thai not in ("da_thanh_toan", "CHO_THUC_HIEN", "dang_thuc_hien"):
-            if order.trang_thai == "da_chi_dinh":
-                raise ConflictException("Chỉ định cận lâm sàng chưa được thanh toán viện phí!")
-            if order.trang_thai == "da_huy":
-                raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
-            if order.trang_thai == "da_co_ket_qua":
-                raise ConflictException("Chỉ định này đã có kết quả xét nghiệm hoàn tất!")
-            raise ConflictException("Chỉ định này chưa sẵn sàng để nhập kết quả!")
+        if order.trang_thai == "da_huy":
+            raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
+        if is_phieu_approved(await latest_phieu(order.id, db)):
+            raise ConflictException("Kết quả đã được duyệt, không thể chỉnh sửa!")
 
         now = datetime.now(timezone.utc)
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet

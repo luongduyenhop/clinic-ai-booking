@@ -38,6 +38,8 @@ class SubclinicalQueueItem(BaseModel):
     ket_qua_phan_loai: Optional[str] = None
     tri_so_chi_tiet: Optional[Dict[str, Any]] = None
     file_dinh_kem_urls: Optional[List[str]] = None
+    trang_thai_ket_qua: Optional[str] = Field(None, description="Phiếu kết quả: NHAP, DA_CO_KET_QUA (chờ duyệt), DA_DUYET")
+    thoi_gian_duyet: Optional[datetime] = None
 
 
 class SubclinicalQueueResponse(BaseModel):

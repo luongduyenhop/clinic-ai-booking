@@ -1,6 +1,6 @@
 from enum import Enum
 from sqlalchemy import Column, String, Date, Boolean, Integer, ForeignKey, Text, Numeric, DateTime, JSON
-from sqlalchemy.orm import relationship, synonym, foreign
+from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
 
@@ -63,7 +63,6 @@ class TaiKhoan(BaseModelWithTimestamp):
     __tablename__ = "tai_khoan"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
-    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     mat_khau_hash = Column(String(255), nullable=False)
     vai_tro = Column(String(50), default=VaiTroEnum.BENH_NHAN.value, nullable=False)
@@ -134,7 +133,6 @@ class NhanVien(BaseModelWithTimestamp):
     __tablename__ = "nhan_vien"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
-    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     ma_nhan_vien = Column(String(50), unique=True, nullable=False, index=True)
     chuc_danh = Column(String(50), nullable=True)
     loai_nhan_vien = Column(String(30), default="BAC_SI", nullable=False)
@@ -148,7 +146,6 @@ class BenhNhan(BaseModelWithTimestamp):
     __tablename__ = "benh_nhan"
 
     nguoi_dung_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="CASCADE"), unique=True, nullable=False)
-    nhan_vien_id = Column(Integer, ForeignKey("nhan_vien.id", ondelete="SET NULL"), unique=True, nullable=True)
     ma_dinh_danh_y_te = Column(String(50), unique=True, nullable=False, index=True)
     nhom_mau = Column(String(10), nullable=True)
     tien_su_benh = Column(Text, nullable=True)

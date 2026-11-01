@@ -208,12 +208,4 @@ Sau khi toàn bộ 18 tính năng và các Bug trên `develop` được kiểm t
 
 ---
 
-## 11. MA TRẬN PHÂN CÔNG TRÁCH NHIỆM
 
-| Thành viên | Trách nhiệm chính | Module phụ trách |
-| :--- | :--- | :--- |
-| **Lương Duyên Hợp** | Scrum Master / Tech Lead | Kiến trúc hệ thống, Authentication, AI Engine, Tích hợp tổng thể & Phê duyệt Core PR, Quản lý Release develop ➔ main |
-| **Nguyễn Đăng Tùng** | Fullstack Developer | Module Thu ngân, Quản lý viện phí, Hóa đơn tài chính, Báo cáo doanh thu |
-| **Trần Huy Hoàng** | Fullstack Developer | Module Bác sĩ khám bệnh, Bệnh án điện tử (EMR), Kê đơn thuốc ngoại trú |
-| **Hoàng Đức Trọng** | Fullstack Developer | Module Tiếp đón bệnh nhân, Cấp số thứ tự, Điều phối luồng khám |
-| **Đỗ Thành An** | Fullstack Developer | Module Cận lâm sàng (CLS), Nhập kết quả X-quang/Xét nghiệm, Quản lý danh mục |

@@ -651,7 +651,7 @@ import json
 from sqlalchemy import select
 from app.core.dependencies import get_optional_current_user
 from app.models.bff_store import HeThongTrangThaiBff
-from app.models.medical import ChiDinh, ChanDoan, DonThuoc, ChiTietDonThuoc, DichVu, LuotKham, KhaiNiem
+from app.models.medical import ChiDinh, DichVu
 from app.services.bff_admin_service import bff_admin_service
 
 

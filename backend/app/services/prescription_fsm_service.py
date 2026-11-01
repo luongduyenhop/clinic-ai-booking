@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -157,12 +157,13 @@ class PrescriptionFSMService:
     def supersede(
         cls,
         old_prescription: Union[Dict[str, Any], DonThuoc],
-        new_prescription_id: int,
+        new_prescription_id: Optional[int],
         reason: str,
     ) -> Tuple[Any, Any]:
-        """Tạo đơn thay thế và khóa đơn cũ sang SUPERSEDED"""
         if not reason or len(reason.strip()) < 5:
             raise BadRequestException("Lý do thay thế đơn thuốc phải được nêu rõ ràng (tối thiểu 5 ký tự)!")
+
+        target_id = new_prescription_id if new_prescription_id and new_prescription_id > 0 else None
 
         if isinstance(old_prescription, dict):
             if old_prescription.get("trang_thai") not in (
@@ -174,11 +175,11 @@ class PrescriptionFSMService:
                     f"Chỉ có thể thay thế đơn thuốc đã ký hoặc ban hành! Trạng thái hiện tại: {old_prescription.get('trang_thai')}"
                 )
             old_prescription["trang_thai"] = TrangThaiDonThuoc.SUPERSEDED.value
-            old_prescription["superseded_by_id"] = new_prescription_id
+            old_prescription["superseded_by_id"] = target_id
             old_prescription["ly_do_thay_the"] = reason
 
             new_prescription = {
-                "id": new_prescription_id,
+                "id": target_id,
                 "thay_the_cho_don_id": old_prescription.get("id"),
                 "trang_thai": TrangThaiDonThuoc.DRAFT.value,
                 "luot_kham_id": old_prescription.get("luot_kham_id"),
@@ -186,7 +187,6 @@ class PrescriptionFSMService:
             }
             return old_prescription, new_prescription
 
-        # ORM Instance
         if old_prescription.trang_thai not in (
             TrangThaiDonThuoc.SIGNED.value,
             TrangThaiDonThuoc.ISSUED.value,
@@ -196,7 +196,7 @@ class PrescriptionFSMService:
                 f"Chỉ có thể thay thế đơn thuốc đã ký hoặc ban hành! Trạng thái hiện tại: {old_prescription.trang_thai}"
             )
         old_prescription.trang_thai = TrangThaiDonThuoc.SUPERSEDED.value
-        old_prescription.superseded_by_id = new_prescription_id
+        old_prescription.superseded_by_id = target_id
         old_prescription.ly_do_thay_the = reason
         return old_prescription, None
 
@@ -298,8 +298,7 @@ class PrescriptionFSMService:
         if bac_si:
             await credential_service.check_doctor_license_valid(db, doctor_id)
 
-        # 1. Đánh dấu đơn cũ SUPERSEDED
-        self.supersede(rx, new_prescription_id=0, reason=payload.ly_do)
+        self.supersede(rx, new_prescription_id=None, reason=payload.ly_do)
 
         # 2. Khởi tạo đơn mới ở trạng thái DRAFT
         now = datetime.now(timezone.utc)

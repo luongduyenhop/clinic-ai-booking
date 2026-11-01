@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, Boolean, DateTime, Numeric, Date, JSON, CheckConstraint, Index, text
 from sqlalchemy.orm import relationship, synonym
 from app.models.base import BaseModelWithTimestamp
 
@@ -79,7 +79,8 @@ class DichVu(BaseModelWithTimestamp):
 class LuotKham(BaseModelWithTimestamp):
     __tablename__ = "luot_kham"
 
-    ma_luot_kham = Column(String(50), unique=True, nullable=True, index=True)
+    ma_kcb = Column(String(50), unique=True, nullable=True, index=True)
+    ma_luot_kham = synonym("ma_kcb")
     lich_kham_id = Column(Integer, ForeignKey("lich_kham.id", ondelete="RESTRICT"), unique=True, nullable=True)
     hang_doi_kham_id = Column(Integer, ForeignKey("hang_doi_kham.id", ondelete="SET NULL"), unique=True, nullable=True, index=True)
     bac_si_id = Column(Integer, ForeignKey("bac_si.id", ondelete="RESTRICT"), nullable=False)
@@ -90,7 +91,6 @@ class LuotKham(BaseModelWithTimestamp):
     ly_do_vao_kham = Column(Text, nullable=True)
     benh_su = Column(Text, nullable=True)
     kham_lam_sang_bo_phan = Column(Text, nullable=True)
-    ma_kcb = synonym("ma_luot_kham")
     trieu_chung = Column(Text, nullable=True)
     chan_doan_so_bo = Column(String(255), nullable=True)
     tien_su_di_ung = Column(Text, nullable=True)
@@ -180,6 +180,8 @@ class ChiDinh(BaseModelWithTimestamp):
     dich_vu_id = Column(Integer, ForeignKey("dich_vu.id", ondelete="RESTRICT"), nullable=False)
     so_luong = Column(Integer, default=1, nullable=False)
     don_gia_tai_thoi_diem = Column(Numeric(12, 2), default=0.00, nullable=False)
+    giam_gia = Column(Numeric(12, 2), default=0.00, nullable=True)
+    thanh_tien = Column(Numeric(12, 2), default=0.00, nullable=True)
     trang_thai = Column(String(30), default="da_chi_dinh", nullable=False)
     bac_si_chi_dinh_id = Column(Integer, ForeignKey("bac_si.id"), nullable=True)
     chi_tiet_goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)
@@ -452,10 +454,10 @@ class HoaDon(BaseModelWithTimestamp):
     tong_tien = Column(Numeric(15, 2), default=0.00, nullable=False)
     mien_giam = Column(Numeric(15, 2), default=0.00, nullable=False)
     so_tien_phai_thu = Column(Numeric(15, 2), default=0.00, nullable=False)
-    thuc_thu = synonym("so_tien_phai_thu")
+    thuc_thu = Column(Numeric(15, 2), default=0.00, nullable=True)
     trang_thai = Column(String(30), default="chua_thu", nullable=False, index=True)
     nguoi_lap_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="RESTRICT"), nullable=True, index=True)
-    thu_ngan_id = synonym("nguoi_lap_id")
+    thu_ngan_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="RESTRICT"), nullable=True, index=True)
     nguoi_huy_id = Column(Integer, ForeignKey("nguoi_dung.id", ondelete="SET NULL"), nullable=True)
     thoi_gian_huy = Column(DateTime(timezone=True), nullable=True)
     ly_do_huy = Column(Text, nullable=True)
@@ -464,6 +466,27 @@ class HoaDon(BaseModelWithTimestamp):
     ngay_thanh_toan = Column(DateTime(timezone=True), nullable=True)
     phuong_thuc_thanh_toan = Column(String(30), default="tien_mat", nullable=True)
     goi_kham_da_mua_id = Column(Integer, nullable=True, index=True)
+
+    __table_args__ = (
+        Index(
+            "uq_hoa_don_luot_kham_hieu_luc",
+            "luot_kham_id",
+            unique=True,
+            postgresql_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+            sqlite_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+        ),
+    )
+
+    def __init__(self, **kwargs):
+        if "thuc_thu" in kwargs and "so_tien_phai_thu" not in kwargs:
+            kwargs["so_tien_phai_thu"] = kwargs["thuc_thu"]
+        elif "so_tien_phai_thu" in kwargs and "thuc_thu" not in kwargs:
+            kwargs["thuc_thu"] = kwargs["so_tien_phai_thu"]
+        if "thu_ngan_id" in kwargs and "nguoi_lap_id" not in kwargs:
+            kwargs["nguoi_lap_id"] = kwargs["thu_ngan_id"]
+        elif "nguoi_lap_id" in kwargs and "thu_ngan_id" not in kwargs:
+            kwargs["thu_ngan_id"] = kwargs["nguoi_lap_id"]
+        super().__init__(**kwargs)
 
     luot_kham = relationship("LuotKham")
     benh_nhan = relationship("BenhNhan")

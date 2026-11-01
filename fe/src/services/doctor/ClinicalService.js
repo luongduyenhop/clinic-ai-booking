@@ -340,6 +340,22 @@ export class ClinicalService extends BaseServices {
             })
         }
 
+        // Ưu tiên gọi API RESTful ký số trực tiếp Backend PostgreSQL
+        try {
+            const res = await this.post(`/api/v1/clinical/encounters/${encounterId}/prescriptions/sign`, {
+                chu_ky_so: payload.chu_ky_so || `SHA256:SIG:${encounterId}:${Date.now()}`
+            })
+            if (res?.data?.data) {
+                const signedData = res.data.data
+                enc.trang_thai_don_thuoc = 'SIGNED'
+                enc.don_thuoc = { ...enc.don_thuoc, ...signedData, trang_thai: 'SIGNED' }
+                await this.persistToPostgres()
+                return delay({ success: true, ...signedData, don_thuoc: enc.don_thuoc }, 80)
+            }
+        } catch {
+            // Fallback chạy offline hoặc ca khám tạm thời
+        }
+
         const now = new Date().toISOString()
         const doctorName = enc.ten_bac_si || 'Bác sĩ phụ trách'
         const sigData = payload.chu_ky_so || `SHA256:SIG:${encounterId}:${Date.now()}`

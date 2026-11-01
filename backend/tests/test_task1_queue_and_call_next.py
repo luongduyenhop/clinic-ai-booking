@@ -340,7 +340,7 @@ async def test_task1_doctor_queue_board_and_empty_queue_handling(api_client, boo
     await db_session.commit()
 
     # Tra cứu bảng hàng đợi của bác sĩ
-    res_board = await api_client.get(f"/api/v1/reception/queue/{booking.bs_x.id}")
+    res_board = await api_client.get(f"/api/v1/reception/queue/{booking.bs_x.id}", headers=token_bs)
     assert res_board.status_code == 200
     board_data = res_board.json()["data"]
     assert board_data["phong_kham"] == "Phòng 102 - Tầng 1"

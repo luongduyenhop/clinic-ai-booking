@@ -445,10 +445,19 @@ export default function PrescriptionPrintAndCopyModal({
                                                                 </div>
                                                             </td>
                                                             <td className="py-3 px-3 text-center">
-                                                                <div className="font-semibold text-teal-800">
-                                                                    {item.lieu_dung || `Sáng ${item.sang || 1} - Chiều ${item.chieu || 1}`}
+                                                                <div className="font-bold text-teal-900 text-xs">
+                                                                    {item.lieu_dung
+                                                                        ? item.lieu_dung
+                                                                        : [
+                                                                              item.sang && Number(item.sang) > 0 ? `Sáng: ${item.sang}` : '',
+                                                                              item.trua && Number(item.trua) > 0 ? `Trưa: ${item.trua}` : '',
+                                                                              item.chieu && Number(item.chieu) > 0 ? `Chiều: ${item.chieu}` : '',
+                                                                              item.toi && Number(item.toi) > 0 ? `Tối: ${item.toi}` : '',
+                                                                          ]
+                                                                              .filter(Boolean)
+                                                                              .join(' · ') || 'Theo chỉ dẫn'}
                                                                 </div>
-                                                                <div className="text-[11px] text-slate-500">
+                                                                <div className="text-[11px] text-slate-600 mt-0.5 italic">
                                                                     {item.cach_dung || 'Uống sau ăn no'}
                                                                 </div>
                                                             </td>
@@ -524,13 +533,16 @@ export default function PrescriptionPrintAndCopyModal({
                                         </div>
                                     </div>
 
-                                    <div className="my-3 px-4 py-2 rounded-xl border-2 border-dashed border-emerald-600 bg-emerald-50/70 text-emerald-800 inline-flex items-center gap-2">
-                                        <CheckCircle size={20} weight="fill" className="text-emerald-600" />
-                                        <div className="text-left">
-                                            <div className="text-[10px] font-bold uppercase">
-                                                ĐÃ XÁC THỰC CHỮ KÝ SỐ Y TẾ
+                                    <div className="my-2.5 px-3.5 py-2 rounded-xl border-2 border-dashed border-emerald-600 bg-emerald-50/80 text-emerald-900 inline-flex items-center gap-2 text-left">
+                                        <CheckCircle size={22} weight="fill" className="text-emerald-600 shrink-0" />
+                                        <div>
+                                            <div className="text-[9px] font-extrabold uppercase tracking-wide text-emerald-800">
+                                                CHỨNG THƯ SỐ Y TẾ HỢP LỆ (TT 04/2022/TT-BYT)
                                             </div>
-                                            <div className="text-xs font-extrabold">{doctorName}</div>
+                                            <div className="text-xs font-black text-slate-900">{doctorName}</div>
+                                            <div className="text-[9px] text-emerald-700 font-mono">
+                                                Ký lúc: {encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky ? new Date(encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

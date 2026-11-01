@@ -183,7 +183,7 @@ export class ClinicalService extends BaseServices {
                     },
                     ly_do_vao_kham: enc.ly_do_vao_kham || enc.ai_triage?.trieu_chung_nhap || null,
                     chan_doan_so_bo: diagnosisText(enc),
-                    dich_vu_ids: pending.map((o) => o.dich_vu_id),
+                    dich_vu_ids: [...new Set(pending.map((o) => o.dich_vu_id).filter(Boolean))],
                 },
                 { __skipGlobalLoading: true }
             )
@@ -542,7 +542,7 @@ export class ClinicalService extends BaseServices {
     getServices = async () => {
         try {
             const res = await this.get('/api/v1/medical/services')
-            if (res?.data?.data && res.data.data.length > 0) return { data: res.data.data }
+            if (res?.data?.data && res.data.data.length > 0) return res.data.data
         } catch {
             // Dự phòng offline
         }

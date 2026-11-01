@@ -352,13 +352,13 @@ export default function ExamWorkstationPage() {
             AppToast.error(`Cần mô tả mục bất thường: ${missingNotes.map(([label]) => label).join(', ')}`)
             return
         }
-        const primary = formik.values.danh_sach_chan_doan.filter((d) => d.loai_chan_doan === 'chinh')
+        const primary = (formik.values.danh_sach_chan_doan || []).filter((d) => d.loai_chan_doan === 'chinh')
         if (primary.length !== 1) {
-            formik.setFieldError('danh_sach_chan_doan', 'Cần đúng 1 chẩn đoán chính (ICD-10) trước khi hoàn tất khám.')
-            AppToast.error('Cần chọn đúng 1 chẩn đoán chính ICD-10 trước khi khóa bệnh án!')
+            formik.setFieldError('danh_sach_chan_doan', 'Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi hoàn tất khám.')
+            AppToast.error('Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi khóa bệnh án!')
             return
         }
-        const pending = (encounter.danh_sach_chi_dinh || []).filter((o) => ['da_chi_dinh', 'dang_thuc_hien'].includes(o.trang_thai)).length
+        const pending = (encounter.danh_sach_chi_dinh || []).filter((o) => ['CHO_THUC_HIEN', 'da_chi_dinh', 'dang_thuc_hien'].includes(o.trang_thai)).length
 
         Modal.confirm({
             title: 'Hoàn tất khám và khóa bệnh án?',

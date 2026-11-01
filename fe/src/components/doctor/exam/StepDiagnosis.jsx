@@ -47,6 +47,13 @@ function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
         >
             <span className="min-w-14 font-bold text-[#003553]">{dx.ma_icd10}</span>
             <span className="flex-1 text-[13px]">{dx.ten_benh_chan_doan}</span>
+            <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                    primary ? 'bg-[#00B5F1]/15 text-[#0077B6] border border-[#00B5F1]/30' : 'bg-slate-200/60 text-slate-600'
+                }`}
+            >
+                {primary ? 'Chẩn đoán chính' : 'Chẩn đoán phụ'}
+            </span>
             {!primary && !locked && (
                 <button type="button" className="text-[12px] font-semibold text-[#0077B6] hover:underline cursor-pointer" onClick={onMakePrimary}>
                     Đặt làm chính
@@ -75,7 +82,7 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
     const [ratingNote, setRatingNote] = useState(encounter.danh_gia_ai?.nhan_xet || '')
     const debounced = useDebounce(keyword, 250)
 
-    const list = values.danh_sach_chan_doan
+    const list = values.danh_sach_chan_doan || []
     const primary = list.find((d) => d.loai_chan_doan === 'chinh')
     const secondary = list.filter((d) => d.loai_chan_doan !== 'chinh')
 
@@ -114,7 +121,14 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
         setOptions([])
     }
 
-    const remove = (ma) => setFieldValue('danh_sach_chan_doan', list.filter((d) => d.ma_icd10 !== ma))
+    const remove = (ma) => {
+        const next = list.filter((d) => d.ma_icd10 !== ma)
+        // Nếu xóa chẩn đoán chính và vẫn còn chẩn đoán phụ, đôn chẩn đoán đầu tiên lên làm chính
+        if (next.length > 0 && !next.some((d) => d.loai_chan_doan === 'chinh')) {
+            next[0] = { ...next[0], loai_chan_doan: 'chinh' }
+        }
+        setFieldValue('danh_sach_chan_doan', next)
+    }
     const makePrimary = (ma) =>
         setFieldValue(
             'danh_sach_chan_doan',
@@ -176,15 +190,18 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán chính</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán chính (bắt buộc chọn 1 mã)</span>
                     {primary ? (
                         <DiagnosisRow dx={primary} primary locked={locked} onRemove={() => remove(primary.ma_icd10)} />
                     ) : (
-                        <p className={`rounded-xl px-4 py-3 text-[13px] ${errors.danh_sach_chan_doan ? 'bg-rose-50 text-rose-700' : 'bg-[#F5F9FC] text-slate-500'}`}>
-                            {errors.danh_sach_chan_doan || 'Chưa có chẩn đoán chính. Mã đầu tiên bạn chọn sẽ là chẩn đoán chính.'}
-                        </p>
+                        <div className="rounded-xl border border-rose-300 bg-rose-50/80 px-4 py-3 text-[13px] text-rose-800">
+                            <span className="font-semibold">⚠️ Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10)</span> để hoàn tất hồ sơ khám.
+                            <p className="mt-0.5 text-xs text-rose-600">
+                                {errors.danh_sach_chan_doan || 'Chọn từ ô tìm kiếm nhanh hoặc bấm vào gợi ý nhanh bên trên.'}
+                            </p>
+                        </div>
                     )}
-                    <span className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán phụ</span>
+                    <span className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán phụ (nếu có)</span>
                     {secondary.length === 0 && <p className="text-[12px] text-slate-500">Không có.</p>}
                     {secondary.map((d) => (
                         <DiagnosisRow

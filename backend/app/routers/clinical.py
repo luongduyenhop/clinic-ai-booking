@@ -1,6 +1,9 @@
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -680,9 +683,24 @@ async def save_clinical_workspace_state(
     current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user = current_user if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
-    result = await clinical_service.sync_workspace_to_postgres(db=db, payload=payload, current_user=user)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
-    )
+    try:
+        user = (
+            current_user
+            if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int)
+            else None
+        )
+        result = await clinical_service.sync_workspace_to_postgres(
+            db=db,
+            payload=payload,
+            current_user=user,
+        )
+        return ResponseEnvelope.success_response(
+            data=result,
+            message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
+        )
+    except Exception as e:
+        logger.error(f"Error syncing clinical workspace state: {e}", exc_info=True)
+        return ResponseEnvelope.error_response(
+            code=500,
+            message="Lỗi hệ thống khi đồng bộ dữ liệu lâm sàng. Vui lòng liên hệ quản trị viên.",
+        )

@@ -154,7 +154,6 @@ export class ClinicalService extends BaseServices {
 
     // ── 3. Quản lý Ca khám & Lịch sử Bệnh án ──────────────────────────────
     getEncounter = async (encounterId) => {
-        // Thử lấy qua REST endpoint chi tiết lượt khám của backend
         try {
             const res = await this.get(`/api/v1/clinical/encounters/${encounterId}`, { __skipGlobalLoading: true })
             if (res?.data?.data) {
@@ -225,7 +224,7 @@ export class ClinicalService extends BaseServices {
                     ma_dich_vu: s.ma_dich_vu,
                     ten_dich_vu: s.ten_dich_vu,
                     nhom_dich_vu: s.nhom_dich_vu,
-                    trang_thai: 'da_chi_dinh',
+                    trang_thai: 'CHO_THUC_HIEN',
                     ket_qua_phan_loai: null,
                     ket_qua_chi_tiet: null,
                     tep_dinh_kem_url: null,
@@ -255,7 +254,9 @@ export class ClinicalService extends BaseServices {
         const enc = this._workspace?.encounters?.[encounterId]
         const o = enc?.danh_sach_chi_dinh?.find((x) => x.id === orderId)
         if (!o) throw new Error('Không tìm thấy chỉ định')
-        if (o.trang_thai !== 'da_chi_dinh') throw new Error('Chỉ hủy được chỉ định chưa thực hiện.')
+        if (o.trang_thai !== 'da_chi_dinh' && o.trang_thai !== 'CHO_THUC_HIEN') {
+            throw new Error('Chỉ hủy được chỉ định chưa thực hiện.')
+        }
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
         await this.put('/api/v1/clinical/workspace-state', this._workspace, { __skipGlobalLoading: true })
         return {
@@ -376,7 +377,9 @@ export class ClinicalService extends BaseServices {
         if (!this._workspace) await this.getWorkspaceState()
         const o = this._findOrder(orderId)
         if (!o) throw new Error('Không tìm thấy chỉ định')
-        if (o.trang_thai === 'da_chi_dinh') o.trang_thai = 'dang_thuc_hien'
+        if (o.trang_thai === 'da_chi_dinh' || o.trang_thai === 'CHO_THUC_HIEN') {
+            o.trang_thai = 'dang_thuc_hien'
+        }
         await this.put('/api/v1/clinical/workspace-state', this._workspace, { __skipGlobalLoading: true })
         return {
             data: {

@@ -1,147 +1,120 @@
-/**
- * apiHelper.js
- * Tiện ích bóc tách và chuẩn hóa dữ liệu từ ResponseEnvelope[T] và PaginationMeta của Backend FastAPI.
- */
+export function unwrapApi(res) {
+    if (!res) return null
+    const envelope = res?.data !== undefined ? res.data : res
+    if (envelope && typeof envelope === 'object') {
+        if (envelope.success === false) {
+            const err = new Error(envelope.message || 'Yêu cầu không thành công')
+            err.errors = envelope.errors
+            err.code = envelope.code
+            throw err
+        }
+        if ('data' in envelope) {
+            return envelope.data
+        }
+    }
+    return envelope
+}
 
-/**
- * Trích xuất message lỗi từ error object (Axios error, Backend response hoặc Error thông thường)
- * @param {any} error
- * @param {string} fallbackMessage
- * @returns {string}
- */
-export function pickErrorMessage(error, fallbackMessage = 'Đã có lỗi xảy ra') {
-    if (!error) return fallbackMessage
+export function unwrapPagedApi(res, fallbackPageSize = 20) {
+    if (!res) {
+        return {
+            items: [],
+            meta: null,
+            total: 0,
+            page: 1,
+            pageSize: fallbackPageSize,
+            totalItems: 0,
+            totalPages: 1,
+            hasNext: false,
+            hasPrev: false,
+        }
+    }
+    const envelope = res?.data !== undefined ? res.data : res
+    if (envelope && typeof envelope === 'object' && envelope.success === false) {
+        throw new Error(envelope.message || 'Yêu cầu không thành công')
+    }
+    const rawData = envelope?.data !== undefined ? envelope.data : envelope
+    const items = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.items)
+          ? rawData.items
+          : Array.isArray(rawData?.danh_sach)
+            ? rawData.danh_sach
+            : []
 
-    // Chuỗi lỗi trực tiếp
+    const rawMeta = envelope?.meta || rawData?.meta || {}
+    const page = Number(rawMeta.page) || 1
+    const pageSize = Number(rawMeta.page_size || rawMeta.pageSize) || fallbackPageSize
+    const totalItems = Number(rawMeta.total_items ?? rawMeta.totalItems ?? rawMeta.total ?? items.length)
+    const totalPages = Number(rawMeta.total_pages ?? rawMeta.totalPages) || (pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1)
+    const hasNext = Boolean(rawMeta.has_next ?? rawMeta.hasNext ?? page < totalPages)
+    const hasPrev = Boolean(rawMeta.has_prev ?? rawMeta.hasPrev ?? page > 1)
+
+    const meta = {
+        ...rawMeta,
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrev,
+        page_size: pageSize,
+        total_items: totalItems,
+        total_pages: totalPages,
+        has_next: hasNext,
+        has_prev: hasPrev,
+    }
+
+    return {
+        items,
+        meta,
+        total: totalItems,
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrev,
+    }
+}
+
+export function unwrapApiWithMeta(res) {
+    const envelope = res?.data !== undefined ? res.data : res
+    return {
+        data: envelope?.data !== undefined ? envelope.data : envelope,
+        meta: envelope?.meta ?? null,
+        message: envelope?.message ?? '',
+        code: envelope?.code ?? 200,
+        success: envelope?.success ?? true,
+        errors: envelope?.errors ?? null,
+    }
+}
+
+export function pickErrorMessage(error, defaultMessage = 'Đã có lỗi xảy ra') {
+    if (!error) return defaultMessage
     if (typeof error === 'string') return error
 
-    // Lỗi từ Axios Response Envelope
-    const responseData = error.response?.data
-    if (responseData) {
-        if (typeof responseData.message === 'string' && responseData.message.trim()) {
-            return responseData.message
+    const data = error.response?.data
+    if (data) {
+        if (typeof data.message === 'string' && data.message.trim()) return data.message
+        if (typeof data.detail === 'string' && data.detail.trim()) return data.detail
+        if (Array.isArray(data.detail) && data.detail[0]?.msg) {
+            return data.detail.map((d) => d.msg).join(', ')
         }
-        if (typeof responseData.detail === 'string' && responseData.detail.trim()) {
-            return responseData.detail
-        }
-        if (Array.isArray(responseData.detail) && responseData.detail[0]?.msg) {
-            return responseData.detail.map((d) => d.msg).join(', ')
-        }
-        if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-            const firstErr = responseData.errors[0]
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+            const firstErr = data.errors[0]
             if (typeof firstErr === 'string') return firstErr
             if (firstErr?.msg) return firstErr.msg
             if (firstErr?.message) return firstErr.message
         }
     }
 
-    // Message từ Error object
-    if (error.message && typeof error.message === 'string') {
-        return error.message
-    }
-
-    return fallbackMessage
+    return error.message || defaultMessage
 }
 
-/**
- * Bóc tách payload data từ API response envelope
- * @param {any} res
- * @returns {any}
- */
-export function unwrapApi(res) {
-    if (!res) return null
-
-    // Nếu res là Axios response (res.data chứa envelope)
-    const body = res.data !== undefined ? res.data : res
-
-    if (body && typeof body === 'object') {
-        // Kiểm tra envelope chuẩn
-        if (body.success === false) {
-            const errorMsg = body.message || 'Yêu cầu không thành công'
-            const err = new Error(errorMsg)
-            err.errors = body.errors
-            err.code = body.code
-            throw err
-        }
-
-        if (body.success === true && body.data !== undefined) {
-            return body.data
-        }
-
-        if (body.data !== undefined) {
-            return body.data
-        }
-    }
-
-    return body
-}
-
-/**
- * Bóc tách API response có phân trang (items & meta)
- * @param {any} res
- * @param {number} defaultPageSize
- * @returns {{ items: Array<any>, meta: any, total: number }}
- */
-export function unwrapPagedApi(res, defaultPageSize = 20) {
-    if (!res) {
-        return { items: [], meta: null, total: 0 }
-    }
-
-    const body = res.data !== undefined ? res.data : res
-
-    if (body && typeof body === 'object') {
-        if (body.success === false) {
-            throw new Error(body.message || 'Yêu cầu không thành công')
-        }
-
-        const items = Array.isArray(body.data)
-            ? body.data
-            : Array.isArray(body.data?.items)
-              ? body.data.items
-              : Array.isArray(body.data?.danh_sach)
-                ? body.data.danh_sach
-                : []
-
-        const rawMeta = body.meta || body.data?.meta || {}
-        const meta = {
-            page: Number(rawMeta.page || 1),
-            page_size: Number(rawMeta.page_size || defaultPageSize),
-            total_items: Number(rawMeta.total_items || items.length),
-            total_pages: Number(rawMeta.total_pages || (defaultPageSize > 0 ? Math.ceil(items.length / defaultPageSize) : 1)),
-            has_next: Boolean(rawMeta.has_next ?? false),
-            has_prev: Boolean(rawMeta.has_prev ?? false),
-        }
-
-        return {
-            items,
-            meta,
-            total: meta.total_items ?? items.length,
-        }
-    }
-
-    if (Array.isArray(body)) {
-        return {
-            items: body,
-            meta: null,
-            total: body.length,
-        }
-    }
-
-    return { items: [], meta: null, total: 0 }
-}
-
-/**
- * Bóc tách toàn diện gồm data, meta, message, code và trạng thái thành công
- * @param {any} res
- */
-export function unwrapApiWithMeta(res) {
-    const envelope = res?.data !== undefined ? res.data : res
-    return {
-        data: envelope?.data !== undefined ? envelope.data : envelope,
-        meta: envelope?.meta || null,
-        message: envelope?.message || '',
-        code: envelope?.code || 200,
-        success: envelope?.success ?? true,
-        errors: envelope?.errors || null,
-    }
+export default {
+    unwrapApi,
+    unwrapPagedApi,
+    unwrapApiWithMeta,
+    pickErrorMessage,
 }

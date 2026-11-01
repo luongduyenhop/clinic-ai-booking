@@ -1,7 +1,7 @@
 import { Modal, Button, Tag, Select, message } from 'antd'
 import { PrinterOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useDispatch, useSelector } from 'react-redux'
-import { updateInvoiceStatusAsync } from '../../redux/slices/reception/receptionSlice'
+import { updateInvoiceStatusAsync } from '../../redux/actions/reception/receptionAction'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
 import { PAYMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 

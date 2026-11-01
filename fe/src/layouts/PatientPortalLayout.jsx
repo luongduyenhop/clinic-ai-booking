@@ -8,6 +8,7 @@ const links = [
     { to: '/benh-nhan', end: true, label: 'Tổng quan', icon: HouseLine },
     { to: '/benh-nhan/lich-hen', label: 'Lịch hẹn của tôi', icon: CalendarCheck },
     { to: '/benh-nhan/lich-su-kham', label: 'Lịch sử khám', icon: ClipboardText },
+    { to: '/benh-nhan/benh-an', label: 'Bệnh án điện tử', icon: ClipboardText },
     { to: '/benh-nhan/don-thuoc', label: 'Đơn thuốc', icon: Pill },
     { to: '/benh-nhan/ket-qua-can-lam-sang', label: 'Kết quả cận lâm sàng', icon: Microscope },
     { to: '/benh-nhan/lich-bac-si', label: 'Lịch làm việc bác sĩ', icon: Stethoscope },

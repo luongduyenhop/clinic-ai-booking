@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, time, datetime, timezone
+from app.services.appointment_service import clinic_now
 from decimal import Decimal
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.models.medical import DichVu
@@ -40,7 +41,7 @@ async def test_tclinic_aligned_encounter_lifecycle(db_session, booking):
         ma_lich_kham=f"LK-TCLINIC-{booking.suffix}",
         bac_si_id=booking.bs_x.id,
         benh_nhan_id=booking.bn_a.id,
-        ngay_kham=date.today(),
+        ngay_kham=clinic_now().date(),
         gio_kham=time(9, 30),
         ly_do_kham="Đau tức ngực, khó thở khi gắng sức",
         trieu_chung_ban_dau="Đau tức ngực 3 ngày nay",

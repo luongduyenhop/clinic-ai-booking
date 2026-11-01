@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, time, datetime, timedelta
+from app.services.appointment_service import clinic_now
 from app.models.user import VaiTroEnum, NguoiDung, TaiKhoan, BenhNhan, BacSi
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.schemas.queue import CheckInRequest, WalkInQuickRequest
@@ -15,7 +16,7 @@ async def test_future_appointment_cannot_check_in_today(db_session):
     - Tìm kiếm tra cứu: Vẫn tìm thấy để xem thông tin hoặc dời lịch.
     - Check-in tại quầy: Bị từ chối HTTP 400 Bad Request, tránh làm ô nhiễm hàng đợi phục vụ thực tế.
     """
-    today = date.today()
+    today = clinic_now().date()
     tomorrow = today + timedelta(days=1)
 
     nd_bs = NguoiDung(ho_ten="BS Test Ngày", email="bs.ngay@clinic.com", so_dien_thoai="0988001122")
@@ -105,7 +106,7 @@ async def test_queue_scoping_and_no_collision_in_same_queue(db_session):
     INVARIANT 3: Hai bệnh nhân trong cùng một hàng đợi (cùng bác sĩ, cùng ngày, cùng ca)
     phải nhận STT tăng dần và KHÔNG BAO GIỜ trùng số thứ tự.
     """
-    today = date.today()
+    today = clinic_now().date()
     nd_bs = NguoiDung(ho_ten="BS Tim Mạch Scope", email="bs.scope@clinic.com")
     db_session.add(nd_bs)
     await db_session.flush()

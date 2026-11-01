@@ -676,7 +676,7 @@ async def get_clinical_workspace_state(
 @router.put(
     "/workspace-state",
     response_model=ResponseEnvelope[dict],
-    summary="Lưu bền vững trạng thái Bàn khám, Chỉ định CLS, Kết quả CLS, Chẩn đoán & Đơn thuốc vào PostgreSQL"
+    summary="Lưu bền vững trạng thái Bàn khám, Sinh hiệu, Khám chuyên khoa vào PostgreSQL"
 )
 async def save_clinical_workspace_state(
     payload: dict,

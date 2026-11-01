@@ -53,7 +53,7 @@ async def test_arrival_window_early_on_time_and_late(api_client, booking, db_ses
     db_session.add_all([lich_som, lich_dung, lich_muon])
     await db_session.commit()
 
-    with patch("app.services.queue_service.datetime", FakeDateTime), patch("app.services.queue_service.date") as mock_date:
+    with patch("app.services.queue_service.datetime", FakeDateTime), patch("app.services.queue_service.date") as mock_date, patch("app.services.queue_service.clinic_now", return_value=fake_now):
         mock_date.today.return_value = fake_today
 
         res_som = await api_client.post(

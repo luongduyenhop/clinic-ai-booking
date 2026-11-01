@@ -118,7 +118,7 @@ class SubclinicalService:
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
 
-        if order.trang_thai != "da_thanh_toan":
+        if order.trang_thai not in ("da_thanh_toan", "CHO_THUC_HIEN"):
             if order.trang_thai == "da_chi_dinh":
                 raise ConflictException("Chỉ định cận lâm sàng chưa được thanh toán viện phí! Bệnh nhân cần hoàn tất thanh toán trước khi thực hiện.")
             if order.trang_thai == "da_co_ket_qua":
@@ -156,7 +156,7 @@ class SubclinicalService:
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
 
-        if order.trang_thai not in ("da_thanh_toan", "dang_thuc_hien"):
+        if order.trang_thai not in ("da_thanh_toan", "CHO_THUC_HIEN", "dang_thuc_hien"):
             if order.trang_thai == "da_chi_dinh":
                 raise ConflictException("Chỉ định cận lâm sàng chưa được thanh toán viện phí!")
             if order.trang_thai == "da_huy":

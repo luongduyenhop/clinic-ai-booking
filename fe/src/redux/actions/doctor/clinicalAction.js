@@ -57,3 +57,6 @@ export const submitLabResultAsync = thunk('clinical/submitLabResult', ({ orderId
     clinicalService.submitLabResult(orderId, body)
 )
 export const approveOrderAsync = thunk('clinical/approveOrder', (orderId) => clinicalService.approveOrder(orderId))
+export const signPrescriptionAsync = thunk('clinical/signPrescription', ({ encounterId, payload }) =>
+    clinicalService.signPrescription(encounterId, payload)
+)

@@ -53,7 +53,7 @@ class SubclinicalService:
             stmt = stmt.where(ChiDinh.trang_thai == trang_thai)
         else:
             # Mặc định chỉ lấy các ca đang chờ thực hiện hoặc đang tiến hành
-            stmt = stmt.where(ChiDinh.trang_thai.in_(["da_chi_dinh", "dang_thuc_hien"]))
+            stmt = stmt.where(ChiDinh.trang_thai.in_(["da_chi_dinh", "da_thanh_toan", "dang_thuc_hien"]))
 
         orders = (await db.execute(stmt)).scalars().all()
 
@@ -117,11 +117,14 @@ class SubclinicalService:
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
 
-        if order.trang_thai == "da_co_ket_qua":
-            raise ConflictException("Chỉ định này đã có kết quả xét nghiệm hoàn tất!")
-
-        if order.trang_thai == "da_huy":
-            raise ConflictException("Chỉ định này đã bị hủy bỏ!")
+        if order.trang_thai != "da_thanh_toan":
+            if order.trang_thai == "da_chi_dinh":
+                raise ConflictException("Chỉ định cận lâm sàng chưa được thanh toán viện phí! Bệnh nhân cần hoàn tất thanh toán trước khi thực hiện.")
+            if order.trang_thai == "da_co_ket_qua":
+                raise ConflictException("Chỉ định này đã có kết quả xét nghiệm hoàn tất!")
+            if order.trang_thai == "da_huy":
+                raise ConflictException("Chỉ định này đã bị hủy bỏ!")
+            raise ConflictException("Chỉ định này không ở trạng thái hợp lệ để bắt đầu thực hiện!")
 
         now = datetime.now(timezone.utc)
         order.trang_thai = "dang_thuc_hien"
@@ -152,8 +155,14 @@ class SubclinicalService:
         if not order:
             raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng ID {order_id}!")
 
-        if order.trang_thai == "da_huy":
-            raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
+        if order.trang_thai not in ("da_thanh_toan", "dang_thuc_hien"):
+            if order.trang_thai == "da_chi_dinh":
+                raise ConflictException("Chỉ định cận lâm sàng chưa được thanh toán viện phí!")
+            if order.trang_thai == "da_huy":
+                raise ConflictException("Không thể nhập kết quả cho chỉ định đã bị hủy!")
+            if order.trang_thai == "da_co_ket_qua":
+                raise ConflictException("Chỉ định này đã có kết quả xét nghiệm hoàn tất!")
+            raise ConflictException("Chỉ định này chưa sẵn sàng để nhập kết quả!")
 
         now = datetime.now(timezone.utc)
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet

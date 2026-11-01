@@ -36,7 +36,7 @@ export default function StepClinical({ formik, encounter, locked }) {
 
     return (
         <div className="flex flex-col gap-5">
-            <AiTriageCard ai={encounter.ai_triage} />
+            <AiTriageCard ai={encounter?.ai_triage} />
 
             <section>
                 <h3 className="medpro-section-title">Sinh hiệu</h3>

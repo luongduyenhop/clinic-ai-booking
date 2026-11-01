@@ -260,6 +260,18 @@ export class ClinicalService extends BaseServices {
     getEncounter = async (encounterId) => {
         await this.hydrateFromPostgres()
         try {
+            const res = await this.get(`/api/v1/clinical/encounters/${encounterId}`, { __skipGlobalLoading: true })
+            const remoteEncounter = res?.data?.data
+            if (remoteEncounter) {
+                const localEnc = db.encounters[encounterId] || {}
+                const merged = { ...localEnc, ...remoteEncounter }
+                db.encounters[encounterId] = merged
+                return delay(merged)
+            }
+        } catch {
+            // Fallback nếu chưa có dữ liệu trên Backend hoặc chạy offline
+        }
+        try {
             return delay(getEncounterOrThrow(encounterId))
         } catch (e) {
             return reject(e.message)

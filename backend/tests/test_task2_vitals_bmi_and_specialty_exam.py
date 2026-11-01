@@ -27,6 +27,7 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
     await db_session.flush()
 
     now = datetime.now(timezone.utc)
@@ -108,6 +109,7 @@ async def test_task2_specialty_exam_checklist_and_health_classification(api_clie
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session, "KHOA_HO_HAP", "Khoa Hô Hấp")
     booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
     await db_session.flush()
 
     now = datetime.now(timezone.utc)
@@ -178,6 +180,7 @@ async def test_task2_health_classification_bmi_thresholds(api_client, booking, d
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
     await db_session.flush()
 
     # Trường hợp 1: Thể trạng chuẩn (Cao 170cm, nặng 60kg -> BMI = 20.8 -> LOAI_1)
@@ -282,6 +285,7 @@ async def test_task2_update_and_idempotency(api_client, booking, db_session):
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
     await db_session.flush()
 
     now = datetime.now(timezone.utc)
@@ -364,6 +368,11 @@ async def test_task2_edge_cases_empty_or_zero_values(api_client, booking, db_ses
     Hệ thống xử lý an toàn (graceful handling), không văng lỗi chia cho 0 (ZeroDivisionError).
     """
     token_bs = booking.tokens["bs_x"]
+    ck = await _dam_bao_chuyen_khoa(db_session)
+    booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
+    await db_session.flush()
+
     now = datetime.now(timezone.utc)
     lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
 

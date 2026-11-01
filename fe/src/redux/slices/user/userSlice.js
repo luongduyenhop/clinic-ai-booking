@@ -40,7 +40,7 @@ const userSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchAvailableSlotsAsync.pending, (state) => { state.slotsLoading = true; state.bookingError = null })
+            .addCase(fetchAvailableSlotsAsync.pending, (state) => { state.slotsLoading = true; state.availableSlots = []; state.bookingError = null })
             .addCase(fetchAvailableSlotsAsync.fulfilled, (state, action) => { state.slotsLoading = false; state.availableSlots = action.payload })
             .addCase(fetchAvailableSlotsAsync.rejected, (state, action) => { state.slotsLoading = false; state.bookingError = action.payload || 'Không thể tải khung giờ' })
             .addCase(createPatientBookingAsync.pending, (state) => { state.loading = true; state.bookingError = null })

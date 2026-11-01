@@ -1,6 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { clinicalService } from '../../../services/doctor/ClinicalService'
-import { unwrapApi, pickErrorMessage } from '../../../services/apiHelper'
+import { unwrapApi, pickErrorMessage } from '../../../utils/helpers/apiHelper'
 
 const thunk = (type, call) =>
     createAsyncThunk(type, async (arg, { rejectWithValue }) => {

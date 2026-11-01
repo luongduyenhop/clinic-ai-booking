@@ -21,8 +21,9 @@ from app.models.medical import (
     BienBanDinhChinh,
     AmendmentStatus,
     LuotKhamTheLuc,
+    PhieuKhamChuyenKhoa,
 )
-from app.models.user import TaiKhoan, BacSi, BenhNhan, VaiTroEnum
+from app.models.user import TaiKhoan, BacSi, BenhNhan, VaiTroEnum, ChuyenKhoa
 from app.models.specialty_exam import (
     KhamNoiKhoa,
     KhamNgoaiKhoa,
@@ -1342,9 +1343,58 @@ class ClinicalService:
                         )
                         continue
 
-                    bs_id = target_lk.bac_si_id or (first_bs.id if first_bs else None)
+                    def _to_int(val):
+                        try:
+                            return int(val) if val is not None and str(val).strip() != "" else None
+                        except (ValueError, TypeError):
+                            return None
 
-                    # Cập nhật lý do khám, bệnh sử, triệu chứng lâm sàng nếu có
+                    def _to_dec(val, precision=1):
+                        try:
+                            return Decimal(str(round(float(val), precision))) if val is not None and str(val).strip() != "" else None
+                        except (ValueError, TypeError):
+                            return None
+
+                    if "mach_lan_phut" in enc_data:
+                        m = _to_int(enc_data.get("mach_lan_phut"))
+                        if m is not None:
+                            target_lk.mach_lan_phut = m
+
+                    if "huyet_ap_tam_thu" in enc_data:
+                        ha1 = _to_int(enc_data.get("huyet_ap_tam_thu"))
+                        if ha1 is not None:
+                            target_lk.huyet_ap_tam_thu = ha1
+
+                    if "huyet_ap_tam_truong" in enc_data:
+                        ha2 = _to_int(enc_data.get("huyet_ap_tam_truong"))
+                        if ha2 is not None:
+                            target_lk.huyet_ap_tam_truong = ha2
+
+                    if "nhip_tho_lan_phut" in enc_data:
+                        nt = _to_int(enc_data.get("nhip_tho_lan_phut"))
+                        if nt is not None:
+                            target_lk.nhip_tho_lan_phut = nt
+
+                    if "nhiet_do_c" in enc_data:
+                        temp = _to_dec(enc_data.get("nhiet_do_c"), 1)
+                        if temp is not None:
+                            target_lk.nhiet_do_c = temp
+
+                    if "can_nang_kg" in enc_data:
+                        cn = _to_dec(enc_data.get("can_nang_kg"), 2)
+                        if cn is not None:
+                            target_lk.can_nang_kg = cn
+
+                    if "chieu_cao_cm" in enc_data:
+                        cc = _to_dec(enc_data.get("chieu_cao_cm"), 2)
+                        if cc is not None:
+                            target_lk.chieu_cao_cm = cc
+
+                    if target_lk.can_nang_kg and target_lk.chieu_cao_cm and target_lk.chieu_cao_cm > 0:
+                        h_m = float(target_lk.chieu_cao_cm) / 100.0
+                        bmi_calc = float(target_lk.can_nang_kg) / (h_m * h_m)
+                        target_lk.bmi = Decimal(str(round(bmi_calc, 1)))
+
                     if enc_data.get("ly_do_vao_kham"):
                         target_lk.ly_do_vao_kham = enc_data.get("ly_do_vao_kham")
                         if not target_lk.trieu_chung:
@@ -1355,6 +1405,102 @@ class ClinicalService:
 
                     if enc_data.get("kham_lam_sang_bo_phan"):
                         target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
+
+                    bs_id = target_lk.bac_si_id or (first_bs.id if first_bs else None)
+
+                    kham_ck = enc_data.get("kham_chuyen_khoa")
+                    if kham_ck is not None or enc_data.get("ket_luan_dieu_tri"):
+                        items = kham_ck.get("items") or {} if isinstance(kham_ck, dict) else {}
+                        extras = kham_ck.get("extras") or {} if isinstance(kham_ck, dict) else {}
+
+                        noi_dung_lines = []
+                        for label, it in items.items():
+                            if isinstance(it, dict):
+                                status_text = (
+                                    "Bình thường"
+                                    if it.get("status") == "BT"
+                                    else ("Bất thường" if it.get("status") == "BAT" else it.get("status", ""))
+                                )
+                                note_text = f" ({it.get('note')})" if it.get("note") else ""
+                                noi_dung_lines.append(f"{label}: {status_text}{note_text}")
+                        for extra_k, extra_v in extras.items():
+                            if extra_v:
+                                noi_dung_lines.append(f"{extra_k}: {extra_v}")
+
+                        noi_dung_kham = "\n".join(noi_dung_lines) if noi_dung_lines else enc_data.get("kham_lam_sang_bo_phan")
+
+                        chuyen_khoa_id = None
+                        if bs_id:
+                            bs_obj = (await db.execute(select(BacSi).where(BacSi.id == bs_id))).scalar_one_or_none()
+                            if bs_obj and bs_obj.chuyen_khoa_id:
+                                chuyen_khoa_id = bs_obj.chuyen_khoa_id
+                        if not chuyen_khoa_id:
+                            first_ck = (await db.execute(select(ChuyenKhoa).limit(1))).scalars().first()
+                            if first_ck:
+                                chuyen_khoa_id = first_ck.id
+
+                        phieu_ck = (
+                            await db.execute(
+                                select(PhieuKhamChuyenKhoa).where(
+                                    PhieuKhamChuyenKhoa.luot_kham_id == target_lk.id
+                                )
+                            )
+                        ).scalars().first()
+
+                        phan_loai = "LOAI_1"
+                        if target_lk.bmi:
+                            if target_lk.bmi >= 30 or target_lk.bmi < Decimal("18.5"):
+                                phan_loai = "LOAI_3"
+                            elif target_lk.bmi >= 25:
+                                phan_loai = "LOAI_2"
+
+                        if phieu_ck:
+                            if noi_dung_kham:
+                                phieu_ck.noi_dung_kham = noi_dung_kham
+                            phieu_ck.phan_loai_suc_khoe = phan_loai
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                phieu_ck.ket_luan_chuyen_khoa = enc_data.get("ket_luan_dieu_tri")
+                        elif bs_id and chuyen_khoa_id and (noi_dung_kham or enc_data.get("ket_luan_dieu_tri")):
+                            db.add(
+                                PhieuKhamChuyenKhoa(
+                                    luot_kham_id=target_lk.id,
+                                    bac_si_id=bs_id,
+                                    chuyen_khoa_id=chuyen_khoa_id,
+                                    noi_dung_kham=noi_dung_kham or "Chưa có bất thường",
+                                    ket_luan_chuyen_khoa=enc_data.get("ket_luan_dieu_tri") or "Theo dõi lâm sàng",
+                                    phan_loai_suc_khoe=phan_loai,
+                                )
+                            )
+
+                    pe_rec = (
+                        await db.execute(
+                            select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == target_lk.id)
+                        )
+                    ).scalar_one_or_none()
+                    if pe_rec:
+                        pe_rec.mach = target_lk.mach_lan_phut
+                        pe_rec.huyet_ap_tam_thu = target_lk.huyet_ap_tam_thu
+                        pe_rec.huyet_ap_tam_truong = target_lk.huyet_ap_tam_truong
+                        pe_rec.nhiet_do = target_lk.nhiet_do_c
+                        pe_rec.nhip_tho = target_lk.nhip_tho_lan_phut
+                        pe_rec.chieu_cao = target_lk.chieu_cao_cm
+                        pe_rec.can_nang = target_lk.can_nang_kg
+                        pe_rec.bmi = target_lk.bmi
+                    elif bs_id:
+                        db.add(
+                            LuotKhamTheLuc(
+                                luot_kham_id=target_lk.id,
+                                mach=target_lk.mach_lan_phut,
+                                huyet_ap_tam_thu=target_lk.huyet_ap_tam_thu,
+                                huyet_ap_tam_truong=target_lk.huyet_ap_tam_truong,
+                                nhiet_do=target_lk.nhiet_do_c,
+                                nhip_tho=target_lk.nhip_tho_lan_phut,
+                                chieu_cao=target_lk.chieu_cao_cm,
+                                can_nang=target_lk.can_nang_kg,
+                                bmi=target_lk.bmi,
+                                bac_si_ket_luan_id=bs_id,
+                            )
+                        )
 
                     # Task 3 AC2: Đồng bộ chỉ định cận lâm sàng (lưu trạng thái CHO_THUC_HIEN gửi phòng KTV)
                     orders = [o for o in (enc_data.get("danh_sach_chi_dinh") or []) if isinstance(o, dict)]

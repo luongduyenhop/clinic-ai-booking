@@ -260,6 +260,7 @@ async def test_chi_dinh_khong_phai_xet_nghiem_hoac_chua_co_mau(api_client, booki
 @pytest.mark.asyncio
 async def test_phan_quyen_nhap_ket_qua_xet_nghiem(api_client, booking, db_session):
     await booking.tao_tai_khoan("le_tan", VaiTroEnum.LE_TAN.value)
+    await booking.tao_tai_khoan("ktv", VaiTroEnum.KY_THUAT_VIEN.value)
     order_id = await _tao_ca_xet_nghiem(api_client, booking, db_session, booking.bn_a)
     tpl = f"/api/v1/subclinical/orders/{order_id}/lab-template"
     url = f"/api/v1/subclinical/orders/{order_id}/lab-results"

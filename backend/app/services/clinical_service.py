@@ -1374,6 +1374,8 @@ class ClinicalService:
                         order_map = {ord.dich_vu_id: ord for ord in existing_orders}
 
                         for ord_item in orders:
+                            if ord_item.get("server_order_id"):
+                                continue
                             ma_dv = str(ord_item.get("ma_dich_vu") or f"DV-{ord_item.get('dich_vu_id', 1)}")[:50]
                             ten_dv = str(ord_item.get("ten_dich_vu") or "Dịch vụ cận lâm sàng")[:150]
                             dv = dv_map.get(ma_dv)

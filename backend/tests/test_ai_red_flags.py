@@ -173,15 +173,17 @@ async def test_emergency_log_records_matched_keyword(api_client, booking, db_ses
 
 @pytest.mark.asyncio
 async def test_specialty_classification_without_diacritics(api_client, booking, db_session):
-    """Chốt chặn 2 cũng nhận diện văn bản gõ không dấu, không rơi về Nội tổng quát"""
-    await _dam_bao_chuyen_khoa(db_session, "KHOA_TIEU_HOA", "Tiêu hóa")
+    """Model v2 nhận diện văn bản không dấu và định tuyến vào một trong 5 khoa đã huấn luyện."""
+    await _dam_bao_chuyen_khoa(db_session, "KHOA_NOI_TONG_QUAT", "Nội tổng quát")
     res = await api_client.post(
         "/api/v1/ai/analyze-symptoms", json={"trieu_chung": f"dau bung tieu chay, day hoi ({booking.suffix})"}
     )
     data = res.json()["data"]
     assert data["has_emergency"] is False
     assert data["default_assigned"] is False
-    assert data["suggested_specialties"][0]["ten_chuyen_khoa"] == "Tiêu hóa"
+    assert data["suggested_specialties"][0]["ten_chuyen_khoa"] == "Nội tổng quát"
+    assert data["suggested_specialties"][0]["do_tin_cay"] >= 0.60
+    assert data["model_version"] == "ai-disease-model-v2"
 
 
 @pytest.mark.asyncio

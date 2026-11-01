@@ -89,7 +89,7 @@ export default function ParaclinicalWorkPage() {
         setSearchParams({ nhom: key })
     }
 
-    const visible = worklist.filter((o) => statusFilter === 'ALL' || clsDisplayStatus(o) === statusFilter)
+    const visible = worklist.filter((o) => statusFilter === 'ALL' || o.trang_thai === statusFilter)
     const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {

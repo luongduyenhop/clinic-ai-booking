@@ -6,9 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import ConflictException, NotFoundException
+from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.models.medical import ChiDinh, DichVu, LuotKham
-from app.models.user import BenhNhan, NguoiDung, TaiKhoan
+from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.subclinical import (
     WorkspaceOrderItem,
     WorkspaceOrdersRequest,
@@ -68,7 +68,19 @@ class ClsWorkspaceBridgeService:
     async def create_orders_from_workspace(
         self, payload: WorkspaceOrdersRequest, user: TaiKhoan, db: AsyncSession
     ) -> WorkspaceOrdersResponse:
-        bac_si = await clinical_service._get_doctor_from_user(user, db)
+        bac_si = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            bac_si = await clinical_service._get_doctor_from_user(user, db)
+        elif user.vai_tro == VaiTroEnum.ADMIN.value:
+            stmt_admin_doc = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bac_si = (await db.execute(stmt_admin_doc)).scalar_one_or_none()
+            if not bac_si:
+                stmt_fallback = select(BacSi).where(BacSi.is_active.is_(True)).order_by(BacSi.id.asc())
+                bac_si = (await db.execute(stmt_fallback)).scalars().first()
+                if not bac_si:
+                    raise NotFoundException("Hệ thống chưa có hồ sơ Bác sĩ nào đang hoạt động!")
+        else:
+            raise ForbiddenException("Chức năng chỉ định cận lâm sàng chỉ dành cho Bác sĩ hoặc Quản trị viên!")
 
         dich_vu_ids = list(dict.fromkeys(payload.dich_vu_ids))
         services = (await db.execute(select(DichVu).where(DichVu.id.in_(dich_vu_ids)))).scalars().all()
@@ -77,7 +89,8 @@ class ClsWorkspaceBridgeService:
             dv = services_by_id.get(dv_id)
             if not dv or not dv.is_active:
                 raise NotFoundException(f"Dịch vụ cận lâm sàng ID {dv_id} không tồn tại hoặc đã tạm dừng cung cấp!")
-            await credential_service.check_doctor_scope_of_practice(db, bac_si.id, dv.id)
+            if user.vai_tro == VaiTroEnum.BAC_SI.value:
+                await credential_service.check_doctor_scope_of_practice(db, bac_si.id, dv.id)
 
         benh_nhan = await self._find_or_create_patient(payload.workspace_encounter_id, payload.benh_nhan, db)
 
@@ -85,7 +98,8 @@ class ClsWorkspaceBridgeService:
         stmt_lk = select(LuotKham).where(LuotKham.ma_kcb == ma_kcb).with_for_update()
         luot_kham = (await db.execute(stmt_lk)).scalar_one_or_none()
         if luot_kham is None:
-            await credential_service.check_doctor_license_valid(db, bac_si.id)
+            if user.vai_tro == VaiTroEnum.BAC_SI.value:
+                await credential_service.check_doctor_license_valid(db, bac_si.id)
             luot_kham = LuotKham(
                 ma_kcb=ma_kcb,
                 bac_si_id=bac_si.id,

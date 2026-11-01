@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, time, timedelta
+from app.services.appointment_service import clinic_now
 from app.models.appointment import LichLamViec, CaLamViecEnum
 from app.schemas.queue import WalkInQuickRequest
 
@@ -7,7 +8,7 @@ from app.schemas.queue import WalkInQuickRequest
 @pytest.mark.asyncio
 async def test_booking_rejected_when_shift_reaches_capacity(api_client, booking, db_session):
     """Gói 3: Chặn đặt lịch trực tuyến khi tổng số lịch hẹn trong ca đã chạm trần gioi_han_ca_kham"""
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = clinic_now().date() + timedelta(days=1)
     token_a = booking.tokens["bn_a"]
     token_b = booking.tokens["bn_b"]
 
@@ -61,7 +62,7 @@ async def test_booking_rejected_when_shift_reaches_capacity(api_client, booking,
 @pytest.mark.asyncio
 async def test_walk_in_rejected_when_shift_reaches_capacity(api_client, booking, db_session):
     """Gói 3: Chặn tiếp nhận vãng lai tại quầy khi ca khám của bác sĩ đã kín chỗ"""
-    today = date.today()
+    today = clinic_now().date()
     token_admin = booking.tokens["admin"]
 
     # Tạo ca làm việc cho bs_x hôm nay với gioi_han_ca_kham = 1

@@ -604,7 +604,13 @@ export class ClinicalService extends BaseServices {
     submitOrderResult = async (orderId, payload) => {
         const final = payload.trang_thai === 'da_co_ket_qua'
         let trangThai = payload.trang_thai
-        if (final) {
+        // CĐHA ghi phiếu kết quả riêng (kể cả bản nháp); ảnh đã nằm sẵn trên máy chủ nên không đi qua /results
+        const imaging = payload.ket_qua_chi_tiet?.loai === 'CDHA'
+        if (imaging) {
+            const res = await this.saveImagingResult(orderId, payload, final)
+            trangThai = res?.data?.data?.trang_thai || trangThai
+        }
+        if (final && !imaging) {
             const detail = payload.ket_qua_chi_tiet
             const res = await this.post(`/api/v1/subclinical/orders/${orderId}/results`, {
                 ket_qua_chi_tiet: typeof detail === 'string' ? detail : JSON.stringify(detail ?? {}),
@@ -650,6 +656,40 @@ export class ClinicalService extends BaseServices {
 
     uploadFile = (file) => {
         return delay({ url: URL.createObjectURL(file), ten_tep: file.name }, 300)
+    }
+
+    // ── Ảnh kết quả CLS & phiếu Chẩn đoán hình ảnh (lưu trên máy chủ, xem qua API có xác thực) ──
+    getImagingResult = (orderId) =>
+        this.get(`/api/v1/subclinical/orders/${orderId}/imaging-result`, { __skipGlobalLoading: true })
+
+    saveImagingResult = (orderId, payload, final) => {
+        const detail = payload.ket_qua_chi_tiet || {}
+        return this.post(`/api/v1/subclinical/orders/${orderId}/imaging-result`, {
+            mo_ta_hinh_anh: detail.mo_ta || null,
+            ket_luan: detail.ket_luan || null,
+            de_nghi: detail.de_nghi || null,
+            ket_qua_phan_loai: payload.ket_qua_phan_loai || 'BINH_THUONG',
+            hoan_tat: final,
+        })
+    }
+
+    uploadClsImage = (orderId, file, onProgress) => {
+        const form = new FormData()
+        form.append('file', file)
+        return this.post(`/api/v1/subclinical/orders/${orderId}/files`, form, {
+            // Bỏ Content-Type JSON mặc định để trình duyệt tự gắn boundary multipart
+            headers: { 'Content-Type': 'multipart/form-data' },
+            __skipGlobalLoading: true,
+            onUploadProgress: (e) => onProgress?.(e.total ? Math.round((e.loaded * 100) / e.total) : 0),
+        })
+    }
+
+    deleteClsImage = (url) => this.delete(url)
+
+    // <img src> không gửi được Bearer token nên tải ảnh thành blob rồi hiển thị bằng object URL
+    fetchClsImageBlob = async (url) => {
+        const res = await this.get(url, { responseType: 'blob', __skipGlobalLoading: true })
+        return res.data
     }
 
     // ── Khám Chuyên Khoa 2 Tầng (5 Bảng Chuyên Khoa Độc Lập) ──────────────

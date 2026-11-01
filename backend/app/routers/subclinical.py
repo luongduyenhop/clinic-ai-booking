@@ -1,12 +1,19 @@
 from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
+from app.schemas.cls_imaging import (
+    ClsFileListResponse,
+    ClsFileResponse,
+    ImagingResultRequest,
+    ImagingResultResponse,
+)
 from app.schemas.subclinical import (
     SubclinicalDetailResponse,
     SubclinicalQueueResponse,

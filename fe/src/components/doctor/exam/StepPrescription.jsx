@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { AutoComplete } from 'antd'
-import { searchDrugsAsync } from '../../../redux/actions/doctor/clinicalAction'
+import { searchDrugsAsync, signPrescriptionAsync } from '../../../redux/actions/doctor/clinicalAction'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { findAllergyConflict } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
@@ -57,6 +57,17 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const debounced = useDebounce(keyword, 250)
     const allergy = encounter?.benh_nhan?.di_ung_thuoc
 
+    // Trạng thái khóa bất biến FSM SIGNED theo Quyết định BYT
+    const isSigned =
+        values.trang_thai_don_thuoc === 'SIGNED' ||
+        encounter?.don_thuoc?.trang_thai === 'SIGNED' ||
+        encounter?.trang_thai_don_thuoc === 'SIGNED' ||
+        locked
+    const isReadOnly = Boolean(isSigned || locked)
+
+    const [signingLoading, setSigningLoading] = useState(false)
+    const [showSignConfirm, setShowSignConfirm] = useState(false)
+
     // Số ngày dùng chung cho cả đơn (tClinic batch duration)
     const [batchDays, setBatchDays] = useState(rows[0]?.so_ngay_dung || '5')
 
@@ -67,6 +78,42 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const [followUpDays, setFollowUpDays] = useState(7)
 
     const nationalRxCode = `DTQG-2026-LK${String(encounter?.id || '001').padStart(6, '0')}`
+
+    const handleSignPrescription = async () => {
+        if (rows.length === 0) {
+            AppToast.warning('Vui lòng kê ít nhất 1 loại thuốc vào đơn trước khi ký số!')
+            return
+        }
+        setSigningLoading(true)
+        try {
+            const sigData = `SHA256:SIG:${encounter?.id || 'EXAM'}:${Date.now()}`
+            const payload = {
+                danh_sach_thuoc: rows,
+                loi_dan_uong_thuoc: values.loi_dan_uong_thuoc || '',
+                chu_ky_so: sigData,
+            }
+            const res = await dispatch(
+                signPrescriptionAsync({
+                    encounterId: encounter?.id,
+                    payload,
+                })
+            ).unwrap()
+
+            setFieldValue('trang_thai_don_thuoc', 'SIGNED')
+            setFieldValue('ngay_ky', res?.ngay_ky || new Date().toISOString())
+            setFieldValue('chu_ky_so', res?.chu_ky_so || sigData)
+            setFieldValue('nguoi_ky', res?.nguoi_ky || encounter?.ten_bac_si || 'Bác sĩ khám bệnh')
+            setShowSignConfirm(false)
+            AppToast.success(
+                'Đã ký số đơn thuốc điện tử thành công! Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
+            )
+        } catch (err) {
+            console.error('Sign prescription error:', err)
+            AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
+        } finally {
+            setSigningLoading(false)
+        }
+    }
 
     useEffect(() => {
         if (!debounced.trim()) return
@@ -189,6 +236,49 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     return (
         <div className="flex flex-col gap-4">
+            {/* THÔNG BÁO BẢO VỆ BẤT BIẾN FSM KHI ĐÃ KÝ SỐ (INT-04 / Thông tư 04/2022/TT-BYT) */}
+            {isSigned && (
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 shadow-xs animate-fadeIn">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-2xs">
+                            <ClinicIcon name="CheckCircle" size={18} weight="bold" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
+                                    ĐÃ KÝ SỐ ĐIỆN TỬ (FSM: SIGNED) — DỮ LIỆU ĐÃ KHÓA BẤT BIẾN
+                                </span>
+                                <span className="bg-emerald-200/90 text-emerald-900 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                                    TT 04/2022/TT-BYT
+                                </span>
+                            </div>
+                            <div className="text-[11px] text-emerald-800 mt-0.5">
+                                Bác sĩ ký:{' '}
+                                <strong>
+                                    {values.nguoi_ky ||
+                                        encounter?.don_thuoc?.nguoi_ky ||
+                                        encounter?.ten_bac_si ||
+                                        'Bác sĩ phụ trách'}
+                                </strong>{' '}
+                                · Thời gian:{' '}
+                                {values.ngay_ky
+                                    ? new Date(values.ngay_ky).toLocaleString('vi-VN')
+                                    : 'Vừa xong'}{' '}
+                                · Không được phép thêm/sửa/xóa thuốc trực tiếp.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => onOpenRxModal && onOpenRxModal('print')}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                    >
+                        <ClinicIcon name="Printer" size={14} weight="bold" />
+                        <span>In Đơn Chuẩn A4/A5</span>
+                    </button>
+                </div>
+            )}
             {/* THANH LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (Bộ Y tế - TT 27/2021/TT-BYT) */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
                 <div className="flex items-center gap-2">
@@ -238,7 +328,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         onSearch={setKeyword}
                         onChange={setKeyword}
                         onSelect={addDrug}
-                        disabled={locked}
+                        disabled={isReadOnly}
                         placeholder="Gõ tên thuốc hoặc hoạt chất… (VD: Augmentin, Paracetamol, Nexium)"
                         notFoundContent={debounced ? 'Không tìm thấy thuốc' : null}
                     />
@@ -254,7 +344,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             type="number"
                             min="1"
                             max="90"
-                            disabled={locked}
+                            disabled={isReadOnly}
                             value={batchDays}
                             onChange={(e) => applyBatchDays(e.target.value)}
                             className="w-14 text-center font-bold text-xs py-1.5 px-1 rounded-lg border border-slate-300 bg-white text-[#003553]"
@@ -265,7 +355,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             <button
                                 key={d}
                                 type="button"
-                                disabled={locked}
+                                disabled={isReadOnly}
                                 onClick={() => applyBatchDays(d)}
                                 className={`text-xs font-semibold px-2 py-1 rounded-md border transition cursor-pointer ${
                                     Number(batchDays) === d
@@ -281,7 +371,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
                 {onOpenRxModal && (
                     <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                        {!locked && (
+                        {!isReadOnly && (
                             <button
                                 type="button"
                                 onClick={() => onOpenRxModal('templates')}
@@ -293,7 +383,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <span className="text-[10px] bg-teal-200/60 px-1 rounded font-mono">F4</span>
                             </button>
                         )}
-                        {!locked && (
+                        {!isReadOnly && (
                             <button
                                 type="button"
                                 onClick={() => onOpenRxModal('copy')}
@@ -305,6 +395,24 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <span className="text-[10px] bg-blue-200/60 px-1 rounded font-mono">F8</span>
                             </button>
                         )}
+                        {!isSigned ? (
+                            <button
+                                type="button"
+                                disabled={rows.length === 0 || signingLoading || isReadOnly}
+                                onClick={() => setShowSignConfirm(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Ký số đơn thuốc điện tử (Chuyển FSM sang SIGNED và khóa bất biến)"
+                            >
+                                <ClinicIcon name="Pen" size={14} weight="bold" />
+                                <span>{signingLoading ? 'Đang ký số…' : 'Ký số đơn thuốc'}</span>
+                            </button>
+                        ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <ClinicIcon name="CheckCircle" size={14} weight="fill" className="text-emerald-600" />
+                                <span>Đã Ký Số (SIGNED)</span>
+                            </span>
+                        )}
+
                         <button
                             type="button"
                             onClick={() => onOpenRxModal('print')}
@@ -396,7 +504,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                             value={r[s.key] || ''}
                                             placeholder="—"
                                             onChange={(e) => updateRow(i, { [s.key]: e.target.value })}
-                                            disabled={locked}
+                                            disabled={isReadOnly}
                                         />
                                     ))}
 
@@ -407,7 +515,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         className="medpro-input !px-1 text-center font-bold text-xs"
                                         value={r.so_ngay_dung || ''}
                                         onChange={(e) => updateRow(i, { so_ngay_dung: e.target.value })}
-                                        disabled={locked}
+                                        disabled={isReadOnly}
                                     />
 
                                     {/* Cột 8: Tổng số lượng tự tính */}
@@ -424,9 +532,9 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                             value={r.cach_dung || ''}
                                             placeholder="VD: Uống sáng 1 viên, tối 1 viên sau ăn no"
                                             onChange={(e) => updateRow(i, { cach_dung: e.target.value })}
-                                            disabled={locked}
+                                            disabled={isReadOnly}
                                         />
-                                        {!locked && (
+                                        {!isReadOnly && (
                                             <div className="flex flex-wrap items-center gap-1">
                                                 {QUICK_USAGE_TAGS.map((tag) => (
                                                     <button
@@ -444,7 +552,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
                                     {/* Cột 10: Nút xóa dòng */}
                                     <div className="flex justify-center">
-                                        {!locked ? (
+                                        {!isReadOnly ? (
                                             <button
                                                 type="button"
                                                 aria-label={`Xóa ${r.ten_thuoc}`}
@@ -467,7 +575,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         <span className="flex-1">
                                             <strong>Cảnh báo dị ứng:</strong> Thuốc {r.hoat_chat} thuộc nhóm {conflict} — Hồ sơ bệnh nhân ghi nhận “{allergy}”.
                                         </span>
-                                        {!locked && conflict === 'NSAID' && (
+                                        {!isReadOnly && conflict === 'NSAID' && (
                                             <button type="button" className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold border border-rose-300 hover:bg-rose-50 transition cursor-pointer" onClick={() => replaceWithParacetamol(i)}>
                                                 Đổi sang Paracetamol 500mg
                                             </button>
@@ -484,7 +592,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             <div>
                 <div className="flex items-center justify-between mb-1">
                     <span className="medpro-label !mb-0">Lời dặn dùng thuốc của bác sĩ</span>
-                    {!locked && (
+                    {!isReadOnly && (
                         <div className="flex items-center gap-1.5">
                             {QUICK_NOTES.slice(0, 2).map((note, idx) => (
                                 <button
@@ -505,7 +613,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     value={values.loi_dan_uong_thuoc || ''}
                     placeholder="VD: Uống thuốc sau bữa ăn no. Kiêng bia rượu, nước đá. Tái khám sau 5 ngày nếu còn sốt."
                     onChange={handleChange}
-                    disabled={locked}
+                    disabled={isReadOnly}
                 />
             </div>
 
@@ -535,7 +643,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             className="medpro-input font-semibold"
                             value={values.ngay_hen_tai_kham || ''}
                             onChange={handleChange}
-                            disabled={locked}
+                            disabled={isReadOnly}
                         />
                     </div>
 
@@ -546,7 +654,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <button
                                     key={p.days}
                                     type="button"
-                                    disabled={locked}
+                                    disabled={isReadOnly}
                                     onClick={() => handleSetFollowUpDays(p.days)}
                                     className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition cursor-pointer ${
                                         followUpDays === p.days
@@ -569,10 +677,64 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         value={values.loi_dan_bac_si || ''}
                         placeholder="VD: Tái khám kiểm tra men gan & siêu âm bụng sau 7 ngày"
                         onChange={handleChange}
-                        disabled={locked}
+                        disabled={isReadOnly}
                     />
                 </div>
             </section>
+
+            {/* MODAL XÁC NHẬN KÝ SỐ ĐƠN THUỐC ĐIỆN TỬ (FSM SIGNED) */}
+            {showSignConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+                        <div className="flex items-center gap-3 text-emerald-700 mb-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                                <ClinicIcon name="ShieldCheck" size={24} weight="bold" />
+                            </div>
+                            <div>
+                                <h4 className="text-base font-extrabold text-[#003553]">
+                                    Xác nhận Ký số Đơn thuốc
+                                </h4>
+                                <span className="text-xs text-slate-500">
+                                    Quy chuẩn FSM · Thông tư 04/2022/TT-BYT
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="text-xs text-slate-600 space-y-2 mb-5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <p>
+                                Bạn đang tiến hành ký số cho đơn thuốc gồm{' '}
+                                <strong>{rows.length} loại thuốc</strong> của người bệnh{' '}
+                                <strong>{encounter?.benh_nhan?.ho_ten || 'bệnh nhân'}</strong>.
+                            </p>
+                            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-medium leading-relaxed">
+                                ⚠️ <strong>Lưu ý quan trọng:</strong> Sau khi ký số, trạng thái đơn thuốc sẽ chuyển sang{' '}
+                                <span className="font-bold text-emerald-700">SIGNED</span>. Toàn bộ thông tin thuốc, liều dùng sẽ bị{' '}
+                                <strong>KHÓA BẤT BIẾN</strong>, không thể chỉnh sửa trực tiếp theo quy định y tế!
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2.5">
+                            <button
+                                type="button"
+                                disabled={signingLoading}
+                                onClick={() => setShowSignConfirm(false)}
+                                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                type="button"
+                                disabled={signingLoading}
+                                onClick={handleSignPrescription}
+                                className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                            >
+                                <ClinicIcon name="Pen" size={14} weight="bold" />
+                                <span>{signingLoading ? 'Đang xác thực chữ ký…' : 'Xác nhận Ký số (SIGNED)'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -112,4 +112,3 @@ async def test_doctor_cannot_use_patient_self_service_emr_endpoint(api_client, b
     )
 
     assert response.status_code == 403
-

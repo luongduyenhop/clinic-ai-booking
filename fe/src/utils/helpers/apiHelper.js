@@ -1,58 +1,39 @@
-/**
- * apiHelper.js
- * Tiện ích bóc tách và chuẩn hóa dữ liệu từ ResponseEnvelope[T] và PaginationMeta của Backend FastAPI.
- * Cấu trúc ResponseEnvelope chuẩn hóa:
- * {
- *   success: boolean,
- *   code: number,
- *   message: string,
- *   data: T,
- *   meta?: {
- *     page: number,
- *     page_size: number,
- *     total_items: number,
- *     total_pages: number,
- *     has_next: boolean,
- *     has_prev: boolean
- *   },
- *   errors?: Array<object>
- * }
- */
-
-/**
- * Bóc tách trường `data` từ ResponseEnvelope[T] của Backend FastAPI
- * @param {any} res - AxiosResponse hoặc ResponseEnvelope object
- * @returns {any} Dữ liệu trong trường `data` (hoặc toàn bộ nếu không bọc envelope)
- */
 export function unwrapApi(res) {
     if (!res) return null
-    const envelope = res?.data ?? res
-    if (envelope && typeof envelope === 'object' && 'data' in envelope && 'success' in envelope) {
-        return envelope.data
+    const envelope = res?.data !== undefined ? res.data : res
+    if (envelope && typeof envelope === 'object') {
+        if (envelope.success === false) {
+            const err = new Error(envelope.message || 'Yêu cầu không thành công')
+            err.errors = envelope.errors
+            err.code = envelope.code
+            throw err
+        }
+        if ('data' in envelope) {
+            return envelope.data
+        }
     }
     return envelope
 }
 
-/**
- * Bóc tách API trả về có phân trang (PaginationMeta)
- * @param {any} res - AxiosResponse hoặc ResponseEnvelope object
- * @param {number} fallbackPageSize - Kích thước trang mặc định nếu thiếu
- * @returns {{
- *   items: Array<any>,
- *   meta: object,
- *   page: number,
- *   pageSize: number,
- *   totalItems: number,
- *   totalPages: number,
- *   hasNext: boolean,
- *   hasPrev: boolean
- * }}
- */
 export function unwrapPagedApi(res, fallbackPageSize = 20) {
-    const envelope = res?.data ?? res
-    const rawData = envelope?.data ?? envelope
-
-    // Hỗ trợ trường hợp data là array hoặc object chứa items/danh_sach
+    if (!res) {
+        return {
+            items: [],
+            meta: null,
+            total: 0,
+            page: 1,
+            pageSize: fallbackPageSize,
+            totalItems: 0,
+            totalPages: 1,
+            hasNext: false,
+            hasPrev: false,
+        }
+    }
+    const envelope = res?.data !== undefined ? res.data : res
+    if (envelope && typeof envelope === 'object' && envelope.success === false) {
+        throw new Error(envelope.message || 'Yêu cầu không thành công')
+    }
+    const rawData = envelope?.data !== undefined ? envelope.data : envelope
     const items = Array.isArray(rawData)
         ? rawData
         : Array.isArray(rawData?.items)
@@ -63,22 +44,31 @@ export function unwrapPagedApi(res, fallbackPageSize = 20) {
 
     const rawMeta = envelope?.meta || rawData?.meta || {}
     const page = Number(rawMeta.page) || 1
-    const pageSize = Number(rawMeta.page_size) || fallbackPageSize
-    const totalItems = Number(rawMeta.total_items) || items.length
-    const totalPages = Number(rawMeta.total_pages) || (pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1)
-    const hasNext = Boolean(rawMeta.has_next ?? page < totalPages)
-    const hasPrev = Boolean(rawMeta.has_prev ?? page > 1)
+    const pageSize = Number(rawMeta.page_size || rawMeta.pageSize) || fallbackPageSize
+    const totalItems = Number(rawMeta.total_items ?? rawMeta.totalItems ?? rawMeta.total ?? items.length)
+    const totalPages = Number(rawMeta.total_pages ?? rawMeta.totalPages) || (pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1)
+    const hasNext = Boolean(rawMeta.has_next ?? rawMeta.hasNext ?? page < totalPages)
+    const hasPrev = Boolean(rawMeta.has_prev ?? rawMeta.hasPrev ?? page > 1)
+
+    const meta = {
+        ...rawMeta,
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrev,
+        page_size: pageSize,
+        total_items: totalItems,
+        total_pages: totalPages,
+        has_next: hasNext,
+        has_prev: hasPrev,
+    }
 
     return {
         items,
-        meta: {
-            page,
-            pageSize,
-            totalItems,
-            totalPages,
-            hasNext,
-            hasPrev,
-        },
+        meta,
+        total: totalItems,
         page,
         pageSize,
         totalItems,
@@ -88,14 +78,10 @@ export function unwrapPagedApi(res, fallbackPageSize = 20) {
     }
 }
 
-/**
- * Bóc tách toàn diện gồm data, meta, message, code và trạng thái thành công
- * @param {any} res
- */
 export function unwrapApiWithMeta(res) {
-    const envelope = res?.data ?? res
+    const envelope = res?.data !== undefined ? res.data : res
     return {
-        data: envelope?.data ?? envelope,
+        data: envelope?.data !== undefined ? envelope.data : envelope,
         meta: envelope?.meta ?? null,
         message: envelope?.message ?? '',
         code: envelope?.code ?? 200,
@@ -104,27 +90,31 @@ export function unwrapApiWithMeta(res) {
     }
 }
 
-/**
- * Trích xuất câu thông báo lỗi chính xác từ Backend (ResponseEnvelope hoặc FastAPI HTTPException)
- * @param {any} error
- * @param {string} defaultMessage
- * @returns {string}
- */
 export function pickErrorMessage(error, defaultMessage = 'Đã có lỗi xảy ra') {
     if (!error) return defaultMessage
     if (typeof error === 'string') return error
 
-    // FastAPI ResponseEnvelope error hoặc ValidationError
     const data = error.response?.data
-    if (data?.message) return data.message
-    if (typeof data?.detail === 'string') return data.detail
-    if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
-        return data.detail.map((d) => d.msg).join(', ')
-    }
-    if (Array.isArray(data?.errors) && data.errors[0]?.message) {
-        return data.errors.map((e) => e.message).join(', ')
+    if (data) {
+        if (typeof data.message === 'string' && data.message.trim()) return data.message
+        if (typeof data.detail === 'string' && data.detail.trim()) return data.detail
+        if (Array.isArray(data.detail) && data.detail[0]?.msg) {
+            return data.detail.map((d) => d.msg).join(', ')
+        }
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+            const firstErr = data.errors[0]
+            if (typeof firstErr === 'string') return firstErr
+            if (firstErr?.msg) return firstErr.msg
+            if (firstErr?.message) return firstErr.message
+        }
     }
 
     return error.message || defaultMessage
 }
 
+export default {
+    unwrapApi,
+    unwrapPagedApi,
+    unwrapApiWithMeta,
+    pickErrorMessage,
+}

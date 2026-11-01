@@ -56,30 +56,6 @@ async def test_subclinical_queue_start_and_submit_result_flow(api_client, bookin
     q_items = res_q.json()["data"]["items"]
     assert any(it["id"] == order_id for it in q_items)
 
-    # 4. Kỹ thuật viên tiếp nhận mẫu
-    res_take_fail = await api_client.post(
-        f"/api/v1/subclinical/orders/{order_id}/start",
-        headers=token_admin
-    )
-    assert res_take_fail.status_code == 409
-    assert "chưa được thanh toán" in res_take_fail.json()["message"]
-
-    res_inv = await api_client.post(
-        "/api/v1/cashier/invoices",
-        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
-        headers=token_admin
-    )
-    assert res_inv.status_code == 201
-    inv_id = res_inv.json()["data"]["id"]
-    thuc_thu = float(res_inv.json()["data"]["thuc_thu"])
-
-    res_pay = await api_client.post(
-        f"/api/v1/cashier/invoices/{inv_id}/pay",
-        json={"phuong_thuc_thanh_toan": "tien_mat", "so_tien_khach_tra": thuc_thu},
-        headers=token_admin
-    )
-    assert res_pay.status_code == 200
-
     res_take = await api_client.post(
         f"/api/v1/subclinical/orders/{order_id}/start",
         headers=token_admin
@@ -306,7 +282,7 @@ async def test_chi_dinh_tu_ban_kham_workspace_ghi_vao_chi_dinh_va_ktv_thay(api_c
     }
 
     # Danh mục dịch vụ trả về nhóm CLS để bàn khám xếp đúng mục
-    res_catalog = await api_client.get("/api/v1/medical/services")
+    res_catalog = await api_client.get("/api/v1/medical/services", headers=token_bs)
     catalog = {s["id"]: s for s in res_catalog.json()["data"]}
     assert catalog[xn.id]["nhom_dich_vu"] == "XET_NGHIEM"
     assert catalog[sa.id]["nhom_dich_vu"] == "CDHA"

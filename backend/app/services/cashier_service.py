@@ -30,6 +30,14 @@ from app.schemas.cashier import (
     ShiftSummaryResponse,
     RefundInvoiceRequest,
     RefundInvoiceResponse,
+    UnbilledEncounterItem,
+    UnbilledEncountersListResponse,
+)
+from app.services.billing_calculator import (
+    ZERO,
+    ExamServiceResolver,
+    estimate_encounter,
+    sum_cls_fee,
 )
 
 logger = logging.getLogger(__name__)

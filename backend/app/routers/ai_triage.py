@@ -56,6 +56,20 @@ async def analyze_symptoms_fe(
         db,
     )
 
+    if triage_res.has_emergency:
+        return ResponseEnvelope.success_response(
+            data={
+                "recommended_specialty": None,
+                "chuyenKhoa": None,
+                "phongKham": None,
+                "bacSi": None,
+                "mucDoUuTien": "Cấp cứu / Ưu tiên cao",
+                "lyDoGoiY": triage_res.emergency_alert,
+                **triage_res.model_dump(),
+            },
+            message="Phát hiện dấu hiệu nguy cấp; gọi 115 hoặc đến cơ sở cấp cứu.",
+        )
+
     store = await bff_admin_service.get_bootstrap_data(db)
     rooms = (store.get("catalogs") or {}).get("khoaPhong") or []
     defaults = store.get("formDefaults") or {}
@@ -93,6 +107,11 @@ async def analyze_symptoms_fe(
             "has_emergency": triage_res.has_emergency,
             "emergency_alert": triage_res.emergency_alert,
             "disclaimer": triage_res.disclaimer,
+            "suggested_specialties": [item.model_dump() for item in triage_res.suggested_specialties],
+            "default_assigned": triage_res.default_assigned,
+            "needs_more_information": triage_res.needs_more_information,
+            "recognized_symptoms": triage_res.recognized_symptoms,
+            "model_version": triage_res.model_version,
         },
         message="AI gợi ý phân luồng chuyên khoa thành công!",
     )

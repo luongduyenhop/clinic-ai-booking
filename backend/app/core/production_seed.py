@@ -158,6 +158,7 @@ MASTER_DRUGS = [
 
 MASTER_SERVICES = [
     # Công khám chuyên khoa
+    ("KHAM_LAM_SANG_CO_BAN", "Khám lâm sàng cơ bản", 150000, "Lần", "KHAM"),
     ("DV_KHAM_NOI", "Khám chuyên khoa Nội tổng quát", 150000, "Lần", "KHAM"),
     ("DV_KHAM_TIM", "Khám chuyên khoa Tim Mạch", 200000, "Lần", "KHAM"),
     ("DV_KHAM_TH", "Khám chuyên khoa Tiêu Hóa", 200000, "Lần", "KHAM"),
@@ -233,7 +234,7 @@ async def seed_production_catalogs(session):
                 ham_luong=hl,
                 don_vi_tinh=dvt,
                 duong_dung=hd,
-                don_gia_niem_yet=gia,
+                trang_thai_danh_muc="DA_DUYET",
                 is_active=True
             ))
             existing_thuocs.add(ma)

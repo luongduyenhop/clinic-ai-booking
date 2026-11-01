@@ -1,5 +1,6 @@
 import pytest
 from datetime import date, datetime, timezone
+from app.services.appointment_service import clinic_now
 from app.models.appointment import HangDoiKham, CaLamViecEnum, TrangThaiHangDoiEnum
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
 
@@ -8,7 +9,7 @@ from tests.test_clinical_skeleton import _dam_bao_ma_icd10
 async def test_doctor_cannot_call_next_when_patient_in_consultation(api_client, booking, db_session):
     """Guard A4: Bác sĩ không thể gọi số tiếp theo nếu đang có ca DANG_KHAM"""
     token_bs = booking.tokens["bs_x"]
-    today = date.today()
+    today = clinic_now().date()
 
     # 1. Tạo 2 vé CHO_KHAM trong hàng đợi của bs_x
     hd1 = HangDoiKham(
@@ -48,7 +49,7 @@ async def test_doctor_cannot_call_next_when_patient_in_consultation(api_client, 
 async def test_doctor_can_call_next_after_completing_encounter(api_client, booking, db_session):
     """Bác sĩ sau khi hoàn tất khám (Commit 7.1b) được phép gọi bệnh nhân tiếp theo"""
     token_bs = booking.tokens["bs_x"]
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     # Tạo lịch khám cho bệnh nhân A
@@ -116,7 +117,7 @@ async def test_doctor_can_call_next_after_completing_encounter(api_client, booki
 async def test_doctor_can_call_next_after_postponing_current_ticket(api_client, booking, db_session):
     """Bác sĩ sau khi tạm hoãn ca hiện tại (bệnh nhân vắng mặt) được phép gọi ca tiếp theo"""
     token_bs = booking.tokens["bs_x"]
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     hd1 = HangDoiKham(
@@ -164,7 +165,7 @@ async def test_receptionist_can_restore_postponed_ticket(api_client, booking, db
     """Lễ tân phục hồi vé tạm hoãn -> vé trở lại CHO_KHAM với độ ưu tiên 4"""
     await booking.tao_tai_khoan("le_tan", "le_tan")
     token_letan = booking.tokens["le_tan"]
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     hd = HangDoiKham(

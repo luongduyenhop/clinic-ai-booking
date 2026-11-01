@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.subclinical import (
     SubclinicalDetailResponse,
     SubclinicalQueueResponse,
@@ -14,6 +14,7 @@ from app.schemas.subclinical import (
 from app.services.subclinical_service import subclinical_service
 
 router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghiệm / CĐHA (LIS & PACS)"])
+technician_role_guard = require_roles([VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])
 
 
 @router.get(
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghi
 async def get_subclinical_queue(
     phong_thuc_hien_id: Optional[int] = Query(None, description="Lọc theo ID phòng kỹ thuật thực hiện"),
     trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái: da_chi_dinh, dang_thuc_hien, da_co_ket_qua"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(technician_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     result = await subclinical_service.get_subclinical_queue(
@@ -45,7 +46,7 @@ async def get_subclinical_queue(
 )
 async def start_subclinical_order(
     order_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(technician_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     order = await subclinical_service.start_subclinical_order(
@@ -68,7 +69,7 @@ async def start_subclinical_order(
 async def submit_subclinical_result(
     order_id: int,
     payload: SubclinicalResultSubmitRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(technician_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     order = await subclinical_service.submit_subclinical_result(
@@ -92,7 +93,7 @@ async def submit_subclinical_result(
 async def cancel_subclinical_order(
     order_id: int,
     ly_do: str = Query("Bệnh nhân từ chối thực hiện", description="Lý do hủy chỉ định"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(technician_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
     order = await subclinical_service.cancel_subclinical_order(

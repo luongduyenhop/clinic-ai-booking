@@ -57,19 +57,28 @@ async def test_fc16_refund_invoice_full_and_partial(db_session):
     db_session.add(apt)
     await db_session.flush()
 
-    encounter = LuotKham(
+    enc1 = LuotKham(
         lich_kham_id=apt.id,
         benh_nhan_id=bn.id,
         bac_si_id=bs.id,
         thoi_gian_bat_dau=now_utc,
     )
-    db_session.add(encounter)
+    enc2 = LuotKham(
+        benh_nhan_id=bn.id,
+        bac_si_id=bs.id,
+        thoi_gian_bat_dau=now_utc,
+    )
+    enc3 = LuotKham(
+        benh_nhan_id=bn.id,
+        bac_si_id=bs.id,
+        thoi_gian_bat_dau=now_utc,
+    )
+    db_session.add_all([enc1, enc2, enc3])
     await db_session.flush()
 
-    # 2. Hóa đơn 1: 500,000đ (đã thu) -> Hoàn một phần 200,000đ
     inv1 = HoaDon(
         ma_hoa_don=f"HD1-{suffix}",
-        luot_kham_id=encounter.id,
+        luot_kham_id=enc1.id,
         benh_nhan_id=bn.id,
         thu_ngan_id=nd_cashier.id,
         tong_tien=Decimal("500000.00"),
@@ -79,10 +88,9 @@ async def test_fc16_refund_invoice_full_and_partial(db_session):
         trang_thai="da_thu",
         ngay_thanh_toan=now_utc,
     )
-    # Hóa đơn 2: 300,000đ (đã thu) -> Hoàn 100% 300,000đ
     inv2 = HoaDon(
         ma_hoa_don=f"HD2-{suffix}",
-        luot_kham_id=encounter.id,
+        luot_kham_id=enc2.id,
         benh_nhan_id=bn.id,
         thu_ngan_id=nd_cashier.id,
         tong_tien=Decimal("300000.00"),
@@ -92,10 +100,9 @@ async def test_fc16_refund_invoice_full_and_partial(db_session):
         trang_thai="da_thu",
         ngay_thanh_toan=now_utc,
     )
-    # Hóa đơn 3: chưa thu -> Không được hoàn tiền
     inv3 = HoaDon(
         ma_hoa_don=f"HD3-{suffix}",
-        luot_kham_id=encounter.id,
+        luot_kham_id=enc3.id,
         benh_nhan_id=bn.id,
         thu_ngan_id=nd_cashier.id,
         tong_tien=Decimal("200000.00"),

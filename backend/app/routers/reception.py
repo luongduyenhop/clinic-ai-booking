@@ -36,6 +36,13 @@ from app.schemas.incident import (
 )
 from app.services.queue_service import queue_service
 from app.services.incident_service import incident_service
+from app.schemas.reception import (
+    ReceptionPatientCreateRequest,
+    ReceptionPatientUpdateRequest,
+    ReceptionPatientResponse,
+    ReceptionPatientSearchItem,
+)
+from app.services.reception_service import reception_service
 
 router = APIRouter(prefix="/reception", tags=["6. Tiếp Đón & Điều Phối Hàng Đợi (Bahmni Queue Module)"])
 
@@ -455,6 +462,87 @@ async def _verify_patient_history_and_package_access(
         return
 
     raise ForbiddenException("Bạn không có quyền truy cập thông tin bệnh nhân!")
+
+
+@router.get(
+    "/patients",
+    response_model=ResponseEnvelope[List[ReceptionPatientSearchItem]],
+    summary="Tìm kiếm danh bạ bệnh nhân tại quầy tiếp đón theo SĐT, họ tên hoặc mã BN"
+)
+async def search_patients_reception(
+    search: Optional[str] = Query(None, description="Tìm theo SĐT, họ tên, CCCD hoặc mã BN"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu bệnh nhân tại quầy tiếp đón!")
+    data = await reception_service.search_patients(db, search, page, page_size)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message=f"Tìm thấy {len(data)} bệnh nhân phù hợp"
+    )
+
+
+@router.get(
+    "/patients/{benh_nhan_id}",
+    response_model=ResponseEnvelope[ReceptionPatientResponse],
+    summary="Xem chi tiết hồ sơ bệnh nhân hành chính tại quầy tiếp đón"
+)
+async def get_patient_detail_reception(
+    benh_nhan_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem hồ sơ bệnh nhân tại quầy!")
+    data = await reception_service.get_patient_detail(benh_nhan_id, db)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message="Lấy thông tin hồ sơ bệnh nhân thành công"
+    )
+
+
+@router.post(
+    "/patients",
+    response_model=ResponseEnvelope[ReceptionPatientResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo mới nhanh hồ sơ bệnh nhân tại quầy lễ tân"
+)
+async def create_patient_reception(
+    payload: ReceptionPatientCreateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên lễ tân mới có quyền tạo hồ sơ bệnh nhân tại quầy!")
+    data = await reception_service.create_patient(payload, db)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message=f"Tạo mới hồ sơ bệnh nhân {data.ho_ten} thành công!",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.put(
+    "/patients/{benh_nhan_id}",
+    response_model=ResponseEnvelope[ReceptionPatientResponse],
+    summary="Cập nhật thông tin hành chính bệnh nhân tại quầy tiếp đón"
+)
+async def update_patient_reception(
+    benh_nhan_id: int,
+    payload: ReceptionPatientUpdateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền cập nhật thông tin bệnh nhân!")
+    data = await reception_service.update_patient(benh_nhan_id, payload, db)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message=f"Cập nhật hồ sơ bệnh nhân {data.ho_ten} thành công!"
+    )
 
 # FC-17: TRA CỨU GÓI KHÁM & TÓM TẮT LỊCH SỬ BỆNH NHÂN TẠI QUẦY TIẾP ĐÓN
 # =========================================================================

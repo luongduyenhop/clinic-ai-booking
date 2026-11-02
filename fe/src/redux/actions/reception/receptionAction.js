@@ -290,7 +290,19 @@ export const createPatientAsync = createAsyncThunk(
     'reception/createPatient',
     async ({ payload, actor: _actor }, { rejectWithValue }) => {
         try {
-            const res = await receptionService.createPatient(payload)
+            const body = {
+                ho_ten: payload.ho_ten || payload.fullName,
+                so_dien_thoai: (payload.so_dien_thoai || payload.phone || '').trim(),
+                ngay_sinh: payload.ngay_sinh || payload.dob || undefined,
+                nam_sinh: payload.nam_sinh || (payload.dob ? Number(payload.dob.slice(0, 4)) : undefined),
+                gioi_tinh: payload.gioi_tinh || (payload.gender === 'MALE' ? 'Nam' : (payload.gender === 'FEMALE' ? 'Nữ' : 'Khác')),
+                dia_chi: payload.dia_chi || payload.address || undefined,
+                cccd_so: payload.cccd_so || payload.identityCard || undefined,
+                di_ung_thuoc: payload.di_ung_thuoc || payload.allergies || undefined,
+                tien_su_benh: payload.tien_su_benh || payload.medicalHistory || payload.note || undefined,
+                nhom_mau: payload.nhom_mau || payload.bloodType || 'O+',
+            }
+            const res = await receptionService.createPatient(body)
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tạo hồ sơ bệnh nhân thất bại'))
@@ -302,7 +314,19 @@ export const updatePatientAsync = createAsyncThunk(
     'reception/updatePatient',
     async ({ id, updates, actor: _actor }, { rejectWithValue }) => {
         try {
-            const res = await receptionService.updatePatient(id, updates)
+            const body = {
+                ho_ten: updates.ho_ten || updates.fullName || undefined,
+                so_dien_thoai: (updates.so_dien_thoai || updates.phone || '').trim() || undefined,
+                ngay_sinh: updates.ngay_sinh || updates.dob || undefined,
+                nam_sinh: updates.nam_sinh || (updates.dob ? Number(updates.dob.slice(0, 4)) : undefined),
+                gioi_tinh: updates.gioi_tinh || (updates.gender === 'MALE' ? 'Nam' : (updates.gender === 'FEMALE' ? 'Nữ' : (updates.gender ? 'Khác' : undefined))),
+                dia_chi: updates.dia_chi || updates.address || undefined,
+                cccd_so: updates.cccd_so || updates.identityCard || undefined,
+                di_ung_thuoc: updates.di_ung_thuoc || updates.allergies || undefined,
+                tien_su_benh: updates.tien_su_benh || updates.medicalHistory || updates.note || undefined,
+                nhom_mau: updates.nhom_mau || updates.bloodType || undefined,
+            }
+            const res = await receptionService.updatePatient(id, body)
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Cập nhật hồ sơ bệnh nhân thất bại'))

@@ -66,16 +66,16 @@ export class ReceptionService extends BaseServices {
         this.get('/api/v1/reception/appointments', { params, ...config })
 
     searchPatients = (params = {}, config = {}) =>
-        this.get('/api/v1/admin/patients', { params, ...config })
+        this.get('/api/v1/reception/patients', { params, ...config })
 
     getPatientDetail = (patientId, config = {}) =>
-        this.get(`/api/v1/admin/patients/${patientId}`, config)
+        this.get(`/api/v1/reception/patients/${patientId}`, config)
 
     createPatient = (payload, config = {}) =>
-        this.post('/api/v1/admin/patients', payload, config)
+        this.post('/api/v1/reception/patients', payload, config)
 
     updatePatient = (patientId, payload, config = {}) =>
-        this.put(`/api/v1/admin/patients/${patientId}`, payload, config)
+        this.put(`/api/v1/reception/patients/${patientId}`, payload, config)
 
     // ── 6. Lịch hẹn & Viện phí ─────────────────────────────────────────
     createAppointment = (payload, config = {}) =>

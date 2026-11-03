@@ -67,7 +67,8 @@ class BookingService {
                 ngay_kham: payload.appointmentDate,
                 gio_kham: startTime.length === 5 ? `${startTime}:00` : startTime,
                 ly_do_kham: payload.patient?.reason || 'Khám theo lịch hẹn',
-                trieu_chung_ban_dau: payload.patient?.reason || ''
+                trieu_chung_ban_dau: payload.aiRecommendation?.symptoms || payload.patient?.reason || '',
+                phan_tich_ai_id: payload.aiRecommendation?.analysisId || null,
             }
             const res = await http.post('/api/v1/appointments', apiPayload)
             if (res?.data?.data) {

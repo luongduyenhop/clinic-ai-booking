@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import { useDispatch, useSelector } from 'react-redux'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import BookingStepper from '../../components/user/booking/BookingStepper'
 import SpecialtyDoctorStep from '../../components/user/booking/SpecialtyDoctorStep'
 import DateSlotStep from '../../components/user/booking/DateSlotStep'
@@ -18,6 +18,8 @@ const MAX_BIRTH_DATE = new Date()
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams()
+    const location = useLocation()
+    const aiRecommendation = location.state?.aiRecommendation || null
     const dispatch = useDispatch()
     const { user } = useSelector((state) => state.app.auth)
     const { availableSlots, slotsLoading, loading, bookingError, latestBooking } = useSelector((state) => state.user.user)
@@ -47,7 +49,7 @@ export default function BookingPage() {
         }),
         onSubmit: async (patient) => {
             if (slotsLoading || bookingError || !availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)) { setStep(2); return }
-            const result = await dispatch(createPatientBookingAsync({ ...booking, patient }))
+            const result = await dispatch(createPatientBookingAsync({ ...booking, patient, aiRecommendation }))
             if (createPatientBookingAsync.fulfilled.match(result)) window.scrollTo({ top: 0, behavior: 'smooth' })
         },
     })

@@ -1,9 +1,11 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, security
+from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope, PaginationMeta
 from app.models.user import TaiKhoan
 from app.schemas.patient import (
@@ -23,6 +25,20 @@ from app.services.patient_service import patient_service
 router = APIRouter(prefix="/patient", tags=["8. Cổng Khách Hàng / Bệnh Nhân (Patient Portal)"])
 
 
+async def get_patient_profile_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> TaiKhoan:
+    """USER-002 profile contract: missing bearer credentials are reported as 403.
+
+    Other endpoints keep the shared authentication contract (401 for missing
+    credentials); an invalid or expired token on this endpoint also remains 401.
+    """
+    if not credentials or not credentials.credentials:
+        raise ForbiddenException("Truy cập hồ sơ bệnh nhân cần Authorization Bearer Token")
+    return await get_current_user(credentials, db)
+
+
 # ── Hồ sơ cá nhân bệnh nhân ──────────────────────────────────────────
 @router.get(
     "/profile",
@@ -30,7 +46,7 @@ router = APIRouter(prefix="/patient", tags=["8. Cổng Khách Hàng / Bệnh Nh�
     summary="Bệnh nhân xem thông tin hồ sơ sức khỏe và định danh của bản thân"
 )
 async def get_patient_profile(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(get_patient_profile_user),
     db: AsyncSession = Depends(get_db)
 ):
     profile = await patient_service.get_patient_profile(current_user, db)

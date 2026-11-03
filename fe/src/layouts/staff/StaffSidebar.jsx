@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import {
     HouseLine,
     Users,
@@ -25,55 +26,9 @@ import {
     ArrowsClockwise,
 } from '../../components/common/ClinicIcon'
 
-// ── CẤU HÌNH VAI TRÒ CHUẨN ──────────────────────────────────────────────────
-export const ROLE_CONFIGS = {
-    ADMIN: {
-        label: 'Quản trị viên',
-        badge: 'Quản trị HIS',
-        color: 'bg-rose-50 text-rose-700 border-rose-200',
-        dotColor: 'bg-rose-500',
-    },
-    BAC_SI: {
-        label: 'Bác sĩ',
-        badge: 'Lâm sàng TT32',
-        color: 'bg-sky-50 text-sky-700 border-sky-200',
-        dotColor: 'bg-sky-500',
-    },
-    LE_TAN: {
-        label: 'Lễ tân',
-        badge: 'Tiếp đón & Hàng chờ',
-        color: 'bg-amber-50 text-amber-700 border-amber-200',
-        dotColor: 'bg-amber-500',
-    },
-    THU_NGAN: {
-        label: 'Thu ngân',
-        badge: 'Viện phí & VietQR',
-        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        dotColor: 'bg-emerald-500',
-    },
-    KTV_CLS: {
-        label: 'Kỹ thuật viên CLS',
-        badge: 'Xét nghiệm & CĐHA',
-        color: 'bg-purple-50 text-purple-700 border-purple-200',
-        dotColor: 'bg-purple-500',
-    },
-    KTV_XET_NGHIEM: {
-        label: 'KTV Xét nghiệm',
-        badge: 'Huyết học - Sinh hóa (LIS)',
-        color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-        dotColor: 'bg-indigo-500',
-    },
-    BENH_NHAN: {
-        label: 'Bệnh nhân',
-        badge: 'Cổng Bệnh nhân',
-        color: 'bg-teal-50 text-teal-700 border-teal-200',
-        dotColor: 'bg-teal-500',
-    },
-}
-
 // ── CẤU HÌNH MENU THEO TỪNG VAI TRÒ ──────────────────────────────────────────
 export const getStaffMenuForRole = (role) => {
-    const normalizedRole = String(role || '').toUpperCase()
+    const normalizedRole = normalizeStaffRole(role)
 
     // 1. Vai trò: BÁC SĨ
     if (normalizedRole === 'BAC_SI' || normalizedRole === 'DOCTOR') {
@@ -193,7 +148,9 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 6. Mặc định / ADMIN (Quản trị viên toàn quyền)
+    if (normalizedRole !== 'ADMIN') return []
+
+    // 6. ADMIN (Quản trị viên toàn quyền)
     return [
         {
             group: 'Tổng quan & Báo cáo',
@@ -251,8 +208,8 @@ export default function StaffSidebar({
     // Dropdown removed
 
     // Xác định vai trò hiển thị menu
-    const effectiveRole = activeRole || realRole || 'ADMIN'
-    const roleConfig = ROLE_CONFIGS[effectiveRole] || ROLE_CONFIGS.ADMIN
+    const effectiveRole = normalizeStaffRole(realRole || activeRole)
+    const roleConfig = getStaffRoleConfig(effectiveRole)
 
     // Menu động theo vai trò
     const menuSections = useMemo(() => getStaffMenuForRole(effectiveRole), [effectiveRole])

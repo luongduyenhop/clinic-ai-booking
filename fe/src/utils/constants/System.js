@@ -5,6 +5,7 @@ export const TOKEN = 'accessToken'
 export const REFRESH_TOKEN = 'refreshToken'
 export const USER_ROLE = 'userRole'
 export const USER_INFO = 'userInfo'
+export const CLINIC_DATA_STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL'
 
 // Danh sách Role chuẩn
 export const ROLE_CUSTOMER = 'CUSTOMER'
@@ -23,19 +24,6 @@ export const ADMIN_ROLES = [
     ROLE_ADMINISTRATOR,
     'QUAN_TRI',
     'QUAN_LY',
-    ROLE_DOCTOR,
-    'DOCTOR',
-    ROLE_RECEPTIONIST,
-    'RECEPTIONIST',
-    ROLE_CASHIER,
-    'CASHIER',
-    ROLE_TECHNICIAN,
-    'TECHNICIAN',
-    'KTV_CLS',
-    ROLE_LAB_TECH,
-    'KTV_XET_NGHIEM',
-    'LAB_TECH',
-    'ROLE-LAB-TECH',
 ]
 
 export const STAFF_ROLES = [
@@ -93,7 +81,6 @@ export const CUSTOMER_ROLES = [
     ROLE_USER,
     'PATIENT',
     'BENH_NHAN',
-    ...ADMIN_ROLES,
 ]
 
 /**
@@ -104,7 +91,7 @@ export const getRoleDefaultPath = (role) => {
     if (r === 'ADMIN' || r === 'ADMINISTRATOR' || r === 'QUAN_TRI' || r === 'QUAN_LY') return '/admin'
     if (r === 'BAC_SI' || r === 'DOCTOR' || r === 'BS') return '/doctor'
     if (r === 'LE_TAN' || r === 'RECEPTIONIST' || r === 'RECEPTION_SUPERVISOR') return '/reception/dashboard'
-    if (r === 'THU_NGAN' || r === 'CASHIER') return '/admin/thu-chi'
+    if (r === 'THU_NGAN' || r === 'CASHIER') return '/staff/cashier'
     if (r === 'KTV_XET_NGHIEM' || r === 'LAB_TECH' || r === 'ROLE-LAB-TECH') return '/staff/paraclinical-work?nhom=XET_NGHIEM'
     if (r === 'KTV_CLS' || r === 'TECHNICIAN') return '/staff/paraclinical-work'
     return '/benh-nhan'

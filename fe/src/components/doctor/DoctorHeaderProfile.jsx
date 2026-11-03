@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { logout } from '../../redux/slices/authSlice'
+import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { AppToast } from '../common/AppNotification'
 import DoctorEditProfileModal from './DoctorEditProfileModal'
 import DoctorCertificateModal from './DoctorCertificateModal'
@@ -9,7 +9,7 @@ import DoctorCertificateModal from './DoctorCertificateModal'
 export default function DoctorHeaderProfile() {
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { user } = useSelector((state) => state.app.auth)
+    const { user, isLoggingOut } = useSelector((state) => state.app.auth)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isOnDuty, setIsOnDuty] = useState(true)
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
@@ -56,8 +56,9 @@ export default function DoctorHeaderProfile() {
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    const handleLogout = () => {
-        dispatch(logout())
+    const handleLogout = async () => {
+        const result = await dispatch(logoutUserAsync())
+        if (result.payload?.sessionChanged || result.meta.condition) return
         AppToast.info('Đã đăng xuất khỏi phiên làm việc của Bác sĩ')
         navigate('/login')
     }
@@ -223,6 +224,7 @@ export default function DoctorHeaderProfile() {
                             <button
                                 type="button"
                                 onClick={handleLogout}
+                                disabled={isLoggingOut}
                                 className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs transition cursor-pointer border border-red-100"
                             >
                                 <span>🚪</span>

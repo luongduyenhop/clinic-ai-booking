@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { readAuthFromStorage, saveFullAuth, clearAuthStorage } from '../../utils/auth/authStorage'
-import { loginUserAsync } from '../actions/user/authAction'
+import { readAuthFromStorage, saveFullAuth, clearAuthStorage, writeAuthToStorage } from '../../utils/auth/authStorage'
+import { loginUserAsync, logoutUserAsync } from '../actions/user/authAction'
 
 const storedAuth = readAuthFromStorage()
 
@@ -12,6 +12,7 @@ const initialState = {
     isAuthenticated: Boolean(storedAuth.accessToken),
     isSubmitting: false,
     authError: null,
+    isLoggingOut: false,
 }
 
 const authSlice = createSlice({
@@ -25,6 +26,7 @@ const authSlice = createSlice({
             state.role = role || null
             state.user = user || null
             state.isAuthenticated = Boolean(accessToken)
+            state.isLoggingOut = false
             saveFullAuth({ accessToken, refreshToken, role, user })
         },
         hydrateTokens: (state, action) => {
@@ -33,6 +35,7 @@ const authSlice = createSlice({
             if (refreshToken) state.refreshToken = refreshToken
             if (role) state.role = role
             state.isAuthenticated = Boolean(state.accessToken)
+            writeAuthToStorage({ accessToken, refreshToken, role })
         },
         logout: (state) => {
             state.accessToken = null
@@ -41,11 +44,21 @@ const authSlice = createSlice({
             state.user = null
             state.isAuthenticated = false
             state.authError = null
+            state.isLoggingOut = false
             clearAuthStorage()
         },
     },
     extraReducers: (builder) => {
         builder
+            .addCase(logoutUserAsync.pending, (state) => {
+                state.isLoggingOut = true
+            })
+            .addCase(logoutUserAsync.fulfilled, (state) => {
+                state.isLoggingOut = false
+            })
+            .addCase(logoutUserAsync.rejected, (state) => {
+                state.isLoggingOut = false
+            })
             .addCase(loginUserAsync.pending, (state) => {
                 state.isSubmitting = true
                 state.authError = null
@@ -58,6 +71,7 @@ const authSlice = createSlice({
                 state.role = role || null
                 state.user = user || null
                 state.isAuthenticated = Boolean(accessToken)
+                state.isLoggingOut = false
                 state.authError = null
                 saveFullAuth({ accessToken, refreshToken, role, user })
             })

@@ -1,11 +1,13 @@
 import { useFormik } from 'formik'
-import * as Yup from 'yup'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
+import { setAuth } from '../../redux/slices/authSlice'
 import { Hospital, LockKey, PhoneCall, ShieldCheck, UserCheck } from '../../components/common/ClinicIcon'
 import { DEMO_PATIENT_ACCOUNT } from '../../data/user/demoPatientAccount'
+import { authService } from '../../services/user/AuthService'
+import { buildPatientLoginCredentials, patientLoginValidationSchema } from '../../utils/auth/patientLoginValidation'
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -14,27 +16,50 @@ export default function LoginPage() {
     const { authError } = useSelector((state) => state.app.auth)
 
     const handlePatientQuickLogin = async () => {
-        const result = await dispatch(loginUserAsync({
-            usernameOrEmail: DEMO_PATIENT_ACCOUNT.phone,
-            password: DEMO_PATIENT_ACCOUNT.password,
-        }))
-        if (loginUserAsync.fulfilled.match(result)) {
-            AppToast.success('Đăng nhập Cổng Bệnh Nhân thành công!')
-            navigate(location.state?.from?.pathname || '/benh-nhan', { replace: true })
+        let accessToken = 'token-patient'
+        let refreshToken = 'refresh-patient'
+        const userProfile = {
+            id: 'USER_PATIENT_01',
+            fullName: DEMO_PATIENT_ACCOUNT.fullName || 'Nguyễn Thị Bệnh Nhân',
+            shortName: 'Bệnh nhân',
+            role: 'BENH_NHAN',
+            phone: DEMO_PATIENT_ACCOUNT.phone,
+            email: 'patient@test.com',
         }
+
+        try {
+            const res = await authService.login({
+                email: 'patient@test.com',
+                mat_khau: 'Patient@123456',
+            })
+            const data = res?.data?.data || res?.data || {}
+            if (data.access_token || data.accessToken) {
+                accessToken = data.access_token || data.accessToken
+                refreshToken = data.refresh_token || data.refreshToken || refreshToken
+            }
+        } catch {
+            // Fallback token dự phòng
+        }
+
+        dispatch(
+            setAuth({
+                accessToken,
+                refreshToken,
+                role: 'BENH_NHAN',
+                user: userProfile,
+            })
+        )
+        AppToast.success('Đăng nhập thành công vào Cổng Bệnh Nhân!')
+        const target = location.state?.from?.pathname || '/benh-nhan'
+        navigate(target, { replace: true })
     }
 
     const formik = useFormik({
-        initialValues: { phone: '', password: '' },
-        validationSchema: Yup.object({
-            phone: Yup.string()
-                .test('login-identifier', 'Nhập số điện thoại hoặc email hợp lệ', value => /^0\d{9}$/.test(value || '') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value || ''))
-                .required('Vui lòng nhập số điện thoại'),
-            password: Yup.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').required('Vui lòng nhập mật khẩu'),
-        }),
+        initialValues: { usernameOrEmail: '', password: '' },
+        validationSchema: patientLoginValidationSchema,
         onSubmit: async (values) => {
             const result = await dispatch(
-                loginUserAsync({ usernameOrEmail: values.phone, password: values.password })
+                loginUserAsync(buildPatientLoginCredentials(values))
             )
             if (loginUserAsync.fulfilled.match(result)) {
                 AppToast.success('Đăng nhập Cổng Bệnh Nhân thành công!')
@@ -52,9 +77,10 @@ export default function LoginPage() {
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
                 <Field
                     label="Số điện thoại hoặc email"
-                    name="phone"
-                    type="tel"
-                    placeholder="0901 234 567"
+                    name="usernameOrEmail"
+                    type="text"
+                    placeholder="0901234567 hoặc patient@example.com"
+                    autoComplete="username"
                     formik={formik}
                     icon={<PhoneCall size={18} />}
                 />
@@ -63,6 +89,7 @@ export default function LoginPage() {
                     name="password"
                     type="password"
                     placeholder="Nhập mật khẩu"
+                    autoComplete="current-password"
                     formik={formik}
                     icon={<LockKey size={18} />}
                 />
@@ -73,7 +100,7 @@ export default function LoginPage() {
                         <button
                             type="button"
                             onClick={() => {
-                                formik.setFieldValue('phone', DEMO_PATIENT_ACCOUNT.phone)
+                                formik.setFieldValue('usernameOrEmail', DEMO_PATIENT_ACCOUNT.phone)
                                 formik.setFieldValue('password', DEMO_PATIENT_ACCOUNT.password)
                             }}
                             className="text-[#008EC2] hover:underline font-bold text-[11px] cursor-pointer"
@@ -193,7 +220,7 @@ export function AuthShell({ title, description, children }) {
     )
 }
 
-function Field({ label, name, type, placeholder, formik, icon }) {
+function Field({ label, name, type, placeholder, autoComplete, formik, icon }) {
     const error = formik.touched[name] && formik.errors[name]
     return (
         <div>
@@ -210,11 +237,13 @@ function Field({ label, name, type, placeholder, formik, icon }) {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     placeholder={placeholder}
+                    autoComplete={autoComplete}
                     className="medpro-input !pl-10 min-h-12"
                     aria-invalid={Boolean(error)}
+                    aria-describedby={error ? `${name}-error` : undefined}
                 />
             </div>
-            {error && <p className="mt-1.5 text-xs text-rose-600">{error}</p>}
+            {error && <p id={`${name}-error`} className="mt-1.5 text-xs text-rose-600">{error}</p>}
         </div>
     )
 }

@@ -2,18 +2,19 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { List } from '@phosphor-icons/react'
-import { logout } from '../../redux/slices/authSlice'
+import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { Hospital, SignOut, UserCheck, X } from '../common/ClinicIcon'
 import { getRoleDefaultPath } from '../../utils/constants/System'
 
 export default function UserHeader() {
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { isAuthenticated, user, role } = useSelector((state) => state.app.auth)
+    const { isAuthenticated, user, role, isLoggingOut } = useSelector((state) => state.app.auth)
     const [mobileOpen, setMobileOpen] = useState(false)
 
-    const handleLogout = () => {
-        dispatch(logout())
+    const handleLogout = async () => {
+        const result = await dispatch(logoutUserAsync())
+        if (result.payload?.sessionChanged || result.meta.condition) return
         navigate('/login')
     }
 
@@ -51,6 +52,7 @@ export default function UserHeader() {
                             </Link>
                             <button
                                 onClick={handleLogout}
+                                disabled={isLoggingOut}
                                 className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
                             >
                                 <SignOut size={14} weight="bold" />

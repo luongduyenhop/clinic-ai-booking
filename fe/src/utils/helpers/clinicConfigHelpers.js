@@ -27,6 +27,17 @@ export const PERMISSION_MODULES_23 = [
     { stt: 23, maPhanHe: 'ANALYTICS_REPORTS', tenPhanHe: 'Báo cáo Quản trị Doanh thu & Thống kê Mặt bệnh ICD-10' },
 ]
 
+// API/bootstrap can return labels, while the local catalog uses module objects.
+export function getPermissionModuleLabel(module, index = 0) {
+    if (typeof module === 'string' && module.trim()) return module
+    if (module && typeof module === 'object') {
+        for (const value of [module.tenPhanHe, module.maPhanHe]) {
+            if (typeof value === 'string' && value.trim()) return value
+        }
+    }
+    return `Phân hệ ${index + 1}`
+}
+
 export const INITIAL_CLINIC_DATA = {
     schemaVersion: '2.0.0-database',
     patients: [],

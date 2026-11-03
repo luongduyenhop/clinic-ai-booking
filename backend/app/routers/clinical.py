@@ -25,6 +25,7 @@ from app.schemas.clinical import (
     AmendmentResponse,
     AmendmentApproveRequest,
 )
+from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 from app.schemas.compliance import (
     PrescriptionSignRequest,
     PrescriptionIssueRequest,
@@ -42,6 +43,21 @@ from app.services.prescription_fsm_service import prescription_fsm_service
 from app.services.queue_service import queue_service
 
 router = APIRouter(prefix="/clinical", tags=["5. Khám Lâm Sàng & Bệnh Án Điện Tử (Package D)"])
+
+
+@router.post(
+    "/ai-feedback",
+    response_model=ResponseEnvelope[AiFeedbackResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Bác sĩ lưu đánh giá cho gợi ý AI của lịch hẹn mình phụ trách",
+)
+async def rate_ai_suggestion(
+    payload: AiFeedbackRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await clinical_service.rate_ai_suggestion(payload, current_user, db)
+    return ResponseEnvelope.success_response(data=result, message="Đã lưu đánh giá gợi ý AI thành công")
 
 
 @router.post(
@@ -667,8 +683,11 @@ async def get_clinical_workspace_state(
         HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
     )
     row = (await db.execute(stmt)).scalar_one_or_none()
+    data = row.data_json if row else None
+    if data and current_user and current_user.vai_tro in ("bac_si", "admin"):
+        data = await clinical_service.enrich_workspace_ai(data, db)
     return ResponseEnvelope.success_response(
-        data=row.data_json if row else None,
+        data=data,
         message="Tải trạng thái bàn khám từ PostgreSQL thành công",
     )
 

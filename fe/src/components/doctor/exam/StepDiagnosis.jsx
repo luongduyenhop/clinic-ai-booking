@@ -239,11 +239,12 @@ export default function StepDiagnosis({ formik, encounter, locked, onRateAi }) {
                     <button
                         type="button"
                         className="medpro-btn-outline self-start"
-                        disabled={locked || rating === 0}
+                        disabled={locked || rating === 0 || !ai.phan_tich_ai_id}
                         onClick={() => onRateAi({ so_sao: rating, nhan_xet: ratingNote })}
                     >
                         Gửi đánh giá
                     </button>
+                    {!ai.phan_tich_ai_id && <span className="text-[11px] text-amber-700">Lượt khám này chưa có kết quả AI gắn từ lịch hẹn nên chưa thể ghi đánh giá.</span>}
                     <span className="text-[11px] text-slate-500">Dùng để cải thiện mô hình AI, bệnh nhân không thấy.</span>
                 </div>
             )}

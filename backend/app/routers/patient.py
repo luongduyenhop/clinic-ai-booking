@@ -1,9 +1,11 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, security
+from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope, PaginationMeta
 from app.models.user import TaiKhoan
 from app.schemas.patient import (
@@ -23,6 +25,20 @@ from app.services.patient_service import patient_service
 router = APIRouter(prefix="/patient", tags=["8. Cổng Khách Hàng / Bệnh Nhân (Patient Portal)"])
 
 
+async def get_patient_profile_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> TaiKhoan:
+    """USER-002 profile contract: missing bearer credentials are reported as 403.
+
+    Other endpoints keep the shared authentication contract (401 for missing
+    credentials); an invalid or expired token on this endpoint also remains 401.
+    """
+    if not credentials or not credentials.credentials:
+        raise ForbiddenException("Truy cập hồ sơ bệnh nhân cần Authorization Bearer Token")
+    return await get_current_user(credentials, db)
+
+
 # ── Hồ sơ cá nhân bệnh nhân ──────────────────────────────────────────
 @router.get(
     "/profile",
@@ -30,7 +46,7 @@ router = APIRouter(prefix="/patient", tags=["8. Cổng Khách Hàng / Bệnh Nh�
     summary="Bệnh nhân xem thông tin hồ sơ sức khỏe và định danh của bản thân"
 )
 async def get_patient_profile(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(get_patient_profile_user),
     db: AsyncSession = Depends(get_db)
 ):
     profile = await patient_service.get_patient_profile(current_user, db)
@@ -249,4 +265,37 @@ async def find_lost_patient_code(
     return ResponseEnvelope.success_response(
         data=results,
         message=f"Tìm thấy {len(results)} hồ sơ bệnh nhân khớp thông tin"
+    )
+
+# Read-only patient billing endpoint. Never allow a patient to mark an invoice paid.
+@router.get(
+    "/invoices",
+    response_model=ResponseEnvelope[List[dict]],
+    summary="Bệnh nhân xem hóa đơn của chính mình (không có chức năng xác nhận thanh toán)",
+)
+async def get_my_invoices(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.medical import HoaDon
+    patient = await patient_service._get_current_benh_nhan(current_user, db)
+    stmt = select(HoaDon).where(HoaDon.benh_nhan_id == patient.id).order_by(HoaDon.created_at.desc())
+    invoices = (await db.execute(stmt)).scalars().all()
+    return ResponseEnvelope.success_response(
+        data=[
+            {
+                "id": item.id,
+                "ma_hoa_don": item.ma_hoa_don,
+                "luot_kham_id": item.luot_kham_id,
+                "tong_tien": float(item.tong_tien or 0),
+                "mien_giam": float(item.mien_giam or 0),
+                "so_tien_phai_thu": float(item.so_tien_phai_thu or 0),
+                "thuc_thu": float(item.thuc_thu or 0) if item.trang_thai == "da_thu" else 0.0,
+                "trang_thai": item.trang_thai,
+                "ngay_thanh_toan": item.ngay_thanh_toan.isoformat() if item.ngay_thanh_toan else None,
+            }
+            for item in invoices
+        ],
+        message="Lấy danh sách hóa đơn bệnh nhân thành công",
     )

@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
-import { PERMISSION_MODULES_23, getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
+import { PERMISSION_MODULES_23, getMasterOptions, getFormDefaults, getPermissionModuleLabel } from '../../utils/helpers/clinicConfigHelpers'
 import {
     StatusBadge,
     ShieldCheck,
@@ -311,7 +311,7 @@ export default function RolePermissionPage() {
                                         return (
                                             <tr key={idx}>
                                                 <td className="tabular-nums text-center font-bold">{idx + 1}</td>
-                                                <td className="font-semibold text-[#12263F]">{modName}</td>
+                                                <td className="font-semibold text-[#12263F]">{getPermissionModuleLabel(modName, idx)}</td>
                                                 {['xem', 'them', 'sua', 'xoa', 'inXuat'].map((field) => (
                                                     <td key={field} className="text-center">
                                                         <input

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import StaffSidebar, { ROLE_CONFIGS } from './StaffSidebar'
+import StaffSidebar from './StaffSidebar'
+import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import { loadClinicDataAsync } from '../../redux/actions/admin/adminAction'
-import { logout } from '../../redux/slices/authSlice'
+import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import {
     SignOut,
     Eye,
@@ -48,19 +49,17 @@ export default function StaffLayout() {
     const navigate = useNavigate()
     const dispatch = useDispatch()
 
-    const { user, role: authRole } = useSelector((state) => state.app.auth)
+    const { user, role: authRole, isLoggingOut } = useSelector((state) => state.app.auth)
     const { clinicData } = useSelector((state) => state.app.admin)
 
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [currentTime, setCurrentTime] = useState(new Date())
     // Role preview removed - strictly bound to authRole
 
-    // Khởi tạo clinicData nếu chưa có
+    // Nạp lại dữ liệu đúng quyền khi phiên đăng nhập thay đổi
     useEffect(() => {
-        if (!clinicData) {
-            dispatch(loadClinicDataAsync())
-        }
-    }, [dispatch, clinicData])
+        dispatch(loadClinicDataAsync())
+    }, [dispatch, authRole, user?.id])
 
     // Đồng hồ thời gian thực
     useEffect(() => {
@@ -68,16 +67,17 @@ export default function StaffLayout() {
         return () => clearInterval(timer)
     }, [])
 
-    const realRole = authRole || user?.role || 'ADMIN'
-    const effectiveRole = realRole
-    const currentRoleConfig = ROLE_CONFIGS[effectiveRole] || ROLE_CONFIGS.ADMIN
+    const realRole = authRole || user?.role
+    const effectiveRole = normalizeStaffRole(realRole)
+    const currentRoleConfig = getStaffRoleConfig(effectiveRole)
     const isPreviewing = false
 
     // Xác định tiêu đề trang
     const currentTitle = (effectiveRole === 'KTV_XET_NGHIEM' && location.pathname === '/staff/paraclinical-work') ? 'Bàn làm việc Xét nghiệm LIS · Huyết học - Sinh hóa' : (ROUTE_TITLES[location.pathname] || 'Cổng Nhân Viên Phòng Khám')
 
-    const handleLogout = () => {
-        dispatch(logout())
+    const handleLogout = async () => {
+        const result = await dispatch(logoutUserAsync())
+        if (result.payload?.sessionChanged || result.meta.condition) return
         navigate('/login')
     }
 
@@ -158,6 +158,7 @@ export default function StaffLayout() {
                             <button
                                 type="button"
                                 onClick={handleLogout}
+                                disabled={isLoggingOut}
                                 title="Đăng xuất khỏi hệ thống"
                                 className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer ml-1"
                             >

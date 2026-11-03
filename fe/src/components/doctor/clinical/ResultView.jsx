@@ -114,7 +114,7 @@ export default function ResultView({ order }) {
     if (!order) return null
     const detail = order.ket_qua_chi_tiet
     const cls = RESULT_CLASS[order.ket_qua_phan_loai]
-    const printableId = order.thoi_gian_duyet && order.trang_thai === 'da_co_ket_qua' ? order.server_order_id : null
+    const printableId = order.server_order_id || order.id
 
     if (!detail) {
         return <p className="text-sm text-slate-500">Chưa có kết quả cho chỉ định này.</p>

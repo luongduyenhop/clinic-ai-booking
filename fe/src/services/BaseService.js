@@ -2,6 +2,7 @@ import axios from 'axios'
 import { DOMAIN, REFRESH_TOKEN, TOKEN } from '../utils/constants/System'
 import { resolveRoleFromAuth } from '../utils/auth/authRole'
 import { AppToast } from '../components/common/AppNotification'
+import { getAuthSessionRevision } from '../utils/auth/authStorage'
 
 export const http = axios.create({
     baseURL: DOMAIN,
@@ -39,7 +40,7 @@ function dispatchStopLoading() {
 }
 
 function dispatchLogout() {
-    if (appStore) {
+    if (appStore && !appStore.getState()?.app?.auth?.isLoggingOut) {
         appStore.dispatch({ type: 'auth/logout' })
     }
 }
@@ -52,6 +53,10 @@ function dispatchHydrateTokens(payload) {
 
 // ── Request Interceptor (Hoàn toàn đồng bộ, không block luồng bằng await) ────
 http.interceptors.request.use((config) => {
+    if (config.__authRevision != null && config.__authRevision !== getAuthSessionRevision()) {
+        throw new axios.CanceledError('Phiên đăng nhập đã thay đổi')
+    }
+    config.__authRevision ??= getAuthSessionRevision()
     if (!config.__skipGlobalLoading) {
         config.__globalLoadingCountered = true
         dispatchStartLoading()
@@ -69,6 +74,8 @@ http.interceptors.request.use((config) => {
 // ── Queue & Mutex cho Refresh Token ──────────────────────────────────────────
 let isRefreshing = false
 let failedQueue = []
+let pendingAuthRefresh = null
+export const waitForPendingAuthRefresh = () => pendingAuthRefresh || Promise.resolve()
 
 function processQueue(error, token) {
     failedQueue.forEach((p) => {
@@ -111,6 +118,12 @@ http.interceptors.response.use(
             return Promise.reject(error)
         }
 
+        if (originalRequest.__authRevision !== getAuthSessionRevision() ||
+            (appStore?.getState()?.app?.auth?.isLoggingOut && !originalRequest.__logoutRequest)) {
+            if (shouldStopLoading) dispatchStopLoading()
+            return Promise.reject(error)
+        }
+
         if (originalRequest._retry) {
             dispatchLogout()
             if (shouldStopLoading) dispatchStopLoading()
@@ -147,12 +160,21 @@ http.interceptors.response.use(
 
         originalRequest._retry = true
         isRefreshing = true
+        const revision = getAuthSessionRevision()
+        let settleRefresh
+        const refreshWait = new Promise((resolve) => { settleRefresh = resolve })
+        pendingAuthRefresh = refreshWait
+
         try {
             const { data: body } = await axios.post(
                 `${DOMAIN}/api/v1/auth/refresh`,
-                { refresh_token: refreshToken },
-                { headers: { 'Content-Type': 'application/json' } }
+                { accessToken, refreshToken, refresh_token: refreshToken },
+                { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
             )
+
+            if (revision !== getAuthSessionRevision()) {
+                throw new Error('Phiên đăng nhập đã thay đổi')
+            }
 
             const payload = body?.data ?? body
             const newAccess = payload?.token ?? payload?.accessToken ?? payload?.access_token
@@ -183,9 +205,12 @@ http.interceptors.response.use(
         } catch (refreshErr) {
             processQueue(refreshErr, null)
             isRefreshing = false
-            dispatchLogout()
+            if (revision === getAuthSessionRevision()) dispatchLogout()
             if (shouldStopLoading) dispatchStopLoading()
             return Promise.reject(refreshErr)
+        } finally {
+            if (pendingAuthRefresh === refreshWait) pendingAuthRefresh = null
+            settleRefresh()
         }
     }
 )

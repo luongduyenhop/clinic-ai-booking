@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from app.core.config import settings
 from app.models.user import ChuyenKhoa, BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.models.medical import TuKhoaCapCuu
-from app.models.appointment import PhanTichAI
+from app.models.appointment import PhanTichAI, PhanTichAIGoiY
 from app.schemas.ai import (
     SymptomTriageRequest, 
     SymptomTriageResponse, 
@@ -182,6 +182,7 @@ class AIService:
                 do_tin_cay=1.0
             )
             db.add(log_ai)
+            await db.flush()
             await db.commit()
 
             return SymptomTriageResponse(
@@ -191,6 +192,7 @@ class AIService:
                 recognized_symptoms=[],
                 disease_predictions=[],
                 model_version=MODEL_VERSION,
+                phan_tich_ai_id=log_ai.id,
             )
 
         # 2. CHỐT CHẶN 2: NLP 450 đặc trưng + RandomForest 100 bệnh/5 khoa.
@@ -285,6 +287,19 @@ class AIService:
             co_dau_hieu_cap_cuu=False
         )
         db.add(log_ai)
+        await db.flush()
+        for index, suggestion in enumerate(suggestions, start=1):
+            if suggestion.chuyen_khoa_id is None:
+                continue
+            db.add(
+                PhanTichAIGoiY(
+                    phan_tich_ai_id=log_ai.id,
+                    chuyen_khoa_id=suggestion.chuyen_khoa_id,
+                    thu_tu_uu_tien=index,
+                    do_tin_cay=suggestion.do_tin_cay,
+                    ly_do_goi_y=suggestion.ly_do_de_xuat,
+                )
+            )
         await db.commit()
 
         return SymptomTriageResponse(
@@ -296,6 +311,7 @@ class AIService:
             recognized_symptoms=recognized_symptoms,
             disease_predictions=disease_predictions,
             model_version=MODEL_VERSION,
+            phan_tich_ai_id=log_ai.id,
         )
 
     async def _build_specialty_suggestion(

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
-from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum
+from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum, PhanTichAI, PhanTichAIGoiY, DanhGiaAI
 from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     LuotKham,
@@ -33,6 +33,7 @@ from app.models.specialty_exam import (
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.compliance import TrangThaiDonThuoc
+from app.services.audit_trail_service import audit_trail_service
 from app.services.prescription_fsm_service import PrescriptionFSMService
 from app.schemas.clinical import (
     EncounterCreateRequest,
@@ -50,6 +51,7 @@ from app.schemas.clinical import (
     AmendmentResponse,
     AmendmentApproveRequest,
 )
+from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,59 @@ class ClinicalService:
         if not bac_si:
             raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bác sĩ hợp lệ!")
         return bac_si
+
+    async def enrich_workspace_ai(self, payload: dict, db: AsyncSession) -> dict:
+        """Attach persisted triage results to checked-in appointments represented in the doctor workspace."""
+        encounters = payload.get("encounters")
+        if not isinstance(encounters, dict):
+            return payload
+        appointment_ids = set()
+        for encounter in encounters.values():
+            if not isinstance(encounter, dict):
+                continue
+            try:
+                appointment_ids.add(int(encounter.get("lich_kham_id")))
+            except (TypeError, ValueError):
+                continue
+        if not appointment_ids:
+            return payload
+
+        stmt = (
+            select(LichKham)
+            .options(
+                selectinload(LichKham.phan_tich_ai).selectinload(PhanTichAI.chuyen_khoa_goi_y),
+                selectinload(LichKham.phan_tich_ai)
+                .selectinload(PhanTichAI.danh_sach_goi_y)
+                .selectinload(PhanTichAIGoiY.chuyen_khoa)
+            )
+            .where(LichKham.id.in_(appointment_ids))
+        )
+        bookings = (await db.execute(stmt)).scalars().all()
+        by_id = {booking.id: booking for booking in bookings}
+        for encounter in encounters.values():
+            if not isinstance(encounter, dict):
+                continue
+            try:
+                booking = by_id.get(int(encounter.get("lich_kham_id")))
+            except (TypeError, ValueError):
+                booking = None
+            analysis = booking.phan_tich_ai if booking else None
+            if not analysis:
+                continue
+            suggestions = sorted(analysis.danh_sach_goi_y or [], key=lambda item: item.thu_tu_uu_tien)
+            top = suggestions[0] if suggestions else None
+            encounter["ai_triage"] = {
+                "phan_tich_ai_id": analysis.id,
+                "trieu_chung_nhap": analysis.trieu_chung_nhap,
+                "ten_chuyen_khoa": top.chuyen_khoa.ten_chuyen_khoa if top and top.chuyen_khoa else (
+                    analysis.chuyen_khoa_goi_y.ten_chuyen_khoa if analysis.chuyen_khoa_goi_y else "Nội tổng quát"
+                ),
+                "ma_chuyen_khoa": top.chuyen_khoa.ma_chuyen_khoa if top and top.chuyen_khoa else None,
+                "do_tin_cay": float(top.do_tin_cay if top else analysis.do_tin_cay),
+                "ly_do_de_xuat": top.ly_do_goi_y if top else None,
+                "co_dau_hieu_cap_cuu": analysis.co_dau_hieu_cap_cuu,
+            }
+        return payload
 
     @staticmethod
     def _assert_completion_diagnosis_invariant(luot_kham: LuotKham) -> None:
@@ -237,6 +292,53 @@ class ClinicalService:
             don_thuoc=prescription_dto
         )
 
+    async def rate_ai_suggestion(
+        self,
+        payload: AiFeedbackRequest,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> AiFeedbackResponse:
+        """Persist clinician feedback for an AI analysis linked to the clinician's appointment."""
+        if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
+            raise ForbiddenException("Chức năng đánh giá gợi ý AI chỉ dành cho Bác sĩ.")
+
+        doctor = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            doctor = await self._get_doctor_from_user(user, db)
+
+        stmt_analysis = (
+            select(PhanTichAI)
+            .options(selectinload(PhanTichAI.lich_kham))
+            .where(PhanTichAI.id == payload.phan_tich_ai_id)
+        )
+        analysis = (await db.execute(stmt_analysis)).scalar_one_or_none()
+        if not analysis or not analysis.lich_kham_id or not analysis.lich_kham:
+            raise NotFoundException("Không tìm thấy lần phân tích AI đã được gắn với lịch hẹn.")
+        if doctor and analysis.lich_kham.bac_si_id != doctor.id:
+            raise ForbiddenException("Bác sĩ chỉ được đánh giá gợi ý AI thuộc lịch hẹn mình phụ trách.")
+
+        stmt_feedback = select(DanhGiaAI).where(DanhGiaAI.phan_tich_ai_id == analysis.id)
+        feedback = (await db.execute(stmt_feedback)).scalar_one_or_none()
+        if feedback is None:
+            feedback = DanhGiaAI(
+                phan_tich_ai_id=analysis.id,
+                nguoi_danh_gia_id=user.nguoi_dung_id,
+                vai_tro_nguoi_danh_gia=user.vai_tro,
+            )
+            db.add(feedback)
+        feedback.nguoi_danh_gia_id = user.nguoi_dung_id
+        feedback.vai_tro_nguoi_danh_gia = user.vai_tro
+        feedback.so_sao = payload.so_sao
+        feedback.nhan_xet = payload.nhan_xet
+        await db.commit()
+        await db.refresh(feedback)
+        return AiFeedbackResponse(
+            id=feedback.id,
+            phan_tich_ai_id=feedback.phan_tich_ai_id,
+            so_sao=feedback.so_sao,
+            nhan_xet=feedback.nhan_xet,
+        )
+
     async def start_encounter(
         self,
         payload: EncounterCreateRequest,
@@ -328,6 +430,19 @@ class ClinicalService:
             bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
             if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
                 raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
+
+        await audit_trail_service.log_access(
+            db=db,
+            user_id=user.id,
+            user_role=user.vai_tro,
+            patient_id=luot_kham.benh_nhan_id,
+            action="VIEW",
+            resource_type="ENCOUNTER",
+            resource_id=luot_kham.id,
+            purpose="Xem hồ sơ bệnh án điện tử (EMR)",
+        )
+        # Persist the audit event before returning protected medical data.
+        await db.commit()
 
         return self._to_encounter_response(luot_kham)
 

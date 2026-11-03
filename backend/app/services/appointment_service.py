@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
-from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException
+from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException, UnprocessableEntityException
 from app.core.config import settings
 from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa, VaiTroEnum
 from app.models.appointment import (
@@ -21,6 +21,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     NghiPhepBacSi,
     TrangThaiNghiPhepEnum,
+    PhanTichAI,
 )
 from app.services.medical_service import DEFAULT_SPECIALTY_NAME, medical_service
 
@@ -315,6 +316,22 @@ class AppointmentService:
             raise ForbiddenException("Không tìm thấy hồ sơ Bệnh nhân hợp lệ!")
         benh_nhan, bn_info = bn_row
 
+        phan_tich_ai = None
+        if payload.phan_tich_ai_id is not None:
+            stmt_ai = (
+                select(PhanTichAI)
+                .where(
+                    PhanTichAI.id == payload.phan_tich_ai_id,
+                    PhanTichAI.co_dau_hieu_cap_cuu.is_(False),
+                    PhanTichAI.lich_kham_id.is_(None),
+                    (PhanTichAI.benh_nhan_id == benh_nhan.id) | PhanTichAI.benh_nhan_id.is_(None),
+                )
+                .with_for_update()
+            )
+            phan_tich_ai = (await db.execute(stmt_ai)).scalar_one_or_none()
+            if not phan_tich_ai:
+                raise UnprocessableEntityException("Kết quả phân tích AI không hợp lệ hoặc đã được sử dụng. Vui lòng phân tích lại triệu chứng.")
+
         # Bệnh nhân bị khóa đặt online (vắng mặt không báo trước nhiều lần - module No-show) chỉ đặt qua Hotline.
         # FC-09 / B4: Lễ tân hoặc Admin có quyền bảo lãnh đặt lịch hộ (1 bước, không reset is_blocked_booking)
         if benh_nhan.is_blocked_booking:
@@ -429,9 +446,13 @@ class AppointmentService:
             so_thu_tu=so_thu_tu,
             ly_do_kham=payload.ly_do_kham,
             trieu_chung_ban_dau=payload.trieu_chung_ban_dau,
+            phan_tich_ai_id=phan_tich_ai.id if phan_tich_ai else None,
             trang_thai=TrangThaiLichEnum.DA_XAC_NHAN.value
         )
         db.add(lich_kham)
+        if phan_tich_ai:
+            phan_tich_ai.benh_nhan_id = benh_nhan.id
+            phan_tich_ai.lich_kham = lich_kham
         try:
             await db.commit()
         except IntegrityError as exc:

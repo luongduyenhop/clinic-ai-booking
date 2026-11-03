@@ -17,6 +17,7 @@ from app.services.clinical_service import ClinicalService
 
 from sqlalchemy import select
 from app.models.user import TaiKhoan
+from app.models.compliance import NhatKyTruyCapDuLieuYTe
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
 
 
@@ -173,3 +174,14 @@ async def test_tclinic_aligned_encounter_lifecycle(db_session, booking):
     assert detail.don_thuoc is not None
     assert detail.don_thuoc.so_ngay_dung == 14
     assert detail.don_thuoc.danh_sach_chi_tiet[0].lieu_sang == "1"
+
+    audit_stmt = select(NhatKyTruyCapDuLieuYTe).where(
+        NhatKyTruyCapDuLieuYTe.user_id == doc_account.id,
+        NhatKyTruyCapDuLieuYTe.patient_id == booking.bn_a.id,
+        NhatKyTruyCapDuLieuYTe.action == "VIEW",
+        NhatKyTruyCapDuLieuYTe.resource_type == "ENCOUNTER",
+        NhatKyTruyCapDuLieuYTe.resource_id == encounter_resp.id,
+    )
+    audit_logs = (await db_session.execute(audit_stmt)).scalars().all()
+    assert len(audit_logs) == 1
+    assert audit_logs[0].purpose == "Xem hồ sơ bệnh án điện tử (EMR)"

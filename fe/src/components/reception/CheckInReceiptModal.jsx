@@ -1,10 +1,27 @@
 import { Modal, Button, Tag } from 'antd'
-import { PrinterOutlined, QrcodeOutlined, CheckCircleOutlined, EyeOutlined } from '@ant-design/icons'
+import { PrinterOutlined, QrcodeOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useSelector } from 'react-redux'
 import dayjs from 'dayjs'
 
+const STATUS_TEXT_MAP = {
+    CHO_KHAM: 'Chờ khám',
+    cho_kham: 'Chờ khám',
+    WAITING: 'Chờ khám',
+    DANG_KHAM: 'Đang khám',
+    dang_kham: 'Đang khám',
+    DANG_GOI: 'Đang gọi vào',
+    dang_goi: 'Đang gọi vào',
+    CHO_CLS: 'Chờ kết quả CLS',
+    cho_cls: 'Chờ kết quả CLS',
+    DA_KHAM: 'Đã hoàn tất',
+    da_kham: 'Đã hoàn tất',
+    HOAN_TAT: 'Đã hoàn tất',
+    VANG_MAT: 'Vắng mặt',
+    vang_mat: 'Vắng mặt',
+}
+
 export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
-    const { patients, departments, doctors, rooms, services } = useSelector((state) => state.reception)
+    const { patients, departments, doctors, rooms } = useSelector((state) => state.reception)
 
     if (!queueEntry) return null
 
@@ -15,6 +32,8 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
     const roomName = queueEntry.roomName || queueEntry.phong_kham || rooms.find((r) => r.id === queueEntry.roomId)?.name || 'Phòng khám đa khoa'
     const doctorName = queueEntry.doctorName || queueEntry.ten_bac_si || doctors.find((d) => d.id === queueEntry.doctorId)?.name || 'Bác sĩ trực ca'
     const checkInTime = queueEntry.checkInTime || dayjs().format('HH:mm')
+    const rawStatus = queueEntry.status || queueEntry.trang_thai || 'CHO_KHAM'
+    const statusLabel = STATUS_TEXT_MAP[rawStatus] || 'Chờ khám'
 
     const handlePrint = () => {
         window.print()
@@ -24,14 +43,24 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
         <Modal
             open={open}
             onCancel={onClose}
-            width={480}
+            width={520}
             footer={
-                <div className="flex items-center justify-between no-print">
-                    <span className="text-xs text-slate-400">Trạng thái: <strong>CHO_KHAM</strong> (Hàng đợi)</span>
-                    <div className="flex gap-2">
+                <div className="flex items-center justify-between no-print gap-3 w-full">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap">
+                        <span>Trạng thái:</span>
+                        <Tag color="cyan" className="m-0 font-medium text-xs">
+                            {statusLabel}
+                        </Tag>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                         <Button onClick={onClose}>Đóng</Button>
-                        <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint} className="bg-sky-600">
-                            In phiếu nhiệt mini (80mm)
+                        <Button
+                            type="primary"
+                            icon={<PrinterOutlined />}
+                            onClick={handlePrint}
+                            className="bg-sky-600 font-medium"
+                        >
+                            In phiếu nhiệt (80mm)
                         </Button>
                     </div>
                 </div>
@@ -66,7 +95,7 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                 {/* Clinic Header */}
                 <div className="text-center border-b-2 border-dashed border-slate-300 pb-2">
                     <div className="text-xs font-bold uppercase tracking-wider text-teal-700">PHÒNG KHÁM ĐA KHOA QUỐC TẾ</div>
-                    <div className="text-sm font-extrabold text-slate-900 mt-0.5">PHIẾU TIẾP NHẬN & SỐ THỨ TỰ KHÁM</div>
+                    <div className="text-sm font-extrabold text-slate-900 mt-0.5">{queueEntry.is_waitlist ? "PHIẾU GHI DANH DANH SÁCH CHỜ (WAITLIST)" : "PHIẾU TIẾP NHẬN & SỐ THỨ TỰ KHÁM"}</div>
                     <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
                         Ngày {dayjs().format('DD/MM/YYYY')} • {checkInTime}
                     </div>
@@ -74,16 +103,16 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
 
                 {/* Big Thermal Ticket Number */}
                 <div className="text-center py-2.5 bg-slate-50 rounded-2xl border-2 border-dashed border-sky-300">
-                    <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">MÃ SỐ THỨ TỰ (STT BUỒNG KHÁM)</div>
+                    <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">{queueEntry.is_waitlist ? "MÃ SỐ CHỜ (WAITLIST)" : "MÃ SỐ THỨ TỰ (STT BUỒNG KHÁM)"}</div>
                     <div className="text-4xl md:text-5xl font-black text-sky-700 tracking-tight my-1 font-mono">
                         {ticketNumber}
                     </div>
                     <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                        <Tag color="cyan" className="font-bold text-[11px] uppercase">
-                            Trạng thái: CHO_KHAM
+                        <Tag color="cyan" className="font-bold text-[11px]">
+                            {statusLabel}
                         </Tag>
                         <Tag color={queueEntry.isWalkIn ? 'orange' : 'blue'} className="text-[11px]">
-                            {queueEntry.isWalkIn ? 'Khám vãng lai' : 'Có hẹn trước'}
+                        <Tag color={queueEntry.is_waitlist ? "gold" : (queueEntry.isWalkIn ? "orange" : "blue")} className="text-[11px]">{queueEntry.is_waitlist ? "Danh sách chờ (Waitlist)" : (queueEntry.isWalkIn ? "Khám vãng lai" : "Có hẹn trước")}</Tag>
                         </Tag>
                         {queueEntry.priority === 'EMERGENCY' && (
                             <Tag color="red" className="font-bold text-[11px]">Cấp cứu</Tag>
@@ -125,7 +154,7 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                     </div>
                     <div className="flex items-center justify-center gap-2 text-slate-400 text-xs pt-1">
                         <QrcodeOutlined className="text-xl" />
-                        <span className="font-mono text-[11px]">{queueEntry.id} • KHOA-KHAM</span>
+                        <span className="font-mono text-[11px]">{queueEntry.id || ticketNumber} • {departmentName}</span>
                         <CheckCircleOutlined className="text-emerald-500 text-sm" />
                     </div>
                 </div>

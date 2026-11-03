@@ -1,30 +1,8 @@
-import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
-import { Spin } from 'antd'
-import { fetchReceptionDataAsync } from '../redux/actions/reception/receptionAction'
 import ReceptionSidebar from '../components/reception/ReceptionSidebar'
 import ReceptionHeader from '../components/reception/ReceptionHeader'
 
 export default function ReceptionLayout() {
-    const dispatch = useDispatch()
-    const { isInitialized, loading } = useSelector((state) => state.reception)
-
-    useEffect(() => {
-        if (!isInitialized) {
-            dispatch(fetchReceptionDataAsync())
-        }
-    }, [dispatch, isInitialized])
-
-    if (!isInitialized && loading) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
-                <Spin size="large" />
-                <span className="text-sm font-semibold text-slate-600">Đang chuẩn bị dữ liệu Cổng Lễ Tân...</span>
-            </div>
-        )
-    }
-
     return (
         <div className="min-h-screen flex bg-slate-100/80 font-sans text-slate-800 antialiased selection:bg-sky-200 selection:text-sky-900">
             {/* Sidebar */}

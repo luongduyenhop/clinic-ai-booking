@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useState, useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
-import { Tag, Button, Progress } from 'antd'
+import { Tag, Button, Progress, Alert } from 'antd'
 import {
     CalendarOutlined,
     CheckCircleOutlined,
@@ -11,54 +11,120 @@ import {
     UserAddOutlined,
     OrderedListOutlined,
     ArrowRightOutlined,
+    WarningOutlined,
+    LockOutlined,
 } from '@ant-design/icons'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
 import AppointmentDetailModal from '../../components/reception/AppointmentDetailModal'
-import { APPOINTMENT_STATUS, QUEUE_STATUS, TASK_SEVERITY_LABELS } from '../../utils/constants/receptionConstants'
+import CloseShiftModal from '../../components/reception/CloseShiftModal'
+import { APPOINTMENT_STATUS, QUEUE_STATUS } from '../../utils/constants/receptionConstants'
+import { formatDoctorName } from '../../utils/doctorHelper'
+import {
+    fetchShiftDashboardAsync,
+    fetchFlowBoardAsync,
+    fetchDoctorAbsencesAsync,
+} from '../../redux/actions/reception/receptionAction'
 
 export default function ReceptionDashboardPage() {
     const navigate = useNavigate()
-    const { appointments, queueEntries, tasks, auditLogs, patients, rooms } = useSelector((state) => state.reception)
+    const dispatch = useDispatch()
+    const {
+        appointments = [],
+        queueEntries = [],
+        shiftSummary,
+        roomStatus = [],
+        doctorAbsences = [],
+        auditLogs = [],
+        patients = [],
+        rooms = [],
+    } = useSelector((state) => state.reception)
 
     const [isCreateAppOpen, setIsCreateAppOpen] = useState(false)
     const [selectedApp, setSelectedApp] = useState(null)
+    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
 
-    // Calculated KPIs
-    const todayAppointmentsCount = appointments.length
-    const checkedInCount = queueEntries.length
-    const waitingCount = queueEntries.filter((q) => q.status === QUEUE_STATUS.WAITING).length
-    const inConsultationCount = queueEntries.filter((q) => q.status === QUEUE_STATUS.IN_CONSULTATION).length
-    const completedCount = queueEntries.filter((q) => q.status === QUEUE_STATUS.COMPLETED).length
-    const lateOrNoShowCount = appointments.filter(
-        (a) => a.status === APPOINTMENT_STATUS.NO_SHOW || a.status === APPOINTMENT_STATUS.CANCELLED
-    ).length
+    useEffect(() => {
+        dispatch(fetchShiftDashboardAsync())
+        dispatch(fetchDoctorAbsencesAsync())
+    }, [dispatch])
 
-    // Upcoming patients (Status BOOKED or CONFIRMED)
-    const upcomingAppointments = appointments
-        .filter((a) => a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED)
-        .slice(0, 5)
+    // KPIs derived from Real Backend Shift Summary with Fallbacks
+    const todayAppointmentsCount = shiftSummary?.tong_hen_truoc ?? appointments.length
+    const checkedInCount = shiftSummary?.da_check_in ?? queueEntries.length
+    const waitingCount =
+        shiftSummary?.dang_cho_kham ??
+        queueEntries.filter((q) => q.status === QUEUE_STATUS.WAITING || q.status === 'cho_kham').length
+    const inConsultationCount =
+        shiftSummary?.dang_kham ??
+        queueEntries.filter((q) => q.status === QUEUE_STATUS.IN_CONSULTATION || q.status === 'dang_kham').length
+    const completedCount =
+        shiftSummary?.da_kham ??
+        queueEntries.filter((q) => q.status === QUEUE_STATUS.COMPLETED || q.status === 'da_kham').length
+    const lateOrNoShowCount =
+        shiftSummary?.vang_mat !== undefined
+            ? (shiftSummary.vang_mat || 0) + (shiftSummary.bo_kham || 0)
+            : appointments.filter(
+                  (a) => a.status === APPOINTMENT_STATUS.NO_SHOW || a.status === APPOINTMENT_STATUS.CANCELLED
+              ).length
 
-    // Long waiting patients
-    const longWaitingList = queueEntries
-        .filter((q) => q.status === QUEUE_STATUS.WAITING && (q.waitTimeMinutes > 30 || q.isLongWait))
-        .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
-        .slice(0, 5)
+    // Upcoming patients
+    const upcomingAppointments = shiftSummary?.lich_hen_sap_toi?.length > 0
+        ? shiftSummary.lich_hen_sap_toi
+        : appointments
+            .filter((a) => a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED || a.status === 'da_xac_nhan')
+            .slice(0, 5)
 
-    // Active pending tasks
-    const activeTasks = tasks.filter((t) => t.status === 'PENDING').slice(0, 4)
+    // Long waiting patients (> 30 mins)
+    const longWaitingList = shiftSummary?.benh_nhan_cho_lau?.length > 0
+        ? shiftSummary.benh_nhan_cho_lau.map((item) => ({
+            id: item.ticket_id,
+            ticketNumber: item.ma_so_thu_tu,
+            patientName: item.ten_benh_nhan,
+            waitTimeMinutes: item.thoi_gian_cho_phut,
+            roomName: item.ten_phong || item.ma_phong || 'Phòng khám',
+            checkInTime: item.thoi_gian_check_in,
+        }))
+        : queueEntries
+            .filter((q) => (q.status === QUEUE_STATUS.WAITING || q.status === 'cho_kham') && (q.waitTimeMinutes > 30 || q.isLongWait))
+            .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
+            .slice(0, 5)
 
-    // Recent receptionist activities
-    const recentLogs = auditLogs.slice(0, 5)
+    // Active incidents from Backend
+    const activeIncidents = doctorAbsences.slice(0, 4)
 
-    // Hourly distribution computation
-    const hours = ['08:00', '09:00', '10:00', '11:00', '13:30', '14:30', '15:30']
-    const hourlyData = hours.map((hour, idx) => {
-        const count = queueEntries.filter((q) => {
-            const h = parseInt(q.checkInTime?.split(':')[0] || '8', 10)
-            return h === 8 + idx || (idx > 3 && h === 9 + idx)
-        }).length
-        return { hour, count: Math.max(count, (idx * 3 + 2) % 7 + 1) }
-    })
+    // Recent receptionist activities from Backend or Queue history fallback
+    const recentLogs = shiftSummary?.hoat_dong_gan_day?.length > 0
+        ? shiftSummary.hoat_dong_gan_day.map((item) => ({
+            id: item.id,
+            actionType: item.loai_thao_tac,
+            description: item.noi_dung,
+            timestamp: item.thoi_gian,
+            actor: item.nguoi_thuc_hien,
+        }))
+        : (auditLogs.length > 0
+            ? auditLogs.slice(0, 5)
+            : queueEntries.slice(0, 5).map((q) => ({
+                id: q.id,
+                actionType: q.isWalkIn ? 'WALK_IN_CREATE' : 'CHECK_IN',
+                description: `Bệnh nhân ${q.patientName} (${q.ticketNumber}) tại ${q.roomName || 'Phòng khám'}`,
+                timestamp: q.checkInTime || 'Vừa xong',
+                actor: 'Lễ tân ca trực',
+            })))
+
+    // Hourly distribution from actual check-in data
+    const hours = ['07:30', '08:30', '09:30', '10:30', '13:30', '14:30', '15:30']
+    const hourlyData = shiftSummary?.mat_do_theo_gio?.length > 0
+        ? shiftSummary.mat_do_theo_gio.map((d) => ({
+            hour: d.khung_gio,
+            count: d.so_luong,
+        }))
+        : hours.map((hour, idx) => {
+            const count = queueEntries.filter((q) => {
+                const h = parseInt(q.checkInTime?.split(':')[0] || '7', 10)
+                return h === 7 + idx || (idx > 3 && h === 8 + idx)
+            }).length
+            return { hour, count }
+        })
     const maxHourCount = Math.max(...hourlyData.map((d) => d.count), 1)
 
     return (
@@ -97,8 +163,30 @@ export default function ReceptionDashboardPage() {
                     >
                         Mở hàng đợi
                     </Button>
+                    <Button
+                        icon={<LockOutlined className="text-rose-600" />}
+                        onClick={() => setIsCloseShiftOpen(true)}
+                        className="font-semibold text-rose-700 bg-rose-50 border-rose-200 hover:bg-rose-100"
+                    >
+                        Đóng ca trực
+                    </Button>
                 </div>
             </div>
+
+            {/* Critical Alert if any doctor is absent */}
+            {activeIncidents.length > 0 && (
+                <Alert
+                    message="Cảnh báo sự cố ca trực: Bác sĩ vắng mặt đột xuất"
+                    description={`Đang có ${activeIncidents.length} bác sĩ nghỉ đột xuất cần điều chuyển bệnh nhân sang bác sĩ khác.`}
+                    type="error"
+                    showIcon
+                    action={
+                        <Button size="small" danger onClick={() => navigate('/reception/tasks')}>
+                            Xử lý sự cố ngay
+                        </Button>
+                    }
+                />
+            )}
 
             {/* 6 Metric KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
@@ -157,6 +245,47 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
+            {/* Room Status / Buồng khám realtime */}
+            {roomStatus.length > 0 && (
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-slate-800">Giám sát buồng khám vật lý thời gian thực</h3>
+                        <span className="text-xs text-slate-500">Cảnh báo tải theo từng cửa buồng</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                        {roomStatus.map((rm) => {
+                            const waiting = rm.so_benh_nhan_cho ?? rm.so_nguoi_cho ?? 0
+                            const isOverloaded = waiting > 5
+                            const formattedDoc = rm.ten_bac_si ? formatDoctorName(rm.ten_bac_si) : 'Chưa gán'
+                            return (
+                                <div
+                                    key={rm.phong_kham_id || rm.ten_phong}
+                                    className={`p-3 rounded-xl border text-xs space-y-1.5 transition ${
+                                        isOverloaded
+                                            ? 'bg-amber-50/70 border-amber-300'
+                                            : 'bg-slate-50/70 border-slate-200/80'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-slate-800">{rm.ten_phong}</span>
+                                        {isOverloaded && <WarningOutlined className="text-amber-600" />}
+                                    </div>
+                                    <div className="text-slate-500 text-[11px] truncate">
+                                        BS: {formattedDoc}
+                                    </div>
+                                    <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 font-semibold">
+                                        <span className="text-slate-500 text-[11px]">Đang chờ:</span>
+                                        <span className={isOverloaded ? 'text-amber-700 font-bold' : 'text-sky-700'}>
+                                            {waiting} BN
+                                        </span>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* Charts & Status Distribution Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Hourly Chart */}
@@ -164,7 +293,7 @@ export default function ReceptionDashboardPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-sm font-bold text-slate-800">Mật độ bệnh nhân check-in theo khung giờ</h3>
-                            <span className="text-xs text-slate-500">Giúp lễ tân chủ động điều tiết hàng đợi và cảnh báo phòng quá tải</span>
+                            <span className="text-xs text-slate-500">Thống kê lưu lượng check-in thực tế</span>
                         </div>
                         <span className="text-xs font-semibold px-2 py-1 rounded-md bg-slate-100 text-slate-600">
                             Hôm nay
@@ -180,7 +309,7 @@ export default function ReceptionDashboardPage() {
                                         {d.count} BN
                                     </span>
                                     <div
-                                        style={{ height: `${heightPct}%` }}
+                                        style={{ height: `${Math.max(heightPct, 6)}%` }}
                                         className="w-full max-w-[36px] bg-sky-500 hover:bg-sky-600 rounded-t-lg transition-all duration-300 shadow-2xs"
                                     />
                                     <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">{d.hour}</span>
@@ -217,16 +346,21 @@ export default function ReceptionDashboardPage() {
                         </div>
                         <div>
                             <div className="flex justify-between font-medium mb-1 text-slate-700">
-                                <span>Tạm hoãn / Gọi vắng mặt</span>
-                                <span>{queueEntries.filter((q) => q.status === 'DEFERRED' || q.isAbsent).length} ca</span>
+                                <span>Vãng lai trực tiếp</span>
+                                <span>{shiftSummary?.vang_lai ?? queueEntries.filter((q) => q.isWalkIn).length} ca</span>
                             </div>
-                            <Progress percent={20} strokeColor="#f97316" showInfo={false} size="small" />
+                            <Progress
+                                percent={Math.round(((shiftSummary?.vang_lai ?? queueEntries.filter((q) => q.isWalkIn).length) / (checkedInCount || 1)) * 100)}
+                                strokeColor="#0284c7"
+                                showInfo={false}
+                                size="small"
+                            />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* 3 Columns: Upcoming Appointments, Long Waiting, Active Tasks */}
+            {/* 3 Columns: Upcoming Appointments, Long Waiting, Active Incidents */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* 1. Upcoming Appointments */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
@@ -242,7 +376,7 @@ export default function ReceptionDashboardPage() {
                             <div className="text-center py-6 text-slate-400 text-xs">Không có lịch hẹn sắp tới</div>
                         ) : (
                             upcomingAppointments.map((app) => {
-                                const pat = patients.find((p) => p.id === app.patientId)
+                                const pat = patients.find((p) => p.id === (app.patientId || app.benh_nhan_id))
                                 return (
                                     <div
                                         key={app.id}
@@ -250,14 +384,14 @@ export default function ReceptionDashboardPage() {
                                         className="p-3 rounded-xl bg-slate-50 hover:bg-sky-50/50 border border-slate-200/80 cursor-pointer transition text-xs space-y-1"
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900">{pat?.fullName}</span>
+                                            <span className="font-bold text-slate-900">{app.ten_benh_nhan || pat?.fullName}</span>
                                             <span className="font-semibold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded text-[11px]">
-                                                {app.timeSlot}
+                                                {app.gio_kham || app.timeSlot}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                                            <span>Mã: {app.appointmentCode}</span>
-                                            <span>{pat?.phone}</span>
+                                            <span>Mã: {app.ma_lich_kham || app.appointmentCode || `APT-${app.id}`}</span>
+                                            <span>{app.so_dien_thoai || pat?.phone}</span>
                                         </div>
                                     </div>
                                 )
@@ -294,14 +428,14 @@ export default function ReceptionDashboardPage() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <span className="font-bold text-slate-900">
-                                                {q.ticketNumber} - {pat?.fullName}
+                                                {q.ticketNumber} - {q.patientName || pat?.fullName}
                                             </span>
                                             <span className="font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded text-[11px]">
                                                 Chờ {q.waitTimeMinutes}p
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                                            <span>{room?.name}</span>
+                                            <span>{q.roomName || room?.name}</span>
                                             <span>Check-in: {q.checkInTime}</span>
                                         </div>
                                     </div>
@@ -311,13 +445,13 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 3. Triage Issues / Active Tasks */}
+                {/* 3. Incidents / Active Tasks */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                             <h3 className="text-sm font-bold text-slate-800">Sự cố cần xử lý</h3>
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
-                                {activeTasks.length} việc
+                                {activeIncidents.length} sự cố
                             </span>
                         </div>
                         <Link to="/reception/tasks" className="text-xs font-semibold text-red-600 hover:underline">
@@ -326,26 +460,27 @@ export default function ReceptionDashboardPage() {
                     </div>
 
                     <div className="space-y-2.5">
-                        {activeTasks.length === 0 ? (
-                            <div className="text-center py-6 text-slate-400 text-xs">Không có sự cố tồn đọng</div>
+                        {activeIncidents.length === 0 ? (
+                            <div className="text-center py-6 text-slate-400 text-xs">Không có sự cố tồn đọng trong ca</div>
                         ) : (
-                            activeTasks.map((t) => {
-                                const sev = TASK_SEVERITY_LABELS[t.severity] || { label: t.severity, color: 'default' }
-                                return (
-                                    <div
-                                        key={t.id}
-                                        className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1 hover:border-slate-300 transition"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-800 truncate max-w-[200px]">{t.title}</span>
-                                            <Tag color={sev.color} className="mr-0 text-[10px] font-semibold">
-                                                {sev.label}
-                                            </Tag>
-                                        </div>
-                                        <p className="text-slate-500 text-[11px] line-clamp-1">{t.description}</p>
+                            activeIncidents.map((inc) => (
+                                <div
+                                    key={inc.bac_si_id}
+                                    className="p-3 rounded-xl bg-red-50/60 border border-red-200 text-xs space-y-1 hover:border-red-300 transition"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-bold text-slate-800 truncate max-w-[200px]">
+                                            BS {inc.ten_bac_si} nghỉ đột xuất
+                                        </span>
+                                        <Tag color="error" className="mr-0 text-[10px] font-semibold">
+                                            Khẩn cấp
+                                        </Tag>
                                     </div>
-                                )
-                            })
+                                    <p className="text-slate-600 text-[11px]">
+                                        Khoa: {inc.ten_chuyen_khoa} • {inc.so_benh_nhan_bi_anh_huong || 0} bệnh nhân cần chuyển
+                                    </p>
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>
@@ -389,6 +524,13 @@ export default function ReceptionDashboardPage() {
                 onClose={() => setSelectedApp(null)}
                 onCheckInClick={(app) => {
                     navigate('/reception/check-in', { state: { preselectAppointmentId: app.id } })
+                }}
+            />
+            <CloseShiftModal
+                open={isCloseShiftOpen}
+                onCancel={() => setIsCloseShiftOpen(false)}
+                onSuccess={() => {
+                    dispatch(fetchShiftDashboardAsync())
                 }}
             />
         </div>

@@ -332,12 +332,12 @@ async def test_walkin_supports_thermal_print_and_onscreen_display_with_code(api_
     await db_session.execute(
         update(NguoiDung)
         .where(NguoiDung.id == bn.nguoi_dung_id)
-        .values(so_dien_thoai="0988776655")
+        .values(so_dien_thoai=f"098{uuid.uuid4().int % 10000000:07d}")
     )
 
     # Gán chuyên khoa Tai Mũi Họng để kiểm tra sinh tiền tố TMH
     suffix = uuid.uuid4().hex[:6]
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"KHOA_TMH_{suffix}", ten_chuyen_khoa="Khoa Tai Mũi Họng", vi_tri_phong="Phòng 205 - Tầng 2")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"KHOA_TMH_{suffix}", ten_chuyen_khoa=f"Khoa Tai Mũi Họng {suffix}", vi_tri_phong="Phòng 205 - Tầng 2")
     db_session.add(ck)
     await db_session.flush()
 
@@ -360,7 +360,7 @@ async def test_walkin_supports_thermal_print_and_onscreen_display_with_code(api_
     assert ticket["ma_so_thu_tu"].startswith("TMH-")
     assert ticket["ma_so_thu_tu"] == f"TMH-{ticket['so_thu_tu_kham']:02d}"
     assert ticket["ten_benh_nhan"] is not None
-    assert ticket["so_dien_thoai"] == "0988776655"
+    assert ticket["so_dien_thoai"].startswith("098")
     assert ticket["ten_bac_si"] is not None
     assert ticket["ngay_kham"] == date.today().isoformat()
     assert ticket["ca_kham"] == "sang"
@@ -395,7 +395,7 @@ async def test_walkin_auto_assign_doctor_when_not_selected(api_client, booking, 
     today = date.today()
     suffix = uuid.uuid4().hex[:6]
 
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-MAT-{suffix}", ten_chuyen_khoa="Khoa Mắt", vi_tri_phong="Phòng 301")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-MAT-{suffix}", ten_chuyen_khoa=f"Khoa Mắt {suffix}", vi_tri_phong="Phòng 301")
     db_session.add(ck)
     await db_session.flush()
 

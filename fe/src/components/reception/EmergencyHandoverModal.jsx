@@ -45,7 +45,7 @@ export default function EmergencyHandoverModal({ open, onClose, defaultPatientId
             title={
                 <div className="flex items-center gap-2 text-red-600">
                     <AlertOutlined className="text-lg" />
-                    <span className="font-bold">Bàn giao y tế khẩn cấp (RC-06 & RC-26)</span>
+                    <span className="font-bold">Bàn giao y tế khẩn cấp</span>
                 </div>
             }
             open={open}

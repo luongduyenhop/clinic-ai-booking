@@ -40,6 +40,8 @@ from app.services.billing_calculator import (
     sum_cls_fee,
 )
 
+from app.services.appointment_service import clinic_now
+
 logger = logging.getLogger(__name__)
 
 THONG_BAO_DANG_XU_LY = "Lượt khám đang được thu ngân khác xử lý. Vui lòng tải lại dữ liệu."
@@ -463,14 +465,15 @@ class CashierService:
         diff_cash = actual_cash - summary.tong_tien_mat
 
         # Xác định ca làm việc theo giờ Việt Nam (UTC+7)
-        hour_vn = (now.hour + 7) % 24
+        now_clinic = clinic_now()
+        hour_vn = now_clinic.hour
         ca = "SANG" if hour_vn < 13 else "CHIEU"
-        ma_ks = f"KS-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        ma_ks = f"KS-{now_clinic.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
         khoa_so = KhoaSoCaTruc(
             ma_khoa_so=ma_ks,
             ca_lam_viec=ca,
-            ngay_khoa_so=now.date(),
+            ngay_khoa_so=now_clinic.date(),
             thu_ngan_giao_id=thu_ngan_user_id,
             tong_tien_mat_he_thong=summary.tong_tien_mat,
             tong_chuyen_khoan_he_thong=summary.tong_chuyen_khoan,

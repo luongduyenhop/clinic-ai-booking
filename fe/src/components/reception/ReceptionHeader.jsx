@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { useSelector, useDispatch } from 'react-redux'
-import { Modal, Select, message, Tooltip } from 'antd'
+import { useSelector } from 'react-redux'
+import { Button } from 'antd'
 import {
-    ReloadOutlined,
     BellOutlined,
     UserOutlined,
     ClockCircleOutlined,
-    SafetyCertificateOutlined,
+    LockOutlined,
 } from '@ant-design/icons'
-import { switchReceptionRoleAsync, resetReceptionDataAsync } from '../../redux/actions/reception/receptionAction'
-import { RECEPTION_ROLES_OPTIONS } from '../../utils/constants/receptionConstants'
+import { readAuthFromStorage } from '../../utils/auth/authStorage'
+import CloseShiftModal from './CloseShiftModal'
 
 const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan Dashboard',
@@ -26,11 +25,14 @@ const ROUTE_NAMES = {
 
 export default function ReceptionHeader() {
     const location = useLocation()
-    const dispatch = useDispatch()
-    const { activeRole, tasks } = useSelector((state) => state.reception)
+    const { tasks = [], doctorAbsences = [] } = useSelector((state) => state.reception)
+    const { user: authUser, role: authRole } = useSelector((state) => state.app?.auth || {})
+    const storedAuth = !authUser ? readAuthFromStorage() : null
+    const currentUser = authUser || storedAuth?.user
+    const role = authRole || storedAuth?.role
 
     const [currentTime, setCurrentTime] = useState(new Date())
-    const [isResetModalOpen, setIsResetModalOpen] = useState(false)
+    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -38,19 +40,8 @@ export default function ReceptionHeader() {
     }, [])
 
     const pageTitle = ROUTE_NAMES[location.pathname] || 'Cổng Lễ Tân'
-    const pendingTasks = tasks.filter((t) => t.status === 'PENDING')
-    const criticalTasks = pendingTasks.filter((t) => t.severity === 'CRITICAL' || t.severity === 'HIGH')
-
-    const handleRoleChange = async (role) => {
-        await dispatch(switchReceptionRoleAsync(role))
-        message.success(`Đã chuyển quyền vai trò: ${role === 'RECEPTION_SUPERVISOR' ? 'Giám sát lễ tân' : 'Lễ tân'}`)
-    }
-
-    const handleConfirmReset = async () => {
-        await dispatch(resetReceptionDataAsync())
-        setIsResetModalOpen(false)
-        message.success('Đã đặt lại dữ liệu mẫu (Reset Demo Data) về trạng thái ban đầu thành công!')
-    }
+    const pendingIncidentsCount = doctorAbsences.length
+    const pendingTasksCount = tasks.filter((t) => t.status === 'PENDING').length + pendingIncidentsCount
 
     const formattedTime = new Intl.DateTimeFormat('vi-VN', {
         weekday: 'short',
@@ -61,6 +52,29 @@ export default function ReceptionHeader() {
         minute: '2-digit',
         second: '2-digit',
     }).format(currentTime)
+
+    const staffName =
+        currentUser?.fullName ||
+        currentUser?.ho_ten ||
+        currentUser?.name ||
+        currentUser?.username ||
+        'Nhân viên Tiếp đón'
+
+    const roleNameMap = {
+        LE_TAN: 'Lễ tân',
+        THU_NGAN: 'Lễ tân',
+        ADMIN: 'Quản trị viên',
+        BAC_SI: 'Bác sĩ tiếp đón',
+        DUOC_SI: 'Dược sĩ',
+        Y_TA: 'Điều dưỡng',
+        KY_THUAT_VIEN: 'Kỹ thuật viên',
+    }
+
+    const staffRole =
+        (role && roleNameMap[role]) ||
+        (currentUser?.vai_tro && !['Lễ tân chính', 'Lễ tân kiêm thu ngân'].includes(currentUser.vai_tro)
+            ? currentUser.vai_tro
+            : 'Lễ tân')
 
     return (
         <header className="h-16 bg-white border-b border-slate-200/90 px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 shadow-xs">
@@ -78,96 +92,62 @@ export default function ReceptionHeader() {
                 </div>
             </div>
 
-            {/* Right: Actions, Clock, Role switcher, User badge */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Right: Working Clock, Notifications, User Profile */}
+            <div className="flex items-center gap-3 shrink-0">
                 {/* Working Clock */}
-                <div className="hidden 2xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600 shrink-0 whitespace-nowrap">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600 shrink-0 whitespace-nowrap">
                     <ClockCircleOutlined className="text-sky-500" />
                     <span className="tabular-nums">{formattedTime}</span>
                 </div>
 
-                {/* Reset Data Button */}
-                <Tooltip title="Đặt lại toàn bộ dữ liệu mẫu (Seed Data) về ban đầu">
-                    <button
-                        onClick={() => setIsResetModalOpen(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 text-xs font-semibold transition cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
-                    >
-                        <ReloadOutlined className="text-amber-600" />
-                        <span className="hidden sm:inline">Làm mới CSDL</span>
-                    </button>
-                </Tooltip>
+                {/* Nút Đóng ca trực */}
+                <Button
+                    icon={<LockOutlined className="text-rose-600" />}
+                    onClick={() => setIsCloseShiftOpen(true)}
+                    className="text-xs font-semibold text-rose-700 bg-rose-50/80 border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition shrink-0"
+                >
+                    Đóng ca trực
+                </Button>
 
-                
-
-                {/* Notifications badge for tasks */}
+                {/* Notifications badge for tasks/incidents */}
                 <Link
                     to="/reception/tasks"
                     className="relative w-9 h-9 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-900 transition shrink-0"
-                    title={`${pendingTasks.length} sự cố hành chính cần xử lý`}
+                    title={`${pendingTasksCount} sự cố cần xử lý`}
                 >
                     <BellOutlined className="text-base" />
-                    {criticalTasks.length > 0 ? (
+                    {pendingIncidentsCount > 0 ? (
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
-                            {criticalTasks.length}
+                            {pendingIncidentsCount}
                         </span>
-                    ) : pendingTasks.length > 0 ? (
+                    ) : pendingTasksCount > 0 ? (
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                            {pendingTasks.length}
+                            {pendingTasksCount}
                         </span>
                     ) : null}
                 </Link>
 
-                {/* Role Switcher */}
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
-                    <span className="text-xs text-slate-400 hidden xl:inline font-medium whitespace-nowrap">Phân quyền ca trực:</span>
-                    <Select
-                        value={activeRole}
-                        onChange={handleRoleChange}
-                        options={RECEPTION_ROLES_OPTIONS}
-                        className="w-44 text-xs font-semibold shrink-0"
-                        size="middle"
-                    />
-                </div>
-
-                {/* Current Staff Badge */}
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
+                {/* Current Staff Profile */}
+                <div className="flex items-center gap-2 pl-3 border-l border-slate-200 shrink-0">
                     <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs border border-sky-200 shrink-0">
                         <UserOutlined />
                     </div>
                     <div className="hidden sm:block text-left text-xs shrink-0 whitespace-nowrap">
-                        <div className="font-bold text-slate-800 flex items-center gap-1 leading-tight whitespace-nowrap">
-                            {activeRole === 'RECEPTION_SUPERVISOR' ? 'Trần Đình Nam' : 'Nguyễn Thị Hoa'}
-                            {activeRole === 'RECEPTION_SUPERVISOR' && (
-                                <SafetyCertificateOutlined className="text-teal-600" title="Giám sát ca trực" />
-                            )}
+                        <div className="font-bold text-slate-800 leading-tight whitespace-nowrap">
+                            {staffName}
                         </div>
                         <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
-                            {activeRole === 'RECEPTION_SUPERVISOR' ? 'Giám sát lễ tân' : 'Lễ tân chính'}
+                            {staffRole}
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Reset Confirmation Modal */}
-            <Modal
-                title="Khôi phục dữ liệu mẫu ban đầu?"
-                open={isResetModalOpen}
-                onOk={handleConfirmReset}
-                onCancel={() => setIsResetModalOpen(false)}
-                okText="Đồng ý đặt lại"
-                cancelText="Hủy bỏ"
-                okButtonProps={{ danger: true }}
-            >
-                <div className="py-2 text-sm text-slate-600 space-y-2">
-                    <p>
-                        Hành động này sẽ xóa toàn bộ thay đổi tạm thời trên máy bạn (lịch hẹn mới, vé check-in vừa tạo,
-                        sửa đổi hồ sơ, nhật ký thao tác) và tải lại bộ <strong>32 bệnh nhân, 42 lịch hẹn và 32 lượt hàng đợi mẫu</strong>.
-                    </p>
-                    <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-                        Thao tác này rất hữu ích khi bạn muốn bắt đầu lại một kịch bản demo hoặc làm mới dữ liệu kiểm thử.
-                    </p>
-                </div>
-            </Modal>
+            {/* Modal Đóng ca trực & Bàn giao */}
+            <CloseShiftModal
+                open={isCloseShiftOpen}
+                onCancel={() => setIsCloseShiftOpen(false)}
+            />
         </header>
     )
 }

@@ -147,11 +147,10 @@ http.interceptors.response.use(
 
         originalRequest._retry = true
         isRefreshing = true
-
         try {
             const { data: body } = await axios.post(
                 `${DOMAIN}/api/v1/auth/refresh`,
-                { accessToken, refreshToken, refresh_token: refreshToken },
+                { refresh_token: refreshToken },
                 { headers: { 'Content-Type': 'application/json' } }
             )
 

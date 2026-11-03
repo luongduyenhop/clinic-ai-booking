@@ -33,6 +33,7 @@ from app.models.specialty_exam import (
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.compliance import TrangThaiDonThuoc
+from app.services.audit_trail_service import audit_trail_service
 from app.services.prescription_fsm_service import PrescriptionFSMService
 from app.schemas.clinical import (
     EncounterCreateRequest,
@@ -328,6 +329,19 @@ class ClinicalService:
             bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
             if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
                 raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
+
+        await audit_trail_service.log_access(
+            db=db,
+            user_id=user.id,
+            user_role=user.vai_tro,
+            patient_id=luot_kham.benh_nhan_id,
+            action="VIEW",
+            resource_type="ENCOUNTER",
+            resource_id=luot_kham.id,
+            purpose="Xem hồ sơ bệnh án điện tử (EMR)",
+        )
+        # Persist the audit event before returning protected medical data.
+        await db.commit()
 
         return self._to_encounter_response(luot_kham)
 

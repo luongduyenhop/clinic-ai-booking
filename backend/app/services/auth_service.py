@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, update, and_, or_
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, generate_otp
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
 from app.core.config import settings
@@ -326,6 +326,15 @@ class AuthService:
             },
         )
 
+    async def logout_user(self, user: TaiKhoan, db: AsyncSession) -> None:
+        """Revoke the account's stored refresh token; repeated logout is harmless."""
+        await db.execute(
+            update(TaiKhoan).where(TaiKhoan.id == user.id).values(
+                refresh_token_hash=None, refresh_token_expired_at=None,
+            )
+        )
+        await db.commit()
+
     async def get_user_profile(self, user: TaiKhoan, db: AsyncSession) -> UserProfileResponse:
         """Lấy thông tin hồ sơ người dùng đầy đủ (UC-A04)"""
         stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id)
@@ -433,7 +442,8 @@ class AuthService:
                     refreshToken=new_refresh,
                 )
 
-        stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token)
+        # Serialize refresh rotation with logout so a waiting refresh cannot restore a revoked token.
+        stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token).with_for_update()
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
         
         if not tai_khoan:

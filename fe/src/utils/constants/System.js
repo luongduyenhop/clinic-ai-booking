@@ -104,7 +104,7 @@ export const getRoleDefaultPath = (role) => {
     if (r === 'ADMIN' || r === 'ADMINISTRATOR' || r === 'QUAN_TRI' || r === 'QUAN_LY') return '/admin'
     if (r === 'BAC_SI' || r === 'DOCTOR' || r === 'BS') return '/doctor'
     if (r === 'LE_TAN' || r === 'RECEPTIONIST' || r === 'RECEPTION_SUPERVISOR') return '/reception/dashboard'
-    if (r === 'THU_NGAN' || r === 'CASHIER') return '/admin/thu-chi'
+    if (r === 'THU_NGAN' || r === 'CASHIER') return '/staff/cashier'
     if (r === 'KTV_XET_NGHIEM' || r === 'LAB_TECH' || r === 'ROLE-LAB-TECH') return '/staff/paraclinical-work?nhom=XET_NGHIEM'
     if (r === 'KTV_CLS' || r === 'TECHNICIAN') return '/staff/paraclinical-work'
     return '/benh-nhan'

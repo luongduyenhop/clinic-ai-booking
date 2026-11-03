@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation } from 'react-router-dom'
-import { Input, Button, Tag, Select, Radio, Alert, message, Descriptions, Card } from 'antd'
+import { Input, Button, Tag, Select, Radio, Alert, message, Descriptions, Spin, Modal, Checkbox } from 'antd'
 import {
     SearchOutlined,
     UserAddOutlined,
@@ -9,7 +9,10 @@ import {
     AlertOutlined,
     PhoneOutlined,
     ThunderboltOutlined,
-    PrinterOutlined,
+    CalendarOutlined,
+    MedicineBoxOutlined,
+    ClockCircleOutlined,
+    ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -18,41 +21,108 @@ import {
     registerWalkInQuickAsync,
     searchPatientsAsync,
     getPatientDetailAsync,
+    fetchReceptionDataAsync,
+    fetchAppointmentsAsync,
+    fetchFlowBoardAsync,
+    fetchShiftDashboardAsync,
+    fetchRosterAsync,
+    searchAppointmentsAsync,
 } from '../../redux/actions/reception/receptionAction'
-import { FIVE_SPECIALTIES } from '../../services/reception/receptionService'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
-import { APPOINTMENT_STATUS, MISSING_DOC_LABELS } from '../../utils/constants/receptionConstants'
+import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
+import { receptionService } from '../../services/reception/receptionService'
+import { unwrapApi } from '../../utils/helpers/apiHelper'
+import { formatDoctorName } from '../../utils/doctorHelper'
+
+function normalizePatient(p) {
+    if (!p) return null
+    return {
+        id: p.id,
+        fullName: p.fullName || p.ho_ten || 'N/A',
+        phone: p.phone || p.so_dien_thoai || '',
+        patientCode: p.patientCode || p.ma_dinh_danh_y_te || (p.id ? `BN-${p.id}` : 'BN-MOI'),
+        dob: p.dob || p.ngay_sinh || '',
+        gender: p.gender === 'MALE' || p.gioi_tinh === 'Nam' ? 'Nam' : (p.gender === 'FEMALE' || p.gioi_tinh === 'Nữ' ? 'Nữ' : 'Khác'),
+        address: p.address || p.dia_chi || '',
+        identityCard: p.identityCard || p.cccd_so || '',
+        allergies: p.allergies || p.di_ung_thuoc || '',
+        bloodType: p.bloodType || p.nhom_mau || 'O+',
+        medicalHistory: p.medicalHistory || p.tien_su_benh || '',
+        creditScore: p.creditScore ?? p.diem_tin_nhiem ?? 100,
+        noShowCount: p.noShowCount ?? p.so_lan_no_show ?? 0,
+        isBlockedBooking: Boolean(p.isBlockedBooking ?? p.is_blocked_booking),
+        isDuplicateSuspect: Boolean(p.isDuplicateSuspect),
+    }
+}
 
 export default function CheckInPage() {
     const location = useLocation()
     const dispatch = useDispatch()
-    const { patients, appointments, departments, doctors, rooms, services, queueEntries = [] } = useSelector((state) => state.reception)
+    const {
+        patients,
+        appointments,
+        departments,
+        doctors,
+        rooms,
+        services,
+        roomStatus = [],
+        roster = [],
+        queueEntries = [],
+    } = useSelector((state) => state.reception)
 
     const [searchKeyword, setSearchKeyword] = useState('')
+    const [searchPatientResults, setSearchPatientResults] = useState([])
+    const [searchAppointmentResults, setSearchAppointmentResults] = useState([])
+    const [isSearching, setIsSearching] = useState(false)
+    const [isSearchOpen, setIsSearchOpen] = useState(false)
+    const searchContainerRef = useRef(null)
     const [selectedPatient, setSelectedPatient] = useState(null)
     const [selectedAppointment, setSelectedAppointment] = useState(null)
     const [checkInMode, setCheckInMode] = useState('WITH_APPOINTMENT') // 'WITH_APPOINTMENT' | 'WALK_IN'
 
-    // Walk-in form state
-    const [walkInDepartmentId, setWalkInDepartmentId] = useState(1) // Mặc định Khoa Nội (ID=1, prefix=NOI)
-    const [walkInDoctorId, setWalkInDoctorId] = useState('')
+    // Danh sách 5 lý do ưu tiên theo chuẩn Backend API Spec (ly_do_uu_tien enum)
+    const PRIORITY_REASONS = [
+        { value: 'cap_cuu_nhe', label: 'Cấp cứu nhẹ' },
+        { value: 'nguoi_gia', label: 'Người cao tuổi (≥ 75 tuổi)' },
+        { value: 'thai_phu', label: 'Phụ nữ mang thai' },
+        { value: 'tre_so_sinh', label: 'Trẻ sơ sinh / Trẻ nhỏ' },
+        { value: 'thuong_binh', label: 'Thương binh / Người có công' },
+    ]
+
+    // Danh mục chuyên khoa động tải 100% từ API backend
+    const [specialtiesList, setSpecialtiesList] = useState([])
+    const [loadingSpecialties, setLoadingSpecialties] = useState(false)
+
+    // Form 1: Walk-in form state (Khi đã chọn bệnh nhân có hồ sơ)
+    const [walkInDepartmentId, setWalkInDepartmentId] = useState(null)
+    const [walkInDoctorId, setWalkInDoctorId] = useState(null) // null = Tự động phân bổ theo tải
+    const [walkInDoctors, setWalkInDoctors] = useState([])
+    const [loadingWalkInDocs, setLoadingWalkInDocs] = useState(false)
     const [walkInRoomId, setWalkInRoomId] = useState('')
     const [walkInServiceId, setWalkInServiceId] = useState('')
     const [priorityType, setPriorityType] = useState('NORMAL')
-    const [priorityReason, setPriorityReason] = useState('')
+    const [priorityReason, setPriorityReason] = useState('nguoi_gia')
     const [checkInNotes, setCheckInNotes] = useState('')
+    const [walkInAutoWaitlist, setWalkInAutoWaitlist] = useState(false)
+    const [quickAutoWaitlist, setQuickAutoWaitlist] = useState(false)
 
-    // Quick Walk-in form (Tiếp nhận nhanh không cần hồ sơ trước)
+    // Form 2: Quick Walk-in form (Tiếp nhận nhanh khi chưa có hồ sơ trước)
     const [quickWalkInForm, setQuickWalkInForm] = useState({
         fullName: '',
         phone: '',
+        gender: 'Nam',
         birthYear: '',
-        departmentId: 1,
+        departmentId: null,
+        doctorId: null, // Bác sĩ khám kèm buồng khám trực hôm nay
+        priority: 'NORMAL', // Diện ưu tiên đồng bộ
+        priorityReason: 'nguoi_gia',
+        reason: 'Khám bệnh vãng lai',
     })
+    const [quickWalkInDoctors, setQuickWalkInDoctors] = useState([])
+    const [loadingQuickDocs, setLoadingQuickDocs] = useState(false)
     const [patientNotFoundForPhone, setPatientNotFoundForPhone] = useState(false)
-    const [isSearchingPhone, setIsSearchingPhone] = useState(false)
 
     // Modals
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
@@ -61,93 +131,249 @@ export default function CheckInPage() {
     const [createdQueueEntry, setCreatedQueueEntry] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Handle preselect from navigation
+    // 1. Nạp toàn bộ danh mục & dữ liệu ca trực khi vào trang
+    useEffect(() => {
+        const todayStr = dayjs().format('YYYY-MM-DD')
+        dispatch(fetchReceptionDataAsync())
+        dispatch(fetchAppointmentsAsync({ queryDate: todayStr, pageSize: 100 }))
+        dispatch(fetchFlowBoardAsync())
+        dispatch(fetchShiftDashboardAsync({ queryDate: todayStr }))
+        dispatch(fetchRosterAsync({ queryDate: todayStr }))
+
+        // Gọi trực tiếp API lấy danh mục Chuyên khoa
+        const loadInitialSpecialties = async () => {
+            setLoadingSpecialties(true)
+            try {
+                const res = await receptionService.getSpecialties()
+                const data = unwrapApi(res) || []
+                const mapped = data.map((s) => ({
+                    id: s.id,
+                    name: s.ten_chuyen_khoa || s.name,
+                    code: s.ma_chuyen_khoa || s.code,
+                    room: s.vi_tri_phong,
+                    doctorCount: s.so_luong_bac_si || 0,
+                }))
+                setSpecialtiesList(mapped)
+                if (mapped.length > 0) {
+                    const firstId = mapped[0].id
+                    setWalkInDepartmentId(firstId)
+                    fetchWalkInDoctors(firstId)
+                    setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
+                    fetchQuickDoctors(firstId)
+                }
+            } catch {
+                setSpecialtiesList([])
+            } finally {
+                setLoadingSpecialties(false)
+            }
+        }
+        loadInitialSpecialties()
+    }, [dispatch])
+
+    // API lấy danh sách bác sĩ theo chuyên khoa cho Form 1 (Walk-in có hồ sơ)
+    const fetchWalkInDoctors = async (depId) => {
+        if (!depId) {
+            setWalkInDoctors([])
+            return
+        }
+        setLoadingWalkInDocs(true)
+        try {
+            const res = await receptionService.getDoctors({
+                specialty_id: Number(depId),
+                page: 1,
+                page_size: 100,
+            })
+            const data = unwrapApi(res)
+            const list = Array.isArray(data) ? data : data?.items || []
+            setWalkInDoctors(
+                list.map((d) => {
+                    const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
+                    return {
+                        id: d.id,
+                        name: d.ho_ten || d.name,
+                        title: d.hoc_vi || '',
+                        roomId: d.phong_kham_id || rs?.phong_kham_id,
+                        roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
+                        waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
+                        status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
+                    }
+                })
+            )
+        } catch {
+            setWalkInDoctors([])
+        } finally {
+            setLoadingWalkInDocs(false)
+        }
+    }
+
+    // API lấy danh sách bác sĩ theo chuyên khoa cho Form 2 (Quick walk-in)
+    const fetchQuickDoctors = async (depId) => {
+        if (!depId) {
+            setQuickWalkInDoctors([])
+            return
+        }
+        setLoadingQuickDocs(true)
+        try {
+            const res = await receptionService.getDoctors({
+                specialty_id: Number(depId),
+                page: 1,
+                page_size: 100,
+            })
+            const data = unwrapApi(res)
+            const list = Array.isArray(data) ? data : data?.items || []
+            setQuickWalkInDoctors(
+                list.map((d) => {
+                    const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
+                    return {
+                        id: d.id,
+                        name: d.ho_ten || d.name,
+                        title: d.hoc_vi || '',
+                        roomId: d.phong_kham_id || rs?.phong_kham_id,
+                        roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
+                        waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
+                        status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
+                    }
+                })
+            )
+        } catch {
+            setQuickWalkInDoctors([])
+        } finally {
+            setLoadingQuickDocs(false)
+        }
+    }
+
+    // 2. Xử lý preselect nếu được điều hướng từ trang Lịch hẹn hoặc Dashboard
     useEffect(() => {
         if (location.state?.preselectAppointmentId) {
             const app = appointments.find((a) => a.id === location.state.preselectAppointmentId)
             if (app) {
                 setSelectedAppointment(app)
-                const pat = patients.find((p) => p.id === app.patientId)
-                if (pat) setSelectedPatient(pat)
+                const patId = app.benh_nhan_id || app.patientId
+                const pat = patients.find((p) => p.id === patId)
+                if (pat) setSelectedPatient(normalizePatient(pat))
                 setCheckInMode('WITH_APPOINTMENT')
             }
         }
     }, [location.state, appointments, patients])
 
-    // Auto-fill khi lễ tân gõ SĐT (Nếu là bệnh nhân cũ -> tự động điền Họ tên, Năm sinh, Địa chỉ, Tiền sử dị ứng)
+    // Click outside để đóng search dropdown
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+                setIsSearchOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    // 4. Tìm kiếm Bệnh nhân & Lịch hẹn với Debounce (Chống lặp vô tận & chống spam mạng)
     useEffect(() => {
         const cleanKw = searchKeyword.trim()
-        if (/^[0-9]{9,11}$/.test(cleanKw)) {
-            const matched = patients.find((p) => p.phone === cleanKw)
-            if (matched) {
-                dispatch(getPatientDetailAsync(matched.id))
-                    .unwrap()
-                    .then((detail) => {
-                        handleSelectPatient({ ...matched, ...(detail || {}) })
-                    })
-                    .catch(() => handleSelectPatient(matched))
-                setPatientNotFoundForPhone(false)
-            } else {
-                setIsSearchingPhone(true)
-                dispatch(searchPatientsAsync({ search: cleanKw }))
-                    .unwrap()
-                    .then((paged) => {
-                        setIsSearchingPhone(false)
-                        const items = paged?.items || []
-                        const found = items.find((p) => p.phone === cleanKw)
-                        if (found) {
-                            dispatch(getPatientDetailAsync(found.id))
-                                .unwrap()
-                                .then((detail) => {
-                                    handleSelectPatient({ ...found, ...(detail || {}) })
-                                })
-                                .catch(() => handleSelectPatient(found))
-                            setPatientNotFoundForPhone(false)
-                        } else {
-                            setPatientNotFoundForPhone(true)
-                        }
-                    })
-                    .catch(() => {
-                        setIsSearchingPhone(false)
-                        setPatientNotFoundForPhone(true)
-                    })
-            }
-        } else {
+        if (!cleanKw || cleanKw.length < 1) {
+            setSearchPatientResults([])
+            setSearchAppointmentResults([])
             setPatientNotFoundForPhone(false)
+            setIsSearching(false)
+            setIsSearchOpen(false)
+            return
         }
-    }, [searchKeyword, patients, dispatch])
 
-    // Patient search results
-    const searchResults = searchKeyword.trim()
-        ? patients.filter(
-              (p) =>
-                  p.fullName?.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                  p.phone?.includes(searchKeyword.trim()) ||
-                  p.patientCode?.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                  (p.identityCard && p.identityCard.includes(searchKeyword.trim()))
-          )
-        : []
+        const timer = setTimeout(async () => {
+            setIsSearching(true)
+            try {
+                const todayStr = dayjs().format('YYYY-MM-DD')
+                const [pagedPatients, appts] = await Promise.allSettled([
+                    dispatch(searchPatientsAsync({ search: cleanKw, page: 1, pageSize: 10 })).unwrap(),
+                    dispatch(searchAppointmentsAsync({ q: cleanKw, queryDate: todayStr })).unwrap(),
+                ])
 
-    // Appointments for currently selected patient
-    const patientAppointments = selectedPatient
-        ? appointments.filter(
-              (a) =>
-                  (a.patientId === selectedPatient.id || a.patientCode === selectedPatient.patientCode) &&
-                  (a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED)
-          )
-        : []
+                const patientItems = pagedPatients.status === 'fulfilled' ? (pagedPatients.value?.items || []) : []
+                const apptItems = appts.status === 'fulfilled' ? (appts.value || []) : []
 
-    const handleSelectPatient = (pat) => {
-        setSelectedPatient(pat)
+                setSearchPatientResults(patientItems)
+                setSearchAppointmentResults(apptItems)
+                setIsSearchOpen(true)
+
+                const isPhone = /^(03|05|07|08|09)\d{8}$/.test(cleanKw)
+                if (isPhone && patientItems.length === 0 && apptItems.length === 0) {
+                    setPatientNotFoundForPhone(true)
+                } else {
+                    setPatientNotFoundForPhone(false)
+                }
+            } catch {
+                // Xử lý lỗi tìm kiếm nhẹ nhàng
+            } finally {
+                setIsSearching(false)
+            }
+        }, 350)
+
+        return () => clearTimeout(timer)
+    }, [searchKeyword, dispatch])
+
+    const hasSearchResults = searchAppointmentResults.length > 0 || searchPatientResults.length > 0
+
+    // 5. Danh sách lịch hẹn hợp lệ hôm nay của bệnh nhân đang chọn (chưa check-in)
+    const patientAppointments = useMemo(() => {
+        if (!selectedPatient) return []
+        return appointments.filter((a) => {
+            const matchesPatient =
+                (a.patientId && a.patientId === selectedPatient.id) ||
+                (a.benh_nhan_id && a.benh_nhan_id === selectedPatient.id) ||
+                (a.so_dien_thoai && selectedPatient.phone && a.so_dien_thoai === selectedPatient.phone) ||
+                (a.patientCode && a.patientCode === selectedPatient.patientCode)
+
+            const rawStatus = String(a.status || a.trang_thai_lich || a.trang_thai || '').toLowerCase()
+            const isAlreadyCheckedIn = Boolean(
+                a.da_check_in ||
+                a.so_thu_tu_kham ||
+                ['da_check_in', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
+            )
+            const isEligible = ['da_xac_nhan', 'cho_xac_nhan', 'da_dat', 'booked', 'confirmed'].includes(rawStatus) && !isAlreadyCheckedIn
+
+            return matchesPatient && isEligible
+        })
+    }, [selectedPatient, appointments])
+
+    // 6. Chọn bệnh nhân từ kết quả tìm kiếm
+    const handleSelectPatient = async (pat) => {
+        const norm = normalizePatient(pat)
+        setSelectedPatient(norm)
         setSearchKeyword('')
+        setIsSearchOpen(false)
+        setSearchPatientResults([])
+        setSearchAppointmentResults([])
         setPatientNotFoundForPhone(false)
-        // Auto select first booked appointment if available
-        const app = appointments.find(
-            (a) => (a.patientId === pat.id || a.patientCode === pat.patientCode) &&
-                   (a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED)
-        )
-        if (app) {
-            setSelectedAppointment(app)
+
+        try {
+            const detail = await dispatch(getPatientDetailAsync(pat.id)).unwrap()
+            if (detail) {
+                setSelectedPatient((prev) => normalizePatient({ ...prev, ...(detail || {}) }))
+            }
+        } catch {
+            // fallback
+        }
+
+        const matchedApp = appointments.find((a) => {
+            const matchesPatient =
+                (a.patientId && a.patientId === pat.id) ||
+                (a.benh_nhan_id && a.benh_nhan_id === pat.id) ||
+                (a.so_dien_thoai && pat.phone && a.so_dien_thoai === pat.phone) ||
+                (a.patientCode && a.patientCode === pat.patientCode)
+
+            const rawStatus = String(a.status || a.trang_thai_lich || a.trang_thai || '').toLowerCase()
+            const isAlreadyCheckedIn = Boolean(
+                a.da_check_in ||
+                a.so_thu_tu_kham ||
+                ['da_check_in', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
+            )
+            const isEligible = ['da_xac_nhan', 'cho_xac_nhan', 'da_dat', 'booked', 'confirmed'].includes(rawStatus) && !isAlreadyCheckedIn
+
+            return matchesPatient && isEligible
+        })
+
+        if (matchedApp) {
+            setSelectedAppointment(matchedApp)
             setCheckInMode('WITH_APPOINTMENT')
         } else {
             setSelectedAppointment(null)
@@ -155,30 +381,116 @@ export default function CheckInPage() {
         }
     }
 
+    // 7. Chọn trực tiếp từ thẻ Lịch hẹn hôm nay
+    const handleSelectAppointmentSearchResult = async (app, isAlreadyCheckedIn = false) => {
+        setIsSearchOpen(false)
+        setSearchKeyword('')
+        setSearchPatientResults([])
+        setSearchAppointmentResults([])
+        setPatientNotFoundForPhone(false)
+
+        if (isAlreadyCheckedIn) {
+            setSelectedAppointment(null)
+            setCheckInMode('WALK_IN')
+            message.info(`Lịch hẹn ${app.ma_lich_kham || ''} đã được check-in trước đó (STT #${app.so_thu_tu_kham || '✓'}). Đã nạp hồ sơ bệnh nhân.`)
+        } else {
+            setSelectedAppointment(app)
+            setCheckInMode('WITH_APPOINTMENT')
+        }
+
+        const patId = app.benh_nhan_id || app.patientId
+        let pat = patId ? patients.find((p) => p.id === patId) : null
+        if (!pat && app.so_dien_thoai) {
+            pat = patients.find((p) => p.phone === app.so_dien_thoai)
+        }
+
+        if (pat) {
+            try {
+                const detail = await dispatch(getPatientDetailAsync(pat.id)).unwrap()
+                setSelectedPatient(normalizePatient({ ...pat, ...(detail || {}) }))
+            } catch {
+                setSelectedPatient(normalizePatient(pat))
+            }
+        } else if (patId) {
+            try {
+                const detail = await dispatch(getPatientDetailAsync(patId)).unwrap()
+                if (detail) {
+                    setSelectedPatient(normalizePatient(detail))
+                } else {
+                    setSelectedPatient(normalizePatient({
+                        id: patId,
+                        fullName: app.ten_benh_nhan,
+                        phone: app.so_dien_thoai,
+                        patientCode: `BN-${patId}`,
+                    }))
+                }
+            } catch {
+                setSelectedPatient(normalizePatient({
+                    id: patId,
+                    fullName: app.ten_benh_nhan,
+                    phone: app.so_dien_thoai,
+                    patientCode: `BN-${patId}`,
+                }))
+            }
+        } else {
+            setSelectedPatient(normalizePatient({
+                id: 0,
+                fullName: app.ten_benh_nhan,
+                phone: app.so_dien_thoai,
+                patientCode: 'BN-MOI',
+            }))
+        }
+    }
+
+    // 8. Đổi Chuyên khoa ở Form Walk-in (Form 1)
     const handleWalkInDepartmentChange = (depId) => {
         setWalkInDepartmentId(depId)
-        setWalkInDoctorId('')
-        setWalkInRoomId('')
-        setWalkInServiceId('')
+        setWalkInDoctorId(null) // Reset về Tự động phân bổ
+        fetchWalkInDoctors(depId)
 
-        const targetSpec = FIVE_SPECIALTIES.find((s) => s.id === depId || s.code === depId)
+        const targetSpec = (specialtiesList.length > 0 ? specialtiesList : departments || []).find((s) => s.id === depId || s.code === depId)
         const depRoom = rooms.find((r) => r.departmentId === depId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || rooms[0]
         if (depRoom) setWalkInRoomId(depRoom.id || depRoom.code)
 
-        const depService = services.find((s) => s.departmentId === depId) || services[0] || { id: 'SRV01', name: 'Khám bệnh chuyên khoa', price: 150000 }
-        setWalkInServiceId(depService.id)
-
-        const depDoc = doctors.find((d) => d.departmentId === depId && d.status === 'AVAILABLE') || doctors[0]
-        if (depDoc) setWalkInDoctorId(depDoc.id)
+        const depService = services.find((s) => s.departmentId === depId) || services[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
+        if (depService) setWalkInServiceId(depService.id)
     }
 
-    // Khởi tạo phòng/bác sĩ mặc định khi chuyển sang Walk-in
-    useEffect(() => {
-        if (!walkInDepartmentId && FIVE_SPECIALTIES.length > 0) {
-            handleWalkInDepartmentChange(FIVE_SPECIALTIES[0].id)
-        }
-    }, [walkInDepartmentId])
+    // Đổi Chuyên khoa ở Form Tiếp nhận nhanh (Form 2)
+    const handleQuickDepartmentChange = (depId) => {
+        setQuickWalkInForm((prev) => ({ ...prev, departmentId: depId, doctorId: null }))
+        fetchQuickDoctors(depId)
+    }
 
+    // Khi chọn Bác sĩ cụ thể ở Form Walk-in -> tự động gán luôn Buồng khám
+    const handleWalkInDoctorChange = (docId) => {
+        setWalkInDoctorId(docId)
+        if (docId) {
+            const chosen = walkInDoctors.find((d) => d.id === docId)
+            if (chosen?.roomId) {
+                setWalkInRoomId(chosen.roomId)
+            }
+        }
+    }
+
+    // Tự động nạp chuyên khoa mặc định và tải bác sĩ tương ứng khi danh mục sẵn sàng
+    useEffect(() => {
+        const specSource = specialtiesList.length > 0 ? specialtiesList : departments
+        if (specSource && specSource.length > 0) {
+            if (!walkInDepartmentId) {
+                const firstId = specSource[0].id
+                setWalkInDepartmentId(firstId)
+                fetchWalkInDoctors(firstId)
+            }
+            if (!quickWalkInForm.departmentId) {
+                const firstId = specSource[0].id
+                setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
+                fetchQuickDoctors(firstId)
+            }
+        }
+    }, [departments, specialtiesList, walkInDepartmentId, quickWalkInForm.departmentId])
+
+    // 9. Xác nhận tiếp nhận Form 1 (Check-in hẹn trước hoặc Walk-in có hồ sơ)
     const handleConfirmCheckIn = async () => {
         if (!selectedPatient) {
             message.error('Vui lòng chọn hoặc tìm người bệnh')
@@ -204,44 +516,103 @@ export default function CheckInPage() {
                     })
                 ).unwrap()
 
-                const ticketNum = result.queueEntry?.ma_so_thu_tu || result.queueEntry?.ticketNumber || '01'
+                const ticketNum = result.queueEntry?.ma_so_thu_tu || result.queueEntry?.ticketNumber || result.ma_so_thu_tu || result.ticketNumber || '01'
                 message.success(`Tiếp nhận thành công! Số thứ tự khám: ${ticketNum}`)
-                setCreatedQueueEntry(result.queueEntry)
+                setCreatedQueueEntry(result.queueEntry || result)
                 setIsReceiptOpen(true)
                 setSelectedPatient(null)
                 setSelectedAppointment(null)
+                setPriorityType('NORMAL')
+                setPriorityReason('nguoi_gia')
+                setCheckInNotes('')
             } else {
                 // WALK_IN vào 1 trong 5 chuyên khoa
                 if (!walkInDepartmentId) {
-                    message.error('Vui lòng chọn 1 trong 5 chuyên khoa tiếp nhận')
+                    message.error('Vui lòng chọn chuyên khoa tiếp nhận')
                     setIsSubmitting(false)
                     return
                 }
 
-                const targetSpec = FIVE_SPECIALTIES.find((s) => s.id === walkInDepartmentId || s.code === walkInDepartmentId)
-                const effectiveRoomId = walkInRoomId || targetSpec?.defaultRoom || 'Phòng 101 - Tầng 1'
-                const effectiveServiceId = walkInServiceId || services[0]?.id || 'SRV01'
+                const currentShift = dayjs().hour() >= 12 ? 'chieu' : 'sang'
+                try {
+                    const result = await dispatch(
+                        registerWalkInAsync({
+                            payload: {
+                                patientId: selectedPatient.id,
+                                departmentId: walkInDepartmentId,
+                                doctorId: walkInDoctorId || undefined,
+                                shift: currentShift,
+                                priority: priorityType,
+                                priorityReason: priorityType === 'PRIORITY' ? priorityReason : null,
+                                notes: checkInNotes,
+                                dangKyWaitlistNeuHetCho: walkInAutoWaitlist,
+                            },
+                        })
+                    ).unwrap()
 
-                const result = await dispatch(
-                    registerWalkInAsync({
-                        payload: {
-                            patientId: selectedPatient.id,
-                            departmentId: walkInDepartmentId,
-                            doctorId: walkInDoctorId || undefined,
-                            roomId: effectiveRoomId,
-                            serviceId: effectiveServiceId,
-                            priority: priorityType,
-                            priorityReason,
-                            notes: checkInNotes,
-                        },
-                    })
-                ).unwrap()
-
-                const ticketNum = result.ma_so_thu_tu || result.ticketNumber || '01'
-                message.success(`Đăng ký Walk-in thành công! Số thứ tự khám: ${ticketNum}`)
-                setCreatedQueueEntry(result)
-                setIsReceiptOpen(true)
-                setSelectedPatient(null)
+                    const ticketNum = result.ma_so_thu_tu || result.ticketNumber || '01'
+                    if (result.is_waitlist) {
+                        message.warning(`Ca khám đã hết lượt! Đã ghi danh vào Danh sách chờ (Waitlist): ${ticketNum}`)
+                    } else {
+                        message.success(`Đăng ký Walk-in thành công! Số thứ tự khám: ${ticketNum}`)
+                    }
+                    setCreatedQueueEntry(result)
+                    setIsReceiptOpen(true)
+                    setSelectedPatient(null)
+                } catch (walkInErr) {
+                    const errMsg = typeof walkInErr === 'string' ? walkInErr : (walkInErr?.message || '')
+                    const isFull = /chỉ tiêu|tiếp nhận thêm|danh sách chờ|hết lượt|kín chỗ|quá tải|đạt giới hạn|waitlist|409|conflict/i.test(errMsg)
+                    if (isFull) {
+                        Modal.confirm({
+                            title: 'Ca khám / Bác sĩ đã hết lượt tiếp nhận!',
+                            icon: <ExclamationCircleOutlined className="text-amber-500" />,
+                            content: (
+                                <div className="space-y-2 text-xs text-slate-600">
+                                    <p>{errMsg}</p>
+                                    <p className="font-semibold text-slate-800">
+                                        Bạn có muốn ghi danh người bệnh vào <strong>Danh sách chờ (Waitlist)</strong> không?
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                        Hệ thống sẽ cấp mã số chờ (WAIT-xx). Khi có lịch hủy hoặc bác sĩ trống chỗ, người bệnh sẽ được ưu tiên giữ slot và tiếp nhận ngay.
+                                    </p>
+                                </div>
+                            ),
+                            okText: 'Ghi danh vào Danh sách chờ',
+                            cancelText: 'Hủy bỏ',
+                            okButtonProps: { className: 'bg-amber-600 hover:bg-amber-700 font-bold' },
+                            onOk: async () => {
+                                try {
+                                    setIsSubmitting(true)
+                                    const waitlistRes = await dispatch(
+                                        registerWalkInAsync({
+                                            payload: {
+                                                patientId: selectedPatient.id,
+                                                departmentId: walkInDepartmentId,
+                                                doctorId: walkInDoctorId || undefined,
+                                                shift: currentShift,
+                                                priority: priorityType,
+                                                priorityReason: priorityType === 'PRIORITY' ? priorityReason : null,
+                                                notes: checkInNotes,
+                                                dangKyWaitlistNeuHetCho: true,
+                                            },
+                                        })
+                                    ).unwrap()
+                                    const ticketNum = waitlistRes.ma_so_thu_tu || waitlistRes.ticketNumber || 'WAIT-01'
+                                    message.warning(`Đã ghi danh vào Danh sách chờ (Waitlist): ${ticketNum}`)
+                                    setCreatedQueueEntry(waitlistRes)
+                                    setIsReceiptOpen(true)
+                                    setSelectedPatient(null)
+                                } catch (wErr) {
+                                    message.error(typeof wErr === 'string' ? wErr : (wErr?.message || 'Không thể ghi danh vào danh sách chờ'))
+                                } finally {
+                                    setIsSubmitting(false)
+                                }
+                            },
+                        })
+                    } else {
+                        message.error(errMsg || 'Lỗi khi tiếp nhận bệnh nhân')
+                    }
+                }
             }
         } catch (err) {
             message.error(err.message || 'Lỗi khi tiếp nhận bệnh nhân')
@@ -250,43 +621,155 @@ export default function CheckInPage() {
         }
     }
 
+    // 10. Tiếp nhận nhanh Form 2 (Quick Walk-in - đầy đủ Bác sĩ buồng khám & Mức độ ưu tiên)
     const handleQuickWalkInSubmit = async () => {
-        if (!quickWalkInForm.fullName?.trim() || !quickWalkInForm.phone?.trim()) {
-            message.error('Vui lòng nhập đầy đủ Họ tên và Số điện thoại')
+        const cleanName = quickWalkInForm.fullName?.trim() || ''
+        const cleanPhone = quickWalkInForm.phone?.trim().replace(/\s+/g, '') || ''
+
+        if (!cleanName || cleanName.length < 2) {
+            message.error('Họ và tên bệnh nhân không được để trống (tối thiểu 2 ký tự)')
             return
         }
+
+        const phoneRegex = /^(03|05|07|08|09)\d{8}$/
+        if (!phoneRegex.test(cleanPhone)) {
+            message.error('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số (VD: 0912345678)')
+            return
+        }
+
+        const currentYear = new Date().getFullYear()
+        if (quickWalkInForm.birthYear) {
+            const yr = Number(quickWalkInForm.birthYear)
+            if (isNaN(yr) || yr < 1900 || yr > currentYear) {
+                message.error(`Năm sinh không hợp lệ! Vui lòng nhập từ 1900 đến ${currentYear}`)
+                return
+            }
+        }
+
         setIsSubmitting(true)
         try {
-            const targetSpec = FIVE_SPECIALTIES.find((s) => s.id === quickWalkInForm.departmentId)
-            const result = await dispatch(
-                registerWalkInQuickAsync({
-                    payload: {
-                        fullName: quickWalkInForm.fullName.trim(),
-                        phone: quickWalkInForm.phone.trim(),
-                        birthYear: quickWalkInForm.birthYear ? Number(quickWalkInForm.birthYear) : null,
-                        departmentId: quickWalkInForm.departmentId,
-                        notes: `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`,
-                    },
-                })
-            ).unwrap()
+            const currentShift = dayjs().hour() >= 12 ? 'chieu' : 'sang'
+            const specList = departments || []
+            const targetSpec = specList.find((s) => Number(s.id) === Number(quickWalkInForm.departmentId))
 
-            const ticketNum = result.ma_so_thu_tu || result.ticketNumber || '01'
-            message.success(`Tiếp nhận nhanh bệnh nhân vãng lai thành công! Số thứ tự: ${ticketNum}`)
-            setCreatedQueueEntry(result)
-            setIsReceiptOpen(true)
-            setQuickWalkInForm({ fullName: '', phone: '', birthYear: '', departmentId: 1 })
-            setSearchKeyword('')
+            try {
+                const result = await dispatch(
+                    registerWalkInAsync({
+                        payload: {
+                            fullName: cleanName,
+                            phone: cleanPhone,
+                            gender: quickWalkInForm.gender || 'Nam',
+                            birthYear: quickWalkInForm.birthYear ? Number(quickWalkInForm.birthYear) : null,
+                            departmentId: Number(quickWalkInForm.departmentId) || 1,
+                            doctorId: quickWalkInForm.doctorId || undefined,
+                            shift: currentShift,
+                            priority: quickWalkInForm.priority,
+                            priorityReason: quickWalkInForm.priorityReason || (quickWalkInForm.priority === 'PRIORITY' ? 'nguoi_gia' : null),
+                            notes: quickWalkInForm.reason?.trim() || `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`,
+                            dangKyWaitlistNeuHetCho: quickAutoWaitlist,
+                        },
+                    })
+                ).unwrap()
+
+                const ticketNum = result.ma_so_thu_tu || result.ticketNumber || '01'
+                if (result.is_waitlist) {
+                    message.warning(`Ca khám đã hết lượt! Đã ghi danh vào Danh sách chờ (Waitlist): ${ticketNum}`)
+                } else {
+                    message.success(`Tiếp nhận nhanh bệnh nhân vãng lai thành công! Số thứ tự: ${ticketNum}`)
+                }
+                setCreatedQueueEntry(result)
+                setIsReceiptOpen(true)
+                setQuickWalkInForm({
+                    fullName: '',
+                    phone: '',
+                    gender: 'Nam',
+                    birthYear: '',
+                    departmentId: 1,
+                    doctorId: null,
+                    priority: 'NORMAL',
+                    priorityReason: 'nguoi_gia',
+                    reason: 'Khám bệnh vãng lai',
+                })
+                setSearchKeyword('')
+            } catch (quickErr) {
+                const errMsg = typeof quickErr === 'string' ? quickErr : (quickErr?.message || '')
+                const isFull = /chỉ tiêu|tiếp nhận thêm|danh sách chờ|hết lượt|kín chỗ|quá tải|đạt giới hạn|waitlist|409|conflict/i.test(errMsg)
+                if (isFull) {
+                    const currentShift = dayjs().hour() >= 12 ? 'chieu' : 'sang'
+                    const specList = departments || []
+                    const targetSpec = specList.find((s) => Number(s.id) === Number(quickWalkInForm.departmentId))
+                    Modal.confirm({
+                        title: 'Ca khám / Bác sĩ đã hết lượt tiếp nhận!',
+                        icon: <ExclamationCircleOutlined className="text-amber-500" />,
+                        content: (
+                            <div className="space-y-2 text-xs text-slate-600">
+                                <p>{errMsg}</p>
+                                <p className="font-semibold text-slate-800">
+                                    Bạn có muốn ghi danh người bệnh vào <strong>Danh sách chờ (Waitlist)</strong> không?
+                                </p>
+                                <p className="text-[11px] text-slate-500">
+                                    Hệ thống sẽ cấp mã số chờ (WAIT-xx). Khi có lịch hủy hoặc bác sĩ trống chỗ, người bệnh sẽ được ưu tiên giữ slot và tiếp nhận ngay.
+                                </p>
+                            </div>
+                        ),
+                        okText: 'Ghi danh vào Danh sách chờ',
+                        cancelText: 'Hủy bỏ',
+                        okButtonProps: { className: 'bg-amber-600 hover:bg-amber-700 font-bold' },
+                        onOk: async () => {
+                            try {
+                                setIsSubmitting(true)
+                                const waitlistRes = await dispatch(
+                                    registerWalkInAsync({
+                                        payload: {
+                                            fullName: cleanName,
+                                            phone: cleanPhone,
+                                            gender: quickWalkInForm.gender || 'Nam',
+                                            birthYear: quickWalkInForm.birthYear ? Number(quickWalkInForm.birthYear) : null,
+                                            departmentId: Number(quickWalkInForm.departmentId) || 1,
+                                            doctorId: quickWalkInForm.doctorId || undefined,
+                                            shift: currentShift,
+                                            priority: quickWalkInForm.priority,
+                                            priorityReason: quickWalkInForm.priorityReason || (quickWalkInForm.priority === 'PRIORITY' ? 'nguoi_gia' : null),
+                                            notes: quickWalkInForm.reason?.trim() || `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`,
+                                            dangKyWaitlistNeuHetCho: true,
+                                        },
+                                    })
+                                ).unwrap()
+                                const ticketNum = waitlistRes.ma_so_thu_tu || waitlistRes.ticketNumber || 'WAIT-01'
+                                message.warning(`Đã ghi danh vào Danh sách chờ (Waitlist): ${ticketNum}`)
+                                setCreatedQueueEntry(waitlistRes)
+                                setIsReceiptOpen(true)
+                                setQuickWalkInForm({
+                                    fullName: '',
+                                    phone: '',
+                                    gender: 'Nam',
+                                    birthYear: '',
+                                    departmentId: 1,
+                                    doctorId: null,
+                                    priority: 'NORMAL',
+                                    priorityReason: 'nguoi_gia',
+                                    reason: 'Khám bệnh vãng lai',
+                                })
+                                setSearchKeyword('')
+                            } catch (wErr) {
+                                message.error(typeof wErr === 'string' ? wErr : (wErr?.message || 'Không thể ghi danh vào danh sách chờ'))
+                            } finally {
+                                setIsSubmitting(false)
+                            }
+                        },
+                    })
+                } else {
+                    message.error(errMsg || 'Lỗi khi tiếp nhận nhanh')
+                }
+            }
         } catch (err) {
-            message.error(err.message || 'Lỗi khi tiếp nhận nhanh')
+            message.error(err || 'Lỗi khi tiếp nhận nhanh')
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    const targetRoom = rooms.find((r) => r.id === (checkInMode === 'WITH_APPOINTMENT' ? selectedAppointment?.roomId : walkInRoomId))
-    const isRoomOverloaded = targetRoom && targetRoom.currentWaiting >= targetRoom.capacity
-
-    // Hạn ngạch tiếp đón trong ngày (Tham khảo ý tưởng Clinic-Management MaxPatient, tuân thủ an toàn y tế)
+    // Hạn ngạch tiếp đón trong ngày
     const maxDailyQuota = 50
     const todayCheckInCount = queueEntries.length
     const quotaPercent = Math.round((todayCheckInCount / maxDailyQuota) * 100)
@@ -337,7 +820,7 @@ export default function CheckInPage() {
                             </span>
                         </div>
                         <span className="text-xs text-slate-500">
-                            Gõ SĐT bệnh nhân: tự động điền hồ sơ cũ hoặc cho phép tạo hồ sơ nhanh trong 30 giây
+                            Tra cứu SĐT, Họ tên, Mã lịch hẹn hoặc CCCD để tự động nạp hồ sơ và check-in ngay
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -347,7 +830,7 @@ export default function CheckInPage() {
                             onClick={() => setIsEmergencyModalOpen(true)}
                             className="font-semibold"
                         >
-                            Bàn giao cấp cứu (RC-06)
+                            Bàn giao cấp cứu
                         </Button>
                         <Button
                             type="primary"
@@ -361,53 +844,124 @@ export default function CheckInPage() {
                 </div>
 
                 {/* Patient Search Input */}
-                <div className="relative">
+                <div className="relative" ref={searchContainerRef}>
                     <Input
                         size="large"
                         prefix={<SearchOutlined className="text-slate-400 text-lg mr-1" />}
-                        placeholder="Gõ số điện thoại để tự động điền hoặc nhập họ tên, CCCD, mã BN..."
+                        suffix={isSearching ? <Spin size="small" /> : null}
+                        placeholder="Gõ SĐT, họ tên, mã lịch hẹn (APT-...), CCCD hoặc mã BN để tra cứu..."
                         value={searchKeyword}
-                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        onFocus={() => {
+                            if (searchKeyword.trim().length > 0) {
+                                setIsSearchOpen(true)
+                            }
+                        }}
+                        onChange={(e) => {
+                            setSearchKeyword(e.target.value)
+                            if (e.target.value.trim().length > 0) {
+                                setIsSearchOpen(true)
+                            } else {
+                                setIsSearchOpen(false)
+                            }
+                        }}
                         className="rounded-xl"
                         allowClear
                     />
 
                     {/* Quick Search Dropdown Results */}
-                    {searchResults.length > 0 && !selectedPatient && (
-                        <div className="absolute top-12 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 max-h-72 overflow-y-auto space-y-1">
-                            <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase">
-                                Tìm thấy {searchResults.length} bệnh nhân:
-                            </div>
-                            {searchResults.map((p) => (
-                                <div
-                                    key={p.id}
-                                    onClick={() => handleSelectPatient(p)}
-                                    className="p-3 rounded-xl hover:bg-sky-50 flex items-center justify-between cursor-pointer transition text-xs"
-                                >
-                                    <div>
-                                        <div className="font-bold text-slate-900 flex items-center gap-2">
-                                            <span>{p.fullName}</span>
-                                            {p.isDuplicateSuspect && (
-                                                <Tag color="red" className="mr-0 text-[10px]">
-                                                    Nghi vấn trùng
-                                                </Tag>
-                                            )}
-                                        </div>
-                                        <div className="text-slate-500 text-[11px]">
-                                            Mã: <strong>{p.patientCode}</strong> • SĐT: <strong>{p.phone}</strong> • CCCD: {p.identityCard || 'Chưa có'}
-                                        </div>
+                    {isSearchOpen && hasSearchResults && searchKeyword.trim().length > 0 && (
+                        <div className="absolute top-12 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 max-h-80 overflow-y-auto space-y-2">
+                            {/* 1. Lịch hẹn hôm nay */}
+                            {searchAppointmentResults.length > 0 && (
+                                <div className="space-y-1">
+                                    <div className="px-3 py-1 text-[11px] font-bold text-sky-700 uppercase bg-sky-50 rounded-lg flex justify-between items-center">
+                                        <span className="flex items-center gap-1.5"><CalendarOutlined /> Lịch hẹn hôm nay ({searchAppointmentResults.length}):</span>
+                                        <span className="text-[10px] text-sky-600 font-normal">Bấm để Check-in ngay</span>
                                     </div>
-                                    <Button size="small" type="primary" className="bg-sky-600">
-                                        Chọn tiếp nhận
-                                    </Button>
+                                    {searchAppointmentResults.map((app) => {
+                                        const rawStatus = String(app.status || app.trang_thai_lich || app.trang_thai || '').toLowerCase()
+                                        const isAlreadyCheckedIn = Boolean(
+                                            app.da_check_in ||
+                                            app.so_thu_tu_kham ||
+                                            ['da_check_in', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
+                                        )
+
+                                        return (
+                                            <div
+                                                key={app.id}
+                                                onClick={() => handleSelectAppointmentSearchResult(app, isAlreadyCheckedIn)}
+                                                className="p-3 rounded-xl hover:bg-sky-50 border border-slate-100 flex items-center justify-between cursor-pointer transition text-xs"
+                                            >
+                                                <div>
+                                                    <div className="font-bold text-slate-900 flex items-center gap-2">
+                                                        <span className="font-mono text-sky-800">{app.ma_lich_kham || `APT-${app.id}`}</span>
+                                                        <span>•</span>
+                                                        <span>{app.ten_benh_nhan}</span>
+                                                        {isAlreadyCheckedIn ? (
+                                                            <Tag color="green" className="text-[10px] mr-0">
+                                                                Đã check-in {app.so_thu_tu_kham ? `(#${app.so_thu_tu_kham})` : ''}
+                                                            </Tag>
+                                                        ) : (
+                                                            <Tag color="blue" className="text-[10px] mr-0">Chờ check-in</Tag>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-slate-500 text-[11px] mt-0.5">
+                                                        SĐT: <strong>{app.so_dien_thoai || 'N/A'}</strong> • Giờ khám: <strong>{app.gio_kham || 'Theo ca'}</strong> • Khoa: <strong>{app.chuyen_khoa}</strong> ({app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : 'Chưa gán BS'})
+                                                    </div>
+                                                </div>
+                                                {isAlreadyCheckedIn ? (
+                                                    <Button size="small" className="text-emerald-700 bg-emerald-50 border-emerald-300 font-semibold text-xs hover:bg-emerald-100">
+                                                        Xem hồ sơ
+                                                    </Button>
+                                                ) : (
+                                                    <Button size="small" type="primary" className="bg-emerald-600 hover:bg-emerald-700 font-semibold text-xs">
+                                                        Check-in
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
                                 </div>
-                            ))}
+                            )}
+
+                            {/* 2. Danh bạ bệnh nhân */}
+                            {searchPatientResults.length > 0 && (
+                                <div className="space-y-1">
+                                    <div className="px-3 py-1 text-[11px] font-bold text-slate-500 uppercase bg-slate-50 rounded-lg">
+                                        👤 Hồ sơ bệnh nhân ({searchPatientResults.length}):
+                                    </div>
+                                    {searchPatientResults.map((p) => (
+                                        <div
+                                            key={p.id}
+                                            onClick={() => handleSelectPatient(p)}
+                                            className="p-3 rounded-xl hover:bg-sky-50 border border-slate-100 flex items-center justify-between cursor-pointer transition text-xs"
+                                        >
+                                            <div>
+                                                <div className="font-bold text-slate-900 flex items-center gap-2">
+                                                    <span>{p.fullName || p.ho_ten}</span>
+                                                    {p.isDuplicateSuspect && (
+                                                        <Tag color="red" className="mr-0 text-[10px]">
+                                                            Nghi vấn trùng
+                                                        </Tag>
+                                                    )}
+                                                </div>
+                                                <div className="text-slate-500 text-[11px] mt-0.5">
+                                                    Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> • SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> • CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
+                                                </div>
+                                            </div>
+                                            <Button size="small" type="primary" className="bg-sky-600 font-semibold text-xs">
+                                                Chọn tiếp nhận
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Bệnh nhân mới: Alert thông báo khi gõ SĐT chưa có trong hệ thống */}
-                {patientNotFoundForPhone && !selectedPatient && (
+                {isSearchOpen && patientNotFoundForPhone && searchKeyword.trim().length > 0 && (
                     <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2.5">
                             <PhoneOutlined className="text-amber-600 text-base" />
@@ -440,12 +994,22 @@ export default function CheckInPage() {
                             </Button>
                         </div>
 
-                        {/* Duplicate Alert (RC-10) */}
+                        {/* Duplicate Alert */}
                         {selectedPatient.isDuplicateSuspect && (
                             <Alert
-                                message="Cảnh báo nghi vấn trùng hồ sơ (RC-10)"
+                                message="Cảnh báo nghi vấn trùng hồ sơ"
                                 description="Bệnh nhân này có thông tin trùng với mã hồ sơ khác trong hệ thống. Lễ tân cần đối chiếu CCCD bản cứng trước khi tiếp tục."
                                 type="error"
+                                showIcon
+                            />
+                        )}
+
+                        {/* Blocked Booking / No-show Alert */}
+                        {selectedPatient.isBlockedBooking && (
+                            <Alert
+                                message="Cảnh báo: Tài khoản bị khóa tự đặt hẹn"
+                                description={`Bệnh nhân có ${selectedPatient.noShowCount} lần vắng mặt không lý do.`}
+                                type="warning"
                                 showIcon
                             />
                         )}
@@ -453,6 +1017,12 @@ export default function CheckInPage() {
                         <Descriptions size="small" column={1} bordered>
                             <Descriptions.Item label="Họ và tên">
                                 <span className="font-extrabold text-slate-900 text-sm">{selectedPatient.fullName}</span>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Giới tính">
+                                <span className="font-semibold text-slate-800">{selectedPatient.gender}</span>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Nhóm máu">
+                                <Tag color="magenta" className="font-bold">{selectedPatient.bloodType}</Tag>
                             </Descriptions.Item>
                             <Descriptions.Item label="Năm sinh">
                                 <span className="font-bold text-slate-800">
@@ -462,28 +1032,33 @@ export default function CheckInPage() {
                                 </span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Số điện thoại">
-                                <span className="font-mono font-bold text-sky-700">{selectedPatient.phone}</span>
+                                <span className="font-mono font-bold text-sky-700">{selectedPatient.phone || 'Chưa có'}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Địa chỉ">
                                 <span>{selectedPatient.address || 'Chưa cập nhật'}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Tiền sử dị ứng">
-                                {selectedPatient.allergies || selectedPatient.di_ung_thuoc ? (
+                                {selectedPatient.allergies ? (
                                     <Tag color="red" className="font-bold">
-                                        ⚠️ {selectedPatient.allergies || selectedPatient.di_ung_thuoc}
+                                        ⚠️ {selectedPatient.allergies}
                                     </Tag>
                                 ) : (
                                     <Tag color="green">Chưa ghi nhận dị ứng thuốc</Tag>
                                 )}
                             </Descriptions.Item>
+                            {selectedPatient.medicalHistory && (
+                                <Descriptions.Item label="Tiền sử bệnh">
+                                    <span className="text-slate-700">{selectedPatient.medicalHistory}</span>
+                                </Descriptions.Item>
+                            )}
                             <Descriptions.Item label="Mã hồ sơ">
-                                <span className="font-mono">{selectedPatient.patientCode}</span>
+                                <span className="font-mono font-bold text-sky-700">{selectedPatient.patientCode}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="CCCD">{selectedPatient.identityCard || 'Chưa cung cấp'}</Descriptions.Item>
                         </Descriptions>
                     </div>
 
-                    {/* Right: Check-In Decision & Form */}
+                    {/* Right: Check-In Decision & Form (Form 1) */}
                     <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                             <span className="font-bold text-slate-800 text-sm">Phương thức tiếp nhận</span>
@@ -520,11 +1095,17 @@ export default function CheckInPage() {
                                             Chọn lịch hẹn cần check-in:
                                         </label>
                                         {patientAppointments.map((app) => {
-                                            const dep = departments.find((d) => d.id === app.departmentId)
-                                            const doc = doctors.find((d) => d.id === app.doctorId)
-                                            const room = rooms.find((r) => r.id === app.roomId)
-                                            const srv = services.find((s) => s.id === app.serviceId)
+                                            const dep = departments.find((d) => d.id === (app.departmentId || app.chuyen_khoa_id))
+                                            const doc = doctors.find((d) => d.id === (app.doctorId || app.bac_si_id))
+                                            const room = rooms.find((r) => r.id === (app.roomId || app.phong_kham_id))
+                                            const srv = services.find((s) => s.id === (app.serviceId || app.dich_vu_id))
                                             const isSelected = selectedAppointment?.id === app.id
+                                            const displayCode = app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`
+                                            const displayTime = app.timeSlot || app.gio_kham || 'Theo ca khám'
+                                            const depName = app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'
+                                            const docName = app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : (doc?.name ? formatDoctorName(doc.name) : 'Theo phân bổ ca')
+                                            const roomName = app.phong_kham || room?.name || 'Phòng khám'
+                                            const srvName = app.ten_dich_vu || srv?.name || 'Khám bệnh chuyên khoa'
 
                                             return (
                                                 <div
@@ -538,15 +1119,15 @@ export default function CheckInPage() {
                                                 >
                                                     <div className="flex justify-between items-center">
                                                         <span className="font-bold text-sky-800 text-sm">
-                                                            {app.appointmentCode}
+                                                            {displayCode}
                                                         </span>
-                                                        <Tag color="blue">{app.timeSlot}</Tag>
+                                                        <Tag color="blue">{displayTime}</Tag>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2 text-slate-600">
-                                                        <div>Chuyên khoa: <strong>{dep?.name}</strong></div>
-                                                        <div>Bác sĩ: <strong>{doc?.name}</strong></div>
-                                                        <div>Phòng khám: <strong>{room?.name}</strong></div>
-                                                        <div>Dịch vụ: <strong>{srv?.name}</strong></div>
+                                                        <div>Chuyên khoa: <strong>{depName}</strong></div>
+                                                        <div>Bác sĩ: <strong>{docName}</strong></div>
+                                                        <div>Phòng khám: <strong>{roomName}</strong></div>
+                                                        <div>Dịch vụ: <strong>{srvName}</strong></div>
                                                     </div>
                                                 </div>
                                             )
@@ -555,83 +1136,130 @@ export default function CheckInPage() {
                                 )}
                             </div>
                         ) : (
-                            /* MODE 2: Walk-In Registration vào 1 trong 5 chuyên khoa */
-                            <div className="space-y-4">
-                                <Alert
-                                    message="Tiếp nhận bệnh nhân vào 1 trong 5 Chuyên khoa"
-                                    description="Hệ thống tự động cấp mã số thứ tự (STT) theo tiền tố buồng khám: NOI-01, TMH-02, RHM-01, MAT-01, DL-01..."
-                                    type="info"
-                                    showIcon
-                                />
-
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-bold text-slate-700 uppercase">
-                                        Chọn Chuyên khoa khám bệnh <span className="text-red-500">*</span>:
-                                    </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                                        {FIVE_SPECIALTIES.map((spec) => {
-                                            const isSelected = walkInDepartmentId === spec.id || walkInDepartmentId === spec.code
-                                            return (
-                                                <div
-                                                    key={spec.id}
-                                                    onClick={() => handleWalkInDepartmentChange(spec.id)}
-                                                    className={`p-3 rounded-xl border-2 transition cursor-pointer text-left ${
-                                                        isSelected
-                                                            ? 'border-sky-500 bg-sky-50 shadow-xs ring-2 ring-sky-200'
-                                                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="font-bold text-slate-900 text-xs">{spec.name}</span>
-                                                        <Tag color={isSelected ? 'geekblue' : 'default'} className="font-mono font-bold text-[10px]">
-                                                            {spec.prefix}-xx
-                                                        </Tag>
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500 mt-1">
-                                                        Buồng: <strong>{spec.defaultRoom}</strong>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
+                            /* MODE 2: Tiếp nhận khám trực tiếp (Walk-In) - Form 1 đồng nhất 100% với Form 2 */
+                            <div className="space-y-3 text-xs">
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block font-bold text-slate-700 uppercase">
+                                            Chuyên khoa khám <span className="text-red-500">*</span>
+                                        </label>
+                                        {loadingSpecialties && <Spin size="small" />}
                                     </div>
+                                    <Select
+                                        className="w-full"
+                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        value={walkInDepartmentId}
+                                        onChange={handleWalkInDepartmentChange}
+                                        options={(specialtiesList.length > 0 ? specialtiesList : departments || []).map((s) => ({
+                                            value: s.id,
+                                            label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
+                                        }))}
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block font-bold text-slate-700 uppercase">
+                                            Bác sĩ tiếp nhận khám (kèm buồng khám theo ca trực):
+                                        </label>
+                                        {loadingWalkInDocs && <Spin size="small" />}
+                                    </div>
+                                    <Select
+                                        className="w-full"
+                                        placeholder={
+                                            loadingWalkInDocs
+                                                ? "Đang tải danh sách bác sĩ..."
+                                                : !walkInDepartmentId
+                                                  ? "Chọn chuyên khoa trước"
+                                                  : walkInDoctors.length === 0
+                                                    ? "Khoa này chưa có bác sĩ"
+                                                    : "Chọn bác sĩ hoặc để tự động"
+                                        }
+                                        allowClear
+                                        loading={loadingWalkInDocs}
+                                        disabled={!walkInDepartmentId || loadingWalkInDocs}
+                                        value={walkInDoctorId || undefined}
+                                        onChange={handleWalkInDoctorChange}
+                                        options={[
+                                            { value: '', label: '⚡ Tự động phân bổ bác sĩ' },
+                                            ...walkInDoctors.map((d) => ({
+                                                value: d.id,
+                                                label: `${formatDoctorName(d.name, d.title)}${d.roomName ? ` — ${d.roomName}` : ''}${d.status === 'ON_LEAVE' ? ' (Nghỉ)' : ''}`,
+                                                disabled: d.status === 'ON_LEAVE',
+                                            })),
+                                        ]}
+                                    />
                                 </div>
                             </div>
                         )}
 
-                        {/* Room Capacity Alert */}
-                        {isRoomOverloaded && (
-                            <Alert
-                                message="Cảnh báo: Buồng khám đang vượt tải tối ưu"
-                                description="Số lượng bệnh nhân chờ tại buồng khám này hiện đang vượt ngưỡng công suất khuyến nghị."
-                                type="warning"
-                                showIcon
-                            />
-                        )}
-
-                        {/* Priority selection & Notes */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-100">
+                        {/* Priority selection & Notes (Áp dụng cho cả Check-in và Walk-in) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-3 border-t border-slate-100">
                             <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">Diện ưu tiên</label>
+                                <label className="block font-bold text-slate-700 uppercase mb-1">
+                                    Mức độ ưu tiên <span className="text-red-500">*</span>
+                                </label>
                                 <Select
                                     className="w-full"
                                     value={priorityType}
                                     onChange={(val) => setPriorityType(val)}
                                     options={[
-                                        { value: 'NORMAL', label: 'Bình thường (NORMAL)' },
-                                        { value: 'PRIORITY', label: 'Ưu tiên (Người già >=80t, trẻ em, phụ nữ có thai)' },
-                                        { value: 'EMERGENCY', label: 'Cấp cứu nhẹ' },
+                                        { value: 'NORMAL', label: 'Bình thường' },
+                                        { value: 'PRIORITY', label: 'Ưu tiên đặc biệt' },
                                     ]}
                                 />
                             </div>
-                            <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">Ghi chú tiếp nhận</label>
+                            {priorityType === 'PRIORITY' ? (
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Diện ưu tiên (Theo quy định) <span className="text-red-500">*</span>
+                                    </label>
+                                    <Select
+                                        className="w-full"
+                                        value={priorityReason}
+                                        onChange={(val) => setPriorityReason(val)}
+                                        options={PRIORITY_REASONS}
+                                    />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        {checkInMode === 'WITH_APPOINTMENT' ? 'Ghi chú điều phối' : 'Lý do khám / Triệu chứng'}
+                                    </label>
+                                    <Input
+                                        placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
+                                        value={checkInNotes}
+                                        onChange={(e) => setCheckInNotes(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {priorityType === 'PRIORITY' && (
+                            <div className="text-xs pt-1">
+                                <label className="block font-bold text-slate-700 uppercase mb-1">
+                                    {checkInMode === 'WITH_APPOINTMENT' ? 'Ghi chú điều phối' : 'Lý do khám / Triệu chứng'}
+                                </label>
                                 <Input
-                                    placeholder="Lưu ý về triệu chứng ban đầu..."
+                                    placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
                                     value={checkInNotes}
                                     onChange={(e) => setCheckInNotes(e.target.value)}
                                 />
                             </div>
-                        </div>
+                        )}
+
+                        {/* Waitlist Checkbox */}
+                        {checkInMode === 'WALK_IN' && (
+                            <div className="pt-2">
+                                <Checkbox
+                                    checked={walkInAutoWaitlist}
+                                    onChange={(e) => setWalkInAutoWaitlist(e.target.checked)}
+                                    className="text-xs text-amber-800 font-medium"
+                                >
+                                    Đăng ký Danh sách chờ (Waitlist) nếu bác sĩ đã đủ chỉ tiêu tiếp nhận trong ca
+                                </Checkbox>
+                            </div>
+                        )}
 
                         {/* Action Submit */}
                         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -650,7 +1278,7 @@ export default function CheckInPage() {
                     </div>
                 </div>
             ) : (
-                /* Empty State + Form Tiếp nhận nhanh Walk-in */
+                /* Empty State + Form 2: Tiếp nhận nhanh Walk-in (Quick Walk-in) đồng bộ hoàn toàn */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Cột 1: Hướng dẫn tìm kiếm */}
                     <div className="bg-white p-8 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4 text-center flex flex-col justify-center">
@@ -660,7 +1288,7 @@ export default function CheckInPage() {
                         <div>
                             <h3 className="text-base font-bold text-slate-800">Tra cứu hoặc Tạo mới người bệnh</h3>
                             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                                Nhập số điện thoại vào ô tìm kiếm để tự động nạp hồ sơ cũ (Họ tên, Năm sinh, Địa chỉ, Tiền sử dị ứng).
+                                Nhập số điện thoại, họ tên hoặc mã lịch hẹn vào ô tìm kiếm để nạp hồ sơ cũ và check-in ngay.
                             </p>
                         </div>
                         <div className="pt-2">
@@ -675,64 +1303,192 @@ export default function CheckInPage() {
                         </div>
                     </div>
 
-                    {/* Cột 2: Tiếp nhận nhanh trực tiếp tại quầy (Quick Walk-in) */}
+                    {/* Cột 2: Tiếp nhận nhanh trực tiếp tại quầy (Quick Walk-in) - ĐỒNG BỘ ĐẦY ĐỦ TRƯỜNG */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3 text-xs">
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
                             <ThunderboltOutlined className="text-amber-500 text-base" />
-                            <h3 className="font-bold text-slate-800 text-sm">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-sm">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Cấp số thứ tự khám ngay tại quầy — Chọn Bác sĩ trực & Mức độ ưu tiên</p>
+                            </div>
                         </div>
+
                         <div className="space-y-3">
                             <div>
                                 <label className="block font-bold text-slate-700 uppercase mb-1">
                                     Họ và tên bệnh nhân <span className="text-red-500">*</span>
                                 </label>
                                 <Input
-                                    placeholder="Nhập họ và tên..."
+                                    placeholder="Nhập đầy đủ họ và tên bệnh nhân..."
                                     value={quickWalkInForm.fullName}
                                     onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, fullName: e.target.value })}
                                 />
                             </div>
+
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block font-bold text-slate-700 uppercase mb-1">
                                         Số điện thoại <span className="text-red-500">*</span>
                                     </label>
                                     <Input
-                                        placeholder="09..."
+                                        placeholder="0912345678 (10 số)"
+                                        maxLength={10}
                                         value={quickWalkInForm.phone}
-                                        onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, phone: e.target.value })}
+                                        onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, phone: e.target.value.replace(/\D/g, '') })}
                                     />
                                 </div>
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">Giới tính</label>
+                                    <Select
+                                        className="w-full"
+                                        value={quickWalkInForm.gender}
+                                        onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, gender: val })}
+                                        options={[
+                                            { value: 'Nam', label: 'Nam' },
+                                            { value: 'Nữ', label: 'Nữ' },
+                                            { value: 'Khác', label: 'Khác' },
+                                        ]}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block font-bold text-slate-700 uppercase mb-1">Năm sinh</label>
                                     <Input
                                         placeholder="Ví dụ: 1990"
+                                        maxLength={4}
                                         value={quickWalkInForm.birthYear}
-                                        onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, birthYear: e.target.value })}
+                                        onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, birthYear: e.target.value.replace(/\D/g, '') })}
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block font-bold text-slate-700 uppercase">
+                                            Chuyên khoa khám <span className="text-red-500">*</span>
+                                        </label>
+                                        {loadingSpecialties && <Spin size="small" />}
+                                    </div>
+                                    <Select
+                                        className="w-full"
+                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        value={quickWalkInForm.departmentId}
+                                        onChange={handleQuickDepartmentChange}
+                                        options={(specialtiesList.length > 0 ? specialtiesList : departments || []).map((s) => ({
+                                            value: s.id,
+                                            label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
+                                        }))}
                                     />
                                 </div>
                             </div>
+
+                            {/* Bác sĩ khám (API động kết hợp buồng khám theo ca trực hôm nay) */}
                             <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
-                                    Chọn 1 trong 5 Chuyên khoa khám <span className="text-red-500">*</span>
-                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block font-bold text-slate-700 uppercase">
+                                        Bác sĩ tiếp nhận khám (kèm buồng khám theo ca trực):
+                                    </label>
+                                    {loadingQuickDocs && <Spin size="small" />}
+                                </div>
                                 <Select
                                     className="w-full"
-                                    value={quickWalkInForm.departmentId}
-                                    onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, departmentId: val })}
-                                    options={FIVE_SPECIALTIES.map((s) => ({
-                                        value: s.id,
-                                        label: `${s.name} (${s.prefix}-xx) • ${s.defaultRoom}`,
-                                    }))}
+                                    placeholder={
+                                        loadingQuickDocs
+                                            ? "Đang tải danh sách bác sĩ..."
+                                            : !quickWalkInForm.departmentId
+                                              ? "Chọn chuyên khoa trước"
+                                              : quickWalkInDoctors.length === 0
+                                                ? "Khoa này chưa có bác sĩ"
+                                                : "Chọn bác sĩ hoặc để tự động"
+                                    }
+                                    allowClear
+                                    loading={loadingQuickDocs}
+                                    disabled={!quickWalkInForm.departmentId || loadingQuickDocs}
+                                    value={quickWalkInForm.doctorId || undefined}
+                                    onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, doctorId: val || null })}
+                                    options={[
+                                        { value: '', label: '⚡ Tự động phân bổ bác sĩ' },
+                                        ...quickWalkInDoctors.map((d) => ({
+                                            value: d.id,
+                                            label: `${formatDoctorName(d.name, d.title)}${d.roomName ? ` — ${d.roomName}` : ''}${d.status === 'ON_LEAVE' ? ' (Nghỉ)' : ''}`,
+                                            disabled: d.status === 'ON_LEAVE',
+                                        })),
+                                    ]}
                                 />
                             </div>
+
+                            {/* Mức độ ưu tiên đồng bộ */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Mức độ ưu tiên <span className="text-red-500">*</span>
+                                    </label>
+                                    <Select
+                                        className="w-full"
+                                        value={quickWalkInForm.priority}
+                                        onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, priority: val })}
+                                        options={[
+                                            { value: 'NORMAL', label: 'Bình thường' },
+                                            { value: 'PRIORITY', label: 'Ưu tiên đặc biệt' },
+                                        ]}
+                                    />
+                                </div>
+                                {quickWalkInForm.priority === 'PRIORITY' ? (
+                                    <div>
+                                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                                            Diện ưu tiên (Theo quy định) <span className="text-red-500">*</span>
+                                        </label>
+                                        <Select
+                                            className="w-full"
+                                            value={quickWalkInForm.priorityReason}
+                                            onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, priorityReason: val })}
+                                            options={PRIORITY_REASONS}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                                            Lý do khám / Triệu chứng
+                                        </label>
+                                        <Input
+                                            placeholder="Ví dụ: Ho khan, đau đầu, khám định kỳ..."
+                                            value={quickWalkInForm.reason}
+                                            onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, reason: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {quickWalkInForm.priority === 'PRIORITY' && (
+                                <div>
+                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        Lý do khám / Triệu chứng
+                                    </label>
+                                    <Input
+                                        placeholder="Ví dụ: Cấp cứu nhẹ, đau bụng dữ dội, người già đi một mình..."
+                                        value={quickWalkInForm.reason}
+                                        onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, reason: e.target.value })}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="py-1">
+                                <Checkbox
+                                    checked={quickAutoWaitlist}
+                                    onChange={(e) => setQuickAutoWaitlist(e.target.checked)}
+                                    className="text-xs text-amber-800 font-medium"
+                                >
+                                    Đăng ký Danh sách chờ (Waitlist) nếu bác sĩ đã đủ chỉ tiêu tiếp nhận
+                                </Checkbox>
+                            </div>
+
                             <Button
                                 type="primary"
                                 block
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleQuickWalkInSubmit}
                                 loading={isSubmitting}
-                                className="bg-emerald-600 hover:bg-emerald-700 font-bold py-2 h-auto text-sm mt-2"
+                                className="bg-emerald-600 hover:bg-emerald-700 font-bold py-2.5 h-auto text-sm mt-1"
                             >
                                 Cấp STT Khám Nhanh & In Phiếu
                             </Button>

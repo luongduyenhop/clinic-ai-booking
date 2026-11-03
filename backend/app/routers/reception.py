@@ -10,10 +10,12 @@ from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.models.user import BenhNhan, TaiKhoan, VaiTroEnum
 from app.schemas.queue import (
+    ReceptionWaitlistResponse,
     CheckInRequest,
     WalkInCheckInRequest,
     WalkInQuickRequest,
     QueueTicketResponse,
+    TransferTicketRequest,
     CloseTicketRequest,
     CloseTicketResponse,
     DoctorQueueBoardResponse,
@@ -28,6 +30,11 @@ from app.schemas.queue import (
     PatientPackageItem,
     PatientHistorySummaryResponse,
     ProcessNoShowResponse,
+    ReceptionReportSummaryResponse,
+    ReceptionAuditLogResponse,
+    PreCloseShiftAuditResponse,
+    CloseReceptionShiftRequest,
+    CloseReceptionShiftResponse,
 )
 from app.schemas.incident import (
     DoctorAbsenceIncidentResponse,
@@ -153,12 +160,13 @@ async def check_in_walk_in(
 async def get_doctor_queue(
     doctor_id: int,
     query_date: Optional[date] = Query(None, description="Ngày cần tra cứu hàng đợi (YYYY-MM-DD)"),
+    ca_kham: Optional[str] = Query(None, description="Lọc theo ca khám: sang hoặc chieu"),
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     if current_user.vai_tro not in QUEUE_VIEW_ROLES:
         raise ForbiddenException("Bạn không có quyền xem thông tin hàng đợi phòng khám!")
-    result = await queue_service.get_doctor_queue_board(doctor_id, query_date, db)
+    result = await queue_service.get_doctor_queue_board(doctor_id, query_date, ca_kham, db)
     return ResponseEnvelope.success_response(
         data=result,
         message="Lấy dữ liệu bảng hàng đợi phòng khám thành công"
@@ -179,6 +187,26 @@ async def restore_ticket(
     return ResponseEnvelope.success_response(
         data=result,
         message="Đã phục hồi vé khám vào hàng đợi thành công"
+    )
+
+
+@router.post(
+    "/queue/{ticket_id}/transfer",
+    response_model=ResponseEnvelope[QueueTicketResponse],
+    summary="Lễ tân điều chuyển buồng khám / bác sĩ cho một lượt khám trong hàng đợi (FC-14)"
+)
+async def transfer_ticket(
+    ticket_id: int,
+    payload: TransferTicketRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
+        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền điều chuyển buồng khám!")
+    result = await queue_service.transfer_ticket(ticket_id, payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Đã điều chuyển lượt khám sang buồng {result.phong_kham or ''} thành công"
     )
 
 
@@ -386,12 +414,18 @@ async def rebalance_queue(
 async def get_roster_resources(
     query_date: Optional[date] = Query(None, description="Ngày cần xem lịch trực (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Lọc theo ca làm việc: sang hoặc chieu"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
         raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu lịch phân ca trực!")
-    result = await queue_service.get_roster_resources(query_date, ca_kham, db)
+    result = await queue_service.get_roster_resources(
+        query_date=query_date,
+        ca_kham=ca_kham,
+        chuyen_khoa_id=chuyen_khoa_id,
+        db=db,
+    )
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Lấy danh sách phân ca trực thành công ({len(result)} ca)"
@@ -602,6 +636,163 @@ async def process_no_shows_end_of_shift(
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Đã xử lý {result.tong_so_no_show} lịch hẹn no-show ({result.so_benh_nhan_bi_khoa_moi} bệnh nhân bị khóa đặt hẹn)"
+    )
+
+
+
+
+# =========================================================================
+# FC-19: DANH SÁCH CHỜ (WAITLIST) TẠI QUẦY LỄ TÂN
+# =========================================================================
+@router.get(
+    "/waitlist",
+    response_model=ResponseEnvelope[ReceptionWaitlistResponse],
+    summary="Tra cứu danh sách người bệnh đang chờ slot trong ngày (Waitlist) của Lễ tân"
+)
+async def get_reception_waitlist(
+    query_date: Optional[date] = Query(None, description="Ngày khám cần xem (mặc định hôm nay)"),
+    ca_kham: Optional[str] = Query(None, description="Lọc theo ca khám (sang/chieu)"),
+    bac_si_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu danh sách chờ!")
+    result = await queue_service.get_reception_waitlist(query_date, ca_kham, bac_si_id, chuyen_khoa_id, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy danh sách chờ thành công ({result.total} người bệnh)"
+    )
+
+
+@router.post(
+    "/waitlist/{waitlist_id}/check-in",
+    response_model=ResponseEnvelope[QueueTicketResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Lễ tân tiếp nhận chính thức bệnh nhân từ Danh sách chờ vào Hàng đợi khám"
+)
+async def check_in_from_waitlist(
+    waitlist_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
+        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền tiếp nhận từ danh sách chờ!")
+    result = await queue_service.check_in_from_waitlist(waitlist_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Tiếp nhận bệnh nhân từ danh sách chờ thành công! Đã cấp số thứ tự khám: #{result.so_thu_tu_kham} ({result.ma_so_thu_tu})",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.delete(
+    "/waitlist/{waitlist_id}",
+    response_model=ResponseEnvelope[dict],
+    summary="Lễ tân hủy lượt chờ của người bệnh trong Danh sách chờ"
+)
+async def cancel_waitlist_entry(
+    waitlist_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
+        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền hủy lượt chờ!")
+    result = await queue_service.cancel_waitlist_entry(waitlist_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result["message"]
+    )
+
+
+# ============================================================================
+# Phân hệ 9: Báo cáo đối soát & Nhật ký kiểm toán (Reports & Audit Trail)
+# ============================================================================
+
+@router.get(
+    "/reports/summary",
+    response_model=ResponseEnvelope[ReceptionReportSummaryResponse],
+    summary="Báo cáo đối soát vận hành tiếp đón & phân bổ chuyên khoa (Phân hệ 9)"
+)
+async def get_reception_report_summary(
+    query_date: Optional[date] = Query(None, description="Ngày đối soát (mặc định hôm nay)"),
+    ca_kham: Optional[str] = Query(None, description="Ca khám ('sang' hoặc 'chieu', bỏ trống là toàn ngày)"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem báo cáo đối soát!")
+    result = await queue_service.get_reception_report_summary(query_date, ca_kham, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy dữ liệu báo cáo đối soát tiếp đón thành công"
+    )
+
+
+@router.get(
+    "/reports/audit-logs",
+    response_model=ResponseEnvelope[ReceptionAuditLogResponse],
+    summary="Nhật ký kiểm toán thao tác tiếp đón & điều phối hàng đợi (Phân hệ 9)"
+)
+async def get_reception_audit_logs(
+    query_date: Optional[date] = Query(None, description="Ngày tra cứu nhật ký (mặc định hôm nay)"),
+    action_type: Optional[str] = Query(None, description="Lọc theo loại thao tác"),
+    search: Optional[str] = Query(None, description="Từ khóa tìm kiếm (Tên BN, SĐT, Số vé, Lễ tân...)"),
+    page: int = Query(1, ge=1, description="Trang hiện tại"),
+    page_size: int = Query(10, ge=1, le=100, description="Kích thước trang"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem nhật ký kiểm toán tiếp đón!")
+    result = await queue_service.get_reception_audit_logs(query_date, action_type, search, page, page_size, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy danh sách nhật ký kiểm toán thành công ({len(result.items)} bản ghi)"
+    )
+
+
+# ============================================================================
+# Quản lý Đóng & Bàn giao Ca trực Lễ tân (Reception Shift Close & Handover)
+# ============================================================================
+
+@router.get(
+    "/shift/pre-close-audit",
+    response_model=ResponseEnvelope[PreCloseShiftAuditResponse],
+    summary="Đối soát và quét việc chưa xong trước khi đóng ca trực Lễ tân"
+)
+async def get_shift_pre_close_audit(
+    ca_kham: str = Query(..., description="Ca khám: 'sang' hoặc 'chieu'"),
+    query_date: Optional[date] = Query(None, description="Ngày đối soát (mặc định hôm nay)"),
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền đối soát ca trực!")
+    result = await queue_service.get_shift_pre_close_audit(ca_kham, query_date, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Đối soát trước đóng ca {ca_kham} thành công"
+    )
+
+
+@router.post(
+    "/shift/close",
+    response_model=ResponseEnvelope[CloseReceptionShiftResponse],
+    summary="Thực hiện Đóng ca trực Lễ tân & Bàn giao ca"
+)
+async def close_reception_shift(
+    payload: CloseReceptionShiftRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
+        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền đóng ca trực!")
+    result = await queue_service.close_reception_shift(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Đóng ca trực {result.ca_kham_dong} thành công! Đã chuyển {result.so_ve_chuyen_ca_chieu} vé sang ca chiều, đóng {result.so_ve_dong} vé tồn và chốt {result.so_lich_chot_no_show} lịch No-show."
     )
 
 

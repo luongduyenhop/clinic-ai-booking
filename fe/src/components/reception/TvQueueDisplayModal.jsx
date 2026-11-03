@@ -60,16 +60,7 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
         }
     }
 
-    const activeRooms =
-        rooms.length > 0
-            ? rooms
-            : [
-                  { id: 'P101', name: 'Phòng 101 - Nội Tổng Quát', doctor: 'BS.CKI Nguyễn Văn Hùng' },
-                  { id: 'P102', name: 'Phòng 102 - Ngoại Khoa', doctor: 'ThS.BS Trần Minh Tuấn' },
-                  { id: 'P201', name: 'Phòng 201 - Mắt (Nhãn Khoa)', doctor: 'BS.CKII Lê Thu Hà' },
-                  { id: 'P202', name: 'Phòng 202 - Tai Mũi Họng', doctor: 'BS.CKI Phạm Quốc Bảo' },
-                  { id: 'P203', name: 'Phòng 203 - Răng Hàm Mặt', doctor: 'ThS.BS Hoàng Mai Anh' },
-              ]
+    const activeRooms = rooms || []
 
     // Phân loại Tier ưu tiên cho Màn hình TV Gọi Số (Lát cắt C - Tiered Priority)
     const getQueueTier = (entry) => {

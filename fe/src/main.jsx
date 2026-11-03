@@ -12,13 +12,12 @@ import ErrorBoundary from './components/error/ErrorBoundary'
 injectStore(store)
 
 createRoot(document.getElementById('root')).render(
-    <StrictMode>
-        <ErrorBoundary>
-            <Provider store={store}>
-                <BrowserRouter>
-                    <App />
-                </BrowserRouter>
-            </Provider>
-        </ErrorBoundary>
-    </StrictMode>
+
+    <ErrorBoundary>
+        <Provider store={store}>
+            <BrowserRouter>
+                <App />
+            </BrowserRouter>
+        </Provider>
+    </ErrorBoundary>
 )

@@ -1,7 +1,26 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { receptionService, FIVE_SPECIALTIES } from '../../../services/reception/receptionService'
+import dayjs from 'dayjs'
+import { receptionService } from '../../../services/reception/receptionService'
 import { unwrapApi, unwrapPagedApi, pickErrorMessage } from '../../../utils/helpers/apiHelper'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../../../services/clinicalEventBridge'
+
+export function formatCheckInTime(val) {
+    if (!val) return getTimeString()
+    if (typeof val === 'string' && /^\d{2}:\d{2}$/.test(val)) return val
+    try {
+        let parseTarget = val
+        const hasTz = typeof val === 'string' && (val.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(val))
+        if (typeof val === 'string' && !hasTz) {
+            parseTarget = val + 'Z'
+        }
+        const d = dayjs(parseTarget)
+        if (d.isValid()) {
+            return d.format('HH:mm')
+        }
+    } catch {
+    }
+    return typeof val === 'string' ? val.slice(11, 16) : getTimeString()
+}
 
 function getTimeString() {
     const now = new Date()
@@ -11,10 +30,11 @@ function getTimeString() {
 
 export function normalizeTicket(ticket, defaultPatient = null) {
     if (!ticket) return null
+    const rawId = ticket.ticket_id ?? ticket.id
     const ticketNum = ticket.ma_so_thu_tu || (ticket.so_thu_tu_kham ? String(ticket.so_thu_tu_kham).padStart(2, '0') : '01')
     return {
-        id: ticket.id ? `QUE${String(ticket.id).padStart(3, '0')}` : `QUE${String(Date.now()).slice(-4)}`,
-        backendId: ticket.id,
+        id: rawId ? `QUE${String(rawId).padStart(3, '0')}` : `QUE${String(Date.now()).slice(-4)}`,
+        backendId: rawId,
         ticketNumber: ticketNum,
         ma_so_thu_tu: ticketNum,
         so_thu_tu_kham: ticket.so_thu_tu_kham,
@@ -24,16 +44,18 @@ export function normalizeTicket(ticket, defaultPatient = null) {
         appointmentId: ticket.lich_kham_id,
         doctorId: ticket.bac_si_id,
         doctorName: ticket.ten_bac_si || '',
-        roomId: ticket.phong_kham || ticket.phong_kham_id || '',
+        roomId: ticket.phong_kham_id || ticket.phong_kham || '',
+        backendRoomId: ticket.phong_kham_id || null,
         roomName: ticket.phong_kham || '',
         departmentId: ticket.chuyen_khoa_id,
-        checkInTime: ticket.thoi_gian_check_in
-            ? (typeof ticket.thoi_gian_check_in === 'string' ? ticket.thoi_gian_check_in.slice(11, 16) : getTimeString())
-            : getTimeString(),
+        departmentName: ticket.chuyen_khoa || ticket.ten_chuyen_khoa || '',
+        checkInTime: formatCheckInTime(ticket.thoi_gian_check_in),
         waitTimeMinutes: ticket.thoi_gian_cho_phut || 0,
         status: ticket.trang_thai || 'CHO_KHAM',
         callCount: ticket.so_lan_goi || 0,
-        priority: ticket.muc_do_uu_tien === 1 ? 'EMERGENCY' : (ticket.muc_do_uu_tien <= 3 ? 'PRIORITY' : 'NORMAL'),
+        priority: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')) ? 'EMERGENCY' : ((ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')) ? 'PRIORITY' : 'NORMAL'),
+        isEmergency: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')),
+        isSpecialPriority: !(/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')) && (ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')),
         muc_do_uu_tien: ticket.muc_do_uu_tien || 5,
         priorityReason: ticket.ghi_chu_dieu_phoi || '',
         notes: ticket.ghi_chu_dieu_phoi || '',
@@ -47,11 +69,11 @@ export const fetchReceptionDataAsync = createAsyncThunk(
     'reception/fetchAll',
     async (_, { rejectWithValue }) => {
         try {
-            const [specsRes, roomsRes, flowRes, docsRes] = await Promise.allSettled([
+            const [specsRes, roomsRes, docsRes, srvsRes] = await Promise.allSettled([
                 receptionService.getSpecialties(),
                 receptionService.getRooms(),
-                receptionService.getFlowBoard(),
                 receptionService.getDoctors(),
+                receptionService.getServices(),
             ])
 
             const departments = specsRes.status === 'fulfilled'
@@ -61,7 +83,7 @@ export const fetchReceptionDataAsync = createAsyncThunk(
                     code: s.ma_chuyen_khoa || s.code,
                     room: s.vi_tri_phong || s.room,
                 }))
-                : FIVE_SPECIALTIES
+                : []
 
             const rooms = roomsRes.status === 'fulfilled'
                 ? (unwrapApi(roomsRes.value) || []).map((r) => ({
@@ -79,20 +101,29 @@ export const fetchReceptionDataAsync = createAsyncThunk(
                     id: d.id,
                     name: d.ho_ten || d.name,
                     departmentId: d.chuyen_khoa_id,
+                    roomId: d.phong_kham_id,
+                    phong_kham_id: d.phong_kham_id,
                     room: d.phong_lam_viec,
                     isAvailable: d.is_active !== false,
                 }))
                 : []
 
-            const flowData = flowRes.status === 'fulfilled' ? unwrapApi(flowRes.value) : null
-            const rawQueue = flowData?.danh_sach || (Array.isArray(flowData) ? flowData : [])
-            const queueEntries = rawQueue.map((t) => normalizeTicket(t))
+            const services = srvsRes.status === 'fulfilled'
+                ? (unwrapApi(srvsRes.value) || []).map((s) => ({
+                    id: s.id,
+                    code: s.ma_dich_vu,
+                    name: s.ten_dich_vu,
+                    price: s.don_gia,
+                    unit: s.don_vi_tinh,
+                    group: s.nhom_dich_vu,
+                }))
+                : []
 
             return {
-                departments: departments.length > 0 ? departments : FIVE_SPECIALTIES,
+                departments,
                 rooms,
                 doctors,
-                queueEntries,
+                services,
             }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Lỗi tải dữ liệu quầy lễ tân'))
@@ -100,19 +131,94 @@ export const fetchReceptionDataAsync = createAsyncThunk(
     }
 )
 
+export const fetchShiftDashboardAsync = createAsyncThunk(
+    'reception/fetchShiftDashboard',
+    async ({ queryDate, caKham } = {}, { rejectWithValue }) => {
+        try {
+            const params = {
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+            }
+            const [shiftRes, roomStatusRes] = await Promise.allSettled([
+                receptionService.getShiftDashboard(params),
+                receptionService.getRoomStatusDashboard(params),
+            ])
+
+            const shiftSummary = shiftRes.status === 'fulfilled' ? unwrapApi(shiftRes.value) : null
+            const roomStatus = roomStatusRes.status === 'fulfilled' ? unwrapApi(roomStatusRes.value) : null
+
+            return {
+                shiftSummary,
+                roomStatus: roomStatus?.danh_sach || roomStatus?.buong_kham || (Array.isArray(roomStatus) ? roomStatus : []),
+            }
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải thống kê ca trực lễ tân'))
+        }
+    }
+)
+
+export const fetchDoctorQueueAsync = createAsyncThunk(
+    'reception/fetchDoctorQueue',
+    async ({ doctorId, queryDate } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getDoctorQueue(doctorId, {
+                query_date: queryDate || undefined,
+            })
+            const data = unwrapApi(res)
+            const rawList = data?.danh_sach_tat_ca || [
+                ...(data?.benh_nhan_dang_kham ? [data.benh_nhan_dang_kham] : []),
+                ...(data?.danh_sach_cho_kham || []),
+                ...(data?.danh_sach_tam_hoan || []),
+                ...(data?.danh_sach_da_kham || []),
+            ]
+            return rawList.map((t) => normalizeTicket(t))
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi lấy bảng hàng đợi buồng khám'))
+        }
+    }
+)
+
 export const fetchFlowBoardAsync = createAsyncThunk(
     'reception/fetchFlowBoard',
-    async ({ queryDate, doctorId } = {}, { rejectWithValue }) => {
+    async ({ queryDate, doctorId, roomId } = {}, { rejectWithValue }) => {
         try {
             const res = await receptionService.getFlowBoard({
                 query_date: queryDate || undefined,
                 doctor_id: doctorId || undefined,
+                room_id: roomId || undefined,
             })
             const data = unwrapApi(res)
             const rawList = data?.danh_sach || (Array.isArray(data) ? data : [])
-            return rawList.map((t) => normalizeTicket(t))
+            const items = rawList.map((t) => normalizeTicket(t))
+            return {
+                summary: {
+                    ngayTheoDoi: data?.ngay_theo_doi,
+                    tongSoTiepNhan: data?.tong_so_tiep_nhan ?? items.length,
+                    soDangCho: data?.so_dang_cho ?? items.filter((x) => x.status === 'cho_kham' || x.status === 'dang_cho').length,
+                    soDangKham: data?.so_dang_kham ?? items.filter((x) => x.status === 'dang_kham').length,
+                    soTamHoan: data?.so_tam_hoan ?? items.filter((x) => x.status === 'tam_hoan').length,
+                    soHoanThanh: data?.so_hoan_thanh ?? items.filter((x) => x.status === 'hoan_thanh' || x.status === 'da_kham').length,
+                },
+                items,
+            }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Lỗi lấy bảng hàng đợi'))
+        }
+    }
+)
+
+export const searchAppointmentsAsync = createAsyncThunk(
+    'reception/searchAppointments',
+    async ({ q, queryDate } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.searchAppointments({
+                q: q?.trim(),
+                query_date: queryDate || undefined,
+            })
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Tìm kiếm lịch hẹn thất bại'))
         }
     }
 )
@@ -170,58 +276,38 @@ export const checkInAppointmentAsync = createAsyncThunk(
     }
 )
 
-export const registerWalkInQuickAsync = createAsyncThunk(
-    'reception/registerWalkInQuick',
+export const registerWalkInAsync = createAsyncThunk(
+    'reception/registerWalkIn',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
         try {
-            const res = await receptionService.walkInQuick({
-                ho_ten: payload.fullName || payload.ho_ten,
-                so_dien_thoai: payload.phone || payload.so_dien_thoai,
-                gioi_tinh: payload.gender || payload.gioi_tinh || 'Khác',
-                nam_sinh: payload.birthYear ? Number(payload.birthYear) : (payload.dob ? new Date(payload.dob).getFullYear() : null),
-                chuyen_khoa_id: payload.departmentId && !isNaN(payload.departmentId) ? Number(payload.departmentId) : null,
+            const res = await receptionService.walkIn({
+                benh_nhan_id: payload.patientId ? (Number(payload.patientId) || payload.patientId) : undefined,
+                ho_ten: payload.fullName || payload.ho_ten || undefined,
+                so_dien_thoai: payload.phone || payload.so_dien_thoai || undefined,
+                gioi_tinh: payload.gender || payload.gioi_tinh || undefined,
+                nam_sinh: payload.birthYear ? Number(payload.birthYear) : (payload.dob ? new Date(payload.dob).getFullYear() : undefined),
                 bac_si_id: payload.doctorId && !isNaN(payload.doctorId) ? Number(payload.doctorId) : null,
+                chuyen_khoa_id: payload.departmentId && !isNaN(payload.departmentId) ? Number(payload.departmentId) : null,
                 ca_kham: payload.shift || 'sang',
-                ly_do_kham: payload.notes || 'Khám bệnh vãng lai',
-                ly_do_uu_tien: payload.priorityReason || null,
+                ly_do_kham: payload.notes || payload.reason || 'Khám bệnh vãng lai',
+                ghi_chu: payload.notes || payload.reason,
+                ly_do_uu_tien: payload.priorityReason || (payload.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : (payload.priority === 'PRIORITY' ? 'nguoi_gia' : null)),
+                dang_ky_waitlist_neu_het_cho: Boolean(payload.dangKyWaitlistNeuHetCho || payload.dang_ky_waitlist_neu_het_cho),
             })
             const data = unwrapApi(res)
             const ticket = normalizeTicket(data, {
                 fullName: payload.fullName || payload.ho_ten,
                 phone: payload.phone || payload.so_dien_thoai,
             })
-            try {
-                clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
-            } catch {
+            if (ticket.is_waitlist) {
+                dispatch(fetchReceptionWaitlistAsync())
+            } else {
+                try {
+                    clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
+                } catch {
+                }
+                dispatch(fetchFlowBoardAsync())
             }
-            dispatch(fetchFlowBoardAsync())
-            return ticket
-        } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận nhanh thất bại'))
-        }
-    }
-)
-
-export const registerWalkInAsync = createAsyncThunk(
-    'reception/registerWalkIn',
-    async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
-        try {
-            const res = await receptionService.walkIn({
-                benh_nhan_id: Number(payload.patientId) || payload.patientId,
-                bac_si_id: payload.doctorId && !isNaN(payload.doctorId) ? Number(payload.doctorId) : null,
-                chuyen_khoa_id: payload.departmentId && !isNaN(payload.departmentId) ? Number(payload.departmentId) : null,
-                ca_kham: payload.shift || 'sang',
-                ly_do_kham: payload.notes || 'Khám bệnh vãng lai',
-                ghi_chu: payload.notes,
-                ly_do_uu_tien: payload.priorityReason || (payload.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : (payload.priority === 'PRIORITY' ? 'nguoi_gia' : null)),
-            })
-            const data = unwrapApi(res)
-            const ticket = normalizeTicket(data)
-            try {
-                clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
-            } catch {
-            }
-            dispatch(fetchFlowBoardAsync())
             return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận bệnh nhân vãng lai thất bại'))
@@ -229,9 +315,58 @@ export const registerWalkInAsync = createAsyncThunk(
     }
 )
 
+// Alias thống nhất: dùng chung thunk registerWalkInAsync
+export const registerWalkInQuickAsync = registerWalkInAsync
+
+export const fetchReceptionWaitlistAsync = createAsyncThunk(
+    'reception/fetchWaitlist',
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getWaitlist(params)
+            const data = unwrapApi(res)
+            return data?.items || []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi tải danh sách chờ'))
+        }
+    }
+)
+
+export const checkInWaitlistAsync = createAsyncThunk(
+    'reception/checkInWaitlist',
+    async ({ waitlistId }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.checkInWaitlist(waitlistId)
+            const data = unwrapApi(res)
+            const ticket = normalizeTicket(data)
+            try {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
+            } catch {
+            }
+            dispatch(fetchReceptionWaitlistAsync())
+            dispatch(fetchFlowBoardAsync())
+            return ticket
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận bệnh nhân từ danh sách chờ thất bại'))
+        }
+    }
+)
+
+export const cancelWaitlistAsync = createAsyncThunk(
+    'reception/cancelWaitlist',
+    async ({ waitlistId, lyDoHuy = 'Lễ tân hủy' }, { dispatch, rejectWithValue }) => {
+        try {
+            await receptionService.cancelWaitlist(waitlistId, { params: { ly_do_huy: lyDoHuy } })
+            dispatch(fetchReceptionWaitlistAsync())
+            return waitlistId
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Hủy lượt chờ thất bại'))
+        }
+    }
+)
+
 export const searchPatientsAsync = createAsyncThunk(
     'reception/searchPatients',
-    async ({ search, page = 1, pageSize = 15 }, { rejectWithValue }) => {
+    async ({ search, page = 1, pageSize = 15 } = {}, { rejectWithValue }) => {
         try {
             const res = await receptionService.searchPatients({
                 search: search?.trim() || undefined,
@@ -239,7 +374,7 @@ export const searchPatientsAsync = createAsyncThunk(
                 page_size: pageSize,
             })
             const paged = unwrapPagedApi(res, pageSize)
-            const mappedItems = paged.items.map((p) => ({
+            const mappedItems = (paged.items || []).map((p) => ({
                 id: p.id,
                 patientCode: p.ma_dinh_danh_y_te || `BN-${p.id}`,
                 fullName: p.ho_ten,
@@ -270,18 +405,51 @@ export const getPatientDetailAsync = createAsyncThunk(
             if (!d) return null
             return {
                 id: d.id,
-                patientCode: d.ma_dinh_danh_y_te,
+                nguoiDungId: d.nguoi_dung_id,
+                patientCode: d.ma_dinh_danh_y_te || `BN-${d.id}`,
                 fullName: d.ho_ten,
                 phone: d.so_dien_thoai,
-                identityCard: d.cccd_so,
+                email: d.email || '',
+                identityCard: d.cccd_so || '',
                 dob: d.ngay_sinh,
-                gender: d.gioi_tinh === 'Nam' ? 'MALE' : 'FEMALE',
-                address: d.dia_chi,
+                gender: d.gioi_tinh === 'Nam' ? 'MALE' : (d.gioi_tinh === 'Nữ' ? 'FEMALE' : 'OTHER'),
+                gioiTinh: d.gioi_tinh || 'Khác',
+                address: d.dia_chi || '',
+                bloodType: d.nhom_mau || 'O+',
                 allergies: d.di_ung_thuoc || '',
                 medicalHistory: d.tien_su_benh || '',
+                creditScore: d.diem_tin_nhiem ?? 100,
+                noShowCount: d.so_lan_no_show ?? 0,
+                isBlockedBooking: Boolean(d.is_blocked_booking),
+                raw: d,
             }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Không thể tải chi tiết bệnh nhân'))
+        }
+    }
+)
+
+export const fetchPatientPackagesAsync = createAsyncThunk(
+    'reception/fetchPatientPackages',
+    async (patientId, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getPatientPackages(patientId)
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải danh sách gói khám của bệnh nhân'))
+        }
+    }
+)
+
+export const fetchPatientHistorySummaryAsync = createAsyncThunk(
+    'reception/fetchPatientHistorySummary',
+    async (patientId, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getPatientHistorySummary(patientId)
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải tóm tắt lịch sử bệnh nhân'))
         }
     }
 )
@@ -340,6 +508,7 @@ export const resumeQueueEntryAsync = createAsyncThunk(
         try {
             const res = await receptionService.restoreTicket(queueId)
             dispatch(fetchFlowBoardAsync())
+            dispatch(fetchShiftDashboardAsync())
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Phục hồi vé thất bại'))
@@ -353,6 +522,7 @@ export const cancelQueueEntryAsync = createAsyncThunk(
         try {
             const res = await receptionService.closeTicket(queueId, { ly_do: reason })
             dispatch(fetchFlowBoardAsync())
+            dispatch(fetchShiftDashboardAsync())
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Hủy vé thất bại'))
@@ -366,6 +536,7 @@ export const markAbsentAsync = createAsyncThunk(
         try {
             const res = await receptionService.leaveQueue(queueId, { ly_do: 'Bệnh nhân vắng mặt' })
             dispatch(fetchFlowBoardAsync())
+            dispatch(fetchShiftDashboardAsync())
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Ghi nhận vắng mặt thất bại'))
@@ -382,15 +553,33 @@ export const callQueueEntryAsync = createAsyncThunk(
 
 export const deferQueueEntryAsync = createAsyncThunk(
     'reception/deferQueue',
-    async ({ queueId, reason }) => {
-        return { queueId, reason, deferredAt: getTimeString() }
+    async ({ queueId, reason }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.postponeTicket(queueId, { ly_do: reason })
+            dispatch(fetchFlowBoardAsync())
+            dispatch(fetchShiftDashboardAsync())
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Tạm hoãn lượt khám thất bại'))
+        }
     }
 )
 
 export const transferRoomAsync = createAsyncThunk(
     'reception/transferRoom',
-    async ({ queueId, updates }) => {
-        return { queueId, ...updates }
+    async ({ queueId, updates }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.transferRoom(queueId, {
+                phong_kham_id: Number(updates.newRoomId),
+                bac_si_id: updates.newDoctorId ? Number(updates.newDoctorId) : undefined,
+                ly_do: updates.reason,
+            })
+            dispatch(fetchFlowBoardAsync())
+            dispatch(fetchShiftDashboardAsync())
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Điều chuyển buồng khám thất bại'))
+        }
     }
 )
 
@@ -408,11 +597,133 @@ export const emergencyHandoverAsync = createAsyncThunk(
     }
 )
 
+// ── Lịch trực & Nguồn lực (Phân hệ 6) ─────────────────────────
+export const fetchRosterAsync = createAsyncThunk(
+    'reception/fetchRoster',
+    async ({ queryDate, caKham, chuyenKhoaId } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getRoster({
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+                chuyen_khoa_id: chuyenKhoaId || undefined,
+            })
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải lịch trực của bác sĩ'))
+        }
+    }
+)
+
+export const fetchRosterTemplateAsync = createAsyncThunk(
+    'reception/fetchRosterTemplate',
+    async ({ thuTrongTuan } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getRosterTemplate({
+                thu_trong_tuan: thuTrongTuan || undefined,
+            })
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải khuôn mẫu ca trực định kỳ'))
+        }
+    }
+)
+
+export const fetchRoomsAsync = createAsyncThunk(
+    'reception/fetchRooms',
+    async ({ chuyenKhoaId } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getRooms({
+                chuyen_khoa_id: chuyenKhoaId || undefined,
+            })
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải danh mục buồng khám vật lý'))
+        }
+    }
+)
+
+// ── Sự cố ca trực & Điều phối khẩn cấp ────────────────────────
+export const fetchDoctorAbsencesAsync = createAsyncThunk(
+    'reception/fetchDoctorAbsences',
+    async ({ queryDate, caKham } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getDoctorAbsences({
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+            })
+            const data = unwrapApi(res)
+            return Array.isArray(data) ? data : []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải danh sách bác sĩ nghỉ đột xuất'))
+        }
+    }
+)
+
+export const rebalanceQueueAsync = createAsyncThunk(
+    'reception/rebalanceQueue',
+    async ({ payload }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.rebalanceQueue(payload)
+            dispatch(fetchFlowBoardAsync())
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Điều chuyển hàng đợi thất bại'))
+        }
+    }
+)
+
+export const processNoShowsAsync = createAsyncThunk(
+    'reception/processNoShows',
+    async ({ queryDate, caKham } = {}, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.processNoShows({
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+            })
+            dispatch(fetchAppointmentsAsync({ queryDate, caKham }))
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Quét xử lý No-show thất bại'))
+        }
+    }
+)
+
+export const processUnconfirmedAppointmentsAsync = createAsyncThunk(
+    'reception/processUnconfirmedAppointments',
+    async ({ hoursThreshold = 2.0 } = {}, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.processUnconfirmedAppointments({ hours_threshold: hoursThreshold })
+            const data = unwrapApi(res)
+            dispatch(fetchAppointmentsAsync())
+            dispatch(fetchReceptionWaitlistAsync())
+            return data
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Xử lý tự động hủy ca chưa xác nhận thất bại'))
+        }
+    }
+)
+
 export const createAppointmentAsync = createAsyncThunk(
     'reception/createAppointment',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
         try {
-            const res = await receptionService.createAppointment(payload)
+            // Map payload sang snake_case chuẩn theo AppointmentCreateRequest của Backend
+            const body = {
+                benh_nhan_id: payload.benh_nhan_id ? Number(payload.benh_nhan_id) : (payload.patientId ? Number(payload.patientId) : undefined),
+                bac_si_id: payload.bac_si_id ? Number(payload.bac_si_id) : (payload.doctorId ? Number(payload.doctorId) : undefined),
+                ngay_kham: payload.ngay_kham || payload.appointmentDate,
+                gio_kham: payload.gio_kham || (payload.timeSlot ? payload.timeSlot.split(' - ')[0] : '08:00:00'),
+                ly_do_kham: payload.ly_do_kham || payload.notes || payload.reason || 'Đặt lịch khám tại quầy',
+                trieu_chung_ban_dau: payload.trieu_chung_ban_dau || payload.notes || undefined,
+            }
+            // Đảm bảo định dạng giờ có giây (HH:MM:SS) theo spec backend
+            if (body.gio_kham && body.gio_kham.length === 5) {
+                body.gio_kham = `${body.gio_kham}:00`
+            }
+            const res = await receptionService.createAppointment(body)
             dispatch(fetchReceptionDataAsync())
             return unwrapApi(res)
         } catch (e) {
@@ -421,13 +732,73 @@ export const createAppointmentAsync = createAsyncThunk(
     }
 )
 
+export const fetchDoctorSlotsAsync = createAsyncThunk(
+    'reception/fetchDoctorSlots',
+    async ({ doctorId, queryDate }, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getDoctorSlots(doctorId, queryDate)
+            const data = unwrapApi(res)
+            return data?.slots || []
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể lấy danh sách khung giờ bác sĩ'))
+        }
+    }
+)
+
+export const confirmAppointmentAsync = createAsyncThunk(
+    'reception/confirmAppointment',
+    async ({ appointmentId, actor: _actor }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.confirmAppointment(appointmentId)
+            const data = unwrapApi(res)
+            return {
+                appointmentId,
+                ...data,
+            }
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Xác nhận lịch hẹn thất bại'))
+        }
+    }
+)
+
+export const markAppointmentNoShowAsync = createAsyncThunk(
+    'reception/markAppointmentNoShow',
+    async ({ appointmentId, ghiChu, actor: _actor }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await receptionService.markNoShow(appointmentId, {
+                ghi_chu: ghiChu?.trim() || 'Người bệnh không đến khám đúng ca trực',
+            })
+            const data = unwrapApi(res)
+            return {
+                appointmentId,
+                ...data,
+            }
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Ghi nhận vắng mặt thất bại'))
+        }
+    }
+)
+
 export const updateAppointmentAsync = createAsyncThunk(
     'reception/updateAppointment',
     async ({ id, updates, actor: _actor }, { dispatch, rejectWithValue }) => {
         try {
-            const res = await receptionService.updateAppointment(id, updates)
-            dispatch(fetchReceptionDataAsync())
-            return unwrapApi(res)
+            let gioMoi = updates.gio_kham_moi || (updates.timeSlot ? updates.timeSlot.split(' - ')[0] : '08:00')
+            if (gioMoi && gioMoi.length === 5) {
+                gioMoi = `${gioMoi}:00`
+            }
+            const body = {
+                ngay_kham_moi: updates.ngay_kham_moi || updates.appointmentDate,
+                gio_kham_moi: gioMoi,
+                bac_si_id_moi: updates.bac_si_id_moi || (updates.doctorId ? Number(updates.doctorId) : null),
+                ly_do_doi: updates.ly_do_doi || updates.rescheduleReason || 'Lễ tân đổi lịch tại quầy',
+            }
+            const res = await receptionService.rescheduleAppointment(id, body)
+            const data = unwrapApi(res)
+            return {
+                id,
+                ...data,
+            }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Cập nhật lịch hẹn thất bại'))
         }
@@ -438,9 +809,13 @@ export const cancelAppointmentAsync = createAsyncThunk(
     'reception/cancelAppointment',
     async ({ id, reason, actor: _actor }, { dispatch, rejectWithValue }) => {
         try {
-            const res = await receptionService.cancelAppointment(id, { ly_do_huy: reason })
-            dispatch(fetchReceptionDataAsync())
-            return unwrapApi(res)
+            const cleanReason = (reason && reason.trim().length >= 5) ? reason.trim() : 'Hủy lịch hẹn theo yêu cầu bệnh nhân'
+            const res = await receptionService.cancelAppointment(id, { ly_do_huy: cleanReason })
+            const data = unwrapApi(res)
+            return {
+                id,
+                ...data,
+            }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Hủy lịch hẹn thất bại'))
         }
@@ -479,3 +854,74 @@ export const resolveTaskAsync = createAsyncThunk(
     async ({ taskId, resolutionNote }) => ({ taskId, resolutionNote })
 )
 
+// ── 10. Báo cáo đối soát & Nhật ký kiểm toán (Phân hệ 9) ─────────
+export const fetchReportSummaryAsync = createAsyncThunk(
+    'reception/fetchReportSummary',
+    async ({ queryDate, caKham } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getReportSummary({
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+            })
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi tải báo cáo đối soát tiếp đón'))
+        }
+    }
+)
+
+export const fetchAuditLogsAsync = createAsyncThunk(
+    'reception/fetchAuditLogs',
+    async ({ queryDate, actionType, search, page = 1, pageSize = 10 } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getAuditLogs({
+                query_date: queryDate || undefined,
+                action_type: actionType || undefined,
+                search: search || undefined,
+                page,
+                page_size: pageSize,
+            })
+            const data = unwrapApi(res)
+            return {
+                items: data?.items || [],
+                pagination: data?.pagination || {
+                    page,
+                    page_size: pageSize,
+                    total_items: (data?.items || []).length,
+                    total_pages: 1,
+                    has_next: false,
+                    has_prev: false,
+                },
+            }
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi tải nhật ký kiểm toán'))
+        }
+    }
+)
+
+export const fetchShiftPreCloseAuditAsync = createAsyncThunk(
+    'reception/fetchShiftPreCloseAudit',
+    async ({ caKham, queryDate } = {}, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getShiftPreCloseAudit({
+                ca_kham: caKham,
+                query_date: queryDate || undefined,
+            })
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi đối soát trước đóng ca trực'))
+        }
+    }
+)
+
+export const closeReceptionShiftAsync = createAsyncThunk(
+    'reception/closeReceptionShift',
+    async (payload, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.closeShift(payload)
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Lỗi thực hiện đóng ca trực'))
+        }
+    }
+)

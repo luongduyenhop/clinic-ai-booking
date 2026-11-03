@@ -5,6 +5,7 @@ from sqlalchemy import select, and_, or_
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, generate_otp
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
 from app.core.config import settings
+from app.core.account_status import ensure_account_active
 from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
 from app.schemas.auth import (
     RegisterRequest, 
@@ -170,6 +171,9 @@ class AuthService:
         if not tai_khoan:
             raise NotFoundException("Không tìm thấy thông tin tài khoản tương ứng với email này!")
 
+        if tai_khoan.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Tài khoản nhân viên không được kích hoạt qua OTP. Vui lòng liên hệ quản trị viên.")
+
         if tai_khoan.is_active:
             raise ConflictException("Tài khoản này đã được kích hoạt trước đó!")
 
@@ -284,8 +288,7 @@ class AuthService:
             raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
 
         # Kiểm tra trạng thái tài khoản
-        if not tai_khoan.is_active:
-            raise ForbiddenException("Tài khoản chưa được kích hoạt OTP. Vui lòng xác thực tài khoản!")
+        ensure_account_active(tai_khoan)
 
         # Lấy thông tin NguoiDung để trả kèm đối tượng user cho FE
         stmt_nd = select(NguoiDung).where(NguoiDung.id == tai_khoan.nguoi_dung_id)
@@ -412,6 +415,7 @@ class AuthService:
         if payload.refresh_token == "demo-clinic-ai-refresh-token":
             tai_khoan = await self._ensure_default_fe_admin("admin@clinic-ai.vn", "password123", db)
             if tai_khoan:
+                ensure_account_active(tai_khoan)
                 access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
                 new_refresh = create_refresh_token()
                 tai_khoan.refresh_token = new_refresh
@@ -432,8 +436,10 @@ class AuthService:
         stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token)
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
         
-        if not tai_khoan or not tai_khoan.is_active:
+        if not tai_khoan:
             raise UnauthorizedException("Refresh token không hợp lệ hoặc tài khoản đã bị khóa")
+
+        ensure_account_active(tai_khoan)
             
         now_utc = datetime.now(timezone.utc)
         exp_dt = tai_khoan.refresh_token_expired_at

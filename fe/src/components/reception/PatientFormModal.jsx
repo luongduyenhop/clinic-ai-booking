@@ -33,7 +33,7 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
             fullName: Yup.string().trim().required('Vui lòng nhập họ và tên'),
             dob: Yup.string().required('Vui lòng chọn ngày sinh'),
             gender: Yup.string().required('Vui lòng chọn giới tính'),
-            phone: Yup.string().matches(/^[0-9]{9,11}$/, 'Số điện thoại không hợp lệ (9-11 số)').required('Vui lòng nhập số điện thoại'),
+            phone: Yup.string().matches(/^[0-9]{10}$/, 'Số điện thoại phải gồm đúng 10 chữ số').required('Vui lòng nhập số điện thoại'),
             identityCard: Yup.string().matches(/^([0-9]{9}|[0-9]{12})?$/, 'CCCD phải là 9 hoặc 12 số'),
         }),
         onSubmit: async (values, { resetForm }) => {

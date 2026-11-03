@@ -3,6 +3,38 @@ import { authService } from '../../../services/user/AuthService'
 import { resolveRoleFromAuth } from '../../../utils/auth/authRole'
 import { jwtDecode } from 'jwt-decode'
 import { DEMO_PATIENT_ACCOUNT, isDemoPatientCredentials } from '../../../data/user/demoPatientAccount'
+import { getAuthSessionRevision, readAuthFromStorage } from '../../../utils/auth/authStorage'
+import { waitForPendingAuthRefresh } from '../../../services/BaseService'
+import { AppToast } from '../../../components/common/AppNotification'
+
+export const logoutUserAsync = createAsyncThunk(
+    'auth/logoutUser',
+    async (_, { dispatch }) => {
+        const revision = getAuthSessionRevision()
+        await waitForPendingAuthRefresh()
+        if (revision !== getAuthSessionRevision()) return { sessionChanged: true }
+
+        let remoteRevoked = false
+        let remoteFailed = false
+        try {
+            if (readAuthFromStorage().accessToken) {
+                await authService.logout()
+                remoteRevoked = true
+            }
+        } catch {
+            remoteFailed = true
+        }
+        const sessionChanged = revision !== getAuthSessionRevision()
+        if (!sessionChanged) {
+            dispatch({ type: 'auth/logout' })
+            if (remoteFailed) {
+                AppToast.warning('Đã đăng xuất trên thiết bị này, nhưng chưa xác nhận thu hồi phiên trên máy chủ.')
+            }
+        }
+        return { remoteRevoked, sessionChanged }
+    },
+    { condition: (_, { getState }) => !getState().app.auth.isLoggingOut },
+)
 
 export const loginUserAsync = createAsyncThunk(
     'auth/loginUser',

@@ -24,7 +24,7 @@ export default function ClsResultRail({ encounter }) {
                 </div>
                 {orders.length === 0 && <p className="text-[12px] text-slate-500">Chưa có chỉ định cận lâm sàng.</p>}
                 {orders.map((o) => {
-                    const st = ORDER_STATUS[o.trang_thai]
+                    const st = ORDER_STATUS[o.trang_thai] || { label: o.trang_thai || 'Chờ làm', badge: 'medpro-badge' }
                     const cls = RESULT_CLASS[o.ket_qua_phan_loai]
                     const hasResult = o.trang_thai === 'da_co_ket_qua'
                     return (

@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
+from app.core.account_status import ensure_account_active
 from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
 from app.models.user import TaiKhoan, VaiTroEnum
@@ -22,14 +23,6 @@ async def get_current_user(
     while token.lower().startswith("bearer "):
         token = token[7:].strip().strip('"').strip("'")
 
-    # Hỗ trợ token Demo nhanh từ Frontend (LoginPage.jsx -> handleQuickDemoLogin)
-    if token == "demo-clinic-ai-admin-token":
-        from app.services.auth_service import auth_service
-        admin_user = await auth_service._ensure_default_fe_admin("admin@clinic-ai.vn", "password123", db)
-        if admin_user:
-            await db.commit()
-            return admin_user
-        
     payload = decode_access_token(token)
     if not payload:
         raise UnauthorizedException("Mã Token không hợp lệ hoặc đã hết hạn sử dụng")
@@ -48,8 +41,7 @@ async def get_current_user(
     if not user:
         raise UnauthorizedException("Người dùng tương ứng với Token không tồn tại trong hệ thống")
     
-    if not user.is_active:
-        raise ForbiddenException("Tài khoản hiện đang bị vô hiệu hóa hoặc chưa xác thực OTP")
+    ensure_account_active(user)
         
     return user
 

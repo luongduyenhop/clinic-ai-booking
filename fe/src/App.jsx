@@ -20,6 +20,8 @@ import {
 
 // Import User Pages
 import HomePage from './pages/user/HomePage'
+import DoctorSection from './components/user/home/DoctorSection'
+import SpecialtySection from './components/user/home/SpecialtySection'
 import LoginPage from './pages/user/LoginPage'
 import StaffLoginPage from './pages/staff/StaffLoginPage'
 import RegisterPage from './pages/user/RegisterPage'
@@ -102,6 +104,8 @@ function App() {
                 {/* Client / User Routes */}
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/bac-si" element={<DoctorSection />} />
+                    <Route path="/chuyen-khoa" element={<SpecialtySection />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                                         <Route path="/dat-lich" element={<BookingPage />} />

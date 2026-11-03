@@ -15,7 +15,6 @@ import {
 } from '../../../components/common/ClinicIcon'
 import { fetchPatientPortalAsync, findPatientCodeAsync, addFamilyMemberAsync } from '../../../redux/actions/user/patientPortalAction'
 import { AppToast } from '../../../components/common/AppNotification'
-import VietQrModal from '../../../components/common/VietQrModal'
 import { QrCode } from '@phosphor-icons/react'
 
 export default function PatientDashboardPage() {
@@ -23,7 +22,6 @@ export default function PatientDashboardPage() {
     const { portalData, portalLoading, portalError } = useSelector((state) => state.user.user)
 
     const [lookupQuery, setLookupQuery] = useState('')
-    const [isQrModalOpen, setIsQrModalOpen] = useState(false)
     const { items: lookupResults, loading: lookupLoading, error: lookupError } = useSelector((state) => state.user.user.patientLookup)
     const familyMutation = useSelector((state) => state.user.user.familyMutation)
     const [showAddFamily, setShowAddFamily] = useState(false)
@@ -120,25 +118,24 @@ export default function PatientDashboardPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h3 className="font-display font-extrabold text-sm text-[#003553]">
-                                THANH TOÁN VIỆN PHÍ &amp; ĐƠN THUỐC TRỰC TUYẾN (VIETQR)
+                                TRA CỨU VIỆN PHÍ &amp; HÓA ĐƠN
                             </h3>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200">
-                                NAPAS 247
+                                Dữ liệu Backend
                             </span>
                         </div>
                         <p className="text-xs text-slate-600 mt-0.5">
-                            Quét mã QR qua app ngân hàng bất kỳ để thanh toán viện phí thuận tiện, không cần chờ xếp hàng tại quầy.
+                            Tra cứu hóa đơn thực tế; trạng thái thanh toán do Backend xác nhận, không tự đánh dấu đã thu trên giao diện.
                         </p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setIsQrModalOpen(true)}
+                <Link
+                    to="/benh-nhan/hoa-don"
                     className="medpro-btn-primary text-xs px-4 py-2 shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                     <QrCode size={15} weight="bold" />
-                    <span>Thanh toán VietQR (NAPAS 247)</span>
-                </button>
+                    <span>Tra cứu hóa đơn</span>
+                </Link>
             </div>
 
             <section className="mt-6">
@@ -235,11 +232,11 @@ export default function PatientDashboardPage() {
                                         <div className="font-bold text-[#003553] text-sm">
                                             {m.ho_ten}{' '}
                                             <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">
-                                                {m.moi_quan_he}
+                                                {m.quan_he}
                                             </span>
                                         </div>
                                         <div className="text-slate-500 mt-0.5">
-                                            Mã BN: <strong className="font-mono text-slate-700">{m.ma_ho_so}</strong> ·
+                                            Hồ sơ người thân ·
                                             Ngày sinh: {m.ngay_sinh}
                                         </div>
                                     </div>
@@ -247,7 +244,7 @@ export default function PatientDashboardPage() {
                                         to="/dat-lich"
                                         className="px-3 py-1.5 rounded-lg bg-[#E8F4FD] text-[#008EC2] font-bold hover:bg-sky-200 transition"
                                     >
-                                        Đặt khám hộ
+                                        Đặt lịch cho bản thân
                                     </Link>
                                 </div>
                             ))}
@@ -341,19 +338,6 @@ export default function PatientDashboardPage() {
                     )}
                 />
             </div>
-
-            {/* Modal VietQR thanh toán viện phí (Lát cắt D) */}
-            <VietQrModal
-                isOpen={isQrModalOpen}
-                onClose={() => setIsQrModalOpen(false)}
-                invoice={{
-                    id: 9102,
-                    ma_hoa_don: 'HD20261025-001',
-                    thuc_thu: 385000,
-                    ma_benh_nhan: 'BN-8821',
-                    ten_benh_nhan: 'Nguyễn Văn Bệnh Nhân',
-                }}
-            />
         </>
     )
 }

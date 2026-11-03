@@ -1,442 +1,87 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
-import {
-    User,
-    Users,
-    Plus,
-    PencilSimple,
-    Trash,
-    ShieldCheck,
-    PhoneCall,
-    WarningCircle,
-    Heartbeat,
-    IdentificationCard
-} from '../../components/common/ClinicIcon'
+import { useEffect, useState } from 'react'
+import { patientPortalService } from '../../services/user/PatientPortalService'
+import { AppToast } from '../../components/common/AppNotification'
 
+const emptyMember = { ho_ten: '', quan_he: 'CON', ngay_sinh: '', gioi_tinh: 'Nam', so_dien_thoai: '' }
+const personalFields = [
+  ['ho_ten', 'Họ và tên'], ['ngay_sinh', 'Ngày sinh', 'date'], ['gioi_tinh', 'Giới tính'],
+  ['dia_chi', 'Địa chỉ'], ['cccd_so', 'CCCD'], ['nhom_mau', 'Nhóm máu'],
+  ['tien_su_benh', 'Tiền sử bệnh'], ['di_ung_thuoc', 'Dị ứng thuốc'],
+]
+const errorText = error => error.response?.data?.message || error.message || 'Có lỗi từ máy chủ'
 export default function PatientProfilePage() {
-    const [activeTab, setActiveTab] = useState('self') // 'self' | 'family'
-
-    // Hồ sơ chính của bệnh nhân
-    const [selfProfile, setSelfProfile] = useState({
-        maDinhDanh: 'BN-2026-0819',
-        hoTen: 'Nguyễn Văn An',
-        soDienThoai: '0912345678',
-        email: 'nguyenvanan@gmail.com',
-        ngaySinh: '1990-05-15',
-        gioiTinh: 'Nam',
-        cccd: '001090012345',
-        nhomMau: 'O+',
-        diUng: 'Dị ứng nhẹ với phấn hoa và Penicillin',
-        tienSuBenh: 'Tiền sử Tăng huyết áp nhẹ điều trị ngoại trú',
-        nguoiLienHe: 'Trần Thị Thu (Vợ)',
-        sdtNguoiLienHe: '0988776655'
-    })
-
-    // Danh sách hồ sơ người thân
-    const [familyMembers, setFamilyMembers] = useState([
-        {
-            id: 1,
-            hoTen: 'Nguyễn Minh Khang',
-            moiQuanHe: 'Con',
-            ngaySinh: '2021-09-12',
-            gioiTinh: 'Nam',
-            soDienThoai: '0912345678',
-            diUng: 'Không có dị ứng',
-            tienSu: 'Viêm phế quản co thắt 1 lần'
-        },
-        {
-            id: 2,
-            hoTen: 'Nguyễn Văn Hùng',
-            moiQuanHe: 'Bố',
-            ngaySinh: '1958-03-20',
-            gioiTinh: 'Nam',
-            soDienThoai: '0903456789',
-            diUng: 'Dị ứng Aspirin',
-            tienSu: 'Đái tháo đường type 2, Tăng huyết áp độ 2'
-        }
-    ])
-
-    // Modal state for adding relative
-    const [showAddModal, setShowAddModal] = useState(false)
-    const [newRelative, setNewRelative] = useState({
-        hoTen: '',
-        moiQuanHe: 'Con',
-        ngaySinh: '',
-        gioiTinh: 'Nam',
-        soDienThoai: '',
-        diUng: '',
-        tienSu: ''
-    })
-
-    const handleSaveSelfProfile = (e) => {
-        e.preventDefault()
-        toast.success('Cập nhật hồ sơ sức khỏe cá nhân thành công!')
-    }
-
-    const handleAddRelative = (e) => {
-        e.preventDefault()
-        if (!newRelative.hoTen.trim()) {
-            toast.warning('Vui lòng nhập họ và tên người thân!')
-            return
-        }
-        setFamilyMembers(prev => [
-            ...prev,
-            { id: Date.now(), ...newRelative }
-        ])
-        setShowAddModal(false)
-        setNewRelative({
-            hoTen: '',
-            moiQuanHe: 'Con',
-            ngaySinh: '',
-            gioiTinh: 'Nam',
-            soDienThoai: '',
-            diUng: '',
-            tienSu: ''
-        })
-        toast.success('Đã thêm hồ sơ người thân thành công!')
-    }
-
-    const handleDeleteRelative = (id) => {
-        setFamilyMembers(prev => prev.filter(m => m.id !== id))
-        toast.info('Đã xóa hồ sơ người thân.')
-    }
-
-    return (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-            <div>
-                <nav className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
-                    <Link to="/" className="hover:text-[#00B5F1]">Trang chủ</Link>
-                    <span>/</span>
-                    <span className="text-[#003553]">Hồ sơ sức khỏe & Gia đình</span>
-                </nav>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#003553] tracking-tight">
-                            HỒ SƠ SỨC KHỎE CỦA TÔI
-                        </h1>
-                        <p className="text-sm text-slate-600 mt-1">
-                            Quản lý hồ sơ định danh y tế và hồ sơ người thân để đặt lịch khám nhanh chóng
-                        </p>
-                    </div>
-                    <div className="inline-flex items-center gap-2 bg-[#E8F4FD] text-[#00B5F1] px-3.5 py-1.5 rounded-full border border-[#B8E5FA] text-xs font-bold">
-                        <ShieldCheck size={16} weight="duotone" />
-                        <span>Mã y tế: {selfProfile.maDinhDanh}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tab Navigation */}
-            <div className="flex border-b border-slate-200">
-                <button
-                    onClick={() => setActiveTab('self')}
-                    className={`py-3 px-6 font-bold text-sm border-b-2 transition cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'self'
-                            ? 'border-[#00B5F1] text-[#00B5F1]'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                >
-                    <User size={18} weight={activeTab === 'self' ? 'fill' : 'regular'} />
-                    <span>Hồ Sơ Của Bản Thân</span>
-                </button>
-                <button
-                    onClick={() => setActiveTab('family')}
-                    className={`py-3 px-6 font-bold text-sm border-b-2 transition cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'family'
-                            ? 'border-[#00B5F1] text-[#00B5F1]'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                >
-                    <Users size={18} weight={activeTab === 'family' ? 'fill' : 'regular'} />
-                    <span>Hồ Sơ Người Thân Trong Gia Đình ({familyMembers.length})</span>
-                </button>
-            </div>
-
-            {/* Tab 1: Hồ Sơ Cá Nhân */}
-            {activeTab === 'self' && (
-                <form onSubmit={handleSaveSelfProfile} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Họ và tên (*):</label>
-                            <input
-                                type="text"
-                                value={selfProfile.hoTen}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, hoTen: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Số điện thoại (*):</label>
-                            <input
-                                type="tel"
-                                value={selfProfile.soDienThoai}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, soDienThoai: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Ngày sinh:</label>
-                            <input
-                                type="date"
-                                value={selfProfile.ngaySinh}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, ngaySinh: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Giới tính:</label>
-                            <select
-                                value={selfProfile.gioiTinh}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, gioiTinh: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            >
-                                <option value="Nam">Nam</option>
-                                <option value="Nữ">Nữ</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Số CCCD / Định danh:</label>
-                            <input
-                                type="text"
-                                value={selfProfile.cccd}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, cccd: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Nhóm máu:</label>
-                            <input
-                                type="text"
-                                value={selfProfile.nhomMau}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, nhomMau: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="text-xs font-bold text-amber-700 flex items-center gap-1 mb-1">
-                                <WarningCircle size={15} weight="bold" />
-                                <span>Tiền sử dị ứng thuốc & thực phẩm:</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={selfProfile.diUng}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, diUng: e.target.value })}
-                                className="w-full border border-amber-200 bg-amber-50/50 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            />
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Tiền sử bệnh lý bản thân:</label>
-                            <textarea
-                                rows={2}
-                                value={selfProfile.tienSuBenh}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, tienSuBenh: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Người liên hệ khẩn cấp:</label>
-                            <input
-                                type="text"
-                                value={selfProfile.nguoiLienHe}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, nguoiLienHe: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">SĐT người liên hệ khẩn cấp:</label>
-                            <input
-                                type="tel"
-                                value={selfProfile.sdtNguoiLienHe}
-                                onChange={(e) => setSelfProfile({ ...selfProfile, sdtNguoiLienHe: e.target.value })}
-                                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end pt-4 border-t border-slate-100">
-                        <button
-                            type="submit"
-                            className="medpro-btn-primary !py-2.5 !px-6 font-bold text-sm cursor-pointer"
-                        >
-                            Lưu Thay Đổi Hồ Sơ
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {/* Tab 2: Hồ Sơ Người Thân */}
-            {activeTab === 'family' && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <p className="text-xs text-slate-500">
-                            Thêm con cái, bố mẹ hoặc người thân để đặt lịch khám bệnh hộ chỉ với một chạm.
-                        </p>
-                        <button
-                            onClick={() => setShowAddModal(true)}
-                            className="medpro-btn-primary !py-2 !px-4 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                            <Plus size={16} weight="bold" />
-                            <span>Thêm Người Thân</span>
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {familyMembers.map((member) => (
-                            <div key={member.id} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3 relative">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center font-bold text-sm">
-                                            {member.hoTen.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-extrabold text-sm text-[#003553]">{member.hoTen}</h3>
-                                            <span className="text-[11px] font-bold text-[#00B5F1] bg-[#E8F4FD] px-2 py-0.5 rounded-md">
-                                                Mối quan hệ: {member.moiQuanHe}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleDeleteRelative(member.id)}
-                                        className="text-slate-400 hover:text-rose-600 transition p-1 cursor-pointer"
-                                        title="Xóa hồ sơ"
-                                    >
-                                        <Trash size={16} />
-                                    </button>
-                                </div>
-
-                                <div className="text-xs text-slate-600 space-y-1.5 pt-2 border-t border-slate-100">
-                                    <p><strong>Ngày sinh:</strong> {member.ngaySinh || 'Chưa cập nhật'} ({member.gioiTinh})</p>
-                                    <p><strong>Số điện thoại:</strong> {member.soDienThoai}</p>
-                                    {member.diUng && <p className="text-amber-700"><strong>Dị ứng:</strong> {member.diUng}</p>}
-                                    {member.tienSu && <p><strong>Tiền sử:</strong> {member.tienSu}</p>}
-                                </div>
-
-                                <div className="pt-2">
-                                    <Link
-                                        to={`/dat-lich`}
-                                        className="inline-block text-xs font-bold text-[#00B5F1] hover:underline"
-                                    >
-                                        👉 Đặt lịch khám cho {member.hoTen}
-                                    </Link>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Modal Thêm Người Thân */}
-            {showAddModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h3 className="font-extrabold text-[#003553] text-base">Thêm Hồ Sơ Người Thân</h3>
-                            <button
-                                onClick={() => setShowAddModal(false)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleAddRelative} className="space-y-3 text-xs">
-                            <div>
-                                <label className="font-bold text-slate-600 block mb-1">Mối quan hệ (*):</label>
-                                <select
-                                    value={newRelative.moiQuanHe}
-                                    onChange={(e) => setNewRelative({ ...newRelative, moiQuanHe: e.target.value })}
-                                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                >
-                                    <option value="Con">Con nhỏ / Con cái</option>
-                                    <option value="Bố/Mẹ">Bố / Mẹ</option>
-                                    <option value="Vợ/Chồng">Vợ / Chồng</option>
-                                    <option value="Khác">Người thân khác</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="font-bold text-slate-600 block mb-1">Họ và tên (*):</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={newRelative.hoTen}
-                                    onChange={(e) => setNewRelative({ ...newRelative, hoTen: e.target.value })}
-                                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="font-bold text-slate-600 block mb-1">Ngày sinh:</label>
-                                    <input
-                                        type="date"
-                                        value={newRelative.ngaySinh}
-                                        onChange={(e) => setNewRelative({ ...newRelative, ngaySinh: e.target.value })}
-                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="font-bold text-slate-600 block mb-1">Giới tính:</label>
-                                    <select
-                                        value={newRelative.gioiTinh}
-                                        onChange={(e) => setNewRelative({ ...newRelative, gioiTinh: e.target.value })}
-                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                    >
-                                        <option value="Nam">Nam</option>
-                                        <option value="Nữ">Nữ</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="font-bold text-slate-600 block mb-1">Số điện thoại liên hệ:</label>
-                                <input
-                                    type="tel"
-                                    value={newRelative.soDienThoai}
-                                    onChange={(e) => setNewRelative({ ...newRelative, soDienThoai: e.target.value })}
-                                    placeholder="Dùng SĐT của bạn hoặc của người thân"
-                                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="font-bold text-slate-600 block mb-1">Dị ứng thuốc/thức ăn:</label>
-                                <input
-                                    type="text"
-                                    value={newRelative.diUng}
-                                    onChange={(e) => setNewRelative({ ...newRelative, diUng: e.target.value })}
-                                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddModal(false)}
-                                    className="px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-600"
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="medpro-btn-primary !py-2 !px-5 font-bold"
-                                >
-                                    Lưu Hồ Sơ
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
+  const [profile, setProfile] = useState(null)
+  const [family, setFamily] = useState([])
+  const [member, setMember] = useState(emptyMember)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const load = async () => {
+    setLoading(true); setError('')
+    try {
+      const [personal, relatives] = await Promise.all([patientPortalService.getProfile(), patientPortalService.getFamilyMembers()])
+      setProfile(personal.data.data)
+      setFamily(relatives.data.data || [])
+    } catch (e) { setError(errorText(e)) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+  const saveProfile = async event => {
+    event.preventDefault(); setSaving(true)
+    try {
+      const payload = Object.fromEntries(personalFields.map(([field]) => [field, profile[field] || null]))
+      const res = await patientPortalService.updateProfile(payload)
+      setProfile(res.data.data); AppToast.success('Đã cập nhật hồ sơ trên hệ thống')
+    } catch (e) { AppToast.error(errorText(e)) }
+    finally { setSaving(false) }
+  }
+  const addMember = async event => {
+    event.preventDefault(); setSaving(true)
+    try {
+      await patientPortalService.addFamilyMember(member)
+      const res = await patientPortalService.getFamilyMembers()
+      setFamily(res.data.data || []); setMember(emptyMember); AppToast.success('Đã lưu người thân vào hệ thống')
+    } catch (e) { AppToast.error(errorText(e)) }
+    finally { setSaving(false) }
+  }
+  const removeMember = async id => {
+    if (!window.confirm('Xóa hồ sơ người thân này?')) return
+    setSaving(true)
+    try {
+      await patientPortalService.deleteFamilyMember(id)
+      setFamily(current => current.filter(item => item.id !== id))
+      AppToast.success('Đã xóa hồ sơ người thân')
+    } catch (e) { AppToast.error(errorText(e)) }
+    finally { setSaving(false) }
+  }
+  if (loading) return <main className="public-container py-10">Đang tải hồ sơ bệnh nhân...</main>
+  if (error) return <main className="public-container py-10 text-rose-600" role="alert">{error} <button type="button" onClick={load} className="underline">Thử lại</button></main>
+  return <main className="public-container py-8 space-y-6">
+    <h1 className="font-display text-2xl font-extrabold text-[#003553]">Hồ sơ sức khỏe của tôi</h1>
+    <section className="medpro-card p-6">
+      <p className="text-sm text-slate-500 mb-4">Mã định danh y tế: <strong>{profile?.ma_dinh_danh_y_te}</strong></p>
+      <form onSubmit={saveProfile} className="grid gap-4 sm:grid-cols-2">
+        {personalFields.map(([key, label, type]) => <label key={key} className="text-sm font-semibold text-slate-700">{label}
+          <input className="medpro-input mt-1" type={type || 'text'} value={profile?.[key] || ''} onChange={e => setProfile(s => ({ ...s, [key]: e.target.value }))} />
+        </label>)}
+        <p className="sm:col-span-2 text-sm text-slate-500">Số điện thoại: {profile?.so_dien_thoai || 'Chưa cập nhật'} · Email: {profile?.email || 'Chưa cập nhật'}</p>
+        <button disabled={saving} className="medpro-btn-primary sm:col-span-2" type="submit">{saving ? 'Đang lưu...' : 'Lưu hồ sơ'}</button>
+      </form>
+    </section>
+    <section className="medpro-card p-6 space-y-4">
+      <h2 className="font-display text-xl font-bold text-[#003553]">Hồ sơ người thân ({family.length})</h2>
+      {family.length === 0 && <p className="text-sm text-slate-500">Chưa có hồ sơ người thân.</p>}
+      {family.map(person => <div key={person.id} className="flex items-center justify-between gap-2 border-b border-slate-100 py-3">
+        <span className="text-sm"><strong>{person.ho_ten}</strong> · {person.quan_he} · {person.ngay_sinh}</span>
+        <button type="button" disabled={saving} className="text-sm text-rose-600 underline" onClick={() => removeMember(person.id)}>Xóa</button>
+      </div>)}
+      <form onSubmit={addMember} className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Họ tên người thân<input required minLength={2} className="medpro-input mt-1" value={member.ho_ten} onChange={e => setMember(s => ({...s, ho_ten: e.target.value}))}/></label>
+        <label className="text-sm">Quan hệ<select className="medpro-input mt-1" value={member.quan_he} onChange={e => setMember(s => ({...s, quan_he: e.target.value}))}><option value="CON">Con</option><option value="CHA_ME">Cha/mẹ</option><option value="VO_CHONG">Vợ/chồng</option><option value="NGUOI_THAN">Người thân</option></select></label>
+        <label className="text-sm">Ngày sinh<input type="date" required className="medpro-input mt-1" value={member.ngay_sinh} onChange={e => setMember(s => ({...s, ngay_sinh: e.target.value}))}/></label>
+        <label className="text-sm">Giới tính<select className="medpro-input mt-1" value={member.gioi_tinh} onChange={e => setMember(s => ({...s, gioi_tinh: e.target.value}))}><option>Nam</option><option>Nữ</option><option>Khác</option></select></label>
+        <button type="submit" disabled={saving} className="medpro-btn-primary sm:col-span-2">{saving ? 'Đang lưu...' : 'Thêm người thân'}</button>
+      </form>
+    </section>
+  </main>
 }

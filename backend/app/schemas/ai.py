@@ -1,5 +1,5 @@
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.schemas.appointment import DoctorBriefResponse
 
 
@@ -13,10 +13,25 @@ class TriageContext(BaseModel):
 
 class SymptomTriageRequest(BaseModel):
     """Yêu cầu phân tích triệu chứng ngôn ngữ tự nhiên (UC-C01)"""
-    trieu_chung: str = Field(..., min_length=5, max_length=4000, description="Mô tả các triệu chứng khó chịu người bệnh đang gặp phải")
+    trieu_chung: str = Field(
+        ...,
+        min_length=5,
+        max_length=1500,
+        description="Mô tả triệu chứng, từ 5 đến tối đa 1.500 ký tự",
+    )
     tuoi: Optional[int] = Field(None, ge=0, le=120, description="Độ tuổi bệnh nhân (hỗ trợ phân loại)")
     gioi_tinh: Optional[str] = Field(None, description="Giới tính")
     structured: Optional[TriageContext] = None
+
+    @field_validator("trieu_chung", mode="before")
+    @classmethod
+    def validate_symptom_description(cls, value):
+        if isinstance(value, str):
+            if len(value) > 1500:
+                raise ValueError("Mô tả triệu chứng không được vượt quá 1.500 ký tự.")
+            if len(value.strip()) < 5:
+                raise ValueError("Vui lòng nhập mô tả triệu chứng từ 5 ký tự trở lên.")
+        return value
 
 
 class SpecialtySuggestion(BaseModel):

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { logout } from '../../redux/slices/authSlice'
+import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
 import { getNavigationConfig, getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
@@ -24,7 +24,7 @@ export default function AdminHeader() {
     const location = useLocation()
     const navigate = useNavigate()
     const dispatch = useDispatch()
-    const { user } = useSelector((state) => state.app.auth)
+    const { user, isLoggingOut } = useSelector((state) => state.app.auth)
     const { clinicData } = useSelector((state) => state.app.admin)
 
     const { headerWorkflowTabs = [] } = getNavigationConfig(clinicData)
@@ -103,8 +103,9 @@ export default function AdminHeader() {
         AppToast.success('Đã khôi phục dữ liệu gốc từ file Seed (clinicSeed.json) thành công!')
     }
 
-    const handleLogout = () => {
-        dispatch(logout())
+    const handleLogout = async () => {
+        const result = await dispatch(logoutUserAsync())
+        if (result.payload?.sessionChanged || result.meta.condition) return
         navigate('/login')
     }
 
@@ -528,6 +529,7 @@ export default function AdminHeader() {
                                 <button
                                     type="button"
                                     onClick={handleLogout}
+                                disabled={isLoggingOut}
                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                                 >
                                     <SignOut size={14} weight="bold" />

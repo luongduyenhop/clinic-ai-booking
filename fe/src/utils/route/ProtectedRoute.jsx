@@ -1,6 +1,8 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { getRoleDefaultPath, isStaffRole } from '../constants/System'
+import { getRoleDefaultPath } from '../constants/System'
+import { normalizeStaffRole } from '../constants/staffRoles'
+import { canAccessPortalPath } from './portalAccess'
 
 export default function ProtectedRoute({ allowedRoles = [] }) {
     const location = useLocation()
@@ -18,10 +20,14 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
         return <Navigate to={loginTarget} state={{ from: location }} replace />
     }
 
-    const normalizedRole = String(role || '').toUpperCase()
+    const normalizedRole = normalizeStaffRole(role)
+    if (!normalizedRole) {
+        return <Navigate to={isStaffPath ? '/staff/login' : '/login'} replace />
+    }
 
     // Kiểm tra quyền hạn vai trò
-    if (allowedRoles.length > 0 && (!normalizedRole || !allowedRoles.includes(normalizedRole))) {
+    const allowedByGroup = allowedRoles.length === 0 || allowedRoles.some((allowed) => normalizeStaffRole(allowed) === normalizedRole)
+    if (!allowedByGroup || !canAccessPortalPath(normalizedRole, location.pathname)) {
         // Đã đăng nhập nhưng không có quyền vào trang này -> chuyển về cổng mặc định của vai trò đó
         const fallbackPath = getRoleDefaultPath(normalizedRole)
         return <Navigate to={fallbackPath} replace />

@@ -1,4 +1,6 @@
 import { TOKEN, REFRESH_TOKEN, USER_ROLE, USER_INFO } from '../constants/System'
+let authSessionRevision = 0
+export const getAuthSessionRevision = () => authSessionRevision
 export const readAuthFromStorage = () => {
     try {
         const accessToken = localStorage.getItem(TOKEN)
@@ -19,6 +21,7 @@ export const readAuthFromStorage = () => {
 }
 
 export const saveFullAuth = ({ accessToken, refreshToken, role, user }) => {
+    authSessionRevision += 1
     if (accessToken !== undefined) {
         if (accessToken) localStorage.setItem(TOKEN, accessToken)
         else localStorage.removeItem(TOKEN)
@@ -38,10 +41,12 @@ export const saveFullAuth = ({ accessToken, refreshToken, role, user }) => {
 }
 
 export const clearAuthStorage = () => {
+    authSessionRevision += 1
     localStorage.removeItem(TOKEN)
     localStorage.removeItem(REFRESH_TOKEN)
     localStorage.removeItem(USER_ROLE)
     localStorage.removeItem(USER_INFO)
+    localStorage.removeItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL')
 }
 
 export const writeAuthToStorage = (patch = {}) => {

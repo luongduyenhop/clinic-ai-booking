@@ -81,6 +81,15 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
     )
 
 
+@router.post("/logout", response_model=ResponseEnvelope[dict], summary="Đăng xuất và thu hồi refresh token")
+async def logout(
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await auth_service.logout_user(current_user, db)
+    return ResponseEnvelope.success_response(message="Đăng xuất thành công!")
+
+
 @router.post(
     "/refresh", 
     response_model=ResponseEnvelope[TokenResponse],

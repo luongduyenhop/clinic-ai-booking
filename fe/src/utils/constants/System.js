@@ -23,19 +23,6 @@ export const ADMIN_ROLES = [
     ROLE_ADMINISTRATOR,
     'QUAN_TRI',
     'QUAN_LY',
-    ROLE_DOCTOR,
-    'DOCTOR',
-    ROLE_RECEPTIONIST,
-    'RECEPTIONIST',
-    ROLE_CASHIER,
-    'CASHIER',
-    ROLE_TECHNICIAN,
-    'TECHNICIAN',
-    'KTV_CLS',
-    ROLE_LAB_TECH,
-    'KTV_XET_NGHIEM',
-    'LAB_TECH',
-    'ROLE-LAB-TECH',
 ]
 
 export const STAFF_ROLES = [
@@ -93,7 +80,6 @@ export const CUSTOMER_ROLES = [
     ROLE_USER,
     'PATIENT',
     'BENH_NHAN',
-    ...ADMIN_ROLES,
 ]
 
 /**

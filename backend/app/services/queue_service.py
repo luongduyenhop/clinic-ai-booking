@@ -4,7 +4,7 @@ import uuid
 
 from datetime import date, datetime, time, timezone, timedelta
 
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 
 from sqlalchemy import func, select, or_, and_
 
@@ -1512,20 +1512,16 @@ class QueueService:
 
 
     async def get_doctor_queue_board(
-
         self,
-
         doctor_id: int,
-
-        query_date: Optional[date],
-
-        ca_kham: Optional[str] = None,
-
-        db: AsyncSession = None,
-
+        query_date: Optional[date] = None,
+        ca_kham: Optional[Union[str, AsyncSession]] = None,
+        db: Optional[AsyncSession] = None,
     ) -> DoctorQueueBoardResponse:
-
         """Lấy toàn bộ dữ liệu bảng hàng đợi phòng khám theo thời gian thực (Display Board)"""
+        if isinstance(ca_kham, AsyncSession):
+            db = ca_kham
+            ca_kham = None
 
         now_dt = clinic_now()
 
@@ -2269,7 +2265,7 @@ class QueueService:
         upcoming_apts = [
             a for a in all_apts
             if a.id not in checked_in_apt_ids
-            and a.trang_thai in (TrangThaiLichEnum.DA_DAT.value, TrangThaiLichEnum.DA_XAC_NHAN.value, "da_xac_nhan")
+            and a.trang_thai in (TrangThaiLichEnum.CHO_XAC_NHAN.value, TrangThaiLichEnum.DA_XAC_NHAN.value, "da_xac_nhan")
         ]
         # Sắp xếp theo giờ khám
         upcoming_apts.sort(key=lambda x: str(x.gio_kham or ""))
@@ -2896,11 +2892,13 @@ class QueueService:
         self,
         query_date: Optional[date] = None,
         ca_kham: Optional[str] = None,
-        chuyen_khoa_id: Optional[int] = None,
-        db: AsyncSession = None,
+        chuyen_khoa_id: Optional[Union[int, AsyncSession]] = None,
+        db: Optional[AsyncSession] = None,
     ) -> List[RosterItem]:
-
         """Tra cứu lịch phân ca trực thực tế trong ngày (FC-15)"""
+        if isinstance(chuyen_khoa_id, AsyncSession):
+            db = chuyen_khoa_id
+            chuyen_khoa_id = None
 
         target_date = query_date or clinic_now().date()
 

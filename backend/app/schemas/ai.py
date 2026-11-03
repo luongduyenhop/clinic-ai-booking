@@ -72,7 +72,21 @@ class SymptomTriageResponse(BaseModel):
         description="Tối đa 5 bệnh có xác suất cao nhất, chỉ dùng để giải thích model",
     )
     model_version: Optional[str] = Field(None, description="Phiên bản model AI Triage đã sử dụng")
+    phan_tich_ai_id: Optional[int] = Field(None, description="ID lần phân tích dùng để liên kết lịch hẹn và đánh giá của bác sĩ")
     disclaimer: str = Field(
         "Kết quả phân tích AI chỉ mang tính chất tham khảo sơ bộ, không thay thế chẩn đoán chuyên môn của bác sĩ.",
         description="Khuyến cáo miễn trừ trách nhiệm y tế bắt buộc"
     )
+
+
+class AiFeedbackRequest(BaseModel):
+    phan_tich_ai_id: int = Field(..., gt=0)
+    so_sao: int = Field(..., ge=1, le=5)
+    nhan_xet: Optional[str] = Field(None, max_length=2000)
+
+
+class AiFeedbackResponse(BaseModel):
+    id: int
+    phan_tich_ai_id: int
+    so_sao: int
+    nhan_xet: Optional[str] = None

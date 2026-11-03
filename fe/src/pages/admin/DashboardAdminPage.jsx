@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
 import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
+import { mapDoctorPerformanceItems } from '../../utils/helpers/doctorPerformanceMapping'
 import { adminService } from '../../services/admin/AdminService'
 import {
     ClinicIcon,
@@ -39,7 +40,7 @@ export default function DashboardAdminPage() {
     const [topDiseases, setTopDiseases] = useState([])
     const [topServices, setTopServices] = useState([])
     const [topMedicines, setTopMedicines] = useState([])
-    const [doctorPerformance, setDoctorPerformance] = useState([])
+    const [doctorPerformance, setDoctorPerformance] = useState(null)
     const [roomWorkload, setRoomWorkload] = useState([])
     const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
@@ -67,9 +68,10 @@ export default function DashboardAdminPage() {
                 if (medRes.status === 'fulfilled' && medRes.value?.items) {
                     setTopMedicines(medRes.value.items)
                 }
-                if (docPerfRes.status === 'fulfilled' && docPerfRes.value?.danh_sach_hieu_suat) {
-                    setDoctorPerformance(docPerfRes.value.danh_sach_hieu_suat)
-                }
+                const doctorItems = docPerfRes.status === 'fulfilled'
+                    ? mapDoctorPerformanceItems(docPerfRes.value)
+                    : null
+                setDoctorPerformance(doctorItems)
                 if (roomRes.status === 'fulfilled' && roomRes.value?.danh_sach_tai_trong) {
                     setRoomWorkload(roomRes.value.danh_sach_tai_trong)
                 }
@@ -272,32 +274,30 @@ export default function DashboardAdminPage() {
                                 <span className="text-xs text-slate-400">Doanh thu & KPI</span>
                             </div>
                             <div className="space-y-3 mt-3">
-                                {(doctorPerformance.length > 0 ? doctorPerformance : doctorSchedules).map((doc, idx) => {
-                                    const docName = doc.ten_bac_si || doc.bacSi
-                                    const dept = doc.chuyen_khoa || doc.phong
-                                    const totalRevenue = doc.tong_doanh_thu || 0
-                                    const rating = doc.danh_gia_sao || 5.0
-                                    const count = doc.so_ca_kham !== undefined ? doc.so_ca_kham : (doc.soCaDaKham + doc.soCaCho)
-                                    return (
-                                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-                                            <div>
-                                                <div className="text-xs font-bold text-[#003553] flex items-center gap-1.5">
-                                                    <span>{docName}</span>
-                                                    <span className="text-[10px] text-amber-500 font-bold">⭐ {rating}</span>
-                                                </div>
-                                                <div className="text-[11px] text-slate-500">{dept}</div>
+                                {doctorPerformance === null ? (
+                                    <div className="p-6 text-center text-sm text-slate-500">
+                                        {analyticsLoading ? 'Đang tải dữ liệu hiệu suất bác sĩ...' : 'Không thể tải dữ liệu hiệu suất bác sĩ từ API.'}
+                                    </div>
+                                ) : doctorPerformance.length === 0 ? (
+                                    <div className="p-6 text-center text-sm text-slate-500">
+                                        Chưa có dữ liệu hiệu suất bác sĩ trong khoảng thời gian này.
+                                    </div>
+                                ) : doctorPerformance.map((doc) => (
+                                    <div key={doc.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs font-bold text-[#003553]">
+                                                {doc.degree ? `${doc.degree} ` : ''}{doc.name || `Bác sĩ #${doc.id}`}
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-xs font-extrabold text-[#00B5F1]">{count} ca khám</div>
-                                                {totalRevenue > 0 && (
-                                                    <div className="text-[10px] text-emerald-600 font-bold">
-                                                        {Number(totalRevenue).toLocaleString('vi-VN')} đ
-                                                    </div>
-                                                )}
+                                            <div className="text-[11px] text-slate-500">{doc.specialty || 'Chưa cập nhật chuyên khoa'}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-extrabold text-[#00B5F1]">{doc.completedCases} ca khám xong</div>
+                                            <div className="text-[10px] text-emerald-600 font-bold">
+                                                {doc.revenue.toLocaleString('vi-VN')} đ
                                             </div>
                                         </div>
-                                    )
-                                })}
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

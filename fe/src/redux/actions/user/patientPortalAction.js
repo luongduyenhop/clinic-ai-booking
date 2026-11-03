@@ -4,6 +4,12 @@ import { unwrapApi, unwrapPagedApi, pickErrorMessage } from '../../../utils/help
 import { mapMedicalRecords } from '../../../utils/helpers/patientMedicalMapping'
 import { mapPrescriptions, mapLabResults } from '../../../utils/helpers/patientResultMapping'
 
+const appointmentStatus = status => ({
+    cho_xac_nhan: 'PENDING', da_xac_nhan: 'CONFIRMED',
+    da_kham: 'COMPLETED', da_huy: 'CANCELLED',
+    PENDING: 'PENDING', CONFIRMED: 'CONFIRMED', COMPLETED: 'COMPLETED', CANCELLED: 'CANCELLED',
+})[status] || status
+
 export const fetchPrescriptionsAsync = createAsyncThunk('user/fetchPrescriptions', async ({ page = 1 } = {}, { rejectWithValue, signal }) => {
     try {
         const result = unwrapPagedApi(await patientPortalService.getPrescriptionsPage(page, signal))
@@ -28,8 +34,10 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
         return {
             appointments: bookings.status === 'fulfilled' ? unwrapApi(bookings.value).map((item) => ({
                 id: `BE-${item.id}`, realId: item.id, appointmentCode: item.ma_lich_kham,
-                doctorId: item.bac_si_id, doctorName: item.bac_si?.ho_ten || 'Bác sĩ phụ trách',
-                appointmentDate: item.ngay_kham, timeSlot: item.gio_kham?.slice(0, 5), status: item.trang_thai, reason: item.ly_do_kham,
+                doctorId: String(item.bac_si?.id || ''), doctorName: item.bac_si?.ho_ten || 'Bác sĩ phụ trách',
+                specialtyName: item.bac_si?.chuyen_khoa || '',
+                appointmentDate: item.ngay_kham, timeSlot: item.gio_kham?.slice(0, 5),
+                status: appointmentStatus(item.trang_thai), reason: item.ly_do_kham,
             })) : [],
             familyMembers: family.status === 'fulfilled' ? unwrapApi(family.value) : [],
             medicalHistory: records.status === 'fulfilled' ? mapMedicalRecords(unwrapApi(records.value)).map((record) => ({

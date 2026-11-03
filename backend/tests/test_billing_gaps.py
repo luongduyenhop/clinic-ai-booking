@@ -12,7 +12,7 @@ from app.schemas.cashier import RefundInvoiceRequest
 from app.services.cashier_service import cashier_service
 from app.services.queue_service import queue_service
 from app.services.appointment_service import appointment_service
-from app.core.exceptions import BadRequestException, ForbiddenException
+from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException
 
 
 @pytest.mark.asyncio
@@ -452,3 +452,96 @@ async def test_pj2026_290_tc_bill_007_03_cumulative_refund_guard(db_session):
     )
     with pytest.raises(BadRequestException):
         await cashier_service.refund_invoice(req4_forbidden, nd_cashier.id, db_session)
+
+
+@pytest.mark.asyncio
+async def test_pj2026_302_tc_bill_006_02_block_refund_on_closed_shift(db_session):
+    suffix = uuid.uuid4().hex[:6]
+    now_utc = datetime.now(timezone.utc)
+
+    nd_cashier = NguoiDung(ho_ten="Cashier Shift", email=f"cashier.shift.{suffix}@clinic.com", so_dien_thoai=f"0914{suffix}")
+    nd_patient = NguoiDung(ho_ten="Patient Shift", email=f"patient.shift.{suffix}@clinic.com", so_dien_thoai=f"0915{suffix}")
+    nd_bs = NguoiDung(ho_ten=f"BS Shift {suffix}", email=f"bs.shift.{suffix}@clinic.com", so_dien_thoai=f"0916{suffix}")
+    db_session.add_all([nd_cashier, nd_patient, nd_bs])
+    await db_session.flush()
+
+    bn = BenhNhan(nguoi_dung_id=nd_patient.id, ma_dinh_danh_y_te=f"BN-KS-{suffix}")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-KS-{suffix}", ten_chuyen_khoa=f"Khoa KS {suffix}")
+    db_session.add_all([bn, ck])
+    await db_session.flush()
+
+    bs = BacSi(nguoi_dung_id=nd_bs.id, chuyen_khoa_id=ck.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-KS-{suffix}")
+    db_session.add(bs)
+    await db_session.flush()
+
+    apt = LichKham(
+        ma_lich_kham=f"APT-KS-{suffix}",
+        benh_nhan_id=bn.id,
+        bac_si_id=bs.id,
+        chuyen_khoa_id=ck.id,
+        ngay_kham=now_utc.date(),
+        ca_kham="sang",
+        trang_thai=TrangThaiLichEnum.DA_TIEP_NHAN.value,
+    )
+    db_session.add(apt)
+    await db_session.flush()
+
+    enc = LuotKham(
+        lich_kham_id=apt.id,
+        benh_nhan_id=bn.id,
+        bac_si_id=bs.id,
+        thoi_gian_bat_dau=now_utc,
+    )
+    db_session.add(enc)
+    await db_session.flush()
+
+    inv = HoaDon(
+        ma_hoa_don=f"HD-KS-{suffix}",
+        luot_kham_id=enc.id,
+        benh_nhan_id=bn.id,
+        thu_ngan_id=nd_cashier.id,
+        tong_tien=Decimal("350000.00"),
+        mien_giam=Decimal("0.00"),
+        thuc_thu=Decimal("350000.00"),
+        phuong_thuc_thanh_toan="tien_mat",
+        trang_thai="da_thu",
+        ngay_thanh_toan=now_utc,
+    )
+    db_session.add(inv)
+    await db_session.flush()
+
+    pt = PhieuThuChi(
+        ma_phieu=f"BL-KS-{suffix}",
+        loai_phieu="THU",
+        hoa_don_id=inv.id,
+        nguoi_giao_dich=nd_patient.ho_ten,
+        so_tien=Decimal("350000.00"),
+        phuong_thuc="tien_mat",
+        ly_do="Thu tien vien phi ca 1",
+        nhan_vien_id=nd_cashier.id,
+        thoi_gian=now_utc,
+        trang_thai_khoa_so=False,
+    )
+    db_session.add(pt)
+    await db_session.flush()
+
+    close_res = await cashier_service.close_shift(
+        thu_ngan_user_id=nd_cashier.id,
+        tien_mat_thuc_te=Decimal("350000.00"),
+        ghi_chu="Khoa so ca 1 hop le",
+        db=db_session,
+    )
+    assert close_res.ok is True
+    assert close_res.tong_ket.so_phieu_thu == 1
+
+    await db_session.refresh(pt)
+    assert pt.trang_thai_khoa_so is True
+
+    req_refund = RefundInvoiceRequest(
+        invoice_id=inv.id,
+        so_tien_hoan=Decimal("100000.00"),
+        ly_do="Thu hoan tien hoa don thuoc ca da khoa so",
+        phuong_thuc="tien_mat",
+    )
+    with pytest.raises(ConflictException):
+        await cashier_service.refund_invoice(req_refund, nd_cashier.id, db_session)

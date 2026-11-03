@@ -518,6 +518,14 @@ class CashierService:
         if invoice.trang_thai not in ("da_thu", "hoan_tien_mot_phan"):
             raise BadRequestException(f"Chỉ có thể hoàn tiền hóa đơn đã thu (Trạng thái hiện tại: {invoice.trang_thai})!")
 
+        stmt_thu = select(PhieuThuChi).where(
+            PhieuThuChi.hoa_don_id == invoice.id,
+            PhieuThuChi.loai_phieu == "THU",
+        )
+        phieu_thu = (await db.execute(stmt_thu)).scalars().first()
+        if phieu_thu and phieu_thu.trang_thai_khoa_so:
+            raise ConflictException(f"Không thể hoàn tiền: Phiếu thu {phieu_thu.ma_phieu} thuộc ca trực đã khóa sổ!")
+
         stmt_chi = select(func.coalesce(func.sum(PhieuThuChi.so_tien), Decimal("0.00"))).where(
             PhieuThuChi.hoa_don_id == invoice.id,
             PhieuThuChi.loai_phieu == "CHI",

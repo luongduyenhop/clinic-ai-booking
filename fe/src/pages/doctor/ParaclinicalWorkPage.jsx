@@ -222,7 +222,7 @@ export default function ParaclinicalWorkPage() {
 
                     {!worklistLoading &&
                         visible.map((o) => {
-                            const st = ORDER_STATUS[clsDisplayStatus(o)]
+                            const st = ORDER_STATUS[clsDisplayStatus(o)] || ORDER_STATUS[o.trang_thai] || { label: o.trang_thai || 'Chờ làm', badge: 'medpro-badge' }
                             const isSel = selected?.id === o.id
                             return (
                                 <button

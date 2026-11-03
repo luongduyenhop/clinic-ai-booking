@@ -1,4 +1,4 @@
-import { TOKEN, REFRESH_TOKEN, USER_ROLE, USER_INFO } from '../constants/System'
+import { TOKEN, REFRESH_TOKEN, USER_ROLE, USER_INFO, CLINIC_DATA_STORAGE_KEY } from '../constants/System'
 export const readAuthFromStorage = () => {
     try {
         const accessToken = localStorage.getItem(TOKEN)
@@ -19,6 +19,7 @@ export const readAuthFromStorage = () => {
 }
 
 export const saveFullAuth = ({ accessToken, refreshToken, role, user }) => {
+    localStorage.removeItem(CLINIC_DATA_STORAGE_KEY)
     if (accessToken !== undefined) {
         if (accessToken) localStorage.setItem(TOKEN, accessToken)
         else localStorage.removeItem(TOKEN)
@@ -38,6 +39,7 @@ export const saveFullAuth = ({ accessToken, refreshToken, role, user }) => {
 }
 
 export const clearAuthStorage = () => {
+    localStorage.removeItem(CLINIC_DATA_STORAGE_KEY)
     localStorage.removeItem(TOKEN)
     localStorage.removeItem(REFRESH_TOKEN)
     localStorage.removeItem(USER_ROLE)

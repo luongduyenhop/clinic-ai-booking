@@ -897,7 +897,6 @@ async def update_patient_status(
 # ==============================================================================
 from typing import Any
 from pydantic import BaseModel
-from app.core.dependencies import get_optional_current_user
 from app.services.bff_admin_service import bff_admin_service
 
 
@@ -919,7 +918,7 @@ class BffCatalogUpdatePayload(BaseModel):
     summary="Nạp toàn bộ dữ liệu quản trị phòng khám (19 phân hệ HIS) từ PostgreSQL"
 )
 async def get_admin_bootstrap(
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     data = await bff_admin_service.get_bootstrap_data(db)
@@ -937,10 +936,10 @@ async def get_admin_bootstrap(
 async def update_admin_collection(
     collection_key: str,
     payload: BffCollectionUpdatePayload,
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = current_user.id if current_user else None
+    user_id = current_user.id
     data = await bff_admin_service.update_collection(
         db=db,
         collection_key=collection_key,
@@ -962,10 +961,10 @@ async def update_admin_collection(
 async def update_admin_catalog_subcollection(
     sub_key: str,
     payload: BffCatalogUpdatePayload,
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = current_user.id if current_user else None
+    user_id = current_user.id
     data = await bff_admin_service.update_catalog_subcollection(
         db=db,
         sub_key=sub_key,
@@ -985,7 +984,7 @@ async def update_admin_catalog_subcollection(
     summary="Khôi phục dữ liệu mẫu ban đầu trên PostgreSQL"
 )
 async def reset_admin_demo_data(
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     data = await bff_admin_service.reset_demo_data(db)

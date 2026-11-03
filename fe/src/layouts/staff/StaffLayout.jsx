@@ -50,18 +50,15 @@ export default function StaffLayout() {
     const dispatch = useDispatch()
 
     const { user, role: authRole } = useSelector((state) => state.app.auth)
-    const { clinicData } = useSelector((state) => state.app.admin)
 
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [currentTime, setCurrentTime] = useState(new Date())
     // Role preview removed - strictly bound to authRole
 
-    // Khởi tạo clinicData nếu chưa có
+    // Nạp lại dữ liệu đúng quyền khi phiên đăng nhập thay đổi
     useEffect(() => {
-        if (!clinicData) {
-            dispatch(loadClinicDataAsync())
-        }
-    }, [dispatch, clinicData])
+        dispatch(loadClinicDataAsync())
+    }, [dispatch, authRole, user?.id])
 
     // Đồng hồ thời gian thực
     useEffect(() => {

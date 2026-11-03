@@ -5,6 +5,7 @@ export const TOKEN = 'accessToken'
 export const REFRESH_TOKEN = 'refreshToken'
 export const USER_ROLE = 'userRole'
 export const USER_INFO = 'userInfo'
+export const CLINIC_DATA_STORAGE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL'
 
 // Danh sách Role chuẩn
 export const ROLE_CUSTOMER = 'CUSTOMER'

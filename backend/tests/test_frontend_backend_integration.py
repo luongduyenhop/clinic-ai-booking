@@ -1,4 +1,10 @@
 import pytest
+import pytest_asyncio
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def admin_headers(booking):
+    return booking.tokens["admin"]
 
 
 @pytest.mark.asyncio
@@ -33,11 +39,11 @@ async def test_frontend_login_contract_and_default_accounts(api_client):
 
 
 @pytest.mark.asyncio
-async def test_frontend_refresh_token_and_demo_token_support(api_client):
+async def test_frontend_refresh_token_and_reject_demo_token(api_client):
     """
-    Kiểm tra cơ chế Refresh Token của BaseService.js và hỗ trợ Demo Token:
+    Kiểm tra cơ chế Refresh Token của BaseService.js và từ chối Demo Token:
     - Gửi { accessToken, refreshToken } tới /api/v1/auth/refresh
-    - Gửi Bearer demo-clinic-ai-admin-token không bị lỗi 401 đá văng khỏi hệ thống
+    - Gửi Bearer demo-clinic-ai-admin-token phải bị từ chối 401
     """
     login_resp = await api_client.post(
         "/api/v1/auth/login",
@@ -62,12 +68,11 @@ async def test_frontend_refresh_token_and_demo_token_support(api_client):
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer demo-clinic-ai-admin-token"},
     )
-    assert me_resp.status_code == 200
-    assert me_resp.json()["data"]["role"] == "ADMIN"
+    assert me_resp.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_admin_bootstrap_and_no_drug_inventory(api_client):
+async def test_admin_bootstrap_and_no_drug_inventory(api_client, admin_headers):
     """
     Kiểm tra endpoint GET /api/v1/admin/bootstrap phục vụ 19 trang Quản trị:
     - Trả về đầy đủ các phân hệ dữ liệu (patients, registrations, appointments, vouchers, catalogs...)
@@ -75,7 +80,7 @@ async def test_admin_bootstrap_and_no_drug_inventory(api_client):
     """
     resp = await api_client.get(
         "/api/v1/admin/bootstrap",
-        headers={"Authorization": "Bearer demo-clinic-ai-admin-token"},
+        headers=admin_headers,
     )
     assert resp.status_code == 200
     clinic_data = resp.json()["data"]
@@ -91,12 +96,12 @@ async def test_admin_bootstrap_and_no_drug_inventory(api_client):
 
 
 @pytest.mark.asyncio
-async def test_admin_collection_and_catalog_sync_persistence(api_client):
+async def test_admin_collection_and_catalog_sync_persistence(api_client, admin_headers):
     """
     Kiểm tra đồng bộ thao tác CRUD từ Frontend (updateCollection & updateCatalogSubCollection)
     xuống PostgreSQL và tự động ghi nhận Nhật ký kiểm toán (auditLogs).
     """
-    headers = {"Authorization": "Bearer demo-clinic-ai-admin-token"}
+    headers = admin_headers
 
     new_closings = [
         {
@@ -179,7 +184,7 @@ async def test_frontend_ai_triage_analyze_contract(api_client):
 
 
 @pytest.mark.asyncio
-async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_session):
+async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_session, admin_headers):
     """
     Kiểm thử toàn diện 17 phân hệ nghiệp vụ Quản lý (Admin HIS) và xác minh dữ liệu
     được đồng bộ trực tiếp vào các bảng quan hệ trong Cơ sở dữ liệu.
@@ -191,7 +196,7 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     from app.models.specialized import DangKyGoiKham, GoiDichVu, LieuTrinhDieuTri
     from app.models.user import BenhNhan, PhongKham
 
-    headers = {"Authorization": "Bearer demo-clinic-ai-admin-token"}
+    headers = admin_headers
 
     # 1. Quản lý Bệnh nhân (patients -> benh_nhan + nguoi_dung)
     r_pat = await api_client.put(

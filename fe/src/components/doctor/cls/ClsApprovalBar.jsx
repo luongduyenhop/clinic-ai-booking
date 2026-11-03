@@ -17,7 +17,7 @@ export default function ClsApprovalBar({ order }) {
     const [approving, setApproving] = useState(false)
     const [printOpen, setPrintOpen] = useState(false)
 
-    const approved = order.trang_thai === 'da_co_ket_qua' && Boolean(order.thoi_gian_duyet || order.trang_thai_ket_qua === 'DA_DUYET')
+    const approved = (order.trang_thai === 'da_co_ket_qua' || order.trang_thai === 'da_duyet' || order.trang_thai === 'DA_DUYET') && Boolean(order.thoi_gian_duyet || order.trang_thai_ket_qua === 'DA_DUYET' || order.trang_thai === 'DA_DUYET' || order.trang_thai === 'da_duyet')
     const ready = order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA'
     if (!approved && !ready) return null
 

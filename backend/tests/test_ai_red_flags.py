@@ -2,6 +2,8 @@ import pytest
 from sqlalchemy import select
 from app.models.appointment import PhanTichAI
 from app.models.user import ChuyenKhoa
+from app.routers import ai_triage
+from app.schemas.ai import SymptomTriageResponse
 from app.services.ai_service import ai_service
 
 
@@ -76,6 +78,44 @@ async def test_api_detects_red_flag_typed_without_diacritics(api_client):
     data = res.json()["data"]
     assert data["has_emergency"] is True
     assert data["suggested_specialties"] == []
+
+
+@pytest.mark.asyncio
+async def test_ai_triage_accepts_1500_chars_and_rejects_1501_before_analysis(api_client, monkeypatch):
+    analyzed_texts = []
+
+    async def fake_analyze_symptoms(payload, _current_user, _db):
+        analyzed_texts.append(payload.trieu_chung)
+        return SymptomTriageResponse()
+
+    monkeypatch.setattr(ai_triage.ai_service, "analyze_symptoms", fake_analyze_symptoms)
+
+    valid_text = "a" * 1500
+    valid_response = await api_client.post(
+        "/api/v1/ai/analyze-symptoms",
+        json={"trieu_chung": valid_text},
+    )
+    assert valid_response.status_code == 200
+    assert analyzed_texts == [valid_text]
+
+    analyzed_texts.clear()
+    invalid_response = await api_client.post(
+        "/api/v1/ai/analyze-symptoms",
+        json={"trieu_chung": "a" * 1501},
+    )
+    assert invalid_response.status_code == 422
+    assert analyzed_texts == []
+    assert "1.500 ký tự" in invalid_response.json()["errors"][0]["detail"]
+
+
+@pytest.mark.asyncio
+async def test_ai_triage_rejects_empty_symptom_description(api_client):
+    response = await api_client.post(
+        "/api/v1/ai/analyze-symptoms",
+        json={"trieu_chung": ""},
+    )
+    assert response.status_code == 422
+    assert "triệu chứng" in response.json()["errors"][0]["detail"].lower()
 
 
 async def _log_moi_nhat(db_session, trieu_chung):

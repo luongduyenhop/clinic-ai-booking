@@ -25,6 +25,11 @@ async def make_account(db_session, monkeypatch):
     async def create(role, active=False, otp=False, email=None):
         suffix = uuid.uuid4().hex[:10]
         email = email or f"qa.{suffix}@example.com"
+        existing = (await db_session.execute(select(TaiKhoan).where(TaiKhoan.email == email))).scalar_one_or_none()
+        if existing:
+            existing.is_active = active
+            await db_session.flush()
+            return existing
         person = NguoiDung(ho_ten="QA disabled account", email=email)
         db_session.add(person)
         await db_session.flush()
@@ -169,7 +174,7 @@ async def test_real_patient_registration_and_otp_flow_remains_available(api_clie
     email = f"qa.register.{uuid.uuid4().hex[:10]}@example.com"
     response = await api_client.post("/api/v1/auth/register", json={
         "ho_ten": "QA patient registration", "email": email,
-        "so_dien_thoai": "0987654321", "mat_khau": PASSWORD,
+        "so_dien_thoai": f"098{uuid.uuid4().int % 10000000:07d}", "mat_khau": PASSWORD,
     })
     assert response.status_code == 201, response.text
     user = (await db_session.execute(select(TaiKhoan).where(TaiKhoan.email == email))).scalar_one()

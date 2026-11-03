@@ -24,6 +24,7 @@ logger = logging.getLogger("clinic_backend")
 ROLE_MAP = {
     "bac_si": "DOCTOR",
     "le_tan": "RECEPTIONIST",
+    "thu_ngan": "CASHIER",
     "ky_thuat_vien": "TECHNICIAN",
     "admin": "ADMIN",
     "benh_nhan": "PATIENT",
@@ -421,28 +422,6 @@ class AuthService:
 
     async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
         """Cấp lại Access Token mới dựa trên Refresh Token lưu trong Database"""
-        if payload.refresh_token == "demo-clinic-ai-refresh-token":
-            tai_khoan = await self._ensure_default_fe_admin("admin@clinic-ai.vn", "password123", db)
-            if tai_khoan:
-                ensure_account_active(tai_khoan)
-                access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
-                new_refresh = create_refresh_token()
-                tai_khoan.refresh_token = new_refresh
-                tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-                await db.commit()
-                return TokenResponse(
-                    access_token=access_token,
-                    refresh_token=new_refresh,
-                    token_type="bearer",
-                    vai_tro=tai_khoan.vai_tro,
-                    role=map_vai_tro_to_role(tai_khoan.vai_tro),
-                    expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-                    user_id=tai_khoan.id,
-                    accessToken=access_token,
-                    refreshToken=new_refresh,
-                )
-
-        # Serialize refresh rotation with logout so a waiting refresh cannot restore a revoked token.
         stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token).with_for_update()
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
         

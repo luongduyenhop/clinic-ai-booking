@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import StaffSidebar, { ROLE_CONFIGS } from './StaffSidebar'
+import StaffSidebar from './StaffSidebar'
+import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import { loadClinicDataAsync } from '../../redux/actions/admin/adminAction'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import {
@@ -55,12 +56,10 @@ export default function StaffLayout() {
     const [currentTime, setCurrentTime] = useState(new Date())
     // Role preview removed - strictly bound to authRole
 
-    // Khởi tạo clinicData nếu chưa có
+    // Nạp lại dữ liệu đúng quyền khi phiên đăng nhập thay đổi
     useEffect(() => {
-        if (!clinicData) {
-            dispatch(loadClinicDataAsync())
-        }
-    }, [dispatch, clinicData])
+        dispatch(loadClinicDataAsync())
+    }, [dispatch, authRole, user?.id])
 
     // Đồng hồ thời gian thực
     useEffect(() => {
@@ -68,9 +67,9 @@ export default function StaffLayout() {
         return () => clearInterval(timer)
     }, [])
 
-    const realRole = authRole || user?.role || 'ADMIN'
-    const effectiveRole = realRole
-    const currentRoleConfig = ROLE_CONFIGS[effectiveRole] || ROLE_CONFIGS.ADMIN
+    const realRole = authRole || user?.role
+    const effectiveRole = normalizeStaffRole(realRole)
+    const currentRoleConfig = getStaffRoleConfig(effectiveRole)
     const isPreviewing = false
 
     // Xác định tiêu đề trang

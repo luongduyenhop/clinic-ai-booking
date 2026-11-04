@@ -14,6 +14,9 @@ import {
     Badge,
     Empty,
     Popconfirm,
+    DatePicker,
+    Segmented,
+    Spin,
 } from 'antd'
 import {
     SearchOutlined,
@@ -24,6 +27,7 @@ import {
     AlertOutlined,
     HistoryOutlined,
     SoundOutlined,
+    AudioMutedOutlined,
     PrinterOutlined,
     SyncOutlined,
     AppstoreOutlined,
@@ -49,12 +53,50 @@ import {
     cancelWaitlistAsync,
 } from '../../redux/actions/reception/receptionAction'
 import { setQueueEntries } from '../../redux/slices/reception/receptionSlice'
+import { receptionService } from '../../services/reception/receptionService'
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import { QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
+import { audioAnnouncer } from '../../utils/audioAnnouncer'
+
+// Helper xác định ca khám mặc định theo thời gian thực (Giờ VN UTC+7)
+// Trước hoặc bằng 12:30 -> Ca sáng, sau 12:30 -> Ca chiều
+const getDefaultShift = () => {
+    const now = dayjs()
+    const hour = now.hour()
+    const minute = now.minute()
+    if (hour < 12 || (hour === 12 && minute <= 30)) {
+        return 'sang'
+    }
+    return 'chieu'
+}
+
+// Helper chuẩn hóa Tiếng Việt và màu sắc cho Loại hàng đợi
+const getQueueTypeTag = (record) => {
+    const rawType = String(record.loai_hang_doi || '').toLowerCase().trim()
+    if (rawType === 'cap_cuu' || record.isEmergency) {
+        return { label: 'Cấp cứu', color: 'red', className: 'font-bold' }
+    }
+    if (rawType === 'dung_hen') {
+        return { label: 'Đúng hẹn', color: 'blue', className: 'font-medium' }
+    }
+    if (rawType === 'den_som') {
+        return { label: 'Đến sớm', color: 'cyan', className: 'font-medium' }
+    }
+    if (rawType === 'den_muon' || rawType === 'tre_hen') {
+        return { label: 'Đến muộn', color: 'volcano', className: 'font-medium' }
+    }
+    if (rawType === 'co_ket_qua_cls' || rawType === 'sau_cls' || rawType === 'kham_lai' || rawType.includes('cls') || /sau_cls|co_ket_qua|tra_cls|lab return/i.test(record.notes || record.priorityReason || record.patientName || '')) {
+        return { label: 'Sau CLS', color: 'geekblue', className: 'font-medium' }
+    }
+    if (rawType === 'tai_kham' || rawType === 'tai_kham_trong_ngay') {
+        return { label: 'Tái khám', color: 'purple', className: 'font-medium' }
+    }
+    return { label: 'Vãng lai', color: 'orange', className: 'font-medium' }
+}
 
 export default function QueueManagementPage() {
     const dispatch = useDispatch()
@@ -75,48 +117,19 @@ export default function QueueManagementPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedDepartmentTab, setSelectedDepartmentTab] = useState('') // Tab Chuyên khoa (mặc định tab đầu tiên)
     const [selectedRoomId, setSelectedRoomId] = useState(null) // ID buồng khám đang lọc
+    const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
+    const [selectedShift, setSelectedShift] = useState(() => getDefaultShift()) // 'all' | 'sang' | 'chieu'
 
     // Modal states
     const [actionModal, setActionModal] = useState({ open: false, entry: null, mode: 'DEFER' })
     const [historyModal, setHistoryModal] = useState({ open: false, entry: null })
+    const [historyLogs, setHistoryLogs] = useState([])
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+    const [isAudioEnabled, setIsAudioEnabled] = useState(() => audioAnnouncer.isEnabled())
     const [patientDrawerId, setPatientDrawerId] = useState(null)
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [receiptEntry, setReceiptEntry] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
-
-    // Tải hàng đợi, thống kê ca trực và danh mục buồng khám khi vào trang (gọi 1 lần khi mount)
-    useEffect(() => {
-        dispatch(fetchFlowBoardAsync())
-        dispatch(fetchShiftDashboardAsync())
-        dispatch(fetchReceptionWaitlistAsync())
-        if (!rooms || rooms.length === 0) {
-            dispatch(fetchReceptionDataAsync())
-        }
-    }, [dispatch])
-
-    // Đồng bộ hàng đợi theo phòng đang chọn hoặc toàn viện
-    const handleRefreshQueue = async () => {
-        setIsRefreshing(true)
-        try {
-            const currentRoom = selectedRoomId ? displayRooms.find((r) => r.id === selectedRoomId) : null
-            if (currentRoom) {
-                if (currentRoom.doctorId) {
-                    await dispatch(fetchDoctorQueueAsync({ doctorId: currentRoom.doctorId })).unwrap()
-                } else {
-                    dispatch(setQueueEntries([]))
-                }
-            } else {
-                await dispatch(fetchFlowBoardAsync()).unwrap()
-            }
-            await dispatch(fetchShiftDashboardAsync()).unwrap()
-            await dispatch(fetchReceptionWaitlistAsync()).unwrap()
-            message.success('Đã đồng bộ hàng đợi thời gian thực!')
-        } catch {
-            message.info('Đã nạp lại dữ liệu hàng đợi')
-        } finally {
-            setIsRefreshing(false)
-        }
-    }
 
     // Danh sách buồng khám kết hợp thông tin Bác sĩ trực từ Lịch làm việc hôm nay (roomStatus)
     const displayRooms = useMemo(() => {
@@ -208,6 +221,72 @@ export default function QueueManagementPage() {
         )
     }, [departmentTabs, displayRooms])
 
+
+    const displayRoomsRef = useRef(displayRooms)
+    const selectedRoomIdRef = useRef(selectedRoomId)
+
+    useEffect(() => {
+        displayRoomsRef.current = displayRooms
+        selectedRoomIdRef.current = selectedRoomId
+    }, [displayRooms, selectedRoomId])
+
+    // Đồng bộ hàng đợi theo phòng đang chọn, ngày và ca khám (dùng ref để tránh vòng lặp re-render)
+    const refreshQueueData = useCallback(async (roomIdToUse = selectedRoomIdRef.current, dateToUse = selectedDate, shiftToUse = selectedShift) => {
+        const params = {
+            queryDate: dateToUse || undefined,
+            caKham: shiftToUse === 'all' ? undefined : shiftToUse,
+        }
+        const currentRoom = roomIdToUse ? displayRoomsRef.current.find((r) => String(r.id) === String(roomIdToUse)) : null
+        if (currentRoom) {
+            if (currentRoom.doctorId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: currentRoom.doctorId, ...params })).unwrap().catch(() => { })
+            } else {
+                dispatch(setQueueEntries([]))
+            }
+        } else {
+            await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => { })
+        }
+        dispatch(fetchShiftDashboardAsync(params))
+        dispatch(fetchReceptionWaitlistAsync())
+    }, [dispatch, selectedDate, selectedShift])
+
+    // Tải hàng đợi, thống kê ca trực và danh mục buồng khám khi vào trang (chỉ gọi 1 lần khi mount)
+    useEffect(() => {
+        const initialShift = getDefaultShift()
+        const initialDate = dayjs().format('YYYY-MM-DD')
+        const initialParams = {
+            queryDate: initialDate,
+            caKham: initialShift,
+        }
+        dispatch(fetchShiftDashboardAsync(initialParams))
+        if (!rooms || rooms.length === 0) {
+            dispatch(fetchReceptionDataAsync())
+        }
+    }, [dispatch])
+
+    // Lắng nghe khi người dùng thực sự thay đổi Ngày hoặc Ca khám trên UI (chặn lặp vô tận)
+    const prevFilterRef = useRef({ date: selectedDate, shift: selectedShift })
+    useEffect(() => {
+        if (prevFilterRef.current.date === selectedDate && prevFilterRef.current.shift === selectedShift) {
+            return
+        }
+        prevFilterRef.current = { date: selectedDate, shift: selectedShift }
+        refreshQueueData(selectedRoomIdRef.current, selectedDate, selectedShift)
+    }, [selectedDate, selectedShift, refreshQueueData])
+
+    // Đồng bộ hàng đợi theo phòng đang chọn hoặc toàn viện
+    const handleRefreshQueue = async () => {
+        setIsRefreshing(true)
+        try {
+            await refreshQueueData(selectedRoomId, selectedDate, selectedShift)
+            message.success('Đã đồng bộ hàng đợi thời gian thực!')
+        } catch {
+            message.info('Đã nạp lại dữ liệu hàng đợi')
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
+
     const hasInitialFocusedRef = useRef(false)
 
     // Khi vào trang: Tự động chọn tab Khoa Nội tổng quát và focus vào 1 phòng cụ thể (P101)
@@ -224,18 +303,54 @@ export default function QueueManagementPage() {
         const targetRoom = internalRooms[0] || displayRooms[0]
 
         if (targetRoom) {
+            // Chờ buồng khám có doctorId (sau khi roomStatus từ fetchShiftDashboardAsync trả về)
+            if (!targetRoom.doctorId) {
+                return
+            }
+
             hasInitialFocusedRef.current = true
             setSelectedDepartmentTab(internalDep.id)
             setSelectedRoomId(targetRoom.id)
 
-            // Tải dữ liệu hàng đợi thời gian thực của buồng khám này
-            if (targetRoom.doctorId) {
-                dispatch(fetchDoctorQueueAsync({ doctorId: targetRoom.doctorId }))
-            } else {
-                dispatch(fetchFlowBoardAsync({ roomId: targetRoom.id }))
+            // Tải dữ liệu hàng đợi và waitlist thời gian thực của buồng khám này
+            const params = {
+                queryDate: selectedDate,
+                caKham: selectedShift === 'all' ? undefined : selectedShift,
             }
+            dispatch(fetchDoctorQueueAsync({ doctorId: targetRoom.doctorId, ...params }))
+            dispatch(fetchReceptionWaitlistAsync({
+                query_date: selectedDate,
+                ca_kham: selectedShift === 'all' ? undefined : selectedShift,
+                bac_si_id: targetRoom.doctorId,
+            }))
         }
-    }, [displayRooms, departmentTabs, getRoomsForTab, dispatch])
+    }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
+
+    // Fallback an toàn: nếu sau 1.5s phòng không có bác sĩ trực, vẫn focus buồng để không bị treo
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!hasInitialFocusedRef.current && displayRooms.length > 0 && departmentTabs.length > 0) {
+                const internalDep = departmentTabs.find((d) => /nội/i.test(d.name)) || departmentTabs[0]
+                const internalRooms = internalDep ? getRoomsForTab(internalDep.id) : []
+                const targetRoom = internalRooms[0] || displayRooms[0]
+                if (targetRoom) {
+                    hasInitialFocusedRef.current = true
+                    setSelectedDepartmentTab(internalDep?.id || departmentTabs[0].id)
+                    setSelectedRoomId(targetRoom.id)
+                    const params = {
+                        queryDate: selectedDate,
+                        caKham: selectedShift === 'all' ? undefined : selectedShift,
+                    }
+                    if (targetRoom.doctorId) {
+                        dispatch(fetchDoctorQueueAsync({ doctorId: targetRoom.doctorId, ...params }))
+                    } else {
+                        dispatch(setQueueEntries([]))
+                    }
+                }
+            }
+        }, 1500)
+        return () => clearTimeout(timer)
+    }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
 
     // Đảm bảo selectedDepartmentTab luôn hợp lệ nếu có thay đổi từ catalog
     useEffect(() => {
@@ -346,31 +461,120 @@ export default function QueueManagementPage() {
     // Thao tác khi chọn một buồng khám:
     // Liên kết: Phòng khám -> Lịch làm việc hôm nay -> Bác sĩ trực buồng
     // Gọi đúng endpoint @router.get("/queue/{doctor_id}") (DoctorQueueBoardResponse)
-    const handleSelectRoom = async (room) => {
-        if (selectedRoomId === room?.id) {
-            // Nhấn lại buồng đang chọn -> Bỏ lọc, gọi lại /flow-board lấy toàn bộ hàng đợi toàn viện
-            setSelectedRoomId(null)
-            await dispatch(fetchFlowBoardAsync())
-        } else {
-            setSelectedRoomId(room.id)
-            // Luôn gọi API để lấy hàng đợi thời gian thực của buồng khám được chọn
-            if (room.doctorId) {
-                // Buồng có Bác sĩ trực: Gọi API @router.get("/queue/{doctor_id}") lấy hàng đợi bác sĩ
-                await dispatch(fetchDoctorQueueAsync({ doctorId: room.doctorId }))
-            } else {
-                // Buồng chưa có bác sĩ hoặc buồng CLS: Gọi API /flow-board?room_id={id}
-                await dispatch(fetchFlowBoardAsync({ roomId: room.id }))
-            }
+
+    // Helper dựng Timeline các chặng thực tế từ mốc thời gian của phiếu khám
+    const getTicketStages = (entry) => {
+        if (!entry) return []
+        const stages = []
+        const roomName = entry.phong_kham || 'Quầy tiếp tân'
+
+        // Chặng 1: Tiếp nhận & Cấp số
+        if (entry.thoi_gian_check_in || entry.created_at) {
+            stages.push({
+                stage: 'TIẾP NHẬN & CẤP SỐ',
+                time: dayjs(entry.thoi_gian_check_in || entry.created_at).format('HH:mm (DD/MM)'),
+                room: 'Quầy tiếp đón lễ tân',
+                color: 'blue',
+            })
         }
-        dispatch(fetchShiftDashboardAsync())
-        dispatch(fetchReceptionWaitlistAsync())
+
+        // Chặng 2: Tạm hoãn lượt khám (nếu có xếp hàng lại hoặc trạng thái là tam_hoan)
+        if (entry.thoi_gian_xep_hang_lai || entry.rawStatus === 'tam_hoan') {
+            stages.push({
+                stage: 'TẠM HOÃN & XẾP HÀNG LẠI',
+                time: entry.thoi_gian_xep_hang_lai
+                    ? dayjs(entry.thoi_gian_xep_hang_lai).format('HH:mm (DD/MM)')
+                    : 'Đang tạm hoãn',
+                room: roomName,
+                color: 'orange',
+            })
+        }
+
+        // Chặng 3: Gọi vào khám
+        if (entry.thoi_gian_goi_kham || (entry.so_lan_goi && entry.so_lan_goi > 0)) {
+            stages.push({
+                stage: `GỌI VÀO PHÒNG KHÁM (Lần ${entry.so_lan_goi || 1})`,
+                time: entry.thoi_gian_goi_kham
+                    ? dayjs(entry.thoi_gian_goi_kham).format('HH:mm (DD/MM)')
+                    : 'Đã phát loa gọi',
+                room: roomName,
+                color: 'green',
+            })
+        }
+
+        // Chặng 4: Khám lâm sàng
+        if (entry.thoi_gian_bat_dau || entry.rawStatus === 'dang_kham') {
+            stages.push({
+                stage: 'BÁC SĨ KHÁM LÂM SÀNG',
+                time: entry.thoi_gian_bat_dau
+                    ? dayjs(entry.thoi_gian_bat_dau).format('HH:mm (DD/MM)')
+                    : 'Đang khám',
+                room: roomName,
+                color: 'cyan',
+            })
+        }
+
+        // Chặng 5: Đóng vé hoặc bỏ khám
+        if (entry.rawStatus === 'bo_kham') {
+            stages.push({
+                stage: 'BỆNH NHÂN BỎ KHÁM',
+                time: entry.thoi_gian_ket_thuc
+                    ? dayjs(entry.thoi_gian_ket_thuc).format('HH:mm (DD/MM)')
+                    : 'Đã hủy lượt khám',
+                room: roomName,
+                color: 'red',
+            })
+        } else if (entry.thoi_gian_ket_thuc || entry.rawStatus === 'da_kham' || entry.rawStatus === 'da_dong_ve') {
+            stages.push({
+                stage: 'HOÀN TẤT KHÁM & ĐÓNG VÉ',
+                time: entry.thoi_gian_ket_thuc
+                    ? dayjs(entry.thoi_gian_ket_thuc).format('HH:mm (DD/MM)')
+                    : 'Đã hoàn tất',
+                room: roomName,
+                color: 'purple',
+            })
+        }
+
+        return stages
+    }
+
+    // Tải nhật ký thao tác kiểm toán từ API thật Backend
+    const handleOpenHistoryModal = async (record) => {
+        setHistoryModal({ open: true, entry: record })
+        setHistoryLogs([])
+        setIsLoadingHistory(true)
+        try {
+            const ticketNum = record.ticketNumber || record.ma_so_thu_tu || ''
+            const res = await receptionService.getAuditLogs({
+                query_date: selectedDate,
+                search: ticketNum,
+                page_size: 50,
+            })
+            const data = res?.data?.data || res?.data || {}
+            const items = data.items || []
+            const filtered = items.filter(
+                (item) =>
+                    item.ticket_number === ticketNum ||
+                    String(item.metadata?.ticket_id) === String(record.id)
+            )
+            setHistoryLogs(filtered)
+        } catch (err) {
+            console.error('Không thể nạp nhật ký kiểm toán:', err)
+            setHistoryLogs([])
+        } finally {
+            setIsLoadingHistory(false)
+        }
+    }
+
+    const handleSelectRoom = async (room) => {
+        const nextRoomId = selectedRoomId === room?.id ? null : room.id
+        setSelectedRoomId(nextRoomId)
+        await refreshQueueData(nextRoomId, selectedDate, selectedShift)
     }
 
     const handleSelectAllRooms = async () => {
         setSelectedRoomId(null)
-        await dispatch(fetchFlowBoardAsync())
-        dispatch(fetchShiftDashboardAsync())
-        dispatch(fetchReceptionWaitlistAsync())
+        await refreshQueueData(null, selectedDate, selectedShift)
     }
 
     // Phân loại Tier ưu tiên (Lát cắt C - Tiered Priority Policy)
@@ -401,6 +605,18 @@ export default function QueueManagementPage() {
                 ticketStr.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
                 patName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
                 patPhone.includes(searchQuery.trim())
+
+            // Lọc theo ca khám (nếu chọn 'sang' hoặc 'chieu')
+            let matchesShift = true
+            if (selectedShift !== 'all' && q.ca_kham) {
+                matchesShift = q.ca_kham.toLowerCase() === selectedShift.toLowerCase()
+            }
+
+            // Lọc theo ngày khám (nếu vé có ngay_kham)
+            let matchesDate = true
+            if (selectedDate && q.ngay_kham) {
+                matchesDate = q.ngay_kham === selectedDate
+            }
 
             // Lọc theo phạm vi buồng khám hoặc chuyên khoa đang chọn
             let matchesScope = true
@@ -435,25 +651,22 @@ export default function QueueManagementPage() {
                     q.status === 'DA_DONG_VE'
             }
 
-            return matchesQuery && matchesScope && matchesTab
+            return matchesQuery && matchesShift && matchesDate && matchesScope && matchesTab
         })
-    }, [queueEntries, patients, searchQuery, selectedRoomId, selectedDepartmentTab, displayRooms, visibleRooms, activeTab])
+    }, [queueEntries, patients, searchQuery, selectedShift, selectedDate, selectedRoomId, selectedDepartmentTab, displayRooms, visibleRooms, activeTab])
 
-    // Sắp xếp ưu tiên
-    const sortedQueue = useMemo(() => {
-        return [...filteredQueue].sort((a, b) => {
-            const tierA = getQueueTier(a)
-            const tierB = getQueueTier(b)
-            if (tierA !== tierB) return tierA - tierB
-            const sttA = Number(a.so_thu_tu_kham) || 999
-            const sttB = Number(b.so_thu_tu_kham) || 999
-            return sttA - sttB
-        })
-    }, [filteredQueue])
+    // Giữ nguyên 100% thứ tự hàng đợi do API Backend tính toán và trả về (không tự ý đảo vị trí)
+    const sortedQueue = filteredQueue
 
     // Thống kê số lượng theo từng trạng thái tab
     const tabCounts = useMemo(() => {
         let baseList = queueEntries
+        if (selectedShift !== 'all') {
+            baseList = baseList.filter((q) => !q.ca_kham || q.ca_kham.toLowerCase() === selectedShift.toLowerCase())
+        }
+        if (selectedDate) {
+            baseList = baseList.filter((q) => !q.ngay_kham || q.ngay_kham === selectedDate)
+        }
         if (selectedRoomId !== null) {
             const currentRoom = displayRooms.find((r) => r.id === selectedRoomId)
             baseList = baseList.filter((q) => isTicketInRoom(q, currentRoom))
@@ -498,7 +711,7 @@ export default function QueueManagementPage() {
             ).length,
             WAITLIST: waitlistInScope.length,
         }
-    }, [queueEntries, selectedRoomId, displayRooms, selectedDepartmentTab, visibleRooms, waitlist])
+    }, [queueEntries, selectedShift, selectedDate, selectedRoomId, displayRooms, selectedDepartmentTab, visibleRooms, waitlist])
 
     // Tự động tải lại Danh sách chờ (Waitlist) khi chuyển sang Tab WAITLIST
     useEffect(() => {
@@ -513,16 +726,50 @@ export default function QueueManagementPage() {
             const targetId = record.backendId || record.id
             await dispatch(callQueueEntryAsync({ queueId: targetId })).unwrap()
             message.success(`Đã gọi số vé ${record.ticketNumber || record.ma_so_thu_tu}`)
+
+            // Phát loa âm thanh chuông y tế & đọc tên bệnh nhân tiếng Việt
+            const pName = record.patientName || record.ten_benh_nhan || 'Bệnh nhân'
+            const tNum = record.ticketNumber || record.ma_so_thu_tu || ''
+            const rName = record.phong_kham || selectedRoomObj?.name || 'phòng khám'
+            audioAnnouncer.announcePatient(pName, tNum, rName)
+            await reloadQueueAfterAction(record)
         } catch (e) {
             message.info(`Đang gọi số vé ${record.ticketNumber || record.ma_so_thu_tu}`)
         }
     }
 
+    // Hàm dùng chung: nạp lại ngay danh sách hàng đợi buồng khám từ Backend sau mỗi thao tác
+    const reloadQueueAfterAction = async (record) => {
+        const currentRoom = selectedRoomId ? displayRooms.find((r) => String(r.id) === String(selectedRoomId)) : null
+        const docId = record?.doctorId || currentRoom?.doctorId || 1
+        const params = {
+            queryDate: selectedDate,
+            caKham: selectedShift === 'all' ? undefined : selectedShift,
+        }
+        if (docId) {
+            await dispatch(fetchDoctorQueueAsync({ doctorId: docId, ...params })).unwrap().catch(() => {})
+        } else {
+            await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+        }
+        dispatch(fetchShiftDashboardAsync(params))
+        dispatch(fetchReceptionWaitlistAsync())
+    }
+
     const handleResume = async (record) => {
         try {
             const targetId = record.backendId || record.id
-            await dispatch(resumeQueueEntryAsync({ queueId: targetId })).unwrap()
+            const currentRoom = selectedRoomId ? displayRooms.find((r) => String(r.id) === String(selectedRoomId)) : null
+            const docId = record?.doctorId || currentRoom?.doctorId || 1
+            await dispatch(
+                resumeQueueEntryAsync({
+                    queueId: targetId,
+                    doctorId: docId,
+                    queryDate: selectedDate,
+                    caKham: selectedShift === 'all' ? undefined : selectedShift,
+                })
+            ).unwrap()
             message.success(`Đã khôi phục số vé ${record.ticketNumber || record.ma_so_thu_tu} vào hàng chờ`)
+            await refreshQueueData(selectedRoomIdRef.current || currentRoom?.id, selectedDate, selectedShift)
         } catch {
             message.info(`Đã tiếp nhận lại lượt khám`)
         }
@@ -531,8 +778,18 @@ export default function QueueManagementPage() {
     const handleMarkAbsent = async (record) => {
         try {
             const targetId = record.backendId || record.id
-            await dispatch(markAbsentAsync({ queueId: targetId })).unwrap()
+            const currentRoom = selectedRoomId ? displayRooms.find((r) => String(r.id) === String(selectedRoomId)) : null
+            const docId = record?.doctorId || currentRoom?.doctorId || 1
+            await dispatch(
+                markAbsentAsync({
+                    queueId: targetId,
+                    doctorId: docId,
+                    queryDate: selectedDate,
+                    caKham: selectedShift === 'all' ? undefined : selectedShift,
+                })
+            ).unwrap()
             message.warning(`Đã đánh dấu vắng mặt cho số vé ${record.ticketNumber || record.ma_so_thu_tu}`)
+            await refreshQueueData(selectedRoomIdRef.current || currentRoom?.id, selectedDate, selectedShift)
         } catch {
             message.info('Đã cập nhật trạng thái vắng mặt')
         }
@@ -711,7 +968,9 @@ export default function QueueManagementPage() {
         setSelectedDepartmentTab(departmentTabs[0]?.id || '')
         setActiveTab('ALL')
         setSearchQuery('')
-        dispatch(fetchFlowBoardAsync())
+        setSelectedDate(dayjs().format('YYYY-MM-DD'))
+        setSelectedShift(getDefaultShift())
+        refreshQueueData(null, dayjs().format('YYYY-MM-DD'), getDefaultShift())
     }
 
     // Cấu hình các cột hiển thị trong bảng hàng đợi
@@ -720,39 +979,35 @@ export default function QueueManagementPage() {
             title: 'STT & Mã Buồng',
             dataIndex: 'ticketNumber',
             key: 'ticketNumber',
-            width: 145,
+            width: 155,
             render: (ticket, record) => {
-                const tier = getQueueTier(record)
                 const num = record.ticketNumber || record.ma_so_thu_tu || '01'
+                const isLevel1 = record.muc_do_uu_tien === 1 || record.isEmergency || /cấp cứu|cap_cuu/i.test(record.priorityReason || record.notes || '')
+                const queueTag = getQueueTypeTag(record)
+
                 return (
                     <div className="flex flex-col gap-1 items-start">
                         <span className="text-base font-black text-sky-700 tracking-tight font-mono">
                             {num}
                         </span>
-                        <div>
-                            {tier === 1 ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-600 text-white animate-pulse">
-                                    🚨 Cấp cứu
-                                </span>
-                            ) : tier === 2 ? (
-                                <Tag color="purple" className="mr-0 text-[10px] font-bold">
+                        <div className="flex flex-wrap items-center gap-1">
+                            {/* Mức 1: Luôn hiển thị Tag Ưu tiên */}
+                            {isLevel1 && (
+                                <Tag color="purple" className="m-0 text-[10px] font-bold">
                                     Ưu tiên
                                 </Tag>
-                            ) : tier === 3 ? (
-                                <Tag color="cyan" className="mr-0 text-[10px] font-bold">
-                                    Sau CLS
-                                </Tag>
-                            ) : tier === 4 ? (
-                                <Tag color="blue" className="mr-0 text-[10px]">
-                                    Có lịch
-                                </Tag>
-                            ) : (
-                                <Tag color={record.isWalkIn ? 'orange' : 'default'} className="mr-0 text-[10px]">
-                                    {record.isWalkIn ? 'Vãng lai' : 'Thường'}
+                            )}
+
+                            {/* Tag Loại hàng đợi (Chuẩn hóa Tiếng Việt) */}
+                            {queueTag && (
+                                <Tag color={queueTag.color} className={`m-0 text-[10px] ${queueTag.className || ''}`}>
+                                    {queueTag.label}
                                 </Tag>
                             )}
+
+                            {/* Thông báo bổ sung nếu đã xếp hàng lại */}
                             {record.muc_do_uu_tien === 4 && Boolean(record.thoi_gian_xep_hang_lai) && (
-                                <Tag color="warning" className="mr-0 text-[10px] font-medium mt-0.5">
+                                <Tag color="warning" className="m-0 text-[10px] font-medium">
                                     Đã xếp hàng lại
                                 </Tag>
                             )}
@@ -832,13 +1087,12 @@ export default function QueueManagementPage() {
                         {isWaiting && (
                             <div className="mt-1">
                                 <span
-                                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md inline-block ${
-                                        isOverdue
+                                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md inline-block ${isOverdue
                                             ? 'bg-rose-100 text-rose-700 font-bold'
                                             : isWarn
-                                            ? 'bg-amber-100 text-amber-700'
-                                            : 'bg-slate-100 text-slate-600'
-                                    }`}
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-slate-100 text-slate-600'
+                                        }`}
                                 >
                                     Đã chờ {record.waitTimeMinutes || 0} phút
                                 </span>
@@ -908,7 +1162,7 @@ export default function QueueManagementPage() {
                         key: 'history',
                         label: 'Lịch sử chặng & thao tác',
                         icon: <HistoryOutlined />,
-                        onClick: () => setHistoryModal({ open: true, entry: record }),
+                        onClick: () => handleOpenHistoryModal(record),
                     },
                     {
                         key: 'print',
@@ -1081,21 +1335,19 @@ export default function QueueManagementPage() {
                                         }
                                     }
                                 }}
-                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                                    isDepActive
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${isDepActive
                                         ? 'bg-slate-800 text-white shadow-xs'
                                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                                }`}
+                                    }`}
                             >
                                 <span>{dep.name}</span>
                                 <span
-                                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                                        isDepActive
+                                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isDepActive
                                             ? 'bg-sky-500 text-white'
                                             : depWaitingTotal > 0
-                                            ? 'bg-sky-100 text-sky-700'
-                                            : 'bg-slate-200 text-slate-500'
-                                    }`}
+                                                ? 'bg-sky-100 text-sky-700'
+                                                : 'bg-slate-200 text-slate-500'
+                                        }`}
                                 >
                                     {depWaitingTotal}
                                 </span>
@@ -1118,13 +1370,12 @@ export default function QueueManagementPage() {
                                 key={rm.id}
                                 onClick={() => handleSelectRoom(rm)}
                                 title={`${rm.name} - ${rm.doctorName}`}
-                                className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between relative group ${
-                                    isSelected
+                                className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between relative group ${isSelected
                                         ? 'border-sky-600 bg-sky-50 ring-2 ring-sky-200 shadow-xs'
                                         : isOverload
-                                        ? 'border-rose-300 bg-rose-50/60 hover:bg-rose-50'
-                                        : 'border-slate-200 bg-white hover:border-sky-300 hover:shadow-2xs'
-                                }`}
+                                            ? 'border-rose-300 bg-rose-50/60 hover:bg-rose-50'
+                                            : 'border-slate-200 bg-white hover:border-sky-300 hover:shadow-2xs'
+                                    }`}
                             >
                                 <div>
                                     {/* Header thẻ buồng: Mã buồng & Vị trí tầng */}
@@ -1163,13 +1414,12 @@ export default function QueueManagementPage() {
                                     <span className="text-[11px] text-slate-400 font-medium">Đang chờ:</span>
                                     <div className="flex items-baseline gap-1">
                                         <span
-                                            className={`text-lg font-black ${
-                                                isOverload
+                                            className={`text-lg font-black ${isOverload
                                                     ? 'text-rose-600'
                                                     : waitingCount > 0
-                                                    ? 'text-sky-700'
-                                                    : 'text-slate-400'
-                                            }`}
+                                                        ? 'text-sky-700'
+                                                        : 'text-slate-400'
+                                                }`}
                                         >
                                             {waitingCount}
                                         </span>
@@ -1190,55 +1440,50 @@ export default function QueueManagementPage() {
                         <button
                             type="button"
                             onClick={() => setActiveTab('ALL')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                activeTab === 'ALL'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'ALL'
                                     ? 'bg-sky-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Tất cả ({tabCounts.ALL})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('WAITING')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                activeTab === 'WAITING'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'WAITING'
                                     ? 'bg-sky-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Đang chờ ({tabCounts.WAITING})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('IN_CONSULTATION')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                activeTab === 'IN_CONSULTATION'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'IN_CONSULTATION'
                                     ? 'bg-sky-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Đang khám ({tabCounts.IN_CONSULTATION})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('DEFERRED')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                activeTab === 'DEFERRED'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'DEFERRED'
                                     ? 'bg-sky-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Tạm hoãn ({tabCounts.DEFERRED})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('COMPLETED')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                activeTab === 'COMPLETED'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'COMPLETED'
                                     ? 'bg-sky-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Hoàn tất ({tabCounts.COMPLETED})
                         </button>
@@ -1248,36 +1493,46 @@ export default function QueueManagementPage() {
                                 setActiveTab('WAITLIST')
                                 dispatch(fetchReceptionWaitlistAsync())
                             }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                                activeTab === 'WAITLIST'
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'WAITLIST'
                                     ? 'bg-amber-600 text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Danh sách chờ (Waitlist) ({tabCounts.WAITLIST || 0})
                         </button>
                     </div>
 
-                    {/* Chỉ giữ lại thanh tìm kiếm & nút xóa bộ lọc */}
-                    <div className="flex items-center gap-2">
+                    {/* Bộ lọc Ngày & Ca khám kết hợp Ô Tìm kiếm */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <DatePicker
+                            value={selectedDate ? dayjs(selectedDate) : dayjs()}
+                            onChange={(d) => {
+                                const val = d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+                                setSelectedDate(val)
+                            }}
+                            format="DD/MM/YYYY"
+                            allowClear={false}
+                            className="w-32 text-xs rounded-xl"
+                        />
+                        <Segmented
+                            value={selectedShift}
+                            onChange={(val) => setSelectedShift(val)}
+                            options={[
+                                { label: 'Tất cả ca', value: 'all' },
+                                { label: 'Ca sáng', value: 'sang' },
+                                { label: 'Ca chiều', value: 'chieu' },
+                            ]}
+                            className="text-xs bg-slate-100 p-0.5 rounded-xl font-medium"
+                        />
                         <Input
                             placeholder="Số vé (A101, TMH-01), tên BN, SĐT..."
                             prefix={<SearchOutlined className="text-slate-400" />}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             allowClear
-                            className="w-72 text-xs rounded-xl"
+                            className="w-64 text-xs rounded-xl"
                         />
-                        {(selectedRoomId !== null || searchQuery) && (
-                            <Button
-                                size="middle"
-                                icon={<ClearOutlined />}
-                                onClick={handleResetAllFilters}
-                                className="text-xs text-slate-600"
-                            >
-                                Xóa bộ lọc
-                            </Button>
-                        )}
+
                     </div>
                 </div>
 
@@ -1358,61 +1613,61 @@ export default function QueueManagementPage() {
                         }}
                     />
                 ) : (
-                <Table
-                    columns={columns}
-                    dataSource={sortedQueue}
-                    rowKey="id"
-                    loading={queueLoading}
-                    pagination={{
-                        pageSize: 10,
-                        showSizeChanger: true,
-                        pageSizeOptions: ['10', '20', '50'],
-                        showTotal: (total) => `Tổng số: ${total} lượt khám`,
-                    }}
-                    size="middle"
-                    locale={{
-                        emptyText: (
-                            <div className="py-8 text-center">
-                                <Empty
-                                    description={
-                                        <div className="space-y-1">
-                                            <p className="font-semibold text-slate-700 text-sm">
-                                                Không có bệnh nhân nào trong hàng đợi
-                                            </p>
-                                            <p className="text-xs text-slate-400">
-                                                {selectedRoomId !== null
-                                                    ? (selectedRoomObj?.doctorId
-                                                        ? `Buồng khám ${selectedRoomObj?.name} (${selectedRoomObj?.doctorName}) hiện chưa có bệnh nhân nào trong hàng đợi.`
-                                                        : `Buồng khám ${selectedRoomObj?.name} hôm nay chưa có Bác sĩ vào ca trực theo Lịch làm việc.`)
-                                                    : 'Hiện tại chưa có người bệnh nào cần điều phối ở danh mục này.'}
-                                            </p>
-                                        </div>
-                                    }
-                                >
-                                    {(selectedRoomId !== null || searchQuery || activeTab !== 'ALL') && (
-                                        <Button
-                                            type="primary"
-                                            size="small"
-                                            onClick={handleResetAllFilters}
-                                            className="bg-sky-600 text-xs font-semibold mt-2"
-                                        >
-                                            Đặt lại tất cả bộ lọc
-                                        </Button>
-                                    )}
-                                </Empty>
-                            </div>
-                        ),
-                    }}
-                    rowClassName={(record) =>
-                        record.priority === 'EMERGENCY'
-                            ? 'bg-rose-50/40'
-                            : record.priority === 'PRIORITY'
-                            ? 'bg-purple-50/30'
-                            : record.status === 'DEFERRED' || record.status === 'tam_hoan'
-                            ? 'bg-amber-50/30'
-                            : ''
-                    }
-                />
+                    <Table
+                        columns={columns}
+                        dataSource={sortedQueue}
+                        rowKey="id"
+                        loading={queueLoading}
+                        pagination={{
+                            pageSize: 10,
+                            showSizeChanger: true,
+                            pageSizeOptions: ['10', '20', '50'],
+                            showTotal: (total) => `Tổng số: ${total} lượt khám`,
+                        }}
+                        size="middle"
+                        locale={{
+                            emptyText: (
+                                <div className="py-8 text-center">
+                                    <Empty
+                                        description={
+                                            <div className="space-y-1">
+                                                <p className="font-semibold text-slate-700 text-sm">
+                                                    Không có bệnh nhân nào trong hàng đợi
+                                                </p>
+                                                <p className="text-xs text-slate-400">
+                                                    {selectedRoomId !== null
+                                                        ? (selectedRoomObj?.doctorId
+                                                            ? `Buồng khám ${selectedRoomObj?.name} (${selectedRoomObj?.doctorName}) hiện chưa có bệnh nhân nào trong hàng đợi.`
+                                                            : `Buồng khám ${selectedRoomObj?.name} hôm nay chưa có Bác sĩ vào ca trực theo Lịch làm việc.`)
+                                                        : 'Hiện tại chưa có người bệnh nào cần điều phối ở danh mục này.'}
+                                                </p>
+                                            </div>
+                                        }
+                                    >
+                                        {(selectedRoomId !== null || searchQuery || activeTab !== 'ALL') && (
+                                            <Button
+                                                type="primary"
+                                                size="small"
+                                                onClick={handleResetAllFilters}
+                                                className="bg-sky-600 text-xs font-semibold mt-2"
+                                            >
+                                                Đặt lại tất cả bộ lọc
+                                            </Button>
+                                        )}
+                                    </Empty>
+                                </div>
+                            ),
+                        }}
+                        rowClassName={(record) =>
+                            record.priority === 'EMERGENCY'
+                                ? 'bg-rose-50/40'
+                                : record.priority === 'PRIORITY'
+                                    ? 'bg-purple-50/30'
+                                    : record.status === 'DEFERRED' || record.status === 'tam_hoan'
+                                        ? 'bg-amber-50/30'
+                                        : ''
+                        }
+                    />
                 )}
             </div>
 
@@ -1420,6 +1675,7 @@ export default function QueueManagementPage() {
             <QueueActionModal
                 open={actionModal.open}
                 onClose={() => setActionModal({ open: false, entry: null, mode: 'DEFER' })}
+                onSuccess={() => refreshQueueData(selectedRoomIdRef.current, selectedDate, selectedShift)}
                 queueEntry={actionModal.entry}
                 mode={actionModal.mode}
             />
@@ -1432,33 +1688,66 @@ export default function QueueManagementPage() {
                     </span>
                 }
                 open={historyModal.open}
-                onCancel={() => setHistoryModal({ open: false, entry: null })}
-                footer={<Button onClick={() => setHistoryModal({ open: false, entry: null })}>Đóng</Button>}
-                width={540}
+                onCancel={() => {
+                    setHistoryModal({ open: false, entry: null })
+                    setHistoryLogs([])
+                }}
+                footer={<Button onClick={() => {
+                    setHistoryModal({ open: false, entry: null })
+                    setHistoryLogs([])
+                }}>Đóng</Button>}
+                width={560}
             >
                 <div className="py-3 text-xs space-y-4">
-                    <h5 className="font-bold text-slate-700 uppercase">Hành trình khám</h5>
-                    <Timeline
-                        items={(historyModal.entry?.stages || []).map((st) => ({
-                            color: st.stage === 'CHECK_IN' ? 'blue' : st.stage === 'CALLED' ? 'green' : 'gray',
-                            children: (
-                                <div>
-                                    <span className="font-bold text-slate-800">{st.stage}</span> -{' '}
-                                    <span className="text-slate-500">{st.time}</span>
-                                    <div className="text-slate-400 text-[11px]">{st.room}</div>
-                                </div>
-                            ),
-                        }))}
-                    />
+                    <h5 className="font-bold text-slate-700 uppercase">Hành trình khám thực tế</h5>
+                    {(() => {
+                        const stages = getTicketStages(historyModal.entry)
+                        if (stages.length === 0) {
+                            return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có thông tin hành trình khám" />
+                        }
+                        return (
+                            <Timeline
+                                items={stages.map((st) => ({
+                                    color: st.color,
+                                    children: (
+                                        <div>
+                                            <span className="font-bold text-slate-800">{st.stage}</span> -{' '}
+                                            <span className="text-slate-500">{st.time}</span>
+                                            <div className="text-slate-400 text-[11px]">{st.room}</div>
+                                        </div>
+                                    ),
+                                }))}
+                            />
+                        )
+                    })()}
 
-                    <h5 className="font-bold text-slate-700 uppercase pt-2 border-t border-slate-100">
-                        Nhật ký thao tác chi tiết
+                    <h5 className="font-bold text-slate-700 uppercase pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span>Nhật ký thao tác chi tiết (Audit Trail)</span>
+                        {isLoadingHistory && <Spin size="small" />}
                     </h5>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 font-mono text-[11px] text-slate-600">
-                        {(historyModal.entry?.logs || []).map((l, i) => (
-                            <div key={i}>• {l}</div>
-                        ))}
-                    </div>
+                    {isLoadingHistory ? (
+                        <div className="py-6 flex justify-center items-center">
+                            <Spin tip="Đang tải nhật ký thao tác..." />
+                        </div>
+                    ) : historyLogs.length === 0 ? (
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center text-slate-400">
+                            Chưa ghi nhận thao tác điều phối nào cho vé này trong ngày hôm nay.
+                        </div>
+                    ) : (
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 max-h-60 overflow-y-auto text-[11px]">
+                            {historyLogs.map((log, i) => (
+                                <div key={log.id || i} className="pb-2 border-b border-slate-200/60 last:border-0 last:pb-0">
+                                    <div className="flex items-center justify-between text-slate-500 font-mono text-[10px]">
+                                        <span>{log.timestamp}</span>
+                                        <Tag color="cyan" className="text-[10px] mr-0">{log.action_type}</Tag>
+                                    </div>
+                                    <div className="font-semibold text-slate-700 mt-0.5">
+                                        {log.actor}: <span className="font-normal text-slate-600">{log.description}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </Modal>
 

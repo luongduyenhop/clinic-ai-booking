@@ -4,6 +4,10 @@ import {
     resetReceptionDataAsync,
     switchReceptionRoleAsync,
     fetchFlowBoardAsync,
+    resumeQueueEntryAsync,
+    callQueueEntryAsync,
+    markAbsentAsync,
+    deferQueueEntryAsync,
     fetchDoctorQueueAsync,
     fetchAppointmentsAsync,
     checkInAppointmentAsync,
@@ -314,7 +318,6 @@ const receptionSlice = createSlice({
             // Doctor Real-time Queue Board (FC-03)
             .addCase(fetchDoctorQueueAsync.pending, (state) => {
                 state.queueLoading = true
-                state.queueEntries = []
             })
             .addCase(fetchDoctorQueueAsync.fulfilled, (state, action) => {
                 state.queueLoading = false

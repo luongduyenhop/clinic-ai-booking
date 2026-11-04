@@ -562,6 +562,7 @@ class AppointmentService:
         active_tickets = (await db.execute(stmt_ticket)).scalars().all()
         for ticket in active_tickets:
             ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
+            ticket.muc_do_uu_tien = 7
             ticket.ghi_chu_dieu_phoi = (
                 f"{ticket.ghi_chu_dieu_phoi or ''} | Đóng vé sảnh do hủy lịch hẹn (Quy tắc Bahmni)".strip(" |")
             )
@@ -714,6 +715,7 @@ class AppointmentService:
         active_tickets = (await db.execute(stmt_ticket)).scalars().all()
         for ticket in active_tickets:
             ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
+            ticket.muc_do_uu_tien = 7
             ticket.ghi_chu_dieu_phoi = (
                 f"{ticket.ghi_chu_dieu_phoi or ''} | Đóng vé sảnh do dời lịch sang {payload.ngay_kham_moi} (Quy tắc Bahmni)".strip(" |")
             )

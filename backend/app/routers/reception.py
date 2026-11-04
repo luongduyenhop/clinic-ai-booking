@@ -15,6 +15,7 @@ from app.schemas.queue import (
     WalkInCheckInRequest,
     WalkInQuickRequest,
     QueueTicketResponse,
+    PostponeTicketRequest,
     TransferTicketRequest,
     CloseTicketRequest,
     CloseTicketResponse,
@@ -187,6 +188,27 @@ async def restore_ticket(
     return ResponseEnvelope.success_response(
         data=result,
         message="Đã phục hồi vé khám vào hàng đợi thành công"
+    )
+
+
+@router.post(
+    "/queue/{ticket_id}/postpone",
+    response_model=ResponseEnvelope[QueueTicketResponse],
+    summary="Lễ tân tạm hoãn vé khám cho bệnh nhân khi chưa có mặt hoặc theo yêu cầu điều phối"
+)
+async def postpone_ticket(
+    ticket_id: int,
+    payload: Optional[PostponeTicketRequest] = None,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
+        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền tạm hoãn vé khám!")
+    reason = payload.ly_do if payload else None
+    result = await queue_service.postpone_ticket(ticket_id, current_user, db, reason=reason)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đã chuyển phiếu khám sang trạng thái tạm hoãn thành công"
     )
 
 

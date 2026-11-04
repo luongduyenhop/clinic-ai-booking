@@ -57,6 +57,63 @@ function normalizePatient(p) {
     }
 }
 
+// Helper xác định trạng thái, nhãn màu và hành vi của lịch hẹn tìm kiếm
+function getAppointmentStatusMeta(app) {
+    const rawStatus = String(app.status || app.trang_thai_lich || app.trang_thai || '').toLowerCase()
+    const isAlreadyCheckedIn = Boolean(
+        app.da_check_in ||
+        app.so_thu_tu_kham ||
+        ['da_check_in', 'da_tiep_nhan', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
+    )
+
+    if (isAlreadyCheckedIn) {
+        const sttText = app.so_thu_tu_kham ? `(#${String(app.so_thu_tu_kham).padStart(2, '0')})` : ''
+        return {
+            type: 'CHECKED_IN',
+            label: `Đã check-in ${sttText}`.trim(),
+            tagColor: 'green',
+            btnText: 'Xem hồ sơ',
+            btnType: 'default',
+            btnClass: 'text-emerald-700 bg-emerald-50 border-emerald-300 font-semibold text-xs hover:bg-emerald-100',
+            canCheckIn: false,
+        }
+    }
+
+    if (rawStatus === 'no_show') {
+        return {
+            type: 'NO_SHOW',
+            label: 'Vắng mặt (No-show)',
+            tagColor: 'volcano',
+            btnText: 'Xem hồ sơ',
+            btnType: 'default',
+            btnClass: 'text-rose-700 bg-rose-50 border-rose-300 font-semibold text-xs hover:bg-rose-100',
+            canCheckIn: false,
+        }
+    }
+
+    if (rawStatus === 'da_huy' || rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'tu_choi') {
+        return {
+            type: 'CANCELLED',
+            label: 'Đã hủy',
+            tagColor: 'default',
+            btnText: 'Xem hồ sơ',
+            btnType: 'default',
+            btnClass: 'text-slate-600 bg-slate-50 border-slate-300 font-semibold text-xs hover:bg-slate-100',
+            canCheckIn: false,
+        }
+    }
+
+    return {
+        type: 'WAITING_CHECK_IN',
+        label: 'Chờ check-in',
+        tagColor: 'blue',
+        btnText: 'Check-in',
+        btnType: 'primary',
+        btnClass: 'bg-emerald-600 hover:bg-emerald-700 font-semibold text-xs',
+        canCheckIn: true,
+    }
+}
+
 export default function CheckInPage() {
     const location = useLocation()
     const dispatch = useDispatch()
@@ -327,7 +384,7 @@ export default function CheckInPage() {
             const isAlreadyCheckedIn = Boolean(
                 a.da_check_in ||
                 a.so_thu_tu_kham ||
-                ['da_check_in', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
+                ['da_check_in', 'da_tiep_nhan', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
             )
             const isEligible = ['da_xac_nhan', 'cho_xac_nhan', 'da_dat', 'booked', 'confirmed'].includes(rawStatus) && !isAlreadyCheckedIn
 
@@ -382,17 +439,25 @@ export default function CheckInPage() {
     }
 
     // 7. Chọn trực tiếp từ thẻ Lịch hẹn hôm nay
-    const handleSelectAppointmentSearchResult = async (app, isAlreadyCheckedIn = false) => {
+    const handleSelectAppointmentSearchResult = async (app, statusMeta = null) => {
         setIsSearchOpen(false)
         setSearchKeyword('')
         setSearchPatientResults([])
         setSearchAppointmentResults([])
         setPatientNotFoundForPhone(false)
 
-        if (isAlreadyCheckedIn) {
+        if (statusMeta?.type === 'CHECKED_IN') {
             setSelectedAppointment(null)
             setCheckInMode('WALK_IN')
             message.info(`Lịch hẹn ${app.ma_lich_kham || ''} đã được check-in trước đó (STT #${app.so_thu_tu_kham || '✓'}). Đã nạp hồ sơ bệnh nhân.`)
+        } else if (statusMeta?.type === 'NO_SHOW') {
+            setSelectedAppointment(null)
+            setCheckInMode('WALK_IN')
+            message.warning(`Lịch hẹn ${app.ma_lich_kham || ''} đã bị đánh dấu No-show. Đã nạp hồ sơ để tiếp nhận vãng lai nếu người bệnh đến trễ.`)
+        } else if (statusMeta?.type === 'CANCELLED') {
+            setSelectedAppointment(null)
+            setCheckInMode('WALK_IN')
+            message.warning(`Lịch hẹn ${app.ma_lich_kham || ''} đã bị hủy. Đã nạp hồ sơ bệnh nhân.`)
         } else {
             setSelectedAppointment(app)
             setCheckInMode('WITH_APPOINTMENT')
@@ -879,45 +944,50 @@ export default function CheckInPage() {
                                         <span className="text-[10px] text-sky-600 font-normal">Bấm để Check-in ngay</span>
                                     </div>
                                     {searchAppointmentResults.map((app) => {
-                                        const rawStatus = String(app.status || app.trang_thai_lich || app.trang_thai || '').toLowerCase()
-                                        const isAlreadyCheckedIn = Boolean(
-                                            app.da_check_in ||
-                                            app.so_thu_tu_kham ||
-                                            ['da_check_in', 'dang_kham', 'hoan_thanh', 'completed', 'in_progress', 'checked_in'].includes(rawStatus)
-                                        )
+                                        const statusMeta = getAppointmentStatusMeta(app)
 
                                         return (
                                             <div
                                                 key={app.id}
-                                                onClick={() => handleSelectAppointmentSearchResult(app, isAlreadyCheckedIn)}
+                                                onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
                                                 className="p-3 rounded-xl hover:bg-sky-50 border border-slate-100 flex items-center justify-between cursor-pointer transition text-xs"
                                             >
-                                                <div>
-                                                    <div className="font-bold text-slate-900 flex items-center gap-2">
+                                                <div className="space-y-1">
+                                                    <div className="font-bold text-slate-900 flex items-center gap-2 flex-wrap">
                                                         <span className="font-mono text-sky-800">{app.ma_lich_kham || `APT-${app.id}`}</span>
                                                         <span>•</span>
                                                         <span>{app.ten_benh_nhan}</span>
-                                                        {isAlreadyCheckedIn ? (
-                                                            <Tag color="green" className="text-[10px] mr-0">
-                                                                Đã check-in {app.so_thu_tu_kham ? `(#${app.so_thu_tu_kham})` : ''}
-                                                            </Tag>
-                                                        ) : (
-                                                            <Tag color="blue" className="text-[10px] mr-0">Chờ check-in</Tag>
+                                                        <Tag color={statusMeta.tagColor} className="text-[10px] mr-0 font-medium">
+                                                            {statusMeta.label}
+                                                        </Tag>
+                                                    </div>
+                                                    <div className="text-slate-500 text-[11px] flex items-center gap-2 flex-wrap">
+                                                        <span>SĐT: <strong className="text-slate-700">{app.so_dien_thoai || 'N/A'}</strong></span>
+                                                        <span>•</span>
+                                                        <span>Giờ khám: <strong className="text-slate-700">{app.gio_kham || 'Theo ca'}</strong></span>
+                                                        <span>•</span>
+                                                        <span>Khoa: <strong className="text-slate-700">{app.chuyen_khoa || 'Chưa gán khoa'}</strong> {app.ten_bac_si ? `(${formatDoctorName(app.ten_bac_si)})` : ''}</span>
+                                                        {app.phong_kham && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span>Phòng: <strong className="text-sky-700">{app.phong_kham}</strong></span>
+                                                            </>
+                                                        )}
+                                                        {app.ticket_id && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="text-emerald-700 font-mono font-semibold">Vé #{app.ticket_id}</span>
+                                                            </>
                                                         )}
                                                     </div>
-                                                    <div className="text-slate-500 text-[11px] mt-0.5">
-                                                        SĐT: <strong>{app.so_dien_thoai || 'N/A'}</strong> • Giờ khám: <strong>{app.gio_kham || 'Theo ca'}</strong> • Khoa: <strong>{app.chuyen_khoa}</strong> ({app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : 'Chưa gán BS'})
-                                                    </div>
                                                 </div>
-                                                {isAlreadyCheckedIn ? (
-                                                    <Button size="small" className="text-emerald-700 bg-emerald-50 border-emerald-300 font-semibold text-xs hover:bg-emerald-100">
-                                                        Xem hồ sơ
-                                                    </Button>
-                                                ) : (
-                                                    <Button size="small" type="primary" className="bg-emerald-600 hover:bg-emerald-700 font-semibold text-xs">
-                                                        Check-in
-                                                    </Button>
-                                                )}
+                                                <Button
+                                                    size="small"
+                                                    type={statusMeta.btnType}
+                                                    className={statusMeta.btnClass}
+                                                >
+                                                    {statusMeta.btnText}
+                                                </Button>
                                             </div>
                                         )
                                     })}

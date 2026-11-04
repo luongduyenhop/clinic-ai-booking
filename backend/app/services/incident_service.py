@@ -230,8 +230,12 @@ class IncidentService:
                 rec_bs = (await db.execute(select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == rec_doc_id))).scalar_one()
                 rec_doc_name = rec_bs.nguoi_dung.ho_ten if rec_bs.nguoi_dung else f"BS {rec_doc_id}"
 
+            # Lưu mức ưu tiên ban đầu của bệnh nhân trước khi đóng vé cũ
+            original_priority = old_ticket.muc_do_uu_tien
+
             # 2. Đóng vé cũ bằng DA_DONG_VE
             old_ticket.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
+            old_ticket.muc_do_uu_tien = 7
             old_ticket.ghi_chu_dieu_phoi = f"{old_ticket.ghi_chu_dieu_phoi or ''} | Điều phối sang BS ID {rec_doc_id} lúc {now.strftime('%H:%M:%S')}".strip(" | ")
 
             # 3. Tính số thứ tự mới cho bác sĩ nhận
@@ -252,7 +256,7 @@ class IncidentService:
                 ca_kham=old_ticket.ca_kham,
                 so_thu_tu_kham=new_stt,
                 loai_hang_doi=old_ticket.loai_hang_doi,
-                muc_do_uu_tien=old_ticket.muc_do_uu_tien,
+                muc_do_uu_tien=original_priority,
                 trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
                 thoi_gian_check_in=old_ticket.thoi_gian_check_in,
                 thoi_gian_xep_hang_lai=now,

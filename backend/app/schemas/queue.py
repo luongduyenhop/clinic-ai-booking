@@ -132,6 +132,11 @@ class CloseTicketRequest(BaseModel):
 
 
 
+class PostponeTicketRequest(BaseModel):
+    """Yêu cầu tạm hoãn lượt khám"""
+    ly_do: Optional[str] = Field(None, max_length=255, description="Lý do tạm hoãn lượt khám")
+
+
 class TransferTicketRequest(BaseModel):
 
     """Yêu cầu điều chuyển buồng khám / bác sĩ tiếp nhận cho một lượt khám trong hàng đợi"""

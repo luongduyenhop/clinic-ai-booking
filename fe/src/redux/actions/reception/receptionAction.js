@@ -49,19 +49,28 @@ export function normalizeTicket(ticket, defaultPatient = null) {
         roomName: ticket.phong_kham || '',
         departmentId: ticket.chuyen_khoa_id,
         departmentName: ticket.chuyen_khoa || ticket.ten_chuyen_khoa || '',
+        ca_kham: ticket.ca_kham || '',
+        ngay_kham: ticket.ngay_kham || '',
+        loai_hang_doi: ticket.loai_hang_doi || (ticket.lich_kham_id ? 'dung_hen' : 'vang_lai'),
         checkInTime: formatCheckInTime(ticket.thoi_gian_check_in),
         waitTimeMinutes: ticket.thoi_gian_cho_phut || 0,
         status: ticket.trang_thai || 'CHO_KHAM',
+        trang_thai: ticket.trang_thai || 'CHO_KHAM',
         callCount: ticket.so_lan_goi || 0,
-        priority: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')) ? 'EMERGENCY' : ((ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')) ? 'PRIORITY' : 'NORMAL'),
-        isEmergency: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')),
-        isSpecialPriority: !(/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '')) && (ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')),
-        muc_do_uu_tien: ticket.muc_do_uu_tien || 5,
+        priority: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '') || ticket.loai_hang_doi === 'cap_cuu') ? 'EMERGENCY' : ((ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')) ? 'PRIORITY' : 'NORMAL'),
+        isEmergency: (/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '') || ticket.loai_hang_doi === 'cap_cuu'),
+        isSpecialPriority: !(/cấp cứu|cap_cuu/i.test(ticket.ghi_chu_dieu_phoi || '') || ticket.loai_hang_doi === 'cap_cuu') && (ticket.muc_do_uu_tien === 1 || /ưu tiên|nguoi_gia|thai_phu|tre_so_sinh/i.test(ticket.ghi_chu_dieu_phoi || '')),
+        muc_do_uu_tien: ticket.muc_do_uu_tien || (ticket.loai_hang_doi === 'cap_cuu' ? 1 : 5),
         priorityReason: ticket.ghi_chu_dieu_phoi || '',
         notes: ticket.ghi_chu_dieu_phoi || '',
-        isWalkIn: ticket.loai_hang_doi === 'vang_lai' || !ticket.lich_kham_id,
-        stages: [{ stage: 'CHECK_IN', time: getTimeString(), room: ticket.phong_kham || 'Quầy tiếp tân' }],
-        logs: [`${getTimeString()}: Tiếp nhận thành công, cấp số ${ticketNum}`],
+        isWalkIn: ticket.loai_hang_doi === 'vang_lai' || (!ticket.lich_kham_id && ticket.loai_hang_doi !== 'cap_cuu' && ticket.loai_hang_doi !== 'sau_cls' && ticket.loai_hang_doi !== 'co_ket_qua_cls' && ticket.loai_hang_doi !== 'dung_hen' && ticket.loai_hang_doi !== 'den_som' && ticket.loai_hang_doi !== 'den_muon'),
+        thoi_gian_xep_hang_lai: ticket.thoi_gian_xep_hang_lai || null,
+        thoi_gian_check_in: ticket.thoi_gian_check_in || null,
+        thoi_gian_goi_kham: ticket.thoi_gian_goi_kham || null,
+        thoi_gian_bat_dau: ticket.thoi_gian_bat_dau || null,
+        thoi_gian_ket_thuc: ticket.thoi_gian_ket_thuc || null,
+        stages: [],
+        logs: [],
     }
 }
 
@@ -159,10 +168,11 @@ export const fetchShiftDashboardAsync = createAsyncThunk(
 
 export const fetchDoctorQueueAsync = createAsyncThunk(
     'reception/fetchDoctorQueue',
-    async ({ doctorId, queryDate } = {}, { rejectWithValue }) => {
+    async ({ doctorId, queryDate, caKham } = {}, { rejectWithValue }) => {
         try {
             const res = await receptionService.getDoctorQueue(doctorId, {
                 query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
             })
             const data = unwrapApi(res)
             const rawList = data?.danh_sach_tat_ca || [
@@ -180,10 +190,11 @@ export const fetchDoctorQueueAsync = createAsyncThunk(
 
 export const fetchFlowBoardAsync = createAsyncThunk(
     'reception/fetchFlowBoard',
-    async ({ queryDate, doctorId, roomId } = {}, { rejectWithValue }) => {
+    async ({ queryDate, caKham, doctorId, roomId } = {}, { rejectWithValue }) => {
         try {
             const res = await receptionService.getFlowBoard({
                 query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
                 doctor_id: doctorId || undefined,
                 room_id: roomId || undefined,
             })
@@ -264,7 +275,6 @@ export const checkInAppointmentAsync = createAsyncThunk(
                 })
             } catch {
             }
-            dispatch(fetchFlowBoardAsync())
             return {
                 ...ticket,
                 ticket,
@@ -306,8 +316,7 @@ export const registerWalkInAsync = createAsyncThunk(
                     clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
                 } catch {
                 }
-                dispatch(fetchFlowBoardAsync())
-            }
+                }
             return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận bệnh nhân vãng lai thất bại'))
@@ -343,7 +352,6 @@ export const checkInWaitlistAsync = createAsyncThunk(
             } catch {
             }
             dispatch(fetchReceptionWaitlistAsync())
-            dispatch(fetchFlowBoardAsync())
             return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận bệnh nhân từ danh sách chờ thất bại'))
@@ -504,12 +512,26 @@ export const updatePatientAsync = createAsyncThunk(
 
 export const resumeQueueEntryAsync = createAsyncThunk(
     'reception/resumeQueue',
-    async ({ queueId, actor: _actor }, { dispatch, rejectWithValue }) => {
+    async ({ queueId, doctorId, queryDate, caKham, actor: _actor } = {}, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.restoreTicket(queueId)
-            dispatch(fetchFlowBoardAsync())
-            dispatch(fetchShiftDashboardAsync())
-            return unwrapApi(res)
+            const ticket = unwrapApi(res)
+            const targetDocId = doctorId || ticket?.bac_si_id
+            const targetDate = queryDate || ticket?.ngay_kham
+            const targetShift = caKham || ticket?.ca_kham
+            const params = {
+                queryDate: targetDate || undefined,
+                caKham: targetShift === 'all' ? undefined : targetShift,
+            }
+
+            if (targetDocId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: targetDocId, ...params })).unwrap().catch(() => {})
+            } else {
+                await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+            }
+            dispatch(fetchShiftDashboardAsync(params))
+            dispatch(fetchReceptionWaitlistAsync())
+            return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Phục hồi vé thất bại'))
         }
@@ -518,12 +540,26 @@ export const resumeQueueEntryAsync = createAsyncThunk(
 
 export const cancelQueueEntryAsync = createAsyncThunk(
     'reception/cancelQueue',
-    async ({ queueId, reason, actor: _actor }, { dispatch, rejectWithValue }) => {
+    async ({ queueId, reason, doctorId, queryDate, caKham, actor: _actor } = {}, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.closeTicket(queueId, { ly_do: reason })
-            dispatch(fetchFlowBoardAsync())
-            dispatch(fetchShiftDashboardAsync())
-            return unwrapApi(res)
+            const ticket = unwrapApi(res)
+            const targetDocId = doctorId || ticket?.bac_si_id
+            const targetDate = queryDate || ticket?.ngay_kham
+            const targetShift = caKham || ticket?.ca_kham
+            const params = {
+                queryDate: targetDate || undefined,
+                caKham: targetShift === 'all' ? undefined : targetShift,
+            }
+
+            if (targetDocId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: targetDocId, ...params })).unwrap().catch(() => {})
+            } else {
+                await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+            }
+            dispatch(fetchShiftDashboardAsync(params))
+            dispatch(fetchReceptionWaitlistAsync())
+            return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Hủy vé thất bại'))
         }
@@ -532,12 +568,26 @@ export const cancelQueueEntryAsync = createAsyncThunk(
 
 export const markAbsentAsync = createAsyncThunk(
     'reception/markAbsent',
-    async ({ queueId, actor: _actor }, { dispatch, rejectWithValue }) => {
+    async ({ queueId, doctorId, queryDate, caKham, actor: _actor } = {}, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.leaveQueue(queueId, { ly_do: 'Bệnh nhân vắng mặt' })
-            dispatch(fetchFlowBoardAsync())
-            dispatch(fetchShiftDashboardAsync())
-            return unwrapApi(res)
+            const ticket = unwrapApi(res)
+            const targetDocId = doctorId || ticket?.bac_si_id
+            const targetDate = queryDate || ticket?.ngay_kham
+            const targetShift = caKham || ticket?.ca_kham
+            const params = {
+                queryDate: targetDate || undefined,
+                caKham: targetShift === 'all' ? undefined : targetShift,
+            }
+
+            if (targetDocId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: targetDocId, ...params })).unwrap().catch(() => {})
+            } else {
+                await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+            }
+            dispatch(fetchShiftDashboardAsync(params))
+            dispatch(fetchReceptionWaitlistAsync())
+            return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Ghi nhận vắng mặt thất bại'))
         }
@@ -553,12 +603,26 @@ export const callQueueEntryAsync = createAsyncThunk(
 
 export const deferQueueEntryAsync = createAsyncThunk(
     'reception/deferQueue',
-    async ({ queueId, reason }, { dispatch, rejectWithValue }) => {
+    async ({ queueId, reason, doctorId, queryDate, caKham } = {}, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.postponeTicket(queueId, { ly_do: reason })
-            dispatch(fetchFlowBoardAsync())
-            dispatch(fetchShiftDashboardAsync())
-            return unwrapApi(res)
+            const ticket = unwrapApi(res)
+            const targetDocId = doctorId || ticket?.bac_si_id
+            const targetDate = queryDate || ticket?.ngay_kham
+            const targetShift = caKham || ticket?.ca_kham
+            const params = {
+                queryDate: targetDate || undefined,
+                caKham: targetShift === 'all' ? undefined : targetShift,
+            }
+
+            if (targetDocId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: targetDocId, ...params })).unwrap().catch(() => {})
+            } else {
+                await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+            }
+            dispatch(fetchShiftDashboardAsync(params))
+            dispatch(fetchReceptionWaitlistAsync())
+            return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tạm hoãn lượt khám thất bại'))
         }
@@ -567,16 +631,30 @@ export const deferQueueEntryAsync = createAsyncThunk(
 
 export const transferRoomAsync = createAsyncThunk(
     'reception/transferRoom',
-    async ({ queueId, updates }, { dispatch, rejectWithValue }) => {
+    async ({ queueId, updates, doctorId, queryDate, caKham } = {}, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.transferRoom(queueId, {
                 phong_kham_id: Number(updates.newRoomId),
                 bac_si_id: updates.newDoctorId ? Number(updates.newDoctorId) : undefined,
                 ly_do: updates.reason,
             })
-            dispatch(fetchFlowBoardAsync())
-            dispatch(fetchShiftDashboardAsync())
-            return unwrapApi(res)
+            const ticket = unwrapApi(res)
+            const targetDocId = doctorId || updates.newDoctorId || ticket?.bac_si_id
+            const targetDate = queryDate || ticket?.ngay_kham
+            const targetShift = caKham || ticket?.ca_kham
+            const params = {
+                queryDate: targetDate || undefined,
+                caKham: targetShift === 'all' ? undefined : targetShift,
+            }
+
+            if (targetDocId) {
+                await dispatch(fetchDoctorQueueAsync({ doctorId: targetDocId, ...params })).unwrap().catch(() => {})
+            } else {
+                await dispatch(fetchFlowBoardAsync(params)).unwrap().catch(() => {})
+            }
+            dispatch(fetchShiftDashboardAsync(params))
+            dispatch(fetchReceptionWaitlistAsync())
+            return ticket
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Điều chuyển buồng khám thất bại'))
         }
@@ -667,7 +745,6 @@ export const rebalanceQueueAsync = createAsyncThunk(
     async ({ payload }, { dispatch, rejectWithValue }) => {
         try {
             const res = await receptionService.rebalanceQueue(payload)
-            dispatch(fetchFlowBoardAsync())
             return unwrapApi(res)
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Điều chuyển hàng đợi thất bại'))
@@ -876,6 +953,7 @@ export const fetchAuditLogsAsync = createAsyncThunk(
         try {
             const res = await receptionService.getAuditLogs({
                 query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
                 action_type: actionType || undefined,
                 search: search || undefined,
                 page,

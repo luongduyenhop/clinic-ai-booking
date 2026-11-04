@@ -8,7 +8,7 @@ import {
     cancelQueueEntryAsync,
 } from '../../redux/actions/reception/receptionAction'
 
-export default function QueueActionModal({ open, onClose, queueEntry, mode }) {
+export default function QueueActionModal({ open, onClose, onSuccess, queueEntry, mode }) {
     const dispatch = useDispatch()
     const { rooms = [], doctors = [], roomStatus = [], activeRole } = useSelector((state) => state.reception)
 
@@ -80,8 +80,13 @@ export default function QueueActionModal({ open, onClose, queueEntry, mode }) {
 
         setIsSubmitting(true)
         try {
+            const extraParams = {
+                doctorId: queueEntry.doctorId,
+                queryDate: queueEntry.ngay_kham,
+                caKham: queueEntry.ca_kham,
+            }
             if (mode === 'DEFER') {
-                await dispatch(deferQueueEntryAsync({ queueId: targetTicketId, reason: reason.trim() })).unwrap()
+                await dispatch(deferQueueEntryAsync({ queueId: targetTicketId, reason: reason.trim(), ...extraParams })).unwrap()
                 message.success('Đã tạm hoãn lượt khám thành công')
             } else if (mode === 'TRANSFER') {
                 if (!selectedRoomId) {
@@ -97,6 +102,7 @@ export default function QueueActionModal({ open, onClose, queueEntry, mode }) {
                             newDoctorId: targetRoomInfo?.doctorId || undefined,
                             reason: reason.trim(),
                         },
+                        ...extraParams,
                     })
                 ).unwrap()
                 message.success('Đã chuyển phòng khám thành công')
@@ -109,11 +115,14 @@ export default function QueueActionModal({ open, onClose, queueEntry, mode }) {
                 ).unwrap()
                 message.success('Đã cập nhật mức ưu tiên thành công')
             } else if (mode === 'CANCEL') {
-                await dispatch(cancelQueueEntryAsync({ queueId: targetTicketId, reason: reason.trim() })).unwrap()
+                await dispatch(cancelQueueEntryAsync({ queueId: targetTicketId, reason: reason.trim(), ...extraParams })).unwrap()
                 message.success('Đã hủy lượt khám')
             }
             setReason('')
             setSelectedRoomId('')
+            if (onSuccess) {
+                await onSuccess()
+            }
             onClose()
         } catch (err) {
             message.error(err || 'Lỗi khi xử lý thao tác hàng đợi')

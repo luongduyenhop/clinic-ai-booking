@@ -1215,15 +1215,18 @@ class QueueService:
         ticket_id: int,
         doctor_user: TaiKhoan,
         db: AsyncSession,
+        reason: Optional[str] = None,
     ) -> QueueTicketResponse:
-        """Bác sĩ chuyển ca khám sang Tạm hoãn (sau 3 lần gọi không có mặt)"""
+        """Chuyển ca khám sang Tạm hoãn (sau 3 lần gọi không có mặt hoặc theo yêu cầu điều phối)"""
         ticket = await self._get_ticket_entity(ticket_id, db, for_update=True)
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
         ticket_id_postponed = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-        ticket.ghi_chu_dieu_phoi = f"Tạm hoãn lúc {clinic_now().strftime('%H:%M:%S')} do gọi 3 lần không vào."
+        ticket.muc_do_uu_tien = 6  # Tạm hoãn gán mức 6 (nằm sau 5 mức chờ thông thường)
+        note = f": {reason}" if reason else " do gọi 3 lần không vào."
+        ticket.ghi_chu_dieu_phoi = f"Tạm hoãn lúc {clinic_now().strftime('%H:%M:%S')}{note}"
         await db.commit()
         # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
         return await self._get_ticket_with_relations(ticket_id_postponed, db)
@@ -1247,7 +1250,7 @@ class QueueService:
         ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
         ticket.thoi_gian_xep_hang_lai = now
         ticket.muc_do_uu_tien = 4  # Khi quay lại, ưu tiên sau các ca đúng giờ
-        ticket.ghi_chu_dieu_phoi = f"{ticket.ghi_chu_dieu_phoi or ''} | Phục hồi hàng đợi lúc {clinic_now().strftime('%H:%M:%S')}.".strip(" | ")
+        ticket.ghi_chu_dieu_phoi = f"{ticket.ghi_chu_dieu_phoi or ''} | Phục hồi hàng đợi lúc {clinic_now().strftime('%H:%M:%S')} (bắt đầu tính lại thời gian chờ).".strip(" | ")
         await db.commit()
         # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
         return await self._get_ticket_with_relations(ticket_id_restored, db)
@@ -1272,6 +1275,7 @@ class QueueService:
 
         now = datetime.now(timezone.utc)
         ticket.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
+        ticket.muc_do_uu_tien = 7  # Đóng vé gán mức 7 (cuối danh sách)
         note = f"Đóng vé hành chính lúc {clinic_now().strftime('%H:%M:%S')}"
         if ly_do:
             note += f": {ly_do}"
@@ -1325,6 +1329,7 @@ class QueueService:
         now = datetime.now(timezone.utc)
 
         ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
+        ticket.muc_do_uu_tien = 7  # Bỏ khám/vắng mặt gán mức 7 (cuối danh sách)
 
         note = f"Bệnh nhân xin bỏ về lúc {clinic_now().strftime('%H:%M:%S')}"
 
@@ -1607,7 +1612,7 @@ class QueueService:
 
         current = next((self._to_ticket_response(t) for t in all_tickets if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value), None)
 
-        completed = [self._to_ticket_response(t) for t in all_tickets if t.trang_thai in (TrangThaiHangDoiEnum.DA_KHAM.value, TrangThaiHangDoiEnum.BO_KHAM.value)]
+        completed = [self._to_ticket_response(t) for t in all_tickets if t.trang_thai in (TrangThaiHangDoiEnum.DA_KHAM.value, TrangThaiHangDoiEnum.BO_KHAM.value, TrangThaiHangDoiEnum.DA_DONG_VE.value)]
 
         all_list = [self._to_ticket_response(t) for t in all_tickets]
 
@@ -1838,25 +1843,16 @@ class QueueService:
 
 
             thoi_gian_cho = 0
-
-            if t.thoi_gian_check_in:
-
-                cin = t.thoi_gian_check_in
-
+            start_wait = t.thoi_gian_xep_hang_lai or t.thoi_gian_check_in
+            if start_wait:
+                cin = start_wait
                 if cin.tzinfo is None:
-
                     cin = cin.replace(tzinfo=timezone.utc)
-
                 if t.ngay_kham and cin.date() < t.ngay_kham:
-
                     shift_start = datetime.combine(t.ngay_kham, datetime.min.time(), tzinfo=timezone.utc).replace(hour=0, minute=30)
-
                     thoi_gian_cho = max(0, int((now - shift_start).total_seconds() / 60))
-
                 else:
-
                     thoi_gian_cho = max(0, int((now - cin).total_seconds() / 60))
-
 
 
             thoi_gian_trang_thai = 0
@@ -4460,6 +4456,7 @@ class QueueService:
         else:
             for t in pending_tickets:
                 t.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
+                t.muc_do_uu_tien = 7
                 t.thoi_gian_ket_thuc = now
                 t.ghi_chu_dieu_phoi = (
                     f"Đóng vé kết thúc ca trực {target_ca}. "

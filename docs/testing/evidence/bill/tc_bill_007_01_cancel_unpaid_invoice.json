@@ -1,0 +1,36 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Hủy hóa đơn HD-261102-DA29E3 thành công",
+    "data": {
+        "id": 78,
+        "ma_hoa_don": "HD-261102-DA29E3",
+        "luot_kham_id": 1886,
+        "benh_nhan_id": 13800,
+        "thu_ngan_id": 34462,
+        "tong_tien": "200000.00",
+        "mien_giam": "0.00",
+        "thuc_thu": "200000.00",
+        "phuong_thuc_thanh_toan": "tien_mat",
+        "trang_thai": "da_huy",
+        "so_hoa_don_in": null,
+        "ghi_chu": "Invoice 2 to test cancel | HỦY: Bệnh nhân yêu cầu hủy chưa thanh toán",
+        "ngay_thanh_toan": null,
+        "created_at": "2026-11-02T13:19:53.614719Z",
+        "chi_tiet_hoa_don": [
+            {
+                "id": 91,
+                "hoa_don_id": 78,
+                "loai_muc": "cong_kham",
+                "muc_tham_chieu_id": 4780,
+                "ten_khoan_thu": "Công khám chuyên khoa ngoại trú",
+                "so_luong": 1,
+                "don_gia": "200000.00",
+                "thanh_tien": "200000.00",
+                "ghi_chu": null
+            }
+        ]
+    },
+    "meta": null,
+    "errors": null
+}

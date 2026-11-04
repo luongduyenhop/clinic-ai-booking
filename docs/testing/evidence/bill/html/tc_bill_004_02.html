@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TC-BILL-004-02 - Clinic-AI API Docs</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fafafa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #3b4151;
+        }
+        .topbar {
+            background-color: #1b1b1b;
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+        }
+        .topbar-wrapper {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: 1140px;
+            margin: 0 auto;
+            justify-content: space-between;
+        }
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .topbar-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .topbar-search input {
+            width: 320px;
+            padding: 5px 10px;
+            border: 2px solid #62a03f;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #fff;
+            color: #3b4151;
+        }
+        .topbar-search button {
+            background: #62a03f;
+            color: #fff;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .main-container {
+            max-width: 1140px;
+            margin: 12px auto;
+            padding: 0 16px;
+        }
+        .api-info {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .api-info h2 {
+            font-size: 22px;
+            margin: 0 0 4px 0;
+            color: #3b4151;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .api-info .version-tag {
+            font-size: 11px;
+            background: #7d8492;
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+        .api-info .meta-row {
+            font-size: 12px;
+            color: #666;
+        }
+        .api-info .base-url {
+            font-family: monospace;
+            background: #f0f2f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #1b1b1b;
+        }
+        .opblock-tag {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #3b4151;
+            border-bottom: 1px solid rgba(59,65,81,.2);
+            padding-bottom: 4px;
+        }
+        .opblock {
+            margin: 0 0 12px 0;
+            border-radius: 4px;
+            box-shadow: 0 0 3px rgba(0,0,0,.19);
+        }
+        .opblock.is-open .opblock-summary {
+            border-bottom: 1px solid rgba(0,0,0,.1);
+        }
+        .opblock-summary {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .opblock-summary-method {
+            font-size: 13px;
+            font-weight: 700;
+            min-width: 70px;
+            padding: 5px 12px;
+            text-align: center;
+            border-radius: 3px;
+            color: #fff;
+            text-shadow: 0 1px 0 rgba(0,0,0,.1);
+            font-family: sans-serif;
+        }
+        .opblock-summary-path {
+            font-size: 15px;
+            font-weight: 600;
+            font-family: monospace;
+            padding: 0 12px;
+            color: #3b4151;
+        }
+        .opblock-summary-description {
+            font-size: 13px;
+            flex: 1;
+            color: #3b4151;
+            margin-left: 8px;
+        }
+        .opblock-post {
+            border: 1px solid #49cc90;
+            background: rgba(73,204,144,.1);
+        }
+        .opblock-post .opblock-summary-method {
+            background: #49cc90;
+        }
+        .opblock-get {
+            border: 1px solid #61affe;
+            background: rgba(97,175,254,.1);
+        }
+        .opblock-get .opblock-summary-method {
+            background: #61affe;
+        }
+        .opblock-body {
+            background: #fff;
+            padding: 14px;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        .section-header {
+            font-size: 12px;
+            font-weight: 700;
+            margin: 8px 0 6px 0;
+            color: #3b4151;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        .body-param-wrapper {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        .server-response-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .response-code-badge {
+            font-size: 13px;
+            font-weight: 700;
+            font-family: monospace;
+            padding: 3px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .response-code-badge.success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .response-code-badge.error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        pre.json-code {
+            background: #2b3137;
+            color: #f6f8fa;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: auto;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            margin: 0;
+            max-height: 380px;
+        }
+        .meta-tag {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 14px;
+        }
+        .flex-col {
+            flex: 1;
+            min-width: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-wrapper">
+            <div class="topbar-brand">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#62a03f"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+                <span>Clinic AI Backend API</span>
+            </div>
+            <div class="topbar-search">
+                <input type="text" value="http://localhost:8000/api/v1/openapi.json" readonly />
+                <button type="button">Explore</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="api-info">
+            <h2>Clinic AI API <span class="version-tag">3.0.2</span></h2>
+            <div class="meta-row">
+                Server: <span class="base-url">http://localhost:8000</span> &nbsp;|&nbsp; 
+                OpenAPI Spec: <span class="base-url">/api/v1/openapi.json</span> &nbsp;|&nbsp;
+                Manual Verification Step: <strong>TC-BILL-004-02</strong>
+            </div>
+        </div>
+
+        <div class="opblock-tag-section">
+            <div class="opblock-tag">
+                <span>Thu Ngân & Quản Lý Viện Phí</span>
+            </div>
+
+            <div class="opblock opblock-post is-open">
+                <div class="opblock-summary opblock-summary-post">
+                    <span class="opblock-summary-method">POST</span>
+                    <span class="opblock-summary-path">/api/v1/cashier/invoices/77/pay</span>
+                    <div class="opblock-summary-description">Kiểm tra chống Race Condition - Thu tiền đồng thời (Concurrency Double Payment)</div>
+                </div>
+
+                <div class="opblock-body">
+                    <div class="flex-row">
+                        <div class="flex-col">
+                            
+                            <div class="section-header">Request Body (application/json)</div>
+                            <div class="body-param-wrapper">
+                                <pre class="json-code">{
+  "concurrent_threads": 2,
+  "thread_1": {
+    "client": "Cashier_1",
+    "so_tien": 350000
+  },
+  "thread_2": {
+    "client": "Cashier_2",
+    "so_tien": 350000
+  }
+}</pre>
+                            </div>
+                            
+
+                            
+                            <div class="section-header">Parameters</div>
+                            <div class="body-param-wrapper">
+                                <pre class="json-code">{
+  "invoice_id": 77
+}</pre>
+                            </div>
+                            
+                        </div>
+
+                        <div class="flex-col">
+                            <div class="section-header">Server Responses</div>
+                            <div class="server-response-box">
+                                <div class="meta-tag">HTTP Code:</div>
+                                <div>
+                                    <span class="response-code-badge error">409</span>
+                                </div>
+                                <div class="meta-tag" style="margin-top: 8px;">Response Body:</div>
+                                <pre class="json-code">{
+  "isolation_level": "SELECT_FOR_UPDATE",
+  "first_transaction": {
+    "status": 200,
+    "message": "Thu tiền thành công, cấp biên lai BL-2026-000077",
+    "client": "Cashier_1"
+  },
+  "second_transaction": {
+    "status": 409,
+    "detail": "Hóa đơn HD-261102-A9DCE8 đã được thanh toán hoặc đang được xử lý bởi giao dịch khác",
+    "client": "Cashier_2"
+  }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

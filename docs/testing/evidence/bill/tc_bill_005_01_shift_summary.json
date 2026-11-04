@@ -1,0 +1,18 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Lấy báo cáo tổng kết ca trực thành công",
+    "data": {
+        "thu_ngan_id": 34462,
+        "ten_thu_ngan": "Thu Ngân Viện Phí",
+        "tong_hoa_don": 1,
+        "tong_tien_mat": "350000.00",
+        "tong_chuyen_khoan": "0.00",
+        "tong_the_pos": "0.00",
+        "tong_doanh_thu": "350000.00",
+        "so_phieu_thu": 1,
+        "so_phieu_chi": 0
+    },
+    "meta": null,
+    "errors": null
+}

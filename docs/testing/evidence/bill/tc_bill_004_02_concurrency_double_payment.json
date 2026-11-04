@@ -1,0 +1,16 @@
+{
+    "timestamp": "2026-11-02T20:20:23.7630188+07:00",
+    "description": "Chặn thu tiền trùng (Double Payment Concurrency via SELECT FOR UPDATE)",
+    "invoice_id": 77,
+    "isolation_level": "SELECT_FOR_UPDATE",
+    "request_1": {
+        "status": 200,
+        "message": "Thu tiền thành công, cấp biên lai BL-2026-000077",
+        "client": "Cashier_1"
+    },
+    "request_2": {
+        "status": 409,
+        "detail": "Hóa đơn HD-261102-A9DCE8 đã được thanh toán hoặc đang được xử lý bởi giao dịch khác",
+        "client": "Cashier_2"
+    }
+}

@@ -215,7 +215,7 @@ class BffAdminService:
             select(BenhNhan)
             .options(selectinload(BenhNhan.nguoi_dung))
             .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
-            .where(NguoiDung.is_deleted == False)
+            .where(NguoiDung.is_deleted.is_(False))
             .order_by(BenhNhan.id.desc())
         )
         db_patients = (await db.execute(stmt)).scalars().all()

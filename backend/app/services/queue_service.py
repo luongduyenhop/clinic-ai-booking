@@ -143,13 +143,11 @@ logger = logging.getLogger(__name__)
 
 class QueueService:
 
-    """Nghiệp vụ Điều phối Hàng đợi & Tiếp đón tại phòng khám (OpenMRS / Bahmni Queue Pattern)"""
 
 
 
     def _determine_shift(self, t: time) -> str:
 
-        """Xác định ca làm việc sáng/chiều dựa trên khung giờ"""
 
         if t < time(12, 30):
 
@@ -161,7 +159,6 @@ class QueueService:
 
     def _generate_queue_code(self, ticket: HangDoiKham) -> str:
 
-        """Sinh mã STT theo tiền tố buồng khám / chuyên khoa (ví dụ: NOI-01, TMH-02, RHM-01)"""
 
         stt = ticket.so_thu_tu_kham or 1
 
@@ -169,7 +166,6 @@ class QueueService:
 
 
 
-        # 1. Ưu tiên tiền tố từ Chuyên khoa của Bác sĩ phụ trách buồng khám
 
         if ticket.bac_si and ticket.bac_si.chuyen_khoa:
 
@@ -253,7 +249,6 @@ class QueueService:
 
     def _to_ticket_response(self, ticket: HangDoiKham) -> QueueTicketResponse:
 
-        """Chuyển đổi thực thể HangDoiKham sang DTO QueueTicketResponse kèm chỉ số Flow Board"""
 
         ten_bn = ticket.benh_nhan.nguoi_dung.ho_ten if ticket.benh_nhan and ticket.benh_nhan.nguoi_dung else None
 
@@ -325,7 +320,6 @@ class QueueService:
 
                 cin = cin.replace(tzinfo=timezone.utc)
 
-            # Mốc tính thời gian chờ: Ưu tiên thoi_gian_xep_hang_lai (vé chuyển từ sáng sang chiều)
             start_wait = cin
             if ticket.thoi_gian_xep_hang_lai:
                 xhl = ticket.thoi_gian_xep_hang_lai
@@ -335,26 +329,21 @@ class QueueService:
             elif ticket.ngay_kham and cin.date() < ticket.ngay_kham:
                 start_wait = datetime.combine(ticket.ngay_kham, datetime.min.time(), tzinfo=timezone.utc).replace(hour=0, minute=30)
 
-            # Điểm chốt thời gian chờ:
-            # 1. Đang khám: chốt tại thời điểm bác sĩ gọi / bắt đầu khám
             if ticket.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
                 end_wait = ticket.thoi_gian_bat_dau or ticket.thoi_gian_goi_kham or now
                 if end_wait.tzinfo is None:
                     end_wait = end_wait.replace(tzinfo=timezone.utc)
                 thoi_gian_cho = max(0, int((end_wait - start_wait).total_seconds() / 60))
-            # 2. Đã khám: chốt tại thời điểm vào khám (thoi_gian_bat_dau)
             elif ticket.trang_thai == TrangThaiHangDoiEnum.DA_KHAM.value:
                 end_wait = ticket.thoi_gian_bat_dau or ticket.thoi_gian_goi_kham or ticket.thoi_gian_ket_thuc or ticket.updated_at or start_wait
                 if end_wait.tzinfo is None:
                     end_wait = end_wait.replace(tzinfo=timezone.utc)
                 thoi_gian_cho = max(0, int((end_wait - start_wait).total_seconds() / 60))
-            # 3. Bỏ khám hoặc Đã đóng vé: chốt tại thời điểm rời đi (updated_at)
             elif ticket.trang_thai in (TrangThaiHangDoiEnum.BO_KHAM.value, TrangThaiHangDoiEnum.DA_DONG_VE.value):
                 end_wait = ticket.updated_at or start_wait
                 if end_wait.tzinfo is None:
                     end_wait = end_wait.replace(tzinfo=timezone.utc)
                 thoi_gian_cho = max(0, int((end_wait - start_wait).total_seconds() / 60))
-            # 4. Đang chờ khám hoặc Tạm hoãn: thời gian chờ tính đến thời điểm hiện tại
             else:
                 thoi_gian_cho = max(0, int((now - start_wait).total_seconds() / 60))
 
@@ -470,19 +459,7 @@ class QueueService:
 
     ) -> QueueTicketResponse:
 
-        """
 
-        Lễ tân thực hiện Check-in tại quầy cho bệnh nhân có hẹn trước:
-
-        - Phân loại: Đúng giờ (trước 0-30p), Đến sớm (> 30p), Đến muộn.
-
-        - Cấp số thứ tự khám (STT) hiển thị trước cửa phòng.
-
-        - Cập nhật trạng thái lịch khám sang 'da_tiep_nhan'.
-
-        """
-
-        # 1. Phân quyền: Chỉ Lễ tân hoặc Quản trị viên mới được làm thủ tục check-in
 
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
 
@@ -490,7 +467,6 @@ class QueueService:
 
 
 
-        # 2. Truy vấn lịch khám
 
         stmt = (
 
@@ -524,9 +500,7 @@ class QueueService:
 
 
 
-        # 3. Ràng buộc ngày khám (Check-in Date Invariant theo chuẩn Bahmni & OpenMRS):
 
-        # Bệnh nhân chỉ được cấp vé vào hàng đợi trong đúng ngày khám đã hẹn
 
         today_date = clinic_now().date()
 
@@ -552,7 +526,6 @@ class QueueService:
 
 
 
-        # 4. Kiểm tra xem đã check-in chưa
 
         stmt_check = select(HangDoiKham).where(
 
@@ -576,7 +549,6 @@ class QueueService:
 
         if existing_ticket:
 
-            # Bahmni Idempotency Rule: Gửi lại request không tạo vé rác, trả về vé và số thứ tự hiện hữu
 
             logger.info(f"Lịch hẹn {lich.ma_lich_kham} đã check-in trước đó, trả về vé STT #{existing_ticket.so_thu_tu_kham}")
 
@@ -588,7 +560,6 @@ class QueueService:
 
 
 
-        # FC-06: Check-in lịch hẹn nhánh B (Lịch chưa chọn bác sĩ -> Load Balancing theo chuyên khoa)
 
         if lich.bac_si_id is None:
 
@@ -636,7 +607,6 @@ class QueueService:
 
 
 
-        # 4. Xác định loại hàng đợi và độ ưu tiên (Arrival Window Logic & FC-08 LyDoUuTien)
 
         if payload.ly_do_uu_tien:
 
@@ -664,7 +634,6 @@ class QueueService:
 
 
 
-            # Xử lý trường hợp khung giờ cận nửa đêm (Midnight Wraparound):
 
             if lich.ngay_kham == now_clinic.date():
 
@@ -680,7 +649,6 @@ class QueueService:
 
             if diff_minutes > 30:
 
-                # Đến sớm hơn 30 phút so với giờ hẹn -> xếp ưu tiên 4
 
                 loai_hang_doi = LoaiHangDoiEnum.DEN_SOM.value
 
@@ -688,7 +656,6 @@ class QueueService:
 
             elif diff_minutes < -15:
 
-                # Đến muộn hơn 15 phút sau giờ hẹn -> xếp ưu tiên 5 (ngang vãng lai)
 
                 loai_hang_doi = LoaiHangDoiEnum.DEN_MUON.value
 
@@ -696,7 +663,6 @@ class QueueService:
 
             else:
 
-                # Đúng khung giờ hẹn (từ trước 30p đến trễ tối đa 15p) -> ưu tiên 2 tiêu chuẩn
 
                 loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
 
@@ -706,7 +672,6 @@ class QueueService:
 
 
 
-        # 5. Tính số thứ tự khám tiếp theo trong ca của Bác sĩ hôm đó
 
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
 
@@ -724,7 +689,6 @@ class QueueService:
 
 
 
-        # 6. Tạo phiếu hàng đợi (Queue Ticket)
 
         room_id_cin = lich.bac_si.phong_kham_id if (lich.bac_si and lich.bac_si.phong_kham_id) else None
 
@@ -764,7 +728,6 @@ class QueueService:
 
 
 
-        # 7. Đồng bộ trạng thái lịch hẹn sang Đã tiếp nhận
 
         lich.trang_thai = TrangThaiLichEnum.DA_TIEP_NHAN.value
 
@@ -776,7 +739,6 @@ class QueueService:
 
 
 
-        # Eager load để map response
 
         return await self._get_ticket_with_relations(ticket.id, db)
 
@@ -788,7 +750,6 @@ class QueueService:
         receptionist_user: TaiKhoan,
         db: AsyncSession,
     ) -> QueueTicketResponse:
-        """Lễ tân tiếp nhận bệnh nhân vãng lai (hỗ trợ bệnh nhân cũ theo ID hoặc nhập nhanh Họ tên + SĐT, có Waitlist khi quá tải)"""
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng tiếp nhận bệnh nhân vãng lai chỉ dành cho Lễ tân hoặc Admin!")
 
@@ -796,7 +757,6 @@ class QueueService:
         now = datetime.now(timezone.utc)
         effective_ca = payload.ca_kham or self._determine_shift(clinic_now().time())
 
-        # 1. Xác định hoặc tự động tạo hồ sơ bệnh nhân
         bn = None
         if payload.benh_nhan_id:
             stmt_bn = (
@@ -809,7 +769,6 @@ class QueueService:
                 raise NotFoundException("Không tìm thấy thông tin bệnh nhân!")
             effective_benh_nhan_id = bn.id
         else:
-            # Nhập nhanh: Tìm hoặc tạo NguoiDung + BenhNhan
             clean_phone = payload.so_dien_thoai.strip().replace(" ", "")
             clean_name = payload.ho_ten.strip()
 
@@ -847,12 +806,10 @@ class QueueService:
                 )
                 db.add(bn)
                 await db.flush()
-                # Reload with relationship
                 bn = (await db.execute(stmt_bn)).scalar_one_or_none()
 
             effective_benh_nhan_id = bn.id
 
-        # 2. Validation Logic Phân bổ Bác sĩ (Critical):
         if payload.bac_si_id is None and not payload.chuyen_khoa_id:
             raise BadRequestException("Vui lòng chọn bác sĩ tiếp nhận hoặc chuyên khoa để phân bổ tự động!")
 
@@ -862,7 +819,6 @@ class QueueService:
             if not ck:
                 raise NotFoundException(f"Chuyên khoa ID {payload.chuyen_khoa_id} không tồn tại trên hệ thống!")
 
-        # FC-07: Auto-assign nếu bac_si_id is None
         if payload.bac_si_id is None:
             from app.services.load_balancing_service import load_balancing_service
             effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
@@ -874,7 +830,6 @@ class QueueService:
         else:
             effective_doctor_id = payload.bac_si_id
 
-        # Khóa dòng BacSi bằng SELECT ... FOR UPDATE OF bac_si
         stmt_bs = (
             select(BacSi)
             .options(
@@ -889,7 +844,6 @@ class QueueService:
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ tiếp nhận!")
 
-        # 3. Kiểm tra ca làm việc và giới hạn công suất ca (gioi_han_ca_kham & han_muc_vang_lai)
         stmt_shift = (
             select(LichLamViec)
             .where(
@@ -905,7 +859,6 @@ class QueueService:
         is_overloaded = False
         overload_reason = ""
         if shift:
-            # Kiểm tra hạn mức tiếp nhận vãng lai riêng biệt
             if shift.han_muc_vang_lai:
                 stmt_count_walkin = select(func.count(HangDoiKham.id)).where(
                     HangDoiKham.bac_si_id == effective_doctor_id,
@@ -934,10 +887,8 @@ class QueueService:
                     is_overloaded = True
                     overload_reason = f"Ca khám của Bác sĩ đã đạt giới hạn tiếp nhận tối đa ({shift.gioi_han_ca_kham} người bệnh)"
 
-        # 4. Xử lý khi quá tải (Waitlist flow)
         if is_overloaded:
             if payload.dang_ky_waitlist_neu_het_cho:
-                # Kiểm tra trùng Waitlist
                 stmt_wl_exist = select(DanhSachCho).where(
                     and_(
                         DanhSachCho.benh_nhan_id == effective_benh_nhan_id,
@@ -1016,7 +967,6 @@ class QueueService:
                     f"Bạn có thể chọn 'Đăng ký Danh sách chờ' để xếp hàng dự phòng khi có lượt hủy."
                 )
 
-        # 5. Cấp số thứ tự khám tiếp theo chính xác trong ca
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
             HangDoiKham.bac_si_id == effective_doctor_id,
             HangDoiKham.ngay_kham == today,
@@ -1025,7 +975,6 @@ class QueueService:
         max_stt = (await db.execute(stmt_max_stt)).scalar() or 0
         next_stt = max_stt + 1
 
-        # FC-08: Độ ưu tiên
         if payload.ly_do_uu_tien:
             muc_do_uu_tien = 1
             ly_do_str = payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
@@ -1083,7 +1032,6 @@ class QueueService:
         db.add(ticket)
         await db.commit()
 
-        # Eager load để map response đầy đủ
         return await self._get_ticket_with_relations(ticket.id, db)
 
 
@@ -1092,14 +1040,6 @@ class QueueService:
         doctor_user: TaiKhoan,
         db: AsyncSession,
     ) -> CallNextResponse:
-        """
-        Bác sĩ bấm 'Gọi bệnh nhân tiếp theo' theo Thuật toán 5 bậc ưu tiên Bahmni:
-        1. Cấp cứu / Red Flag (Ưu tiên 1)
-        2. Bệnh nhân có hẹn đúng khung giờ đã check-in (Ưu tiên 2)
-        3. Bệnh nhân trả kết quả cận lâm sàng (Ưu tiên 3)
-        4. Bệnh nhân đến sớm của khung kế tiếp (Ưu tiên 4)
-        5. Bệnh nhân vãng lai / Đến muộn (Ưu tiên 5)
-        """
         stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == doctor_user.nguoi_dung_id)
         bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bac_si and doctor_user.vai_tro != VaiTroEnum.ADMIN.value:
@@ -1109,9 +1049,6 @@ class QueueService:
         today = clinic_now().date()
         now = datetime.now(timezone.utc)
 
-        # 0. Guard A4 (Concurrency & Khám đè):
-        # Bác sĩ chỉ được phép khám đúng 1 bệnh nhân tại 1 thời điểm.
-        # Nếu đang có ca 'dang_kham', bác sĩ phải hoàn tất hoặc tạm hoãn ca này trước khi gọi tiếp.
         stmt_current_active = (
             select(HangDoiKham)
             .where(
@@ -1128,7 +1065,6 @@ class QueueService:
                 f"Vui lòng hoàn tất hoặc tạm hoãn ca hiện tại trước khi gọi bệnh nhân tiếp theo!"
             )
 
-        # 1. Tìm ứng viên ưu tiên cao nhất đang ở trạng thái 'cho_kham'
         stmt_candidate = (
             select(HangDoiKham)
             .options(
@@ -1142,9 +1078,9 @@ class QueueService:
                 HangDoiKham.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value,
             )
             .order_by(
-                HangDoiKham.muc_do_uu_tien.asc(),       # Ưu tiên cấp cứu trước, đúng hẹn sau
+                HangDoiKham.muc_do_uu_tien.asc(),
                 func.coalesce(HangDoiKham.thoi_gian_xep_hang_lai, HangDoiKham.thoi_gian_check_in).asc(),
-                HangDoiKham.so_thu_tu_kham.asc(),       # STT nhỏ trước
+                HangDoiKham.so_thu_tu_kham.asc(),
             )
             .with_for_update()
             .limit(1)
@@ -1158,13 +1094,11 @@ class QueueService:
                 so_nguoi_con_lai=0,
             )
 
-        # 2. Cập nhật trạng thái phiếu được gọi
         candidate.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
         candidate.thoi_gian_goi_kham = now
         candidate.thoi_gian_bat_dau = now
         candidate.so_lan_goi += 1
 
-        # Cập nhật trạng thái lịch hẹn tương ứng
         if candidate.lich_kham_id:
             stmt_lich = select(LichKham).where(LichKham.id == candidate.lich_kham_id)
             lich = (await db.execute(stmt_lich)).scalar_one_or_none()
@@ -1175,7 +1109,6 @@ class QueueService:
         ticket_stt_called = candidate.so_thu_tu_kham
         await db.commit()
 
-        # 3. Đếm số người còn lại trong hàng đợi
         stmt_count = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == doctor_id,
             HangDoiKham.ngay_kham == today,
@@ -1183,7 +1116,6 @@ class QueueService:
         )
         remaining = (await db.execute(stmt_count)).scalar() or 0
 
-        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
         ticket_response = await self._get_ticket_with_relations(ticket_id_called, db)
         logger.info(f"📢 [QUEUE CALLED] Bác sĩ {doctor_id} gọi bệnh nhân STT #{ticket_stt_called} (Ticket: {ticket_id_called})")
         return CallNextResponse(
@@ -1195,7 +1127,6 @@ class QueueService:
     async def _get_ticket_entity(
         self, ticket_id: int, db: AsyncSession, for_update: bool = False
     ) -> Optional[HangDoiKham]:
-        """Lấy thực thể ORM HangDoiKham kèm eager loading quan hệ đầy đủ"""
         stmt = (
             select(HangDoiKham)
             .options(
@@ -1217,18 +1148,16 @@ class QueueService:
         db: AsyncSession,
         reason: Optional[str] = None,
     ) -> QueueTicketResponse:
-        """Chuyển ca khám sang Tạm hoãn (sau 3 lần gọi không có mặt hoặc theo yêu cầu điều phối)"""
         ticket = await self._get_ticket_entity(ticket_id, db, for_update=True)
         if not ticket:
             raise NotFoundException(f"Không tìm thấy phiếu hàng đợi với ID {ticket_id}!")
 
         ticket_id_postponed = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-        ticket.muc_do_uu_tien = 6  # Tạm hoãn gán mức 6 (nằm sau 5 mức chờ thông thường)
+        ticket.muc_do_uu_tien = 6
         note = f": {reason}" if reason else " do gọi 3 lần không vào."
         ticket.ghi_chu_dieu_phoi = f"Tạm hoãn lúc {clinic_now().strftime('%H:%M:%S')}{note}"
         await db.commit()
-        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
         return await self._get_ticket_with_relations(ticket_id_postponed, db)
 
     async def restore_ticket(
@@ -1237,7 +1166,6 @@ class QueueService:
         receptionist_user: TaiKhoan,
         db: AsyncSession,
     ) -> QueueTicketResponse:
-        """Lễ tân phục hồi vé tạm hoãn khi bệnh nhân quay lại báo danh"""
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền phục hồi vé tạm hoãn!")
 
@@ -1249,10 +1177,9 @@ class QueueService:
         ticket_id_restored = ticket.id
         ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
         ticket.thoi_gian_xep_hang_lai = now
-        ticket.muc_do_uu_tien = 4  # Khi quay lại, ưu tiên sau các ca đúng giờ
+        ticket.muc_do_uu_tien = 4
         ticket.ghi_chu_dieu_phoi = f"{ticket.ghi_chu_dieu_phoi or ''} | Phục hồi hàng đợi lúc {clinic_now().strftime('%H:%M:%S')} (bắt đầu tính lại thời gian chờ).".strip(" | ")
         await db.commit()
-        # Reload với eager-load đầy đủ để tránh MissingGreenlet trong SQLAlchemy 2.0 Async
         return await self._get_ticket_with_relations(ticket_id_restored, db)
 
     async def close_ticket(
@@ -1262,7 +1189,6 @@ class QueueService:
         current_user: TaiKhoan,
         db: AsyncSession,
     ) -> CloseTicketResponse:
-        """Lễ tân đóng vé hàng đợi vì lý do hành chính (DA_DONG_VE)"""
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền đóng vé hàng đợi!")
 
@@ -1275,7 +1201,7 @@ class QueueService:
 
         now = datetime.now(timezone.utc)
         ticket.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
-        ticket.muc_do_uu_tien = 7  # Đóng vé gán mức 7 (cuối danh sách)
+        ticket.muc_do_uu_tien = 7
         note = f"Đóng vé hành chính lúc {clinic_now().strftime('%H:%M:%S')}"
         if ly_do:
             note += f": {ly_do}"
@@ -1304,7 +1230,6 @@ class QueueService:
 
     ) -> CloseTicketResponse:
 
-        """Bệnh nhân xin bỏ về không khám (BO_KHAM)"""
 
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
 
@@ -1329,7 +1254,7 @@ class QueueService:
         now = datetime.now(timezone.utc)
 
         ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
-        ticket.muc_do_uu_tien = 7  # Bỏ khám/vắng mặt gán mức 7 (cuối danh sách)
+        ticket.muc_do_uu_tien = 7
 
         note = f"Bệnh nhân xin bỏ về lúc {clinic_now().strftime('%H:%M:%S')}"
 
@@ -1375,7 +1300,6 @@ class QueueService:
 
     ) -> QueueTicketResponse:
 
-        """Lễ tân điều chuyển buồng khám / bác sĩ cho một lượt khám trong hàng đợi (FC-14)"""
 
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
 
@@ -1405,7 +1329,6 @@ class QueueService:
 
 
 
-        # 1. Tìm thông tin buồng khám đích
 
         stmt_room = select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).where(PhongKham.id == payload.phong_kham_id)
 
@@ -1417,13 +1340,11 @@ class QueueService:
 
 
 
-        # 2. Xác định bác sĩ tiếp nhận buồng khám đích
 
         target_doctor_id = payload.bac_si_id
 
         if not target_doctor_id:
 
-            # Tra cứu bác sĩ trực buồng này trong ca trực hôm nay (LichLamViec)
 
             stmt_roster = (
 
@@ -1449,7 +1370,6 @@ class QueueService:
 
             else:
 
-                # Fallback: Tra cứu bác sĩ phụ trách cố định của buồng này
 
                 stmt_doc = select(BacSi).where(BacSi.phong_kham_id == target_room.id, BacSi.is_active.is_(True))
 
@@ -1461,7 +1381,6 @@ class QueueService:
 
 
 
-        # 3. Cấp số thứ tự khám tiếp theo tại buồng khám đích (tránh trùng STT và mã vé)
 
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
 
@@ -1487,7 +1406,6 @@ class QueueService:
 
 
 
-        # Cập nhật phiếu khám
 
         old_room_id = ticket.phong_kham_id
 
@@ -1523,7 +1441,6 @@ class QueueService:
         ca_kham: Optional[Union[str, AsyncSession]] = None,
         db: Optional[AsyncSession] = None,
     ) -> DoctorQueueBoardResponse:
-        """Lấy toàn bộ dữ liệu bảng hàng đợi phòng khám theo thời gian thực (Display Board)"""
         if isinstance(ca_kham, AsyncSession):
             db = ca_kham
             ca_kham = None
@@ -1682,15 +1599,6 @@ class QueueService:
 
     ) -> PatientFlowBoardResponse:
 
-        """
-
-        Bảng điều phối luân chuyển bệnh nhân toàn diện tại phòng khám (OpenEMR Patient Flow Board):
-
-        - Theo dõi từ lúc Check-in đến khi Hoàn tất hoặc Bỏ về.
-
-        - Hiển thị Giờ hẹn vs Giờ đến thực tế, Tổng thời gian chờ, Thời gian ở trạng thái này.
-
-        """
 
         target_date = query_date or clinic_now().date()
 
@@ -2009,7 +1917,6 @@ class QueueService:
 
     ) -> List[AppointmentReceptionSearchResult]:
 
-        """Tìm kiếm lịch hẹn phục vụ quầy tiếp đón (theo mã APT, SĐT, hoặc họ tên bệnh nhân)"""
 
         q = f"%{query_str.strip()}%"
 
@@ -2141,7 +2048,6 @@ class QueueService:
         receptionist_user: TaiKhoan,
         db: AsyncSession,
     ) -> QueueTicketResponse:
-        """Alias tương thích ngược: Chuyển tiếp trực tiếp sang hàm check_in_walk_in đã hợp nhất"""
         walk_in_req = WalkInCheckInRequest(
             benh_nhan_id=None,
             ho_ten=payload.ho_ten,
@@ -2165,12 +2071,10 @@ class QueueService:
         ca_kham: Optional[str],
         db: AsyncSession
     ) -> ShiftDashboardResponse:
-        """Báo cáo chỉ số vận hành ca trực theo thời gian thực (FC-10)"""
         now_dt = clinic_now()
         target_date = query_date or now_dt.date()
         target_ca = ca_kham or self._determine_shift(now_dt.time())
 
-        # 1. Tổng hẹn trước (LichKham): ngay_kham = target_date, trang_thai != DA_HUY
         stmt_apt = (
             select(LichKham)
             .options(
@@ -2196,7 +2100,6 @@ class QueueService:
             if apt_ca == target_ca or not target_ca:
                 tong_hen_truoc += 1
 
-        # 2. Hàng đợi (HangDoiKham) trong ngày hôm nay
         stmt_q_today = (
             select(HangDoiKham)
             .options(
@@ -2210,7 +2113,6 @@ class QueueService:
         )
         all_today_tickets = (await db.execute(stmt_q_today)).scalars().all()
 
-        # Lọc vé theo ca hiện tại
         tickets = [t for t in all_today_tickets if t.ca_kham == target_ca] if target_ca else all_today_tickets
 
         so_da_check_in = len(tickets)
@@ -2223,7 +2125,6 @@ class QueueService:
         so_bo_kham = sum(1 for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.BO_KHAM.value)
         so_da_dong_ve = sum(1 for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.DA_DONG_VE.value)
 
-        # 3. Mật độ check-in theo khung giờ (Hourly Density)
         standard_hours = ["07:30", "08:30", "09:30", "10:30", "13:30", "14:30", "15:30"]
         counts_by_slot = {h: 0 for h in standard_hours}
         vn_tz = timezone(timedelta(hours=7))
@@ -2256,14 +2157,12 @@ class QueueService:
             for h in standard_hours
         ]
 
-        # 4. Lịch hẹn sắp đến trong ngày (chưa check-in, trạng thái đã đặt/đã xác nhận)
         checked_in_apt_ids = {t.lich_kham_id for t in all_today_tickets if t.lich_kham_id}
         upcoming_apts = [
             a for a in all_apts
             if a.id not in checked_in_apt_ids
             and a.trang_thai in (TrangThaiLichEnum.CHO_XAC_NHAN.value, TrangThaiLichEnum.DA_XAC_NHAN.value, "da_xac_nhan")
         ]
-        # Sắp xếp theo giờ khám
         upcoming_apts.sort(key=lambda x: str(x.gio_kham or ""))
         lich_hen_sap_toi = []
         for apt in upcoming_apts[:5]:
@@ -2291,7 +2190,6 @@ class QueueService:
                 )
             )
 
-        # 5. Bệnh nhân chờ lâu (> 30 phút hoặc xếp theo thời gian chờ giảm dần)
         waiting_tickets = [t for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value]
         waiting_data = []
         for t in waiting_tickets:
@@ -2303,7 +2201,6 @@ class QueueService:
                 wait_mins = max(0, int((now_dt - ci_local).total_seconds() / 60))
             waiting_data.append((t, wait_mins, ci_local))
 
-        # Sắp xếp giảm dần theo thời gian chờ
         waiting_data.sort(key=lambda x: x[1], reverse=True)
         benh_nhan_cho_lau = []
         for t, wait_mins, ci_local in waiting_data[:5]:
@@ -2331,7 +2228,6 @@ class QueueService:
                 )
             )
 
-        # 6. Hoạt động gần đây của Lễ tân (Audit Logs)
         recent_tickets = sorted(
             all_today_tickets,
             key=lambda t: t.thoi_gian_check_in or t.created_at,
@@ -2383,7 +2279,6 @@ class QueueService:
             so_vang_lai=so_vang_lai,
             so_bo_kham=so_bo_kham,
             so_da_dong_ve=so_da_dong_ve,
-            # Alias fields đồng bộ 100% với Frontend React
             da_check_in=so_da_check_in,
             dang_cho_kham=so_dang_cho,
             dang_kham=so_dang_kham,
@@ -2391,7 +2286,6 @@ class QueueService:
             vang_mat=so_vang_mat_chua_xu_ly,
             bo_kham=so_bo_kham,
             vang_lai=so_vang_lai,
-            # Trực quan hóa và danh sách chuyên sâu
             mat_do_theo_gio=mat_do_theo_gio,
             lich_hen_sap_toi=lich_hen_sap_toi,
             benh_nhan_cho_lau=benh_nhan_cho_lau,
@@ -2412,7 +2306,6 @@ class QueueService:
 
     ) -> RoomStatusDashboardResponse:
 
-        """Giám sát tình trạng buồng khám vật lý theo thời gian thực (FC-11)"""
 
         now_dt = clinic_now()
 
@@ -2422,7 +2315,6 @@ class QueueService:
 
 
 
-        # Lấy tất cả buồng khám
 
         stmt_rooms = select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).order_by(PhongKham.ma_phong)
 
@@ -2430,7 +2322,6 @@ class QueueService:
 
 
 
-        # Lấy lịch làm việc hôm nay để biết bác sĩ nào ngồi buồng nào
 
         stmt_llv = (
 
@@ -2482,7 +2373,6 @@ class QueueService:
 
 
 
-        # Lấy các vé trong hàng đợi của ngày (nếu chọn ca thì lọc theo ca)
 
         stmt_q = (
 
@@ -2504,7 +2394,6 @@ class QueueService:
 
 
 
-        # Fallback query: các bác sĩ được gán cố định theo buồng khám (BacSi.phong_kham_id)
 
         stmt_docs = (
 
@@ -2528,7 +2417,6 @@ class QueueService:
 
 
 
-        # Gom nhóm ticket theo bac_si_id và phong_kham_id
 
         doc_tickets = {}
 
@@ -2568,7 +2456,6 @@ class QueueService:
 
 
 
-            # Fallback nếu phòng chưa có lịch phân ca hôm nay nhưng có Bác sĩ phụ trách buồng
 
             if not bac_si_id and r.id in doc_room_map:
 
@@ -2584,7 +2471,6 @@ class QueueService:
 
 
 
-            # Lấy tất cả vé thuộc buồng này (theo bác sĩ hoặc theo buồng)
 
             seen_ticket_ids = set()
 
@@ -2704,7 +2590,6 @@ class QueueService:
 
     ) -> ReceptionAppointmentsResponse:
 
-        """Tra cứu lịch hẹn đa chiều góc nhìn Lễ tân (FC-12)"""
 
         conditions = []
 
@@ -2774,7 +2659,6 @@ class QueueService:
 
 
 
-        # Count total
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
 
@@ -2782,7 +2666,6 @@ class QueueService:
 
 
 
-        # Pagination & Ordering
 
         offset = (page - 1) * page_size
 
@@ -2891,7 +2774,6 @@ class QueueService:
         chuyen_khoa_id: Optional[Union[int, AsyncSession]] = None,
         db: Optional[AsyncSession] = None,
     ) -> List[RosterItem]:
-        """Tra cứu lịch phân ca trực thực tế trong ngày (FC-15)"""
         if isinstance(chuyen_khoa_id, AsyncSession):
             db = chuyen_khoa_id
             chuyen_khoa_id = None
@@ -2932,7 +2814,6 @@ class QueueService:
 
 
 
-        # Đếm số lượng tiếp nhận thực tế từ HangDoiKham trong ngày (loại trừ bệnh nhân bỏ khám hoặc hủy/đóng vé)
 
         stmt_counts = (
 
@@ -3050,7 +2931,6 @@ class QueueService:
 
     ) -> List[RoomResourceItem]:
 
-        """Tra cứu danh sách buồng khám vật lý và phân khoa (FC-15)"""
 
         stmt = select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).order_by(PhongKham.ma_phong)
 
@@ -3098,7 +2978,6 @@ class QueueService:
 
     ) -> List[RosterTemplateItem]:
 
-        """Tra cứu khung phân ca trực định kỳ theo tuần (FC-15)"""
 
         stmt = (
 
@@ -3154,7 +3033,6 @@ class QueueService:
 
     async def get_patient_packages(self, benh_nhan_id: int, db: AsyncSession) -> List[PatientPackageItem]:
 
-        """Tra cứu danh sách gói khám bệnh nhân đã mua và hạn mức sử dụng (FC-17)"""
 
         stmt_bn = select(BenhNhan).where(BenhNhan.id == benh_nhan_id)
 
@@ -3228,7 +3106,6 @@ class QueueService:
 
     async def get_patient_history_summary(self, benh_nhan_id: int, db: AsyncSession) -> PatientHistorySummaryResponse:
 
-        """Tóm tắt lịch sử khám và thông tin phục vụ tiếp đón tại quầy (FC-17)"""
 
         stmt_bn = (
 
@@ -3248,13 +3125,11 @@ class QueueService:
 
 
 
-        # 1. Lấy gói khám
 
         packages = await self.get_patient_packages(benh_nhan_id, db)
 
 
 
-        # 2. Lấy các lượt khám gần đây
 
         stmt_apts = (
 
@@ -3368,7 +3243,6 @@ class QueueService:
 
     ) -> ProcessNoShowResponse:
 
-        """Quét và xử lý bệnh nhân vắng mặt no-show cuối ca (FC-18)"""
 
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
 
@@ -3476,7 +3350,6 @@ class QueueService:
         chuyen_khoa_id: Optional[int],
         db: AsyncSession
     ) -> ReceptionWaitlistResponse:
-        """Lễ tân tra cứu danh sách người bệnh đang chờ slot trong ngày (Waitlist)"""
         target_date = query_date or clinic_now().date()
         stmt = (
             select(DanhSachCho)
@@ -3563,7 +3436,6 @@ class QueueService:
         receptionist_user: TaiKhoan,
         db: AsyncSession
     ) -> QueueTicketResponse:
-        """Lễ tân tiếp nhận chính thức bệnh nhân từ Danh sách chờ vào Hàng đợi khám (áp dụng cơ chế phân bổ tối ưu nếu không có Bác sĩ)"""
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền tiếp nhận bệnh nhân từ danh sách chờ!")
 
@@ -3599,7 +3471,6 @@ class QueueService:
 
         ca_kham = entry.ca_mong_muon or self._determine_shift(clinic_now().time())
 
-        # Kiểm tra chống trùng lặp hàng đợi trong ca hôm nay
         stmt_queue_exist = select(HangDoiKham.id).where(
             HangDoiKham.benh_nhan_id == entry.benh_nhan_id,
             HangDoiKham.ngay_kham == today,
@@ -3612,10 +3483,8 @@ class QueueService:
         if (await db.execute(stmt_queue_exist)).scalar_one_or_none():
             raise ConflictException("Người bệnh hiện đã có vé đang chờ hoặc đang khám trong ca hôm nay!")
 
-        # Xác định Bác sĩ tiếp nhận:
         effective_doctor_id = entry.bac_si_id
         if not effective_doctor_id:
-            # Nếu người bệnh không chọn bác sĩ -> Kích hoạt load_balancing_service tự động tìm bác sĩ tối ưu ít chờ nhất
             ck_id = entry.bac_si.chuyen_khoa_id if entry.bac_si else None
             from app.services.load_balancing_service import load_balancing_service
             effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
@@ -3625,13 +3494,11 @@ class QueueService:
                 db=db
             )
 
-        # Lấy thông tin Bác sĩ
         stmt_bs = select(BacSi).options(selectinload(BacSi.phong_kham), selectinload(BacSi.chuyen_khoa)).where(BacSi.id == effective_doctor_id)
         bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bs:
             raise NotFoundException("Không tìm thấy thông tin Bác sĩ tiếp nhận!")
 
-        # Kiểm tra ca trực của Bác sĩ (LichLamViec) và trần công suất ca khám
         stmt_shift = (
             select(LichLamViec)
             .where(
@@ -3661,7 +3528,6 @@ class QueueService:
                     f"Chưa có lượt hủy để giải phóng slot cho người bệnh trong danh sách chờ!"
                 )
 
-        # Cấp số thứ tự khám tiếp theo
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
             HangDoiKham.bac_si_id == effective_doctor_id,
             HangDoiKham.ngay_kham == today,
@@ -3707,7 +3573,7 @@ class QueueService:
             ca_kham=ca_kham,
             so_thu_tu_kham=next_stt,
             loai_hang_doi=LoaiHangDoiEnum.VANG_LAI.value,
-            muc_do_uu_tien=5,  # Vãng lai / Slot từ Waitlist (tránh nhầm lẫn với tier 3 'Sau CLS')
+            muc_do_uu_tien=5,
             trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
             thoi_gian_check_in=now,
             so_lan_goi=0,
@@ -3716,7 +3582,6 @@ class QueueService:
         )
         db.add(ticket)
 
-        # Cập nhật bản ghi Waitlist
         entry.trang_thai = TrangThaiWaitlistEnum.DA_NHAN_SLOT.value
         entry.slot_duoc_cap_id = lich_kham.id
 
@@ -3729,7 +3594,6 @@ class QueueService:
         receptionist_user: TaiKhoan,
         db: AsyncSession
     ) -> dict:
-        """Lễ tân hủy lượt chờ của người bệnh trong Danh sách chờ"""
         if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền hủy bản ghi danh sách chờ!")
 
@@ -3748,18 +3612,10 @@ class QueueService:
         ca_kham: Optional[str],
         db: AsyncSession
     ) -> ReceptionReportSummaryResponse:
-        """
-        Phân hệ 9 (API 9.1): Báo cáo đối soát vận hành tiếp đón
-        - Thống kê tổng tiếp nhận, số lịch hẹn, số vãng lai
-        - Thời gian chờ trung bình (SLA từ check-in đến lúc bác sĩ gọi/khám)
-        - Số lịch bị hủy, số no-show
-        - Phân bổ theo từng chuyên khoa
-        """
         now = clinic_now()
         target_date = query_date or now.date()
         vn_tz = timezone(timedelta(hours=7))
 
-        # 1. Lấy tất cả lượt trong hàng đợi ngày target_date (và ca_kham nếu có)
         stmt_queue = (
             select(HangDoiKham)
             .options(
@@ -3775,7 +3631,6 @@ class QueueService:
 
         tickets = (await db.execute(stmt_queue)).scalars().all()
 
-        # 2. Lấy danh sách lịch hẹn trong ngày target_date (và ca_kham nếu có) để tính hủy & no-show
         stmt_lich = select(LichKham).where(LichKham.ngay_kham == target_date)
         if ca_kham:
             stmt_lich = stmt_lich.where(LichKham.ca_kham == ca_kham)
@@ -3794,11 +3649,9 @@ class QueueService:
             if item_lich.trang_thai == TrangThaiLichEnum.NO_SHOW.value
         )
 
-        # 3. Tính thời gian chờ trung bình (phút) và phân bổ chuyên khoa
         wait_times: List[float] = []
         specialty_stats: dict = {}
 
-        # Nạp tất cả chuyên khoa từ CSDL để hiển thị
         all_specs_res = await db.execute(select(ChuyenKhoa).where(ChuyenKhoa.is_active.is_(True)))
         all_specs = all_specs_res.scalars().all()
         for sp in all_specs:
@@ -3914,12 +3767,6 @@ class QueueService:
         page_size: int,
         db: AsyncSession
     ) -> ReceptionAuditLogResponse:
-        """
-        Phân hệ 9 (API 9.2): Nhật ký kiểm toán thao tác tiếp đón & điều phối
-        - Quét từ HangDoiKham và LichKham
-        - Hỗ trợ lọc action_type, tìm kiếm họ tên, sđt, số vé, buồng khám, actor
-        - Phân trang chuẩn theo yêu cầu Frontend
-        """
         now = clinic_now()
         target_date = query_date or now.date()
         vn_tz = timezone(timedelta(hours=7))
@@ -3994,7 +3841,6 @@ class QueueService:
                 )
             )
 
-            # Sự kiện Bác sĩ gọi số
             if t.thoi_gian_goi_kham or t.trang_thai in (TrangThaiHangDoiEnum.DANG_KHAM.value, TrangThaiHangDoiEnum.DA_KHAM.value):
                 call_dt = t.thoi_gian_goi_kham or t.thoi_gian_bat_dau or t.updated_at
                 call_local = call_dt.astimezone(vn_tz) if (call_dt and call_dt.tzinfo) else call_dt
@@ -4015,7 +3861,6 @@ class QueueService:
                     )
                 )
 
-            # Sự kiện chuyển buồng khám
             if t.ghi_chu_dieu_phoi and any(w in t.ghi_chu_dieu_phoi.lower() for w in ("chuyển", "đổi phòng", "transfer")):
                 up_dt = t.updated_at or t.thoi_gian_check_in
                 up_local = up_dt.astimezone(vn_tz) if (up_dt and up_dt.tzinfo) else up_dt
@@ -4036,7 +3881,6 @@ class QueueService:
                     )
                 )
 
-            # Sự kiện tạm hoãn
             if t.trang_thai == TrangThaiHangDoiEnum.TAM_HOAN.value:
                 defer_dt = t.thoi_gian_xep_hang_lai or t.updated_at
                 defer_local = defer_dt.astimezone(vn_tz) if (defer_dt and defer_dt.tzinfo) else defer_dt
@@ -4057,7 +3901,6 @@ class QueueService:
                     )
                 )
 
-            # Sự kiện bỏ khám
             if t.trang_thai == TrangThaiHangDoiEnum.BO_KHAM.value:
                 leave_dt = t.updated_at or t.thoi_gian_check_in
                 leave_local = leave_dt.astimezone(vn_tz) if (leave_dt and leave_dt.tzinfo) else leave_dt
@@ -4078,7 +3921,6 @@ class QueueService:
                     )
                 )
 
-            # Sự kiện đóng vé
             if t.trang_thai == TrangThaiHangDoiEnum.DA_DONG_VE.value:
                 close_dt = t.thoi_gian_ket_thuc or t.updated_at
                 close_local = close_dt.astimezone(vn_tz) if (close_dt and close_dt.tzinfo) else close_dt
@@ -4099,7 +3941,6 @@ class QueueService:
                     )
                 )
 
-        # Xử lý các sự kiện từ LichKham
         for lk in lich_list:
             patient_name = lk.benh_nhan.nguoi_dung.ho_ten if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
             phone = lk.benh_nhan.nguoi_dung.so_dien_thoai if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else ""
@@ -4199,16 +4040,6 @@ class QueueService:
         query_date: Optional[date],
         db: AsyncSession
     ) -> PreCloseShiftAuditResponse:
-        """
-        Quét và đối soát trước khi đóng ca trực Lễ tân:
-        - Quét các ca đang khám dở (DANG_KHAM)
-        - Quét các ca đang chờ khám (CHO_KHAM)
-        - Quét các ca tạm hoãn (TAM_HOAN)
-        - Quét các lịch hẹn trong ca quá giờ chưa check-in (NO_SHOW)
-        - Quét danh sách chờ (Waitlist) của ca
-        - Đối chiếu tình trạng chốt tiền quầy thu ngân (KhoaSoCaTruc)
-        - Đưa ra đề xuất xử lý tự động phù hợp
-        """
         now = clinic_now()
         target_date = query_date or now.date()
         target_ca = ca_kham.lower().strip()
@@ -4418,12 +4249,6 @@ class QueueService:
         current_user: TaiKhoan,
         db: AsyncSession
     ) -> CloseReceptionShiftResponse:
-        """
-        Thực hiện đóng ca và bàn giao ca trực Lễ tân:
-        - Xử lý các vé đang chờ (CHUYEN_CA_TIEP_THEO cho ca sáng, hoặc DONG_VE cho ca chiều)
-        - Tự động chốt No-show cho các lịch hẹn quá giờ nếu chọn
-        - Ghi vết kiểm toán bàn giao ca
-        """
         now = clinic_now()
         target_date = payload.ngay or now.date()
         target_ca = payload.ca_kham.lower().strip()
@@ -4446,7 +4271,6 @@ class QueueService:
         so_dong = 0
 
         if payload.xu_ly_cho_kham == "CHUYEN_CA_TIEP_THEO":
-            # Cập nhật thời gian xếp hàng lại từ đầu ca chiều 13:30 (không tính giờ nghỉ trưa)
             afternoon_start_local = datetime.combine(target_date, time(13, 30))
             vn_tz = timezone(timedelta(hours=7))
             afternoon_start_utc = afternoon_start_local.replace(tzinfo=vn_tz).astimezone(timezone.utc)

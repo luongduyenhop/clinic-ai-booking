@@ -324,7 +324,6 @@ export const registerWalkInAsync = createAsyncThunk(
     }
 )
 
-// Alias thống nhất: dùng chung thunk registerWalkInAsync
 export const registerWalkInQuickAsync = registerWalkInAsync
 
 export const fetchReceptionWaitlistAsync = createAsyncThunk(
@@ -675,7 +674,6 @@ export const emergencyHandoverAsync = createAsyncThunk(
     }
 )
 
-// ── Lịch trực & Nguồn lực (Phân hệ 6) ─────────────────────────
 export const fetchRosterAsync = createAsyncThunk(
     'reception/fetchRoster',
     async ({ queryDate, caKham, chuyenKhoaId } = {}, { rejectWithValue }) => {
@@ -723,7 +721,6 @@ export const fetchRoomsAsync = createAsyncThunk(
     }
 )
 
-// ── Sự cố ca trực & Điều phối khẩn cấp ────────────────────────
 export const fetchDoctorAbsencesAsync = createAsyncThunk(
     'reception/fetchDoctorAbsences',
     async ({ queryDate, caKham } = {}, { rejectWithValue }) => {
@@ -787,7 +784,6 @@ export const createAppointmentAsync = createAsyncThunk(
     'reception/createAppointment',
     async ({ payload, actor: _actor }, { dispatch, rejectWithValue }) => {
         try {
-            // Map payload sang snake_case chuẩn theo AppointmentCreateRequest của Backend
             const body = {
                 benh_nhan_id: payload.benh_nhan_id ? Number(payload.benh_nhan_id) : (payload.patientId ? Number(payload.patientId) : undefined),
                 bac_si_id: payload.bac_si_id ? Number(payload.bac_si_id) : (payload.doctorId ? Number(payload.doctorId) : undefined),
@@ -796,7 +792,6 @@ export const createAppointmentAsync = createAsyncThunk(
                 ly_do_kham: payload.ly_do_kham || payload.notes || payload.reason || 'Đặt lịch khám tại quầy',
                 trieu_chung_ban_dau: payload.trieu_chung_ban_dau || payload.notes || undefined,
             }
-            // Đảm bảo định dạng giờ có giây (HH:MM:SS) theo spec backend
             if (body.gio_kham && body.gio_kham.length === 5) {
                 body.gio_kham = `${body.gio_kham}:00`
             }
@@ -931,7 +926,6 @@ export const resolveTaskAsync = createAsyncThunk(
     async ({ taskId, resolutionNote }) => ({ taskId, resolutionNote })
 )
 
-// ── 10. Báo cáo đối soát & Nhật ký kiểm toán (Phân hệ 9) ─────────
 export const fetchReportSummaryAsync = createAsyncThunk(
     'reception/fetchReportSummary',
     async ({ queryDate, caKham } = {}, { rejectWithValue }) => {

@@ -101,7 +101,6 @@ export default function ReceptionSidebar() {
                 isCollapsed ? 'w-[64px]' : 'w-[244px]'
             }`}
         >
-            {/* Brand Logo - Aligned with Admin */}
             <div className="h-14 px-3 flex items-center justify-between border-b border-white/10 bg-[#002840]">
                 <Link to="/reception/dashboard" className="flex items-center gap-2.5 group overflow-hidden">
                     <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md ring-2 ring-white/15 shrink-0 group-hover:scale-105 transition-transform">
@@ -120,11 +119,9 @@ export default function ReceptionSidebar() {
                 </Link>
             </div>
 
-            {/* Navigation Sections */}
             <nav className="flex-1 overflow-y-auto py-2.5 px-2 space-y-3 text-[12px] no-scrollbar">
                 {sections.map((section) => (
                     <div key={section.id} className="space-y-1">
-                        {/* Section Header */}
                         {!isCollapsed && section.title && (
                             <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-sky-300/60 flex items-center gap-1.5">
                                 <span className="w-1 h-1 rounded-full bg-[#00B5F1]" />
@@ -135,7 +132,6 @@ export default function ReceptionSidebar() {
                             <div className="border-t border-white/10 my-1 mx-2" />
                         )}
 
-                        {/* Section Items */}
                         {section.items.map((item) => {
                             const IconComponent = item.icon
                             return (
@@ -181,9 +177,7 @@ export default function ReceptionSidebar() {
                 ))}
             </nav>
 
-            {/* Bottom Bar: Toggle Collapse & Gateway Status */}
             <div className="p-2.5 border-t border-white/10 bg-[#002840] text-[11px] text-sky-200/80 space-y-1.5">
-                {/* Collapse Button */}
                 <button
                     type="button"
                     onClick={() => setIsCollapsed(!isCollapsed)}

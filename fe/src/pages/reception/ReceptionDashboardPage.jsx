@@ -51,7 +51,6 @@ export default function ReceptionDashboardPage() {
         dispatch(fetchDoctorAbsencesAsync())
     }, [dispatch])
 
-    // KPIs derived from Real Backend Shift Summary with Fallbacks
     const todayAppointmentsCount = shiftSummary?.tong_hen_truoc ?? appointments.length
     const checkedInCount = shiftSummary?.da_check_in ?? queueEntries.length
     const waitingCount =
@@ -70,14 +69,12 @@ export default function ReceptionDashboardPage() {
                   (a) => a.status === APPOINTMENT_STATUS.NO_SHOW || a.status === APPOINTMENT_STATUS.CANCELLED
               ).length
 
-    // Upcoming patients
     const upcomingAppointments = shiftSummary?.lich_hen_sap_toi?.length > 0
         ? shiftSummary.lich_hen_sap_toi
         : appointments
             .filter((a) => a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED || a.status === 'da_xac_nhan')
             .slice(0, 5)
 
-    // Long waiting patients (> 30 mins)
     const longWaitingList = shiftSummary?.benh_nhan_cho_lau?.length > 0
         ? shiftSummary.benh_nhan_cho_lau.map((item) => ({
             id: item.ticket_id,
@@ -92,10 +89,8 @@ export default function ReceptionDashboardPage() {
             .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
             .slice(0, 5)
 
-    // Active incidents from Backend
     const activeIncidents = doctorAbsences.slice(0, 4)
 
-    // Recent receptionist activities from Backend or Queue history fallback
     const recentLogs = shiftSummary?.hoat_dong_gan_day?.length > 0
         ? shiftSummary.hoat_dong_gan_day.map((item) => ({
             id: item.id,
@@ -114,7 +109,6 @@ export default function ReceptionDashboardPage() {
                 actor: 'Lễ tân ca trực',
             })))
 
-    // Hourly distribution from actual check-in data
     const hours = ['07:30', '08:30', '09:30', '10:30', '13:30', '14:30', '15:30']
     const hourlyData = shiftSummary?.mat_do_theo_gio?.length > 0
         ? shiftSummary.mat_do_theo_gio.map((d) => ({
@@ -132,7 +126,6 @@ export default function ReceptionDashboardPage() {
 
     return (
         <div className="space-y-4">
-            {/* Top Welcome Banner — Aligned with Admin Dashboard */}
             <div className="rounded-2xl bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white shadow-md flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-1">
                     <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider border border-white/20">
@@ -180,7 +173,6 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
-            {/* Critical Alert if any doctor is absent */}
             {activeIncidents.length > 0 && (
                 <div className="rounded-xl border border-rose-300 bg-rose-50/90 p-4 shadow-xs flex items-center justify-between gap-3 text-rose-900">
                     <div className="flex items-center gap-3">
@@ -200,9 +192,7 @@ export default function ReceptionDashboardPage() {
                 </div>
             )}
 
-            {/* 6 Metric KPI Cards — Exact Admin HIS Dashboard Style */}
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                {/* 1. Tổng lịch hôm nay */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-[#00B5F1]">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">TLH — Tổng hẹn</div>
@@ -218,7 +208,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 2. Đã Check-in */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-teal-500">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">ĐCI — Đã Check-in</div>
@@ -234,7 +223,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 3. Đang chờ khám */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-amber-500">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">CK — Chờ khám</div>
@@ -250,7 +238,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 4. Đang trong phòng khám */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-sky-500">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">ĐK — Đang khám</div>
@@ -266,7 +253,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 5. Đã hoàn tất */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">KTK — Kết thúc</div>
@@ -282,7 +268,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 6. Vắng mặt / Hủy / Muộn */}
                 <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
                     <div>
                         <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">VM — Vắng / Muộn</div>
@@ -299,7 +284,6 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
-            {/* Room Status / Buồng khám vật lý thời gian thực */}
             {roomStatus.length > 0 && (
                 <div className="medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
@@ -343,9 +327,7 @@ export default function ReceptionDashboardPage() {
                 </div>
             )}
 
-            {/* Charts & Status Distribution Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Hourly Chart */}
                 <div className="lg:col-span-2 medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
                         <span className="inline-flex items-center gap-1.5">
@@ -376,7 +358,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* Queue Status Distribution */}
                 <div className="medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
                         <span className="inline-flex items-center gap-1.5">
@@ -422,9 +403,7 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
-            {/* 3 Columns: Upcoming Appointments, Long Waiting, Active Incidents */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* 1. Upcoming Appointments */}
                 <div className="medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
                         <span className="inline-flex items-center gap-1.5">
@@ -465,7 +444,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 2. Long Waiting Patients */}
                 <div className="medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
                         <div className="flex items-center gap-1.5">
@@ -511,7 +489,6 @@ export default function ReceptionDashboardPage() {
                     </div>
                 </div>
 
-                {/* 3. Incidents / Active Tasks */}
                 <div className="medpro-card p-4 space-y-3">
                     <div className="medpro-section-title">
                         <div className="flex items-center gap-1.5">
@@ -554,7 +531,6 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
-            {/* Recent Audit Activities */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="medpro-section-title">
                     <div>
@@ -586,7 +562,6 @@ export default function ReceptionDashboardPage() {
                 </div>
             </div>
 
-            {/* Modals */}
             <AppointmentFormModal open={isCreateAppOpen} onClose={() => setIsCreateAppOpen(false)} />
             <AppointmentDetailModal
                 appointment={selectedApp}

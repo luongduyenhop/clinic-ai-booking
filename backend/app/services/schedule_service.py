@@ -1,7 +1,3 @@
-"""
-Schedule Service: Quản lý lịch làm việc, ca trực và đơn nghỉ phép bác sĩ
-Đáp ứng đặc tả TS component schedule_service.py
-"""
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import TaiKhoan
@@ -15,7 +11,6 @@ from app.services.admin_shift_service import admin_shift_service
 
 
 class ScheduleService:
-    """Service facade cho quản lý ca trực và đơn nghỉ phép bác sĩ"""
 
     async def get_leaves(
         self,

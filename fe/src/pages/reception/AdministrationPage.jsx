@@ -38,7 +38,6 @@ export default function AdministrationPage() {
         })
     }, [invoices, patients, searchQuery, selectedStatus])
 
-    // KPI Summary
     const totalRevenue = invoices
         .filter((i) => i.status === PAYMENT_STATUS.PAID)
         .reduce((sum, i) => sum + i.amountToPay, 0)
@@ -199,7 +198,6 @@ export default function AdministrationPage() {
 
     return (
         <div className="space-y-4">
-            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                     <span className="text-xs font-bold text-slate-400 uppercase">Doanh thu thu tại quầy hôm nay</span>
@@ -218,7 +216,6 @@ export default function AdministrationPage() {
                 </div>
             </div>
 
-            {/* Invoices Table & Search */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -260,7 +257,6 @@ export default function AdministrationPage() {
                 />
             </div>
 
-            {/* Modal Thu Tiền Tại Quầy / VietQR */}
             <Modal
                 title={
                     <div className="flex items-center gap-2 text-[#003553]">
@@ -358,7 +354,6 @@ export default function AdministrationPage() {
                 )}
             </Modal>
 
-            {/* Print Receipt Modal */}
             <PrintReceiptModal
                 open={Boolean(selectedInvoice)}
                 onClose={() => setSelectedInvoice(null)}

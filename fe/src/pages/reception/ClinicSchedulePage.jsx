@@ -52,23 +52,18 @@ export default function ClinicSchedulePage() {
 
     const [activeTab, setActiveTab] = useState('daily_roster')
 
-    // Tự động chọn ca trực theo thời gian thực (Sáng nếu < 12h, Chiều nếu >= 12h)
     const [selectedShift, setSelectedShift] = useState(() => (dayjs().hour() < 12 ? 'sang' : 'chieu'))
     const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
     const [selectedDep, setSelectedDep] = useState('')
 
-    // Tab 2: Lịch mẫu tuần
     const [selectedDayOfWeek, setSelectedDayOfWeek] = useState('')
 
-    // Tab 3: Buồng khám vật lý
     const [selectedRoomDep, setSelectedRoomDep] = useState('')
 
-    // Nạp dữ liệu ban đầu
     useEffect(() => {
         dispatch(fetchReceptionDataAsync())
     }, [dispatch])
 
-    // Load dữ liệu Tab 1 (Lịch trực thực tế & Trạng thái buồng khám)
     useEffect(() => {
         const caParam = selectedShift === 'all' ? undefined : selectedShift
         dispatch(
@@ -92,7 +87,6 @@ export default function ClinicSchedulePage() {
         )
     }, [dispatch, selectedDate, selectedShift, selectedDep])
 
-    // Load dữ liệu Tab 2 (Lịch mẫu định kỳ tuần)
     useEffect(() => {
         if (activeTab === 'template') {
             dispatch(
@@ -103,7 +97,6 @@ export default function ClinicSchedulePage() {
         }
     }, [dispatch, activeTab, selectedDayOfWeek])
 
-    // Load dữ liệu Tab 3 (Danh mục buồng khám vật lý)
     useEffect(() => {
         if (activeTab === 'physical_rooms') {
             dispatch(
@@ -128,13 +121,11 @@ export default function ClinicSchedulePage() {
         }
     }
 
-    // Danh sách chuyên khoa cho bộ lọc
     const departmentOptions = (departments || []).map((d) => ({
         value: d.id,
         label: d.name || d.ten_chuyen_khoa,
     }))
 
-    // Cột bảng Lịch trực mẫu định kỳ theo tuần (API 6.3)
     const templateColumns = [
         {
             title: 'Thứ trong tuần',
@@ -190,7 +181,6 @@ export default function ClinicSchedulePage() {
         },
     ]
 
-    // Cột bảng Buồng khám vật lý (API 6.2)
     const roomColumns = [
         {
             title: 'Mã phòng',
@@ -243,7 +233,6 @@ export default function ClinicSchedulePage() {
 
     return (
         <div className="space-y-5">
-            {/* Header chung */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -263,7 +252,6 @@ export default function ClinicSchedulePage() {
                     </Button>
                 </div>
 
-                {/* Tabs Điều hướng 3 Phân hệ */}
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
@@ -297,10 +285,8 @@ export default function ClinicSchedulePage() {
                 />
             </div>
 
-            {/* TAB 1: Lịch trực thực tế & Tình trạng buồng khám */}
             {activeTab === 'daily_roster' && (
                 <div className="space-y-5">
-                    {/* Thanh lọc Tab 1 */}
                     <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
                         <div>
                             <span className="text-slate-400 mr-2">Ngày khám:</span>
@@ -336,7 +322,6 @@ export default function ClinicSchedulePage() {
                         </div>
                     </div>
 
-                    {/* Cảnh báo Bác sĩ vắng mặt đột xuất */}
                     {doctorAbsences.length > 0 && (
                         <div className="space-y-3">
                             {doctorAbsences.map((inc) => (
@@ -361,7 +346,6 @@ export default function ClinicSchedulePage() {
                         </div>
                     )}
 
-                    {/* Lưới Lịch trực Bác sĩ 100% từ API (API 6.1) */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -455,7 +439,6 @@ export default function ClinicSchedulePage() {
                         )}
                     </div>
 
-                    {/* Giám sát phụ tải buồng khám thời gian thực (API 6.4) */}
                     <div className="medpro-card p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <div>
@@ -534,7 +517,6 @@ export default function ClinicSchedulePage() {
                 </div>
             )}
 
-            {/* TAB 2: Lịch trực định kỳ theo tuần (API 6.3) */}
             {activeTab === 'template' && (
                 <div className="medpro-card p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -580,7 +562,6 @@ export default function ClinicSchedulePage() {
                 </div>
             )}
 
-            {/* TAB 3: Danh mục buồng khám vật lý (API 6.2) */}
             {activeTab === 'physical_rooms' && (
                 <div className="medpro-card p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">

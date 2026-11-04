@@ -15,7 +15,6 @@ import {
     fetchAuditLogsAsync,
 } from '../../redux/actions/reception/receptionAction'
 
-// Bảng màu chuẩn 9 loại hành động kiểm toán (theo đặc tả API 9.2)
 const ACTION_TYPE_COLOR_MAP = {
     CHECK_IN: 'blue',
     WALK_IN_CREATE: 'orange',
@@ -51,20 +50,16 @@ export default function ReportsPage() {
         auditLoading = false,
     } = useSelector((state) => state.reception)
 
-    // Bộ lọc ngày & ca khám cho toàn bộ trang đối soát
     const [selectedDate, setSelectedDate] = useState(() => dayjs())
-    const [selectedShift, setSelectedShift] = useState('') // '' (cả ngày) | 'sang' | 'chieu'
+    const [selectedShift, setSelectedShift] = useState('')
 
-    // Bộ lọc cho bảng Audit Logs
     const [searchKeyword, setSearchKeyword] = useState('')
     const [actionFilter, setActionFilter] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
-    // Chuỗi ngày YYYY-MM-DD
     const queryDateStr = selectedDate ? selectedDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
 
-    // Tải báo cáo chỉ số vận hành & đối soát tiếp đón (API 9.1)
     const loadReportSummary = useCallback(() => {
         dispatch(
             fetchReportSummaryAsync({
@@ -74,7 +69,6 @@ export default function ReportsPage() {
         )
     }, [dispatch, queryDateStr, selectedShift])
 
-    // Tải nhật ký kiểm toán (API 9.2)
     const loadAuditLogs = useCallback(
         (pageToLoad = currentPage, sizeToLoad = pageSize) => {
             dispatch(
@@ -90,12 +84,10 @@ export default function ReportsPage() {
         [dispatch, queryDateStr, actionFilter, searchKeyword, currentPage, pageSize]
     )
 
-    // Kích hoạt nạp dữ liệu khi đổi ngày hoặc ca khám
     useEffect(() => {
         loadReportSummary()
     }, [loadReportSummary])
 
-    // Kích hoạt nạp nhật ký kiểm toán với debounce khi người dùng gõ tìm kiếm hoặc đổi filter
     useEffect(() => {
         const timer = setTimeout(() => {
             loadAuditLogs(1, pageSize)
@@ -104,20 +96,17 @@ export default function ReportsPage() {
         return () => clearTimeout(timer)
     }, [queryDateStr, actionFilter, searchKeyword, pageSize, dispatch])
 
-    // Xử lý chuyển trang trên Table Audit Logs
     const handleTableChange = (pagination) => {
         setCurrentPage(pagination.current)
         setPageSize(pagination.pageSize)
         loadAuditLogs(pagination.current, pagination.pageSize)
     }
 
-    // Nút làm mới toàn bộ trang
     const handleRefreshAll = () => {
         loadReportSummary()
         loadAuditLogs(currentPage, pageSize)
     }
 
-    // Trích xuất số liệu KPI an toàn từ Response API 9.1
     const kpi = reportSummary?.kpi || {
         tong_luot_tiep_nhan: 0,
         so_lich_hen: 0,
@@ -129,7 +118,6 @@ export default function ReportsPage() {
 
     const specialtyBreakdown = reportSummary?.phan_bo_chuyen_khoa || []
 
-    // Cấu hình bảng Audit Logs
     const columns = [
         {
             title: 'Thời gian',
@@ -206,7 +194,6 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-4">
-            {/* Header Toolbar: Tiêu đề + Bộ lọc Ngày xem & Ca trực */}
             <div className="medpro-card p-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
@@ -219,7 +206,6 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5 text-xs">
-                    {/* Bộ lọc Ngày đối soát */}
                     <DatePicker
                         value={selectedDate}
                         onChange={(d) => setSelectedDate(d || dayjs())}
@@ -229,7 +215,6 @@ export default function ReportsPage() {
                         prefix={<CalendarOutlined className="text-slate-400 mr-1" />}
                     />
 
-                    {/* Bộ lọc Ca làm việc */}
                     <Select
                         value={selectedShift}
                         onChange={(val) => setSelectedShift(val)}
@@ -241,7 +226,6 @@ export default function ReportsPage() {
                         ]}
                     />
 
-                    {/* Nút Làm mới */}
                     <Button
                         icon={<SyncOutlined spin={reportLoading || auditLoading} />}
                         onClick={handleRefreshAll}
@@ -253,9 +237,7 @@ export default function ReportsPage() {
                 </div>
             </div>
 
-            {/* 4 Thẻ KPI Đầu trang (API 9.1 ReceptionReportSummaryResponse) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* 1. Tổng lượt tiếp nhận */}
                 <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Tổng lượt tiếp nhận
@@ -268,7 +250,6 @@ export default function ReportsPage() {
                     </span>
                 </div>
 
-                {/* 2. Thời gian chờ trung bình (SLA) */}
                 <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Thời gian chờ TB (SLA)
@@ -281,7 +262,6 @@ export default function ReportsPage() {
                     </span>
                 </div>
 
-                {/* 3. Lịch hẹn bị hủy */}
                 <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Hủy lịch trong ca
@@ -294,7 +274,6 @@ export default function ReportsPage() {
                     </span>
                 </div>
 
-                {/* 4. Không đến (No-show) */}
                 <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Bùng hẹn (No-show)
@@ -308,7 +287,6 @@ export default function ReportsPage() {
                 </div>
             </div>
 
-            {/* Khối Phân bổ lượt tiếp nhận theo Chuyên khoa (API 9.1) */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-bold text-slate-800">
@@ -353,7 +331,6 @@ export default function ReportsPage() {
                 )}
             </div>
 
-            {/* Khối Nhật ký Kiểm toán Thao tác Tiếp đón (Audit Logs - API 9.2) */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -366,7 +343,6 @@ export default function ReportsPage() {
                     </div>
                 </div>
 
-                {/* Thanh bộ lọc bảng Audit Logs */}
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
                     <Input
                         prefix={<SearchOutlined className="text-slate-400" />}
@@ -391,7 +367,6 @@ export default function ReportsPage() {
                     </span>
                 </div>
 
-                {/* Bảng dữ liệu Audit Logs */}
                 <Table
                     columns={columns}
                     dataSource={auditLogs}

@@ -1,8 +1,3 @@
-/**
- * Tiện ích phát âm thanh loa thông báo buồng khám phòng khám (Clinic & Hospital Queue Audio Call)
- * Sử dụng Web Audio API để tạo âm chuông Ding-Dong y tế
- * Kết hợp Web Speech API tiếng Việt (vi-VN) chuẩn giọng đọc tự nhiên để gọi người bệnh
- */
 
 class AudioAnnouncer {
     constructor() {
@@ -18,13 +13,11 @@ class AudioAnnouncer {
         }
     }
 
-    // Nạp và tìm giọng đọc tiếng Việt tối ưu nhất của trình duyệt
     initVoices() {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
         const voices = window.speechSynthesis.getVoices() || []
         if (voices.length === 0) return
 
-        // 1. Ưu tiên giọng tiếng Việt chuẩn (vi-VN, vi)
         const viVoice = voices.find(
             (v) =>
                 v.lang === 'vi-VN' ||
@@ -46,7 +39,6 @@ class AudioAnnouncer {
         return this.enabled
     }
 
-    // Khởi tạo AudioContext khi có tương tác người dùng
     getAudioContext() {
         if (!this.audioCtx && typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext
@@ -58,14 +50,12 @@ class AudioAnnouncer {
         return this.audioCtx
     }
 
-    // Phát âm thanh chuông Ding-Dong phòng khám (Chime 2 tone y tế chuẩn)
     playChime() {
         try {
             const ctx = this.getAudioContext()
             if (!ctx) return Promise.resolve()
 
             const now = ctx.currentTime
-            // Nốt 1 (Ding - F5: 698.46Hz)
             const osc1 = ctx.createOscillator()
             const gain1 = ctx.createGain()
             osc1.type = 'sine'
@@ -77,7 +67,6 @@ class AudioAnnouncer {
             osc1.start(now)
             osc1.stop(now + 0.5)
 
-            // Nốt 2 (Dong - A5: 880Hz)
             const osc2 = ctx.createOscillator()
             const gain2 = ctx.createGain()
             osc2.type = 'sine'
@@ -95,35 +84,28 @@ class AudioAnnouncer {
         }
     }
 
-    // Phát loa gọi người bệnh bằng tiếng Việt
     async announcePatient(patientName, ticketNumber, roomName = 'buồng khám số 1') {
         if (!this.enabled || typeof window === 'undefined') return
 
-        // 1. Phát chuông ding-dong y tế báo hiệu
         await this.playChime()
 
-        // 2. Phát giọng đọc tiếng Việt qua Web Speech API
         if ('speechSynthesis' in window) {
             try {
-                window.speechSynthesis.cancel() // Hủy các câu đọc dở trước đó
+                window.speechSynthesis.cancel()
 
-                // Đảm bảo voice tiếng Việt đã được tìm
                 if (!this.vietnameseVoice) {
                     this.initVoices()
                 }
 
-                // Làm sạch tên người bệnh: bỏ các ghi chú phân loại trong ngoặc đơn
                 const cleanName = (patientName || 'Bệnh nhân')
                     .replace(/\s*\(.*?\)\s*/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim()
 
-                // Chuẩn hóa số thứ tự vé (ví dụ: NOI-06 -> NOI không sáu)
                 const cleanTicket = (ticketNumber || '')
                     .replace(/-/g, ' ')
                     .trim()
 
-                // Làm sạch tên buồng khám (loại bỏ mã phòng trong ngoặc nếu trùng)
                 const cleanRoom = (roomName || 'buồng khám')
                     .replace(/\s*\(P\d+\)\s*/i, ' ')
                     .replace(/\s+/g, ' ')
@@ -133,14 +115,12 @@ class AudioAnnouncer {
 
                 const utterance = new SpeechSynthesisUtterance(announcementText)
                 utterance.lang = 'vi-VN'
-                utterance.rate = 0.92 // Tốc độ đĩnh đạc, rõ ràng
-                utterance.pitch = 1.02 // Âm điệu tự nhiên
+                utterance.rate = 0.92
+                utterance.pitch = 1.02
 
-                // Gán voice tiếng Việt nếu tìm thấy
                 if (this.vietnameseVoice) {
                     utterance.voice = this.vietnameseVoice
                 } else {
-                    // Thử tìm lại trực tiếp từ mảng voices hiện thời
                     const currentVoices = window.speechSynthesis.getVoices() || []
                     const foundVi = currentVoices.find(
                         (v) =>

@@ -62,8 +62,6 @@ import { QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
 import { audioAnnouncer } from '../../utils/audioAnnouncer'
 
-// Helper xác định ca khám mặc định theo thời gian thực (Giờ VN UTC+7)
-// Trước hoặc bằng 12:30 -> Ca sáng, sau 12:30 -> Ca chiều
 const getDefaultShift = () => {
     const now = dayjs()
     const hour = now.hour()
@@ -74,7 +72,6 @@ const getDefaultShift = () => {
     return 'chieu'
 }
 
-// Helper chuẩn hóa Tiếng Việt và màu sắc cho Loại hàng đợi
 const getQueueTypeTag = (record) => {
     const rawType = String(record.loai_hang_doi || '').toLowerCase().trim()
     if (rawType === 'cap_cuu' || record.isEmergency) {
@@ -113,14 +110,13 @@ export default function QueueManagementPage() {
         waitlistLoading = false,
     } = useSelector((state) => state.reception)
 
-    const [activeTab, setActiveTab] = useState('ALL') // 'ALL' | 'WAITING' | 'IN_CONSULTATION' | 'DEFERRED' | 'COMPLETED'
+    const [activeTab, setActiveTab] = useState('ALL')
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedDepartmentTab, setSelectedDepartmentTab] = useState('') // Tab Chuyên khoa (mặc định tab đầu tiên)
-    const [selectedRoomId, setSelectedRoomId] = useState(null) // ID buồng khám đang lọc
+    const [selectedDepartmentTab, setSelectedDepartmentTab] = useState('')
+    const [selectedRoomId, setSelectedRoomId] = useState(null)
     const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
-    const [selectedShift, setSelectedShift] = useState(() => getDefaultShift()) // 'all' | 'sang' | 'chieu'
+    const [selectedShift, setSelectedShift] = useState(() => getDefaultShift())
 
-    // Modal states
     const [actionModal, setActionModal] = useState({ open: false, entry: null, mode: 'DEFER' })
     const [historyModal, setHistoryModal] = useState({ open: false, entry: null })
     const [historyLogs, setHistoryLogs] = useState([])
@@ -131,7 +127,6 @@ export default function QueueManagementPage() {
     const [receiptEntry, setReceiptEntry] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
-    // Danh sách buồng khám kết hợp thông tin Bác sĩ trực từ Lịch làm việc hôm nay (roomStatus)
     const displayRooms = useMemo(() => {
         const rawRooms = rooms && rooms.length > 0 ? rooms : []
 
@@ -180,7 +175,6 @@ export default function QueueManagementPage() {
         })
     }, [rooms, roomStatus, roster, doctors])
 
-    // Danh sách các chuyên khoa để phân loại tab (Bỏ "Tất cả chuyên khoa", thêm tab "Phòng chung")
     const departmentTabs = useMemo(() => {
         const list = []
         const seen = new Set()
@@ -196,7 +190,6 @@ export default function QueueManagementPage() {
                 })
             }
         })
-        // Tab "Phòng chung" dành cho các phòng không gắn chuyên khoa (CĐHA, Xét nghiệm, CLS...)
         list.push({
             id: 'CHUNG',
             name: 'Phòng chung',
@@ -205,7 +198,6 @@ export default function QueueManagementPage() {
         return list
     }, [departments])
 
-    // Helper lấy danh sách buồng khám thuộc một Tab
     const getRoomsForTab = useCallback((tabId) => {
         if (tabId === 'CHUNG') {
             const knownDepIds = new Set(
@@ -230,7 +222,6 @@ export default function QueueManagementPage() {
         selectedRoomIdRef.current = selectedRoomId
     }, [displayRooms, selectedRoomId])
 
-    // Đồng bộ hàng đợi theo phòng đang chọn, ngày và ca khám (dùng ref để tránh vòng lặp re-render)
     const refreshQueueData = useCallback(async (roomIdToUse = selectedRoomIdRef.current, dateToUse = selectedDate, shiftToUse = selectedShift) => {
         const params = {
             queryDate: dateToUse || undefined,
@@ -250,7 +241,6 @@ export default function QueueManagementPage() {
         dispatch(fetchReceptionWaitlistAsync())
     }, [dispatch, selectedDate, selectedShift])
 
-    // Tải hàng đợi, thống kê ca trực và danh mục buồng khám khi vào trang (chỉ gọi 1 lần khi mount)
     useEffect(() => {
         const initialShift = getDefaultShift()
         const initialDate = dayjs().format('YYYY-MM-DD')
@@ -264,7 +254,6 @@ export default function QueueManagementPage() {
         }
     }, [dispatch])
 
-    // Lắng nghe khi người dùng thực sự thay đổi Ngày hoặc Ca khám trên UI (chặn lặp vô tận)
     const prevFilterRef = useRef({ date: selectedDate, shift: selectedShift })
     useEffect(() => {
         if (prevFilterRef.current.date === selectedDate && prevFilterRef.current.shift === selectedShift) {
@@ -274,7 +263,6 @@ export default function QueueManagementPage() {
         refreshQueueData(selectedRoomIdRef.current, selectedDate, selectedShift)
     }, [selectedDate, selectedShift, refreshQueueData])
 
-    // Đồng bộ hàng đợi theo phòng đang chọn hoặc toàn viện
     const handleRefreshQueue = async () => {
         setIsRefreshing(true)
         try {
@@ -289,21 +277,17 @@ export default function QueueManagementPage() {
 
     const hasInitialFocusedRef = useRef(false)
 
-    // Khi vào trang: Tự động chọn tab Khoa Nội tổng quát và focus vào 1 phòng cụ thể (P101)
     useEffect(() => {
         if (hasInitialFocusedRef.current) return
         if (displayRooms.length === 0 || departmentTabs.length === 0) return
 
-        // 1. Tìm chuyên khoa Nội tổng quát (hoặc tab đầu tiên)
         const internalDep = departmentTabs.find((d) => /nội/i.test(d.name)) || departmentTabs[0]
         if (!internalDep) return
 
-        // 2. Tìm buồng khám cụ thể đầu tiên thuộc Khoa Nội tổng quát
         const internalRooms = getRoomsForTab(internalDep.id)
         const targetRoom = internalRooms[0] || displayRooms[0]
 
         if (targetRoom) {
-            // Chờ buồng khám có doctorId (sau khi roomStatus từ fetchShiftDashboardAsync trả về)
             if (!targetRoom.doctorId) {
                 return
             }
@@ -312,7 +296,6 @@ export default function QueueManagementPage() {
             setSelectedDepartmentTab(internalDep.id)
             setSelectedRoomId(targetRoom.id)
 
-            // Tải dữ liệu hàng đợi và waitlist thời gian thực của buồng khám này
             const params = {
                 queryDate: selectedDate,
                 caKham: selectedShift === 'all' ? undefined : selectedShift,
@@ -326,7 +309,6 @@ export default function QueueManagementPage() {
         }
     }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
 
-    // Fallback an toàn: nếu sau 1.5s phòng không có bác sĩ trực, vẫn focus buồng để không bị treo
     useEffect(() => {
         const timer = setTimeout(() => {
             if (!hasInitialFocusedRef.current && displayRooms.length > 0 && departmentTabs.length > 0) {
@@ -352,7 +334,6 @@ export default function QueueManagementPage() {
         return () => clearTimeout(timer)
     }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
 
-    // Đảm bảo selectedDepartmentTab luôn hợp lệ nếu có thay đổi từ catalog
     useEffect(() => {
         if (departmentTabs.length > 0 && selectedDepartmentTab) {
             const exists = departmentTabs.some((d) => d.id === selectedDepartmentTab)
@@ -362,7 +343,6 @@ export default function QueueManagementPage() {
         }
     }, [departmentTabs, selectedDepartmentTab])
 
-    // Tra cứu mã chuyên khoa từ phiếu khám (qua bác sĩ hoặc tiền tố số vé)
     const getDepartmentIdFromTicket = (ticket) => {
         if (ticket.departmentId) return ticket.departmentId
         if (ticket.doctorId && doctors.length > 0) {
@@ -390,27 +370,20 @@ export default function QueueManagementPage() {
         return null
     }
 
-    // Hàm so khớp chính xác tuyệt đối giữa phiếu khám và buồng khám
     const isTicketInRoom = (ticket, room) => {
         if (!room) return true
 
-        // 1. So khớp theo Bác sĩ trực buồng (nguyên tắc ưu tiên tuyệt đối):
-        // Nếu cả buồng và phiếu đều có thông tin Bác sĩ:
-        // Vé khám thuộc Bác sĩ nào thì BẮT BUỘC chỉ thuộc về buồng Bác sĩ đó đang trực
         if (ticket.doctorId && room.doctorId) {
             return Number(ticket.doctorId) === Number(room.doctorId)
         }
 
-        // 2. So khớp theo ID buồng trực tiếp
         if (ticket.backendRoomId && room.id && Number(ticket.backendRoomId) === Number(room.id)) return true
         if (ticket.roomId && room.id && Number(ticket.roomId) === Number(room.id)) return true
 
-        // 3. So khớp theo mã buồng chính xác (P101, P102, P201, P202...)
         const roomCode = String(room.code || '').toUpperCase().trim()
         const ticketRoomStr = String(ticket.roomName || ticket.phong_kham || '').toUpperCase().trim()
         if (roomCode && ticketRoomStr && ticketRoomStr.includes(roomCode)) return true
 
-        // 4. Nếu vé chưa gán bác sĩ cụ thể (vé chờ theo chuyên khoa):
         if (!ticket.doctorId && !room.doctorId && ticket.departmentId && room.departmentId) {
             return Number(ticket.departmentId) === Number(room.departmentId)
         }
@@ -418,15 +391,12 @@ export default function QueueManagementPage() {
         return false
     }
 
-    // Đếm số lượng bệnh nhân đang chờ theo từng phòng khám từ danh sách trạng thái phòng khám thực tế (roomStatus)
     const roomWaitingCounts = useMemo(() => {
         const counts = {}
         displayRooms.forEach((rm) => {
-            // 1. Nếu đang có dữ liệu trạng thái phòng khám từ API dashboard (roomStatus)
             if (rm.backendWaiting !== null && rm.backendWaiting !== undefined) {
                 counts[rm.id] = rm.backendWaiting
             } else if (rm.doctorId) {
-                // 2. Fallback: Nếu không có backendWaiting thì tính từ queueEntries
                 counts[rm.id] = (queueEntries || []).filter(
                     (q) =>
                         Number(q.doctorId) === Number(rm.doctorId) &&
@@ -439,7 +409,6 @@ export default function QueueManagementPage() {
         return counts
     }, [displayRooms, queueEntries])
 
-    // Tổng số lượng bệnh nhân đang chờ toàn viện
     const totalWaitingCount = useMemo(() => {
         return queueEntries.filter((q) => {
             return (
@@ -452,23 +421,17 @@ export default function QueueManagementPage() {
         }).length
     }, [queueEntries])
 
-    // Danh sách buồng khám hiển thị theo Tab chuyên khoa đang chọn
     const visibleRooms = useMemo(() => {
         if (!selectedDepartmentTab) return displayRooms
         return getRoomsForTab(selectedDepartmentTab)
     }, [selectedDepartmentTab, getRoomsForTab, displayRooms])
 
-    // Thao tác khi chọn một buồng khám:
-    // Liên kết: Phòng khám -> Lịch làm việc hôm nay -> Bác sĩ trực buồng
-    // Gọi đúng endpoint @router.get("/queue/{doctor_id}") (DoctorQueueBoardResponse)
 
-    // Helper dựng Timeline các chặng thực tế từ mốc thời gian của phiếu khám
     const getTicketStages = (entry) => {
         if (!entry) return []
         const stages = []
         const roomName = entry.phong_kham || 'Quầy tiếp tân'
 
-        // Chặng 1: Tiếp nhận & Cấp số
         if (entry.thoi_gian_check_in || entry.created_at) {
             stages.push({
                 stage: 'TIẾP NHẬN & CẤP SỐ',
@@ -478,7 +441,6 @@ export default function QueueManagementPage() {
             })
         }
 
-        // Chặng 2: Tạm hoãn lượt khám (nếu có xếp hàng lại hoặc trạng thái là tam_hoan)
         if (entry.thoi_gian_xep_hang_lai || entry.rawStatus === 'tam_hoan') {
             stages.push({
                 stage: 'TẠM HOÃN & XẾP HÀNG LẠI',
@@ -490,7 +452,6 @@ export default function QueueManagementPage() {
             })
         }
 
-        // Chặng 3: Gọi vào khám
         if (entry.thoi_gian_goi_kham || (entry.so_lan_goi && entry.so_lan_goi > 0)) {
             stages.push({
                 stage: `GỌI VÀO PHÒNG KHÁM (Lần ${entry.so_lan_goi || 1})`,
@@ -502,7 +463,6 @@ export default function QueueManagementPage() {
             })
         }
 
-        // Chặng 4: Khám lâm sàng
         if (entry.thoi_gian_bat_dau || entry.rawStatus === 'dang_kham') {
             stages.push({
                 stage: 'BÁC SĨ KHÁM LÂM SÀNG',
@@ -514,7 +474,6 @@ export default function QueueManagementPage() {
             })
         }
 
-        // Chặng 5: Đóng vé hoặc bỏ khám
         if (entry.rawStatus === 'bo_kham') {
             stages.push({
                 stage: 'BỆNH NHÂN BỎ KHÁM',
@@ -538,7 +497,6 @@ export default function QueueManagementPage() {
         return stages
     }
 
-    // Tải nhật ký thao tác kiểm toán từ API thật Backend
     const handleOpenHistoryModal = async (record) => {
         setHistoryModal({ open: true, entry: record })
         setHistoryLogs([])
@@ -577,7 +535,6 @@ export default function QueueManagementPage() {
         await refreshQueueData(null, selectedDate, selectedShift)
     }
 
-    // Phân loại Tier ưu tiên (Lát cắt C - Tiered Priority Policy)
     const getQueueTier = (entry) => {
         const noteStr = String(entry.priorityReason || entry.notes || entry.ghi_chu_dieu_phoi || '')
         const isEmerg = entry.isEmergency || entry.priority === 'EMERGENCY' || /cấp cứu|cap_cuu/i.test(noteStr)
@@ -591,7 +548,6 @@ export default function QueueManagementPage() {
         return 5
     }
 
-    // Lọc danh sách hàng đợi (Tìm kiếm + Bộ lọc buồng + Bộ lọc trạng thái Tab)
     const filteredQueue = useMemo(() => {
         return queueEntries.filter((q) => {
             const pat = patients.find((p) => p.id === q.patientId)
@@ -599,26 +555,22 @@ export default function QueueManagementPage() {
             const patName = String(q.patientName || pat?.fullName || '')
             const patPhone = String(q.phone || pat?.phone || '')
 
-            // Tìm kiếm (chỉ theo ô input)
             const matchesQuery =
                 !searchQuery ||
                 ticketStr.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
                 patName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
                 patPhone.includes(searchQuery.trim())
 
-            // Lọc theo ca khám (nếu chọn 'sang' hoặc 'chieu')
             let matchesShift = true
             if (selectedShift !== 'all' && q.ca_kham) {
                 matchesShift = q.ca_kham.toLowerCase() === selectedShift.toLowerCase()
             }
 
-            // Lọc theo ngày khám (nếu vé có ngay_kham)
             let matchesDate = true
             if (selectedDate && q.ngay_kham) {
                 matchesDate = q.ngay_kham === selectedDate
             }
 
-            // Lọc theo phạm vi buồng khám hoặc chuyên khoa đang chọn
             let matchesScope = true
             if (selectedRoomId !== null) {
                 const currentRoom = displayRooms.find((r) => r.id === selectedRoomId)
@@ -627,7 +579,6 @@ export default function QueueManagementPage() {
                 matchesScope = visibleRooms.some((rm) => isTicketInRoom(q, rm))
             }
 
-            // Lọc theo trạng thái tab
             let matchesTab = true
             if (activeTab === 'WAITING') {
                 matchesTab =
@@ -655,10 +606,8 @@ export default function QueueManagementPage() {
         })
     }, [queueEntries, patients, searchQuery, selectedShift, selectedDate, selectedRoomId, selectedDepartmentTab, displayRooms, visibleRooms, activeTab])
 
-    // Giữ nguyên 100% thứ tự hàng đợi do API Backend tính toán và trả về (không tự ý đảo vị trí)
     const sortedQueue = filteredQueue
 
-    // Thống kê số lượng theo từng trạng thái tab
     const tabCounts = useMemo(() => {
         let baseList = queueEntries
         if (selectedShift !== 'all') {
@@ -713,21 +662,18 @@ export default function QueueManagementPage() {
         }
     }, [queueEntries, selectedShift, selectedDate, selectedRoomId, displayRooms, selectedDepartmentTab, visibleRooms, waitlist])
 
-    // Tự động tải lại Danh sách chờ (Waitlist) khi chuyển sang Tab WAITLIST
     useEffect(() => {
         if (activeTab === 'WAITLIST') {
             dispatch(fetchReceptionWaitlistAsync())
         }
     }, [activeTab, dispatch])
 
-    // Xử lý các thao tác điều phối
     const handleCallNumber = async (record) => {
         try {
             const targetId = record.backendId || record.id
             await dispatch(callQueueEntryAsync({ queueId: targetId })).unwrap()
             message.success(`Đã gọi số vé ${record.ticketNumber || record.ma_so_thu_tu}`)
 
-            // Phát loa âm thanh chuông y tế & đọc tên bệnh nhân tiếng Việt
             const pName = record.patientName || record.ten_benh_nhan || 'Bệnh nhân'
             const tNum = record.ticketNumber || record.ma_so_thu_tu || ''
             const rName = record.phong_kham || selectedRoomObj?.name || 'phòng khám'
@@ -738,7 +684,6 @@ export default function QueueManagementPage() {
         }
     }
 
-    // Hàm dùng chung: nạp lại ngay danh sách hàng đợi buồng khám từ Backend sau mỗi thao tác
     const reloadQueueAfterAction = async (record) => {
         const currentRoom = selectedRoomId ? displayRooms.find((r) => String(r.id) === String(selectedRoomId)) : null
         const docId = record?.doctorId || currentRoom?.doctorId || 1
@@ -795,7 +740,6 @@ export default function QueueManagementPage() {
         }
     }
 
-    // Xử lý Tiếp nhận và Hủy từ Danh sách chờ (Waitlist)
     const handleCheckInWaitlist = async (waitlistId) => {
         try {
             const ticket = await dispatch(checkInWaitlistAsync({ waitlistId })).unwrap()
@@ -973,7 +917,6 @@ export default function QueueManagementPage() {
         refreshQueueData(null, dayjs().format('YYYY-MM-DD'), getDefaultShift())
     }
 
-    // Cấu hình các cột hiển thị trong bảng hàng đợi
     const columns = [
         {
             title: 'STT & Mã Buồng',
@@ -991,21 +934,18 @@ export default function QueueManagementPage() {
                             {num}
                         </span>
                         <div className="flex flex-wrap items-center gap-1">
-                            {/* Mức 1: Luôn hiển thị Tag Ưu tiên */}
                             {isLevel1 && (
                                 <Tag color="purple" className="m-0 text-[10px] font-bold">
                                     Ưu tiên
                                 </Tag>
                             )}
 
-                            {/* Tag Loại hàng đợi (Chuẩn hóa Tiếng Việt) */}
                             {queueTag && (
                                 <Tag color={queueTag.color} className={`m-0 text-[10px] ${queueTag.className || ''}`}>
                                     {queueTag.label}
                                 </Tag>
                             )}
 
-                            {/* Thông báo bổ sung nếu đã xếp hàng lại */}
                             {record.muc_do_uu_tien === 4 && Boolean(record.thoi_gian_xep_hang_lai) && (
                                 <Tag color="warning" className="m-0 text-[10px] font-medium">
                                     Đã xếp hàng lại
@@ -1255,7 +1195,6 @@ export default function QueueManagementPage() {
 
     return (
         <div className="space-y-4">
-            {/* Thanh tiêu đề & Công cụ điều phối trên cùng */}
             <div className="flex flex-wrap items-center justify-between gap-3 medpro-card p-4">
                 <div>
                     <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
@@ -1292,9 +1231,7 @@ export default function QueueManagementPage() {
                 </div>
             </div>
 
-            {/* Phân hệ buồng khám hiển thị theo từng Chuyên khoa */}
             <div className="medpro-card p-4 space-y-3">
-                {/* Thanh chuyển đổi Chuyên khoa */}
                 <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
                     <div className="flex items-center gap-2">
                         <MedicineBoxOutlined className="text-[#00B5F1] text-sm" />
@@ -1313,11 +1250,9 @@ export default function QueueManagementPage() {
                     )}
                 </div>
 
-                {/* Tabs Chuyên khoa */}
                 <div className="flex flex-wrap items-center gap-1.5">
                     {departmentTabs.map((dep) => {
                         const isDepActive = selectedDepartmentTab === dep.id
-                        // Tính tổng số bệnh nhân chờ của toàn bộ khoa hoặc tab phòng chung
                         const depRooms = getRoomsForTab(dep.id)
                         const depWaitingTotal = depRooms.reduce((acc, rm) => acc + (roomWaitingCounts[rm.id] || 0), 0)
 
@@ -1327,7 +1262,6 @@ export default function QueueManagementPage() {
                                 key={dep.id}
                                 onClick={() => {
                                     setSelectedDepartmentTab(dep.id)
-                                    // Nếu chuyển tab mà buồng đang chọn không thuộc tab đó thì bỏ chọn buồng
                                     if (selectedRoomId) {
                                         const r = displayRooms.find((x) => x.id === selectedRoomId)
                                         if (r && !depRooms.some((rm) => rm.id === r.id)) {
@@ -1356,9 +1290,7 @@ export default function QueueManagementPage() {
                     })}
                 </div>
 
-                {/* Lưới các buồng khám thuộc Chuyên khoa đã chọn */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pt-1">
-                    {/* Danh sách từng buồng khám */}
                     {visibleRooms.map((rm) => {
                         const isSelected = selectedRoomId === rm.id
                         const waitingCount = roomWaitingCounts[rm.id] || 0
@@ -1378,7 +1310,6 @@ export default function QueueManagementPage() {
                                     }`}
                             >
                                 <div>
-                                    {/* Header thẻ buồng: Mã buồng & Vị trí tầng */}
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[11px] font-mono font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 group-hover:bg-sky-100 group-hover:text-sky-800">
                                             {rm.code}
@@ -1389,18 +1320,15 @@ export default function QueueManagementPage() {
                                         </span>
                                     </div>
 
-                                    {/* Tên buồng khám */}
                                     <div className="text-xs font-bold text-slate-800 line-clamp-1 leading-snug">
                                         {rm.name}
                                     </div>
 
-                                    {/* Bác sĩ trực buồng theo Lịch làm việc */}
                                     <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 line-clamp-1">
                                         <UserOutlined className="text-[10px] text-sky-600 shrink-0" />
                                         <span className="font-medium text-slate-700">{rm.doctorName}</span>
                                     </div>
 
-                                    {/* Bệnh nhân đang khám hiện tại (nếu có) */}
                                     {rm.currentPatient && (
                                         <div className="mt-1 text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1 line-clamp-1">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -1409,7 +1337,6 @@ export default function QueueManagementPage() {
                                     )}
                                 </div>
 
-                                {/* Chân thẻ buồng: Số người chờ */}
                                 <div className="flex items-baseline justify-between mt-3 pt-2 border-t border-slate-100">
                                     <span className="text-[11px] text-slate-400 font-medium">Đang chờ:</span>
                                     <div className="flex items-baseline gap-1">
@@ -1432,9 +1359,7 @@ export default function QueueManagementPage() {
                 </div>
             </div>
 
-            {/* Bảng Danh Sách Hàng Đợi Điều Phối */}
             <div className="medpro-card p-4 space-y-3">
-                {/* Thanh Tabs Trạng thái & Ô Tìm kiếm (Đã loại bỏ dropdown theo yêu cầu) */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2EDF5] pb-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                         <button
@@ -1502,7 +1427,6 @@ export default function QueueManagementPage() {
                         </button>
                     </div>
 
-                    {/* Bộ lọc Ngày & Ca khám kết hợp Ô Tìm kiếm */}
                     <div className="flex flex-wrap items-center gap-2">
                         <DatePicker
                             value={selectedDate ? dayjs(selectedDate) : dayjs()}
@@ -1536,7 +1460,6 @@ export default function QueueManagementPage() {
                     </div>
                 </div>
 
-                {/* Thông báo phạm vi đang lọc: Theo buồng khám cụ thể hoặc Theo chuyên khoa */}
                 {selectedRoomObj ? (
                     <div className="bg-sky-50/80 border border-sky-200 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs text-sky-900 shadow-2xs">
                         <div className="flex items-center gap-2">
@@ -1566,7 +1489,6 @@ export default function QueueManagementPage() {
                     </div>
                 ) : null}
 
-                {/* Bảng Danh Sách Hàng Đợi hoặc Danh Sách Chờ (Waitlist) */}
                 {activeTab === 'WAITLIST' ? (
                     <Table
                         columns={waitlistColumns}
@@ -1671,7 +1593,6 @@ export default function QueueManagementPage() {
                 )}
             </div>
 
-            {/* Modal: Thao tác Hàng đợi (Hoãn, Chuyển buồng, Hủy) */}
             <QueueActionModal
                 open={actionModal.open}
                 onClose={() => setActionModal({ open: false, entry: null, mode: 'DEFER' })}
@@ -1680,7 +1601,6 @@ export default function QueueManagementPage() {
                 mode={actionModal.mode}
             />
 
-            {/* Modal: Lịch sử chặng hành trình khám */}
             <Modal
                 title={
                     <span className="font-bold text-slate-800">
@@ -1751,20 +1671,17 @@ export default function QueueManagementPage() {
                 </div>
             </Modal>
 
-            {/* Patient Detail Drawer */}
             <PatientDetailDrawer
                 patientId={patientDrawerId}
                 open={Boolean(patientDrawerId)}
                 onClose={() => setPatientDrawerId(null)}
             />
 
-            {/* Emergency Handover Modal */}
             <EmergencyHandoverModal
                 open={isEmergencyModalOpen}
                 onClose={() => setIsEmergencyModalOpen(false)}
             />
 
-            {/* Check-In / Thermal Receipt Modal */}
             <CheckInReceiptModal
                 open={Boolean(receiptEntry)}
                 onClose={() => setReceiptEntry(null)}

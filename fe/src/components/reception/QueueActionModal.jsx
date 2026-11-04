@@ -17,7 +17,6 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
     const [selectedPriority, setSelectedPriority] = useState('PRIORITY')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Tìm thông tin buồng khám đích và Bác sĩ tiếp nhận theo buồng đó
     const targetRoomInfo = useMemo(() => {
         if (!selectedRoomId) return null
         const r = rooms.find((rm) => String(rm.id) === String(selectedRoomId) || rm.code === selectedRoomId)
@@ -51,18 +50,15 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
     const currentRoomStr = String(queueEntry.roomName || queueEntry.phong_kham || '').toLowerCase()
 
     const availableRooms = rooms.filter((r) => {
-        // Loại trừ phòng hiện tại theo ID buồng
         if (currentRoomId && (String(r.id) === String(currentRoomId) || r.code === currentRoomId)) {
             return false
         }
-        // Loại trừ nếu phòng có tên trùng phòng hiện tại
         if (currentRoomStr && r.name && currentRoomStr.includes(r.name.toLowerCase())) {
             return false
         }
         if (currentRoomStr && r.code && currentRoomStr.includes(String(r.code).toLowerCase())) {
             return false
         }
-        // Loại trừ nếu buồng do chính Bác sĩ hiện tại đang phụ trách
         if (currentDocId) {
             const st = roomStatus.find((s) => String(s.phong_kham_id) === String(r.id) || s.ma_phong === r.code)
             if (st?.bac_si_id && Number(st.bac_si_id) === Number(currentDocId)) return false
@@ -157,14 +153,12 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
             }
         >
             <div className="space-y-4 py-2 text-xs">
-                {/* Mode DEFER */}
                 {mode === 'DEFER' && (
                     <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800">
                         Lượt khám sẽ được chuyển sang trạng thái <strong>TẠM HOÃN</strong> trong hệ thống. Khi bệnh nhân quay lại, lễ tân có thể bấm nút <strong>"Tiếp tục"</strong> để phục hồi lượt khám vào hàng đợi.
                     </div>
                 )}
 
-                {/* Mode TRANSFER */}
                 {mode === 'TRANSFER' && (
                     <div className="space-y-3">
                         <div>
@@ -220,7 +214,6 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                             </Select>
                         </div>
 
-                        {/* Bác sĩ tiếp nhận: Hiển thị tự động theo phòng đã chọn */}
                         <div>
                             <label className="block font-bold text-slate-700 uppercase mb-1">
                                 Bác sĩ tiếp nhận tại buồng khám
@@ -244,7 +237,6 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                     </div>
                 )}
 
-                {/* Mode REORDER */}
                 {mode === 'REORDER' && (
                     <div className="space-y-3">
                         {activeRole !== 'RECEPTION_SUPERVISOR' && (
@@ -270,14 +262,12 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                     </div>
                 )}
 
-                {/* Mode CANCEL */}
                 {mode === 'CANCEL' && (
                     <div className="p-3 bg-red-50 rounded-xl border border-red-200 text-red-800">
                         Lượt khám này sẽ bị hủy khỏi hàng đợi của phòng khám. Số lượng người chờ tại phòng sẽ tự động giảm đi 1.
                     </div>
                 )}
 
-                {/* Required Reason Input */}
                 <div>
                     <label className="block font-bold text-slate-700 uppercase mb-1">
                         Lý do thực hiện <span className="text-red-500">*</span>

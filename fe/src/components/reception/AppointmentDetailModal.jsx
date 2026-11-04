@@ -40,7 +40,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
     const [isConfirming, setIsConfirming] = useState(false)
 
-    // Tải slot 30 phút theo ca của Bác sĩ khi đổi lịch
     const fetchSlotsForReschedule = useCallback(async (docId, dateStr) => {
         if (!docId || !dateStr) {
             setDoctorSlots([])
@@ -65,7 +64,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }, [])
 
-    // Khởi tạo form khi mở modal
     useEffect(() => {
         if (open && appointment) {
             const rawDate = appointment.ngay_kham || appointment.appointmentDate
@@ -88,7 +86,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }, [open, appointment])
 
-    // Khi người dùng bấm Đổi lịch hoặc thay đổi Ngày / Bác sĩ mới
     useEffect(() => {
         if (isRescheduling) {
             const deptId = appointment?.chuyen_khoa_id || appointment?.chuyen_khoa?.id || appointment?.departmentId
@@ -123,7 +120,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
     if (!appointment) return null
 
-    // ── Chuẩn hóa đọc dữ liệu Bệnh nhân ───────────────────────────────
     const patientObj = appointment.benh_nhan || patients.find((p) => p.id === (appointment.benh_nhan_id || appointment.patientId)) || null
     const patientId = appointment.benh_nhan_id || appointment.benh_nhan?.id || appointment.patientId || patientObj?.id
     const patientName = appointment.ten_benh_nhan || appointment.benh_nhan?.ho_ten || patientObj?.fullName || patientObj?.ho_ten || 'Chưa cập nhật'
@@ -132,7 +128,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
     const patientCccd = appointment.cccd_so || appointment.benh_nhan?.cccd_so || patientObj?.identityCard || 'Chưa có'
     const patientDob = appointment.ngay_sinh || appointment.benh_nhan?.ngay_sinh || patientObj?.dob
 
-    // ── Chuẩn hóa đọc dữ liệu Bác sĩ & Chuyên khoa ───────────────────
     const doctorObj = appointment.bac_si || doctors.find((d) => d.id === (appointment.bac_si_id || appointment.doctorId)) || null
     const doctorId = appointment.bac_si_id || appointment.bac_si?.id || appointment.doctorId || doctorObj?.id
     const doctorName = appointment.ten_bac_si || appointment.bac_si?.ho_ten || doctorObj?.name || 'Theo phân bổ ca'
@@ -146,7 +141,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
     const appDate = rawAppDate ? (dayjs(rawAppDate).isValid() ? dayjs(rawAppDate).format('DD/MM/YYYY') : rawAppDate) : dayjs().format('DD/MM/YYYY')
     const appTime = appointment.gio_kham || appointment.timeSlot || '08:30'
 
-    // ── Trạng thái lịch khám ──────────────────────────────────────────
     const rawSt = String(appointment.trang_thai_lich || appointment.trang_thai || appointment.status || '').toLowerCase()
     const statusConfig = APPOINTMENT_STATUS_LABELS[rawSt] || APPOINTMENT_STATUS_LABELS[rawSt.toUpperCase()] || { label: appointment.status || 'Chờ khám', color: 'default' }
 
@@ -158,7 +152,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
     const canReschedule = canCancel
     const canNoShow = isConfirmed
 
-    // ── Xử lý Xác nhận giữ chỗ ────────────────────────────────────────
     const handleConfirmAppointment = async () => {
         try {
             setIsConfirming(true)
@@ -173,7 +166,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }
 
-    // ── Xử lý Hủy lịch hẹn ────────────────────────────────────────────
     const handleConfirmCancel = async () => {
         if (!cancelReason.trim()) {
             message.error('Vui lòng nhập lý do hủy lịch hẹn')
@@ -204,7 +196,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }
 
-    // ── Xử lý Đổi lịch khám ──────────────────────────────────────────
     const handleConfirmReschedule = async () => {
         if (!newDate) {
             message.error('Vui lòng chọn ngày khám mới')
@@ -251,7 +242,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }
 
-    // ── Xử lý Ghi nhận Vắng mặt (No-Show) ─────────────────────────────
     const handleConfirmNoShow = async () => {
         try {
             setIsNoShowLoading(true)
@@ -282,12 +272,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         }
     }
 
-    // Danh sách bác sĩ từ API cho chuyên khoa của lịch hẹn
     const availableDoctorsForReschedule = doctorsForReschedule.length > 0
         ? doctorsForReschedule
         : (doctorId ? [{ id: doctorId, name: doctorName, status: 'AVAILABLE' }] : [])
 
-    // Render danh sách slot từ API getDoctorSlots theo đúng bảng đặc tả status: available, booked, past
     const slotOptions = doctorSlots.length > 0
         ? doctorSlots.map((slot) => {
             const isAvailable = slot.status === 'available' || slot.is_available === true
@@ -404,7 +392,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
             }
         >
             <div className="space-y-4 py-2">
-                {/* Panel Báo No-Show */}
                 {isNoShowing && (
                     <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
                         <h4 className="font-bold text-amber-900 text-sm">Xác nhận ghi nhận Vắng mặt (No-Show)</h4>
@@ -434,7 +421,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </div>
                 )}
 
-                {/* Panel Hủy lịch */}
                 {isCancelling && (
                     <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-3">
                         <h4 className="font-bold text-red-800 text-sm">Xác nhận hủy lịch hẹn</h4>
@@ -464,7 +450,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </div>
                 )}
 
-                {/* Panel Đổi lịch khám (Reschedule) */}
                 {isRescheduling && (
                     <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 space-y-3">
                         <div className="flex items-center justify-between">
@@ -570,7 +555,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </div>
                 )}
 
-                {/* ── BẢNG THÔNG TIN NGƯỜI BỆNH ─────────────────────────────── */}
                 <Descriptions title="Thông tin người bệnh" bordered size="small" column={{ xs: 1, sm: 2 }}>
                     <Descriptions.Item label="Mã bệnh nhân">
                         <span className="font-mono font-bold text-sky-800">{patientCode}</span>
@@ -590,7 +574,6 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </Descriptions.Item>
                 </Descriptions>
 
-                {/* ── BẢNG THÔNG TIN KHÁM BỆNH (KHÔNG CÓ GÓI KHÁM) ─────────── */}
                 <Descriptions title="Thông tin lịch hẹn khám" bordered size="small" column={{ xs: 1, sm: 2 }}>
                     <Descriptions.Item label="Ngày khám">
                         <strong>{appDate}</strong>

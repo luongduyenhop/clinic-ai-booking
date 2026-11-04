@@ -29,18 +29,15 @@ export default function TasksPage() {
         loading = false,
     } = useSelector((state) => state.reception)
 
-    // Sự cố & Cân bằng tải (API 7.1 & 7.2)
     const [incidentDate, setIncidentDate] = useState(() => dayjs().format('YYYY-MM-DD'))
     const [selectedIncident, setSelectedIncident] = useState(null)
     const [selectedTargetDoctor, setSelectedTargetDoctor] = useState(null)
     const [isRebalancing, setIsRebalancing] = useState(false)
 
-    // Tải dữ liệu ban đầu
     useEffect(() => {
         dispatch(fetchReceptionDataAsync())
     }, [dispatch])
 
-    // Load dữ liệu Sự cố bác sĩ nghỉ
     useEffect(() => {
         dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
     }, [dispatch, incidentDate])
@@ -49,7 +46,6 @@ export default function TasksPage() {
         dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
     }
 
-    // ── Xử lý Điều chuyển hàng loạt (API 7.2) ─────────────────────────
     const handleConfirmRebalance = async () => {
         if (!selectedIncident) return
         setIsRebalancing(true)
@@ -58,7 +54,7 @@ export default function TasksPage() {
                 rebalanceQueueAsync({
                     payload: {
                         nghi_phep_bac_si_id: selectedIncident.nghi_phep_id,
-                        ticket_ids: null, // Tự động chuyển toàn bộ bệnh nhân đang chờ
+                        ticket_ids: null,
                         bac_si_nhan_id: selectedTargetDoctor ? Number(selectedTargetDoctor) : null,
                     },
                 })
@@ -70,13 +66,11 @@ export default function TasksPage() {
             setSelectedTargetDoctor(null)
             dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
         } catch {
-            // Toast thông báo lỗi bên phải đã được BaseService tự động kích hoạt
         } finally {
             setIsRebalancing(false)
         }
     }
 
-    // Cột bảng Sự cố Bác sĩ nghỉ (API 7.1)
     const incidentColumns = [
         {
             title: 'Mức độ',
@@ -153,7 +147,6 @@ export default function TasksPage() {
 
     return (
         <div className="space-y-5">
-            {/* Header info bar */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -177,9 +170,7 @@ export default function TasksPage() {
                 </div>
             </div>
 
-            {/* SỰ CỐ BÁC SĨ NGHỈ ĐỘT XUẤT & ĐIỀU CHUYỂN HÀNG LOẠT (API 7.1 & 7.2) */}
             <div className="space-y-4">
-                {/* Bộ lọc ngày sự cố */}
                 <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
                     <span className="text-slate-400">Ngày rà soát sự cố:</span>
                     <DatePicker
@@ -189,7 +180,6 @@ export default function TasksPage() {
                     />
                 </div>
 
-                {/* Incident Alert Banner */}
                 {doctorAbsences.length === 0 ? (
                     <Alert
                         message="Không có sự cố đột xuất"
@@ -206,7 +196,6 @@ export default function TasksPage() {
                     />
                 )}
 
-                {/* Table sự cố */}
                 <div className="medpro-card overflow-hidden">
                     <Table
                         columns={incidentColumns}
@@ -221,7 +210,6 @@ export default function TasksPage() {
                 </div>
             </div>
 
-            {/* Modal Điều chuyển hàng loạt (API 7.2) */}
             <Modal
                 title={
                     <div className="flex items-center gap-2">

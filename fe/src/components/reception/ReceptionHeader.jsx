@@ -126,7 +126,6 @@ export default function ReceptionHeader() {
             ? currentUser.vai_tro
             : 'Lễ tân ca trực')
 
-    // Quick search filter for patients
     const filteredPatients = searchQuery.trim()
         ? patients
               .filter(
@@ -143,7 +142,6 @@ export default function ReceptionHeader() {
             ref={headerRef}
             className="h-14 bg-white border-b border-[#E2EDF5] px-3.5 lg:px-5 flex items-center justify-between shrink-0 sticky top-0 z-30 shadow-xs select-none"
         >
-            {/* Left: Section Title & Fast Jump */}
             <div className="flex items-center gap-3 shrink-0">
                 <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#00B5F1] animate-pulse" />
@@ -153,7 +151,6 @@ export default function ReceptionHeader() {
                 </div>
             </div>
 
-            {/* Center: Live Quick Search Bar */}
             <div className="hidden md:flex flex-1 max-w-md mx-4 relative" ref={searchRef}>
                 <div className="relative w-full">
                     <MagnifyingGlass
@@ -174,7 +171,6 @@ export default function ReceptionHeader() {
                     />
                 </div>
 
-                {/* Dropdown Quick Results */}
                 {isSearchOpen && searchQuery.trim() && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in duration-150 max-h-72 overflow-y-auto">
                         <div className="px-3 py-1 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
@@ -219,15 +215,12 @@ export default function ReceptionHeader() {
                 )}
             </div>
 
-            {/* Right: Working Clock, Shift Action, Notifications, User Profile */}
             <div className="flex items-center gap-2.5 shrink-0">
-                {/* Working Clock */}
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8F4FD] border border-[#CBE9FA] text-[#003553] text-[11.5px] font-bold shadow-2xs shrink-0 whitespace-nowrap">
                     <Clock size={13} weight="bold" className="text-[#00B5F1]" />
                     <span className="tabular-nums font-mono">{formattedTime}</span>
                 </div>
 
-                {/* Nút Đóng ca trực */}
                 <button
                     type="button"
                     onClick={() => setIsCloseShiftOpen(true)}
@@ -237,7 +230,6 @@ export default function ReceptionHeader() {
                     <span className="hidden xs:inline">Đóng ca trực</span>
                 </button>
 
-                {/* Notifications badge for tasks/incidents */}
                 <Link
                     to="/reception/tasks"
                     className="relative w-8 h-8 rounded-full border border-slate-200 bg-white hover:border-[#00B5F1] hover:bg-[#E8F4FD] flex items-center justify-center text-[#003553] hover:text-[#00B5F1] transition shadow-2xs shrink-0"
@@ -255,7 +247,6 @@ export default function ReceptionHeader() {
                     ) : null}
                 </Link>
 
-                {/* Fullscreen Button */}
                 <button
                     type="button"
                     onClick={toggleFullscreen}
@@ -265,7 +256,6 @@ export default function ReceptionHeader() {
                     {isFullscreen ? <ArrowsIn size={15} weight="bold" /> : <ArrowsOut size={15} weight="bold" />}
                 </button>
 
-                {/* Language Switcher Badge */}
                 <button
                     type="button"
                     onClick={() => setCurrentLang((prev) => (prev === 'VIE' ? 'ENG' : 'VIE'))}
@@ -276,7 +266,6 @@ export default function ReceptionHeader() {
                     <span>{currentLang}</span>
                 </button>
 
-                {/* Current Staff Profile Chip - Aligned with Admin */}
                 <div className="relative pl-1 border-l border-slate-200 shrink-0">
                     <button
                         type="button"
@@ -301,7 +290,6 @@ export default function ReceptionHeader() {
                         />
                     </button>
 
-                    {/* Popover Hồ sơ Lễ tân */}
                     {isUserMenuOpen && (
                         <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in duration-150">
                             <div className="px-3.5 py-2 border-b border-slate-100">
@@ -350,7 +338,6 @@ export default function ReceptionHeader() {
                 </div>
             </div>
 
-            {/* Modal Đóng ca trực & Bàn giao */}
             <CloseShiftModal
                 open={isCloseShiftOpen}
                 onCancel={() => setIsCloseShiftOpen(false)}

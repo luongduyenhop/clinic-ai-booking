@@ -36,7 +36,6 @@ export default function PatientsPage() {
     const [editPatient, setEditPatient] = useState(null)
     const [newAppPatientId, setNewAppPatientId] = useState(null)
 
-    // Tải danh bạ bệnh nhân, lịch hẹn và hàng đợi ban đầu từ API
     useEffect(() => {
         dispatch(searchPatientsAsync({ search: searchQuery, page: 1, pageSize: 15 }))
         dispatch(fetchAppointmentsAsync({ pageSize: 100 }))
@@ -58,7 +57,6 @@ export default function PatientsPage() {
         )
     }
 
-    // Lọc hồ sơ nghi vấn trùng nếu bật filter
     const filteredPatients = useMemo(() => {
         if (!filterDuplicateOnly) return patients
         return patients.filter((p) => p.isDuplicateSuspect)
@@ -172,7 +170,6 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-5">
-            {/* Header & Search */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -225,7 +222,6 @@ export default function PatientsPage() {
                 </div>
             </div>
 
-            {/* Table */}
             <div className="medpro-card overflow-hidden">
                 <Table
                     columns={columns}
@@ -245,7 +241,6 @@ export default function PatientsPage() {
                 />
             </div>
 
-            {/* Modals & Drawer */}
             <PatientFormModal
                 open={isCreateModalOpen || Boolean(editPatient)}
                 editPatient={editPatient}

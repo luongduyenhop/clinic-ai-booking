@@ -1,7 +1,3 @@
-"""
-Router: /schedules
-Quản lý lịch làm việc và đơn nghỉ phép bác sĩ (/api/v1/schedules/leaves)
-"""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -8,15 +8,8 @@ from app.models.user import BacSi, NguoiDung, ChuyenKhoa, BenhNhan
 
 @pytest.mark.asyncio
 async def test_get_roster_resources_success(db_session):
-    """
-    KIỂM THỬ ENDPOINT /api/v1/reception/resources/roster:
-    - Tra cứu lịch phân ca trực thực tế trong ngày của Bác sĩ (FC-15)
-    - Kiểm tra chữ ký hàm nhận đủ 4 tham số: query_date, ca_kham, chuyen_khoa_id, db
-    - Không bị lỗi 500 TypeError mismatch argument
-    """
     today = clinic_now().date()
 
-    # 1. Gọi không lọc (lấy toàn bộ ca trực trong ngày)
     rosters = await queue_service.get_roster_resources(
         query_date=today,
         ca_kham=None,
@@ -25,7 +18,6 @@ async def test_get_roster_resources_success(db_session):
     )
     assert isinstance(rosters, list)
 
-    # 2. Gọi có lọc ca khám
     rosters_sang = await queue_service.get_roster_resources(
         query_date=today,
         ca_kham="sang",
@@ -41,14 +33,8 @@ async def test_get_roster_resources_success(db_session):
 
 @pytest.mark.asyncio
 async def test_get_roster_resources_excludes_bo_kham_and_da_dong_ve(db_session):
-    """
-    Kiểm tra so_luot_da_nhan trong roster resources:
-    - Bệnh nhân hủy/bỏ khám (BO_KHAM) hoặc đã đóng vé (DA_DONG_VE) không được tính vào so_luot_da_nhan
-    - Tránh tình trạng báo đầy ảo (fake full) cho ca khám của bác sĩ.
-    """
     target_d = clinic_now().date() + timedelta(days=25)
     
-    # 1. Tạo khoa, bác sĩ và bệnh nhân
     ck = ChuyenKhoa(ten_chuyen_khoa=f"Khoa Test {target_d}", ma_chuyen_khoa=f"CK_{target_d.strftime('%Y%m%d')}")
     db_session.add(ck)
     await db_session.flush()
@@ -74,7 +60,6 @@ async def test_get_roster_resources_excludes_bo_kham_and_da_dong_ve(db_session):
     db_session.add(bn)
     await db_session.flush()
 
-    # 2. Tạo lịch làm việc
     llv = LichLamViec(
         bac_si_id=bs.id,
         ngay_lam_viec=target_d,
@@ -89,10 +74,6 @@ async def test_get_roster_resources_excludes_bo_kham_and_da_dong_ve(db_session):
     db_session.add(llv)
     await db_session.flush()
 
-    # 3. Tạo 3 vé hàng đợi:
-    # - 1 vé CHO_KHAM (hợp lệ)
-    # - 1 vé BO_KHAM (hủy khám)
-    # - 1 vé DA_DONG_VE (đóng vé)
     t1 = HangDoiKham(
         benh_nhan_id=bn.id,
         so_thu_tu_kham=1,
@@ -126,7 +107,6 @@ async def test_get_roster_resources_excludes_bo_kham_and_da_dong_ve(db_session):
     db_session.add_all([t1, t2, t3])
     await db_session.commit()
 
-    # 4. Kiểm tra get_roster_resources
     rosters = await queue_service.get_roster_resources(
         query_date=target_d,
         ca_kham="sang",
@@ -134,5 +114,4 @@ async def test_get_roster_resources_excludes_bo_kham_and_da_dong_ve(db_session):
         db=db_session
     )
     assert len(rosters) == 1
-    # Chỉ tính 1 vé CHO_KHAM, 2 vé BO_KHAM và DA_DONG_VE phải bị loại trừ
     assert rosters[0].so_luot_da_nhan == 1

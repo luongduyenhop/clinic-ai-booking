@@ -100,7 +100,6 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
             `}</style>
 
             <div id="thermal-print-area" className="py-2 px-3 text-black space-y-3 font-sans max-w-[80mm] mx-auto bg-white border border-dashed border-black rounded-lg">
-                {/* Clinic Header */}
                 <div className="text-center border-b-2 border-dashed border-black pb-2">
                     <div className="text-xs font-bold uppercase tracking-wider text-black">PHÒNG KHÁM ĐA KHOA QUỐC TẾ</div>
                     <div className="text-sm font-black text-black mt-0.5 uppercase tracking-wide">
@@ -111,7 +110,6 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                     </div>
                 </div>
 
-                {/* Big Thermal Ticket Number */}
                 <div className="text-center py-2.5 bg-white rounded-xl border-2 border-dashed border-black">
                     <div className="text-[11px] text-black uppercase font-bold tracking-wider">
                         {queueEntry.is_waitlist ? "MÃ SỐ CHỜ (WAITLIST)" : "MÃ SỐ THỨ TỰ (STT BUỒNG KHÁM)"}
@@ -139,7 +137,6 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                     </div>
                 </div>
 
-                {/* Patient Information */}
                 <div className="space-y-1.5 text-xs border-b border-dashed border-black pb-2.5">
                     <div className="flex justify-between items-start gap-2">
                         <span className="text-black font-medium shrink-0">Họ và tên:</span>
@@ -163,7 +160,6 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
                     </div>
                 </div>
 
-                {/* Thermal Instructions & Barcode Simulation */}
                 <div className="text-center pt-1 space-y-1.5">
                     <div className="text-[11px] text-black font-normal leading-relaxed">
                         Quý khách vui lòng chú ý lắng nghe loa gọi số hoặc theo dõi bảng điện tử hiển thị mã <strong className="font-black">{ticketNumber}</strong> để vào buồng khám.

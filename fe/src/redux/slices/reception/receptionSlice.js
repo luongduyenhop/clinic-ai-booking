@@ -139,7 +139,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload || 'Lỗi tải dữ liệu lễ tân'
             })
 
-            // Shift Dashboard (FC-10, FC-11)
             .addCase(fetchShiftDashboardAsync.fulfilled, (state, action) => {
                 if (action.payload) {
                     state.shiftSummary = action.payload.shiftSummary
@@ -147,35 +146,30 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // Roster (FC-15)
             .addCase(fetchRosterAsync.fulfilled, (state, action) => {
                 if (Array.isArray(action.payload)) {
                     state.roster = action.payload
                 }
             })
 
-            // Roster Template (FC-15 / API 6.3)
             .addCase(fetchRosterTemplateAsync.fulfilled, (state, action) => {
                 if (Array.isArray(action.payload)) {
                     state.rosterTemplate = action.payload
                 }
             })
 
-            // Physical Rooms (FC-15 / API 6.2)
             .addCase(fetchRoomsAsync.fulfilled, (state, action) => {
                 if (Array.isArray(action.payload)) {
                     state.rooms = action.payload
                 }
             })
 
-            // Incidents / Doctor Absences (FC-13)
             .addCase(fetchDoctorAbsencesAsync.fulfilled, (state, action) => {
                 if (Array.isArray(action.payload)) {
                     state.doctorAbsences = action.payload
                 }
             })
 
-            // Patient Packages & History Summary (FC-17)
             .addCase(fetchPatientPackagesAsync.fulfilled, (state, action) => {
                 state.patientPackages = action.payload || []
             })
@@ -183,7 +177,6 @@ const receptionSlice = createSlice({
                 state.patientHistorySummary = action.payload || null
             })
 
-            // Appointments (FC-12)
             .addCase(fetchAppointmentsAsync.pending, (state) => {
                 state.loading = true
                 state.error = null
@@ -202,7 +195,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // Confirm Appointment
             .addCase(confirmAppointmentAsync.fulfilled, (state, action) => {
                 const aptId = action.payload?.appointmentId || action.payload?.id
                 if (aptId) {
@@ -214,7 +206,6 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // Mark No-Show
             .addCase(markAppointmentNoShowAsync.fulfilled, (state, action) => {
                 const aptId = action.payload?.appointmentId || action.payload?.id
                 if (aptId) {
@@ -226,7 +217,6 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // Cancel Appointment
             .addCase(cancelAppointmentAsync.fulfilled, (state, action) => {
                 const aptId = action.payload?.id || action.payload?.appointment_id
                 if (aptId) {
@@ -241,7 +231,6 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // Reschedule Appointment
             .addCase(updateAppointmentAsync.fulfilled, (state, action) => {
                 const aptId = action.payload?.id || action.payload?.appointment_id
                 if (aptId) {
@@ -255,14 +244,12 @@ const receptionSlice = createSlice({
                 }
             })
 
-            // Create Appointment
             .addCase(createAppointmentAsync.fulfilled, (state, action) => {
                 if (action.payload && action.payload.id) {
                     state.appointments.unshift(action.payload)
                 }
             })
 
-            // Check-in (FC-01)
             .addCase(checkInAppointmentAsync.pending, (state) => {
                 state.loading = true
                 state.error = null
@@ -296,7 +283,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // Flow Board (FC-02 / API 7.7)
             .addCase(fetchFlowBoardAsync.pending, (state) => {
                 state.queueLoading = true
             })
@@ -315,7 +301,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // Doctor Real-time Queue Board (FC-03)
             .addCase(fetchDoctorQueueAsync.pending, (state) => {
                 state.queueLoading = true
             })
@@ -329,7 +314,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // Walk-in
             .addCase(registerWalkInAsync.pending, (state) => {
                 state.loading = true
                 state.error = null
@@ -345,7 +329,6 @@ const receptionSlice = createSlice({
                 state.error = action.payload
             })
 
-            // Patient Detail (API 5.2)
             .addCase(getPatientDetailAsync.pending, (state) => {
                 state.patientDetailLoading = true
             })
@@ -357,7 +340,6 @@ const receptionSlice = createSlice({
                 state.patientDetailLoading = false
             })
 
-            // Patients (FC-17)
             .addCase(searchPatientsAsync.fulfilled, (state, action) => {
                 if (action.payload?.items) {
                     state.patients = action.payload.items
@@ -419,7 +401,6 @@ const receptionSlice = createSlice({
                 }
             })
 
-                        // Waitlist
             .addCase(fetchReceptionWaitlistAsync.pending, (state) => {
                 state.waitlistLoading = true
             })
@@ -445,7 +426,6 @@ const receptionSlice = createSlice({
                 state.activeRole = action.payload
             })
 
-            // Report Summary & Audit Logs (Phân hệ 9)
             .addCase(fetchReportSummaryAsync.pending, (state) => {
                 state.reportLoading = true
             })
@@ -476,7 +456,6 @@ const receptionSlice = createSlice({
                 state.auditLoading = false
             })
 
-            // Shift Pre-close Audit & Close Shift
             .addCase(fetchShiftPreCloseAuditAsync.pending, (state) => {
                 state.shiftAuditLoading = true
             })

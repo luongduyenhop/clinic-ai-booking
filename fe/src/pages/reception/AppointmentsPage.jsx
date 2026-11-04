@@ -57,37 +57,31 @@ export default function AppointmentsPage() {
         loading,
     } = useSelector((state) => state.reception)
 
-    const [viewMode, setViewMode] = useState('TABLE') // 'TABLE' | 'SCHEDULE_SLOTS'
+    const [viewMode, setViewMode] = useState('TABLE')
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
-    const [selectedShift, setSelectedShift] = useState('') // '' | 'sang' | 'chieu'
+    const [selectedShift, setSelectedShift] = useState('')
     const [selectedDep, setSelectedDep] = useState('')
     const [selectedDoctor, setSelectedDoctor] = useState('')
     const [selectedStatus, setSelectedStatus] = useState('')
 
-    // Pagination
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(15)
 
-    // Modals
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [selectedAppointment, setSelectedAppointment] = useState(null)
 
-    // Check-in & Receipt
     const [checkingInId, setCheckingInId] = useState(null)
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
     const [selectedTicketForPrint, setSelectedTicketForPrint] = useState(null)
 
-    // Action states
     const [confirmingId, setConfirmingId] = useState(null)
     const [isProcessingUnconfirmed, setIsProcessingUnconfirmed] = useState(false)
 
-    // No-Show Modal state
     const [noShowAppointment, setNoShowAppointment] = useState(null)
     const [noShowNote, setNoShowNote] = useState('')
     const [isNoShowLoading, setIsNoShowLoading] = useState(false)
 
-    // Quick Search at Counter Drawer
     const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false)
     const [quickSearchText, setQuickSearchText] = useState('')
     const [quickSearchResults, setQuickSearchResults] = useState([])
@@ -126,7 +120,6 @@ export default function AppointmentsPage() {
         setPage(1)
     }
 
-    // ── Xử lý One-Touch Check-In ──────────────────────────────────────
     const handleOneTouchCheckIn = async (record) => {
         try {
             setCheckingInId(record.id)
@@ -148,13 +141,11 @@ export default function AppointmentsPage() {
             setIsReceiptModalOpen(true)
             loadAppointments()
         } catch {
-            // Toast thông báo lỗi bên phải đã được BaseService kích hoạt tự động
         } finally {
             setCheckingInId(null)
         }
     }
 
-    // ── Xử lý Xác nhận lịch hẹn (Confirm) ──────────────────────────────
     const handleConfirmAppointment = async (record) => {
         try {
             setConfirmingId(record.id)
@@ -162,13 +153,11 @@ export default function AppointmentsPage() {
             message.success(`Đã xác nhận giữ chỗ cho lịch hẹn ${record.appointmentCode || record.ma_lich_kham}!`)
             loadAppointments()
         } catch {
-            // Toast thông báo lỗi bên phải đã được BaseService kích hoạt tự động
         } finally {
             setConfirmingId(null)
         }
     }
 
-    // ── Xử lý Ghi nhận Vắng mặt (No-Show) ─────────────────────────────
     const handleConfirmNoShow = async () => {
         if (!noShowAppointment) return
         try {
@@ -193,13 +182,11 @@ export default function AppointmentsPage() {
             setNoShowNote('')
             loadAppointments()
         } catch {
-            // Toast thông báo lỗi bên phải đã được BaseService kích hoạt tự động
         } finally {
             setIsNoShowLoading(false)
         }
     }
 
-    // ── Xử lý Quét tự động hủy & Đôn Waitlist ─────────────────────────
     const handleProcessUnconfirmed = () => {
         Modal.confirm({
             title: 'Quét tự động hủy ca chưa xác nhận & Đôn Waitlist?',
@@ -224,7 +211,6 @@ export default function AppointmentsPage() {
                     message.success(`Hoàn tất: Đã hủy ${result?.so_lich_tu_dong_huy ?? 0} ca chưa xác nhận, đôn ${result?.so_nguoi_don_waitlist ?? 0} người từ Waitlist!`)
                     loadAppointments()
                 } catch {
-                    // Toast thông báo lỗi bên phải đã được BaseService kích hoạt tự động
                 } finally {
                     setIsProcessingUnconfirmed(false)
                 }
@@ -232,7 +218,6 @@ export default function AppointmentsPage() {
         })
     }
 
-    // ── Xử lý Tra cứu nhanh tại quầy (Quick Search) ───────────────────
     const handleQuickSearch = async () => {
         if (!quickSearchText.trim()) {
             message.info('Vui lòng nhập Mã hẹn, SĐT hoặc Tên bệnh nhân')
@@ -248,13 +233,11 @@ export default function AppointmentsPage() {
             ).unwrap()
             setQuickSearchResults(Array.isArray(results) ? results : [])
         } catch {
-            // Toast thông báo lỗi bên phải đã được BaseService kích hoạt tự động
         } finally {
             setIsQuickSearching(false)
         }
     }
 
-    // ── Columns Table ────────────────────────────────────────────────
     const columns = [
         {
             title: 'Mã lịch hẹn',
@@ -399,7 +382,6 @@ export default function AppointmentsPage() {
 
                 return (
                     <Space size="small">
-                        {/* Nhánh 1: Chờ xác nhận -> Lễ tân gọi & Xác nhận giữ chỗ */}
                         {isPendingConfirm && (
                             <Button
                                 size="small"
@@ -413,7 +395,6 @@ export default function AppointmentsPage() {
                             </Button>
                         )}
 
-                        {/* Nhánh 2: Đã xác nhận -> Check-in 1 chạm hoặc Báo No-show */}
                         {isConfirmed && (
                             <>
                                 <Button
@@ -437,7 +418,6 @@ export default function AppointmentsPage() {
                             </>
                         )}
 
-                        {/* Nút Xem chi tiết */}
                         <Button
                             size="small"
                             onClick={() => setSelectedAppointment(record)}
@@ -453,7 +433,6 @@ export default function AppointmentsPage() {
 
     return (
         <div className="space-y-5">
-            {/* ── HEADER CARD VÀ THANH CÔNG CỤ ────────────────────────────── */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -507,7 +486,6 @@ export default function AppointmentsPage() {
                     </div>
                 </div>
 
-                {/* ── BỘ LỌC ĐA CHIỀU ────────────────────────────────────────── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100 text-xs">
                     <div>
                         <Input
@@ -614,7 +592,6 @@ export default function AppointmentsPage() {
                 </div>
             </div>
 
-            {/* ── VIEW BẢNG DỮ LIỆU HOẶC KHUNG GIỜ KHÁM ───────────────────── */}
             {viewMode === 'TABLE' ? (
                 <div className="medpro-card overflow-hidden">
                     <Table
@@ -711,7 +688,6 @@ export default function AppointmentsPage() {
                 </div>
             )}
 
-            {/* ── MODAL GHI NHẬN VẮNG MẶT (NO-SHOW) ────────────────────────── */}
             <Modal
                 title={
                     <div className="flex items-center gap-2 text-amber-700 font-bold">
@@ -749,7 +725,6 @@ export default function AppointmentsPage() {
                                 <strong>Bệnh nhân:</strong> {noShowAppointment.ten_benh_nhan} (SĐT: {noShowAppointment.so_dien_thoai || 'N/A'})
                             </p>
                             <p className="text-[11px] text-amber-700 mt-1">
-                                * Lưu ý: Người bệnh vi phạm No-show ≥ 3 lần sẽ bị hệ thống tự động khóa quyền đặt lịch khám trực tuyến.
                             </p>
                         </div>
                         <div>
@@ -765,7 +740,6 @@ export default function AppointmentsPage() {
                 )}
             </Modal>
 
-            {/* ── DRAWER TRA CỨU NHANH TẠI QUẦY (QUICK SEARCH) ─────────────── */}
             <Drawer
                 title={
                     <div className="flex items-center gap-2">
@@ -886,7 +860,6 @@ export default function AppointmentsPage() {
                 </div>
             </Drawer>
 
-            {/* ── MODALS CHI TIẾT & TIẾP ĐÓN ───────────────────────────────── */}
             <AppointmentFormModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
             <AppointmentDetailModal
                 appointment={selectedAppointment}

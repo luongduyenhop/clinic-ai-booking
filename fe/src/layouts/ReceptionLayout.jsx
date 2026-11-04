@@ -95,14 +95,11 @@ export default function ReceptionLayout() {
     return (
         <ConfigProvider theme={medproTheme}>
             <div className="h-screen flex bg-[#F4F8FB] text-[#0F172A] overflow-hidden antialiased">
-                {/* Sidebar */}
                 <ReceptionSidebar />
 
-                {/* Right Main Area */}
                 <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                     <ReceptionHeader />
 
-                    {/* Sub-header Breadcrumb Bar — Aligned with Admin HIS */}
                     <div className="h-8 bg-white/70 border-b border-[#E2EDF5] px-3.5 lg:px-4 flex items-center justify-between text-xs text-slate-500 shrink-0 select-none">
                         <div className="flex items-center gap-1.5 font-medium">
                             <Link to="/reception/dashboard" className="inline-flex items-center gap-1 hover:text-[#00B5F1] transition">
@@ -125,7 +122,6 @@ export default function ReceptionLayout() {
                         </div>
                     </div>
 
-                    {/* Page Content Body */}
                     <main className="flex-1 p-3 sm:p-4 overflow-y-auto">
                         <Outlet />
                     </main>

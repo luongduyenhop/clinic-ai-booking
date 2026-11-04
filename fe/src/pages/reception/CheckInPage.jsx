@@ -57,7 +57,6 @@ function normalizePatient(p) {
     }
 }
 
-// Helper xác định trạng thái, nhãn màu và hành vi của lịch hẹn tìm kiếm
 function getAppointmentStatusMeta(app) {
     const rawStatus = String(app.status || app.trang_thai_lich || app.trang_thai || '').toLowerCase()
     const isAlreadyCheckedIn = Boolean(
@@ -137,9 +136,8 @@ export default function CheckInPage() {
     const searchContainerRef = useRef(null)
     const [selectedPatient, setSelectedPatient] = useState(null)
     const [selectedAppointment, setSelectedAppointment] = useState(null)
-    const [checkInMode, setCheckInMode] = useState('WITH_APPOINTMENT') // 'WITH_APPOINTMENT' | 'WALK_IN'
+    const [checkInMode, setCheckInMode] = useState('WITH_APPOINTMENT')
 
-    // Danh sách 5 lý do ưu tiên theo chuẩn Backend API Spec (ly_do_uu_tien enum)
     const PRIORITY_REASONS = [
         { value: 'cap_cuu_nhe', label: 'Cấp cứu nhẹ' },
         { value: 'nguoi_gia', label: 'Người cao tuổi (≥ 75 tuổi)' },
@@ -148,13 +146,11 @@ export default function CheckInPage() {
         { value: 'thuong_binh', label: 'Thương binh / Người có công' },
     ]
 
-    // Danh mục chuyên khoa động tải 100% từ API backend
     const [specialtiesList, setSpecialtiesList] = useState([])
     const [loadingSpecialties, setLoadingSpecialties] = useState(false)
 
-    // Form 1: Walk-in form state (Khi đã chọn bệnh nhân có hồ sơ)
     const [walkInDepartmentId, setWalkInDepartmentId] = useState(null)
-    const [walkInDoctorId, setWalkInDoctorId] = useState(null) // null = Tự động phân bổ theo tải
+    const [walkInDoctorId, setWalkInDoctorId] = useState(null)
     const [walkInDoctors, setWalkInDoctors] = useState([])
     const [loadingWalkInDocs, setLoadingWalkInDocs] = useState(false)
     const [walkInRoomId, setWalkInRoomId] = useState('')
@@ -165,15 +161,14 @@ export default function CheckInPage() {
     const [walkInAutoWaitlist, setWalkInAutoWaitlist] = useState(false)
     const [quickAutoWaitlist, setQuickAutoWaitlist] = useState(false)
 
-    // Form 2: Quick Walk-in form (Tiếp nhận nhanh khi chưa có hồ sơ trước)
     const [quickWalkInForm, setQuickWalkInForm] = useState({
         fullName: '',
         phone: '',
         gender: 'Nam',
         birthYear: '',
         departmentId: null,
-        doctorId: null, // Bác sĩ khám kèm buồng khám trực hôm nay
-        priority: 'NORMAL', // Diện ưu tiên đồng bộ
+        doctorId: null,
+        priority: 'NORMAL',
         priorityReason: 'nguoi_gia',
         reason: 'Khám bệnh vãng lai',
     })
@@ -181,14 +176,12 @@ export default function CheckInPage() {
     const [loadingQuickDocs, setLoadingQuickDocs] = useState(false)
     const [patientNotFoundForPhone, setPatientNotFoundForPhone] = useState(false)
 
-    // Modals
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [createdQueueEntry, setCreatedQueueEntry] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // 1. Nạp toàn bộ danh mục & dữ liệu ca trực khi vào trang
     useEffect(() => {
         const todayStr = dayjs().format('YYYY-MM-DD')
         dispatch(fetchReceptionDataAsync())
@@ -197,7 +190,6 @@ export default function CheckInPage() {
         dispatch(fetchShiftDashboardAsync({ queryDate: todayStr }))
         dispatch(fetchRosterAsync({ queryDate: todayStr }))
 
-        // Gọi trực tiếp API lấy danh mục Chuyên khoa
         const loadInitialSpecialties = async () => {
             setLoadingSpecialties(true)
             try {
@@ -227,7 +219,6 @@ export default function CheckInPage() {
         loadInitialSpecialties()
     }, [dispatch])
 
-    // API lấy danh sách bác sĩ theo chuyên khoa cho Form 1 (Walk-in có hồ sơ)
     const fetchWalkInDoctors = async (depId) => {
         if (!depId) {
             setWalkInDoctors([])
@@ -263,7 +254,6 @@ export default function CheckInPage() {
         }
     }
 
-    // API lấy danh sách bác sĩ theo chuyên khoa cho Form 2 (Quick walk-in)
     const fetchQuickDoctors = async (depId) => {
         if (!depId) {
             setQuickWalkInDoctors([])
@@ -299,7 +289,6 @@ export default function CheckInPage() {
         }
     }
 
-    // 2. Xử lý preselect nếu được điều hướng từ trang Lịch hẹn hoặc Dashboard
     useEffect(() => {
         const stateApp = location.state?.appointment
         const targetId = location.state?.preselectAppointmentId || stateApp?.id || stateApp?.ma_lich_kham
@@ -356,7 +345,6 @@ export default function CheckInPage() {
         }
     }, [location.state, appointments, patients, dispatch])
 
-    // Click outside để đóng search dropdown
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
@@ -367,7 +355,6 @@ export default function CheckInPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    // 4. Tìm kiếm Bệnh nhân & Lịch hẹn với Debounce (Chống lặp vô tận & chống spam mạng)
     useEffect(() => {
         const cleanKw = searchKeyword.trim()
         if (!cleanKw || cleanKw.length < 1) {
@@ -402,7 +389,6 @@ export default function CheckInPage() {
                     setPatientNotFoundForPhone(false)
                 }
             } catch {
-                // Xử lý lỗi tìm kiếm nhẹ nhàng
             } finally {
                 setIsSearching(false)
             }
@@ -413,7 +399,6 @@ export default function CheckInPage() {
 
     const hasSearchResults = searchAppointmentResults.length > 0 || searchPatientResults.length > 0
 
-    // 5. Danh sách lịch hẹn hợp lệ hôm nay của bệnh nhân đang chọn (chưa check-in)
     const patientAppointments = useMemo(() => {
         if (!selectedPatient) return []
         const list = appointments.filter((a) => {
@@ -446,7 +431,6 @@ export default function CheckInPage() {
         return list
     }, [selectedPatient, appointments, selectedAppointment])
 
-    // 6. Chọn bệnh nhân từ kết quả tìm kiếm
     const handleSelectPatient = async (pat) => {
         const norm = normalizePatient(pat)
         setSelectedPatient(norm)
@@ -462,7 +446,6 @@ export default function CheckInPage() {
                 setSelectedPatient((prev) => normalizePatient({ ...prev, ...(detail || {}) }))
             }
         } catch {
-            // fallback
         }
 
         const matchedApp = appointments.find((a) => {
@@ -492,7 +475,6 @@ export default function CheckInPage() {
         }
     }
 
-    // 7. Chọn trực tiếp từ thẻ Lịch hẹn hôm nay
     const handleSelectAppointmentSearchResult = async (app, statusMeta = null) => {
         setIsSearchOpen(false)
         setSearchKeyword('')
@@ -561,10 +543,9 @@ export default function CheckInPage() {
         }
     }
 
-    // 8. Đổi Chuyên khoa ở Form Walk-in (Form 1)
     const handleWalkInDepartmentChange = (depId) => {
         setWalkInDepartmentId(depId)
-        setWalkInDoctorId(null) // Reset về Tự động phân bổ
+        setWalkInDoctorId(null)
         fetchWalkInDoctors(depId)
 
         const targetSpec = (specialtiesList.length > 0 ? specialtiesList : departments || []).find((s) => s.id === depId || s.code === depId)
@@ -575,13 +556,11 @@ export default function CheckInPage() {
         if (depService) setWalkInServiceId(depService.id)
     }
 
-    // Đổi Chuyên khoa ở Form Tiếp nhận nhanh (Form 2)
     const handleQuickDepartmentChange = (depId) => {
         setQuickWalkInForm((prev) => ({ ...prev, departmentId: depId, doctorId: null }))
         fetchQuickDoctors(depId)
     }
 
-    // Khi chọn Bác sĩ cụ thể ở Form Walk-in -> tự động gán luôn Buồng khám
     const handleWalkInDoctorChange = (docId) => {
         setWalkInDoctorId(docId)
         if (docId) {
@@ -592,7 +571,6 @@ export default function CheckInPage() {
         }
     }
 
-    // Tự động nạp chuyên khoa mặc định và tải bác sĩ tương ứng khi danh mục sẵn sàng
     useEffect(() => {
         const specSource = specialtiesList.length > 0 ? specialtiesList : departments
         if (specSource && specSource.length > 0) {
@@ -609,7 +587,6 @@ export default function CheckInPage() {
         }
     }, [departments, specialtiesList, walkInDepartmentId, quickWalkInForm.departmentId])
 
-    // 9. Xác nhận tiếp nhận Form 1 (Check-in hẹn trước hoặc Walk-in có hồ sơ)
     const handleConfirmCheckIn = async () => {
         if (!selectedPatient) {
             message.error('Vui lòng chọn hoặc tìm người bệnh')
@@ -645,7 +622,6 @@ export default function CheckInPage() {
                 setPriorityReason('nguoi_gia')
                 setCheckInNotes('')
             } else {
-                // WALK_IN vào 1 trong 5 chuyên khoa
                 if (!walkInDepartmentId) {
                     message.error('Vui lòng chọn chuyên khoa tiếp nhận')
                     setIsSubmitting(false)
@@ -740,7 +716,6 @@ export default function CheckInPage() {
         }
     }
 
-    // 10. Tiếp nhận nhanh Form 2 (Quick Walk-in - đầy đủ Bác sĩ buồng khám & Mức độ ưu tiên)
     const handleQuickWalkInSubmit = async () => {
         const cleanName = quickWalkInForm.fullName?.trim() || ''
         const cleanPhone = quickWalkInForm.phone?.trim().replace(/\s+/g, '') || ''
@@ -888,7 +863,6 @@ export default function CheckInPage() {
         }
     }
 
-    // Hạn ngạch tiếp đón trong ngày
     const maxDailyQuota = 50
     const todayCheckInCount = queueEntries.length
     const quotaPercent = Math.round((todayCheckInCount / maxDailyQuota) * 100)
@@ -897,7 +871,6 @@ export default function CheckInPage() {
 
     return (
         <div className="space-y-4">
-            {/* Daily Quota Warning Banner */}
             {(isNearQuota || isOverQuota) && (
                 <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
                     isOverQuota ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'
@@ -928,7 +901,6 @@ export default function CheckInPage() {
                 </div>
             )}
 
-            {/* Search Header Bar */}
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -962,7 +934,6 @@ export default function CheckInPage() {
                     </div>
                 </div>
 
-                {/* Patient Search Input */}
                 <div className="relative" ref={searchContainerRef}>
                     <Input
                         size="large"
@@ -987,10 +958,8 @@ export default function CheckInPage() {
                         allowClear
                     />
 
-                    {/* Quick Search Dropdown Results */}
                     {isSearchOpen && hasSearchResults && searchKeyword.trim().length > 0 && (
                         <div className="absolute top-12 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 max-h-80 overflow-y-auto space-y-2">
-                            {/* 1. Lịch hẹn hôm nay */}
                             {searchAppointmentResults.length > 0 && (
                                 <div className="space-y-1">
                                     <div className="px-3 py-1 text-[11px] font-bold text-sky-700 uppercase bg-sky-50 rounded-lg flex justify-between items-center">
@@ -1048,7 +1017,6 @@ export default function CheckInPage() {
                                 </div>
                             )}
 
-                            {/* 2. Danh bạ bệnh nhân */}
                             {searchPatientResults.length > 0 && (
                                 <div className="space-y-1">
                                     <div className="px-3 py-1 text-[11px] font-bold text-slate-500 uppercase bg-slate-50 rounded-lg">
@@ -1084,7 +1052,6 @@ export default function CheckInPage() {
                     )}
                 </div>
 
-                {/* Bệnh nhân mới: Alert thông báo khi gõ SĐT chưa có trong hệ thống */}
                 {isSearchOpen && patientNotFoundForPhone && searchKeyword.trim().length > 0 && (
                     <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2.5">
@@ -1106,10 +1073,8 @@ export default function CheckInPage() {
                 )}
             </div>
 
-            {/* Check-In Workspace: 2 Columns */}
             {selectedPatient ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* Left: Patient Verification & Details */}
                     <div className="medpro-card p-4 space-y-3">
                         <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
                             <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Hồ sơ người bệnh (Bệnh nhân cũ)</span>
@@ -1118,7 +1083,6 @@ export default function CheckInPage() {
                             </Button>
                         </div>
 
-                        {/* Duplicate Alert */}
                         {selectedPatient.isDuplicateSuspect && (
                             <Alert
                                 message="Cảnh báo nghi vấn trùng hồ sơ"
@@ -1128,7 +1092,6 @@ export default function CheckInPage() {
                             />
                         )}
 
-                        {/* Blocked Booking / No-show Alert */}
                         {selectedPatient.isBlockedBooking && (
                             <Alert
                                 message="Cảnh báo: Tài khoản bị khóa tự đặt hẹn"
@@ -1182,7 +1145,6 @@ export default function CheckInPage() {
                         </Descriptions>
                     </div>
 
-                    {/* Right: Check-In Decision & Form (Form 1) */}
                     <div className="lg:col-span-2 medpro-card p-4 space-y-3">
                         <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
                             <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Phương thức tiếp nhận</span>
@@ -1196,7 +1158,6 @@ export default function CheckInPage() {
                             </Radio.Group>
                         </div>
 
-                        {/* MODE 1: Check-in With Appointment */}
                         {checkInMode === 'WITH_APPOINTMENT' ? (
                             <div className="space-y-4">
                                 {patientAppointments.length === 0 ? (
@@ -1259,7 +1220,6 @@ export default function CheckInPage() {
                                 )}
                             </div>
                         ) : (
-                            /* MODE 2: Tiếp nhận khám trực tiếp (Walk-In) - Form 1 đồng nhất 100% với Form 2 */
                             <div className="space-y-3 text-xs">
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
@@ -1316,7 +1276,6 @@ export default function CheckInPage() {
                             </div>
                         )}
 
-                        {/* Priority selection & Notes (Áp dụng cho cả Check-in và Walk-in) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-3 border-t border-slate-100">
                             <div>
                                 <label className="block font-bold text-slate-700 uppercase mb-1">
@@ -1371,7 +1330,6 @@ export default function CheckInPage() {
                             </div>
                         )}
 
-                        {/* Waitlist Checkbox */}
                         {checkInMode === 'WALK_IN' && (
                             <div className="pt-2">
                                 <Checkbox
@@ -1384,7 +1342,6 @@ export default function CheckInPage() {
                             </div>
                         )}
 
-                        {/* Action Submit */}
                         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                             <Button className="medpro-btn-outline !h-10 !px-4 text-xs font-semibold" onClick={() => setSelectedPatient(null)}>Hủy bỏ</Button>
                             <Button
@@ -1400,9 +1357,7 @@ export default function CheckInPage() {
                     </div>
                 </div>
             ) : (
-                /* Empty State + Form 2: Tiếp nhận nhanh Walk-in (Quick Walk-in) đồng bộ hoàn toàn */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Cột 1: Hướng dẫn tìm kiếm */}
                     <div className="medpro-card p-6 space-y-4 text-center flex flex-col justify-center">
                         <div className="w-14 h-14 rounded-2xl bg-[#E8F4FD] text-[#00B5F1] border border-[#CBE9FA] flex items-center justify-center mx-auto text-2xl font-bold shadow-2xs">
                             🔍
@@ -1425,7 +1380,6 @@ export default function CheckInPage() {
                         </div>
                     </div>
 
-                    {/* Cột 2: Tiếp nhận nhanh trực tiếp tại quầy (Quick Walk-in) - ĐỒNG BỘ ĐẦY ĐỦ TRƯỜNG */}
                     <div className="medpro-card p-4 space-y-3 text-xs">
                         <div className="flex items-center gap-2 border-b border-[#E2EDF5] pb-2.5">
                             <ThunderboltOutlined className="text-amber-500 text-base" />
@@ -1504,7 +1458,6 @@ export default function CheckInPage() {
                                 </div>
                             </div>
 
-                            {/* Bác sĩ khám (API động kết hợp buồng khám theo ca trực hôm nay) */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
                                     <label className="block font-bold text-slate-700 uppercase">
@@ -1539,7 +1492,6 @@ export default function CheckInPage() {
                                 />
                             </div>
 
-                            {/* Mức độ ưu tiên đồng bộ */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <div>
                                     <label className="block font-bold text-slate-700 uppercase mb-1">
@@ -1619,7 +1571,6 @@ export default function CheckInPage() {
                 </div>
             )}
 
-            {/* Modals */}
             <PatientFormModal
                 open={isCreatePatientOpen}
                 initialPhone={searchKeyword}

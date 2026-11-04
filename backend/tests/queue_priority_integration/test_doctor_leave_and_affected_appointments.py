@@ -1,12 +1,3 @@
-"""
-Integration Test Suite: Duyệt đơn nghỉ phép bác sĩ & Kiểm tra danh sách lịch hẹn bị ảnh hưởng
-Requirement: Schedule & Leave Management
-Component: schedule_service.py, /api/v1/schedules/leaves
-Expected Result:
-  - Lưu bảng nghi_phep_bac_si với trạng thái DA_DUYET
-  - Tự động khóa lịch làm việc (LichLamViec.is_active = False)
-  - Cảnh báo và trích xuất danh sách lịch hẹn bị ảnh hưởng
-"""
 import uuid
 from datetime import time, timedelta
 import pytest
@@ -26,7 +17,6 @@ from app.services.appointment_service import clinic_now
 
 
 async def _tao_benh_nhan_moi(db_session, suffix: str, idx: int) -> BenhNhan:
-    """Tạo bệnh nhân mới với đầy đủ họ tên và số điện thoại"""
     nd = NguoiDung(
         ho_ten=f"Bệnh Nhân Test Leave {idx}",
         email=f"bn.leave.{suffix}.{idx}@clinic.com",
@@ -46,16 +36,6 @@ async def _tao_benh_nhan_moi(db_session, suffix: str, idx: int) -> BenhNhan:
 
 @pytest.mark.asyncio
 async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments(api_client, booking, db_session):
-    """
-    Test Case:
-    1. Tạo 2 ca làm việc cho Bác sĩ vào ngày mai (D1) và ngày kia (D2).
-    2. Tạo 2 lịch hẹn đặt trước của bệnh nhân rơi vào các ca làm việc đó.
-    3. Tạo đơn nghỉ phép cho Bác sĩ từ D1 đến D2.
-    4. Admin duyệt đơn nghỉ phép:
-       - CSDL nghi_phep_bac_si chuyển sang DA_DUYET.
-       - Tự động khóa LichLamViec (is_active = False) và ghi nhận lý do.
-       - API /api/v1/schedules/leaves/{leave_id}/affected-bookings trả về chính xác 2 lịch hẹn bị ảnh hưởng.
-    """
     token_admin = booking.tokens["admin"]
     bs = booking.bs_x
     suffix = uuid.uuid4().hex[:6]
@@ -88,7 +68,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     day_1 = today + timedelta(days=1)
     day_2 = today + timedelta(days=2)
 
-    # 1. Phân 2 ca trực đang mở (is_active = True)
     shift_1 = LichLamViec(
         bac_si_id=bs.id,
         phong_kham_id=pk.id,
@@ -110,7 +89,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     db_session.add_all([shift_1, shift_2])
     await db_session.flush()
 
-    # 2. Tạo 2 lịch hẹn của bệnh nhân vào các ca trực đó
     lich_1 = LichKham(
         ma_lich_kham=f"LK-AFF-1-{suffix}",
         benh_nhan_id=bn_a.id,
@@ -138,7 +116,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     db_session.add_all([lich_1, lich_2])
     await db_session.commit()
 
-    # 3. Đăng ký đơn nghỉ phép từ day_1 đến day_2 qua endpoint /api/v1/schedules/leaves
     create_payload = DoctorLeaveCreateRequest(
         bac_si_id=bs.id,
         tu_ngay=day_1,
@@ -156,7 +133,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     leave_id = leave_data["id"]
     assert leave_data["trang_thai"] == TrangThaiNghiPhepEnum.CHO_DUYET.value
 
-    # 4. Admin duyệt đơn nghỉ phép (/api/v1/schedules/leaves/{leave_id}/approve)
     approve_payload = DoctorLeaveApproveRequest(
         hanh_dong=TrangThaiNghiPhepEnum.DA_DUYET.value,
         ghi_chu="Đã duyệt lịch nghỉ tập huấn",
@@ -170,13 +146,11 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     approved_data = res_approve.json()["data"]
     assert approved_data["trang_thai"] == TrangThaiNghiPhepEnum.DA_DUYET.value
 
-    # 5. Kiểm tra CSDL: Bảng nghi_phep_bac_si
     stmt_lv = select(NghiPhepBacSi).where(NghiPhepBacSi.id == leave_id)
     leave_db = (await db_session.execute(stmt_lv)).scalar_one()
     assert leave_db.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value
     assert leave_db.ghi_chu_duyet == "Đã duyệt lịch nghỉ tập huấn"
 
-    # 6. Kiểm tra CSDL: Tự động khóa các ca làm việc (is_active = False)
     stmt_s1 = select(LichLamViec).where(LichLamViec.id == shift_1.id)
     s1_db = (await db_session.execute(stmt_s1)).scalar_one()
     assert s1_db.is_active is False
@@ -187,7 +161,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     assert s2_db.is_active is False
     assert "Nghỉ phép theo kế hoạch" in (s2_db.ghi_chu_nghi or "")
 
-    # 7. Kiểm tra danh sách lịch hẹn bị ảnh hưởng (/api/v1/schedules/leaves/{leave_id}/affected-bookings)
     res_affected = await api_client.get(
         f"/api/v1/schedules/leaves/{leave_id}/affected-bookings",
         headers=token_admin,
@@ -195,13 +168,11 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
     assert res_affected.status_code == 200
     affected_list = res_affected.json()["data"]
 
-    # Xác nhận cảnh báo đúng 2 lịch hẹn bị ảnh hưởng
     assert len(affected_list) == 2
     affected_ids = [item["lich_kham_id"] for item in affected_list]
     assert lich_1.id in affected_ids
     assert lich_2.id in affected_ids
 
-    # Kiểm tra đầy đủ thông tin để Lễ tân/CSKH liên hệ dời lịch
     for item in affected_list:
         assert item["ma_lich_kham"] is not None
         assert item["ten_benh_nhan"] is not None
@@ -212,11 +183,6 @@ async def test_approve_doctor_leave_locks_shifts_and_warns_affected_appointments
 
 @pytest.mark.asyncio
 async def test_reject_doctor_leave_does_not_lock_shifts(api_client, booking, db_session):
-    """
-    Test Case: Khi Admin từ chối đơn nghỉ phép (TU_CHOI):
-    - Đơn chuyển trạng thái TU_CHOI.
-    - Ca làm việc không bị khóa (is_active vẫn là True).
-    """
     token_admin = booking.tokens["admin"]
     bs = booking.bs_x
     today = clinic_now().date()
@@ -233,7 +199,6 @@ async def test_reject_doctor_leave_does_not_lock_shifts(api_client, booking, db_
     db_session.add(shift)
     await db_session.commit()
 
-    # Tạo đơn
     req_create = DoctorLeaveCreateRequest(
         bac_si_id=bs.id,
         tu_ngay=target_day,
@@ -248,7 +213,6 @@ async def test_reject_doctor_leave_does_not_lock_shifts(api_client, booking, db_
     )
     leave_id = res_c.json()["data"]["id"]
 
-    # Từ chối
     req_reject = DoctorLeaveApproveRequest(
         hanh_dong=TrangThaiNghiPhepEnum.TU_CHOI.value,
         ghi_chu="Không đủ nhân sự trực thay thế",
@@ -261,6 +225,5 @@ async def test_reject_doctor_leave_does_not_lock_shifts(api_client, booking, db_
     assert res_r.status_code == 200
     assert res_r.json()["data"]["trang_thai"] == TrangThaiNghiPhepEnum.TU_CHOI.value
 
-    # Kiểm tra CSDL: Ca trực không bị khóa
     shift_db = (await db_session.execute(select(LichLamViec).where(LichLamViec.id == shift.id))).scalar_one()
     assert shift_db.is_active is True

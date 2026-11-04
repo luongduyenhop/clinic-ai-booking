@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 
 class IncidentService:
-    """Nghiệp vụ Xử lý Sự cố & Điều phối Hàng đợi khi Bác sĩ vắng mặt đột xuất (FC-13, FC-14)"""
 
     async def get_doctor_absences_incidents(
         self,
@@ -38,7 +37,6 @@ class IncidentService:
         current_user: TaiKhoan,
         db: AsyncSession,
     ) -> List[DoctorAbsenceIncidentResponse]:
-        """Xem danh sách các ca nghỉ của bác sĩ cần điều phối trong ngày (FC-13)"""
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
@@ -68,7 +66,6 @@ class IncidentService:
             ck_id = bs.chuyen_khoa_id if bs else None
             ck_name = bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else None
 
-            # Đếm số bệnh nhân bị ảnh hưởng đang chờ khám
             stmt_queue = select(func.count(HangDoiKham.id)).where(
                 HangDoiKham.bac_si_id == leave.bac_si_id,
                 HangDoiKham.ngay_kham == target_date,
@@ -81,7 +78,6 @@ class IncidentService:
                 stmt_queue = stmt_queue.where(HangDoiKham.ca_kham == leave.ca_lam_viec)
             so_cho = (await db.execute(stmt_queue)).scalar() or 0
 
-            # Tìm danh sách bác sĩ thay thế cùng chuyên khoa có lịch trực
             alternatives: List[DoctorAlternativeItem] = []
             if ck_id:
                 stmt_alt = (
@@ -144,7 +140,6 @@ class IncidentService:
         current_user: TaiKhoan,
         db: AsyncSession,
     ) -> RebalanceQueueResponse:
-        """Thực hiện chuyển hàng đợi từ bác sĩ vắng mặt sang bác sĩ khác (FC-14)"""
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
@@ -162,7 +157,6 @@ class IncidentService:
         if not absent_bs:
             raise NotFoundException("Không tìm thấy thông tin bác sĩ vắng mặt!")
 
-        # Multi-tenancy check: Kiểm tra phong_kham_id của bác sĩ vắng mặt so với phong_kham_id của người dùng hiện tại
         target_phong_kham_id = leave.phong_kham_id or absent_bs.phong_kham_id
         user_phong_kham_id = getattr(current_user, "phong_kham_id", None)
         if current_user.vai_tro != VaiTroEnum.ADMIN.value and user_phong_kham_id is not None:
@@ -171,7 +165,6 @@ class IncidentService:
 
         now = datetime.now(timezone.utc)
 
-        # Tìm các vé cần chuyển
         stmt_tickets = (
             select(HangDoiKham)
             .options(
@@ -208,7 +201,6 @@ class IncidentService:
 
         details: List[RebalanceTicketItem] = []
 
-        # Nếu lễ tân chỉ định đích danh bác sĩ nhận
         specified_doc = None
         if payload.bac_si_nhan_id:
             stmt_doc = (
@@ -223,7 +215,6 @@ class IncidentService:
         for old_ticket in tickets_to_move:
             target_date = old_ticket.ngay_kham
 
-            # 1. Xác định bác sĩ nhận (hoặc tự động cân bằng tải)
             if specified_doc:
                 rec_doc_id = specified_doc.id
                 rec_doc_name = specified_doc.nguoi_dung.ho_ten if specified_doc.nguoi_dung else f"BS {rec_doc_id}"
@@ -237,15 +228,12 @@ class IncidentService:
                 rec_bs = (await db.execute(select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == rec_doc_id))).scalar_one()
                 rec_doc_name = rec_bs.nguoi_dung.ho_ten if rec_bs.nguoi_dung else f"BS {rec_doc_id}"
 
-            # Lưu mức ưu tiên ban đầu của bệnh nhân trước khi đóng vé cũ
             original_priority = old_ticket.muc_do_uu_tien
 
-            # 2. Đóng vé cũ bằng DA_DONG_VE
             old_ticket.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
             old_ticket.muc_do_uu_tien = 7
             old_ticket.ghi_chu_dieu_phoi = f"{old_ticket.ghi_chu_dieu_phoi or ''} | Điều phối sang BS ID {rec_doc_id} lúc {now.strftime('%H:%M:%S')}".strip(" | ")
 
-            # 3. Tính số thứ tự mới cho bác sĩ nhận
             stmt_max = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
                 HangDoiKham.bac_si_id == rec_doc_id,
                 HangDoiKham.ngay_kham == target_date,
@@ -254,7 +242,6 @@ class IncidentService:
             max_stt = (await db.execute(stmt_max)).scalar()
             new_stt = max_stt + 1
 
-            # 4. Tạo vé mới cho bác sĩ nhận
             new_ticket = HangDoiKham(
                 lich_kham_id=old_ticket.lich_kham_id,
                 benh_nhan_id=old_ticket.benh_nhan_id,
@@ -274,7 +261,6 @@ class IncidentService:
             db.add(new_ticket)
             await db.flush()
 
-            # Cập nhật lịch hẹn nếu có
             if old_ticket.lich_kham:
                 old_ticket.lich_kham.bac_si_id = rec_doc_id
 

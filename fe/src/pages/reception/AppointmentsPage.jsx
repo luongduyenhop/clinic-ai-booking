@@ -406,7 +406,7 @@ export default function AppointmentsPage() {
                                 type="primary"
                                 icon={<CheckOutlined />}
                                 loading={confirmingId === record.id}
-                                className="bg-sky-600 hover:bg-sky-700 text-xs font-semibold"
+                                className="medpro-btn-primary text-xs font-bold"
                                 onClick={() => handleConfirmAppointment(record)}
                             >
                                 Xác nhận
@@ -421,7 +421,7 @@ export default function AppointmentsPage() {
                                     type="primary"
                                     icon={<CheckCircleOutlined />}
                                     loading={checkingInId === record.id}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold shadow-xs"
+                                    className="medpro-btn-primary text-xs font-bold shadow-xs"
                                     onClick={() => handleOneTouchCheckIn(record)}
                                 >
                                     Check-in
@@ -441,7 +441,7 @@ export default function AppointmentsPage() {
                         <Button
                             size="small"
                             onClick={() => setSelectedAppointment(record)}
-                            className="text-xs"
+                            className="medpro-btn-outline !h-8 !px-3 text-xs"
                         >
                             Chi tiết
                         </Button>
@@ -454,12 +454,12 @@ export default function AppointmentsPage() {
     return (
         <div className="space-y-5">
             {/* ── HEADER CARD VÀ THANH CÔNG CỤ ────────────────────────────── */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-base font-bold text-slate-800">Quản lý Lịch hẹn Tiếp đón</h2>
-                            <Tag color="cyan" className="font-semibold">Phân hệ Lễ tân</Tag>
+                            <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý Lịch hẹn Tiếp đón</h2>
+                            <span className="medpro-badge-info text-[10.5px]">Phân hệ Lễ tân</span>
                         </div>
                         <span className="text-xs text-slate-500">
                             Quản lý vòng đời lịch khám → Tra cứu nhanh tại quầy, Xác nhận trước 24h, Check-in cấp STT và Xử lý vắng mặt (No-show).
@@ -469,7 +469,7 @@ export default function AppointmentsPage() {
                         <Button
                             icon={<SearchOutlined className="text-sky-600" />}
                             onClick={() => setIsQuickSearchOpen(true)}
-                            className="text-xs font-semibold text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100"
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-bold"
                         >
                             Tra cứu nhanh tại quầy
                         </Button>
@@ -477,14 +477,14 @@ export default function AppointmentsPage() {
                             icon={<ThunderboltOutlined className="text-amber-500" />}
                             onClick={handleProcessUnconfirmed}
                             loading={isProcessingUnconfirmed}
-                            className="text-xs font-semibold text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                            className="medpro-btn-amber !h-8 !px-3 text-xs font-bold"
                         >
                             Quét hủy chưa xác nhận & Đôn Waitlist
                         </Button>
                         <Button
                             icon={<SyncOutlined spin={loading} />}
                             onClick={loadAppointments}
-                            className="text-xs"
+                            className="medpro-btn-outline !h-8 !px-3 text-xs"
                         >
                             Làm mới
                         </Button>
@@ -500,7 +500,7 @@ export default function AppointmentsPage() {
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-sky-600 font-semibold"
+                            className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
                         >
                             Đặt lịch mới
                         </Button>
@@ -616,7 +616,7 @@ export default function AppointmentsPage() {
 
             {/* ── VIEW BẢNG DỮ LIỆU HOẶC KHUNG GIỜ KHÁM ───────────────────── */}
             {viewMode === 'TABLE' ? (
-                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                <div className="medpro-card overflow-hidden">
                     <Table
                         columns={columns}
                         dataSource={appointments}
@@ -646,7 +646,7 @@ export default function AppointmentsPage() {
                                 return timeStr.startsWith(slotPrefix)
                             })
                             return (
-                                <div key={slotPrefix} className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                                <div key={slotPrefix} className="medpro-card p-4 space-y-3">
                                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                                         <span className="font-bold text-sky-800 text-xs flex items-center gap-1.5">
                                             <CalendarOutlined /> Khung giờ: {slotPrefix}
@@ -694,7 +694,7 @@ export default function AppointmentsPage() {
                                                                     e.stopPropagation()
                                                                     handleOneTouchCheckIn(app)
                                                                 }}
-                                                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-[11px] font-semibold"
+                                                                className="medpro-btn-primary w-full text-[11px] font-bold"
                                                             >
                                                                 Check-in 1 chạm
                                                             </Button>
@@ -795,7 +795,7 @@ export default function AppointmentsPage() {
                             icon={<SearchOutlined />}
                             onClick={handleQuickSearch}
                             loading={isQuickSearching}
-                            className="bg-sky-600 font-semibold"
+                            className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
                         >
                             Tra cứu
                         </Button>
@@ -872,7 +872,7 @@ export default function AppointmentsPage() {
                                                     icon={<CheckCircleOutlined />}
                                                     loading={checkingInId === (item.lich_kham_id || item.id)}
                                                     onClick={() => handleOneTouchCheckIn({ ...item, id: item.lich_kham_id || item.id })}
-                                                    className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 font-semibold"
+                                                    className="medpro-btn-primary w-full mt-3 text-xs font-bold"
                                                 >
                                                     Xác nhận Check-in ngay (Cấp STT)
                                                 </Button>

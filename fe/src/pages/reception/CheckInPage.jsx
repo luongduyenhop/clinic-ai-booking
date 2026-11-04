@@ -40,9 +40,9 @@ function normalizePatient(p) {
     if (!p) return null
     return {
         id: p.id,
-        fullName: p.fullName || p.ho_ten || 'N/A',
+        fullName: p.fullName || p.ho_ten || p.ten_benh_nhan || 'N/A',
         phone: p.phone || p.so_dien_thoai || '',
-        patientCode: p.patientCode || p.ma_dinh_danh_y_te || (p.id ? `BN-${p.id}` : 'BN-MOI'),
+        patientCode: p.patientCode || p.ma_dinh_danh_y_te || p.ma_benh_nhan || (p.id ? `BN-${p.id}` : 'BN-MOI'),
         dob: p.dob || p.ngay_sinh || '',
         gender: p.gender === 'MALE' || p.gioi_tinh === 'Nam' ? 'Nam' : (p.gender === 'FEMALE' || p.gioi_tinh === 'Nữ' ? 'Nữ' : 'Khác'),
         address: p.address || p.dia_chi || '',
@@ -301,17 +301,60 @@ export default function CheckInPage() {
 
     // 2. Xử lý preselect nếu được điều hướng từ trang Lịch hẹn hoặc Dashboard
     useEffect(() => {
-        if (location.state?.preselectAppointmentId) {
-            const app = appointments.find((a) => a.id === location.state.preselectAppointmentId)
-            if (app) {
-                setSelectedAppointment(app)
-                const patId = app.benh_nhan_id || app.patientId
-                const pat = patients.find((p) => p.id === patId)
-                if (pat) setSelectedPatient(normalizePatient(pat))
+        const stateApp = location.state?.appointment
+        const targetId = location.state?.preselectAppointmentId || stateApp?.id || stateApp?.ma_lich_kham
+        const statePatient = location.state?.patient
+
+        if (targetId || stateApp || statePatient) {
+            const targetApp = stateApp || appointments.find((a) =>
+                String(a.id) === String(targetId) ||
+                a.ma_lich_kham === targetId ||
+                a.appointmentCode === targetId
+            )
+
+            if (targetApp) {
+                setSelectedAppointment(targetApp)
                 setCheckInMode('WITH_APPOINTMENT')
+
+                const patId = targetApp.benh_nhan_id || targetApp.patientId || targetApp.benh_nhan?.id
+                let pat = statePatient || (patId ? patients.find((p) => String(p.id) === String(patId)) : null)
+                if (!pat && targetApp.so_dien_thoai) {
+                    pat = patients.find((p) => p.phone === targetApp.so_dien_thoai)
+                }
+
+                if (pat) {
+                    setSelectedPatient(normalizePatient(pat))
+                    if (pat.id) {
+                        dispatch(getPatientDetailAsync(pat.id)).then((res) => {
+                            if (res?.payload) setSelectedPatient((prev) => normalizePatient({ ...prev, ...res.payload }))
+                        }).catch(() => {})
+                    }
+                } else {
+                    const fallbackPat = normalizePatient({
+                        id: patId || 1,
+                        fullName: targetApp.ten_benh_nhan || targetApp.fullName || targetApp.benh_nhan?.ho_ten || 'Bệnh nhân',
+                        phone: targetApp.so_dien_thoai || targetApp.phone || targetApp.benh_nhan?.so_dien_thoai || '',
+                        patientCode: targetApp.ma_benh_nhan || (patId ? `BN-${patId}` : 'BN-1'),
+                        dob: targetApp.ngay_sinh || targetApp.benh_nhan?.ngay_sinh || '',
+                        gender: targetApp.gioi_tinh || targetApp.benh_nhan?.gioi_tinh || 'Nam',
+                        address: targetApp.dia_chi || targetApp.benh_nhan?.dia_chi || '',
+                        identityCard: targetApp.cccd_so || targetApp.benh_nhan?.cccd_so || '',
+                        allergies: targetApp.di_ung_thuoc || targetApp.benh_nhan?.di_ung_thuoc || '',
+                        bloodType: targetApp.nhom_mau || targetApp.benh_nhan?.nhom_mau || 'O+',
+                        medicalHistory: targetApp.tien_su_benh || targetApp.benh_nhan?.tien_su_benh || '',
+                    })
+                    setSelectedPatient(fallbackPat)
+                    if (patId) {
+                        dispatch(getPatientDetailAsync(patId)).then((res) => {
+                            if (res?.payload) setSelectedPatient((prev) => normalizePatient({ ...prev, ...res.payload }))
+                        }).catch(() => {})
+                    }
+                }
+            } else if (statePatient) {
+                setSelectedPatient(normalizePatient(statePatient))
             }
         }
-    }, [location.state, appointments, patients])
+    }, [location.state, appointments, patients, dispatch])
 
     // Click outside để đóng search dropdown
     useEffect(() => {
@@ -373,7 +416,7 @@ export default function CheckInPage() {
     // 5. Danh sách lịch hẹn hợp lệ hôm nay của bệnh nhân đang chọn (chưa check-in)
     const patientAppointments = useMemo(() => {
         if (!selectedPatient) return []
-        return appointments.filter((a) => {
+        const list = appointments.filter((a) => {
             const matchesPatient =
                 (a.patientId && a.patientId === selectedPatient.id) ||
                 (a.benh_nhan_id && a.benh_nhan_id === selectedPatient.id) ||
@@ -390,7 +433,18 @@ export default function CheckInPage() {
 
             return matchesPatient && isEligible
         })
-    }, [selectedPatient, appointments])
+
+        if (selectedAppointment) {
+            const alreadyInList = list.some(
+                (a) => a.id === selectedAppointment.id || (a.ma_lich_kham && a.ma_lich_kham === selectedAppointment.ma_lich_kham)
+            )
+            if (!alreadyInList) {
+                return [selectedAppointment, ...list]
+            }
+        }
+
+        return list
+    }, [selectedPatient, appointments, selectedAppointment])
 
     // 6. Chọn bệnh nhân từ kết quả tìm kiếm
     const handleSelectPatient = async (pat) => {
@@ -842,7 +896,7 @@ export default function CheckInPage() {
     const isOverQuota = quotaPercent >= 100
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Daily Quota Warning Banner */}
             {(isNearQuota || isOverQuota) && (
                 <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
@@ -875,12 +929,12 @@ export default function CheckInPage() {
             )}
 
             {/* Search Header Bar */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <h2 className="text-base font-bold text-slate-800">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                            <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E8F4FD] text-[#003553] border border-[#CBE9FA] font-mono">
                                 Đã tiếp nhận: {todayCheckInCount}/{maxDailyQuota} lượt
                             </span>
                         </div>
@@ -893,7 +947,7 @@ export default function CheckInPage() {
                             icon={<AlertOutlined />}
                             danger
                             onClick={() => setIsEmergencyModalOpen(true)}
-                            className="font-semibold"
+                            className="medpro-btn-danger !h-8 !px-3.5 text-xs font-bold"
                         >
                             Bàn giao cấp cứu
                         </Button>
@@ -901,7 +955,7 @@ export default function CheckInPage() {
                             type="primary"
                             icon={<UserAddOutlined />}
                             onClick={() => setIsCreatePatientOpen(true)}
-                            className="bg-sky-600 font-semibold"
+                            className="medpro-btn-primary !h-8 !px-4"
                         >
                             Tạo hồ sơ mới (30s)
                         </Button>
@@ -1019,7 +1073,7 @@ export default function CheckInPage() {
                                                     Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> • SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> • CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
                                                 </div>
                                             </div>
-                                            <Button size="small" type="primary" className="bg-sky-600 font-semibold text-xs">
+                                            <Button size="small" type="primary" className="medpro-btn-primary !h-7 !px-3 text-xs font-bold">
                                                 Chọn tiếp nhận
                                             </Button>
                                         </div>
@@ -1054,12 +1108,12 @@ export default function CheckInPage() {
 
             {/* Check-In Workspace: 2 Columns */}
             {selectedPatient ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Left: Patient Verification & Details */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <span className="font-bold text-slate-800 text-sm">Hồ sơ người bệnh (Bệnh nhân cũ)</span>
-                            <Button size="small" onClick={() => setSelectedPatient(null)}>
+                    <div className="medpro-card p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
+                            <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Hồ sơ người bệnh (Bệnh nhân cũ)</span>
+                            <Button size="small" onClick={() => setSelectedPatient(null)} className="rounded-full text-xs font-semibold">
                                 Đổi bệnh nhân
                             </Button>
                         </div>
@@ -1084,9 +1138,9 @@ export default function CheckInPage() {
                             />
                         )}
 
-                        <Descriptions size="small" column={1} bordered>
+                        <Descriptions size="small" column={1} bordered className="bg-white rounded-xl overflow-hidden">
                             <Descriptions.Item label="Họ và tên">
-                                <span className="font-extrabold text-slate-900 text-sm">{selectedPatient.fullName}</span>
+                                <span className="font-extrabold text-[#003553] text-sm">{selectedPatient.fullName}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Giới tính">
                                 <span className="font-semibold text-slate-800">{selectedPatient.gender}</span>
@@ -1102,7 +1156,7 @@ export default function CheckInPage() {
                                 </span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Số điện thoại">
-                                <span className="font-mono font-bold text-sky-700">{selectedPatient.phone || 'Chưa có'}</span>
+                                <span className="font-mono font-bold text-[#00B5F1]">{selectedPatient.phone || 'Chưa có'}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Địa chỉ">
                                 <span>{selectedPatient.address || 'Chưa cập nhật'}</span>
@@ -1122,16 +1176,16 @@ export default function CheckInPage() {
                                 </Descriptions.Item>
                             )}
                             <Descriptions.Item label="Mã hồ sơ">
-                                <span className="font-mono font-bold text-sky-700">{selectedPatient.patientCode}</span>
+                                <span className="font-mono font-bold text-[#003553]">{selectedPatient.patientCode}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="CCCD">{selectedPatient.identityCard || 'Chưa cung cấp'}</Descriptions.Item>
                         </Descriptions>
                     </div>
 
                     {/* Right: Check-In Decision & Form (Form 1) */}
-                    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <span className="font-bold text-slate-800 text-sm">Phương thức tiếp nhận</span>
+                    <div className="lg:col-span-2 medpro-card p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
+                            <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Phương thức tiếp nhận</span>
                             <Radio.Group
                                 value={checkInMode}
                                 onChange={(e) => setCheckInMode(e.target.value)}
@@ -1153,8 +1207,7 @@ export default function CheckInPage() {
                                         <Button
                                             type="primary"
                                             size="small"
-                                            className="bg-sky-600"
-                                            onClick={() => setCheckInMode('WALK_IN')}
+                                            className="medpro-btn-primary !h-7 !px-3 text-xs font-bold" onClick={() => setCheckInMode('WALK_IN')}
                                         >
                                             Chuyển sang tiếp nhận khám trực tiếp (Walk-in)
                                         </Button>
@@ -1169,7 +1222,7 @@ export default function CheckInPage() {
                                             const doc = doctors.find((d) => d.id === (app.doctorId || app.bac_si_id))
                                             const room = rooms.find((r) => r.id === (app.roomId || app.phong_kham_id))
                                             const srv = services.find((s) => s.id === (app.serviceId || app.dich_vu_id))
-                                            const isSelected = selectedAppointment?.id === app.id
+                                            const isSelected = selectedAppointment?.id === app.id || (selectedAppointment?.ma_lich_kham && selectedAppointment.ma_lich_kham === app.ma_lich_kham)
                                             const displayCode = app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`
                                             const displayTime = app.timeSlot || app.gio_kham || 'Theo ca khám'
                                             const depName = app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'
@@ -1333,15 +1386,14 @@ export default function CheckInPage() {
 
                         {/* Action Submit */}
                         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                            <Button onClick={() => setSelectedPatient(null)}>Hủy bỏ</Button>
+                            <Button className="medpro-btn-outline !h-10 !px-4 text-xs font-semibold" onClick={() => setSelectedPatient(null)}>Hủy bỏ</Button>
                             <Button
                                 type="primary"
                                 size="large"
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleConfirmCheckIn}
                                 loading={isSubmitting}
-                                className="bg-emerald-600 hover:bg-emerald-700 font-bold px-6"
-                            >
+                                className="medpro-btn-primary !h-10 !px-6 text-sm font-bold shadow-md">
                                 Cấp STT Khám & Xem phiếu in
                             </Button>
                         </div>
@@ -1349,14 +1401,14 @@ export default function CheckInPage() {
                 </div>
             ) : (
                 /* Empty State + Form 2: Tiếp nhận nhanh Walk-in (Quick Walk-in) đồng bộ hoàn toàn */
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Cột 1: Hướng dẫn tìm kiếm */}
-                    <div className="bg-white p-8 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4 text-center flex flex-col justify-center">
-                        <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto text-2xl font-bold">
+                    <div className="medpro-card p-6 space-y-4 text-center flex flex-col justify-center">
+                        <div className="w-14 h-14 rounded-2xl bg-[#E8F4FD] text-[#00B5F1] border border-[#CBE9FA] flex items-center justify-center mx-auto text-2xl font-bold shadow-2xs">
                             🔍
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-slate-800">Tra cứu hoặc Tạo mới người bệnh</h3>
+                            <h3 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Tra cứu hoặc Tạo mới người bệnh</h3>
                             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                                 Nhập số điện thoại, họ tên hoặc mã lịch hẹn vào ô tìm kiếm để nạp hồ sơ cũ và check-in ngay.
                             </p>
@@ -1366,7 +1418,7 @@ export default function CheckInPage() {
                                 type="primary"
                                 icon={<UserAddOutlined />}
                                 onClick={() => setIsCreatePatientOpen(true)}
-                                className="bg-sky-600 font-semibold"
+                                className="medpro-btn-primary !h-9 !px-5"
                             >
                                 Tạo hồ sơ người bệnh mới (30s)
                             </Button>
@@ -1374,11 +1426,11 @@ export default function CheckInPage() {
                     </div>
 
                     {/* Cột 2: Tiếp nhận nhanh trực tiếp tại quầy (Quick Walk-in) - ĐỒNG BỘ ĐẦY ĐỦ TRƯỜNG */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3 text-xs">
-                        <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                    <div className="medpro-card p-4 space-y-3 text-xs">
+                        <div className="flex items-center gap-2 border-b border-[#E2EDF5] pb-2.5">
                             <ThunderboltOutlined className="text-amber-500 text-base" />
                             <div>
-                                <h3 className="font-bold text-slate-800 text-sm">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
+                                <h3 className="font-extrabold text-[#003553] text-xs uppercase tracking-wide">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
                                 <p className="text-[11px] text-slate-400 mt-0.5">Cấp số thứ tự khám ngay tại quầy — Chọn Bác sĩ trực & Mức độ ưu tiên</p>
                             </div>
                         </div>
@@ -1558,7 +1610,7 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleQuickWalkInSubmit}
                                 loading={isSubmitting}
-                                className="bg-emerald-600 hover:bg-emerald-700 font-bold py-2.5 h-auto text-sm mt-1"
+                                className="medpro-btn-primary w-full !h-10 text-sm font-bold shadow-md mt-2"
                             >
                                 Cấp STT Khám Nhanh & In Phiếu
                             </Button>

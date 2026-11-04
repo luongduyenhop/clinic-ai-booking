@@ -58,6 +58,7 @@ class AppointmentCancelResponse(BaseModel):
     ly_do_huy: str
     thoi_gian_huy: datetime
     nguoi_huy_vai_tro: str = Field(..., description="Vai trò người hủy: benh_nhan, bac_si, admin")
+    nguoi_huy_id: Optional[int] = Field(None, description="ID người dùng thực hiện hủy lịch")
 
 
 class AppointmentRescheduleRequest(BaseModel):

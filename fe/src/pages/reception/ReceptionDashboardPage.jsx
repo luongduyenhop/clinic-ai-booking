@@ -1,19 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
-import { Tag, Button, Progress, Alert } from 'antd'
-import {
-    CalendarOutlined,
-    CheckCircleOutlined,
-    ClockCircleOutlined,
-    SyncOutlined,
-    StopOutlined,
-    UserAddOutlined,
-    OrderedListOutlined,
-    ArrowRightOutlined,
-    WarningOutlined,
-    LockOutlined,
-} from '@ant-design/icons'
+import { Progress, Alert } from 'antd'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
 import AppointmentDetailModal from '../../components/reception/AppointmentDetailModal'
 import CloseShiftModal from '../../components/reception/CloseShiftModal'
@@ -21,9 +9,24 @@ import { APPOINTMENT_STATUS, QUEUE_STATUS } from '../../utils/constants/receptio
 import { formatDoctorName } from '../../utils/doctorHelper'
 import {
     fetchShiftDashboardAsync,
-    fetchFlowBoardAsync,
     fetchDoctorAbsencesAsync,
 } from '../../redux/actions/reception/receptionAction'
+import {
+    ClipboardText,
+    CalendarCheck,
+    CalendarPlus,
+    UserList,
+    Stethoscope,
+    LockKey,
+    ShieldCheck,
+    WarningCircle,
+    ArrowRight,
+    Clock,
+    UserCheck,
+    ChartBar,
+    Pulse,
+    CheckCircle,
+} from '../../components/common/ClinicIcon'
 
 export default function ReceptionDashboardPage() {
     const navigate = useNavigate()
@@ -128,129 +131,183 @@ export default function ReceptionDashboardPage() {
     const maxHourCount = Math.max(...hourlyData.map((d) => d.count), 1)
 
     return (
-        <div className="space-y-6">
-            {/* Quick Actions Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <span className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-base">
-                        ⚡
-                    </span>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-800">Thao tác nhanh đầu ca làm việc</h2>
-                        <span className="text-xs text-slate-500">Tiếp nhận bệnh nhân, ghi nhận walk-in và điều phối hàng đợi</span>
+        <div className="space-y-4">
+            {/* Top Welcome Banner — Aligned with Admin Dashboard */}
+            <div className="rounded-2xl bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white shadow-md flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="space-y-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider border border-white/20">
+                        <ShieldCheck size={14} weight="fill" className="text-[#FFB54A]" />
+                        <span>TRUNG TÂM ĐIỀU HÀNH BÀN TIẾP ĐÓN & LỄ TÂN CLINIC-AI</span>
                     </div>
+                    <h1 className="font-display text-xl sm:text-2xl font-extrabold tracking-tight">
+                        BÀN LÀM VIỆC TIẾP ĐÓN, CHECK-IN & ĐIỀU PHỐI HÀNG ĐỢI
+                    </h1>
+                    <p className="text-xs text-sky-100 max-w-3xl">
+                        Theo dõi công suất tiếp nhận, cấp số thứ tự, cảnh báo bệnh nhân chờ lâu và điều chuyển bệnh nhân khi bác sĩ vắng mặt theo thời gian thực.
+                    </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Button
-                        type="primary"
-                        icon={<UserAddOutlined />}
-                        className="bg-sky-600 font-semibold"
-                        onClick={() => navigate('/reception/check-in')}
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <Link
+                        to="/reception/check-in"
+                        className="medpro-btn-amber shadow-sm inline-flex items-center gap-1.5"
                     >
-                        Tiếp nhận (Check-in)
-                    </Button>
-                    <Button
-                        icon={<CalendarOutlined />}
+                        <ClipboardText size={16} weight="bold" />
+                        <span>Tiếp nhận (F2)</span>
+                    </Link>
+                    <Link
+                        to="/reception/queue"
+                        className="px-4 py-2 rounded-full bg-white text-[#003553] hover:bg-[#E8F4FD] font-extrabold text-xs shadow-sm transition inline-flex items-center gap-1.5"
+                    >
+                        <UserList size={16} weight="bold" className="text-[#00B5F1]" />
+                        <span>Hàng đợi (F4)</span>
+                    </Link>
+                    <button
+                        type="button"
                         onClick={() => setIsCreateAppOpen(true)}
-                        className="font-semibold"
+                        className="medpro-btn-outline !bg-white/15 !text-white !border-white/30 hover:!bg-white/25 text-xs inline-flex items-center gap-1.5"
                     >
-                        Đặt lịch mới
-                    </Button>
-                    <Button
-                        icon={<OrderedListOutlined />}
-                        onClick={() => navigate('/reception/queue')}
-                        className="font-semibold"
-                    >
-                        Mở hàng đợi
-                    </Button>
-                    <Button
-                        icon={<LockOutlined className="text-rose-600" />}
+                        <CalendarPlus size={15} weight="bold" />
+                        <span>Đặt lịch</span>
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setIsCloseShiftOpen(true)}
-                        className="font-semibold text-rose-700 bg-rose-50 border-rose-200 hover:bg-rose-100"
+                        className="medpro-btn-danger text-xs inline-flex items-center gap-1.5"
                     >
-                        Đóng ca trực
-                    </Button>
+                        <LockKey size={14} weight="bold" />
+                        <span>Đóng ca trực</span>
+                    </button>
                 </div>
             </div>
 
             {/* Critical Alert if any doctor is absent */}
             {activeIncidents.length > 0 && (
-                <Alert
-                    message="Cảnh báo sự cố ca trực: Bác sĩ vắng mặt đột xuất"
-                    description={`Đang có ${activeIncidents.length} bác sĩ nghỉ đột xuất cần điều chuyển bệnh nhân sang bác sĩ khác.`}
-                    type="error"
-                    showIcon
-                    action={
-                        <Button size="small" danger onClick={() => navigate('/reception/tasks')}>
-                            Xử lý sự cố ngay
-                        </Button>
-                    }
-                />
+                <div className="rounded-xl border border-rose-300 bg-rose-50/90 p-4 shadow-xs flex items-center justify-between gap-3 text-rose-900">
+                    <div className="flex items-center gap-3">
+                        <WarningCircle size={24} weight="fill" className="text-rose-600 shrink-0" />
+                        <div>
+                            <div className="text-sm font-bold text-rose-900">Cảnh báo sự cố ca trực: Bác sĩ vắng mặt đột xuất</div>
+                            <div className="text-xs text-rose-700">Đang có {activeIncidents.length} bác sĩ nghỉ đột xuất cần điều chuyển bệnh nhân sang buồng khám khác.</div>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/reception/tasks')}
+                        className="medpro-btn-danger shrink-0 font-bold text-xs"
+                    >
+                        Xử lý sự cố ngay &rarr;
+                    </button>
+                </div>
             )}
 
-            {/* 6 Metric KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-sky-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Tổng lịch hôm nay</span>
-                        <CalendarOutlined className="text-sky-500" />
+            {/* 6 Metric KPI Cards — Exact Admin HIS Dashboard Style */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                {/* 1. Tổng lịch hôm nay */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-[#00B5F1]">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">TLH — Tổng hẹn</div>
+                        <div className="font-display text-2xl font-extrabold text-[#003553] mt-1">
+                            {todayAppointmentsCount}
+                        </div>
+                        <Link to="/reception/appointments" className="text-[11px] font-bold text-[#00B5F1] hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-slate-800 mt-2">{todayAppointmentsCount}</div>
-                    <span className="text-[11px] text-slate-500 font-medium">Toàn bộ chuyên khoa</span>
+                    <div className="w-11 h-11 rounded-full bg-[#E8F4FD] text-[#00B5F1] font-black flex items-center justify-center text-xs border border-[#CBE9FA] shrink-0">
+                        TLH
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-teal-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Đã Check-in</span>
-                        <CheckCircleOutlined className="text-teal-500" />
+                {/* 2. Đã Check-in */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-teal-500">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">ĐCI — Đã Check-in</div>
+                        <div className="font-display text-2xl font-extrabold text-teal-700 mt-1">
+                            {checkedInCount}
+                        </div>
+                        <Link to="/reception/queue" className="text-[11px] font-bold text-teal-700 hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-teal-700 mt-2">{checkedInCount}</div>
-                    <span className="text-[11px] text-teal-600 font-medium">Đã cấp vé thứ tự</span>
+                    <div className="w-11 h-11 rounded-full bg-teal-50 text-teal-700 font-black flex items-center justify-center text-xs border border-teal-200 shrink-0">
+                        ĐCI
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-amber-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Đang chờ khám</span>
-                        <ClockCircleOutlined className="text-amber-500" />
+                {/* 3. Đang chờ khám */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-amber-500">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">CK — Chờ khám</div>
+                        <div className="font-display text-2xl font-extrabold text-amber-600 mt-1">
+                            {waitingCount}
+                        </div>
+                        <Link to="/reception/queue" className="text-[11px] font-bold text-amber-600 hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-amber-600 mt-2">{waitingCount}</div>
-                    <span className="text-[11px] text-amber-600 font-medium">Tại các sảnh phòng</span>
+                    <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 font-black flex items-center justify-center text-xs border border-amber-200 shrink-0">
+                        CK
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-purple-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Đang trong phòng</span>
-                        <SyncOutlined spin className="text-purple-500" />
+                {/* 4. Đang trong phòng khám */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-sky-500">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">ĐK — Đang khám</div>
+                        <div className="font-display text-2xl font-extrabold text-sky-600 mt-1">
+                            {inConsultationCount}
+                        </div>
+                        <Link to="/reception/queue" className="text-[11px] font-bold text-sky-600 hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-purple-700 mt-2">{inConsultationCount}</div>
-                    <span className="text-[11px] text-purple-600 font-medium">Bác sĩ đang khám</span>
+                    <div className="w-11 h-11 rounded-full bg-sky-50 text-sky-600 font-black flex items-center justify-center text-xs border border-sky-200 shrink-0">
+                        ĐK
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-emerald-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Đã hoàn tất</span>
-                        <CheckCircleOutlined className="text-emerald-500" />
+                {/* 5. Đã hoàn tất */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">KTK — Kết thúc</div>
+                        <div className="font-display text-2xl font-extrabold text-emerald-600 mt-1">
+                            {completedCount}
+                        </div>
+                        <Link to="/reception/queue" className="text-[11px] font-bold text-emerald-600 hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-emerald-600 mt-2">{completedCount}</div>
-                    <span className="text-[11px] text-emerald-600 font-medium">Hoàn thành lượt</span>
+                    <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 font-black flex items-center justify-center text-xs border border-emerald-200 shrink-0">
+                        KTK
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-red-300 transition">
-                    <div className="flex items-center justify-between text-slate-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Muộn / Hủy / Vắng</span>
-                        <StopOutlined className="text-red-500" />
+                {/* 6. Vắng mặt / Hủy / Muộn */}
+                <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
+                    <div>
+                        <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">VM — Vắng / Muộn</div>
+                        <div className="font-display text-2xl font-extrabold text-rose-600 mt-1">
+                            {lateOrNoShowCount}
+                        </div>
+                        <Link to="/reception/tasks" className="text-[11px] font-bold text-rose-600 hover:underline mt-1 inline-block">
+                            Chi tiết &rarr;
+                        </Link>
                     </div>
-                    <div className="text-2xl font-black text-red-600 mt-2">{lateOrNoShowCount}</div>
-                    <span className="text-[11px] text-red-500 font-medium">Cần xử lý lại slot</span>
+                    <div className="w-11 h-11 rounded-full bg-rose-50 text-rose-600 font-black flex items-center justify-center text-xs border border-rose-200 shrink-0">
+                        VM
+                    </div>
                 </div>
             </div>
 
-            {/* Room Status / Buồng khám realtime */}
+            {/* Room Status / Buồng khám vật lý thời gian thực */}
             {roomStatus.length > 0 && (
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-800">Giám sát buồng khám vật lý thời gian thực</h3>
-                        <span className="text-xs text-slate-500">Cảnh báo tải theo từng cửa buồng</span>
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Stethoscope size={16} weight="duotone" className="text-[#00B5F1]" />
+                            <span>GIÁM SÁT TẢI TRỌNG CÔNG SUẤT BUỒNG KHÁM VẬT LÝ</span>
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-normal">Cảnh báo tải theo từng cửa buồng</span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                         {roomStatus.map((rm) => {
@@ -262,20 +319,20 @@ export default function ReceptionDashboardPage() {
                                     key={rm.phong_kham_id || rm.ten_phong}
                                     className={`p-3 rounded-xl border text-xs space-y-1.5 transition ${
                                         isOverloaded
-                                            ? 'bg-amber-50/70 border-amber-300'
-                                            : 'bg-slate-50/70 border-slate-200/80'
+                                            ? 'bg-amber-50/70 border-amber-300 shadow-2xs'
+                                            : 'bg-[#F8FCFF] border-[#E2EDF5] hover:border-[#00B5F1]'
                                     }`}
                                 >
                                     <div className="flex justify-between items-center">
-                                        <span className="font-bold text-slate-800">{rm.ten_phong}</span>
-                                        {isOverloaded && <WarningOutlined className="text-amber-600" />}
+                                        <span className="font-bold text-[#003553]">{rm.ten_phong}</span>
+                                        {isOverloaded && <WarningCircle size={15} weight="fill" className="text-amber-500" />}
                                     </div>
                                     <div className="text-slate-500 text-[11px] truncate">
                                         BS: {formattedDoc}
                                     </div>
-                                    <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 font-semibold">
+                                    <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/60 font-semibold">
                                         <span className="text-slate-500 text-[11px]">Đang chờ:</span>
-                                        <span className={isOverloaded ? 'text-amber-700 font-bold' : 'text-sky-700'}>
+                                        <span className={isOverloaded ? 'text-amber-700 font-bold' : 'text-[#00B5F1] font-bold'}>
                                             {waiting} BN
                                         </span>
                                     </div>
@@ -287,15 +344,15 @@ export default function ReceptionDashboardPage() {
             )}
 
             {/* Charts & Status Distribution Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Hourly Chart */}
-                <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-800">Mật độ bệnh nhân check-in theo khung giờ</h3>
-                            <span className="text-xs text-slate-500">Thống kê lưu lượng check-in thực tế</span>
-                        </div>
-                        <span className="text-xs font-semibold px-2 py-1 rounded-md bg-slate-100 text-slate-600">
+                <div className="lg:col-span-2 medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
+                        <span className="inline-flex items-center gap-1.5">
+                            <ChartBar size={16} weight="duotone" className="text-[#00B5F1]" />
+                            <span>MẬT ĐỘ BỆNH NHÂN CHECK-IN THEO KHUNG GIỜ</span>
+                        </span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#E8F4FD] text-[#003553]">
                             Hôm nay
                         </span>
                     </div>
@@ -310,7 +367,7 @@ export default function ReceptionDashboardPage() {
                                     </span>
                                     <div
                                         style={{ height: `${Math.max(heightPct, 6)}%` }}
-                                        className="w-full max-w-[36px] bg-sky-500 hover:bg-sky-600 rounded-t-lg transition-all duration-300 shadow-2xs"
+                                        className="w-full max-w-[36px] bg-[#00B5F1] hover:bg-[#009ED4] rounded-t-lg transition-all duration-300 shadow-2xs"
                                     />
                                     <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">{d.hour}</span>
                                 </div>
@@ -320,38 +377,43 @@ export default function ReceptionDashboardPage() {
                 </div>
 
                 {/* Queue Status Distribution */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                    <h3 className="text-sm font-bold text-slate-800">Tỷ lệ phân bổ trạng thái lượt</h3>
-                    <div className="space-y-3 text-xs">
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Pulse size={16} weight="duotone" className="text-[#00B5F1]" />
+                            <span>PHÂN BỔ TRẠNG THÁI LƯỢT</span>
+                        </span>
+                    </div>
+                    <div className="space-y-3 text-xs pt-1">
                         <div>
-                            <div className="flex justify-between font-medium mb-1 text-slate-700">
+                            <div className="flex justify-between font-semibold mb-1 text-slate-700">
                                 <span>Đang chờ ({waitingCount})</span>
-                                <span>{Math.round((waitingCount / (checkedInCount || 1)) * 100)}%</span>
+                                <span className="font-bold text-amber-600">{Math.round((waitingCount / (checkedInCount || 1)) * 100)}%</span>
                             </div>
-                            <Progress percent={Math.round((waitingCount / (checkedInCount || 1)) * 100)} strokeColor="#eab308" showInfo={false} size="small" />
+                            <Progress percent={Math.round((waitingCount / (checkedInCount || 1)) * 100)} strokeColor="#f59e0b" showInfo={false} size="small" />
                         </div>
                         <div>
-                            <div className="flex justify-between font-medium mb-1 text-slate-700">
+                            <div className="flex justify-between font-semibold mb-1 text-slate-700">
                                 <span>Đang khám ({inConsultationCount})</span>
-                                <span>{Math.round((inConsultationCount / (checkedInCount || 1)) * 100)}%</span>
+                                <span className="font-bold text-sky-600">{Math.round((inConsultationCount / (checkedInCount || 1)) * 100)}%</span>
                             </div>
-                            <Progress percent={Math.round((inConsultationCount / (checkedInCount || 1)) * 100)} strokeColor="#a855f7" showInfo={false} size="small" />
+                            <Progress percent={Math.round((inConsultationCount / (checkedInCount || 1)) * 100)} strokeColor="#00B5F1" showInfo={false} size="small" />
                         </div>
                         <div>
-                            <div className="flex justify-between font-medium mb-1 text-slate-700">
+                            <div className="flex justify-between font-semibold mb-1 text-slate-700">
                                 <span>Đã hoàn tất ({completedCount})</span>
-                                <span>{Math.round((completedCount / (checkedInCount || 1)) * 100)}%</span>
+                                <span className="font-bold text-emerald-600">{Math.round((completedCount / (checkedInCount || 1)) * 100)}%</span>
                             </div>
                             <Progress percent={Math.round((completedCount / (checkedInCount || 1)) * 100)} strokeColor="#10b981" showInfo={false} size="small" />
                         </div>
                         <div>
-                            <div className="flex justify-between font-medium mb-1 text-slate-700">
+                            <div className="flex justify-between font-semibold mb-1 text-slate-700">
                                 <span>Vãng lai trực tiếp</span>
-                                <span>{shiftSummary?.vang_lai ?? queueEntries.filter((q) => q.isWalkIn).length} ca</span>
+                                <span className="font-bold text-[#003553]">{shiftSummary?.vang_lai ?? queueEntries.filter((q) => q.isWalkIn).length} ca</span>
                             </div>
                             <Progress
                                 percent={Math.round(((shiftSummary?.vang_lai ?? queueEntries.filter((q) => q.isWalkIn).length) / (checkedInCount || 1)) * 100)}
-                                strokeColor="#0284c7"
+                                strokeColor="#003553"
                                 showInfo={false}
                                 size="small"
                             />
@@ -361,17 +423,20 @@ export default function ReceptionDashboardPage() {
             </div>
 
             {/* 3 Columns: Upcoming Appointments, Long Waiting, Active Incidents */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* 1. Upcoming Appointments */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-800">Bệnh nhân sắp đến</h3>
-                        <Link to="/reception/appointments" className="text-xs font-semibold text-sky-600 hover:underline">
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
+                        <span className="inline-flex items-center gap-1.5">
+                            <CalendarCheck size={16} weight="duotone" className="text-[#00B5F1]" />
+                            <span>BỆNH NHÂN SẮP ĐẾN</span>
+                        </span>
+                        <Link to="/reception/appointments" className="text-[11px] font-bold text-[#00B5F1] hover:underline">
                             Xem tất cả ({appointments.length})
                         </Link>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                         {upcomingAppointments.length === 0 ? (
                             <div className="text-center py-6 text-slate-400 text-xs">Không có lịch hẹn sắp tới</div>
                         ) : (
@@ -381,17 +446,17 @@ export default function ReceptionDashboardPage() {
                                     <div
                                         key={app.id}
                                         onClick={() => setSelectedApp(app)}
-                                        className="p-3 rounded-xl bg-slate-50 hover:bg-sky-50/50 border border-slate-200/80 cursor-pointer transition text-xs space-y-1"
+                                        className="p-2.5 rounded-xl bg-[#F8FCFF] hover:bg-[#E8F4FD] border border-[#E2EDF5] cursor-pointer transition text-xs space-y-1"
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900">{app.ten_benh_nhan || pat?.fullName}</span>
-                                            <span className="font-semibold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded text-[11px]">
+                                            <span className="font-bold text-[#003553]">{app.ten_benh_nhan || pat?.fullName}</span>
+                                            <span className="font-bold text-[#00B5F1] bg-[#E8F4FD] border border-[#CBE9FA] px-2 py-0.5 rounded-full text-[10.5px]">
                                                 {app.gio_kham || app.timeSlot}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-slate-500 text-[11px]">
                                             <span>Mã: {app.ma_lich_kham || app.appointmentCode || `APT-${app.id}`}</span>
-                                            <span>{app.so_dien_thoai || pat?.phone}</span>
+                                            <span className="font-mono">{app.so_dien_thoai || pat?.phone}</span>
                                         </div>
                                     </div>
                                 )
@@ -401,20 +466,21 @@ export default function ReceptionDashboardPage() {
                 </div>
 
                 {/* 2. Long Waiting Patients */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
                         <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-bold text-slate-800">Bệnh nhân chờ lâu</h3>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                            <Clock size={16} weight="duotone" className="text-amber-500" />
+                            <span>BỆNH NHÂN CHỜ LÂU (&gt;30P)</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
                                 {longWaitingList.length} ca
                             </span>
                         </div>
-                        <Link to="/reception/queue" className="text-xs font-semibold text-sky-600 hover:underline">
-                            Xem hàng đợi
+                        <Link to="/reception/queue" className="text-[11px] font-bold text-[#00B5F1] hover:underline">
+                            Hàng đợi &rarr;
                         </Link>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                         {longWaitingList.length === 0 ? (
                             <div className="text-center py-6 text-slate-400 text-xs">Không có bệnh nhân chờ quá 30 phút</div>
                         ) : (
@@ -424,19 +490,19 @@ export default function ReceptionDashboardPage() {
                                 return (
                                     <div
                                         key={q.id}
-                                        className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs space-y-1"
+                                        className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-1"
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900">
-                                                {q.ticketNumber} - {q.patientName || pat?.fullName}
+                                            <span className="font-bold text-[#003553]">
+                                                #{q.ticketNumber} - {q.patientName || pat?.fullName}
                                             </span>
-                                            <span className="font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded text-[11px]">
+                                            <span className="font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full text-[10.5px]">
                                                 Chờ {q.waitTimeMinutes}p
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between text-slate-500 text-[11px]">
                                             <span>{q.roomName || room?.name}</span>
-                                            <span>Check-in: {q.checkInTime}</span>
+                                            <span className="font-mono">Check-in: {q.checkInTime}</span>
                                         </div>
                                     </div>
                                 )
@@ -446,35 +512,37 @@ export default function ReceptionDashboardPage() {
                 </div>
 
                 {/* 3. Incidents / Active Tasks */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="medpro-section-title">
                         <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-bold text-slate-800">Sự cố cần xử lý</h3>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                            <WarningCircle size={16} weight="duotone" className="text-rose-500" />
+                            <span>SỰ CỐ CẦN XỬ LÝ</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800">
                                 {activeIncidents.length} sự cố
                             </span>
                         </div>
-                        <Link to="/reception/tasks" className="text-xs font-semibold text-red-600 hover:underline">
-                            Xử lý ngay <ArrowRightOutlined />
+                        <Link to="/reception/tasks" className="text-[11px] font-bold text-rose-600 hover:underline inline-flex items-center gap-0.5">
+                            <span>Xử lý</span>
+                            <ArrowRight size={11} weight="bold" />
                         </Link>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                         {activeIncidents.length === 0 ? (
                             <div className="text-center py-6 text-slate-400 text-xs">Không có sự cố tồn đọng trong ca</div>
                         ) : (
                             activeIncidents.map((inc) => (
                                 <div
                                     key={inc.bac_si_id}
-                                    className="p-3 rounded-xl bg-red-50/60 border border-red-200 text-xs space-y-1 hover:border-red-300 transition"
+                                    className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 text-xs space-y-1 hover:border-rose-300 transition"
                                 >
                                     <div className="flex items-center justify-between">
-                                        <span className="font-bold text-slate-800 truncate max-w-[200px]">
+                                        <span className="font-bold text-slate-900 truncate max-w-[200px]">
                                             BS {inc.ten_bac_si} nghỉ đột xuất
                                         </span>
-                                        <Tag color="error" className="mr-0 text-[10px] font-semibold">
+                                        <span className="medpro-badge-danger text-[10px]">
                                             Khẩn cấp
-                                        </Tag>
+                                        </span>
                                     </div>
                                     <p className="text-slate-600 text-[11px]">
                                         Khoa: {inc.ten_chuyen_khoa} • {inc.so_benh_nhan_bi_anh_huong || 0} bệnh nhân cần chuyển
@@ -487,29 +555,31 @@ export default function ReceptionDashboardPage() {
             </div>
 
             {/* Recent Audit Activities */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between">
+            <div className="medpro-card p-4 space-y-3">
+                <div className="medpro-section-title">
                     <div>
-                        <h3 className="text-sm font-bold text-slate-800">Hoạt động gần đây của lễ tân (Audit Logs)</h3>
-                        <span className="text-xs text-slate-500">Ghi nhận minh bạch mọi thao tác tiếp nhận, đổi lịch, gọi số và điều phối</span>
+                        <span>HOẠT ĐỘNG GẦN ĐÂY CỦA LỄ TÂN (AUDIT LOGS)</span>
+                        <div className="text-[11px] text-slate-400 font-normal mt-0.5">
+                            Ghi nhận minh bạch mọi thao tác tiếp nhận, đổi lịch, gọi số và điều phối
+                        </div>
                     </div>
-                    <Link to="/reception/reports" className="text-xs font-semibold text-sky-600 hover:underline">
-                        Xem toàn bộ nhật ký
+                    <Link to="/reception/reports" className="text-[11px] font-bold text-[#00B5F1] hover:underline">
+                        Toàn bộ nhật ký &rarr;
                     </Link>
                 </div>
 
                 <div className="divide-y divide-slate-100 text-xs">
                     {recentLogs.map((log) => (
                         <div key={log.id} className="py-2.5 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <Tag color="blue" className="font-mono text-[11px]">
+                            <div className="flex items-center gap-2.5">
+                                <span className="medpro-badge-info font-mono text-[10.5px]">
                                     {log.actionType}
-                                </Tag>
-                                <span className="font-medium text-slate-700">{log.description}</span>
+                                </span>
+                                <span className="font-medium text-[#003553]">{log.description}</span>
                             </div>
-                            <div className="text-right text-slate-400 text-[11px] shrink-0">
+                            <div className="text-right text-slate-400 text-[11px] shrink-0 font-mono">
                                 <span>{log.timestamp}</span>
-                                <span className="block font-medium text-slate-500">{log.actor}</span>
+                                <span className="block font-semibold text-slate-600">{log.actor}</span>
                             </div>
                         </div>
                     ))}
@@ -522,8 +592,15 @@ export default function ReceptionDashboardPage() {
                 appointment={selectedApp}
                 open={Boolean(selectedApp)}
                 onClose={() => setSelectedApp(null)}
-                onCheckInClick={(app) => {
-                    navigate('/reception/check-in', { state: { preselectAppointmentId: app.id } })
+                onCheckInClick={(app, patFromModal) => {
+                    const matchedPat = patFromModal || patients.find((p) => p.id === (app.patientId || app.benh_nhan_id)) || app.benh_nhan
+                    navigate('/reception/check-in', {
+                        state: {
+                            preselectAppointmentId: app.id || app.ma_lich_kham,
+                            appointment: app,
+                            patient: matchedPat,
+                        },
+                    })
                 }}
             />
             <CloseShiftModal

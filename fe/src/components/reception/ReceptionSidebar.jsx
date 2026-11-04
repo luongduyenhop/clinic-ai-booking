@@ -2,154 +2,222 @@ import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import {
-    DashboardOutlined,
-    CalendarOutlined,
-    UserAddOutlined,
-    OrderedListOutlined,
-    TeamOutlined,
-    ScheduleOutlined,
-    AuditOutlined,
-    AlertOutlined,
-    BarChartOutlined,
-    LeftOutlined,
-    RightOutlined,
-    HomeOutlined,
-} from '@ant-design/icons'
+    ClinicIcon,
+    Hospital,
+    CaretLeft,
+    CaretRight,
+    GlobeHemisphereWest,
+    HouseLine,
+    ClipboardText,
+    UserList,
+    CalendarCheck,
+    Users,
+    Stethoscope,
+    Receipt,
+    WarningCircle,
+    ChartBar,
+} from '../common/ClinicIcon'
 
 export default function ReceptionSidebar() {
-    const [collapsed, setCollapsed] = useState(false)
-    const { queueEntries, tasks } = useSelector((state) => state.reception)
+    const [isCollapsed, setIsCollapsed] = useState(false)
+    const { queueEntries = [], tasks = [] } = useSelector((state) => state.reception || {})
 
-    const waitingCount = queueEntries.filter((q) => q.status === 'WAITING').length
+    const waitingCount = queueEntries.filter((q) => q.status === 'WAITING' || q.status === 'cho_kham').length
     const pendingTasksCount = tasks.filter((t) => t.status === 'PENDING').length
 
-    const navItems = [
+    const sections = [
         {
-            to: '/reception/dashboard',
-            label: 'Tổng quan (Dashboard)',
-            icon: <DashboardOutlined className="text-base" />,
+            id: 'reception_core',
+            title: 'Nghiệp vụ tiếp đón',
+            items: [
+                {
+                    to: '/reception/dashboard',
+                    label: 'Tổng quan (Dashboard)',
+                    icon: HouseLine,
+                },
+                {
+                    to: '/reception/check-in',
+                    label: 'Tiếp nhận bệnh nhân',
+                    icon: ClipboardText,
+                },
+                {
+                    to: '/reception/queue',
+                    label: 'Quản lý hàng đợi',
+                    icon: UserList,
+                    badge: waitingCount > 0 ? `${waitingCount} chờ` : null,
+                    badgeColor: 'bg-amber-400 text-[#003553]',
+                },
+                {
+                    to: '/reception/appointments',
+                    label: 'Quản lý lịch hẹn',
+                    icon: CalendarCheck,
+                },
+            ],
         },
         {
-            to: '/reception/check-in',
-            label: 'Tiếp nhận bệnh nhân',
-            icon: <UserAddOutlined className="text-base" />,
-            badge: null,
+            id: 'reception_operations',
+            title: 'Hồ sơ & Vận hành',
+            items: [
+                {
+                    to: '/reception/patients',
+                    label: 'Hồ sơ bệnh nhân',
+                    icon: Users,
+                },
+                {
+                    to: '/reception/schedule',
+                    label: 'Lịch trực & Nguồn lực',
+                    icon: Stethoscope,
+                },
+                {
+                    to: '/reception/administration',
+                    label: 'Thủ tục & Viện phí',
+                    icon: Receipt,
+                },
+            ],
         },
         {
-            to: '/reception/queue',
-            label: 'Quản lý hàng đợi',
-            icon: <OrderedListOutlined className="text-base" />,
-            badge: waitingCount > 0 ? `${waitingCount} chờ` : null,
-            badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-        },
-        {
-            to: '/reception/appointments',
-            label: 'Quản lý lịch hẹn',
-            icon: <CalendarOutlined className="text-base" />,
-        },
-        {
-            to: '/reception/patients',
-            label: 'Hồ sơ bệnh nhân',
-            icon: <TeamOutlined className="text-base" />,
-        },
-        {
-            to: '/reception/schedule',
-            label: 'Lịch trực & Nguồn lực',
-            icon: <ScheduleOutlined className="text-base" />,
-        },
-        {
-            to: '/reception/administration',
-            label: 'Thủ tục & Thanh toán',
-            icon: <AuditOutlined className="text-base" />,
-        },
-        {
-            to: '/reception/tasks',
-            label: 'Sự cố cần xử lý',
-            icon: <AlertOutlined className="text-base" />,
-            badge: pendingTasksCount > 0 ? `${pendingTasksCount} vụ` : null,
-            badgeColor: 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse',
-        },
-        {
-            to: '/reception/reports',
-            label: 'Lịch sử & Báo cáo',
-            icon: <BarChartOutlined className="text-base" />,
+            id: 'reception_audit',
+            title: 'Giám sát & Báo cáo',
+            items: [
+                {
+                    to: '/reception/tasks',
+                    label: 'Sự cố cần xử lý',
+                    icon: WarningCircle,
+                    badge: pendingTasksCount > 0 ? `${pendingTasksCount} vụ` : null,
+                    badgeColor: 'bg-rose-500 text-white',
+                },
+                {
+                    to: '/reception/reports',
+                    label: 'Lịch sử & Báo cáo',
+                    icon: ChartBar,
+                },
+            ],
         },
     ]
 
     return (
         <aside
-            className={`transition-all duration-300 ease-in-out bg-[#002B42] text-slate-200 flex flex-col shrink-0 border-r border-[#003E5E]/40 select-none z-20 ${
-                collapsed ? 'w-20' : 'w-64'
+            className={`h-screen sticky top-0 bg-[#003553] text-white flex flex-col shrink-0 shadow-xl select-none border-r border-white/10 transition-all duration-200 z-40 overflow-hidden ${
+                isCollapsed ? 'w-[64px]' : 'w-[244px]'
             }`}
         >
-            {/* Header Clinic Logo */}
-            <div className="h-16 px-4 flex items-center justify-between border-b border-[#003E5E]/40">
-                <Link to="/reception/dashboard" className="flex items-center gap-3 overflow-hidden">
-                    <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
-                        ✚
+            {/* Brand Logo - Aligned with Admin */}
+            <div className="h-14 px-3 flex items-center justify-between border-b border-white/10 bg-[#002840]">
+                <Link to="/reception/dashboard" className="flex items-center gap-2.5 group overflow-hidden">
+                    <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md ring-2 ring-white/15 shrink-0 group-hover:scale-105 transition-transform">
+                        <Hospital size={18} weight="fill" />
                     </span>
-                    {!collapsed && (
-                        <div className="truncate">
-                            <span className="font-bold text-white text-base block leading-tight tracking-tight">Lễ Tân Y Tế</span>
-                            <span className="text-[11px] text-[#00B5F1] font-semibold">Clinic Reception Portal</span>
+                    {!isCollapsed && (
+                        <div className="leading-tight truncate">
+                            <div className="font-display font-extrabold text-sm tracking-wide text-white">
+                                CLINIC<span className="text-[#00B5F1]">-AI</span> HIS
+                            </div>
+                            <div className="text-[10px] text-sky-200/80 font-medium truncate">
+                                Bàn Tiếp Đón & Lễ Tân
+                            </div>
                         </div>
                     )}
                 </Link>
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer text-xs"
-                    title={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
-                >
-                    {collapsed ? <RightOutlined /> : <LeftOutlined />}
-                </button>
             </div>
 
-            {/* Navigation items */}
-            <nav className="p-3 space-y-1 flex-1 overflow-y-auto no-scrollbar text-sm font-medium">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.to}
-                        to={item.to}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-xl transition duration-150 group relative ${
-                                isActive
-                                    ? 'bg-[#00B5F1] text-white font-bold shadow-md'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            } ${collapsed ? 'justify-center' : ''}`
-                        }
-                        title={collapsed ? item.label : undefined}
-                    >
-                        <span className="shrink-0">{item.icon}</span>
-                        {!collapsed && (
-                            <div className="flex-1 flex items-center justify-between truncate">
-                                <span className="truncate">{item.label}</span>
-                                {item.badge && (
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1.5 shrink-0 ${item.badgeColor}`}>
-                                        {item.badge}
-                                    </span>
-                                )}
+            {/* Navigation Sections */}
+            <nav className="flex-1 overflow-y-auto py-2.5 px-2 space-y-3 text-[12px] no-scrollbar">
+                {sections.map((section) => (
+                    <div key={section.id} className="space-y-1">
+                        {/* Section Header */}
+                        {!isCollapsed && section.title && (
+                            <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-sky-300/60 flex items-center gap-1.5">
+                                <span className="w-1 h-1 rounded-full bg-[#00B5F1]" />
+                                <span className="truncate">{section.title}</span>
                             </div>
                         )}
-                        {/* Dot indicator when collapsed and has badge */}
-                        {collapsed && item.badge && (
-                            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-400" />
+                        {isCollapsed && section.title && (
+                            <div className="border-t border-white/10 my-1 mx-2" />
                         )}
-                    </NavLink>
+
+                        {/* Section Items */}
+                        {section.items.map((item) => {
+                            const IconComponent = item.icon
+                            return (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    title={isCollapsed ? item.label : undefined}
+                                    className={({ isActive }) =>
+                                        `flex items-center gap-2.5 px-2.5 py-2 rounded-xl font-medium transition-all group ${
+                                            isActive
+                                                ? 'bg-[#00B5F1] text-white font-bold shadow-xs'
+                                                : 'text-sky-100/85 hover:bg-white/10 hover:text-white'
+                                        }`
+                                    }
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            <IconComponent
+                                                size={17}
+                                                weight={isActive ? 'fill' : 'duotone'}
+                                                className={`shrink-0 ${isActive ? 'text-white' : 'text-[#00B5F1]'}`}
+                                            />
+                                            {!isCollapsed && (
+                                                <div className="flex-1 flex items-center justify-between min-w-0">
+                                                    <span className="truncate">{item.label}</span>
+                                                    {item.badge && (
+                                                        <span
+                                                            className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-full shrink-0 shadow-2xs ${
+                                                                item.badgeColor || 'bg-sky-500 text-white'
+                                                            }`}
+                                                        >
+                                                            {item.badge}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </NavLink>
+                            )
+                        })}
+                    </div>
                 ))}
             </nav>
 
-            {/* Bottom links */}
-            <div className="p-3 border-t border-[#003E5E]/40 space-y-2">
-                <Link
-                    to="/"
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition text-xs font-semibold ${
-                        collapsed ? 'justify-center' : ''
-                    }`}
-                    title="Về Trang Chủ"
+            {/* Bottom Bar: Toggle Collapse & Gateway Status */}
+            <div className="p-2.5 border-t border-white/10 bg-[#002840] text-[11px] text-sky-200/80 space-y-1.5">
+                {/* Collapse Button */}
+                <button
+                    type="button"
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-semibold text-center transition cursor-pointer"
+                    title={isCollapsed ? 'Mở rộng thanh menu' : 'Thu gọn thanh menu'}
                 >
-                    <HomeOutlined />
-                    {!collapsed && <span>Về Trang Chủ Khám</span>}
-                </Link>
+                    {isCollapsed ? (
+                        <CaretRight size={15} weight="bold" className="text-[#00B5F1]" />
+                    ) : (
+                        <>
+                            <CaretLeft size={14} weight="bold" className="text-[#00B5F1]" />
+                            <span>Thu gọn menu</span>
+                        </>
+                    )}
+                </button>
+
+                {!isCollapsed && (
+                    <>
+                        <div className="flex items-center justify-between pt-1 text-[10px]">
+                            <span>Cổng ĐTQG (TT 26):</span>
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-400/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                ONLINE
+                            </span>
+                        </div>
+                        <Link
+                            to="/"
+                            className="flex items-center justify-center gap-1.5 w-full py-1 text-[10.5px] rounded-lg text-sky-200/80 hover:text-white hover:bg-white/5 transition"
+                        >
+                            <GlobeHemisphereWest size={13} weight="duotone" className="text-[#00B5F1]" />
+                            <span>Cổng Đặt Lịch Bệnh Nhân</span>
+                        </Link>
+                    </>
+                )}
             </div>
         </aside>
     )

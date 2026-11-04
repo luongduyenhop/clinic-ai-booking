@@ -550,6 +550,7 @@ class AppointmentService:
         lich.ly_do_huy = payload.ly_do_huy
         lich.thoi_gian_huy = datetime.now(timezone.utc)
         lich.nguoi_huy_vai_tro = user.vai_tro
+        lich.nguoi_huy_id = user.nguoi_dung_id
 
         # Hủy vé hàng đợi liên quan nếu bệnh nhân đã check-in trước đó (Quy tắc Bahmni Lifecycle)
         stmt_ticket = select(HangDoiKham).where(
@@ -582,7 +583,8 @@ class AppointmentService:
             trang_thai=lich.trang_thai,
             ly_do_huy=lich.ly_do_huy,
             thoi_gian_huy=lich.thoi_gian_huy,
-            nguoi_huy_vai_tro=lich.nguoi_huy_vai_tro
+            nguoi_huy_vai_tro=lich.nguoi_huy_vai_tro,
+            nguoi_huy_id=lich.nguoi_huy_id
         )
 
     async def reschedule_booking(

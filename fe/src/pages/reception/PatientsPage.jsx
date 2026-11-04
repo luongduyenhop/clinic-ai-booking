@@ -173,10 +173,10 @@ export default function PatientsPage() {
     return (
         <div className="space-y-5">
             {/* Header & Search */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Quản lý hồ sơ bệnh nhân (Master Patient Index)</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý hồ sơ bệnh nhân (Master Patient Index)</h2>
                         <span className="text-xs text-slate-500">
                             Tra cứu hồ sơ hành chính từ CSDL, kiểm tra mã định danh, người đại diện và cảnh báo trùng lặp
                         </span>
@@ -189,7 +189,7 @@ export default function PatientsPage() {
                                 dispatch(fetchAppointmentsAsync({ pageSize: 100 }))
                                 dispatch(fetchFlowBoardAsync())
                             }}
-                            className="text-xs font-semibold"
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
                         >
                             Làm mới
                         </Button>
@@ -197,7 +197,7 @@ export default function PatientsPage() {
                             type="primary"
                             icon={<UserAddOutlined />}
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-sky-600 font-semibold"
+                            className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
                         >
                             Tạo hồ sơ mới
                         </Button>
@@ -226,7 +226,7 @@ export default function PatientsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="medpro-card overflow-hidden">
                 <Table
                     columns={columns}
                     dataSource={filteredPatients}

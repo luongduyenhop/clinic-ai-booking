@@ -244,10 +244,10 @@ export default function ClinicSchedulePage() {
     return (
         <div className="space-y-5">
             {/* Header chung */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Quản lý Lịch trực & Nguồn lực phòng khám</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý Lịch trực & Nguồn lực phòng khám</h2>
                         <span className="text-xs text-slate-500">
                             Điều phối ca trực bác sĩ thực tế, khuôn mẫu lịch định kỳ tuần và giám sát công suất buồng khám vật lý
                         </span>
@@ -257,7 +257,7 @@ export default function ClinicSchedulePage() {
                         icon={<ReloadOutlined />}
                         loading={loading}
                         onClick={handleRefresh}
-                        className="rounded-lg text-xs"
+                        className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
                     >
                         Làm mới
                     </Button>
@@ -301,7 +301,7 @@ export default function ClinicSchedulePage() {
             {activeTab === 'daily_roster' && (
                 <div className="space-y-5">
                     {/* Thanh lọc Tab 1 */}
-                    <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center gap-3 text-xs">
+                    <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
                         <div>
                             <span className="text-slate-400 mr-2">Ngày khám:</span>
                             <DatePicker
@@ -456,7 +456,7 @@ export default function ClinicSchedulePage() {
                     </div>
 
                     {/* Giám sát phụ tải buồng khám thời gian thực (API 6.4) */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                    <div className="medpro-card p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -536,7 +536,7 @@ export default function ClinicSchedulePage() {
 
             {/* TAB 2: Lịch trực định kỳ theo tuần (API 6.3) */}
             {activeTab === 'template' && (
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                <div className="medpro-card p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                         <div>
                             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -582,7 +582,7 @@ export default function ClinicSchedulePage() {
 
             {/* TAB 3: Danh mục buồng khám vật lý (API 6.2) */}
             {activeTab === 'physical_rooms' && (
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                <div className="medpro-card p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                         <div>
                             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">

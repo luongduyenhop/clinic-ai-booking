@@ -169,7 +169,7 @@ export default function AdministrationPage() {
                             type="primary"
                             icon={<DollarCircleOutlined />}
                             onClick={() => setPaymentModal({ open: true, invoice: record, method: 'CASH', processing: false })}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
+                            className="medpro-btn-primary text-xs font-bold"
                         >
                             Thu tiền
                         </Button>
@@ -198,20 +198,20 @@ export default function AdministrationPage() {
     ]
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                     <span className="text-xs font-bold text-slate-400 uppercase">Doanh thu thu tại quầy hôm nay</span>
                     <div className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(totalRevenue)}</div>
                     <span className="text-[11px] text-emerald-700 font-medium">Đã thanh toán đầy đủ</span>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                     <span className="text-xs font-bold text-slate-400 uppercase">Hóa đơn chờ thanh toán</span>
                     <div className="text-2xl font-black text-amber-600 mt-2">{unpaidCount} ca</div>
                     <span className="text-[11px] text-amber-700 font-medium">Bệnh nhân chưa nộp phí khám</span>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                     <span className="text-xs font-bold text-slate-400 uppercase">Yêu cầu hoàn phí</span>
                     <div className="text-2xl font-black text-red-600 mt-2">{refundPendingCount} yêu cầu</div>
                     <span className="text-[11px] text-red-700 font-medium">Do hủy lịch đã đóng tiền trước</span>
@@ -219,10 +219,10 @@ export default function AdministrationPage() {
             </div>
 
             {/* Invoices Table & Search */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Thủ tục hành chính & Thanh toán viện phí</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Thủ tục hành chính & Thanh toán viện phí</h2>
                         <span className="text-xs text-slate-500">
                             Theo dõi biên nhận, hướng dẫn người bệnh sang thu ngân hoặc xác nhận thu tiền mặt
                         </span>
@@ -282,7 +282,7 @@ export default function AdministrationPage() {
                         type="primary"
                         loading={paymentModal.processing}
                         onClick={handleConfirmPayment}
-                        className="bg-emerald-600 hover:bg-emerald-700 font-bold"
+                        className="medpro-btn-primary text-xs font-bold"
                     >
                         Xác nhận đã thu {paymentModal.invoice ? formatCurrency(paymentModal.invoice.amountToPay) : ''}
                     </Button>,

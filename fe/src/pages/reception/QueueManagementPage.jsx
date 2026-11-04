@@ -942,7 +942,7 @@ export default function QueueManagementPage() {
                         size="small"
                         icon={<CheckCircleOutlined />}
                         onClick={() => handleCheckInWaitlist(record.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs"
+                        className="medpro-btn-primary font-bold text-xs"
                     >
                         Tiếp nhận vào khám
                     </Button>
@@ -1203,7 +1203,7 @@ export default function QueueManagementPage() {
                             <Button
                                 size="small"
                                 type="primary"
-                                className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
+                                className="medpro-btn-primary text-xs font-bold"
                                 icon={<PlayCircleOutlined />}
                                 onClick={() => handleResume(record)}
                             >
@@ -1214,7 +1214,7 @@ export default function QueueManagementPage() {
                                 size="small"
                                 type="primary"
                                 icon={<SoundOutlined />}
-                                className="bg-sky-600 hover:bg-sky-700 text-xs font-bold"
+                                className="medpro-btn-primary text-xs font-bold"
                                 onClick={() => handleCallNumber(record)}
                             >
                                 {record.callCount > 0 ? `Gọi lại (${record.callCount})` : 'Gọi số'}
@@ -1256,14 +1256,14 @@ export default function QueueManagementPage() {
     return (
         <div className="space-y-4">
             {/* Thanh tiêu đề & Công cụ điều phối trên cùng */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 medpro-card p-4">
                 <div>
-                    <h2 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                    <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
                         <span>Điều phối hàng đợi phòng khám</span>
                         <Badge
                             count={totalWaitingCount}
                             overflowCount={99}
-                            style={{ backgroundColor: '#0284c7' }}
+                            style={{ backgroundColor: '#00B5F1' }}
                         />
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -1277,7 +1277,7 @@ export default function QueueManagementPage() {
                         danger
                         icon={<AlertOutlined />}
                         onClick={() => setIsEmergencyModalOpen(true)}
-                        className="font-semibold text-xs"
+                        className="font-bold text-xs rounded-full"
                     >
                         Bàn giao cấp cứu
                     </Button>
@@ -1285,7 +1285,7 @@ export default function QueueManagementPage() {
                         size="middle"
                         icon={<SyncOutlined spin={isRefreshing} />}
                         onClick={handleRefreshQueue}
-                        className="font-semibold text-xs text-slate-700"
+                        className="medpro-btn-outline font-bold text-xs !h-8 !px-3"
                     >
                         Đồng bộ hàng đợi
                     </Button>
@@ -1293,12 +1293,12 @@ export default function QueueManagementPage() {
             </div>
 
             {/* Phân hệ buồng khám hiển thị theo từng Chuyên khoa */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 {/* Thanh chuyển đổi Chuyên khoa */}
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
                     <div className="flex items-center gap-2">
-                        <MedicineBoxOutlined className="text-sky-600 text-sm" />
-                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <MedicineBoxOutlined className="text-[#00B5F1] text-sm" />
+                        <h3 className="text-xs font-bold text-[#003553] uppercase tracking-wider">
                             Buồng khám theo chuyên khoa & Bác sĩ trực
                         </h3>
                     </div>
@@ -1306,7 +1306,7 @@ export default function QueueManagementPage() {
                         <button
                             type="button"
                             onClick={handleSelectAllRooms}
-                            className="text-xs text-sky-600 hover:text-sky-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                            className="text-xs text-[#00B5F1] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
                         >
                             <ClearOutlined /> Xem toàn bộ buồng khám
                         </button>
@@ -1433,15 +1433,15 @@ export default function QueueManagementPage() {
             </div>
 
             {/* Bảng Danh Sách Hàng Đợi Điều Phối */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 {/* Thanh Tabs Trạng thái & Ô Tìm kiếm (Đã loại bỏ dropdown theo yêu cầu) */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2EDF5] pb-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                         <button
                             type="button"
                             onClick={() => setActiveTab('ALL')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'ALL'
-                                    ? 'bg-sky-600 text-white shadow-xs'
+                                    ? 'bg-[#00B5F1] text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1451,7 +1451,7 @@ export default function QueueManagementPage() {
                             type="button"
                             onClick={() => setActiveTab('WAITING')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'WAITING'
-                                    ? 'bg-sky-600 text-white shadow-xs'
+                                    ? 'bg-[#00B5F1] text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1461,7 +1461,7 @@ export default function QueueManagementPage() {
                             type="button"
                             onClick={() => setActiveTab('IN_CONSULTATION')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'IN_CONSULTATION'
-                                    ? 'bg-sky-600 text-white shadow-xs'
+                                    ? 'bg-[#00B5F1] text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1471,7 +1471,7 @@ export default function QueueManagementPage() {
                             type="button"
                             onClick={() => setActiveTab('DEFERRED')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'DEFERRED'
-                                    ? 'bg-sky-600 text-white shadow-xs'
+                                    ? 'bg-[#00B5F1] text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1481,7 +1481,7 @@ export default function QueueManagementPage() {
                             type="button"
                             onClick={() => setActiveTab('COMPLETED')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeTab === 'COMPLETED'
-                                    ? 'bg-sky-600 text-white shadow-xs'
+                                    ? 'bg-[#00B5F1] text-white shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1494,7 +1494,7 @@ export default function QueueManagementPage() {
                                 dispatch(fetchReceptionWaitlistAsync())
                             }}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'WAITLIST'
-                                    ? 'bg-amber-600 text-white shadow-xs'
+                                    ? 'bg-[#FFB54A] text-[#003553] shadow-xs'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                         >
@@ -1649,7 +1649,7 @@ export default function QueueManagementPage() {
                                                 type="primary"
                                                 size="small"
                                                 onClick={handleResetAllFilters}
-                                                className="bg-sky-600 text-xs font-semibold mt-2"
+                                                className="medpro-btn-primary text-xs font-bold mt-2"
                                             >
                                                 Đặt lại tất cả bộ lọc
                                             </Button>

@@ -1,3 +1,4 @@
+from app.routers.schedule import router as schedule_router
 from fastapi import APIRouter
 from app.routers.auth import router as auth_router
 from app.routers.appointment import router as appointment_router
@@ -31,3 +32,4 @@ api_router.include_router(notification_router)
 api_router.include_router(staff_router)
 
 
+api_router.include_router(schedule_router)

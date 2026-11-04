@@ -205,11 +205,11 @@ export default function ReportsPage() {
     ]
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Header Toolbar: Tiêu đề + Bộ lọc Ngày xem & Ca trực */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+            <div className="medpro-card p-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <h1 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
                         <FieldTimeOutlined className="text-sky-600" />
                         Báo cáo Đối soát & Nhật ký Kiểm toán
                     </h1>
@@ -246,7 +246,7 @@ export default function ReportsPage() {
                         icon={<SyncOutlined spin={reportLoading || auditLoading} />}
                         onClick={handleRefreshAll}
                         loading={reportLoading || auditLoading}
-                        className="rounded-xl font-semibold text-xs"
+                        className="medpro-btn-outline !h-8 !px-3 font-semibold text-xs"
                     >
                         Làm mới
                     </Button>
@@ -256,7 +256,7 @@ export default function ReportsPage() {
             {/* 4 Thẻ KPI Đầu trang (API 9.1 ReceptionReportSummaryResponse) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* 1. Tổng lượt tiếp nhận */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Tổng lượt tiếp nhận
                     </span>
@@ -269,7 +269,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* 2. Thời gian chờ trung bình (SLA) */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Thời gian chờ TB (SLA)
                     </span>
@@ -282,7 +282,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* 3. Lịch hẹn bị hủy */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Hủy lịch trong ca
                     </span>
@@ -295,7 +295,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* 4. Không đến (No-show) */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Bùng hẹn (No-show)
                     </span>
@@ -309,7 +309,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Khối Phân bổ lượt tiếp nhận theo Chuyên khoa (API 9.1) */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-bold text-slate-800">
                         Phân bổ lượt tiếp nhận theo Chuyên khoa & Thời gian chờ TB (SLA)
@@ -354,7 +354,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Khối Nhật ký Kiểm toán Thao tác Tiếp đón (Audit Logs - API 9.2) */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-bold text-slate-800">

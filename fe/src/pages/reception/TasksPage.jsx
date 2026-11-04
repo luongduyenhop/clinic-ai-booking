@@ -139,7 +139,7 @@ export default function TasksPage() {
                     size="small"
                     type="primary"
                     icon={<SwapOutlined />}
-                    className="bg-sky-600 hover:bg-sky-700 text-xs font-semibold"
+                    className="medpro-btn-primary text-xs font-bold"
                     onClick={() => {
                         setSelectedIncident(record)
                         setSelectedTargetDoctor(null)
@@ -154,10 +154,10 @@ export default function TasksPage() {
     return (
         <div className="space-y-5">
             {/* Header info bar */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
                             <WarningOutlined className="text-amber-500" />
                             Trung tâm Sự cố & Cân bằng tải hàng đợi
                         </h2>
@@ -169,7 +169,7 @@ export default function TasksPage() {
                         <Button
                             icon={<SyncOutlined />}
                             onClick={handleRefresh}
-                            className="text-xs font-semibold"
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
                         >
                             Làm mới
                         </Button>
@@ -180,7 +180,7 @@ export default function TasksPage() {
             {/* SỰ CỐ BÁC SĨ NGHỈ ĐỘT XUẤT & ĐIỀU CHUYỂN HÀNG LOẠT (API 7.1 & 7.2) */}
             <div className="space-y-4">
                 {/* Bộ lọc ngày sự cố */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center gap-3 text-xs">
+                <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
                     <span className="text-slate-400">Ngày rà soát sự cố:</span>
                     <DatePicker
                         format="DD/MM/YYYY"
@@ -207,7 +207,7 @@ export default function TasksPage() {
                 )}
 
                 {/* Table sự cố */}
-                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                <div className="medpro-card overflow-hidden">
                     <Table
                         columns={incidentColumns}
                         dataSource={doctorAbsences}
@@ -240,7 +240,7 @@ export default function TasksPage() {
                         type="primary"
                         loading={isRebalancing}
                         onClick={handleConfirmRebalance}
-                        className="bg-sky-600"
+                        className="medpro-btn-primary text-xs font-bold"
                     >
                         Xác nhận điều chuyển hàng loạt
                     </Button>,

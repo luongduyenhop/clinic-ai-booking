@@ -142,8 +142,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
     const departmentName = appointment.ten_chuyen_khoa || appointment.chuyen_khoa?.ten_chuyen_khoa || departmentObj?.name || 'Theo phân bổ'
 
     const roomName = appointment.phong_kham || ''
-    const appDate = appointment.ngay_kham || appointment.appointmentDate
-    const appTime = appointment.gio_kham || appointment.timeSlot
+    const rawAppDate = appointment.ngay_kham || appointment.appointmentDate || appointment.ngay_dat || appointment.date || appointment.created_at
+    const appDate = rawAppDate ? (dayjs(rawAppDate).isValid() ? dayjs(rawAppDate).format('DD/MM/YYYY') : rawAppDate) : dayjs().format('DD/MM/YYYY')
+    const appTime = appointment.gio_kham || appointment.timeSlot || '08:30'
 
     // ── Trạng thái lịch khám ──────────────────────────────────────────
     const rawSt = String(appointment.trang_thai_lich || appointment.trang_thai || appointment.status || '').toLowerCase()
@@ -318,7 +319,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         <Modal
             title={
                 <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800">
+                    <span className="font-extrabold text-[#003553] text-base font-display">
                         Chi tiết lịch hẹn: {appointment.ma_lich_kham || appointment.appointmentCode || `APT-${appointment.id}`}
                     </span>
                     <Tag color={statusConfig.color} className="font-semibold">
@@ -338,13 +339,12 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         {canCancel && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button danger onClick={() => setIsCancelling(true)}>
+                            <Button className="medpro-btn-outline text-xs font-semibold" danger onClick={() => setIsCancelling(true)} className="medpro-btn-danger text-xs font-semibold">
                                 Hủy lịch hẹn
                             </Button>
                         )}
                         {canNoShow && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button
-                                className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                            <Button className="medpro-btn-outline !text-amber-700 !border-amber-300 hover:!bg-amber-50 text-xs font-semibold"
                                 onClick={() => setIsNoShowing(true)}
                             >
                                 Báo vắng mặt (No-Show)
@@ -353,9 +353,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </div>
                     <div className="flex items-center gap-2">
                         {isPendingConfirm && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button
-                                type="primary"
-                                className="bg-sky-600 font-semibold"
+                            <Button type="primary" className="medpro-btn-primary text-xs font-bold"
                                 loading={isConfirming}
                                 onClick={handleConfirmAppointment}
                             >
@@ -363,8 +361,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             </Button>
                         )}
                         {canReschedule && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button
-                                type="default"
+                            <Button className="medpro-btn-outline text-xs font-semibold"
                                 icon={<CalendarOutlined />}
                                 onClick={() => setIsRescheduling(true)}
                             >
@@ -372,19 +369,27 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             </Button>
                         )}
                         {canCheckIn && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button
-                                type="primary"
-                                icon={<CheckCircleOutlined />}
-                                className="bg-emerald-600 font-semibold"
+                            <Button type="primary" icon={<CheckCircleOutlined />}
+                                className="medpro-btn-primary text-xs font-bold shadow-sm"
                                 onClick={() => {
                                     onClose()
-                                    if (onCheckInClick) onCheckInClick(appointment)
+                                    if (onCheckInClick) {
+        onCheckInClick(appointment, {
+            id: patientId,
+            fullName: patientName,
+            phone: patientPhone,
+            patientCode: patientCode,
+            identityCard: patientCccd,
+            dob: patientDob,
+            gender: appointment.gioi_tinh || appointment.benh_nhan?.gioi_tinh || 'Nam',
+        })
+    }
                                 }}
                             >
                                 Tiếp nhận ngay (Check-in)
                             </Button>
                         )}
-                        <Button
+                        <Button className="medpro-btn-outline text-xs font-semibold"
                             onClick={() => {
                                 setIsCancelling(false)
                                 setIsRescheduling(false)
@@ -413,10 +418,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             onChange={(e) => setNoShowNote(e.target.value)}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button size="small" onClick={() => setIsNoShowing(false)}>
+                            <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsNoShowing(false)}>
                                 Quay lại
                             </Button>
-                            <Button
+                            <Button className="medpro-btn-outline text-xs font-semibold"
                                 size="small"
                                 type="primary"
                                 className="bg-amber-600 hover:bg-amber-700 font-semibold text-white"
@@ -443,10 +448,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             onChange={(e) => setCancelReason(e.target.value)}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button size="small" onClick={() => setIsCancelling(false)}>
+                            <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsCancelling(false)}>
                                 Quay lại
                             </Button>
-                            <Button
+                            <Button className="medpro-btn-outline text-xs font-semibold"
                                 size="small"
                                 type="primary"
                                 danger
@@ -549,15 +554,15 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                         </div>
 
                         <div className="flex justify-end gap-2 pt-1">
-                            <Button size="small" onClick={() => setIsRescheduling(false)}>
+                            <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsRescheduling(false)}>
                                 Hủy bỏ
                             </Button>
-                            <Button
+                            <Button className="medpro-btn-outline text-xs font-semibold"
                                 size="small"
                                 type="primary"
                                 loading={isRescheduleSubmitting}
                                 onClick={handleConfirmReschedule}
-                                className="bg-sky-600 font-semibold"
+                                className="medpro-btn-primary text-xs font-bold"
                             >
                                 Lưu thay đổi
                             </Button>

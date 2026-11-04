@@ -1,0 +1,18 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Hoàn tiền thành công 200,000đ cho hóa đơn HD-261102-A9DCE8",
+    "data": {
+        "ma_phieu_chi": "PC-261102132101-E0C2",
+        "phieu_chi_id": 65,
+        "hoa_don_id": 77,
+        "ma_hoa_don": "HD-261102-A9DCE8",
+        "so_tien_hoan": "200000",
+        "trang_thai_hoa_don_moi": "hoan_tien_mot_phan",
+        "thoi_gian": "2026-11-02T13:21:01.767508Z",
+        "nguoi_thuc_hien_id": 34462,
+        "ly_do": "Hoan tien mot phan hop le theo TC-BILL-007-02"
+    },
+    "meta": null,
+    "errors": null
+}

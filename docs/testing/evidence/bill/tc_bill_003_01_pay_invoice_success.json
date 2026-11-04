@@ -1,0 +1,23 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Thu tiền viện phí thành công cho hóa đơn HD-261102-A9DCE8",
+    "data": {
+        "id": 77,
+        "ma_hoa_don": "HD-261102-A9DCE8",
+        "luot_kham_id": 1885,
+        "benh_nhan_id": 13800,
+        "thu_ngan_id": 34462,
+        "tong_tien": "350000.00",
+        "mien_giam": "0.00",
+        "thuc_thu": "350000.00",
+        "phuong_thuc_thanh_toan": "tien_mat",
+        "trang_thai": "da_thu",
+        "so_hoa_don_in": "BL-2026-000077",
+        "ghi_chu": "Hoa don test G5-B",
+        "ngay_thanh_toan": "2026-11-02T13:20:34.905629Z",
+        "created_at": "2026-11-02T13:19:18.692248Z"
+    },
+    "meta": null,
+    "errors": null
+}

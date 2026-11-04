@@ -1,0 +1,8 @@
+﻿{
+    "trang_thai":  "da_huy",
+    "invoice_id":  78,
+    "timestamp":  "2026-11-02T20:20:09.7419378+07:00",
+    "case":  "Case B: Rejection of paying cancelled invoice",
+    "tc_id":  "TC-BILL-003-02",
+    "http_status":  409
+}

@@ -1,0 +1,26 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Khóa sổ ca trực thành công",
+    "data": {
+        "ok": true,
+        "ma_khoa_so": "KS-261102-2E0160",
+        "thoi_gian_dong_so": "2026-11-02T13:21:43.390283Z",
+        "tien_mat_thuc_te": "500000.00",
+        "chenh_lech_tien_mat": "150000.00",
+        "khoa_so_id": 45,
+        "tong_ket": {
+            "thu_ngan_id": 34462,
+            "ten_thu_ngan": "Thu Ngân Viện Phí",
+            "tong_hoa_don": 1,
+            "tong_tien_mat": "350000.00",
+            "tong_chuyen_khoan": "0.00",
+            "tong_the_pos": "0.00",
+            "tong_doanh_thu": "350000.00",
+            "so_phieu_thu": 1,
+            "so_phieu_chi": 0
+        }
+    },
+    "meta": null,
+    "errors": null
+}

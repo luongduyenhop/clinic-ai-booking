@@ -1,0 +1,8 @@
+﻿{
+    "invoice_status":  "da_thu",
+    "invoice_id":  77,
+    "timestamp":  "2026-11-02T20:20:36.0888566+07:00",
+    "part":  "Part B: Block direct cancellation of paid invoice",
+    "tc_id":  "TC-BILL-007-01",
+    "http_status":  409
+}

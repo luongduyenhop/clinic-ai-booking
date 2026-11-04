@@ -1712,7 +1712,13 @@ class QueueService:
 
             )
 
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
 
         )
 
@@ -2205,7 +2211,13 @@ class QueueService:
                 selectinload(HangDoiKham.phong_kham).selectinload(PhongKham.chuyen_khoa),
                 selectinload(HangDoiKham.nguoi_tiep_nhan).selectinload(TaiKhoan.nguoi_dung),
             )
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
             .order_by(HangDoiKham.thoi_gian_check_in.desc())
         )
         all_today_tickets = (await db.execute(stmt_q_today)).scalars().all()
@@ -2490,7 +2502,13 @@ class QueueService:
 
             .options(selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung))
 
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
 
         )
 
@@ -2932,13 +2950,19 @@ class QueueService:
 
 
 
-        # Đếm số lượng tiếp nhận thực tế từ HangDoiKham trong ngày
+        # Đếm số lượng tiếp nhận thực tế từ HangDoiKham trong ngày (loại trừ bệnh nhân bỏ khám hoặc hủy/đóng vé)
 
         stmt_counts = (
 
             select(HangDoiKham.bac_si_id, HangDoiKham.ca_kham, func.count(HangDoiKham.id))
 
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
 
             .group_by(HangDoiKham.bac_si_id, HangDoiKham.ca_kham)
 
@@ -3762,7 +3786,13 @@ class QueueService:
                 selectinload(HangDoiKham.phong_kham),
                 selectinload(HangDoiKham.lich_kham).selectinload(LichKham.chuyen_khoa),
             )
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
         )
         if ca_kham:
             stmt_queue = stmt_queue.where(HangDoiKham.ca_kham == ca_kham)
@@ -3927,7 +3957,13 @@ class QueueService:
                 selectinload(HangDoiKham.lich_kham),
                 selectinload(HangDoiKham.nguoi_tiep_nhan).selectinload(TaiKhoan.nguoi_dung),
             )
-            .where(HangDoiKham.ngay_kham == target_date)
+            .where(
+                HangDoiKham.ngay_kham == target_date,
+                HangDoiKham.trang_thai.notin_([
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]),
+            )
         )
         tickets = (await db.execute(stmt_tickets)).scalars().all()
 

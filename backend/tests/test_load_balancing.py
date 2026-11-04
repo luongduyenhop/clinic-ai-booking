@@ -19,7 +19,7 @@ from app.schemas.queue import CheckInRequest, WalkInCheckInRequest
 from app.schemas.appointment import AppointmentCreateRequest
 from app.services.load_balancing_service import load_balancing_service
 from app.services.queue_service import queue_service
-from app.services.appointment_service import appointment_service
+from app.services.appointment_service import appointment_service, clinic_now
 from app.core.exceptions import ConflictException, ForbiddenException, BadRequestException
 
 
@@ -29,7 +29,7 @@ async def test_fc05_load_balancing_selects_lowest_load_and_filters_leave(db_sess
     FC-05: Thuật toán Load Balancing chọn bác sĩ có tải thấp nhất và loại bỏ bác sĩ nghỉ phép
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = clinic_now().date()
 
     ck = ChuyenKhoa(
         ma_chuyen_khoa=f"CK-{suffix}",
@@ -123,7 +123,7 @@ async def test_fc06_check_in_appointment_branch_b_without_doctor(db_session):
     -> Hệ thống tự động phân bổ bác sĩ rảnh và gán vào hàng đợi
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = clinic_now().date()
 
     ck = ChuyenKhoa(
         ma_chuyen_khoa=f"CK-{suffix}",
@@ -199,7 +199,7 @@ async def test_fc07_walk_in_auto_assign_and_quota_enforcement(db_session):
     và kiểm tra hạn mức vãng lai (han_muc_vang_lai)
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = clinic_now().date()
 
     ck = ChuyenKhoa(
         ma_chuyen_khoa=f"CK-{suffix}",
@@ -278,7 +278,7 @@ async def test_fc08_special_priority_sets_priority_1(db_session):
     được cấp muc_do_uu_tien = 1
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = clinic_now().date()
 
     ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa=f"Khoa Tim Mạch {suffix}", is_active=True)
     db_session.add(ck)
@@ -334,7 +334,7 @@ async def test_fc09_receptionist_overrides_blocked_booking(db_session):
     - Lễ tân bảo lãnh đặt lịch hộ -> Thành công, cờ is_blocked_booking KHÔNG bị reset
     """
     suffix = uuid.uuid4().hex[:6]
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = clinic_now().date() + timedelta(days=1)
 
     nd_bs = NguoiDung(ho_ten="BS FC09", email=f"bs.{suffix}@clinic.com", so_dien_thoai=f"0984{suffix[:6]}")
     nd_bn = NguoiDung(ho_ten="BN Bị Khóa", email=f"bn.{suffix}@clinic.com", so_dien_thoai=f"0985{suffix[:6]}")

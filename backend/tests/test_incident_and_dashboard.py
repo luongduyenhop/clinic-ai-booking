@@ -28,7 +28,7 @@ async def test_fc10_shift_dashboard(db_session):
     FC-10: Dashboard ca trực lễ tân tính toán chính xác số liệu vận hành
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
     shift_name = "sang"
     now_utc = datetime.now(timezone.utc)
 
@@ -150,7 +150,7 @@ async def test_fc11_room_status_dashboard(db_session):
     FC-11: Giám sát buồng khám vật lý và cảnh báo quá tải (>= 5 bệnh nhân chờ)
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
     shift_name = "sang"
     now_utc = datetime.now(timezone.utc)
 
@@ -229,7 +229,7 @@ async def test_fc12_reception_appointments(db_session):
     FC-12: Tra cứu lịch hẹn toàn diện của Lễ tân theo ngày, ca, chuyên khoa và search keyword
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
     now_utc = datetime.now(timezone.utc)
 
     ck = ChuyenKhoa(ma_chuyen_khoa=f"CK12-{suffix}", ten_chuyen_khoa=f"Khoa Tim Mạch {suffix}")
@@ -304,7 +304,7 @@ async def test_fc13_doctor_absence_incidents(db_session):
     FC-13: Trung tâm sự cố phát hiện bác sĩ nghỉ đột xuất và gợi ý bác sĩ thay thế cùng chuyên khoa
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
 
     # Tạo receptionist user
     nd_rec = NguoiDung(ho_ten="Le Tan FC13", email=f"rec13.{suffix}@clinic.com", so_dien_thoai=f"0990{suffix}")
@@ -396,7 +396,7 @@ async def test_fc14_rebalance_queue(db_session):
     FC-14: Điều phối tải hàng đợi hàng loạt giữa 2 bác sĩ cùng chuyên khoa
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
     now_utc = datetime.now(timezone.utc)
 
     # Tạo receptionist user chuẩn
@@ -509,7 +509,7 @@ async def test_fc15_resource_views(db_session):
     FC-15: Tra cứu tài nguyên phân ca (roster), buồng khám (rooms), và lịch định kỳ (roster template)
     """
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = date(2030, 5, 20)
 
     ck = ChuyenKhoa(ma_chuyen_khoa=f"CK15-{suffix}", ten_chuyen_khoa=f"Khoa Mắt {suffix}")
     db_session.add(ck)

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-export default function PatientInfoStep({ formik, user, isAuthenticated }) {
+export default function PatientInfoStep({ formik, user, isAuthenticated, loading = false, error = '', onBack = () => {} }) {
   return <form onSubmit={formik.handleSubmit} className="space-y-5" noValidate>
     <div><h2 className="booking-title">Xác nhận lịch khám</h2><p className="booking-description">Lịch được tạo cho bệnh nhân đang đăng nhập. Thông tin định danh lấy từ hồ sơ tài khoản trên Backend.</p></div>
     {!isAuthenticated && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Bạn cần đăng nhập tài khoản bệnh nhân trước khi đặt lịch. <Link to="/login" className="underline font-bold">Đăng nhập</Link></p>}
@@ -11,5 +11,12 @@ export default function PatientInfoStep({ formik, user, isAuthenticated }) {
     {formik.touched.reason && formik.errors.reason && <p className="text-xs text-rose-600">{formik.errors.reason}</p>}
     <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="accepted" checked={formik.values.accepted} onChange={formik.handleChange}/><span>Tôi xác nhận lịch khám dành cho chính tài khoản bệnh nhân đang đăng nhập và đồng ý với chính sách bảo mật.</span></label>
     {formik.touched.accepted && formik.errors.accepted && <p className="text-xs text-rose-600">{formik.errors.accepted}</p>}
+    {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+    <div className="flex justify-between border-t border-slate-100 pt-5">
+      <button type="button" className="medpro-btn-outline" onClick={onBack}>← Quay lại</button>
+      <button type="submit" className="medpro-btn-primary" disabled={!isAuthenticated || loading}>
+        {loading ? 'Đang tạo lịch...' : 'Xác nhận đặt lịch'}
+      </button>
+    </div>
   </form>
 }

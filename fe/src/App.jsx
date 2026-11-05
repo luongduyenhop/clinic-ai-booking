@@ -169,6 +169,7 @@ function App() {
                         {/* Phân quyền vai trò & Quản lý nhân viên + CCHN */}
                         <Route path="phan-quyen" element={<RolePermissionPage />} />
                         <Route path="nhan-vien" element={<RolePermissionPage />} />
+                        <Route path="nghi-phep" element={<RolePermissionPage />} />
 
                         {/* Quản lý mẫu (7 loại mẫu) */}
                         <Route path="quan-ly-mau" element={<Navigate to="/admin/quan-ly-mau/mau-in" replace />} />

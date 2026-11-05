@@ -301,6 +301,74 @@ export class AdminService extends BaseServices {
             return null
         }
     }
+
+    getDoctorLeaves = async ({ doctorId, trangThai } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (doctorId) params.append('doctor_id', doctorId)
+            if (trangThai) params.append('trang_thai', trangThai)
+            const query = params.toString() ? '?' + params.toString() : ''
+            const res = await this.get('/api/v1/admin/leaves' + query, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            try {
+                const params = new URLSearchParams()
+                if (doctorId) params.append('doctor_id', doctorId)
+                if (trangThai) params.append('trang_thai', trangThai)
+                const query = params.toString() ? '?' + params.toString() : ''
+                const res = await this.get('/api/v1/schedules/leaves' + query, {
+                    __skipGlobalLoading: true,
+                    __skipRefresh: true,
+                })
+                return res.data?.data || res.data || []
+            } catch {
+                return []
+            }
+        }
+    }
+
+    createDoctorLeave = async (payload) => {
+        try {
+            const res = await this.post('/api/v1/admin/leaves', payload)
+            return res.data?.data || res.data
+        } catch {
+            const res = await this.post('/api/v1/schedules/leaves', payload)
+            return res.data?.data || res.data
+        }
+    }
+
+    approveDoctorLeave = async (leaveId, payload) => {
+        try {
+            const res = await this.post('/api/v1/admin/leaves/' + leaveId + '/approve', payload)
+            return res.data?.data || res.data
+        } catch {
+            const res = await this.post('/api/v1/schedules/leaves/' + leaveId + '/approve', payload)
+            return res.data?.data || res.data
+        }
+    }
+
+    getLeaveAffectedBookings = async (leaveId) => {
+        try {
+            const res = await this.get('/api/v1/admin/leaves/' + leaveId + '/affected-bookings', {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            try {
+                const res = await this.get('/api/v1/schedules/leaves/' + leaveId + '/affected-bookings', {
+                    __skipGlobalLoading: true,
+                    __skipRefresh: true,
+                })
+                return res.data?.data || res.data || []
+            } catch {
+                return []
+            }
+        }
+    }
 }
 
 export const adminService = new AdminService()

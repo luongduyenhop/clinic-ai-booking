@@ -24,7 +24,6 @@ import {
     SwapOutlined,
     PlayCircleOutlined,
     CloseCircleOutlined,
-    AlertOutlined,
     HistoryOutlined,
     SoundOutlined,
     AudioMutedOutlined,
@@ -56,7 +55,6 @@ import { setQueueEntries } from '../../redux/slices/reception/receptionSlice'
 import { receptionService } from '../../services/reception/receptionService'
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
-import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import { QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
@@ -110,7 +108,7 @@ export default function QueueManagementPage() {
         waitlistLoading = false,
     } = useSelector((state) => state.reception)
 
-    const [activeTab, setActiveTab] = useState('ALL')
+    const [activeTab, setActiveTab] = useState('WAITING')
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedDepartmentTab, setSelectedDepartmentTab] = useState('')
     const [selectedRoomId, setSelectedRoomId] = useState(null)
@@ -123,7 +121,6 @@ export default function QueueManagementPage() {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
     const [isAudioEnabled, setIsAudioEnabled] = useState(() => audioAnnouncer.isEnabled())
     const [patientDrawerId, setPatientDrawerId] = useState(null)
-    const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [receiptEntry, setReceiptEntry] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -910,7 +907,7 @@ export default function QueueManagementPage() {
     const handleResetAllFilters = () => {
         setSelectedRoomId(null)
         setSelectedDepartmentTab(departmentTabs[0]?.id || '')
-        setActiveTab('ALL')
+        setActiveTab('WAITING')
         setSearchQuery('')
         setSelectedDate(dayjs().format('YYYY-MM-DD'))
         setSelectedShift(getDefaultShift())
@@ -1211,15 +1208,6 @@ export default function QueueManagementPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button
-                        size="middle"
-                        danger
-                        icon={<AlertOutlined />}
-                        onClick={() => setIsEmergencyModalOpen(true)}
-                        className="font-bold text-xs rounded-full"
-                    >
-                        Bàn giao cấp cứu
-                    </Button>
                     <Button
                         size="middle"
                         icon={<SyncOutlined spin={isRefreshing} />}
@@ -1566,7 +1554,7 @@ export default function QueueManagementPage() {
                                             </div>
                                         }
                                     >
-                                        {(selectedRoomId !== null || searchQuery || activeTab !== 'ALL') && (
+                                        {(selectedRoomId !== null || searchQuery || activeTab !== 'WAITING') && (
                                             <Button
                                                 type="primary"
                                                 size="small"
@@ -1675,11 +1663,6 @@ export default function QueueManagementPage() {
                 patientId={patientDrawerId}
                 open={Boolean(patientDrawerId)}
                 onClose={() => setPatientDrawerId(null)}
-            />
-
-            <EmergencyHandoverModal
-                open={isEmergencyModalOpen}
-                onClose={() => setIsEmergencyModalOpen(false)}
             />
 
             <CheckInReceiptModal

@@ -14,8 +14,10 @@ import {
     SwapOutlined,
     SyncOutlined,
     WarningOutlined,
+    UnorderedListOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import IncidentDetailDrawer from '../../components/reception/IncidentDetailDrawer'
 import {
     fetchDoctorAbsencesAsync,
     rebalanceQueueAsync,
@@ -31,6 +33,7 @@ export default function TasksPage() {
 
     const [incidentDate, setIncidentDate] = useState(() => dayjs().format('YYYY-MM-DD'))
     const [selectedIncident, setSelectedIncident] = useState(null)
+    const [drawerIncident, setDrawerIncident] = useState(null)
     const [selectedTargetDoctor, setSelectedTargetDoctor] = useState(null)
     const [isRebalancing, setIsRebalancing] = useState(false)
 
@@ -126,21 +129,31 @@ export default function TasksPage() {
         {
             title: 'Thao tác',
             key: 'actions',
-            width: 170,
+            width: 280,
             align: 'right',
             render: (_, record) => (
-                <Button
-                    size="small"
-                    type="primary"
-                    icon={<SwapOutlined />}
-                    className="medpro-btn-primary text-xs font-bold"
-                    onClick={() => {
-                        setSelectedIncident(record)
-                        setSelectedTargetDoctor(null)
-                    }}
-                >
-                    ⚡ Điều chuyển ngay
-                </Button>
+                <div className="flex items-center justify-end gap-2">
+                    <Button
+                        size="small"
+                        icon={<UnorderedListOutlined />}
+                        onClick={() => setDrawerIncident(record)}
+                        className="medpro-btn-outline text-xs font-semibold"
+                    >
+                        📋 Chi tiết & Xử lý lẻ
+                    </Button>
+                    <Button
+                        size="small"
+                        type="primary"
+                        icon={<SwapOutlined />}
+                        className="medpro-btn-primary text-xs font-bold"
+                        onClick={() => {
+                            setSelectedIncident(record)
+                            setSelectedTargetDoctor(null)
+                        }}
+                    >
+                        ⚡ Chuyển nhanh
+                    </Button>
+                </div>
             ),
         },
     ]
@@ -262,6 +275,13 @@ export default function TasksPage() {
                     </div>
                 )}
             </Modal>
+
+            <IncidentDetailDrawer
+                incident={drawerIncident}
+                open={Boolean(drawerIncident)}
+                onClose={() => setDrawerIncident(null)}
+                onSuccess={handleRefresh}
+            />
         </div>
     )
 }

@@ -279,8 +279,8 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                         </div>
                     ) : (
                         <>
-                            {/* 6 Thẻ KPI Cảnh Báo Đối Soát Tổng Quan */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
+                            {/* 5 Thẻ KPI Cảnh Báo Đối Soát Tổng Quan */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-center">
                                 <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
                                     <div className="text-[11px] text-emerald-800 font-medium">Đang khám</div>
                                     <div className="text-lg font-bold text-emerald-700 font-mono">
@@ -319,20 +319,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                         {canhBao.so_waitlist_ton || 0}
                                     </div>
                                     <div className="text-[9px] text-sky-600 truncate">Đang chờ slot</div>
-                                </div>
-
-                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                                    <div className="text-[11px] text-slate-700 font-medium truncate">Thu ngân</div>
-                                    <div className="text-xs font-bold text-slate-800 mt-1 truncate">
-                                        {canhBao.thu_ngan_da_khoa_so ? (
-                                            <Tag color="success" className="mr-0 text-[10px]">Đã khóa sổ</Tag>
-                                        ) : (
-                                            <Tag color="warning" className="mr-0 text-[10px]">Chưa khóa</Tag>
-                                        )}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                        {(canhBao.tien_mat_da_thu || 0).toLocaleString('vi-VN')}đ
-                                    </div>
                                 </div>
                             </div>
 
@@ -421,46 +407,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                                             <span className="text-slate-400">Không có lịch quá giờ</span>
                                                         )}
                                                     </div>
-                                                </div>
-                                            ),
-                                        },
-                                        {
-                                            key: 'cashier',
-                                            label: 'Đối chiếu Thu ngân',
-                                            children: (
-                                                <div className="p-3 bg-slate-50/70 rounded-lg text-xs space-y-1.5">
-                                                    {chiTiet.doi_chieu_thu_ngan ? (
-                                                        <>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Trạng thái khóa sổ két:</span>
-                                                                <span className="font-semibold">
-                                                                    {chiTiet.doi_chieu_thu_ngan.da_khoa_so ? (
-                                                                        <Tag color="success">Đã khóa sổ ({chiTiet.doi_chieu_thu_ngan.ma_khoa_so || 'N/A'})</Tag>
-                                                                    ) : (
-                                                                        <Tag color="error">Chưa chốt ca thu ngân</Tag>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Thu ngân chốt:</span>
-                                                                <span className="font-medium text-slate-800">{chiTiet.doi_chieu_thu_ngan.thu_ngan_chot || 'N/A'}</span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Tổng tiền mặt:</span>
-                                                                <span className="font-bold text-slate-800 font-mono">
-                                                                    {(chiTiet.doi_chieu_thu_ngan.tong_tien_mat || 0).toLocaleString('vi-VN')} đ
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Tổng chuyển khoản / QR:</span>
-                                                                <span className="font-bold text-sky-700 font-mono">
-                                                                    {(chiTiet.doi_chieu_thu_ngan.tong_chuyen_khoan || 0).toLocaleString('vi-VN')} đ
-                                                                </span>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-slate-400">Chưa có thông tin đối chiếu từ quầy thu ngân</span>
-                                                    )}
                                                 </div>
                                             ),
                                         },

@@ -23,14 +23,11 @@ import {
     getPatientDetailAsync,
     fetchReceptionDataAsync,
     fetchAppointmentsAsync,
-    fetchFlowBoardAsync,
     fetchShiftDashboardAsync,
-    fetchRosterAsync,
     searchAppointmentsAsync,
 } from '../../redux/actions/reception/receptionAction'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
-import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
 import { receptionService } from '../../services/reception/receptionService'
 import { unwrapApi } from '../../utils/helpers/apiHelper'
@@ -124,7 +121,6 @@ export default function CheckInPage() {
         rooms,
         services,
         roomStatus = [],
-        roster = [],
         queueEntries = [],
     } = useSelector((state) => state.reception)
 
@@ -134,6 +130,7 @@ export default function CheckInPage() {
     const [isSearching, setIsSearching] = useState(false)
     const [isSearchOpen, setIsSearchOpen] = useState(false)
     const searchContainerRef = useRef(null)
+    const initialDeptLoadedRef = useRef(false)
     const [selectedPatient, setSelectedPatient] = useState(null)
     const [selectedAppointment, setSelectedAppointment] = useState(null)
     const [checkInMode, setCheckInMode] = useState('WITH_APPOINTMENT')
@@ -146,8 +143,7 @@ export default function CheckInPage() {
         { value: 'thuong_binh', label: 'Thương binh / Người có công' },
     ]
 
-    const [specialtiesList, setSpecialtiesList] = useState([])
-    const [loadingSpecialties, setLoadingSpecialties] = useState(false)
+    const loadingSpecialties = !departments || departments.length === 0
 
     const [walkInDepartmentId, setWalkInDepartmentId] = useState(null)
     const [walkInDoctorId, setWalkInDoctorId] = useState(null)
@@ -178,7 +174,6 @@ export default function CheckInPage() {
 
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
-    const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [createdQueueEntry, setCreatedQueueEntry] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -186,45 +181,11 @@ export default function CheckInPage() {
         const todayStr = dayjs().format('YYYY-MM-DD')
         dispatch(fetchReceptionDataAsync())
         dispatch(fetchAppointmentsAsync({ queryDate: todayStr, pageSize: 100 }))
-        dispatch(fetchFlowBoardAsync())
         dispatch(fetchShiftDashboardAsync({ queryDate: todayStr }))
-        dispatch(fetchRosterAsync({ queryDate: todayStr }))
-
-        const loadInitialSpecialties = async () => {
-            setLoadingSpecialties(true)
-            try {
-                const res = await receptionService.getSpecialties()
-                const data = unwrapApi(res) || []
-                const mapped = data.map((s) => ({
-                    id: s.id,
-                    name: s.ten_chuyen_khoa || s.name,
-                    code: s.ma_chuyen_khoa || s.code,
-                    room: s.vi_tri_phong,
-                    doctorCount: s.so_luong_bac_si || 0,
-                }))
-                setSpecialtiesList(mapped)
-                if (mapped.length > 0) {
-                    const firstId = mapped[0].id
-                    setWalkInDepartmentId(firstId)
-                    fetchWalkInDoctors(firstId)
-                    setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
-                    fetchQuickDoctors(firstId)
-                }
-            } catch {
-                setSpecialtiesList([])
-            } finally {
-                setLoadingSpecialties(false)
-            }
-        }
-        loadInitialSpecialties()
     }, [dispatch])
 
-    const fetchWalkInDoctors = async (depId) => {
-        if (!depId) {
-            setWalkInDoctors([])
-            return
-        }
-        setLoadingWalkInDocs(true)
+    const loadDoctorsForDepartment = async (depId) => {
+        if (!depId) return []
         try {
             const res = await receptionService.getDoctors({
                 specialty_id: Number(depId),
@@ -233,60 +194,45 @@ export default function CheckInPage() {
             })
             const data = unwrapApi(res)
             const list = Array.isArray(data) ? data : data?.items || []
-            setWalkInDoctors(
-                list.map((d) => {
-                    const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
-                    return {
-                        id: d.id,
-                        name: d.ho_ten || d.name,
-                        title: d.hoc_vi || '',
-                        roomId: d.phong_kham_id || rs?.phong_kham_id,
-                        roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
-                        waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
-                        status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
-                    }
-                })
-            )
+            return list.map((d) => {
+                const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
+                return {
+                    id: d.id,
+                    name: d.ho_ten || d.name,
+                    title: d.hoc_vi || '',
+                    roomId: d.phong_kham_id || rs?.phong_kham_id,
+                    roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
+                    waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
+                    status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
+                }
+            })
         } catch {
-            setWalkInDoctors([])
-        } finally {
-            setLoadingWalkInDocs(false)
+            return []
         }
     }
 
+    const fetchWalkInDoctors = async (depId) => {
+        setLoadingWalkInDocs(true)
+        const mapped = await loadDoctorsForDepartment(depId)
+        setWalkInDoctors(mapped)
+        setLoadingWalkInDocs(false)
+    }
+
     const fetchQuickDoctors = async (depId) => {
-        if (!depId) {
-            setQuickWalkInDoctors([])
-            return
-        }
         setLoadingQuickDocs(true)
-        try {
-            const res = await receptionService.getDoctors({
-                specialty_id: Number(depId),
-                page: 1,
-                page_size: 100,
-            })
-            const data = unwrapApi(res)
-            const list = Array.isArray(data) ? data : data?.items || []
-            setQuickWalkInDoctors(
-                list.map((d) => {
-                    const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
-                    return {
-                        id: d.id,
-                        name: d.ho_ten || d.name,
-                        title: d.hoc_vi || '',
-                        roomId: d.phong_kham_id || rs?.phong_kham_id,
-                        roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
-                        waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
-                        status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
-                    }
-                })
-            )
-        } catch {
-            setQuickWalkInDoctors([])
-        } finally {
-            setLoadingQuickDocs(false)
-        }
+        const mapped = await loadDoctorsForDepartment(depId)
+        setQuickWalkInDoctors(mapped)
+        setLoadingQuickDocs(false)
+    }
+
+    const fetchDoctorsForInitialDepartment = async (depId) => {
+        setLoadingWalkInDocs(true)
+        setLoadingQuickDocs(true)
+        const mapped = await loadDoctorsForDepartment(depId)
+        setWalkInDoctors(mapped)
+        setQuickWalkInDoctors(mapped)
+        setLoadingWalkInDocs(false)
+        setLoadingQuickDocs(false)
     }
 
     useEffect(() => {
@@ -548,11 +494,11 @@ export default function CheckInPage() {
         setWalkInDoctorId(null)
         fetchWalkInDoctors(depId)
 
-        const targetSpec = (specialtiesList.length > 0 ? specialtiesList : departments || []).find((s) => s.id === depId || s.code === depId)
-        const depRoom = rooms.find((r) => r.departmentId === depId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || rooms[0]
+        const targetSpec = (departments || []).find((s) => s.id === depId || s.code === depId)
+        const depRoom = (rooms || []).find((r) => r.departmentId === depId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || (rooms || [])[0]
         if (depRoom) setWalkInRoomId(depRoom.id || depRoom.code)
 
-        const depService = services.find((s) => s.departmentId === depId) || services[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
+        const depService = (services || []).find((s) => s.departmentId === depId) || (services || [])[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
         if (depService) setWalkInServiceId(depService.id)
     }
 
@@ -572,20 +518,22 @@ export default function CheckInPage() {
     }
 
     useEffect(() => {
-        const specSource = specialtiesList.length > 0 ? specialtiesList : departments
-        if (specSource && specSource.length > 0) {
-            if (!walkInDepartmentId) {
-                const firstId = specSource[0].id
-                setWalkInDepartmentId(firstId)
-                fetchWalkInDoctors(firstId)
-            }
-            if (!quickWalkInForm.departmentId) {
-                const firstId = specSource[0].id
-                setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
-                fetchQuickDoctors(firstId)
-            }
+        if (!initialDeptLoadedRef.current && departments && departments.length > 0) {
+            initialDeptLoadedRef.current = true
+            const firstId = departments[0].id
+            setWalkInDepartmentId(firstId)
+            setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
+
+            const targetSpec = departments[0]
+            const depRoom = (rooms || []).find((r) => r.departmentId === firstId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || (rooms || [])[0]
+            if (depRoom) setWalkInRoomId(depRoom.id || depRoom.code)
+
+            const depService = (services || []).find((s) => s.departmentId === firstId) || (services || [])[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
+            if (depService) setWalkInServiceId(depService.id)
+
+            fetchDoctorsForInitialDepartment(firstId)
         }
-    }, [departments, specialtiesList, walkInDepartmentId, quickWalkInForm.departmentId])
+    }, [departments, rooms, services])
 
     const handleConfirmCheckIn = async () => {
         if (!selectedPatient) {
@@ -916,14 +864,6 @@ export default function CheckInPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            icon={<AlertOutlined />}
-                            danger
-                            onClick={() => setIsEmergencyModalOpen(true)}
-                            className="medpro-btn-danger !h-8 !px-3.5 text-xs font-bold"
-                        >
-                            Bàn giao cấp cứu
-                        </Button>
-                        <Button
                             type="primary"
                             icon={<UserAddOutlined />}
                             onClick={() => setIsCreatePatientOpen(true)}
@@ -1233,7 +1173,7 @@ export default function CheckInPage() {
                                         placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
                                         value={walkInDepartmentId}
                                         onChange={handleWalkInDepartmentChange}
-                                        options={(specialtiesList.length > 0 ? specialtiesList : departments || []).map((s) => ({
+                                        options={(departments || []).map((s) => ({
                                             value: s.id,
                                             label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
                                         }))}
@@ -1450,7 +1390,7 @@ export default function CheckInPage() {
                                         placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
                                         value={quickWalkInForm.departmentId}
                                         onChange={handleQuickDepartmentChange}
-                                        options={(specialtiesList.length > 0 ? specialtiesList : departments || []).map((s) => ({
+                                        options={(departments || []).map((s) => ({
                                             value: s.id,
                                             label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
                                         }))}
@@ -1584,12 +1524,6 @@ export default function CheckInPage() {
                 open={isReceiptOpen}
                 onClose={() => setIsReceiptOpen(false)}
                 queueEntry={createdQueueEntry}
-            />
-
-            <EmergencyHandoverModal
-                open={isEmergencyModalOpen}
-                onClose={() => setIsEmergencyModalOpen(false)}
-                defaultPatientId={selectedPatient?.id}
             />
         </div>
     )

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_roles
 from sqlalchemy import select
 from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
@@ -39,8 +39,11 @@ from app.schemas.queue import (
 )
 from app.schemas.incident import (
     DoctorAbsenceIncidentResponse,
+    DoctorAbsenceAffectedPatientsResponse,
     RebalanceQueueRequest,
     RebalanceQueueResponse,
+    CancelIncidentTicketsRequest,
+    CancelIncidentTicketsResponse,
 )
 from app.services.queue_service import queue_service
 from app.services.incident_service import incident_service
@@ -54,25 +57,10 @@ from app.services.reception_service import reception_service
 
 router = APIRouter(prefix="/reception", tags=["6. Tiếp Đón & Điều Phối Hàng Đợi (Bahmni Queue Module)"])
 
-RECEPTION_STAFF_ROLES = (
-    VaiTroEnum.LE_TAN.value,
-    VaiTroEnum.ADMIN.value,
-    VaiTroEnum.BAC_SI.value,
-    VaiTroEnum.THU_NGAN.value,
-)
-
-RECEPTION_ADMIN_ROLES = (
-    VaiTroEnum.LE_TAN.value,
-    VaiTroEnum.ADMIN.value,
-)
-
-QUEUE_VIEW_ROLES = (
-    VaiTroEnum.LE_TAN.value,
-    VaiTroEnum.ADMIN.value,
-    VaiTroEnum.BAC_SI.value,
-    VaiTroEnum.THU_NGAN.value,
-    VaiTroEnum.KY_THUAT_VIEN.value,
-)
+# RBAC Dependencies chuẩn hóa qua require_roles
+require_reception_admin = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN])
+require_reception_staff = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN, VaiTroEnum.BAC_SI, VaiTroEnum.THU_NGAN])
+require_queue_view = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN, VaiTroEnum.BAC_SI, VaiTroEnum.THU_NGAN, VaiTroEnum.KY_THUAT_VIEN])
 
 
 
@@ -84,11 +72,9 @@ QUEUE_VIEW_ROLES = (
 async def search_appointments(
     q: str = Query(..., min_length=1, description="Từ khóa: mã hẹn APT, SĐT, hoặc họ tên"),
     query_date: Optional[date] = Query(None, description="Ngày khám cần tra cứu (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tìm kiếm lịch hẹn tại quầy tiếp đón!")
     results = await queue_service.search_appointments(q, query_date, db)
     return ResponseEnvelope.success_response(
         data=results,
@@ -104,7 +90,7 @@ async def search_appointments(
 )
 async def check_in_walk_in_quick(
     payload: WalkInQuickRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     result = await queue_service.check_in_walk_in_quick(payload, current_user, db)
@@ -123,7 +109,7 @@ async def check_in_walk_in_quick(
 )
 async def check_in_patient(
     payload: CheckInRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     result = await queue_service.check_in_patient(payload, current_user, db)
@@ -142,7 +128,7 @@ async def check_in_patient(
 )
 async def check_in_walk_in(
     payload: WalkInCheckInRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     result = await queue_service.check_in_walk_in(payload, current_user, db)
@@ -162,11 +148,9 @@ async def get_doctor_queue(
     doctor_id: int,
     query_date: Optional[date] = Query(None, description="Ngày cần tra cứu hàng đợi (YYYY-MM-DD)"),
     ca_kham: Optional[str] = Query(None, description="Lọc theo ca khám: sang hoặc chieu"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_queue_view),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in QUEUE_VIEW_ROLES:
-        raise ForbiddenException("Bạn không có quyền xem thông tin hàng đợi phòng khám!")
     result = await queue_service.get_doctor_queue_board(doctor_id, query_date, ca_kham, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -181,7 +165,7 @@ async def get_doctor_queue(
 )
 async def restore_ticket(
     ticket_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     result = await queue_service.restore_ticket(ticket_id, current_user, db)
@@ -199,11 +183,9 @@ async def restore_ticket(
 async def postpone_ticket(
     ticket_id: int,
     payload: Optional[PostponeTicketRequest] = None,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền tạm hoãn vé khám!")
     reason = payload.ly_do if payload else None
     result = await queue_service.postpone_ticket(ticket_id, current_user, db, reason=reason)
     return ResponseEnvelope.success_response(
@@ -220,11 +202,9 @@ async def postpone_ticket(
 async def transfer_ticket(
     ticket_id: int,
     payload: TransferTicketRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền điều chuyển buồng khám!")
     result = await queue_service.transfer_ticket(ticket_id, payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -240,11 +220,9 @@ async def transfer_ticket(
 async def get_patient_flow_board(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ (tùy chọn)"),
     query_date: Optional[date] = Query(None, description="Ngày cần theo dõi (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem Patient Flow Board!")
     result = await queue_service.get_patient_flow_board(doctor_id, query_date, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -260,7 +238,7 @@ async def get_patient_flow_board(
 async def close_ticket(
     ticket_id: int,
     payload: Optional[CloseTicketRequest] = None,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     ly_do = payload.ly_do if payload else None
@@ -279,7 +257,7 @@ async def close_ticket(
 async def patient_leave_queue(
     ticket_id: int,
     payload: Optional[CloseTicketRequest] = None,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
     ly_do = payload.ly_do if payload else None
@@ -301,11 +279,9 @@ async def patient_leave_queue(
 async def get_shift_dashboard(
     query_date: Optional[date] = Query(None, description="Ngày cần xem báo cáo (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Ca khám: sang hoặc chieu (mặc định theo giờ hiện tại)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem Dashboard ca trực tiếp đón!")
     result = await queue_service.get_shift_dashboard(query_date, ca_kham, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -324,11 +300,9 @@ async def get_shift_dashboard(
 async def get_room_status_dashboard(
     query_date: Optional[date] = Query(None, description="Ngày cần xem buồng khám (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Ca khám: sang hoặc chieu"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem trạng thái buồng khám!")
     result = await queue_service.get_room_status_dashboard(query_date, ca_kham, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -353,17 +327,9 @@ async def get_reception_appointments(
     search: Optional[str] = Query(None, description="Từ khóa: tên bệnh nhân, SĐT, mã hẹn"),
     page: int = Query(1, ge=1, description="Số trang"),
     page_size: int = Query(20, ge=1, le=100, description="Kích thước trang"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in (
-        VaiTroEnum.LE_TAN.value,
-        VaiTroEnum.ADMIN.value,
-        VaiTroEnum.BAC_SI.value,
-        VaiTroEnum.THU_NGAN.value,
-    ):
-        raise ForbiddenException("Chỉ Lễ tân, Bác sĩ, Thu ngân hoặc Quản trị viên mới có quyền tra cứu danh sách lịch hẹn tại quầy!")
-
     result = await queue_service.get_reception_appointments(
         query_date=query_date,
         ca_kham=ca_kham,
@@ -391,11 +357,9 @@ async def get_reception_appointments(
 )
 async def get_doctor_absences_incidents(
     query_date: Optional[date] = Query(None, description="Ngày cần rà soát sự cố (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền xem sự cố bác sĩ nghỉ đột xuất!")
     result = await incident_service.get_doctor_absences_incidents(query_date, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -413,15 +377,47 @@ async def get_doctor_absences_incidents(
 )
 async def rebalance_queue(
     payload: RebalanceQueueRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền điều chuyển hàng đợi bác sĩ!")
     result = await incident_service.rebalance_queue(payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
-        message=f"Đã điều chuyển thành công {result.so_luong_chuyen_thanh_cong} bệnh nhân"
+        message=f"Đã điều chuyển thành công {result.so_ve_chuyen} bệnh nhân"
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/affected-patients",
+    response_model=ResponseEnvelope[DoctorAbsenceAffectedPatientsResponse],
+    summary="Xem chi tiết danh sách bệnh nhân hàng đợi & hàng chờ bị kẹt do bác sĩ nghỉ đột xuất"
+)
+async def get_incident_affected_patients(
+    incident_id: int,
+    current_user: TaiKhoan = Depends(require_reception_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await incident_service.get_affected_patients(incident_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Tìm thấy {result.tong_so_kẹt} bệnh nhân bị ảnh hưởng ({len(result.hang_doi)} hàng đợi, {len(result.hang_cho_waitlist)} hàng chờ)"
+    )
+
+
+@router.post(
+    "/incidents/cancel-tickets",
+    response_model=ResponseEnvelope[CancelIncidentTicketsResponse],
+    summary="Hủy lượt hàng đợi & hàng chờ do bệnh nhân không đồng ý đổi bác sĩ khi có sự cố"
+)
+async def cancel_incident_tickets(
+    payload: CancelIncidentTicketsRequest,
+    current_user: TaiKhoan = Depends(require_reception_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await incident_service.cancel_incident_tickets(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.thong_diep
     )
 
 
@@ -437,11 +433,9 @@ async def get_roster_resources(
     query_date: Optional[date] = Query(None, description="Ngày cần xem lịch trực (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Lọc theo ca làm việc: sang hoặc chieu"),
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu lịch phân ca trực!")
     result = await queue_service.get_roster_resources(
         query_date=query_date,
         ca_kham=ca_kham,
@@ -461,11 +455,9 @@ async def get_roster_resources(
 )
 async def get_rooms_resources(
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu danh mục buồng khám!")
     result = await queue_service.get_rooms_resources(chuyen_khoa_id, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -480,11 +472,9 @@ async def get_rooms_resources(
 )
 async def get_roster_template_resources(
     thu_trong_tuan: Optional[int] = Query(None, ge=2, le=8, description="Lọc theo thứ trong tuần (2: Thứ 2, 8: CN)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu khung phân ca trực định kỳ!")
     result = await queue_service.get_roster_template_resources(thu_trong_tuan, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -529,11 +519,9 @@ async def search_patients_reception(
     search: Optional[str] = Query(None, description="Tìm theo SĐT, họ tên, CCCD hoặc mã BN"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu bệnh nhân tại quầy tiếp đón!")
     data = await reception_service.search_patients(db, search, page, page_size)
     return ResponseEnvelope.success_response(
         data=data,
@@ -548,11 +536,9 @@ async def search_patients_reception(
 )
 async def get_patient_detail_reception(
     benh_nhan_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem hồ sơ bệnh nhân tại quầy!")
     data = await reception_service.get_patient_detail(benh_nhan_id, db)
     return ResponseEnvelope.success_response(
         data=data,
@@ -568,11 +554,9 @@ async def get_patient_detail_reception(
 )
 async def create_patient_reception(
     payload: ReceptionPatientCreateRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên lễ tân mới có quyền tạo hồ sơ bệnh nhân tại quầy!")
     data = await reception_service.create_patient(payload, db)
     return ResponseEnvelope.success_response(
         data=data,
@@ -589,12 +573,14 @@ async def create_patient_reception(
 async def update_patient_reception(
     benh_nhan_id: int,
     payload: ReceptionPatientUpdateRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền cập nhật thông tin bệnh nhân!")
     data = await reception_service.update_patient(benh_nhan_id, payload, db)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message=f"Cập nhật hồ sơ bệnh nhân {data.ho_ten} thành công!"
+    )
     return ResponseEnvelope.success_response(
         data=data,
         message=f"Cập nhật hồ sơ bệnh nhân {data.ho_ten} thành công!"
@@ -649,11 +635,9 @@ async def get_patient_history_summary(
 async def process_no_shows_end_of_shift(
     query_date: Optional[date] = Query(None, description="Ngày rà soát no-show (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Ca làm việc cần chốt: sang hoặc chieu"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền xử lý lịch hẹn no-show!")
     result = await queue_service.process_no_shows_end_of_shift(query_date, ca_kham, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -676,11 +660,9 @@ async def get_reception_waitlist(
     ca_kham: Optional[str] = Query(None, description="Lọc theo ca khám (sang/chieu)"),
     bac_si_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền tra cứu danh sách chờ!")
     result = await queue_service.get_reception_waitlist(query_date, ca_kham, bac_si_id, chuyen_khoa_id, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -696,11 +678,9 @@ async def get_reception_waitlist(
 )
 async def check_in_from_waitlist(
     waitlist_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền tiếp nhận từ danh sách chờ!")
     result = await queue_service.check_in_from_waitlist(waitlist_id, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -716,11 +696,9 @@ async def check_in_from_waitlist(
 )
 async def cancel_waitlist_entry(
     waitlist_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_ADMIN_ROLES:
-        raise ForbiddenException("Chỉ Lễ tân hoặc Quản trị viên mới có quyền hủy lượt chờ!")
     result = await queue_service.cancel_waitlist_entry(waitlist_id, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -740,11 +718,9 @@ async def cancel_waitlist_entry(
 async def get_reception_report_summary(
     query_date: Optional[date] = Query(None, description="Ngày đối soát (mặc định hôm nay)"),
     ca_kham: Optional[str] = Query(None, description="Ca khám ('sang' hoặc 'chieu', bỏ trống là toàn ngày)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem báo cáo đối soát!")
     result = await queue_service.get_reception_report_summary(query_date, ca_kham, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -763,11 +739,9 @@ async def get_reception_audit_logs(
     search: Optional[str] = Query(None, description="Từ khóa tìm kiếm (Tên BN, SĐT, Số vé, Lễ tân...)"),
     page: int = Query(1, ge=1, description="Trang hiện tại"),
     page_size: int = Query(10, ge=1, le=100, description="Kích thước trang"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền xem nhật ký kiểm toán tiếp đón!")
     result = await queue_service.get_reception_audit_logs(query_date, action_type, search, page, page_size, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -787,11 +761,9 @@ async def get_reception_audit_logs(
 async def get_shift_pre_close_audit(
     ca_kham: str = Query(..., description="Ca khám: 'sang' hoặc 'chieu'"),
     query_date: Optional[date] = Query(None, description="Ngày đối soát (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền đối soát ca trực!")
     result = await queue_service.get_shift_pre_close_audit(ca_kham, query_date, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -806,11 +778,9 @@ async def get_shift_pre_close_audit(
 )
 async def close_reception_shift(
     payload: CloseReceptionShiftRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(require_reception_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.vai_tro not in RECEPTION_STAFF_ROLES:
-        raise ForbiddenException("Chỉ nhân viên phòng khám mới có quyền đóng ca trực!")
     result = await queue_service.close_reception_shift(payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,

@@ -10,13 +10,19 @@ from app.models.appointment import (
     LichDinhKyBacSi,
     NghiPhepBacSi,
     HangDoiKham,
+    DanhSachCho,
     TrangThaiLichEnum,
     TrangThaiHangDoiEnum,
     TrangThaiNghiPhepEnum,
+    TrangThaiWaitlistEnum,
     LoaiNghiPhepEnum,
     LoaiHangDoiEnum,
 )
-from app.schemas.incident import RebalanceQueueRequest
+from app.schemas.incident import (
+    RebalanceQueueRequest,
+    SingleTicketAssignment,
+    CancelIncidentTicketsRequest,
+)
 from app.services.queue_service import queue_service
 from app.services.incident_service import incident_service
 from app.core.exceptions import BadRequestException
@@ -382,12 +388,42 @@ async def test_fc13_doctor_absence_incidents(db_session):
     db_session.add(aptA)
     await db_session.flush()
 
+    # Bác sĩ C (cùng chuyên khoa nhưng cũng đang nghỉ phép đã duyệt -> phải bị loại trừ)
+    nd_bsC = NguoiDung(ho_ten=f"BS C Cung Nghi {suffix}", email=f"bsC.{suffix}@clinic.com", so_dien_thoai=f"0997{suffix}")
+    db_session.add(nd_bsC)
+    await db_session.flush()
+    bsC = BacSi(nguoi_dung_id=nd_bsC.id, chuyen_khoa_id=ck.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-C-{suffix}")
+    db_session.add(bsC)
+    await db_session.flush()
+
+    shiftC = LichLamViec(
+        bac_si_id=bsC.id,
+        ngay_lam_viec=today,
+        ca_lam_viec="sang",
+        gio_bat_dau=time(8, 0),
+        gio_ket_thuc=time(12, 0),
+        is_active=True,
+    )
+    npC = NghiPhepBacSi(
+        bac_si_id=bsC.id,
+        tu_ngay=today,
+        den_ngay=today,
+        ca_lam_viec="sang",
+        loai_nghi=LoaiNghiPhepEnum.NGHI_PHEP.value,
+        ly_do="Nghỉ phép",
+        trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
+    )
+    db_session.add_all([shiftC, npC])
+    await db_session.flush()
+
     incidents = await incident_service.get_doctor_absences_incidents(today, receptionist_user, db_session)
     matched_inc = next((inc for inc in incidents if inc.bac_si_id == bsA.id), None)
     assert matched_inc is not None
-    # Kiểm tra danh sách thay thế có BS B
+    # Kiểm tra danh sách thay thế có BS B nhưng KHÔNG có BS C (vì BS C đang nghỉ phép)
     alt_b = next((alt for alt in matched_inc.danh_sach_bac_si_thay_the if alt.bac_si_id == bsB.id), None)
     assert alt_b is not None
+    alt_c = next((alt for alt in matched_inc.danh_sach_bac_si_thay_the if alt.bac_si_id == bsC.id), None)
+    assert alt_c is None
 
 
 @pytest.mark.asyncio
@@ -493,14 +529,91 @@ async def test_fc14_rebalance_queue(db_session):
     trans_item = rebal_res.chi_tiet[0]
     assert trans_item.old_ticket_id == t1.id
 
-    # Verify database ticket t1 đã đóng vé và có ghi chú điều phối sang BS mới
+    # Verify database ticket t1 đã được điều chuyển sang BS B, giữ trạng thái CHO_KHAM và có ghi chú điều phối
     await db_session.refresh(t1)
-    assert t1.trang_thai == TrangThaiHangDoiEnum.DA_DONG_VE.value
-    assert "Điều phối sang BS" in (t1.ghi_chu_dieu_phoi or "")
+    assert t1.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value
+    assert t1.bac_si_id == bsB.id
+    assert "Điều phối sự cố" in (t1.ghi_chu_dieu_phoi or "")
 
     # Ticket t2 vẫn của BS A
     await db_session.refresh(t2)
     assert t2.bac_si_id == bsA.id
+
+
+@pytest.mark.asyncio
+async def test_api_rebalance_queue_endpoint(api_client, booking, db_session):
+    """
+    Kiểm thử trực tiếp HTTP API POST /api/v1/reception/incidents/rebalance-queue
+    Đảm bảo không bị lỗi 500 attribute error và trả về đúng 200 ResponseEnvelope
+    """
+    suffix = uuid.uuid4().hex[:6]
+    today = date(2030, 6, 15)
+    now_utc = datetime.now(timezone.utc)
+    token_admin = booking.tokens["admin"]
+
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CKAPI-{suffix}", ten_chuyen_khoa=f"Khoa Tai Mui Hong {suffix}")
+    db_session.add(ck)
+    await db_session.flush()
+
+    nd_bsA = NguoiDung(ho_ten=f"BS A API {suffix}", email=f"bsapiA.{suffix}@clinic.com", so_dien_thoai=f"0971{suffix}")
+    nd_bsB = NguoiDung(ho_ten=f"BS B API {suffix}", email=f"bsapiB.{suffix}@clinic.com", so_dien_thoai=f"0972{suffix}")
+    db_session.add_all([nd_bsA, nd_bsB])
+    await db_session.flush()
+
+    bsA = BacSi(nguoi_dung_id=nd_bsA.id, chuyen_khoa_id=ck.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-A-{suffix}")
+    bsB = BacSi(nguoi_dung_id=nd_bsB.id, chuyen_khoa_id=ck.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-B-{suffix}")
+    db_session.add_all([bsA, bsB])
+    await db_session.flush()
+
+    np = NghiPhepBacSi(
+        bac_si_id=bsA.id,
+        tu_ngay=today,
+        den_ngay=today,
+        ca_lam_viec="sang",
+        loai_nghi=LoaiNghiPhepEnum.NGHI_DOT_XUAT.value,
+        ly_do="Sự cố đột xuất",
+        trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
+    )
+    db_session.add(np)
+
+    shiftB = LichLamViec(bac_si_id=bsB.id, ngay_lam_viec=today, ca_lam_viec="sang", gio_bat_dau=time(8, 0), gio_ket_thuc=time(12, 0), is_active=True)
+    db_session.add(shiftB)
+    await db_session.flush()
+
+    nd_bn = NguoiDung(ho_ten="BN API Rebal", email=f"bnapi.{suffix}@clinic.com", so_dien_thoai=f"0973{suffix}")
+    db_session.add(nd_bn)
+    await db_session.flush()
+    bn = BenhNhan(nguoi_dung_id=nd_bn.id, ma_dinh_danh_y_te=f"BNAPI-{suffix}")
+    db_session.add(bn)
+    await db_session.flush()
+
+    ticket = HangDoiKham(
+        so_thu_tu_kham=1,
+        benh_nhan_id=bn.id,
+        bac_si_id=bsA.id,
+        ngay_kham=today,
+        ca_kham="sang",
+        loai_hang_doi=LoaiHangDoiEnum.VANG_LAI.value,
+        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
+        thoi_gian_check_in=now_utc,
+    )
+    db_session.add(ticket)
+    await db_session.commit()
+
+    resp = await api_client.post(
+        "/api/v1/reception/incidents/rebalance-queue",
+        json={
+            "nghi_phep_bac_si_id": np.id,
+            "ticket_ids": [ticket.id],
+            "bac_si_nhan_id": bsB.id,
+        },
+        headers=token_admin
+    )
+    assert resp.status_code == 200, f"Error: {resp.text}"
+    data = resp.json()
+    assert data["success"] is True
+    assert "Đã điều chuyển thành công 1 bệnh nhân" in data["message"]
+    assert data["data"]["so_ve_chuyen"] == 1
 
 
 @pytest.mark.asyncio
@@ -565,3 +678,227 @@ async def test_fc15_resource_views(db_session):
     # 3. Test get_roster_template_resources
     tmpl_list = await queue_service.get_roster_template_resources(2, db_session)
     assert any(tp.bac_si_id == bs.id for tp in tmpl_list)
+
+
+@pytest.mark.asyncio
+async def test_incident_affected_patients_and_cancellation(api_client, booking, db_session):
+    """
+    Kiểm thử:
+    1. GET /incidents/{incident_id}/affected-patients (lấy danh sách chi tiết hàng đợi & hàng chờ)
+    2. POST /incidents/cancel-tickets (hủy vé khi bệnh nhân không muốn đổi bác sĩ, không phạt no-show)
+    """
+    suffix = uuid.uuid4().hex[:6]
+    today = date(2030, 7, 20)
+    now_utc = datetime.now(timezone.utc)
+    token_admin = booking.tokens["admin"]
+
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-AFF-{suffix}", ten_chuyen_khoa=f"Khoa Tim Mạch {suffix}")
+    db_session.add(ck)
+    await db_session.flush()
+
+    nd_bs = NguoiDung(ho_ten=f"BS Tim {suffix}", email=f"bstim.{suffix}@clinic.com", so_dien_thoai=f"0961{suffix}")
+    db_session.add(nd_bs)
+    await db_session.flush()
+    bs = BacSi(nguoi_dung_id=nd_bs.id, chuyen_khoa_id=ck.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-TIM-{suffix}")
+    db_session.add(bs)
+    await db_session.flush()
+
+    np = NghiPhepBacSi(
+        bac_si_id=bs.id,
+        tu_ngay=today,
+        den_ngay=today,
+        ca_lam_viec="sang",
+        loai_nghi=LoaiNghiPhepEnum.NGHI_DOT_XUAT.value,
+        ly_do="Bác sĩ ốm đột xuất",
+        trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
+    )
+    db_session.add(np)
+    await db_session.flush()
+
+    # Bệnh nhân 1 có vé trong hàng đợi + lịch khám
+    nd_bn1 = NguoiDung(ho_ten="BN Tim 1", email=f"bntim1.{suffix}@clinic.com", so_dien_thoai=f"0962{suffix}")
+    # Bệnh nhân 2 có lượt trong danh sách chờ (Waitlist)
+    nd_bn2 = NguoiDung(ho_ten="BN Tim 2", email=f"bntim2.{suffix}@clinic.com", so_dien_thoai=f"0963{suffix}")
+    db_session.add_all([nd_bn1, nd_bn2])
+    await db_session.flush()
+
+    bn1 = BenhNhan(nguoi_dung_id=nd_bn1.id, ma_dinh_danh_y_te=f"BNTIM1-{suffix}", so_lan_no_show=0)
+    bn2 = BenhNhan(nguoi_dung_id=nd_bn2.id, ma_dinh_danh_y_te=f"BNTIM2-{suffix}")
+    db_session.add_all([bn1, bn2])
+    await db_session.flush()
+
+    apt1 = LichKham(
+        ma_lich_kham=f"APT-TIM-{suffix}",
+        benh_nhan_id=bn1.id,
+        bac_si_id=bs.id,
+        chuyen_khoa_id=ck.id,
+        ca_kham="sang",
+        ngay_kham=today,
+        gio_kham=time(8, 30),
+        trang_thai=TrangThaiLichEnum.DA_TIEP_NHAN.value,
+    )
+    db_session.add(apt1)
+    await db_session.flush()
+
+    ticket1 = HangDoiKham(
+        so_thu_tu_kham=1,
+        benh_nhan_id=bn1.id,
+        bac_si_id=bs.id,
+        lich_kham_id=apt1.id,
+        ngay_kham=today,
+        ca_kham="sang",
+        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
+        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
+        thoi_gian_check_in=now_utc,
+    )
+    wl2 = DanhSachCho(
+        benh_nhan_id=bn2.id,
+        bac_si_id=bs.id,
+        ngay_mong_muon=today,
+        ca_mong_muon="sang",
+        thu_tu_uu_tien=1,
+        trang_thai=TrangThaiWaitlistEnum.DANG_CHO.value,
+    )
+    db_session.add_all([ticket1, wl2])
+    await db_session.commit()
+
+    # 1. Gọi API lấy chi tiết bệnh nhân bị ảnh hưởng
+    resp_aff = await api_client.get(
+        f"/api/v1/reception/incidents/{np.id}/affected-patients",
+        headers=token_admin
+    )
+    assert resp_aff.status_code == 200, f"Error: {resp_aff.text}"
+    data_aff = resp_aff.json()["data"]
+    assert data_aff["tong_so_kẹt"] == 2
+    assert len(data_aff["hang_doi"]) == 1
+    assert data_aff["hang_doi"][0]["ticket_id"] == ticket1.id
+    assert len(data_aff["hang_cho_waitlist"]) == 1
+    assert data_aff["hang_cho_waitlist"][0]["waitlist_id"] == wl2.id
+
+    # 2. Bệnh nhân không muốn đổi bác sĩ -> Lễ tân gọi API Hủy do sự cố
+    resp_cancel = await api_client.post(
+        "/api/v1/reception/incidents/cancel-tickets",
+        json={
+            "nghi_phep_bac_si_id": np.id,
+            "ticket_ids": [ticket1.id],
+            "waitlist_ids": [wl2.id],
+            "ly_do": "Bệnh nhân muốn khám đúng BS Tim nên xin hủy",
+        },
+        headers=token_admin
+    )
+    assert resp_cancel.status_code == 200, f"Error: {resp_cancel.text}"
+    data_cancel = resp_cancel.json()["data"]
+    assert data_cancel["so_ve_da_huy"] == 1
+    assert data_cancel["so_waitlist_da_huy"] == 1
+    assert data_cancel["so_lich_kham_da_huy"] == 1
+
+    # Verify trong DB: HangDoiKham DA_DONG_VE, LichKham DA_HUY, BN không bị phạt No-show
+    await db_session.refresh(ticket1)
+    await db_session.refresh(apt1)
+    await db_session.refresh(bn1)
+    await db_session.refresh(wl2)
+
+    assert ticket1.trang_thai == TrangThaiHangDoiEnum.DA_DONG_VE.value
+    assert apt1.trang_thai == TrangThaiLichEnum.DA_HUY.value
+    assert bn1.so_lan_no_show == 0  # Không bị phạt No-show
+    assert wl2.trang_thai == TrangThaiWaitlistEnum.DA_HUY.value
+
+
+@pytest.mark.asyncio
+async def test_rebalance_validation_and_individual_assignments(api_client, booking, db_session):
+    """
+    Kiểm thử:
+    1. Chặn điều phối sang bác sĩ khác chuyên khoa (400)
+    2. Chặn điều phối sang bác sĩ không có ca trực active (400)
+    3. Hỗ trợ assignments chuyển lẻ từng vé sang bác sĩ tương ứng thành công
+    """
+    suffix = uuid.uuid4().hex[:6]
+    today = date(2030, 8, 10)
+    now_utc = datetime.now(timezone.utc)
+    token_admin = booking.tokens["admin"]
+
+    ck_noi = ChuyenKhoa(ma_chuyen_khoa=f"CK-NOI-{suffix}", ten_chuyen_khoa=f"Khoa Nội {suffix}")
+    ck_ngoai = ChuyenKhoa(ma_chuyen_khoa=f"CK-NGOAI-{suffix}", ten_chuyen_khoa=f"Khoa Ngoại {suffix}")
+    db_session.add_all([ck_noi, ck_ngoai])
+    await db_session.flush()
+
+    nd_bsA = NguoiDung(ho_ten=f"BS A {suffix}", email=f"bsA.{suffix}@clinic.com", so_dien_thoai=f"0951{suffix}")
+    nd_bsB = NguoiDung(ho_ten=f"BS B {suffix}", email=f"bsB.{suffix}@clinic.com", so_dien_thoai=f"0952{suffix}")
+    nd_bsKhacKhoa = NguoiDung(ho_ten=f"BS Khac Khoa {suffix}", email=f"bsKhac.{suffix}@clinic.com", so_dien_thoai=f"0953{suffix}")
+    db_session.add_all([nd_bsA, nd_bsB, nd_bsKhacKhoa])
+    await db_session.flush()
+
+    bsA = BacSi(nguoi_dung_id=nd_bsA.id, chuyen_khoa_id=ck_noi.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-A-{suffix}")
+    bsB = BacSi(nguoi_dung_id=nd_bsB.id, chuyen_khoa_id=ck_noi.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-B-{suffix}")
+    bsKhac = BacSi(nguoi_dung_id=nd_bsKhacKhoa.id, chuyen_khoa_id=ck_ngoai.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-K-{suffix}")
+    db_session.add_all([bsA, bsB, bsKhac])
+    await db_session.flush()
+
+    np = NghiPhepBacSi(
+        bac_si_id=bsA.id,
+        tu_ngay=today,
+        den_ngay=today,
+        ca_lam_viec="sang",
+        loai_nghi=LoaiNghiPhepEnum.NGHI_DOT_XUAT.value,
+        ly_do="Đau đầu",
+        trang_thai=TrangThaiNghiPhepEnum.DA_DUYET.value,
+    )
+    db_session.add(np)
+
+    nd_bn = NguoiDung(ho_ten="BN Test", email=f"bntest.{suffix}@clinic.com", so_dien_thoai=f"0954{suffix}")
+    db_session.add(nd_bn)
+    await db_session.flush()
+    bn = BenhNhan(nguoi_dung_id=nd_bn.id, ma_dinh_danh_y_te=f"BNTEST-{suffix}")
+    db_session.add(bn)
+    await db_session.flush()
+
+    ticket = HangDoiKham(
+        so_thu_tu_kham=1,
+        benh_nhan_id=bn.id,
+        bac_si_id=bsA.id,
+        ngay_kham=today,
+        ca_kham="sang",
+        loai_hang_doi=LoaiHangDoiEnum.VANG_LAI.value,
+        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
+        thoi_gian_check_in=now_utc,
+    )
+    db_session.add(ticket)
+    await db_session.commit()
+
+    # 1. Thử chuyển sang BS Khác Khoa -> 400 Bad Request
+    resp_khac_khoa = await api_client.post(
+        "/api/v1/reception/incidents/rebalance-queue",
+        json={"nghi_phep_bac_si_id": np.id, "ticket_ids": [ticket.id], "bac_si_nhan_id": bsKhac.id},
+        headers=token_admin
+    )
+    assert resp_khac_khoa.status_code == 400
+    assert "không cùng chuyên khoa" in resp_khac_khoa.json()["message"]
+
+    # 2. Thử chuyển sang BS B nhưng BS B chưa có ca trực active -> 400 Bad Request
+    resp_ko_truc = await api_client.post(
+        "/api/v1/reception/incidents/rebalance-queue",
+        json={"nghi_phep_bac_si_id": np.id, "ticket_ids": [ticket.id], "bac_si_nhan_id": bsB.id},
+        headers=token_admin
+    )
+    assert resp_ko_truc.status_code == 400
+    assert "không có lịch trực hợp lệ" in resp_ko_truc.json()["message"]
+
+    # 3. Tạo ca trực active cho BS B và chuyển lẻ bằng assignments -> 200 OK
+    shiftB = LichLamViec(bac_si_id=bsB.id, ngay_lam_viec=today, ca_lam_viec="sang", gio_bat_dau=time(8, 0), gio_ket_thuc=time(12, 0), is_active=True)
+    db_session.add(shiftB)
+    await db_session.commit()
+
+    resp_assign = await api_client.post(
+        "/api/v1/reception/incidents/rebalance-queue",
+        json={
+            "nghi_phep_bac_si_id": np.id,
+            "assignments": [
+                {"ticket_id": ticket.id, "bac_si_nhan_id": bsB.id}
+            ]
+        },
+        headers=token_admin
+    )
+    assert resp_assign.status_code == 200, f"Error: {resp_assign.text}"
+    assert resp_assign.json()["data"]["so_ve_chuyen"] == 1
+    await db_session.refresh(ticket)
+    assert ticket.bac_si_id == bsB.id

@@ -16,8 +16,6 @@ import {
     Bell,
     ArrowsOut,
     ArrowsIn,
-    Globe,
-    Check,
 } from '../common/ClinicIcon'
 
 export default function AdminHeader() {
@@ -38,7 +36,6 @@ export default function AdminHeader() {
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearchOpen, setIsSearchOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
-    const [currentLang, setCurrentLang] = useState('VIE')
     const [notifications, setNotifications] = useState(systemNotifications)
 
     const headerRef = useRef(null)
@@ -129,12 +126,6 @@ export default function AdminHeader() {
         if (notif.link) {
             navigate(notif.link)
         }
-    }
-
-    const toggleLanguage = () => {
-        const nextLang = currentLang === 'VIE' ? 'ENG' : 'VIE'
-        setCurrentLang(nextLang)
-        AppToast.info(`Đã chuyển ngôn ngữ sang: ${nextLang === 'VIE' ? 'Tiếng Việt' : 'English'}`)
     }
 
     // Check if a header tab or any of its submenus is active
@@ -449,19 +440,6 @@ export default function AdminHeader() {
                 >
                     {isFullscreen ? <ArrowsIn size={16} weight="bold" /> : <ArrowsOut size={16} weight="bold" />}
                 </button>
-
-                {/* 4. Huy Hiệu Chuyển Đổi Ngôn Ngữ (VIE / ENG) */}
-                <button
-                    type="button"
-                    onClick={toggleLanguage}
-                    className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 hover:border-[#00B5F1] text-[11px] font-black text-[#003553] hover:text-[#00B5F1] transition cursor-pointer"
-                    title="Chuyển đổi ngôn ngữ giao diện"
-                >
-                    <Globe size={13} weight="bold" className="text-[#00B5F1]" />
-                    <span>{currentLang}</span>
-                </button>
-
-                
 
                 {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
                 <div className="relative pl-1.5 border-l border-slate-200 shrink-0">

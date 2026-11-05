@@ -78,3 +78,32 @@ async def test_api_reception_shift_close_endpoints(api_client, booking, db_sessi
     assert "nguoi_dong_ca" in data_close["data"]
     assert data_close["data"]["nguoi_dong_ca"] is not None
 
+
+@pytest.mark.asyncio
+async def test_api_reception_rbac_and_time_validation(api_client, booking, db_session):
+    """
+    Kiểm thử phân quyền RBAC require_roles và kiểm tra thời gian đóng ca:
+    1. Bệnh nhân gọi /shift/close -> 403 Forbidden
+    2. Đóng ca với ngày trong tương lai -> 400 Bad Request
+    """
+    token_patient = booking.tokens["bn_a"]
+    token_admin = booking.tokens["admin"]
+
+    # 1. Bệnh nhân gọi endpoint Lễ tân đóng ca -> 403
+    resp_patient = await api_client.post(
+        "/api/v1/reception/shift/close",
+        json={"ca_kham": "sang", "xu_ly_cho_kham": "CHUYEN_CA_TIEP_THEO"},
+        headers=token_patient
+    )
+    assert resp_patient.status_code == 403
+
+    # 2. Đóng ca với ngày trong tương lai -> 400
+    future_date = date(2099, 1, 1).isoformat()
+    resp_future = await api_client.post(
+        "/api/v1/reception/shift/close",
+        json={"ca_kham": "sang", "ngay": future_date, "xu_ly_cho_kham": "CHUYEN_CA_TIEP_THEO"},
+        headers=token_admin
+    )
+    assert resp_future.status_code == 400
+    assert "tương lai" in resp_future.json()["message"]
+

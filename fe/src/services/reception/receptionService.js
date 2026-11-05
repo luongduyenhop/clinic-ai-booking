@@ -107,8 +107,14 @@ export class ReceptionService extends BaseServices {
     getDoctorAbsences = (params = {}, config = {}) =>
         this.get('/api/v1/reception/incidents/doctor-absences', { params, __skipGlobalLoading: true, ...config })
 
+    getIncidentAffectedPatients = (incidentId, config = {}) =>
+        this.get(`/api/v1/reception/incidents/${incidentId}/affected-patients`, { __skipGlobalLoading: true, ...config })
+
     rebalanceQueue = (payload, config = {}) =>
         this.post('/api/v1/reception/incidents/rebalance-queue', payload, config)
+
+    cancelIncidentTickets = (payload, config = {}) =>
+        this.post('/api/v1/reception/incidents/cancel-tickets', payload, config)
 
     processNoShows = (params = {}, config = {}) =>
         this.post('/api/v1/reception/process-no-shows', null, { params, ...config })

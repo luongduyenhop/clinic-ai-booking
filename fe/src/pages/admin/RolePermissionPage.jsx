@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import DoctorLeaveManagementTab from '../../components/admin/DoctorLeaveManagementTab'
 import { AppToast } from '../../components/common/AppNotification'
 import { PERMISSION_MODULES_23, getMasterOptions, getFormDefaults, getPermissionModuleLabel } from '../../utils/helpers/clinicConfigHelpers'
 import {
@@ -17,6 +18,7 @@ import {
     UploadSimple,
     Warning,
     XCircle,
+    CalendarCheck,
 } from '../../components/common/ClinicIcon'
 
 const getNextStaffCode = (list) => {
@@ -34,7 +36,9 @@ const getNextStaffCode = (list) => {
 export default function RolePermissionPage() {
     const location = useLocation()
     const dispatch = useDispatch()
-    const isStaffMode = location.pathname.includes('nhan-vien')
+    const searchParams = new URLSearchParams(location.search)
+    const isLeaveMode = searchParams.get('tab') === 'nghi-phep' || location.pathname.includes('nghi-phep')
+    const isStaffMode = !isLeaveMode && (location.pathname.includes('nhan-vien') || searchParams.get('tab') === 'nhan-vien')
 
     const { clinicData } = useSelector((state) => state.app.admin)
     const roles = clinicData?.roles || []
@@ -176,32 +180,47 @@ export default function RolePermissionPage() {
                     <Link
                         to="/admin/phan-quyen"
                         className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
-                            !isStaffMode
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                            !isStaffMode && !isLeaveMode
+                                ? "bg-[#00B5F1] text-white shadow-xs"
+                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
                         }`}
                     >
-                        <ShieldCheck size={15} weight={!isStaffMode ? 'fill' : 'duotone'} />
+                        <ShieldCheck size={15} weight={!isStaffMode && !isLeaveMode ? "fill" : "duotone"} />
                         <span>1. Phân quyền Vai trò (Ma trận 23 Quyền hạn)</span>
                     </Link>
                     <Link
                         to="/admin/nhan-vien"
                         className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
                             isStaffMode
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                                ? "bg-[#00B5F1] text-white shadow-xs"
+                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
                         }`}
                     >
-                        <UserGear size={15} weight={isStaffMode ? 'fill' : 'duotone'} />
+                        <UserGear size={15} weight={isStaffMode ? "fill" : "duotone"} />
                         <span>2. Quản lý Nhân sự &amp; Chứng chỉ hành nghề (INT-05)</span>
+                    </Link>
+                    <Link
+                        to="/admin/nhan-vien?tab=nghi-phep"
+                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                            isLeaveMode
+                                ? "bg-[#00B5F1] text-white shadow-xs"
+                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                        }`}
+                    >
+                        <CalendarCheck size={15} weight={isLeaveMode ? "fill" : "duotone"} />
+                        <span>3. Quản lý &amp; Phê duyệt Nghỉ phép Bác sĩ (APT-008)</span>
                     </Link>
                 </div>
                 <span className="text-xs text-slate-500">
-                    Phân hệ Video 09 &amp; INT-05: Phân quyền vai trò &amp; Kiểm soát điều kiện hành nghề Bác sĩ
+                    {isLeaveMode
+                        ? "Phân hệ APT-008: Phê duyệt nghỉ phép, tự động khóa ca trực & cảnh báo lịch hẹn bị ảnh hưởng"
+                        : "Phân hệ Video 09 & INT-05: Phân quyền vai trò & Kiểm soát điều kiện hành nghề Bác sĩ"}
                 </span>
             </div>
 
-            {!isStaffMode ? (
+            {isLeaveMode ? (
+                <DoctorLeaveManagementTab />
+            ) : !isStaffMode ? (
                 /* ── VIEW 1: MA TRẬN 23 QUYỀN HẠN THEO VAI TRÒ (VIDEO 09) ── */
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-4 medpro-card p-3.5 space-y-4">

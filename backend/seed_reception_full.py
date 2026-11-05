@@ -378,14 +378,6 @@ async def seed_reception_data():
         await session.flush()
 
         # 4.2 Xóa tất cả Lịch hẹn khám hôm nay
-        test_appointment_codes = [
-            "LK-20261105-0001",
-            "LK-20261105-0002",
-            "LK-20261105-0003",
-            "LK-20261105-0004",
-            "LK-20261105-0005",
-            "LK-20261105-0006",
-        ]
         stmt_del_apt = select(LichKham).where(LichKham.ngay_kham == today)
         del_apts = (await session.execute(stmt_del_apt)).scalars().all()
         for da in del_apts:

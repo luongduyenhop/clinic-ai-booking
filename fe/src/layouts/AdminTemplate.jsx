@@ -90,6 +90,7 @@ export default function AdminTemplate() {
         if (p.includes('/goi-dich-vu') || p.includes('/goidichvu')) return 'Quản lý Gói dịch vụ khám sức khỏe'
         if (p.includes('/lieu-trinh') || p.includes('/lieutrinh')) return 'Liệu trình điều trị & Bài tập phục hồi chức năng'
         if (p.includes('/cai-dat') || p.includes('/setting')) return 'Cài đặt hệ thống phòng khám & Cổng liên thông BYT'
+        if (p.includes('/nghi-phep') || location.search.includes('tab=nghi-phep')) return 'Quản lý & Phê duyệt Nghỉ phép Bác sĩ (APT-008)'
         if (p.includes('/tai-ung-dung')) return 'Tải ứng dụng di động Clinic-AI Mobile'
         return 'Quản lý Phòng khám'
     }

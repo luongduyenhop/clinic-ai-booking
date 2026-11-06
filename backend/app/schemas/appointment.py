@@ -36,8 +36,10 @@ class AppointmentCreateRequest(BaseModel):
     bac_si_id: int = Field(..., description="Mã bác sĩ muốn khám")
     ngay_kham: date = Field(..., description="Ngày hẹn khám (YYYY-MM-DD)")
     gio_kham: ClinicLocalTime = Field(..., description="Khung giờ khám được chọn (HH:MM:SS)")
+    ca_kham: Optional[str] = Field(None, description="Ca khám (sang/chieu), nếu để trống hệ thống tự động suy luận từ khung giờ")
     ly_do_kham: Optional[str] = Field(None, max_length=255, description="Lý do khám bệnh sơ bộ")
     trieu_chung_ban_dau: Optional[str] = Field(None, description="Triệu chứng người bệnh tự nhập hoặc từ gợi ý AI")
+    phan_tich_ai_id: Optional[int] = Field(None, gt=0, description="Lần phân tích AI được dùng khi đặt lịch, nếu có")
 
 
 class AppointmentCancelRequest(BaseModel):
@@ -56,6 +58,7 @@ class AppointmentCancelResponse(BaseModel):
     ly_do_huy: str
     thoi_gian_huy: datetime
     nguoi_huy_vai_tro: str = Field(..., description="Vai trò người hủy: benh_nhan, bac_si, admin")
+    nguoi_huy_id: Optional[int] = Field(None, description="ID người dùng thực hiện hủy lịch")
 
 
 class AppointmentRescheduleRequest(BaseModel):

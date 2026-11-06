@@ -1,225 +1,395 @@
-import { useState, useMemo } from 'react'
-import { useSelector } from 'react-redux'
-import { Table, Tag, Input, Select, DatePicker, Button, Card, Progress } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { Table, Tag, Input, Select, Progress, Button, DatePicker, Spin, Empty } from 'antd'
 import {
-    BarChartOutlined,
     SearchOutlined,
-    FilterOutlined,
+    SyncOutlined,
+    CalendarOutlined,
     ClockCircleOutlined,
-    CheckCircleOutlined,
+    FieldTimeOutlined,
     UserOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import {
+    fetchReportSummaryAsync,
+    fetchAuditLogsAsync,
+} from '../../redux/actions/reception/receptionAction'
+
+const ACTION_TYPE_COLOR_MAP = {
+    CHECK_IN: 'blue',
+    WALK_IN_CREATE: 'orange',
+    APPOINTMENT_RESCHEDULE: 'cyan',
+    APPOINTMENT_CANCEL: 'red',
+    QUEUE_TRANSFER_ROOM: 'geekblue',
+    QUEUE_CALL: 'purple',
+    QUEUE_DEFER: 'warning',
+    LEAVE_QUEUE: 'volcano',
+    CLOSE_TICKET: 'magenta',
+}
+
+const ACTION_TYPE_OPTIONS = [
+    { value: '', label: 'Tất cả loại hành động' },
+    { value: 'CHECK_IN', label: 'CHECK_IN (Tiếp nhận đặt trước)' },
+    { value: 'WALK_IN_CREATE', label: 'WALK_IN_CREATE (Tiếp nhận vãng lai)' },
+    { value: 'APPOINTMENT_RESCHEDULE', label: 'APPOINTMENT_RESCHEDULE (Đổi lịch khám)' },
+    { value: 'APPOINTMENT_CANCEL', label: 'APPOINTMENT_CANCEL (Hủy lịch hẹn)' },
+    { value: 'QUEUE_TRANSFER_ROOM', label: 'QUEUE_TRANSFER_ROOM (Chuyển buồng khám)' },
+    { value: 'QUEUE_CALL', label: 'QUEUE_CALL (Bác sĩ gọi số)' },
+    { value: 'QUEUE_DEFER', label: 'QUEUE_DEFER (Tạm hoãn lượt)' },
+    { value: 'LEAVE_QUEUE', label: 'LEAVE_QUEUE (Bỏ khám)' },
+    { value: 'CLOSE_TICKET', label: 'CLOSE_TICKET (Đóng vé)' },
+]
 
 export default function ReportsPage() {
-    const { auditLogs, queueEntries, appointments, departments } = useSelector((state) => state.reception)
+    const dispatch = useDispatch()
+    const {
+        reportSummary,
+        reportLoading = false,
+        auditLogs = [],
+        auditPagination = { page: 1, pageSize: 10, totalItems: 0 },
+        auditLoading = false,
+    } = useSelector((state) => state.reception)
 
-    const [searchQuery, setSearchQuery] = useState('')
+    const [selectedDate, setSelectedDate] = useState(() => dayjs())
+    const [selectedShift, setSelectedShift] = useState('')
+
+    const [searchKeyword, setSearchKeyword] = useState('')
     const [actionFilter, setActionFilter] = useState('')
-    const [actorFilter, setActorFilter] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
 
-    // Statistics computed from mock data
-    const totalCheckIn = queueEntries.length
-    const walkInCount = queueEntries.filter((q) => q.isWalkIn).length
-    const bookedCount = totalCheckIn - walkInCount
+    const queryDateStr = selectedDate ? selectedDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
 
-    const avgWaitTime =
-        queueEntries.length > 0
-            ? Math.round(queueEntries.reduce((sum, q) => sum + (q.waitTimeMinutes || 0), 0) / queueEntries.length)
-            : 0
+    const loadReportSummary = useCallback(() => {
+        dispatch(
+            fetchReportSummaryAsync({
+                queryDate: queryDateStr,
+                caKham: selectedShift || undefined,
+            })
+        )
+    }, [dispatch, queryDateStr, selectedShift])
 
-    const cancelledApps = appointments.filter((a) => a.status === 'CANCELLED').length
-    const noShowApps = appointments.filter((a) => a.status === 'NO_SHOW').length
+    const loadAuditLogs = useCallback(
+        (pageToLoad = currentPage, sizeToLoad = pageSize) => {
+            dispatch(
+                fetchAuditLogsAsync({
+                    queryDate: queryDateStr,
+                    actionType: actionFilter || undefined,
+                    search: searchKeyword.trim() || undefined,
+                    page: pageToLoad,
+                    pageSize: sizeToLoad,
+                })
+            )
+        },
+        [dispatch, queryDateStr, actionFilter, searchKeyword, currentPage, pageSize]
+    )
 
-    // Department breakdown
-    const departmentStats = departments.map((dep) => {
-        const count = queueEntries.filter((q) => q.departmentId === dep.id).length
-        const pct = Math.round((count / (totalCheckIn || 1)) * 100)
-        return { ...dep, count, pct }
-    })
+    useEffect(() => {
+        loadReportSummary()
+    }, [loadReportSummary])
 
-    // Filter audit logs
-    const filteredLogs = useMemo(() => {
-        return auditLogs.filter((log) => {
-            const matchesQuery =
-                !searchQuery ||
-                log.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                log.actionType.toLowerCase().includes(searchQuery.toLowerCase())
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadAuditLogs(1, pageSize)
+            setCurrentPage(1)
+        }, 350)
+        return () => clearTimeout(timer)
+    }, [queryDateStr, actionFilter, searchKeyword, pageSize, dispatch])
 
-            const matchesAction = !actionFilter || log.actionType === actionFilter
-            const matchesActor = !actorFilter || log.actor.includes(actorFilter)
+    const handleTableChange = (pagination) => {
+        setCurrentPage(pagination.current)
+        setPageSize(pagination.pageSize)
+        loadAuditLogs(pagination.current, pagination.pageSize)
+    }
 
-            return matchesQuery && matchesAction && matchesActor
-        })
-    }, [auditLogs, searchQuery, actionFilter, actorFilter])
+    const handleRefreshAll = () => {
+        loadReportSummary()
+        loadAuditLogs(currentPage, pageSize)
+    }
+
+    const kpi = reportSummary?.kpi || {
+        tong_luot_tiep_nhan: 0,
+        so_lich_hen: 0,
+        so_vang_lai: 0,
+        thoi_gian_cho_trung_binh_phut: 0,
+        so_lich_huy: 0,
+        so_no_show: 0,
+    }
+
+    const specialtyBreakdown = reportSummary?.phan_bo_chuyen_khoa || []
 
     const columns = [
         {
             title: 'Thời gian',
             dataIndex: 'timestamp',
             key: 'timestamp',
-            width: 170,
-            render: (time) => <span className="font-mono text-slate-500 text-xs">{time}</span>,
+            width: 160,
+            render: (time) => (
+                <span className="font-mono text-slate-600 text-xs flex items-center gap-1">
+                    <ClockCircleOutlined className="text-slate-400 text-[11px]" />
+                    {time || 'N/A'}
+                </span>
+            ),
         },
         {
             title: 'Người thực hiện',
             dataIndex: 'actor',
             key: 'actor',
-            width: 220,
+            width: 170,
             render: (actor) => (
-                <div className="text-xs">
-                    <span className="font-bold text-slate-800 block">{actor.split(' (')[0]}</span>
-                    <span className="text-slate-400 text-[11px] font-mono">{actor.split(' (')[1]?.replace(')', '')}</span>
-                </div>
+                <span className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
+                    <UserOutlined className="text-sky-600 text-xs" />
+                    {actor || 'Lễ tân tiếp đón'}
+                </span>
             ),
         },
         {
             title: 'Hành động',
-            dataIndex: 'actionType',
-            key: 'actionType',
-            width: 170,
+            dataIndex: 'action_type',
+            key: 'action_type',
+            width: 180,
             render: (act) => {
-                const colorMap = {
-                    CHECK_IN: 'blue',
-                    WALK_IN_CREATE: 'orange',
-                    APPOINTMENT_CANCEL: 'red',
-                    APPOINTMENT_RESCHEDULE: 'cyan',
-                    QUEUE_CALL: 'purple',
-                    QUEUE_DEFER: 'warning',
-                    QUEUE_TRANSFER_ROOM: 'geekblue',
-                    EMERGENCY_HANDOVER: 'error',
-                }
-                return <Tag color={colorMap[act] || 'default'} className="font-mono text-[11px] font-bold">{act}</Tag>
+                const color = ACTION_TYPE_COLOR_MAP[act] || 'default'
+                return (
+                    <Tag color={color} className="font-mono text-[11px] font-bold m-0">
+                        {act}
+                    </Tag>
+                )
             },
         },
         {
-            title: 'Nội dung & Đối tượng thao tác',
+            title: 'Đối tượng & Buồng khám',
+            key: 'target',
+            width: 220,
+            render: (_, record) => (
+                <div className="text-xs space-y-0.5">
+                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                        {record.ticket_number && (
+                            <span className="font-mono text-sky-700 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">
+                                {record.ticket_number}
+                            </span>
+                        )}
+                        <span>{record.patient_name || 'Khách vãng lai'}</span>
+                    </div>
+                    {record.phone && (
+                        <div className="text-[11px] text-slate-500">SĐT: {record.phone}</div>
+                    )}
+                    {record.room_name && (
+                        <div className="text-[11px] text-slate-600 font-medium">{record.room_name}</div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            title: 'Chi tiết nội dung điều phối',
             dataIndex: 'description',
             key: 'description',
-            render: (desc, record) => (
-                <div className="text-xs space-y-1">
-                    <span className="font-semibold text-slate-800 block">{desc}</span>
-                    {record.details && (
-                        <div className="text-[11px] text-slate-400 font-mono bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                            {JSON.stringify(record.details)}
-                        </div>
-                    )}
+            render: (desc) => (
+                <div className="text-xs text-slate-700 leading-relaxed font-normal">
+                    {desc || 'Không có mô tả chi tiết'}
                 </div>
             ),
         },
     ]
 
     return (
-        <div className="space-y-6">
-            {/* Top KPI Cards */}
+        <div className="space-y-4">
+            <div className="medpro-card p-4 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
+                        <FieldTimeOutlined className="text-sky-600" />
+                        Báo cáo Đối soát & Nhật ký Kiểm toán
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        Phân hệ đối soát chất lượng phục vụ tiếp đón (SLA), tỷ lệ phân bổ và truy vết thao tác điều phối
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                    <DatePicker
+                        value={selectedDate}
+                        onChange={(d) => setSelectedDate(d || dayjs())}
+                        format="DD/MM/YYYY"
+                        allowClear={false}
+                        className="w-36 rounded-xl font-medium"
+                        prefix={<CalendarOutlined className="text-slate-400 mr-1" />}
+                    />
+
+                    <Select
+                        value={selectedShift}
+                        onChange={(val) => setSelectedShift(val)}
+                        className="w-44 rounded-xl"
+                        options={[
+                            { value: '', label: 'Cả ngày (Tất cả ca)' },
+                            { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
+                            { value: 'chieu', label: 'Ca chiều (13:30 - 17:30)' },
+                        ]}
+                    />
+
+                    <Button
+                        icon={<SyncOutlined spin={reportLoading || auditLoading} />}
+                        onClick={handleRefreshAll}
+                        loading={reportLoading || auditLoading}
+                        className="medpro-btn-outline !h-8 !px-3 font-semibold text-xs"
+                    >
+                        Làm mới
+                    </Button>
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Tổng lượt tiếp nhận</span>
-                    <div className="text-3xl font-black text-sky-700 mt-2">{totalCheckIn} lượt</div>
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                        Tổng lượt tiếp nhận
+                    </span>
+                    <div className="text-3xl font-black text-sky-700 mt-2">
+                        {reportLoading ? <Spin size="small" /> : `${kpi.tong_luot_tiep_nhan} lượt`}
+                    </div>
                     <span className="text-[11px] text-slate-500 font-medium mt-1 inline-block">
-                        {bookedCount} Lịch hẹn • {walkInCount} Walk-in
+                        <strong>{kpi.so_lich_hen}</strong> Lịch hẹn • <strong>{kpi.so_vang_lai}</strong> Vãng lai
                     </span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Thời gian chờ TB</span>
-                    <div className="text-3xl font-black text-amber-600 mt-2">{avgWaitTime} phút</div>
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                        Thời gian chờ TB (SLA)
+                    </span>
+                    <div className="text-3xl font-black text-amber-600 mt-2">
+                        {reportLoading ? <Spin size="small" /> : `${kpi.thoi_gian_cho_trung_binh_phut} phút`}
+                    </div>
                     <span className="text-[11px] text-amber-700 font-medium mt-1 inline-block">
-                        Tính từ lúc check-in đến gọi số
+                        Tính từ check-in đến lúc bác sĩ gọi số
                     </span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Hủy lịch trong ca</span>
-                    <div className="text-3xl font-black text-red-600 mt-2">{cancelledApps} ca</div>
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                        Hủy lịch trong ca
+                    </span>
+                    <div className="text-3xl font-black text-red-600 mt-2">
+                        {reportLoading ? <Spin size="small" /> : `${kpi.so_lich_huy} ca`}
+                    </div>
                     <span className="text-[11px] text-red-500 font-medium mt-1 inline-block">
-                        Có lý do hủy hợp lệ
+                        Có lý do hành chính hợp lệ
                     </span>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Không đến (No-show)</span>
-                    <div className="text-3xl font-black text-slate-700 mt-2">{noShowApps} ca</div>
+                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                        Bùng hẹn (No-show)
+                    </span>
+                    <div className="text-3xl font-black text-slate-700 mt-2">
+                        {reportLoading ? <Spin size="small" /> : `${kpi.so_no_show} ca`}
+                    </div>
                     <span className="text-[11px] text-slate-500 font-medium mt-1 inline-block">
-                        Hết slot giờ không liên lạc được
+                        Quá khung giờ không đến quầy
                     </span>
                 </div>
             </div>
 
-            {/* Department Breakdown */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-800">Phân bổ lượt tiếp nhận theo chuyên khoa</h3>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {departmentStats.map((dep) => (
-                        <div key={dep.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                            <span className="font-bold text-slate-800 block truncate">{dep.name}</span>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-black text-sky-700">{dep.count}</span>
-                                <span className="text-slate-400 font-semibold">{dep.pct}%</span>
-                            </div>
-                            <Progress percent={dep.pct} showInfo={false} size="small" strokeColor="#0284c7" />
-                        </div>
-                    ))}
+            <div className="medpro-card p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-800">
+                        Phân bổ lượt tiếp nhận theo Chuyên khoa & Thời gian chờ TB (SLA)
+                    </h3>
+                    <span className="text-xs text-slate-400 font-medium">
+                        Ngày {selectedDate.format('DD/MM/YYYY')} {selectedShift ? `(${selectedShift === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : '(Toàn ngày)'}
+                    </span>
                 </div>
+
+                {reportLoading ? (
+                    <div className="py-8 text-center"><Spin /></div>
+                ) : specialtyBreakdown.length === 0 ? (
+                    <Empty description="Chưa có dữ liệu phân bổ chuyên khoa trong ngày/ca này" />
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                        {specialtyBreakdown.map((item) => (
+                            <div
+                                key={item.chuyen_khoa_id || item.ma_chuyen_khoa}
+                                className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs"
+                            >
+                                <span className="font-bold text-slate-800 block truncate" title={item.ten_chuyen_khoa}>
+                                    {item.ten_chuyen_khoa}
+                                </span>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-xl font-black text-sky-700">{item.so_luot} lượt</span>
+                                    <span className="text-slate-500 font-semibold">{item.ti_le_phan_tram}%</span>
+                                </div>
+                                <Progress
+                                    percent={item.ti_le_phan_tram}
+                                    showInfo={false}
+                                    size="small"
+                                    strokeColor="#0284c7"
+                                />
+                                <div className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                                    <span>Chờ trung bình:</span>
+                                    <strong className="font-mono">{item.thoi_gian_cho_tb_phut || 0} phút</strong>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Audit Log Table */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Nhật ký kiểm toán thao tác lễ tân (Audit Logs)</h2>
+                        <h2 className="text-base font-bold text-slate-800">
+                            Nhật ký kiểm toán thao tác tiếp đón (Audit Trail)
+                        </h2>
                         <span className="text-xs text-slate-500">
-                            Truy vết đầy đủ người thực hiện, thời gian, hành động, lý do và trạng thái trước/sau
+                            Truy vết đầy đủ người thực hiện, thời điểm, loại hành động, số vé và lý do điều phối từ cơ sở dữ liệu
                         </span>
                     </div>
                 </div>
 
-                {/* Filter controls */}
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
                     <Input
                         prefix={<SearchOutlined className="text-slate-400" />}
-                        placeholder="Tìm kiếm nội dung audit..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-72"
+                        placeholder="Tìm kiếm theo Tên BN, SĐT, Số vé, Lễ tân..."
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="w-72 rounded-xl"
                         allowClear
                     />
+
                     <Select
-                        className="w-52"
-                        placeholder="Loại hành động"
+                        className="w-64 rounded-xl"
+                        placeholder="Loại hành động kiểm toán"
                         value={actionFilter || undefined}
                         onChange={(val) => setActionFilter(val || '')}
                         allowClear
-                        options={[
-                            { value: 'CHECK_IN', label: 'CHECK_IN (Tiếp nhận)' },
-                            { value: 'WALK_IN_CREATE', label: 'WALK_IN_CREATE (Tạo walk-in)' },
-                            { value: 'QUEUE_CALL', label: 'QUEUE_CALL (Gọi số)' },
-                            { value: 'QUEUE_DEFER', label: 'QUEUE_DEFER (Tạm hoãn)' },
-                            { value: 'QUEUE_TRANSFER_ROOM', label: 'QUEUE_TRANSFER_ROOM (Chuyển phòng)' },
-                            { value: 'APPOINTMENT_CANCEL', label: 'APPOINTMENT_CANCEL (Hủy lịch)' },
-                            { value: 'EMERGENCY_HANDOVER', label: 'EMERGENCY_HANDOVER (Cấp cứu)' },
-                        ]}
+                        options={ACTION_TYPE_OPTIONS}
                     />
-                    <Select
-                        className="w-48"
-                        placeholder="Nhân viên thực hiện"
-                        value={actorFilter || undefined}
-                        onChange={(val) => setActorFilter(val || '')}
-                        allowClear
-                        options={[
-                            { value: 'Nguyễn Thị Hoa', label: 'Nguyễn Thị Hoa (Lễ tân)' },
-                            { value: 'Lê Văn Tuấn', label: 'Lê Văn Tuấn (Lễ tân)' },
-                            { value: 'Trần Đình Nam', label: 'Trần Đình Nam (Giám sát)' },
-                        ]}
-                    />
+
+                    <span className="text-xs text-slate-400 ml-auto font-mono">
+                        Tổng cộng: <strong>{auditPagination?.total_items ?? auditPagination?.totalItems ?? auditLogs.length}</strong> bản ghi
+                    </span>
                 </div>
 
                 <Table
                     columns={columns}
-                    dataSource={filteredLogs}
-                    rowKey="id"
-                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    dataSource={auditLogs}
+                    rowKey={(record) => record.id || `${record.timestamp}-${record.action_type}-${Math.random()}`}
+                    loading={auditLoading}
+                    pagination={{
+                        current: currentPage,
+                        pageSize: pageSize,
+                        total: auditPagination?.total_items ?? auditPagination?.totalItems ?? auditLogs.length,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} thao tác`,
+                    }}
+                    onChange={handleTableChange}
                     size="middle"
+                    locale={{
+                        emptyText: (
+                            <Empty
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                description="Không tìm thấy nhật ký kiểm toán nào phù hợp với bộ lọc"
+                            />
+                        ),
+                    }}
                 />
             </div>
         </div>

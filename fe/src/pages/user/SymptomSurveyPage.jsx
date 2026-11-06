@@ -39,7 +39,7 @@ export default function SymptomSurveyPage() {
     }
 
     if (triageResult?.isEmergency) return <section className="min-h-[calc(100vh-72px)] bg-rose-50/50 px-4 py-10"><EmergencyAlert reasons={triageResult.emergencyReasons} onReview={review}/></section>
-    if (triageResult) return <section className="min-h-[calc(100vh-72px)] bg-[#F7FBFE] px-4 py-10"><SpecialtyRecommendation result={triageResult} onRestart={review}/><button type="button" onClick={restart} className="mx-auto mt-4 block text-sm text-slate-500 underline">Xóa thông tin và bắt đầu lại</button></section>
+    if (triageResult) return <section className="min-h-[calc(100vh-72px)] bg-[#F7FBFE] px-4 py-10"><SpecialtyRecommendation result={triageResult} symptoms={[mainSymptom.trim(), ...quickSymptoms].filter(Boolean).join(', ')} onRestart={review}/><button type="button" onClick={restart} className="mx-auto mt-4 block text-sm text-slate-500 underline">Xóa thông tin và bắt đầu lại</button></section>
 
     return <section className="min-h-[calc(100vh-72px)] bg-[#F7FBFE] px-4 py-8 sm:py-12">
         <div className="mx-auto max-w-3xl">

@@ -1,204 +1,267 @@
-import { useState, useMemo } from 'react'
-import { useSelector } from 'react-redux'
-import { Table, Tag, Input, Select, Button, Space, Card, Segmented } from 'antd'
+import { useState, useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 import {
-    AlertOutlined,
-    SearchOutlined,
-    CheckCircleOutlined,
-    ClockCircleOutlined,
-    ThunderboltOutlined,
+    Table,
+    Tag,
+    Button,
+    Modal,
+    Select,
+    message,
+    Alert,
+    DatePicker,
+} from 'antd'
+import {
+    SwapOutlined,
+    SyncOutlined,
+    WarningOutlined,
 } from '@ant-design/icons'
-import TaskActionModal from '../../components/reception/TaskActionModal'
-import { TASK_SEVERITY_LABELS } from '../../utils/constants/receptionConstants'
+import dayjs from 'dayjs'
+import {
+    fetchDoctorAbsencesAsync,
+    rebalanceQueueAsync,
+    fetchReceptionDataAsync,
+} from '../../redux/actions/reception/receptionAction'
 
 export default function TasksPage() {
-    const { tasks } = useSelector((state) => state.reception)
+    const dispatch = useDispatch()
+    const {
+        doctorAbsences = [],
+        loading = false,
+    } = useSelector((state) => state.reception)
 
-    const [statusFilter, setStatusFilter] = useState('ALL') // 'ALL' | 'PENDING' | 'RESOLVED'
-    const [severityFilter, setSeverityFilter] = useState('')
-    const [searchQuery, setSearchQuery] = useState('')
-    const [selectedTask, setSelectedTask] = useState(null)
+    const [incidentDate, setIncidentDate] = useState(() => dayjs().format('YYYY-MM-DD'))
+    const [selectedIncident, setSelectedIncident] = useState(null)
+    const [selectedTargetDoctor, setSelectedTargetDoctor] = useState(null)
+    const [isRebalancing, setIsRebalancing] = useState(false)
 
-    const filteredTasks = useMemo(() => {
-        return tasks.filter((t) => {
-            const matchesQuery =
-                !searchQuery ||
-                t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                t.description.toLowerCase().includes(searchQuery.toLowerCase())
+    useEffect(() => {
+        dispatch(fetchReceptionDataAsync())
+    }, [dispatch])
 
-            const matchesStatus =
-                statusFilter === 'ALL' ||
-                (statusFilter === 'PENDING' && t.status !== 'RESOLVED') ||
-                (statusFilter === 'RESOLVED' && t.status === 'RESOLVED')
+    useEffect(() => {
+        dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
+    }, [dispatch, incidentDate])
 
-            const matchesSeverity = !severityFilter || t.severity === severityFilter
+    const handleRefresh = () => {
+        dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
+    }
 
-            return matchesQuery && matchesStatus && matchesSeverity
-        })
-    }, [tasks, searchQuery, statusFilter, severityFilter])
+    const handleConfirmRebalance = async () => {
+        if (!selectedIncident) return
+        setIsRebalancing(true)
+        try {
+            const res = await dispatch(
+                rebalanceQueueAsync({
+                    payload: {
+                        nghi_phep_bac_si_id: selectedIncident.nghi_phep_id,
+                        ticket_ids: null,
+                        bac_si_nhan_id: selectedTargetDoctor ? Number(selectedTargetDoctor) : null,
+                    },
+                })
+            ).unwrap()
 
-    const pendingCount = tasks.filter((t) => t.status === 'PENDING').length
-    const criticalCount = tasks.filter((t) => t.severity === 'CRITICAL' && t.status === 'PENDING').length
+            const count = res?.so_ve_chuyen || res?.so_luong_chuyen_thanh_cong || selectedIncident.so_benh_nhan_cho || 0
+            message.success(`Đã điều chuyển thành công ${count} bệnh nhân sang bác sĩ thay thế!`)
+            setSelectedIncident(null)
+            setSelectedTargetDoctor(null)
+            dispatch(fetchDoctorAbsencesAsync({ queryDate: incidentDate }))
+        } catch {
+        } finally {
+            setIsRebalancing(false)
+        }
+    }
 
-    const columns = [
+    const incidentColumns = [
         {
             title: 'Mức độ',
-            dataIndex: 'severity',
             key: 'severity',
-            width: 120,
-            render: (sev) => {
-                const cfg = TASK_SEVERITY_LABELS[sev] || { label: sev, color: 'default' }
-                return <Tag color={cfg.color} className="font-bold text-xs">{cfg.label}</Tag>
-            },
+            width: 110,
+            render: () => (
+                <Tag color="error" className="font-bold text-xs">
+                    Khẩn cấp
+                </Tag>
+            ),
         },
         {
-            title: 'Sự cố & Nội dung',
+            title: 'Bác sĩ & Nội dung sự cố',
             key: 'title',
             render: (_, record) => (
                 <div className="space-y-1">
-                    <span className="font-bold text-slate-800 text-sm block">{record.title}</span>
-                    <p className="text-slate-600 text-xs">{record.description}</p>
-                    {record.recommendedAction && (
-                        <div className="text-[11px] text-sky-700 bg-sky-50 px-2 py-1 rounded-md border border-sky-100 font-medium">
-                            💡 Khuyến nghị: {record.recommendedAction}
+                    <span className="font-bold text-slate-800 text-sm block">
+                        Bác sĩ {record.ten_bac_si} ({record.ten_chuyen_khoa || 'Chuyên khoa'})
+                    </span>
+                    <p className="text-slate-600 text-xs">
+                        Lý do: <strong>{record.ly_do}</strong> • Thời gian: {record.tu_ngay} {record.ca_lam_viec ? `(${record.ca_lam_viec === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : ''}
+                    </p>
+                    {record.danh_sach_bac_si_thay_the && record.danh_sach_bac_si_thay_the.length > 0 && (
+                        <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span>BS thay thế gợi ý:</span>
+                            {record.danh_sach_bac_si_thay_the.map((alt) => (
+                                <Tag key={alt.bac_si_id} color="cyan" className="mr-0">
+                                    {alt.ten_bac_si} ({alt.phong_kham || 'Buồng'} - Chờ: {alt.so_benh_nhan_cho})
+                                </Tag>
+                            ))}
                         </div>
                     )}
                 </div>
             ),
         },
         {
-            title: 'Thời điểm',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            width: 150,
-            render: (time) => <span className="text-slate-400 text-xs font-mono">{time}</span>,
-        },
-        {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            key: 'status',
-            width: 130,
-            render: (st, record) => {
-                if (st === 'RESOLVED') {
-                    return (
-                        <div>
-                            <Tag color="success" className="font-semibold text-xs">
-                                Đã xử lý
-                            </Tag>
-                            {record.resolutionNote && (
-                                <span className="text-[10px] text-slate-400 block mt-0.5 line-clamp-1">
-                                    {record.resolutionNote}
-                                </span>
-                            )}
-                        </div>
-                    )
-                }
+            title: 'Bệnh nhân bị kẹt',
+            dataIndex: 'so_benh_nhan_cho',
+            key: 'so_benh_nhan_cho',
+            width: 160,
+            render: (count, record) => {
+                const total = count ?? record?.so_benh_nhan_bi_anh_huong ?? 0
                 return (
-                    <Tag color="warning" className="font-semibold text-xs">
-                        Đang chờ xử lý
-                    </Tag>
+                    <div>
+                        <span className="font-bold text-red-600 text-base font-mono block">
+                            {total} bệnh nhân
+                        </span>
+                        <span className="text-[10px] text-slate-400">Đang chờ khám</span>
+                    </div>
                 )
             },
         },
         {
             title: 'Thao tác',
             key: 'actions',
-            width: 130,
+            width: 170,
             align: 'right',
-            render: (_, record) => {
-                if (record.status === 'RESOLVED') {
-                    return <span className="text-emerald-600 text-xs font-medium">✓ Hoàn tất</span>
-                }
-                return (
-                    <Button
-                        size="small"
-                        type="primary"
-                        className="bg-sky-600 hover:bg-sky-700 text-xs font-semibold"
-                        onClick={() => setSelectedTask(record)}
-                    >
-                        Xử lý ngay
-                    </Button>
-                )
-            },
+            render: (_, record) => (
+                <Button
+                    size="small"
+                    type="primary"
+                    icon={<SwapOutlined />}
+                    className="medpro-btn-primary text-xs font-bold"
+                    onClick={() => {
+                        setSelectedIncident(record)
+                        setSelectedTargetDoctor(null)
+                    }}
+                >
+                    ⚡ Điều chuyển ngay
+                </Button>
+            ),
         },
     ]
 
     return (
         <div className="space-y-5">
-            {/* Header info bar */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Sự cố hành chính cần xử lý (Triage Tasks)</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
+                            <WarningOutlined className="text-amber-500" />
+                            Trung tâm Sự cố & Cân bằng tải hàng đợi
+                        </h2>
                         <span className="text-xs text-slate-500">
-                            Tổng hợp các ca ngoại lệ: bệnh nhân đến muộn, bác sĩ nghỉ, hồ sơ trùng, quá tải phòng khám
+                            Rà soát sự cố Bác sĩ khai báo nghỉ đột xuất, giải phóng bệnh nhân bị kẹt và tái cân bằng tải hàng loạt sang Bác sĩ khác cùng chuyên khoa
                         </span>
                     </div>
                     <div className="flex gap-2">
-                        {criticalCount > 0 && (
-                            <Tag color="error" className="px-3 py-1 text-xs font-bold animate-pulse">
-                                {criticalCount} sự cố khẩn cấp
-                            </Tag>
-                        )}
-                        <Tag color="warning" className="px-3 py-1 text-xs font-bold">
-                            {pendingCount} vụ việc tồn đọng
-                        </Tag>
+                        <Button
+                            icon={<SyncOutlined />}
+                            onClick={handleRefresh}
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
+                        >
+                            Làm mới
+                        </Button>
                     </div>
                 </div>
+            </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
-                    <div className="flex items-center gap-3">
-                        <Segmented
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                            options={[
-                                { label: 'Tất cả', value: 'ALL' },
-                                { label: 'Chờ xử lý', value: 'PENDING' },
-                                { label: 'Đã hoàn tất', value: 'RESOLVED' },
-                            ]}
-                        />
-                        <Select
-                            className="w-36"
-                            placeholder="Mức độ"
-                            value={severityFilter || undefined}
-                            onChange={(val) => setSeverityFilter(val || '')}
-                            allowClear
-                            options={[
-                                { value: 'CRITICAL', label: 'Khẩn cấp' },
-                                { value: 'HIGH', label: 'Cao' },
-                                { value: 'MEDIUM', label: 'Trung bình' },
-                                { value: 'LOW', label: 'Thấp' },
-                            ]}
-                        />
-                    </div>
-                    <Input
-                        prefix={<SearchOutlined className="text-slate-400" />}
-                        placeholder="Tìm tiêu đề sự cố..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-64"
-                        allowClear
+            <div className="space-y-4">
+                <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
+                    <span className="text-slate-400">Ngày rà soát sự cố:</span>
+                    <DatePicker
+                        format="DD/MM/YYYY"
+                        value={dayjs(incidentDate)}
+                        onChange={(d) => setIncidentDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+                    />
+                </div>
+
+                {doctorAbsences.length === 0 ? (
+                    <Alert
+                        message="Không có sự cố đột xuất"
+                        description="Tất cả bác sĩ trong các chuyên khoa đang hoạt động đúng ca trực. Không có bệnh nhân nào bị gián đoạn hàng đợi."
+                        type="success"
+                        showIcon
+                    />
+                ) : (
+                    <Alert
+                        message={`Phát hiện ${doctorAbsences.length} bác sĩ nghỉ đột xuất cần điều chuyển`}
+                        description="Vui lòng thực hiện điều chuyển bệnh nhân sang các bác sĩ thay thế trong cùng chuyên khoa để tránh ùn ứ hàng đợi."
+                        type="warning"
+                        showIcon
+                    />
+                )}
+
+                <div className="medpro-card overflow-hidden">
+                    <Table
+                        columns={incidentColumns}
+                        dataSource={doctorAbsences}
+                        rowKey={(r) => r.nghi_phep_id || r.id || r.bac_si_id}
+                        loading={loading}
+                        pagination={{ pageSize: 10 }}
+                        size="middle"
+                        scroll={{ x: 700 }}
+                        locale={{ emptyText: 'Không có sự cố nào cần xử lý' }}
                     />
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
-                <Table
-                    columns={columns}
-                    dataSource={filteredTasks}
-                    rowKey="id"
-                    pagination={{ pageSize: 8, showSizeChanger: true }}
-                    size="middle"
-                />
-            </div>
+            <Modal
+                title={
+                    <div className="flex items-center gap-2">
+                        <SwapOutlined className="text-sky-600" />
+                        <span>Điều chuyển hàng loạt: BS {selectedIncident?.ten_bac_si}</span>
+                    </div>
+                }
+                open={Boolean(selectedIncident)}
+                onCancel={() => setSelectedIncident(null)}
+                footer={[
+                    <Button key="back" onClick={() => setSelectedIncident(null)}>
+                        Hủy bỏ
+                    </Button>,
+                    <Button
+                        key="submit"
+                        type="primary"
+                        loading={isRebalancing}
+                        onClick={handleConfirmRebalance}
+                        className="medpro-btn-primary text-xs font-bold"
+                    >
+                        Xác nhận điều chuyển hàng loạt
+                    </Button>,
+                ]}
+            >
+                {selectedIncident && (
+                    <div className="space-y-4 py-2 text-xs">
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                            <div><strong>Bác sĩ xin nghỉ:</strong> {selectedIncident.ten_bac_si}</div>
+                            <div><strong>Chuyên khoa:</strong> {selectedIncident.ten_chuyen_khoa}</div>
+                            <div><strong>Số bệnh nhân đang kẹt:</strong> <span className="font-bold text-red-600">{selectedIncident.so_benh_nhan_cho || 0} người</span></div>
+                        </div>
 
-            {/* Task Action Modal */}
-            <TaskActionModal
-                open={Boolean(selectedTask)}
-                onClose={() => setSelectedTask(null)}
-                task={selectedTask}
-            />
+                        <div className="space-y-1">
+                            <label className="font-bold text-slate-700 block">Chọn bác sĩ tiếp nhận thay thế:</label>
+                            <Select
+                                className="w-full"
+                                placeholder="-- Chọn bác sĩ hoặc để hệ thống Tự động Cân bằng tải --"
+                                value={selectedTargetDoctor}
+                                onChange={(val) => setSelectedTargetDoctor(val)}
+                                allowClear
+                                options={[
+                                    { value: null, label: '⚡ Tự động Cân bằng tải đều (Phân phối xoay vòng cho BS ít người chờ nhất)' },
+                                    ...(selectedIncident.danh_sach_bac_si_thay_the || []).map((alt) => ({
+                                        value: alt.bac_si_id,
+                                        label: `BS ${alt.ten_bac_si} (${alt.phong_kham || 'Buồng khám'} - Đang chờ: ${alt.so_benh_nhan_cho} BN)`,
+                                    })),
+                                ]}
+                            />
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     )
 }

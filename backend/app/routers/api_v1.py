@@ -1,3 +1,4 @@
+from app.routers.schedule import router as schedule_router
 from fastapi import APIRouter
 from app.routers.auth import router as auth_router
 from app.routers.appointment import router as appointment_router
@@ -11,6 +12,7 @@ from app.routers.cashier import router as cashier_router
 from app.routers.subclinical import router as subclinical_router
 from app.routers.patient import router as patient_router
 from app.routers.notification import router as notification_router
+from app.routers.staff import router as staff_router
 
 api_router = APIRouter()
 
@@ -27,5 +29,7 @@ api_router.include_router(cashier_router)
 api_router.include_router(subclinical_router)
 api_router.include_router(patient_router)
 api_router.include_router(notification_router)
+api_router.include_router(staff_router)
 
 
+api_router.include_router(schedule_router)

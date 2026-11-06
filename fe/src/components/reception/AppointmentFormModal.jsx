@@ -1,285 +1,582 @@
-import { useState } from 'react'
-import { Modal, Select, DatePicker, Input, Button, message, Alert } from 'antd'
-import { useSelector, useDispatch } from 'react-redux'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Modal, Select, DatePicker, Input, Button, message, Alert, Spin, Tag, Card } from 'antd'
+import { UserAddOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { useDispatch } from 'react-redux'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import dayjs from 'dayjs'
-import { createAppointmentAsync } from '../../redux/actions/reception/receptionAction'
-import { initialTimeSlots } from '../../utils/constants/receptionConstants'
+import { createAppointmentAsync, fetchAppointmentsAsync } from '../../redux/actions/reception/receptionAction'
+import { receptionService } from '../../services/reception/receptionService'
+import { unwrapApi, unwrapPagedApi } from '../../utils/helpers/apiHelper'
+import PatientFormModal from './PatientFormModal'
 
 export default function AppointmentFormModal({ open, onClose, defaultPatientId }) {
     const dispatch = useDispatch()
-    const { patients, departments, doctors, rooms, services, appointments } = useSelector((state) => state.reception)
-    const [conflictAlert, setConflictAlert] = useState(null)
+
+    // ── 1. State danh mục động nạp 100% từ API backend ────────────────
+    const [specialtiesList, setSpecialtiesList] = useState([])
+    const [loadingSpecialties, setLoadingSpecialties] = useState(false)
+
+    // Doctors by department (API /api/v1/medical/doctors?specialty_id=...)
+    const [departmentDoctors, setDepartmentDoctors] = useState([])
+    const [loadingDoctors, setLoadingDoctors] = useState(false)
+
+    // Patient search state (API /api/v1/reception/patients)
+    const [patientList, setPatientList] = useState([])
+    const [selectedPatientObj, setSelectedPatientObj] = useState(null)
+    const [isSearchingPatient, setIsSearchingPatient] = useState(false)
+    const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
+    const searchTimeoutRef = useRef(null)
+
+    // Doctor slots state (API /api/v1/appointments/doctors/{id}/slots)
+    const [doctorSlots, setDoctorSlots] = useState([])
+    const [loadingSlots, setLoadingSlots] = useState(false)
+    const [slotError, setSlotError] = useState(null)
 
     const formik = useFormik({
         initialValues: {
             patientId: defaultPatientId || '',
             departmentId: '',
             doctorId: '',
-            roomId: '',
-            serviceId: '',
             appointmentDate: dayjs().format('YYYY-MM-DD'),
             timeSlot: '',
-            notes: '',
+            reason: '',
+            symptoms: '',
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
-            patientId: Yup.string().required('Vui lòng chọn người bệnh'),
-            departmentId: Yup.string().required('Vui lòng chọn chuyên khoa'),
-            doctorId: Yup.string().required('Vui lòng chọn bác sĩ'),
-            roomId: Yup.string().required('Vui lòng chọn phòng khám'),
-            serviceId: Yup.string().required('Vui lòng chọn dịch vụ'),
+            patientId: Yup.mixed().required('Vui lòng chọn người bệnh'),
+            departmentId: Yup.mixed().required('Vui lòng chọn chuyên khoa'),
+            doctorId: Yup.mixed().required('Vui lòng chọn bác sĩ khám'),
             appointmentDate: Yup.string().required('Vui lòng chọn ngày khám'),
             timeSlot: Yup.string().required('Vui lòng chọn khung giờ khám'),
+            reason: Yup.string().trim().required('Vui lòng nhập lý do khám'),
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
-                await dispatch(createAppointmentAsync({ payload: values }))
-                message.success('Tạo lịch hẹn khám mới thành công!')
+                let rawTime = values.timeSlot || ''
+                if (rawTime.includes(' - ')) {
+                    rawTime = rawTime.split(' - ')[0]
+                }
+                const formattedTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime
+
+                const payload = {
+                    benh_nhan_id: Number(values.patientId),
+                    bac_si_id: Number(values.doctorId),
+                    chuyen_khoa_id: values.departmentId ? Number(values.departmentId) : undefined,
+                    ngay_kham: values.appointmentDate,
+                    gio_kham: formattedTime,
+                    ly_do_kham: values.reason.trim(),
+                    trieu_chung_ban_dau: values.symptoms ? values.symptoms.trim() : undefined,
+                }
+
+                await dispatch(createAppointmentAsync({ payload })).unwrap()
+                dispatch(fetchAppointmentsAsync())
+
+                message.success('Đặt lịch hẹn khám cho bệnh nhân thành công!')
                 resetForm()
-                setConflictAlert(null)
+                setSelectedPatientObj(null)
+                setDoctorSlots([])
+                setDepartmentDoctors([])
                 onClose()
             } catch (err) {
-                message.error(err.message || 'Lỗi khi tạo lịch hẹn')
+                const errMsg = typeof err === 'string' ? err : err?.message || 'Lỗi khi đặt lịch hẹn'
+                message.error(errMsg)
             }
         },
     })
 
-    const handleDepartmentChange = (depId) => {
+    // ── 2. Tải danh sách bệnh nhân từ backend qua API tìm kiếm ─────────
+    const fetchPatients = useCallback(async (query = '') => {
+        setIsSearchingPatient(true)
+        try {
+            const res = await receptionService.searchPatients({
+                search: query.trim() || undefined,
+                page: 1,
+                page_size: 20,
+            })
+            const paged = unwrapPagedApi(res, 20)
+            const items = (paged.items || []).map((p) => ({
+                id: p.id,
+                patientCode: p.ma_dinh_danh_y_te || `BN-${p.id}`,
+                fullName: p.ho_ten || p.fullName,
+                phone: p.so_dien_thoai || p.phone,
+                identityCard: p.cccd_so || p.identityCard,
+                dob: p.ngay_sinh || p.dob,
+                gender: p.gioi_tinh || p.gender,
+            }))
+            setPatientList(items)
+
+            if (defaultPatientId && !selectedPatientObj) {
+                const found = items.find((p) => String(p.id) === String(defaultPatientId))
+                if (found) {
+                    setSelectedPatientObj(found)
+                }
+            }
+        } catch {
+            setPatientList([])
+        } finally {
+            setIsSearchingPatient(false)
+        }
+    }, [defaultPatientId, selectedPatientObj])
+
+    // Tải danh mục chuyên khoa trực tiếp từ API backend khi mở modal
+    const loadSpecialties = useCallback(async () => {
+        setLoadingSpecialties(true)
+        try {
+            const res = await receptionService.getSpecialties()
+            const data = unwrapApi(res) || []
+            setSpecialtiesList(
+                data.map((s) => ({
+                    id: s.id,
+                    name: s.ten_chuyen_khoa || s.name,
+                    code: s.ma_chuyen_khoa || s.code,
+                    room: s.vi_tri_phong,
+                    doctorCount: s.so_luong_bac_si || 0,
+                }))
+            )
+        } catch {
+            setSpecialtiesList([])
+        } finally {
+            setLoadingSpecialties(false)
+        }
+    }, [])
+
+    // Khi mở modal, tải dữ liệu từ API
+    useEffect(() => {
+        if (open) {
+            loadSpecialties()
+            fetchPatients('')
+        }
+    }, [open, loadSpecialties, fetchPatients])
+
+    // Debounce tìm kiếm bệnh nhân
+    const handlePatientSearch = (value) => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current)
+        }
+        searchTimeoutRef.current = setTimeout(() => {
+            fetchPatients(value)
+        }, 350)
+    }
+
+    // Khi chọn người bệnh
+    const handleSelectPatient = (val) => {
+        formik.setFieldValue('patientId', val)
+        const pat = patientList.find((p) => String(p.id) === String(val))
+        setSelectedPatientObj(pat || null)
+    }
+
+    // ── 3. Tải danh sách khung giờ 30 phút theo ca trực của Bác sĩ ────
+    const fetchSlots = useCallback(async (docId, dateStr) => {
+        if (!docId || !dateStr) {
+            setDoctorSlots([])
+            setSlotError(null)
+            return
+        }
+        setLoadingSlots(true)
+        setSlotError(null)
+        try {
+            const res = await receptionService.getDoctorSlots(docId, dateStr)
+            const data = unwrapApi(res)
+            const slots = data?.slots || []
+            setDoctorSlots(slots)
+            if (slots.length === 0) {
+                setSlotError('Bác sĩ không có ca trực hoặc không còn khung giờ khả dụng trong ngày này.')
+            }
+        } catch (err) {
+            setDoctorSlots([])
+            setSlotError(err?.message || 'Bác sĩ không có ca trực trong ngày đã chọn.')
+        } finally {
+            setLoadingSlots(false)
+        }
+    }, [])
+
+    // ── 4. Khi chọn Chuyên khoa: Bắt buộc gọi API lấy danh sách Bác sĩ ─
+    const handleDepartmentChange = async (depId) => {
         formik.setFieldValue('departmentId', depId)
         formik.setFieldValue('doctorId', '')
-        formik.setFieldValue('roomId', '')
-        formik.setFieldValue('serviceId', '')
+        formik.setFieldValue('timeSlot', '')
+        setDoctorSlots([])
+        setSlotError(null)
 
-        // Auto select first room of department
-        const depRoom = rooms.find((r) => r.departmentId === depId)
-        if (depRoom) formik.setFieldValue('roomId', depRoom.id)
+        if (!depId) {
+            setDepartmentDoctors([])
+            return
+        }
 
-        // Auto select first service of department
-        const depService = services.find((s) => s.departmentId === depId)
-        if (depService) formik.setFieldValue('serviceId', depService.id)
+        setLoadingDoctors(true)
+
+        // Gọi API lấy danh sách bác sĩ thuộc chuyên khoa
+        try {
+            const docsRes = await receptionService.getDoctors({
+                specialty_id: Number(depId),
+                page: 1,
+                page_size: 100,
+            })
+            const data = unwrapApi(docsRes)
+            const rawList = Array.isArray(data) ? data : data?.items || []
+            const doctorsFound = rawList.map((d) => ({
+                id: d.id,
+                name: d.ho_ten || d.name,
+                title: d.hoc_vi || '',
+                room: d.vi_tri_phong || '',
+                experience: d.nam_kinh_nghiem || 0,
+                status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
+            }))
+            setDepartmentDoctors(doctorsFound)
+
+            // Nếu chuyên khoa chỉ có đúng 1 bác sĩ, tự động chọn luôn bác sĩ đó
+            if (doctorsFound.length === 1 && doctorsFound[0].status !== 'ON_LEAVE') {
+                const singleDoc = doctorsFound[0]
+                formik.setFieldValue('doctorId', singleDoc.id)
+                if (formik.values.appointmentDate) {
+                    fetchSlots(singleDoc.id, formik.values.appointmentDate)
+                }
+            }
+        } catch {
+            setDepartmentDoctors([])
+        } finally {
+            setLoadingDoctors(false)
+        }
     }
 
-    const checkDoctorConflict = (docId, date, slot) => {
-        if (!docId || !date || !slot) return null
-        const conflict = appointments.find(
-            (a) => a.doctorId === docId &&
-                   a.appointmentDate === date &&
-                   a.timeSlot === slot &&
-                   a.status !== 'CANCELLED'
-        )
-        return conflict ? `Bác sĩ đã có lịch hẹn (${conflict.appointmentCode}) trong khung giờ này.` : null
-    }
-
-    const handleSlotChange = (slot) => {
-        formik.setFieldValue('timeSlot', slot)
-        const warn = checkDoctorConflict(formik.values.doctorId, formik.values.appointmentDate, slot)
-        setConflictAlert(warn)
-    }
-
+    // Khi chọn Bác sĩ
     const handleDoctorChange = (docId) => {
         formik.setFieldValue('doctorId', docId)
-        const doc = doctors.find((d) => d.id === docId)
-        if (doc && doc.roomDefault) {
-            formik.setFieldValue('roomId', doc.roomDefault)
+        formik.setFieldValue('timeSlot', '')
+        if (docId && formik.values.appointmentDate) {
+            fetchSlots(docId, formik.values.appointmentDate)
         }
-        const warn = checkDoctorConflict(docId, formik.values.appointmentDate, formik.values.timeSlot)
-        setConflictAlert(warn)
     }
 
-    const filteredDoctors = doctors.filter((d) => !formik.values.departmentId || d.departmentId === formik.values.departmentId)
-    const filteredRooms = rooms.filter((r) => !formik.values.departmentId || r.departmentId === formik.values.departmentId)
-    const filteredServices = services.filter((s) => !formik.values.departmentId || s.departmentId === formik.values.departmentId)
+    // Khi chọn Ngày khám
+    const handleDateChange = (date) => {
+        const dateStr = date ? date.format('YYYY-MM-DD') : ''
+        formik.setFieldValue('appointmentDate', dateStr)
+        formik.setFieldValue('timeSlot', '')
+        if (formik.values.doctorId && dateStr) {
+            fetchSlots(formik.values.doctorId, dateStr)
+        }
+    }
+
+    // Render danh sách slots với status: available, booked, past từ API
+    const slotOptions = doctorSlots.length > 0
+        ? doctorSlots.map((slot) => {
+            const isAvailable = slot.status === 'available' || slot.is_available === true
+            const isBooked = slot.status === 'booked' || (slot.is_available === false && slot.status !== 'past')
+            const isPast = slot.status === 'past'
+
+            let labelSuffix = ''
+            if (isAvailable) {
+                labelSuffix = ''
+            } else if (isBooked) {
+                labelSuffix = ' (Đã kín)'
+            } else if (isPast) {
+                labelSuffix = ' (Đã qua)'
+            } else {
+                labelSuffix = ' (Hết chỗ)'
+            }
+
+            const slotValue = slot.time_val || (slot.time_str && slot.time_str.length === 5 ? `${slot.time_str}:00` : slot.time_str)
+
+            return {
+                value: slotValue,
+                label: `${slot.time_str}${labelSuffix}`,
+                disabled: !isAvailable,
+            }
+        })
+        : []
 
     return (
-        <Modal
-            title={<span className="font-bold text-slate-800">Đặt lịch hẹn khám mới</span>}
-            open={open}
-            onCancel={() => {
-                formik.resetForm()
-                setConflictAlert(null)
-                onClose()
-            }}
-            width={680}
-            footer={
-                <div className="flex justify-end gap-2">
-                    <Button onClick={onClose}>Hủy bỏ</Button>
-                    <Button type="primary" onClick={formik.handleSubmit} className="bg-sky-600" loading={formik.isSubmitting}>
-                        Xác nhận đặt lịch
-                    </Button>
-                </div>
-            }
-        >
-            <form onSubmit={formik.handleSubmit} className="space-y-4 py-2">
-                {conflictAlert && (
-                    <Alert
-                        message="Cảnh báo trùng lịch khám"
-                        description={conflictAlert}
-                        type="warning"
-                        showIcon
-                        className="mb-2"
-                    />
-                )}
+        <>
+            <Modal
+                title={
+                    <div className="flex items-center gap-2">
+                        <UserOutlined className="text-sky-600" />
+                        <span className="font-bold text-slate-800">Đặt lịch hẹn khám cho bệnh nhân (Lễ tân)</span>
+                    </div>
+                }
+                open={open}
+                onCancel={() => {
+                    formik.resetForm()
+                    setSelectedPatientObj(null)
+                    setDoctorSlots([])
+                    setSlotError(null)
+                    setDepartmentDoctors([])
+                    onClose()
+                }}
+                width={650}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={onClose}>Hủy bỏ</Button>
+                        <Button
+                            type="primary"
+                            onClick={formik.handleSubmit}
+                            className="bg-sky-600 font-semibold"
+                            loading={formik.isSubmitting}
+                        >
+                            Xác nhận đặt lịch
+                        </Button>
+                    </div>
+                }
+            >
+                <form onSubmit={formik.handleSubmit} className="space-y-4 py-2">
+                    {/* ── BỆNH NHÂN ────────────────────────────────────────── */}
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-bold text-slate-700 uppercase">
+                                Bệnh nhân <span className="text-red-500">*</span>
+                            </label>
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<UserAddOutlined />}
+                                onClick={() => setIsCreatePatientOpen(true)}
+                                className="text-xs p-0 text-sky-600 font-semibold"
+                            >
+                                + Thêm bệnh nhân mới
+                            </Button>
+                        </div>
 
-                {/* Patient selection */}
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        Bệnh nhân <span className="text-red-500">*</span>
-                    </label>
-                    <Select
-                        showSearch
-                        className="w-full"
-                        placeholder="Tìm theo tên, SĐT hoặc mã bệnh nhân..."
-                        value={formik.values.patientId || undefined}
-                        onChange={(val) => formik.setFieldValue('patientId', val)}
-                        filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                        options={patients.map((p) => ({
-                            value: p.id,
-                            label: `${p.patientCode} - ${p.fullName} (${p.phone}) - ${p.identityCard || 'Chưa CCCD'}`,
-                        }))}
-                        status={formik.touched.patientId && formik.errors.patientId ? 'error' : ''}
-                    />
-                    {formik.touched.patientId && formik.errors.patientId && (
-                        <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.patientId}</span>
+                        <Select
+                            showSearch
+                            className="w-full"
+                            placeholder="Gõ tên, SĐT, Mã BN hoặc CCCD để tìm kiếm..."
+                            value={formik.values.patientId || undefined}
+                            onChange={handleSelectPatient}
+                            onSearch={handlePatientSearch}
+                            filterOption={false}
+                            loading={isSearchingPatient}
+                            notFoundContent={
+                                isSearchingPatient ? (
+                                    <div className="text-center py-2"><Spin size="small" /> Đang tìm...</div>
+                                ) : (
+                                    <div className="text-center py-2 text-xs text-slate-400">
+                                        Không tìm thấy bệnh nhân. Bấm <strong>"+ Thêm bệnh nhân mới"</strong> để tạo hồ sơ.
+                                    </div>
+                                )
+                            }
+                            options={patientList.map((p) => ({
+                                value: p.id,
+                                label: `${p.patientCode} - ${p.fullName} (${p.phone || 'Chưa SĐT'})${p.identityCard ? ` - CCCD: ${p.identityCard}` : ''}`,
+                            }))}
+                            status={formik.touched.patientId && formik.errors.patientId ? 'error' : ''}
+                        />
+                        {formik.touched.patientId && formik.errors.patientId && (
+                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.patientId}</span>
+                        )}
+
+                        {/* Thẻ thông tin bệnh nhân đã chọn */}
+                        {selectedPatientObj && (
+                            <Card size="small" className="mt-2 bg-sky-50/70 border-sky-200">
+                                <div className="flex items-center justify-between text-xs">
+                                    <div className="space-y-0.5">
+                                        <div className="font-bold text-slate-800 flex items-center gap-2">
+                                            <CheckCircleOutlined className="text-emerald-600" />
+                                            <span>{selectedPatientObj.fullName}</span>
+                                            <Tag color="blue" className="font-mono text-[10px] m-0">
+                                                {selectedPatientObj.patientCode}
+                                            </Tag>
+                                        </div>
+                                        <div className="text-slate-500 text-[11px] flex gap-3">
+                                            <span>SĐT: <strong>{selectedPatientObj.phone || 'Chưa cập nhật'}</strong></span>
+                                            {selectedPatientObj.identityCard && <span>CCCD: <strong>{selectedPatientObj.identityCard}</strong></span>}
+                                            {selectedPatientObj.dob && <span>NS: <strong>{dayjs(selectedPatientObj.dob).format('DD/MM/YYYY')}</strong></span>}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        size="small"
+                                        type="text"
+                                        className="text-xs text-slate-400 hover:text-red-500"
+                                        onClick={() => {
+                                            formik.setFieldValue('patientId', '')
+                                            setSelectedPatientObj(null)
+                                        }}
+                                    >
+                                        Đổi
+                                    </Button>
+                                </div>
+                            </Card>
+                        )}
+                    </div>
+
+                    {/* ── CHUYÊN KHOA & BÁC SĨ (API ĐỘNG 100%) ─────────────── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-slate-700 uppercase">
+                                    Chuyên khoa <span className="text-red-500">*</span>
+                                </label>
+                                {loadingSpecialties && <Spin size="small" />}
+                            </div>
+                            <Select
+                                className="w-full"
+                                placeholder={loadingSpecialties ? 'Đang tải chuyên khoa...' : 'Chọn chuyên khoa khám'}
+                                value={formik.values.departmentId || undefined}
+                                onChange={handleDepartmentChange}
+                                onBlur={() => formik.setFieldTouched('departmentId', true)}
+                                loading={loadingSpecialties}
+                                options={specialtiesList.map((d) => ({
+                                    value: d.id,
+                                    label: `${d.name} (${d.doctorCount || 0} BS)`,
+                                }))}
+                                status={formik.touched.departmentId && formik.errors.departmentId ? 'error' : ''}
+                            />
+                            {formik.touched.departmentId && formik.errors.departmentId && (
+                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.departmentId}</span>
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-slate-700 uppercase">
+                                    Bác sĩ phụ trách <span className="text-red-500">*</span>
+                                </label>
+                                {loadingDoctors && <Spin size="small" />}
+                            </div>
+                            <Select
+                                className="w-full"
+                                placeholder={
+                                    loadingDoctors
+                                        ? 'Đang tải danh sách bác sĩ...'
+                                        : !formik.values.departmentId
+                                          ? 'Chọn chuyên khoa trước'
+                                          : departmentDoctors.length === 0
+                                            ? 'Khoa này chưa có bác sĩ'
+                                            : 'Chọn bác sĩ khám'
+                                }
+                                value={formik.values.doctorId || undefined}
+                                onChange={handleDoctorChange}
+                                onBlur={() => formik.setFieldTouched('doctorId', true)}
+                                disabled={!formik.values.departmentId || loadingDoctors}
+                                options={departmentDoctors.map((d) => ({
+                                    value: d.id,
+                                    label: `${d.title ? `${d.title} ` : ''}${d.name} ${d.status === 'ON_LEAVE' ? '⚠️ (Nghỉ)' : ''}`,
+                                    disabled: d.status === 'ON_LEAVE',
+                                }))}
+                                status={formik.touched.doctorId && formik.errors.doctorId ? 'error' : ''}
+                            />
+                            {formik.touched.doctorId && formik.errors.doctorId && (
+                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.doctorId}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── NGÀY KHÁM & KHUNG GIỜ ────────────────────────────── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                Ngày khám <span className="text-red-500">*</span>
+                            </label>
+                            <DatePicker
+                                className="w-full"
+                                format="DD/MM/YYYY"
+                                value={formik.values.appointmentDate ? dayjs(formik.values.appointmentDate) : null}
+                                onChange={handleDateChange}
+                                onBlur={() => formik.setFieldTouched('appointmentDate', true)}
+                                disabledDate={(current) => current && current < dayjs().startOf('day')}
+                                status={formik.touched.appointmentDate && formik.errors.appointmentDate ? 'error' : ''}
+                            />
+                            {formik.touched.appointmentDate && formik.errors.appointmentDate && (
+                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.appointmentDate}</span>
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-slate-700 uppercase">
+                                    Khung giờ khám (Slot 30p) <span className="text-red-500">*</span>
+                                </label>
+                                {loadingSlots && <Spin size="small" />}
+                            </div>
+                            <Select
+                                className="w-full"
+                                placeholder={
+                                    loadingSlots
+                                        ? 'Đang kiểm tra slot trống...'
+                                        : !formik.values.doctorId
+                                          ? 'Chọn bác sĩ trước'
+                                          : slotOptions.length === 0
+                                            ? 'Không có khung giờ trống'
+                                            : 'Chọn khung giờ khám'
+                                }
+                                value={formik.values.timeSlot || undefined}
+                                onChange={(slot) => formik.setFieldValue('timeSlot', slot)}
+                                onBlur={() => formik.setFieldTouched('timeSlot', true)}
+                                options={slotOptions}
+                                disabled={!formik.values.doctorId || !formik.values.appointmentDate || loadingSlots}
+                                status={formik.touched.timeSlot && formik.errors.timeSlot ? 'error' : ''}
+                            />
+                            {formik.touched.timeSlot && formik.errors.timeSlot && (
+                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.timeSlot}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {slotError && (
+                        <Alert
+                            message="Thông báo ca khám"
+                            description={slotError}
+                            type="info"
+                            showIcon
+                            className="text-xs"
+                        />
                     )}
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Department */}
+                    {/* ── LÝ DO KHÁM (Bắt buộc theo API spec) ────────────────── */}
                     <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Chuyên khoa <span className="text-red-500">*</span>
+                            Lý do khám <span className="text-red-500">*</span>
                         </label>
-                        <Select
-                            className="w-full"
-                            placeholder="Chọn chuyên khoa"
-                            value={formik.values.departmentId || undefined}
-                            onChange={handleDepartmentChange}
-                            options={departments.map((d) => ({ value: d.id, label: d.name }))}
-                            status={formik.touched.departmentId && formik.errors.departmentId ? 'error' : ''}
+                        <Input
+                            placeholder="Ví dụ: Tức ngực, đau đầu, tái khám theo hẹn..."
+                            value={formik.values.reason}
+                            onChange={(e) => formik.setFieldValue('reason', e.target.value)}
+                            onBlur={() => formik.setFieldTouched('reason', true)}
+                            status={formik.touched.reason && formik.errors.reason ? 'error' : ''}
                         />
-                        {formik.touched.departmentId && formik.errors.departmentId && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.departmentId}</span>
+                        {formik.touched.reason && formik.errors.reason && (
+                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.reason}</span>
                         )}
                     </div>
 
-                    {/* Doctor */}
+                    {/* ── TRIỆU CHỨNG BAN ĐẦU (Tùy chọn) ─────────────────────── */}
                     <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Bác sĩ khám <span className="text-red-500">*</span>
+                            Triệu chứng ban đầu <span className="text-slate-400 font-normal lowercase">(tùy chọn)</span>
                         </label>
-                        <Select
-                            className="w-full"
-                            placeholder="Chọn bác sĩ phụ trách"
-                            value={formik.values.doctorId || undefined}
-                            onChange={handleDoctorChange}
-                            disabled={!formik.values.departmentId}
-                            options={filteredDoctors.map((d) => ({
-                                value: d.id,
-                                label: `${d.name} ${d.status === 'ON_LEAVE' ? '⚠️ (Nghỉ phép)' : ''}`,
-                            }))}
-                            status={formik.touched.doctorId && formik.errors.doctorId ? 'error' : ''}
-                        />
-                        {formik.touched.doctorId && formik.errors.doctorId && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.doctorId}</span>
-                        )}
-                    </div>
-
-                    {/* Room */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Phòng khám <span className="text-red-500">*</span>
-                        </label>
-                        <Select
-                            className="w-full"
-                            placeholder="Chọn phòng khám"
-                            value={formik.values.roomId || undefined}
-                            onChange={(val) => formik.setFieldValue('roomId', val)}
-                            disabled={!formik.values.departmentId}
-                            options={filteredRooms.map((r) => ({
-                                value: r.id,
-                                label: `${r.name} (${r.currentWaiting} người đang chờ)`,
-                            }))}
-                            status={formik.touched.roomId && formik.errors.roomId ? 'error' : ''}
-                        />
-                        {formik.touched.roomId && formik.errors.roomId && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.roomId}</span>
-                        )}
-                    </div>
-
-                    {/* Service */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Dịch vụ khám <span className="text-red-500">*</span>
-                        </label>
-                        <Select
-                            className="w-full"
-                            placeholder="Chọn dịch vụ khám"
-                            value={formik.values.serviceId || undefined}
-                            onChange={(val) => formik.setFieldValue('serviceId', val)}
-                            disabled={!formik.values.departmentId}
-                            options={filteredServices.map((s) => ({
-                                value: s.id,
-                                label: `${s.name} (${s.price.toLocaleString('vi-VN')} đ)`,
-                            }))}
-                            status={formik.touched.serviceId && formik.errors.serviceId ? 'error' : ''}
-                        />
-                        {formik.touched.serviceId && formik.errors.serviceId && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.serviceId}</span>
-                        )}
-                    </div>
-
-                    {/* Date */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Ngày khám <span className="text-red-500">*</span>
-                        </label>
-                        <DatePicker
-                            className="w-full"
-                            format="DD/MM/YYYY"
-                            value={formik.values.appointmentDate ? dayjs(formik.values.appointmentDate) : null}
-                            onChange={(date) => {
-                                const dateStr = date ? date.format('YYYY-MM-DD') : ''
-                                formik.setFieldValue('appointmentDate', dateStr)
-                                const warn = checkDoctorConflict(formik.values.doctorId, dateStr, formik.values.timeSlot)
-                                setConflictAlert(warn)
-                            }}
+                        <Input.TextArea
+                            rows={2}
+                            placeholder="Mô tả triệu chứng ban đầu (VD: Bắt đầu xuất hiện từ 2 ngày trước, kèm sốt nhẹ...)"
+                            value={formik.values.symptoms}
+                            onChange={(e) => formik.setFieldValue('symptoms', e.target.value)}
                         />
                     </div>
+                </form>
+            </Modal>
 
-                    {/* Time slot */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Khung giờ <span className="text-red-500">*</span>
-                        </label>
-                        <Select
-                            className="w-full"
-                            placeholder="Chọn slot giờ"
-                            value={formik.values.timeSlot || undefined}
-                            onChange={handleSlotChange}
-                            options={initialTimeSlots.map((s) => ({ value: s, label: s }))}
-                            status={formik.touched.timeSlot && formik.errors.timeSlot ? 'error' : ''}
-                        />
-                        {formik.touched.timeSlot && formik.errors.timeSlot && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.timeSlot}</span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        Ghi chú yêu cầu / triệu chứng ban đầu
-                    </label>
-                    <Input.TextArea
-                        rows={2}
-                        placeholder="Ví dụ: Đau đầu 3 ngày, muốn khám thêm nội soi..."
-                        value={formik.values.notes}
-                        onChange={(e) => formik.setFieldValue('notes', e.target.value)}
-                    />
-                </div>
-            </form>
-        </Modal>
+            {/* Modal tạo nhanh hồ sơ bệnh nhân nếu bệnh nhân chưa có trong hệ thống */}
+            <PatientFormModal
+                open={isCreatePatientOpen}
+                onClose={() => setIsCreatePatientOpen(false)}
+                onCreatedSuccess={(newPatient) => {
+                    if (newPatient) {
+                        const formatted = {
+                            id: newPatient.id,
+                            patientCode: newPatient.ma_dinh_danh_y_te || `BN-${newPatient.id}`,
+                            fullName: newPatient.ho_ten || newPatient.fullName,
+                            phone: newPatient.so_dien_thoai || newPatient.phone,
+                            identityCard: newPatient.cccd_so || newPatient.identityCard,
+                            dob: newPatient.ngay_sinh || newPatient.dob,
+                            gender: newPatient.gioi_tinh || newPatient.gender,
+                        }
+                        setPatientList((prev) => [formatted, ...prev])
+                        formik.setFieldValue('patientId', formatted.id)
+                        setSelectedPatientObj(formatted)
+                    }
+                }}
+            />
+        </>
     )
 }

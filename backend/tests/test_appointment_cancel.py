@@ -49,11 +49,13 @@ async def test_patient_cancels_own_appointment(api_client, db_session, booking):
     assert data["trang_thai"] == TrangThaiLichEnum.DA_HUY.value
     assert data["ly_do_huy"] == "Bận công tác đột xuất"
     assert data["nguoi_huy_vai_tro"] == VaiTroEnum.BENH_NHAN.value
+    assert data["nguoi_huy_id"] == booking.bn_a.nguoi_dung_id
 
     await db_session.refresh(lich)
     assert lich.trang_thai == TrangThaiLichEnum.DA_HUY.value
     assert lich.ly_do_huy == "Bận công tác đột xuất"
     assert lich.thoi_gian_huy is not None
+    assert lich.nguoi_huy_id == booking.bn_a.nguoi_dung_id
 
 
 @pytest.mark.parametrize(

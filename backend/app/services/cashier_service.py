@@ -40,6 +40,8 @@ from app.services.billing_calculator import (
     sum_cls_fee,
 )
 
+from app.services.appointment_service import clinic_now
+
 logger = logging.getLogger(__name__)
 
 THONG_BAO_DANG_XU_LY = "Lượt khám đang được thu ngân khác xử lý. Vui lòng tải lại dữ liệu."
@@ -463,14 +465,15 @@ class CashierService:
         diff_cash = actual_cash - summary.tong_tien_mat
 
         # Xác định ca làm việc theo giờ Việt Nam (UTC+7)
-        hour_vn = (now.hour + 7) % 24
+        now_clinic = clinic_now()
+        hour_vn = now_clinic.hour
         ca = "SANG" if hour_vn < 13 else "CHIEU"
-        ma_ks = f"KS-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        ma_ks = f"KS-{now_clinic.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
         khoa_so = KhoaSoCaTruc(
             ma_khoa_so=ma_ks,
             ca_lam_viec=ca,
-            ngay_khoa_so=now.date(),
+            ngay_khoa_so=now_clinic.date(),
             thu_ngan_giao_id=thu_ngan_user_id,
             tong_tien_mat_he_thong=summary.tong_tien_mat,
             tong_chuyen_khoan_he_thong=summary.tong_chuyen_khoan,
@@ -518,12 +521,28 @@ class CashierService:
         if invoice.trang_thai not in ("da_thu", "hoan_tien_mot_phan"):
             raise BadRequestException(f"Chỉ có thể hoàn tiền hóa đơn đã thu (Trạng thái hiện tại: {invoice.trang_thai})!")
 
-        # Tính toán số tiền hoàn
-        so_tien_hoan = payload.so_tien_hoan if payload.so_tien_hoan is not None else invoice.thuc_thu
+        stmt_thu = select(PhieuThuChi).where(
+            PhieuThuChi.hoa_don_id == invoice.id,
+            PhieuThuChi.loai_phieu == "THU",
+        )
+        phieu_thu = (await db.execute(stmt_thu)).scalars().first()
+        if phieu_thu and phieu_thu.trang_thai_khoa_so:
+            raise ConflictException(f"Không thể hoàn tiền: Phiếu thu {phieu_thu.ma_phieu} thuộc ca trực đã khóa sổ!")
+
+        stmt_chi = select(func.coalesce(func.sum(PhieuThuChi.so_tien), Decimal("0.00"))).where(
+            PhieuThuChi.hoa_don_id == invoice.id,
+            PhieuThuChi.loai_phieu == "CHI",
+        )
+        da_hoan = (await db.execute(stmt_chi)).scalar_one()
+        con_lai = invoice.thuc_thu - da_hoan
+        if con_lai <= Decimal("0.00"):
+            raise BadRequestException("Hóa đơn này đã được hoàn trả toàn bộ số tiền!")
+
+        so_tien_hoan = payload.so_tien_hoan if payload.so_tien_hoan is not None else con_lai
         if so_tien_hoan <= 0:
             raise BadRequestException("Số tiền hoàn phải lớn hơn 0!")
-        if so_tien_hoan > invoice.thuc_thu:
-            raise BadRequestException(f"Số tiền hoàn ({so_tien_hoan:,.0f}đ) không được vượt quá số thực thu của hóa đơn ({invoice.thuc_thu:,.0f}đ)!")
+        if so_tien_hoan > con_lai:
+            raise BadRequestException(f"Số tiền hoàn ({so_tien_hoan:,.0f}đ) không được vượt quá số thực thu còn lại của hóa đơn ({con_lai:,.0f}đ)!")
 
         now = datetime.now(timezone.utc)
         ma_phieu = f"PC-{now.strftime('%y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
@@ -547,8 +566,8 @@ class CashierService:
         )
         db.add(phieu_chi)
 
-        # Cập nhật trạng thái hóa đơn
-        if so_tien_hoan >= invoice.thuc_thu:
+        tong_da_hoan = da_hoan + so_tien_hoan
+        if tong_da_hoan >= invoice.thuc_thu:
             invoice.trang_thai = "da_hoan_tien"
         else:
             invoice.trang_thai = "hoan_tien_mot_phan"

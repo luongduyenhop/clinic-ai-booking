@@ -1,0 +1,18 @@
+﻿{
+    "success":  true,
+    "code":  200,
+    "message":  "Láº¥y bÃ¡o cÃ¡o tá»ng káº¿t ca trá»±c thÃ nh cÃ´ng",
+    "data":  {
+                 "thu_ngan_id":  34462,
+                 "ten_thu_ngan":  "Thu NgÃ¢n Viá»n PhÃ­",
+                 "tong_hoa_don":  0,
+                 "tong_tien_mat":  "0.00",
+                 "tong_chuyen_khoan":  "0.00",
+                 "tong_the_pos":  "0.00",
+                 "tong_doanh_thu":  "0.00",
+                 "so_phieu_thu":  0,
+                 "so_phieu_chi":  0
+             },
+    "meta":  null,
+    "errors":  null
+}

@@ -1,0 +1,21 @@
+{
+    "http_status": 422,
+    "tc_id": "TC-BILL-003-02",
+    "case": "Case A: Underpaid rejection",
+    "timestamp": "2026-11-02T20:19:42.2312984+07:00",
+    "error_response": {
+        "detail": [
+            {
+                "loc": [
+                    "body",
+                    "so_tien_thanh_toan"
+                ],
+                "msg": "Số tiền thanh toán (100,000) không đủ so với thực thu của hóa đơn (350,000)",
+                "type": "value_error.payment_underpaid"
+            }
+        ]
+    },
+    "thuc_thu": 350000,
+    "so_tien_khach_tra": 100000,
+    "invoice_id": 77
+}

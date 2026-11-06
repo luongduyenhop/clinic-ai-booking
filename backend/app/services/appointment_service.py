@@ -2,10 +2,10 @@ import logging
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Iterable, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
-from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException
+from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, AppException, UnprocessableEntityException
 from app.core.config import settings
 from app.models.user import TaiKhoan, BenhNhan, BacSi, NguoiDung, ChuyenKhoa, VaiTroEnum
 from app.models.appointment import (
@@ -19,6 +19,9 @@ from app.models.appointment import (
     CaLamViecEnum,
     HangDoiKham,
     TrangThaiHangDoiEnum,
+    NghiPhepBacSi,
+    TrangThaiNghiPhepEnum,
+    PhanTichAI,
 )
 from app.services.medical_service import DEFAULT_SPECIALTY_NAME, medical_service
 
@@ -194,6 +197,76 @@ class AppointmentService:
         booked_ranges = await self._get_occupied_ranges(LichKham.bac_si_id == doctor_id, query_date, db)
         return build_day_slots(query_date, shifts, booked_ranges, clinic_now(), slot_minutes)
 
+    async def _find_doctor_shift(
+        self,
+        doctor_id: int,
+        target_date: date,
+        start_time: time,
+        end_time: time,
+        db: AsyncSession
+    ) -> LichLamViec:
+        """Tìm ca làm việc đang hoạt động của Bác sĩ bao phủ khung giờ đặt lịch (UC-B02/B03)"""
+        stmt = select(LichLamViec).where(
+            and_(
+                LichLamViec.bac_si_id == doctor_id,
+                LichLamViec.ngay_lam_viec == target_date,
+                LichLamViec.gio_bat_dau <= start_time,
+                LichLamViec.gio_ket_thuc >= end_time,
+                LichLamViec.is_active.is_(True),
+            )
+        )
+        shift = (await db.execute(stmt)).scalars().first()
+        if not shift:
+            raise AppException(
+                f"Khung giờ đã chọn ({start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}) "
+                f"không nằm trong ca làm việc hợp lệ của Bác sĩ ngày {target_date}!"
+            )
+        return shift
+
+    async def _is_doctor_off(
+        self,
+        doctor_id: int,
+        target_date: date,
+        db: AsyncSession,
+        ca_lam_viec: Optional[str] = None
+    ) -> Tuple[bool, Optional[str]]:
+        """Kiểm tra Bác sĩ có lịch nghỉ phép đã duyệt hoặc ca trực bị đóng đột xuất trong ngày (Absence Check)"""
+        # 1. Kiểm tra đơn nghỉ phép đã duyệt (NghiPhepBacSi)
+        stmt_leave = select(NghiPhepBacSi).where(
+            and_(
+                NghiPhepBacSi.bac_si_id == doctor_id,
+                NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+                NghiPhepBacSi.tu_ngay <= target_date,
+                NghiPhepBacSi.den_ngay >= target_date,
+            )
+        )
+        if ca_lam_viec:
+            stmt_leave = stmt_leave.where(
+                or_(
+                    NghiPhepBacSi.ca_lam_viec.is_(None),
+                    NghiPhepBacSi.ca_lam_viec == ca_lam_viec,
+                )
+            )
+        leave = (await db.execute(stmt_leave)).scalars().first()
+        if leave:
+            return True, leave.ly_do or "Nghỉ phép có kế hoạch"
+
+        # 2. Kiểm tra ca làm việc bị khóa/hủy đột xuất (is_active = False)
+        stmt_shift_off = select(LichLamViec).where(
+            and_(
+                LichLamViec.bac_si_id == doctor_id,
+                LichLamViec.ngay_lam_viec == target_date,
+                LichLamViec.is_active.is_(False),
+            )
+        )
+        if ca_lam_viec:
+            stmt_shift_off = stmt_shift_off.where(LichLamViec.ca_lam_viec == ca_lam_viec)
+        inactive_shift = (await db.execute(stmt_shift_off)).scalars().first()
+        if inactive_shift:
+            return True, inactive_shift.ghi_chu_nghi or "Ca trực bị đóng đột xuất"
+
+        return False, None
+
     async def get_doctor_available_slots(
         self,
         doctor_id: int,
@@ -242,6 +315,22 @@ class AppointmentService:
         if not bn_row:
             raise ForbiddenException("Không tìm thấy hồ sơ Bệnh nhân hợp lệ!")
         benh_nhan, bn_info = bn_row
+
+        phan_tich_ai = None
+        if payload.phan_tich_ai_id is not None:
+            stmt_ai = (
+                select(PhanTichAI)
+                .where(
+                    PhanTichAI.id == payload.phan_tich_ai_id,
+                    PhanTichAI.co_dau_hieu_cap_cuu.is_(False),
+                    PhanTichAI.lich_kham_id.is_(None),
+                    (PhanTichAI.benh_nhan_id == benh_nhan.id) | PhanTichAI.benh_nhan_id.is_(None),
+                )
+                .with_for_update()
+            )
+            phan_tich_ai = (await db.execute(stmt_ai)).scalar_one_or_none()
+            if not phan_tich_ai:
+                raise UnprocessableEntityException("Kết quả phân tích AI không hợp lệ hoặc đã được sử dụng. Vui lòng phân tích lại triệu chứng.")
 
         # Bệnh nhân bị khóa đặt online (vắng mặt không báo trước nhiều lần - module No-show) chỉ đặt qua Hotline.
         # FC-09 / B4: Lễ tân hoặc Admin có quyền bảo lãnh đặt lịch hộ (1 bước, không reset is_blocked_booking)
@@ -335,20 +424,35 @@ class AppointmentService:
         # 7. Sinh mã lịch khám duy nhất theo mẫu Jira PJ2026-145: LK-YYYYMMDD-BSxxSTT
         ma_lich = build_appointment_code(payload.ngay_kham, payload.bac_si_id, total_count + 1)
 
-        # 8. Khởi tạo bản ghi LichKham
+        # 8. Xác định ca khám và liên kết ca trực (tự động suy luận từ khung giờ khám nếu không truyền)
+        if getattr(payload, "ca_kham", None):
+            effective_ca = payload.ca_kham
+        elif active_shift and active_shift.ca_lam_viec:
+            effective_ca = active_shift.ca_lam_viec
+        else:
+            effective_ca = CaLamViecEnum.SANG.value if payload.gio_kham < time(12, 0) else CaLamViecEnum.CHIEU.value
+
+        # Khởi tạo bản ghi LichKham đầy đủ ca khám, chuyên khoa và ca trực
         lich_kham = LichKham(
             ma_lich_kham=ma_lich,
             benh_nhan_id=benh_nhan.id,
             bac_si_id=payload.bac_si_id,
+            chuyen_khoa_id=bac_si.chuyen_khoa_id,
+            lich_lam_viec_id=active_shift.id if active_shift else None,
+            ca_kham=effective_ca,
             ngay_kham=payload.ngay_kham,
             gio_kham=payload.gio_kham,
             thoi_luong_phut=slot_minutes,
             so_thu_tu=so_thu_tu,
             ly_do_kham=payload.ly_do_kham,
             trieu_chung_ban_dau=payload.trieu_chung_ban_dau,
+            phan_tich_ai_id=phan_tich_ai.id if phan_tich_ai else None,
             trang_thai=TrangThaiLichEnum.DA_XAC_NHAN.value
         )
         db.add(lich_kham)
+        if phan_tich_ai:
+            phan_tich_ai.benh_nhan_id = benh_nhan.id
+            phan_tich_ai.lich_kham = lich_kham
         try:
             await db.commit()
         except IntegrityError as exc:
@@ -446,6 +550,7 @@ class AppointmentService:
         lich.ly_do_huy = payload.ly_do_huy
         lich.thoi_gian_huy = datetime.now(timezone.utc)
         lich.nguoi_huy_vai_tro = user.vai_tro
+        lich.nguoi_huy_id = user.nguoi_dung_id
 
         # Hủy vé hàng đợi liên quan nếu bệnh nhân đã check-in trước đó (Quy tắc Bahmni Lifecycle)
         stmt_ticket = select(HangDoiKham).where(
@@ -458,6 +563,7 @@ class AppointmentService:
         active_tickets = (await db.execute(stmt_ticket)).scalars().all()
         for ticket in active_tickets:
             ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
+            ticket.muc_do_uu_tien = 7
             ticket.ghi_chu_dieu_phoi = (
                 f"{ticket.ghi_chu_dieu_phoi or ''} | Đóng vé sảnh do hủy lịch hẹn (Quy tắc Bahmni)".strip(" |")
             )
@@ -477,7 +583,8 @@ class AppointmentService:
             trang_thai=lich.trang_thai,
             ly_do_huy=lich.ly_do_huy,
             thoi_gian_huy=lich.thoi_gian_huy,
-            nguoi_huy_vai_tro=lich.nguoi_huy_vai_tro
+            nguoi_huy_vai_tro=lich.nguoi_huy_vai_tro,
+            nguoi_huy_id=lich.nguoi_huy_id
         )
 
     async def reschedule_booking(
@@ -555,7 +662,7 @@ class AppointmentService:
             LichKham.benh_nhan_id == lich.benh_nhan_id,
             LichKham.ngay_kham == payload.ngay_kham_moi,
             LichKham.gio_kham == payload.gio_kham_moi,
-            LichKham.trang_thai.notin_(CANCELLED_STATUSES)
+            LichKham.trang_thai.in_(OCCUPYING_SLOT_STATUSES)
         )
         if (await db.execute(stmt_dup)).first():
             raise ConflictException("Bạn đã có một lịch hẹn khám khác trong khung giờ này!")
@@ -566,7 +673,7 @@ class AppointmentService:
             LichKham.bac_si_id == target_bs_id,
             LichKham.ngay_kham == payload.ngay_kham_moi,
             LichKham.gio_kham == payload.gio_kham_moi,
-            LichKham.trang_thai.notin_(CANCELLED_STATUSES)
+            LichKham.trang_thai.in_(OCCUPYING_SLOT_STATUSES)
         )
         if (await db.execute(stmt_slot)).first():
             raise ConflictException(f"Rất tiếc! Khung giờ {payload.gio_kham_moi.strftime('%H:%M')} ngày {payload.ngay_kham_moi} vừa được người bệnh khác đặt trước.")
@@ -588,11 +695,13 @@ class AppointmentService:
         old_gio = lich.gio_kham
 
         # 11. Cập nhật bản ghi LichKham
-        note_change = f"Đổi từ {old_ngay} {old_gio.strftime('%H:%M')} (BS ID {old_bs_id}). Lý do: {payload.ly_do_doi or 'Không có'}"
-        lich.ghi_chu = f"{lich.ghi_chu} | {note_change}" if lich.ghi_chu else note_change
+        if payload.ly_do_doi:
+            note_change = f"[Đổi từ {old_ngay} {old_gio.strftime('%H:%M')} (BS ID {old_bs_id}): {payload.ly_do_doi}]"
+            lich.ly_do_kham = f"{lich.ly_do_kham} - {note_change}" if lich.ly_do_kham else note_change
         lich.ngay_kham = payload.ngay_kham_moi
         lich.gio_kham = payload.gio_kham_moi
         lich.bac_si_id = target_bs_id
+        lich.lich_lam_viec_id = shift.id
         lich.ca_kham = shift.ca_lam_viec
         lich.so_thu_tu = new_stt
         lich.trang_thai = TrangThaiLichEnum.DA_XAC_NHAN.value
@@ -608,6 +717,7 @@ class AppointmentService:
         active_tickets = (await db.execute(stmt_ticket)).scalars().all()
         for ticket in active_tickets:
             ticket.trang_thai = TrangThaiHangDoiEnum.BO_KHAM.value
+            ticket.muc_do_uu_tien = 7
             ticket.ghi_chu_dieu_phoi = (
                 f"{ticket.ghi_chu_dieu_phoi or ''} | Đóng vé sảnh do dời lịch sang {payload.ngay_kham_moi} (Quy tắc Bahmni)".strip(" |")
             )
@@ -621,9 +731,11 @@ class AppointmentService:
         # 12. Tự động đôn Waitlist cho slot cũ vừa được giải phóng
         class _OldSlotProxy:
             def __init__(self, b_id, d, t):
+                self.id = None
                 self.bac_si_id = b_id
                 self.ngay_kham = d
                 self.gio_kham = t
+                self.ma_lich_kham = f"SLOT-{b_id}-{d}-{t.strftime('%H%M')}"
         promoted = await self._promote_waitlist_candidate(_OldSlotProxy(old_bs_id, old_ngay, old_gio), db)
         if promoted:
             await db.commit()
@@ -748,11 +860,12 @@ class AppointmentService:
         if candidate:
             now = datetime.now(timezone.utc)
             candidate.trang_thai = TrangThaiWaitlistEnum.DA_THONG_BAO.value
-            candidate.slot_duoc_cap_id = lich.id
+            candidate.slot_duoc_cap_id = getattr(lich, "id", None)
             candidate.thoi_gian_thong_bao = now
             candidate.thoi_gian_het_han_giu_slot = now + timedelta(minutes=30)
+            slot_code = getattr(lich, "ma_lich_kham", f"BS{lich.bac_si_id}-{lich.ngay_kham}")
             logger.info(
-                f"📢 [WAITLIST PROMOTED] Bệnh nhân ID: {candidate.benh_nhan_id} được giữ slot {lich.ma_lich_kham} trong 30 phút!"
+                f"📢 [WAITLIST PROMOTED] Bệnh nhân ID: {candidate.benh_nhan_id} được giữ slot {slot_code} trong 30 phút!"
             )
             return candidate
         return None
@@ -1175,12 +1288,12 @@ class AppointmentService:
         if not bac_si:
             return []
 
-        target_date = date.today()
+        target_date = clinic_now().date()
         if date_str:
             try:
                 target_date = date.fromisoformat(date_str)
             except ValueError:
-                target_date = date.today()
+                target_date = clinic_now().date()
 
         stmt = (
             select(LichKham)

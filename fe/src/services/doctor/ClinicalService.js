@@ -675,9 +675,16 @@ export class ClinicalService extends BaseServices {
 
     rateAiSuggestion = async (encounterId, payload) => {
         const enc = db.encounters[encounterId]
-        if (enc) enc.danh_gia_ai = payload
+        const analysisId = enc?.ai_triage?.phan_tich_ai_id
+        if (!analysisId) return reject('Lượt khám này chưa được liên kết với kết quả phân tích AI từ lịch hẹn.')
+        const response = await this.post('/api/v1/clinical/ai-feedback', {
+            phan_tich_ai_id: analysisId,
+            so_sao: payload.so_sao,
+            nhan_xet: payload.nhan_xet || null,
+        })
+        if (enc) enc.danh_gia_ai = { ...payload, phan_tich_ai_id: analysisId, id: response?.data?.data?.id }
         await this.persistToPostgres()
-        return delay(payload, 150)
+        return delay(enc.danh_gia_ai, 150)
     }
 
     // ── Danh mục Thực tế từ PostgreSQL ──────────────────────────────────

@@ -1,0 +1,11 @@
+{
+    "encounter_id": 1885,
+    "timestamp": "2026-11-02T20:19:27.3229622+07:00",
+    "test_description": "Block duplicate valid invoice for same encounter",
+    "tc_id": "TC-BILL-004-01",
+    "http_status": 409,
+    "error_response": {
+        "detail": "Lượt khám 1885 đã có hóa đơn viện phí hiệu lực đang hoạt động (HD-261102-A9DCE8). Vi phạm ràng buộc uq_hoa_don_luot_kham_hieu_luc.",
+        "error_code": "DUPLICATE_ACTIVE_INVOICE"
+    }
+}

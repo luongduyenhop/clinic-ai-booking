@@ -65,3 +65,67 @@ def test_reschedule_rbac_rules():
 
     # Bệnh nhân khác can thiệp -> Từ chối
     assert appointment["benh_nhan_id"] != other_bn["bn_id"]
+
+
+import pytest
+from app.models.appointment import CaLamViecEnum, LichLamViec
+from app.services.appointment_service import clinic_now
+from datetime import timedelta
+
+
+@pytest.mark.asyncio
+async def test_reschedule_booking_integration(api_client, db_session, booking):
+    """Kiểm tra gọi trực tiếp API đổi lịch khám POST /appointments/{id}/reschedule"""
+    target_date = (clinic_now() + timedelta(days=3)).date()
+
+    # 1. Tạo ca làm việc sáng cho bác sĩ
+    shift = LichLamViec(
+        bac_si_id=booking.bs_x.id,
+        ngay_lam_viec=target_date,
+        ca_lam_viec=CaLamViecEnum.SANG.value,
+        gio_bat_dau=time(7, 30),
+        gio_ket_thuc=time(11, 30),
+        is_active=True,
+    )
+    db_session.add(shift)
+    await db_session.flush()
+
+    # 2. Đặt lịch ban đầu lúc 08:00
+    book_res = await api_client.post(
+        "/api/v1/appointments",
+        json={
+            "bac_si_id": booking.bs_x.id,
+            "ngay_kham": target_date.isoformat(),
+            "gio_kham": "08:00:00",
+        },
+        headers=booking.tokens["bn_a"],
+    )
+    assert book_res.status_code == 201, book_res.text
+    app_id = book_res.json()["data"]["id"]
+
+    # 3. Đổi lịch sang 09:30 cùng ngày
+    reschedule_res = await api_client.post(
+        f"/api/v1/appointments/{app_id}/reschedule",
+        json={
+            "ngay_kham_moi": target_date.isoformat(),
+            "gio_kham_moi": "09:30:00",
+            "ly_do_doi": "Bận việc đột xuất",
+        },
+        headers=booking.tokens["bn_a"],
+    )
+    assert reschedule_res.status_code == 200, reschedule_res.text
+    res_data = reschedule_res.json()["data"]
+    assert res_data["gio_kham"] == "09:30:00"
+    assert res_data["trang_thai"] == "da_xac_nhan"
+    assert "Bận việc đột xuất" in (res_data["ly_do_kham"] or "")
+
+    # 4. Kiểm tra slot 08:00 đã được giải phóng (available) và slot 09:30 đã bị chiếm (booked)
+    slots_res = await api_client.get(
+        f"/api/v1/appointments/doctors/{booking.bs_x.id}/slots",
+        params={"query_date": target_date.isoformat()},
+    )
+    slots = slots_res.json()["data"]["slots"]
+    slot_0800 = next(s for s in slots if s["time_str"] == "08:00")
+    slot_0930 = next(s for s in slots if s["time_str"] == "09:30")
+    assert slot_0800["status"] == "available"
+    assert slot_0930["status"] == "booked"

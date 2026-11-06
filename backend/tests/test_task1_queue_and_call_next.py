@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.services.appointment_service import clinic_now
 from app.models.appointment import (
     CaLamViecEnum,
     HangDoiKham,
@@ -139,7 +140,7 @@ async def test_task1_call_next_patient_prioritizes_higher_tier_and_updates_statu
     booking.bs_x.chuyen_khoa_id = ck.id
     await db_session.flush()
 
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     # Tạo lịch hẹn cho ca đúng giờ
@@ -215,7 +216,7 @@ async def test_task1_guard_a4_concurrency_conflict(api_client, booking, db_sessi
     Nếu đang có ca dang_kham, bấm gọi tiếp phải bị chặn với HTTP 409 Conflict.
     """
     token_bs = booking.tokens["bs_x"]
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     hd1 = HangDoiKham(
@@ -258,7 +259,7 @@ async def test_task1_postpone_ticket_and_resume_calling(api_client, booking, db_
     Sau khi tạm hoãn, trạng thái DANG_KHAM được giải phóng và bác sĩ gọi được ca tiếp theo.
     """
     token_bs = booking.tokens["bs_x"]
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     hd1 = HangDoiKham(
@@ -318,7 +319,7 @@ async def test_task1_doctor_queue_board_and_empty_queue_handling(api_client, boo
     booking.bs_x.chuyen_khoa_id = ck.id
     await db_session.flush()
 
-    today = date.today()
+    today = clinic_now().date()
     now = datetime.now(timezone.utc)
 
     # 1. Tạo 1 vé đang chờ và 1 vé tạm hoãn

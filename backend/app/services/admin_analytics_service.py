@@ -66,13 +66,14 @@ class AdminAnalyticsService:
 
         wait_times = []
         for t in tickets:
-            if t.thoi_gian_bat_dau and t.thoi_gian_check_in:
-                diff = (t.thoi_gian_bat_dau - t.thoi_gian_check_in).total_seconds() / 60.0
+            start_cin = t.thoi_gian_xep_hang_lai or t.thoi_gian_check_in
+            if t.thoi_gian_bat_dau and start_cin:
+                diff = (t.thoi_gian_bat_dau - start_cin).total_seconds() / 60.0
                 if diff >= 0:
                     wait_times.append(diff)
-            elif t.thoi_gian_check_in and t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value:
+            elif start_cin and t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value:
                 now = datetime.now(timezone.utc)
-                cin = t.thoi_gian_check_in.replace(tzinfo=timezone.utc) if t.thoi_gian_check_in.tzinfo is None else t.thoi_gian_check_in
+                cin = start_cin.replace(tzinfo=timezone.utc) if start_cin.tzinfo is None else start_cin
                 diff = (now - cin).total_seconds() / 60.0
                 if diff >= 0:
                     wait_times.append(diff)

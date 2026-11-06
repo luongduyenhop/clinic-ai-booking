@@ -1,21 +1,33 @@
-import { useState, useMemo } from 'react'
-import { useSelector } from 'react-redux'
-import { Table, Input, Button, Tag, Space, Modal, Alert, Descriptions } from 'antd'
+import { useState, useMemo, useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { Table, Input, Button, Tag, Space } from 'antd'
 import {
     SearchOutlined,
     UserAddOutlined,
     EditOutlined,
     WarningOutlined,
     EyeOutlined,
-    IdcardOutlined,
+    SyncOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
+import {
+    searchPatientsAsync,
+    fetchAppointmentsAsync,
+    fetchFlowBoardAsync,
+} from '../../redux/actions/reception/receptionAction'
 
 export default function PatientsPage() {
-    const { patients, appointments, queueEntries } = useSelector((state) => state.reception)
+    const dispatch = useDispatch()
+    const {
+        patients = [],
+        patientPagination = { page: 1, pageSize: 15, totalItems: 0 },
+        appointments = [],
+        queueEntries = [],
+        loading,
+    } = useSelector((state) => state.reception)
 
     const [searchQuery, setSearchQuery] = useState('')
     const [filterDuplicateOnly, setFilterDuplicateOnly] = useState(false)
@@ -24,21 +36,31 @@ export default function PatientsPage() {
     const [editPatient, setEditPatient] = useState(null)
     const [newAppPatientId, setNewAppPatientId] = useState(null)
 
-    // Filter patients
+    useEffect(() => {
+        dispatch(searchPatientsAsync({ search: searchQuery, page: 1, pageSize: 15 }))
+        dispatch(fetchAppointmentsAsync({ pageSize: 100 }))
+        dispatch(fetchFlowBoardAsync())
+    }, [dispatch])
+
+    const handleSearch = (val) => {
+        setSearchQuery(val)
+        dispatch(searchPatientsAsync({ search: val, page: 1, pageSize: 15 }))
+    }
+
+    const handleTableChange = (pagination) => {
+        dispatch(
+            searchPatientsAsync({
+                search: searchQuery,
+                page: pagination.current,
+                pageSize: pagination.pageSize,
+            })
+        )
+    }
+
     const filteredPatients = useMemo(() => {
-        return patients.filter((p) => {
-            const matchesQuery =
-                !searchQuery ||
-                p.fullName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-                p.phone.includes(searchQuery.trim()) ||
-                p.patientCode.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-                (p.identityCard && p.identityCard.includes(searchQuery.trim()))
-
-            const matchesDup = !filterDuplicateOnly || p.isDuplicateSuspect
-
-            return matchesQuery && matchesDup
-        })
-    }, [patients, searchQuery, filterDuplicateOnly])
+        if (!filterDuplicateOnly) return patients
+        return patients.filter((p) => p.isDuplicateSuspect)
+    }, [patients, filterDuplicateOnly])
 
     const columns = [
         {
@@ -48,7 +70,7 @@ export default function PatientsPage() {
             width: 140,
             render: (code, record) => (
                 <div>
-                    <span className="font-mono font-bold text-sky-700 block">{code}</span>
+                    <span className="font-mono font-bold text-sky-700 block">{code || `BN-${record.id}`}</span>
                     {record.isDuplicateSuspect && (
                         <Tag color="red" className="text-[10px] mr-0 mt-0.5">
                             Trùng hồ sơ
@@ -66,7 +88,8 @@ export default function PatientsPage() {
                 <div>
                     <span className="font-bold text-slate-900 block">{name}</span>
                     <span className="text-[11px] text-slate-400">
-                        {record.gender === 'MALE' ? 'Nam' : 'Nữ'} • {dayjs(record.dob).format('DD/MM/YYYY')}
+                        {record.gender === 'MALE' ? 'Nam' : record.gender === 'FEMALE' ? 'Nữ' : 'Khác'} •{' '}
+                        {record.dob ? dayjs(record.dob).format('DD/MM/YYYY') : 'Chưa có ngày sinh'}
                     </span>
                 </div>
             ),
@@ -82,22 +105,8 @@ export default function PatientsPage() {
                     <div className="text-slate-500">
                         CCCD: {record.identityCard || <span className="text-slate-400 italic">Chưa có</span>}
                     </div>
-
-                </div>
-            ),
-        },
-        {
-            title: 'Người đại diện / Bảo lãnh',
-            key: 'guardian',
-            render: (_, record) => (
-                <div className="text-xs text-slate-600">
-                    {record.guardianName ? (
-                        <div>
-                            <span className="font-medium text-slate-800">{record.guardianName}</span>
-                            <span className="text-[11px] text-slate-400 block">{record.guardianPhone}</span>
-                        </div>
-                    ) : (
-                        <span className="text-slate-400">Không có</span>
+                    {record.address && (
+                        <div className="text-slate-400 text-[11px] truncate max-w-xs">{record.address}</div>
                     )}
                 </div>
             ),
@@ -105,17 +114,27 @@ export default function PatientsPage() {
         {
             title: 'Lịch sử khám',
             key: 'historyStats',
-            width: 130,
+            width: 140,
             render: (_, record) => {
-                const appCount = appointments.filter((a) => a.patientId === record.id).length
-                const queueCount = queueEntries.filter((q) => q.patientId === record.id).length
+                const appCount = appointments.filter(
+                    (a) => (a.patientId && a.patientId === record.id) ||
+                           (a.benh_nhan_id && a.benh_nhan_id === record.id) ||
+                           (record.phone && a.so_dien_thoai === record.phone) ||
+                           (record.patientCode && a.patientCode === record.patientCode)
+                ).length
+                const queueCount = queueEntries.filter(
+                    (q) => (q.patientId && q.patientId === record.id) ||
+                           (q.benh_nhan_id && q.benh_nhan_id === record.id) ||
+                           (record.phone && q.phone === record.phone) ||
+                           (record.patientCode && q.patientCode === record.patientCode)
+                ).length
                 return (
                     <div className="text-xs text-slate-600 space-y-0.5">
                         <div>
-                            Lịch hẹn: <strong>{appCount}</strong>
+                            Lịch hẹn: <strong className="text-sky-700">{appCount}</strong>
                         </div>
                         <div>
-                            Đã khám: <strong>{queueCount}</strong>
+                            Đã khám: <strong className="text-emerald-700">{queueCount}</strong>
                         </div>
                     </div>
                 )
@@ -151,23 +170,35 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-5">
-            {/* Header & Search */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">Quản lý hồ sơ bệnh nhân</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý hồ sơ bệnh nhân (Master Patient Index)</h2>
                         <span className="text-xs text-slate-500">
-                            Tra cứu hồ sơ hành chính, kiểm tra giấy tờ còn thiếu, người đại diện và cảnh báo trùng lặp
+                            Tra cứu hồ sơ hành chính từ CSDL, kiểm tra mã định danh, người đại diện và cảnh báo trùng lặp
                         </span>
                     </div>
-                    <Button
-                        type="primary"
-                        icon={<UserAddOutlined />}
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="bg-sky-600 font-semibold"
-                    >
-                        Tạo hồ sơ mới (RC-09)
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            icon={<SyncOutlined />}
+                            onClick={() => {
+                                dispatch(searchPatientsAsync({ search: searchQuery, page: 1, pageSize: 15 }))
+                                dispatch(fetchAppointmentsAsync({ pageSize: 100 }))
+                                dispatch(fetchFlowBoardAsync())
+                            }}
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
+                        >
+                            Làm mới
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<UserAddOutlined />}
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
+                        >
+                            Tạo hồ sơ mới
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
@@ -175,7 +206,7 @@ export default function PatientsPage() {
                         prefix={<SearchOutlined className="text-slate-400" />}
                         placeholder="Tìm theo tên, SĐT, CCCD hoặc mã bệnh nhân..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => handleSearch(e.target.value)}
                         className="w-full sm:w-80"
                         allowClear
                     />
@@ -186,24 +217,30 @@ export default function PatientsPage() {
                         icon={<WarningOutlined />}
                         className="text-xs font-semibold"
                     >
-                        {filterDuplicateOnly ? 'Hiển thị tất cả' : 'Chỉ lọc hồ sơ nghi vấn trùng (RC-10)'}
+                        {filterDuplicateOnly ? 'Hiển thị tất cả' : 'Chỉ lọc hồ sơ nghi vấn trùng'}
                     </Button>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="medpro-card overflow-hidden">
                 <Table
                     columns={columns}
                     dataSource={filteredPatients}
                     rowKey="id"
-                    pagination={{ pageSize: 8, showSizeChanger: true }}
+                    loading={loading}
+                    pagination={{
+                        current: patientPagination.page,
+                        pageSize: patientPagination.pageSize,
+                        total: patientPagination.totalItems,
+                        showSizeChanger: true,
+                        showTotal: (total) => `Tổng cộng ${total} bệnh nhân`,
+                    }}
+                    onChange={handleTableChange}
                     size="middle"
-                    rowClassName={(record) => (record.isDuplicateSuspect ? 'bg-red-50/20' : '')}
+                    locale={{ emptyText: 'Chưa có hồ sơ bệnh nhân nào phù hợp' }}
                 />
             </div>
 
-            {/* Modals & Drawer */}
             <PatientFormModal
                 open={isCreateModalOpen || Boolean(editPatient)}
                 editPatient={editPatient}
@@ -217,7 +254,10 @@ export default function PatientsPage() {
                 patientId={selectedPatientId}
                 open={Boolean(selectedPatientId)}
                 onClose={() => setSelectedPatientId(null)}
-                onEditClick={(pat) => setEditPatient(pat)}
+                onEditClick={(pat) => {
+                    setSelectedPatientId(null)
+                    setEditPatient(pat)
+                }}
                 onNewAppointmentClick={(patId) => setNewAppPatientId(patId)}
             />
 

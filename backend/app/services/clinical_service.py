@@ -1,14 +1,17 @@
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.core.config import settings
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
-from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum
+from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum, PhanTichAI, PhanTichAIGoiY, DanhGiaAI
 from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     LuotKham,
@@ -33,6 +36,7 @@ from app.models.specialty_exam import (
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.compliance import TrangThaiDonThuoc
+from app.services.audit_trail_service import audit_trail_service
 from app.services.prescription_fsm_service import PrescriptionFSMService
 from app.schemas.clinical import (
     EncounterCreateRequest,
@@ -50,6 +54,7 @@ from app.schemas.clinical import (
     AmendmentResponse,
     AmendmentApproveRequest,
 )
+from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +72,267 @@ class ClinicalService:
         if not bac_si:
             raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bác sĩ hợp lệ!")
         return bac_si
+
+    async def enrich_workspace_ai(self, payload: dict, db: AsyncSession) -> dict:
+        """Attach persisted triage results to checked-in appointments represented in the doctor workspace."""
+        encounters = payload.get("encounters")
+        if not isinstance(encounters, dict):
+            return payload
+        appointment_ids = set()
+        for encounter in encounters.values():
+            if not isinstance(encounter, dict):
+                continue
+            try:
+                appointment_ids.add(int(encounter.get("lich_kham_id")))
+            except (TypeError, ValueError):
+                continue
+        if not appointment_ids:
+            return payload
+
+        stmt = (
+            select(LichKham)
+            .options(
+                selectinload(LichKham.phan_tich_ai).selectinload(PhanTichAI.chuyen_khoa_goi_y),
+                selectinload(LichKham.phan_tich_ai)
+                .selectinload(PhanTichAI.danh_sach_goi_y)
+                .selectinload(PhanTichAIGoiY.chuyen_khoa)
+            )
+            .where(LichKham.id.in_(appointment_ids))
+        )
+        bookings = (await db.execute(stmt)).scalars().all()
+        by_id = {booking.id: booking for booking in bookings}
+        for encounter in encounters.values():
+            if not isinstance(encounter, dict):
+                continue
+            try:
+                booking = by_id.get(int(encounter.get("lich_kham_id")))
+            except (TypeError, ValueError):
+                booking = None
+            analysis = booking.phan_tich_ai if booking else None
+            if not analysis:
+                continue
+            suggestions = sorted(analysis.danh_sach_goi_y or [], key=lambda item: item.thu_tu_uu_tien)
+            top = suggestions[0] if suggestions else None
+            encounter["ai_triage"] = {
+                "phan_tich_ai_id": analysis.id,
+                "trieu_chung_nhap": analysis.trieu_chung_nhap,
+                "ten_chuyen_khoa": top.chuyen_khoa.ten_chuyen_khoa if top and top.chuyen_khoa else (
+                    analysis.chuyen_khoa_goi_y.ten_chuyen_khoa if analysis.chuyen_khoa_goi_y else "Nội tổng quát"
+                ),
+                "ma_chuyen_khoa": top.chuyen_khoa.ma_chuyen_khoa if top and top.chuyen_khoa else None,
+                "do_tin_cay": float(top.do_tin_cay if top else analysis.do_tin_cay),
+                "ly_do_de_xuat": top.ly_do_goi_y if top else None,
+                "co_dau_hieu_cap_cuu": analysis.co_dau_hieu_cap_cuu,
+            }
+        return payload
+
+    
+    @staticmethod
+    def _build_hang_doi_query(today, doc_id: Optional[int] = None):
+        stmt = (
+            select(HangDoiKham)
+            .options(
+                selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(HangDoiKham.lich_kham),
+            )
+            .where(
+                or_(
+                    HangDoiKham.ngay_kham == today,
+                    HangDoiKham.trang_thai.in_(["cho_kham", "dang_kham", "tam_hoan"]),
+                )
+            )
+        )
+        if doc_id:
+            stmt = stmt.where(HangDoiKham.bac_si_id == doc_id)
+        return stmt.order_by(HangDoiKham.muc_do_uu_tien.asc(), HangDoiKham.so_thu_tu_kham.asc())
+
+    async def get_or_sync_workspace_state(
+        self,
+        db: AsyncSession,
+        current_user: Optional[TaiKhoan] = None,
+        doctor_id: Optional[int] = None,
+    ) -> Optional[dict]:
+        """Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng từ PostgreSQL (đồng bộ từ HangDoiKham)"""
+        stmt = select(HeThongTrangThaiBff).where(
+            HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+        )
+        row = (await db.execute(stmt)).scalar_one_or_none()
+        if not row:
+            row = HeThongTrangThaiBff(
+                collection_key="doctor_clinical_workspace",
+                data_json={"encounters": {}, "queue": [], "extraOrders": [], "nextId": 9500},
+            )
+            db.add(row)
+            await db.flush()
+
+        data = row.data_json if isinstance(row.data_json, dict) else {}
+        encounters = data.get("encounters") or {}
+
+        clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
+        today = datetime.now(clinic_tz).date()
+
+        target_doc_id = doctor_id
+        if target_doc_id is None and current_user and current_user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == current_user.nguoi_dung_id)
+            bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs_row:
+                target_doc_id = bs_row.id
+
+        # Truy vấn danh sách vé khám THỰC TẾ từ bảng HangDoiKham trong CSDL
+        active_tickets = (await db.execute(self._build_hang_doi_query(today, target_doc_id))).scalars().all()
+
+        # Nếu bác sĩ hiện tại chưa có vé hôm nay, fallback lấy các vé của hôm nay trên toàn hệ thống
+        if not active_tickets and target_doc_id:
+            active_tickets = (await db.execute(self._build_hang_doi_query(today))).scalars().all()
+
+        # Xây dựng danh sách queue 100% TỪ DATABASE THẬT (KHÔNG DÙNG VÉ MẪU)
+        queue = []
+        invalid_reasons = {
+            "chờ khám bệnh", "cho kham benh", "chờ khám", "cho kham",
+            "đang khám", "dang kham", "chờ cls", "cho cls",
+            "khám theo chỉ định tiếp đón", "kham theo chi dinh tiep don"
+        }
+        for t in active_tickets:
+            target_enc_id = t.lich_kham_id or (5000 + t.id)
+            bn_user = t.benh_nhan.nguoi_dung if t.benh_nhan and t.benh_nhan.nguoi_dung else None
+            ho_ten = bn_user.ho_ten if bn_user else "Bệnh nhân Tiếp đón"
+            gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
+            so_dt = bn_user.so_dien_thoai if bn_user else ""
+
+            birth_year = bn_user.ngay_sinh.year if bn_user and bn_user.ngay_sinh else (t.benh_nhan.nam_sinh if t.benh_nhan else 1990)
+            current_year = datetime.now(timezone.utc).year
+            tuoi = current_year - birth_year if birth_year else 35
+
+            patient_code = t.benh_nhan.ma_dinh_danh_y_te if t.benh_nhan else f"BN-2026-{t.id:04d}"
+            di_ung = t.benh_nhan.di_ung_thuoc if t.benh_nhan and t.benh_nhan.di_ung_thuoc else "Chưa ghi nhận dị ứng"
+
+            raw_ly_do = ""
+            if t.lich_kham and t.lich_kham.ly_do_kham:
+                raw_ly_do = t.lich_kham.ly_do_kham.strip()
+            elif t.ghi_chu_dieu_phoi:
+                raw_ly_do = t.ghi_chu_dieu_phoi.strip()
+
+            ly_do = "" if raw_ly_do.lower() in invalid_reasons else raw_ly_do
+
+            str_enc_id = str(target_enc_id)
+            existing_enc = encounters.get(str_enc_id)
+            status_ticket = t.trang_thai
+            ghi_chu_ticket = t.ghi_chu_dieu_phoi
+            if existing_enc:
+                if (existing_enc.get("ly_do_vao_kham") or "").strip().lower() in invalid_reasons:
+                    existing_enc["ly_do_vao_kham"] = ""
+                if isinstance(existing_enc.get("ai_triage"), dict) and (existing_enc["ai_triage"].get("trieu_chung_nhap") or "").strip().lower() in invalid_reasons:
+                    existing_enc["ai_triage"]["trieu_chung_nhap"] = ""
+                if existing_enc.get("is_locked"):
+                    status_ticket = "da_kham"
+                    ghi_chu_ticket = "Đã khám xong"
+                    if t.trang_thai != TrangThaiHangDoiEnum.DA_KHAM.value:
+                        t.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
+                        t.ghi_chu_dieu_phoi = ghi_chu_ticket
+                else:
+                    chi_dinh_list = existing_enc.get("danh_sach_chi_dinh") or []
+                    active_orders = [
+                        o for o in chi_dinh_list
+                        if isinstance(o, dict) and str(o.get("trang_thai") or "").lower() not in ("da_huy", "huy")
+                    ]
+                    pending_orders = [
+                        o for o in active_orders
+                        if str(o.get("trang_thai") or "").lower() not in ("da_co_ket_qua", "da_duyet")
+                    ]
+                    if active_orders and not pending_orders:
+                        status_ticket = "co_ket_qua_cls"
+                        ghi_chu_ticket = "⭐ CÓ KQ CLS: Đã có kết quả"
+                    elif pending_orders:
+                        status_ticket = "tam_hoan"
+                        ghi_chu_ticket = "Chờ kết quả Cận lâm sàng"
+                        if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
+                            t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+                            t.ghi_chu_dieu_phoi = ghi_chu_ticket
+                    elif t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value or (
+                        existing_enc.get("thoi_gian_bat_dau") and not existing_enc.get("is_locked")
+                    ):
+                        status_ticket = "dang_kham"
+                        ghi_chu_ticket = "Đang khám"
+                        if t.trang_thai != TrangThaiHangDoiEnum.DANG_KHAM.value:
+                            t.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
+                            t.ghi_chu_dieu_phoi = ghi_chu_ticket
+            if not ghi_chu_ticket:
+                ghi_chu_ticket = "Chờ khám" if status_ticket == "cho_kham" else ("Đang khám" if status_ticket == "dang_kham" else ("Chờ kết quả Cận lâm sàng" if status_ticket == "tam_hoan" else ""))
+
+            new_q_item = {
+                "ticket_id": t.id,
+                "encounter_id": target_enc_id,
+                "ticket_code": f"TICKET-{t.so_thu_tu_kham:02d}",
+                "patient_id": t.benh_nhan_id,
+                "so_thu_tu_kham": f"{t.so_thu_tu_kham:02d}",
+                "muc_do_uu_tien": t.muc_do_uu_tien or 2,
+                "trang_thai": status_ticket,
+                "so_lan_goi": t.so_lan_goi or 0,
+                "ghi_chu": ghi_chu_ticket,
+                "benh_nhan": {
+                    "id": t.benh_nhan_id,
+                    "ma": patient_code,
+                    "ho_ten": ho_ten,
+                    "gioi_tinh": gioi_tinh,
+                    "tuoi": tuoi,
+                    "so_dien_thoai": so_dt,
+                    "di_ung_thuoc": di_ung,
+                    "so_lan_kham": 1,
+                },
+                "ten_benh_nhan": ho_ten,
+                "gioi_tinh": gioi_tinh,
+                "tuoi": tuoi,
+                "ly_do": ly_do,
+            }
+            queue.append(new_q_item)
+
+            if str_enc_id not in encounters:
+                encounters[str_enc_id] = {
+                    "id": target_enc_id,
+                    "lich_kham_id": t.lich_kham_id,
+                    "ma_lich_kham": t.lich_kham.ma_lich_kham if t.lich_kham else f"LK-{t.id}",
+                    "benh_nhan": new_q_item["benh_nhan"],
+                    "ai_triage": {
+                        "trieu_chung_nhap": ly_do,
+                        "ten_chuyen_khoa": "Khám chuyên khoa",
+                        "ma_chuyen_khoa": "CHUYEN_KHOA",
+                        "do_tin_cay": 0.9,
+                        "co_dau_hieu_cap_cuu": (t.muc_do_uu_tien == 1),
+                    },
+                    "chuyen_khoa_kham": "CHUYEN_KHOA",
+                    "kham_chuyen_khoa": None,
+                    "thoi_gian_bat_dau": None,
+                    "ly_do_vao_kham": ly_do,
+                    "benh_su": t.lich_kham.trieu_chung_ban_dau if t.lich_kham else "",
+                    "kham_lam_sang_bo_phan": "",
+                    "nhiet_do_c": "36.5",
+                    "mach_lan_phut": "75",
+                    "huyet_ap_tam_thu": "120",
+                    "huyet_ap_tam_truong": "80",
+                    "nhip_tho_lan_phut": "18",
+                    "can_nang_kg": "60",
+                    "chieu_cao_cm": "165",
+                    "bmi": "22.0",
+                    "ket_luan_dieu_tri": "",
+                    "loi_dan_bac_si": "",
+                    "ngay_hen_tai_kham": "",
+                    "danh_sach_chan_doan": [],
+                    "danh_sach_chi_dinh": [],
+                    "don_thuoc": [],
+                    "is_locked": False,
+                }
+
+        data["queue"] = queue
+        data["encounters"] = encounters
+        row.data_json = data
+        flag_modified(row, "data_json")
+        await db.commit()
+
+        if current_user and current_user.vai_tro in ("bac_si", "admin"):
+            data = await self.enrich_workspace_ai(data, db)
+
+        return data
 
     @staticmethod
     def _assert_completion_diagnosis_invariant(luot_kham: LuotKham) -> None:
@@ -237,6 +503,53 @@ class ClinicalService:
             don_thuoc=prescription_dto
         )
 
+    async def rate_ai_suggestion(
+        self,
+        payload: AiFeedbackRequest,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> AiFeedbackResponse:
+        """Persist clinician feedback for an AI analysis linked to the clinician's appointment."""
+        if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
+            raise ForbiddenException("Chức năng đánh giá gợi ý AI chỉ dành cho Bác sĩ.")
+
+        doctor = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            doctor = await self._get_doctor_from_user(user, db)
+
+        stmt_analysis = (
+            select(PhanTichAI)
+            .options(selectinload(PhanTichAI.lich_kham))
+            .where(PhanTichAI.id == payload.phan_tich_ai_id)
+        )
+        analysis = (await db.execute(stmt_analysis)).scalar_one_or_none()
+        if not analysis or not analysis.lich_kham_id or not analysis.lich_kham:
+            raise NotFoundException("Không tìm thấy lần phân tích AI đã được gắn với lịch hẹn.")
+        if doctor and analysis.lich_kham.bac_si_id != doctor.id:
+            raise ForbiddenException("Bác sĩ chỉ được đánh giá gợi ý AI thuộc lịch hẹn mình phụ trách.")
+
+        stmt_feedback = select(DanhGiaAI).where(DanhGiaAI.phan_tich_ai_id == analysis.id)
+        feedback = (await db.execute(stmt_feedback)).scalar_one_or_none()
+        if feedback is None:
+            feedback = DanhGiaAI(
+                phan_tich_ai_id=analysis.id,
+                nguoi_danh_gia_id=user.nguoi_dung_id,
+                vai_tro_nguoi_danh_gia=user.vai_tro,
+            )
+            db.add(feedback)
+        feedback.nguoi_danh_gia_id = user.nguoi_dung_id
+        feedback.vai_tro_nguoi_danh_gia = user.vai_tro
+        feedback.so_sao = payload.so_sao
+        feedback.nhan_xet = payload.nhan_xet
+        await db.commit()
+        await db.refresh(feedback)
+        return AiFeedbackResponse(
+            id=feedback.id,
+            phan_tich_ai_id=feedback.phan_tich_ai_id,
+            so_sao=feedback.so_sao,
+            nhan_xet=feedback.nhan_xet,
+        )
+
     async def start_encounter(
         self,
         payload: EncounterCreateRequest,
@@ -328,6 +641,19 @@ class ClinicalService:
             bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
             if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
                 raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
+
+        await audit_trail_service.log_access(
+            db=db,
+            user_id=user.id,
+            user_role=user.vai_tro,
+            patient_id=luot_kham.benh_nhan_id,
+            action="VIEW",
+            resource_type="ENCOUNTER",
+            resource_id=luot_kham.id,
+            purpose="Xem hồ sơ bệnh án điện tử (EMR)",
+        )
+        # Persist the audit event before returning protected medical data.
+        await db.commit()
 
         return self._to_encounter_response(luot_kham)
 

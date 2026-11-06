@@ -1,0 +1,18 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Hoàn tiền thành công 200,000đ cho hóa đơn HD-261102-A9DCE8",
+    "data": {
+        "ma_phieu_chi": "PC-261102132115-1282",
+        "phieu_chi_id": 66,
+        "hoa_don_id": 77,
+        "ma_hoa_don": "HD-261102-A9DCE8",
+        "so_tien_hoan": "200000",
+        "trang_thai_hoa_don_moi": "hoan_tien_mot_phan",
+        "thoi_gian": "2026-11-02T13:21:15.255942Z",
+        "nguoi_thuc_hien_id": 34462,
+        "ly_do": "Test second refund exceeding cumulative thuc_thu"
+    },
+    "meta": null,
+    "errors": null
+}

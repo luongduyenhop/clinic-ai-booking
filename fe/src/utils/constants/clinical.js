@@ -22,10 +22,18 @@ export const ORDER_STATUS = {
     CHO_THUC_HIEN: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
     da_chi_dinh: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
     dang_thuc_hien: { label: 'Đang làm', badge: 'medpro-badge-info' },
+    DANG_THUC_HIEN: { label: 'Đang làm', badge: 'medpro-badge-info' },
     da_co_ket_qua: { label: 'Có kết quả', badge: 'medpro-badge-success' },
+    DA_CO_KET_QUA: { label: 'Có kết quả', badge: 'medpro-badge-success' },
+    da_duyet: { label: 'Đã duyệt', badge: 'medpro-badge-success' },
+    DA_DUYET: { label: 'Đã duyệt', badge: 'medpro-badge-success' },
+    hoan_thanh: { label: 'Hoàn thành', badge: 'medpro-badge-success' },
+    HOAN_THANH: { label: 'Hoàn thành', badge: 'medpro-badge-success' },
     da_huy: { label: 'Đã hủy', badge: 'medpro-badge-danger' },
+    DA_HUY: { label: 'Đã hủy', badge: 'medpro-badge-danger' },
     // Trạng thái hiển thị (chỉ định vẫn dang_thuc_hien): KTV đã hoàn tất kết quả, chờ "Duyệt & Trả kết quả"
     cho_duyet: { label: 'Chờ duyệt', badge: 'medpro-badge-warning' },
+    CHO_DUYET: { label: 'Chờ duyệt', badge: 'medpro-badge-warning' },
 }
 
 // Trạng thái hiển thị trên bàn KTV: tách ca đã hoàn tất kết quả nhưng chưa duyệt khỏi "Đang làm"

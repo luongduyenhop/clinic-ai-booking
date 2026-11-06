@@ -1,0 +1,18 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Hoàn tiền thành công 50,000đ cho hóa đơn HD-261102-A9DCE8",
+    "data": {
+        "ma_phieu_chi": "PC-261102132158-DBE7",
+        "phieu_chi_id": 67,
+        "hoa_don_id": 77,
+        "ma_hoa_don": "HD-261102-A9DCE8",
+        "so_tien_hoan": "50000",
+        "trang_thai_hoa_don_moi": "hoan_tien_mot_phan",
+        "thoi_gian": "2026-11-02T13:21:58.100224Z",
+        "nguoi_thuc_hien_id": 34462,
+        "ly_do": "Attempt refund on locked shift invoice"
+    },
+    "meta": null,
+    "errors": null
+}

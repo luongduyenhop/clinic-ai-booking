@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from app.models.appointment import HangDoiKham, LichKham, LichLamViec, TrangThaiHangDoiEnum, TrangThaiLichEnum, LoaiHangDoiEnum
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
 from app.schemas.queue import WalkInCheckInRequest, WalkInQuickRequest
+from app.services.appointment_service import clinic_now
 from app.services.queue_service import queue_service
 
 
@@ -159,13 +160,13 @@ async def test_walk_in_supports_thermal_print_and_onscreen_display(api_client, b
     await db_session.execute(
         update(NguoiDung)
         .where(NguoiDung.id == bn.nguoi_dung_id)
-        .values(so_dien_thoai="0988776655")
+        .values(so_dien_thoai=f"098{uuid.uuid4().int % 10000000:07d}")
     )
     await db_session.commit()
 
     # Gán buồng khám và chuyên khoa cho bác sĩ để phiếu in hiển thị rõ ràng
     suffix = uuid.uuid4().hex[:6]
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa="Khoa Tai Mũi Họng", vi_tri_phong="Phòng 205 - Tầng 2")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa=f"Khoa Tai Mũi Họng {suffix}", vi_tri_phong="Phòng 205 - Tầng 2")
     db_session.add(ck)
     await db_session.flush()
 
@@ -187,7 +188,7 @@ async def test_walk_in_supports_thermal_print_and_onscreen_display(api_client, b
     assert ticket["ten_benh_nhan"] is not None
     assert ticket["so_dien_thoai"] is not None
     assert ticket["ten_bac_si"] is not None
-    assert ticket["ngay_kham"] == date.today().isoformat()
+    assert ticket["ngay_kham"] == clinic_now().date().isoformat()
     assert ticket["ca_kham"] == "sang"
     assert ticket["trang_thai"] == "cho_kham"
     assert ticket["thoi_gian_check_in"] is not None
@@ -219,11 +220,11 @@ async def test_walk_in_auto_assign_doctor_when_not_selected(api_client, booking,
     hệ thống tự động tìm bác sĩ đang trực có số lượng bệnh nhân chờ ít nhất.
     """
     token_letan = booking.tokens["admin"]
-    today = date.today()
+    today = clinic_now().date()
     suffix = uuid.uuid4().hex[:6]
 
     # Tạo chuyên khoa và 2 bác sĩ cùng chuyên khoa
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa="Khoa Mắt", vi_tri_phong="Phòng 301")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa=f"Khoa Mắt {suffix}", vi_tri_phong="Phòng 301")
     db_session.add(ck)
     await db_session.flush()
 
@@ -273,9 +274,9 @@ async def test_walk_in_rejected_when_shift_quota_exceeded(db_session):
     from app.core.exceptions import ConflictException
 
     suffix = uuid.uuid4().hex[:6]
-    today = date.today()
+    today = clinic_now().date()
 
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa="Khoa Ngoại", is_active=True)
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-{suffix}", ten_chuyen_khoa=f"Khoa Ngoại {suffix}", is_active=True)
     db_session.add(ck)
     await db_session.flush()
 

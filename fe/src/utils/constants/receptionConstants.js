@@ -5,6 +5,12 @@ export const APPOINTMENT_STATUS = {
     RESCHEDULED: 'RESCHEDULED',
     CANCELLED: 'CANCELLED',
     NO_SHOW: 'NO_SHOW',
+    CHO_XAC_NHAN: 'cho_xac_nhan',
+    DA_XAC_NHAN: 'da_xac_nhan',
+    DA_TIEP_NHAN: 'da_tiep_nhan',
+    DA_KHAM: 'da_kham',
+    DA_HUY: 'da_huy',
+    VANG_MAT: 'vang_mat',
 }
 
 export const APPOINTMENT_STATUS_LABELS = {
@@ -14,6 +20,12 @@ export const APPOINTMENT_STATUS_LABELS = {
     [APPOINTMENT_STATUS.RESCHEDULED]: { label: 'Đã đổi lịch', color: 'orange' },
     [APPOINTMENT_STATUS.CANCELLED]: { label: 'Đã hủy', color: 'red' },
     [APPOINTMENT_STATUS.NO_SHOW]: { label: 'Vắng mặt', color: 'default' },
+    cho_xac_nhan: { label: 'Chờ xác nhận', color: 'gold' },
+    da_xac_nhan: { label: 'Đã xác nhận', color: 'blue' },
+    da_tiep_nhan: { label: 'Đã tiếp nhận', color: 'green' },
+    da_kham: { label: 'Đã khám', color: 'purple' },
+    da_huy: { label: 'Đã hủy', color: 'red' },
+    vang_mat: { label: 'Vắng mặt (No-Show)', color: 'default' },
 }
 
 export const QUEUE_STATUS = {

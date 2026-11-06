@@ -35,7 +35,7 @@ async def test_checkin_online_appointment_success(api_client, booking, db_sessio
     - Cấp số thứ tự khám (so_thu_tu_kham) và mã STT buồng khám (ma_so_thu_tu).
     """
     token_letan = booking.tokens["admin"]
-    today = date.today()
+    today = _get_clinic_now().date()
     bs = booking.bs_x
     bn = booking.bn_a
 
@@ -93,7 +93,7 @@ async def test_checkin_online_arrival_window_priority(api_client, booking, db_se
     - Đến muộn > 15 phút: loai_hang_doi = den_muon, muc_do_uu_tien = 5
     """
     token_admin = booking.tokens["admin"]
-    today = date.today()
+    today = _get_clinic_now().date()
     now_clinic = _get_clinic_now()
 
     # 1. Ca đến sớm
@@ -159,7 +159,7 @@ async def test_checkin_online_idempotency_returns_existing_ticket(api_client, bo
     Hệ thống trả về vé cũ đã cấp, không sinh trùng vé và không tăng STT.
     """
     token_letan = booking.tokens["admin"]
-    today = date.today()
+    today = _get_clinic_now().date()
     now_clinic = _get_clinic_now()
 
     lich = LichKham(
@@ -195,7 +195,7 @@ async def test_checkin_online_rejected_if_wrong_day(api_client, booking, db_sess
     Chặn check-in nếu người bệnh đến không đúng ngày hẹn (ví dụ: hẹn ngày mai nhưng đến hôm nay).
     """
     token_letan = booking.tokens["admin"]
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = _get_clinic_now().date() + timedelta(days=1)
 
     lich_ngay_mai = LichKham(
         ma_lich_kham=f"LK-TOMORROW-{uuid.uuid4().hex[:6]}",
@@ -332,12 +332,12 @@ async def test_walkin_supports_thermal_print_and_onscreen_display_with_code(api_
     await db_session.execute(
         update(NguoiDung)
         .where(NguoiDung.id == bn.nguoi_dung_id)
-        .values(so_dien_thoai="0988776655")
+        .values(so_dien_thoai=f"098{uuid.uuid4().int % 10000000:07d}")
     )
 
     # Gán chuyên khoa Tai Mũi Họng để kiểm tra sinh tiền tố TMH
     suffix = uuid.uuid4().hex[:6]
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"KHOA_TMH_{suffix}", ten_chuyen_khoa="Khoa Tai Mũi Họng", vi_tri_phong="Phòng 205 - Tầng 2")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"KHOA_TMH_{suffix}", ten_chuyen_khoa=f"Khoa Tai Mũi Họng {suffix}", vi_tri_phong="Phòng 205 - Tầng 2")
     db_session.add(ck)
     await db_session.flush()
 
@@ -360,9 +360,9 @@ async def test_walkin_supports_thermal_print_and_onscreen_display_with_code(api_
     assert ticket["ma_so_thu_tu"].startswith("TMH-")
     assert ticket["ma_so_thu_tu"] == f"TMH-{ticket['so_thu_tu_kham']:02d}"
     assert ticket["ten_benh_nhan"] is not None
-    assert ticket["so_dien_thoai"] == "0988776655"
+    assert ticket["so_dien_thoai"].startswith("098")
     assert ticket["ten_bac_si"] is not None
-    assert ticket["ngay_kham"] == date.today().isoformat()
+    assert ticket["ngay_kham"] == _get_clinic_now().date().isoformat()
     assert ticket["ca_kham"] == "sang"
     assert ticket["trang_thai"] == "cho_kham"
     assert ticket["thoi_gian_check_in"] is not None
@@ -392,10 +392,10 @@ async def test_walkin_auto_assign_doctor_when_not_selected(api_client, booking, 
     Hệ thống tự động điều phối vào bác sĩ cùng chuyên khoa có ít người chờ nhất.
     """
     token_letan = booking.tokens["admin"]
-    today = date.today()
+    today = _get_clinic_now().date()
     suffix = uuid.uuid4().hex[:6]
 
-    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-MAT-{suffix}", ten_chuyen_khoa="Khoa Mắt", vi_tri_phong="Phòng 301")
+    ck = ChuyenKhoa(ma_chuyen_khoa=f"CK-MAT-{suffix}", ten_chuyen_khoa=f"Khoa Mắt {suffix}", vi_tri_phong="Phòng 301")
     db_session.add(ck)
     await db_session.flush()
 
@@ -466,7 +466,7 @@ async def test_walkin_rejected_when_shift_quota_exceeded(api_client, booking, db
     hệ thống từ chối tiếp nhận thêm và trả về lỗi 400 Bad Request.
     """
     token_letan = booking.tokens["admin"]
-    today = date.today()
+    today = _get_clinic_now().date()
     suffix = uuid.uuid4().hex[:6]
 
     nd_bs = NguoiDung(ho_ten=f"BS Quota {suffix}", email=f"bs_quota_{suffix}@test.com")

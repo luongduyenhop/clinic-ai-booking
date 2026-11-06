@@ -1,0 +1,41 @@
+{
+    "success": true,
+    "code": 200,
+    "message": "Lấy hóa đơn dự kiến thành công",
+    "data": {
+        "luot_kham_id": 1885,
+        "ma_kcb": "KCB-001885",
+        "benh_nhan": {
+            "mabn": "BN-202611-35980",
+            "ho_ten": "Nguyễn Văn Test",
+            "so_dien_thoai": "0926110220"
+        },
+        "bac_si_kham": "ThS. BS Trần Thị Bích",
+        "ngay_kham": "02/11/2026",
+        "cac_khoan_thu": [
+            {
+                "loai_muc": "cong_kham",
+                "muc_tham_chieu_id": 4779,
+                "ten_khoan_thu": "Công khám chuyên khoa ngoại trú",
+                "so_luong": 1,
+                "don_gia": "200000.00",
+                "thanh_tien": "200000.00",
+                "ghi_chu": null
+            },
+            {
+                "loai_muc": "can_lam_sang",
+                "muc_tham_chieu_id": 162,
+                "ten_khoan_thu": "Chụp Xquang tim phổi thẳng",
+                "so_luong": 1,
+                "don_gia": "150000.00",
+                "thanh_tien": "150000.00",
+                "ghi_chu": null
+            }
+        ],
+        "tong_tien": "350000.00",
+        "mien_giam": "0.00",
+        "thuc_thu_du_kien": "350000.00"
+    },
+    "meta": null,
+    "errors": null
+}

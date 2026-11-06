@@ -25,6 +25,7 @@ from app.schemas.clinical import (
     AmendmentResponse,
     AmendmentApproveRequest,
 )
+from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 from app.schemas.compliance import (
     PrescriptionSignRequest,
     PrescriptionIssueRequest,
@@ -42,6 +43,21 @@ from app.services.prescription_fsm_service import prescription_fsm_service
 from app.services.queue_service import queue_service
 
 router = APIRouter(prefix="/clinical", tags=["5. Khám Lâm Sàng & Bệnh Án Điện Tử (Package D)"])
+
+
+@router.post(
+    "/ai-feedback",
+    response_model=ResponseEnvelope[AiFeedbackResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Bác sĩ lưu đánh giá cho gợi ý AI của lịch hẹn mình phụ trách",
+)
+async def rate_ai_suggestion(
+    payload: AiFeedbackRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await clinical_service.rate_ai_suggestion(payload, current_user, db)
+    return ResponseEnvelope.success_response(data=result, message="Đã lưu đánh giá gợi ý AI thành công")
 
 
 @router.post(
@@ -649,223 +665,24 @@ async def copy_old_prescription(
 # ==============================================================================
 # ĐỒNG BỘ TRẠNG THÁI BÀN KHÁM BÁC SĨ & CẬN LÂM SÀNG XUỐNG CSDL POSTGRESQL
 # ==============================================================================
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.attributes import flag_modified
-
-from app.core.config import settings
 from app.core.dependencies import get_optional_current_user
-from app.models.appointment import HangDoiKham, LichKham, TrangThaiHangDoiEnum, LoaiHangDoiEnum
-from app.models.bff_store import HeThongTrangThaiBff
-from app.models.user import BacSi, BenhNhan, VaiTroEnum
-
-
-def _build_hang_doi_query(today, doc_id: Optional[int] = None):
-    stmt = (
-        select(HangDoiKham)
-        .options(
-            selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
-            selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
-            selectinload(HangDoiKham.lich_kham),
-        )
-        .where(
-            or_(
-                HangDoiKham.ngay_kham == today,
-                HangDoiKham.trang_thai.in_(["cho_kham", "dang_kham", "tam_hoan"]),
-            )
-        )
-    )
-    if doc_id:
-        stmt = stmt.where(HangDoiKham.bac_si_id == doc_id)
-    return stmt.order_by(HangDoiKham.muc_do_uu_tien.asc(), HangDoiKham.so_thu_tu_kham.asc())
 
 
 @router.get(
     "/workspace-state",
     response_model=ResponseEnvelope[Optional[dict]],
-    summary="Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng đã lưu bền vững từ PostgreSQL (100% dữ liệu thật từ DB)"
+    summary="Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng từ PostgreSQL (100% dữ liệu thật từ DB)"
 )
 async def get_clinical_workspace_state(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ (tùy chọn)"),
     current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(HeThongTrangThaiBff).where(
-        HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+    data = await clinical_service.get_or_sync_workspace_state(
+        db=db,
+        current_user=current_user,
+        doctor_id=doctor_id,
     )
-    row = (await db.execute(stmt)).scalar_one_or_none()
-    if not row:
-        row = HeThongTrangThaiBff(
-            collection_key="doctor_clinical_workspace",
-            data_json={"encounters": {}, "queue": [], "extraOrders": [], "nextId": 9500},
-        )
-        db.add(row)
-        await db.flush()
-
-    data = row.data_json if isinstance(row.data_json, dict) else {}
-    encounters = data.get("encounters") or {}
-
-    clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
-    today = datetime.now(clinic_tz).date()
-
-    target_doc_id = doctor_id
-    if target_doc_id is None and current_user and current_user.vai_tro == VaiTroEnum.BAC_SI.value:
-        stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == current_user.nguoi_dung_id)
-        bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
-        if bs_row:
-            target_doc_id = bs_row.id
-
-    # Truy vấn danh sách vé khám THỰC TẾ từ bảng HangDoiKham trong CSDL
-    active_tickets = (await db.execute(_build_hang_doi_query(today, target_doc_id))).scalars().all()
-
-    # Nếu bác sĩ hiện tại chưa có vé hôm nay, fallback lấy các vé của hôm nay trên toàn hệ thống
-    if not active_tickets and target_doc_id:
-        active_tickets = (await db.execute(_build_hang_doi_query(today))).scalars().all()
-
-    # Xây dựng danh sách queue 100% TỪ DATABASE THẬT (KHÔNG DÙNG VÉ MẪU)
-    queue = []
-    for t in active_tickets:
-        target_enc_id = t.lich_kham_id or (5000 + t.id)
-        bn_user = t.benh_nhan.nguoi_dung if t.benh_nhan and t.benh_nhan.nguoi_dung else None
-        ho_ten = bn_user.ho_ten if bn_user else "Bệnh nhân Tiếp đón"
-        gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
-        so_dt = bn_user.so_dien_thoai if bn_user else ""
-
-        birth_year = bn_user.ngay_sinh.year if bn_user and bn_user.ngay_sinh else (t.benh_nhan.nam_sinh if t.benh_nhan else 1990)
-        current_year = datetime.now(timezone.utc).year
-        tuoi = current_year - birth_year if birth_year else 35
-
-        patient_code = t.benh_nhan.ma_dinh_danh_y_te if t.benh_nhan else f"BN-2026-{t.id:04d}"
-        di_ung = t.benh_nhan.di_ung_thuoc if t.benh_nhan and t.benh_nhan.di_ung_thuoc else "Chưa ghi nhận dị ứng"
-
-        invalid_reasons = {
-            "chờ khám bệnh", "cho kham benh", "chờ khám", "cho kham",
-            "đang khám", "dang kham", "chờ cls", "cho cls",
-            "khám theo chỉ định tiếp đón", "kham theo chi dinh tiep don"
-        }
-        raw_ly_do = ""
-        if t.lich_kham and t.lich_kham.ly_do_kham:
-            raw_ly_do = t.lich_kham.ly_do_kham.strip()
-        elif t.ghi_chu_dieu_phoi:
-            raw_ly_do = t.ghi_chu_dieu_phoi.strip()
-
-        ly_do = "" if raw_ly_do.lower() in invalid_reasons else raw_ly_do
-
-        str_enc_id = str(target_enc_id)
-        existing_enc = encounters.get(str_enc_id)
-        status_ticket = t.trang_thai
-        ghi_chu_ticket = t.ghi_chu_dieu_phoi
-        if existing_enc:
-            if (existing_enc.get("ly_do_vao_kham") or "").strip().lower() in invalid_reasons:
-                existing_enc["ly_do_vao_kham"] = ""
-            if isinstance(existing_enc.get("ai_triage"), dict) and (existing_enc["ai_triage"].get("trieu_chung_nhap") or "").strip().lower() in invalid_reasons:
-                existing_enc["ai_triage"]["trieu_chung_nhap"] = ""
-            if existing_enc.get("is_locked"):
-                status_ticket = "da_kham"
-                ghi_chu_ticket = "Đã khám xong"
-                if t.trang_thai != TrangThaiHangDoiEnum.DA_KHAM.value:
-                    t.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
-                    t.ghi_chu_dieu_phoi = ghi_chu_ticket
-            else:
-                chi_dinh_list = existing_enc.get("danh_sach_chi_dinh") or []
-                active_orders = [
-                    o for o in chi_dinh_list
-                    if isinstance(o, dict) and str(o.get("trang_thai") or "").lower() not in ("da_huy", "huy")
-                ]
-                pending_orders = [
-                    o for o in active_orders
-                    if str(o.get("trang_thai") or "").lower() not in ("da_co_ket_qua", "da_duyet")
-                ]
-                if active_orders and not pending_orders:
-                    status_ticket = "co_ket_qua_cls"
-                    ghi_chu_ticket = "⭐ CÓ KQ CLS: Đã có kết quả"
-                elif pending_orders:
-                    status_ticket = "tam_hoan"
-                    ghi_chu_ticket = "Chờ kết quả Cận lâm sàng"
-                    if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
-                        t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-                        t.ghi_chu_dieu_phoi = ghi_chu_ticket
-                elif t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value or (
-                    existing_enc.get("thoi_gian_bat_dau") and not existing_enc.get("is_locked")
-                ):
-                    status_ticket = "dang_kham"
-                    ghi_chu_ticket = "Đang khám"
-                    if t.trang_thai != TrangThaiHangDoiEnum.DANG_KHAM.value:
-                        t.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
-                        t.ghi_chu_dieu_phoi = ghi_chu_ticket
-        if not ghi_chu_ticket:
-            ghi_chu_ticket = "Chờ khám" if status_ticket == "cho_kham" else ("Đang khám" if status_ticket == "dang_kham" else ("Chờ kết quả Cận lâm sàng" if status_ticket == "tam_hoan" else ""))
-
-        new_q_item = {
-            "ticket_id": t.id,
-            "encounter_id": target_enc_id,
-            "ticket_code": f"TICKET-{t.so_thu_tu_kham:02d}",
-            "patient_id": t.benh_nhan_id,
-            "so_thu_tu_kham": f"{t.so_thu_tu_kham:02d}",
-            "muc_do_uu_tien": t.muc_do_uu_tien or 2,
-            "trang_thai": status_ticket,
-            "so_lan_goi": t.so_lan_goi or 0,
-            "ghi_chu": ghi_chu_ticket,
-            "benh_nhan": {
-                "id": t.benh_nhan_id,
-                "ma": patient_code,
-                "ho_ten": ho_ten,
-                "gioi_tinh": gioi_tinh,
-                "tuoi": tuoi,
-                "so_dien_thoai": so_dt,
-                "di_ung_thuoc": di_ung,
-                "so_lan_kham": 1,
-            },
-            "ten_benh_nhan": ho_ten,
-            "gioi_tinh": gioi_tinh,
-            "tuoi": tuoi,
-            "ly_do": ly_do,
-        }
-        queue.append(new_q_item)
-
-        if str_enc_id not in encounters:
-            encounters[str_enc_id] = {
-                "id": target_enc_id,
-                "lich_kham_id": t.lich_kham_id,
-                "ma_lich_kham": t.lich_kham.ma_lich_kham if t.lich_kham else f"LK-{t.id}",
-                "benh_nhan": new_q_item["benh_nhan"],
-                "ai_triage": {
-                    "trieu_chung_nhap": ly_do,
-                    "ten_chuyen_khoa": "Khám chuyên khoa",
-                    "ma_chuyen_khoa": "CHUYEN_KHOA",
-                    "do_tin_cay": 0.9,
-                    "co_dau_hieu_cap_cuu": (t.muc_do_uu_tien == 1),
-                },
-                "chuyen_khoa_kham": "CHUYEN_KHOA",
-                "kham_chuyen_khoa": None,
-                "thoi_gian_bat_dau": None,
-                "ly_do_vao_kham": ly_do,
-                "benh_su": t.lich_kham.trieu_chung_ban_dau if t.lich_kham else "",
-                "kham_lam_sang_bo_phan": "",
-                "nhiet_do_c": "36.5",
-                "mach_lan_phut": "75",
-                "huyet_ap_tam_thu": "120",
-                "huyet_ap_tam_truong": "80",
-                "nhip_tho_lan_phut": "18",
-                "can_nang_kg": "60",
-                "chieu_cao_cm": "165",
-                "bmi": "22.0",
-                "ket_luan_dieu_tri": "",
-                "loi_dan_bac_si": "",
-                "ngay_hen_tai_kham": "",
-                "danh_sach_chan_doan": [],
-                "danh_sach_chi_dinh": [],
-                "don_thuoc": [],
-                "is_locked": False,
-            }
-
-    data["queue"] = queue
-    data["encounters"] = encounters
-    row.data_json = data
-    flag_modified(row, "data_json")
-    await db.commit()
-
     return ResponseEnvelope.success_response(
         data=data,
         message="Tải trạng thái bàn khám từ PostgreSQL thành công",

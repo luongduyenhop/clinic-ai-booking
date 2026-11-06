@@ -1,19 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
 import PatientPageHeader from '../../../components/user/patient/PatientPageHeader'
-import { PatientEmpty, PatientError, PatientLoading } from '../../../components/user/patient/PatientPageState'
-import { CalendarPlus, Clock, Stethoscope } from '../../../components/common/ClinicIcon'
-import { specialties } from '../../../data/user/publicPortalData'
-import { fetchPatientPortalAsync } from '../../../redux/actions/user/patientPortalAction'
+import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
+import { bookingService } from '../../../services/user/BookingService'
 
 export default function DoctorSchedulesPage() {
-    const dispatch = useDispatch()
-    const [specialty, setSpecialty] = useState('ALL')
-    const { portalData, portalLoading, portalError } = useSelector((state) => state.user.user)
-    if (portalLoading) return <PatientLoading/>
-    if (portalError) return <PatientError message={portalError} onRetry={() => dispatch(fetchPatientPortalAsync())}/>
-    const items = portalData.doctorSchedules.filter((item) => specialty === 'ALL' || item.specialtyId === specialty)
-    return <><PatientPageHeader title="Lịch làm việc của bác sĩ" description="Xem ca làm việc dự kiến trong 7 ngày tới và chọn bác sĩ phù hợp."/><div className="medpro-card mb-5 p-4"><label className="auth-label" htmlFor="doctor-specialty">Chuyên khoa</label><select id="doctor-specialty" value={specialty} onChange={(event) => setSpecialty(event.target.value)} className="medpro-input max-w-sm"><option value="ALL">Tất cả chuyên khoa</option>{specialties.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>{items.length ? <div className="grid gap-4 md:grid-cols-2">{items.map((item) => <article key={item.id} className="medpro-card p-5"><div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F4FD] text-[#00B5F1]"><Stethoscope size={22}/></span><div><h2 className="font-display font-bold text-[#003553]">{item.doctorName}</h2><p className="text-xs text-slate-500">{item.specialty}</p></div></div><p className="mt-4 font-bold text-sm text-[#003553]">{formatDate(item.date)}</p><div className="mt-2 flex flex-wrap gap-2">{item.shifts.map((shift) => <span key={shift} className="inline-flex items-center gap-1.5 rounded-full border border-[#B8E5FA] bg-[#E8F4FD] px-3 py-1.5 text-[11px] font-bold text-[#006F9F]"><Clock size={14}/>{shift}</span>)}</div><Link to={`/dat-lich?specialty=${item.specialtyId}&doctor=${item.doctorId}`} className="medpro-btn-outline mt-5 min-h-10"><CalendarPlus size={16}/>Chọn bác sĩ này</Link></article>)}</div> : <PatientEmpty icon="Stethoscope" title="Không có lịch phù hợp" description="Thử chọn chuyên khoa khác để xem lịch bác sĩ."/>}<p className="mt-4 text-[11px] text-slate-400">Lịch hiển thị mang tính dự kiến. Các khung giờ còn trống sẽ được kiểm tra lại trong bước đặt lịch.</p></>
+  const { doctors, specialties, loading: catalogLoading, error: catalogError } = useMedicalCatalog()
+  const [minDate] = useState(() => new Date().toLocaleDateString('en-CA'))
+  const [date, setDate] = useState(() => { const d = new Date(); d.setDate(d.getDate()+1); return d.toLocaleDateString('en-CA') })
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let active = true
+    if (catalogLoading || catalogError) return
+    setLoading(true); setError('')
+    Promise.all(doctors.map(async doctor => {
+      try { return { doctor, slots: await bookingService.getAvailableSlots({ doctorId: doctor.id, appointmentDate: date }) } }
+      catch (err) { return { doctor, slots: [], error: err.response?.data?.message || 'Không thể tải lịch bác sĩ' } }
+    })).then(data => { if (active) setRows(data) }).catch(err => { if (active) setError(err.message) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [doctors, date, catalogLoading, catalogError])
+  return <main>
+    <PatientPageHeader title="Lịch làm việc bác sĩ" description="Giờ còn trống được cập nhật từ Backend theo ngày đã chọn."/>
+    <label className="block medpro-card p-4 text-sm">Ngày khám <input type="date" className="medpro-input mt-2 max-w-xs" min={minDate} value={date} onChange={e => setDate(e.target.value)}/></label>
+    {(catalogLoading || loading) && <p className="p-4 text-slate-500">Đang kiểm tra ca trực và khung giờ...</p>}
+    {(catalogError || error) && <p className="p-4 text-rose-600" role="alert">{catalogError || error}</p>}
+    <div className="mt-5 grid gap-4 md:grid-cols-2">{rows.map(({doctor, slots, error: slotError}) => <article key={doctor.id} className="medpro-card p-5 space-y-3">
+      <h2 className="font-bold">{doctor.name}</h2><p className="text-xs text-slate-500">{specialties.find(s=>s.id===doctor.specialtyId)?.name || doctor.specialty}</p>
+      {slotError ? <p className="text-xs text-rose-600">{slotError}</p> : <p className="text-xs">{slots.length ? slots.map(s=>s.value).join(' · ') : 'Không có khung giờ trống ngày này'}</p>}
+      {slots.length > 0 && <Link className="medpro-btn-outline" to={`/dat-lich?specialty=${doctor.specialtyId}&doctor=${doctor.id}`}>Đặt lịch với bác sĩ</Link>}
+    </article>)}</div>
+  </main>
 }
-const formatDate = (value) => new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T00:00:00`))

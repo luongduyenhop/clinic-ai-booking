@@ -20,201 +20,154 @@
   "navigationConfig": {
     "headerWorkflowTabs": [
       {
-        "label": "Lịch hẹn",
-        "path": "/admin/lich-hen",
-        "icon": "CalendarCheck",
-        "hasDropdown": true,
-        "dropdownTitle": "QUẢN LÝ LỊCH HẸN & DỊCH VỤ",
-        "submenu": [
-          {
-            "label": "Lịch hẹn khám & Telemedicine",
-            "path": "/admin/lich-hen",
-            "icon": "CalendarCheck",
-            "desc": "Danh sách lịch hẹn khám trực tuyến"
-          },
-          {
-            "label": "Gói dịch vụ khám (/goidichvu)",
-            "path": "/admin/goi-dich-vu",
-            "icon": "Package",
-            "desc": "Đăng ký & theo dõi gói khám tổng quát"
-          },
-          {
-            "label": "Liệu trình điều trị (/lieutrinh)",
-            "path": "/admin/lieu-trinh",
-            "icon": "ClipboardText",
-            "desc": "Phục hồi chức năng & vật lý trị liệu"
-          }
-        ]
-      },
-      {
-        "label": "Đăng ký",
-        "path": "/admin/dang-ky-kham",
-        "icon": "ClipboardText",
-        "badge": "F2",
-        "badgeColor": "bg-sky-500"
-      },
-      {
-        "label": "Khám bệnh",
-        "path": "/admin/kham-benh",
-        "icon": "Stethoscope",
-        "badge": "F7",
-        "badgeColor": "bg-emerald-500",
-        "hasDropdown": true,
-        "dropdownTitle": "BÀN KHÁM LÂM SÀNG & CHUYÊN MÔN",
-        "submenu": [
-          {
-            "label": "Bàn khám lâm sàng & Ký số",
-            "path": "/admin/kham-benh",
-            "icon": "Stethoscope",
-            "desc": "Khám lâm sàng, sinh hiệu, ICD-10 & kê đơn"
-          },
-          {
-            "label": "Chỉ định dịch vụ & CLS (F7)",
-            "path": "/admin/kham-benh?tab=KE_DICH_VU",
-            "icon": "ClipboardText",
-            "desc": "Kê dịch vụ kỹ thuật & chỉ định cận lâm sàng"
-          },
-          {
-            "label": "Khám sức khỏe (Thông tư 32)",
-            "path": "/admin/kham-benh?tab=KHAM_SUC_KHOE",
-            "icon": "Scales",
-            "desc": "Phân loại sức khỏe I - V cho cá nhân & đoàn"
-          }
-        ]
-      },
-      {
-        "label": "Cận lâm sàng",
-        "path": "/admin/can-lam-sang",
-        "icon": "Microscope",
-        "hasDropdown": true,
-        "dropdownTitle": "CHỈ ĐỊNH & KẾT QUẢ CẬN LÂM SÀNG",
-        "submenu": [
-          {
-            "label": "Tất cả chỉ định Cận lâm sàng",
-            "path": "/admin/can-lam-sang",
-            "icon": "Microscope",
-            "desc": "Toàn bộ danh sách chỉ định chờ thực hiện"
-          },
-          {
-            "label": "Mẫu bệnh phẩm",
-            "path": "/admin/can-lam-sang?filter=BENH_PHAM",
-            "icon": "Drop",
-            "desc": "Tiếp nhận mẫu máu, nước tiểu, dịch xét nghiệm"
-          },
-          {
-            "label": "Xét nghiệm máu & Sinh hóa",
-            "path": "/admin/can-lam-sang?filter=XET_NGHIEM",
-            "icon": "Drop",
-            "desc": "Huyết học, sinh hóa máu, miễn dịch"
-          },
-          {
-            "label": "Chẩn đoán hình ảnh: Siêu âm",
-            "path": "/admin/can-lam-sang?filter=SIEU_AM",
-            "icon": "Waveform",
-            "desc": "Siêu âm tổng quát, tim mạch, ổ bụng"
-          },
-          {
-            "label": "Chẩn đoán hình ảnh: X-Quang",
-            "path": "/admin/can-lam-sang?filter=X_QUANG",
-            "icon": "Scan",
-            "desc": "X-Quang tim phổi thẳng, xương khớp kỹ thuật số"
-          },
-          {
-            "label": "Nội soi Tai Mũi Họng",
-            "path": "/admin/can-lam-sang?filter=NOI_SOI",
-            "icon": "Eye",
-            "desc": "Nội soi tai mũi họng ống mềm độ phân giải cao"
-          },
-          {
-            "label": "Điện tâm đồ (ECG)",
-            "path": "/admin/can-lam-sang?filter=DIEN_TIM",
-            "icon": "Pulse",
-            "desc": "Đo điện tim 12 chuyển đạo tiêu chuẩn"
-          }
-        ]
-      },
-      {
-        "label": "PT - TT",
-        "path": "/admin/pt-tt",
-        "icon": "FirstAidKit"
-      },
-      {
-        "label": "Viện phí",
-        "path": "/admin/thu-chi",
-        "icon": "Receipt",
-        "hasDropdown": true,
-        "dropdownTitle": "QUẢN LÝ VIỆN PHÍ & HÓA ĐƠN",
-        "submenu": [
-          {
-            "label": "Quản lý Thu viện phí & Hóa đơn",
-            "path": "/admin/thu-chi?tab=THU_CHI",
-            "icon": "Receipt",
-            "desc": "Lập phiếu thu, thanh toán viện phí & in biên lai thu tiền"
-          },
-          {
-            "label": "Lập Phiếu thu viện phí mới",
-            "path": "/admin/thu-chi?type=PT",
-            "icon": "PlusCircle",
-            "desc": "Thu tiền khám, viện phí, xét nghiệm tự động"
-          },
-          {
-            "label": "Khóa sổ ca thu ngân (/khoaso)",
-            "path": "/admin/thu-chi?tab=KHOA_SO",
-            "icon": "FloppyDisk",
-            "desc": "Cân đối doanh thu viện phí & chốt ca cuối ngày"
-          }
-        ]
-      },
-      {
-        "label": "Báo cáo",
-        "path": "/admin/bao-cao",
+        "label": "Tổng quan BI",
+        "path": "/admin",
         "icon": "ChartBar",
         "hasDropdown": true,
-        "dropdownTitle": "BÁO CÁO THỐNG KÊ & LIÊN THÔNG",
+        "dropdownTitle": "ĐIỀU HÀNH & BÁO CÁO QUẢN TRỊ",
         "submenu": [
           {
-            "label": "Thống kê doanh thu phòng khám",
+            "label": "Trung tâm Điều hành & BI",
+            "path": "/admin",
+            "icon": "HouseLine",
+            "desc": "Công suất khoa phòng, hiệu suất bác sĩ & chỉ số vận hành"
+          },
+          {
+            "label": "Báo cáo Thống kê Tổng hợp",
             "path": "/admin/bao-cao",
             "icon": "ChartBar",
-            "desc": "Tổng quan doanh thu khám, CLS và dịch vụ"
+            "desc": "Phân tích doanh thu, dịch vụ kỹ thuật & cơ cấu bệnh tật"
+          }
+        ]
+      },
+      {
+        "label": "Danh mục Y tế",
+        "path": "/admin/danh-muc/khoa-phong",
+        "icon": "Folders",
+        "hasDropdown": true,
+        "dropdownTitle": "QUẢN TRỊ DANH MỤC NỀN TẢNG (MASTER DATA)",
+        "submenu": [
+          {
+            "label": "Khoa phòng & Buồng khám",
+            "path": "/admin/danh-muc/khoa-phong",
+            "icon": "Buildings",
+            "desc": "Cấu hình chuyên khoa, buồng khám & trạng thái hoạt động"
           },
           {
-            "label": "Số liệu thu chi & Khóa sổ ca",
-            "path": "/admin/thu-chi?tab=KHOA_SO",
-            "icon": "Receipt",
-            "desc": "Báo cáo dòng tiền theo từng ca làm việc"
+            "label": "Dịch vụ Kỹ thuật & Giá niêm yết",
+            "path": "/admin/danh-muc/dich-vu",
+            "icon": "Stethoscope",
+            "desc": "Quản lý bảng giá dịch vụ khám, xét nghiệm & CĐHA"
           },
           {
-            "label": "Báo cáo liên thông Cổng Quốc gia",
+            "label": "Danh mục Thuốc kê đơn (BYT)",
+            "path": "/admin/danh-muc/thuoc-vat-tu",
+            "icon": "Pill",
+            "desc": "Danh mục hoạt chất, hàm lượng, đường dùng phục vụ kê đơn"
+          },
+          {
+            "label": "Danh mục Bệnh lý Quốc tế (ICD-10)",
+            "path": "/admin/danh-muc/benh",
+            "icon": "Heartbeat",
+            "desc": "Chuẩn hóa mã bệnh ICD-10 theo quy định Bộ Y tế"
+          },
+          {
+            "label": "Danh mục chung & Đơn vị tính",
+            "path": "/admin/danh-muc/chung",
+            "icon": "SlidersHorizontal",
+            "desc": "Đơn vị tính, khoản thu viện phí, gõ tắt & địa chỉ"
+          },
+          {
+            "label": "Biểu mẫu & Mẫu in Y tế",
+            "path": "/admin/quan-ly-mau/mau-in",
+            "icon": "Printer",
+            "desc": "Mẫu phiếu khám, đơn thuốc quốc gia, biên lai & báo cáo"
+          }
+        ]
+      },
+      {
+        "label": "Nhân sự & RBAC",
+        "path": "/admin/nhan-vien",
+        "icon": "ShieldCheck",
+        "hasDropdown": true,
+        "dropdownTitle": "QUẢN TRỊ NHÂN SỰ, CCHN & PHÂN QUYỀN",
+        "submenu": [
+          {
+            "label": "Hồ sơ Nhân sự & Chứng chỉ CCHN",
+            "path": "/admin/nhan-vien",
+            "icon": "Users",
+            "desc": "Quản lý bác sĩ, nhân viên y tế, lịch trực & kiểm soát hạn CCHN"
+          },
+          {
+            "label": "Ma trận Phân quyền Vai trò (RBAC)",
+            "path": "/admin/phan-quyen",
+            "icon": "ShieldCheck",
+            "desc": "Thiết lập quyền truy cập chi tiết cho từng vai trò"
+          },
+          {
+            "label": "Duyệt đơn nghỉ phép Bác sĩ",
+            "path": "/admin/nhan-vien?tab=nghi-phep",
+            "icon": "CalendarCheck",
+            "desc": "Phê duyệt nghỉ phép & tự động điều phối ca trực"
+          },
+          {
+            "label": "Tra cứu Hồ sơ Bệnh nhân (Master)",
+            "path": "/admin/benh-nhan",
+            "icon": "IdentificationCard",
+            "desc": "Tra cứu danh mục hồ sơ hành chính người bệnh toàn viện"
+          }
+        ]
+      },
+      {
+        "label": "Tuân thủ & Cấu hình",
+        "path": "/admin/tuan-thu",
+        "icon": "Gear",
+        "hasDropdown": true,
+        "dropdownTitle": "TUÂN THỦ PHÁP LÝ, AUDIT LOG & CẤU HÌNH",
+        "submenu": [
+          {
+            "label": "Giám sát Liên thông Quốc gia (TT26/TT32)",
             "path": "/admin/tuan-thu",
             "icon": "Scales",
-            "desc": "Tỷ lệ đồng bộ đơn thuốc TT 26 & HSSK"
+            "desc": "Trạng thái đồng bộ Đơn thuốc Quốc gia & Hồ sơ sức khỏe"
+          },
+          {
+            "label": "Nhật ký Kiểm toán Truy cập EMR (Audit)",
+            "path": "/admin/lich-su-hoat-dong",
+            "icon": "ClipboardText",
+            "desc": "Ghi vết bảo mật và kiểm toán thao tác dữ liệu y tế"
+          },
+          {
+            "label": "Cấu hình Hệ thống Phòng khám",
+            "path": "/admin/cai-dat",
+            "icon": "Gear",
+            "desc": "Thông tin pháp lý cơ sở KCB, thông số ca làm việc & cổng kết nối"
           }
         ]
       }
     ],
     "reportSubmenu": [
       {
-        "label": "Thống kê doanh thu phòng khám",
+        "label": "Thống kê doanh thu & công suất phòng khám",
         "path": "/admin/bao-cao"
       },
       {
-        "label": "Số liệu thu chi & Khóa sổ ca",
-        "path": "/admin/thu-chi?tab=KHOA_SO"
+        "label": "Giám sát liên thông Cổng Quốc gia",
+        "path": "/admin/tuan-thu"
       },
       {
-        "label": "Báo cáo liên thông Cổng Quốc gia",
-        "path": "/admin/tuan-thu"
+        "label": "Nhật ký kiểm toán hệ thống (Audit Log)",
+        "path": "/admin/lich-su-hoat-dong"
       }
     ],
     "sidebarSections": [
       {
-        "id": "tclinic-nav",
-        "title": "HỆ THỐNG ĐIỀU HÀNH CHUẨN T-CLINIC",
+        "id": "pillar-executive",
+        "title": "1. ĐIỀU HÀNH & THỐNG KÊ BI",
         "menus": [
           {
             "id": "dashboard",
-            "title": "Trang chủ",
+            "title": "Trung tâm Điều hành BI",
             "icon": "HouseLine",
             "path": "/admin"
           },
@@ -358,92 +311,125 @@
           },
           {
             "id": "catalogs",
-            "title": "Quản lý danh mục",
+            "title": "Danh mục Nền tảng",
             "icon": "Folders",
             "children": [
               {
-                "label": "Danh mục chung",
-                "path": "/admin/danh-muc/chung"
-              },
-              {
-                "label": "Khoa phòng",
+                "label": "Khoa phòng & Buồng khám",
                 "path": "/admin/danh-muc/khoa-phong"
               },
               {
-                "label": "Địa chỉ",
-                "path": "/admin/danh-muc/dia-chi"
-              },
-              {
-                "label": "Danh mục bệnh (ICD-10)",
-                "path": "/admin/danh-muc/benh"
+                "label": "Dịch vụ & Giá niêm yết",
+                "path": "/admin/danh-muc/dich-vu"
               },
               {
                 "label": "Thuốc kê đơn (BYT)",
                 "path": "/admin/danh-muc/thuoc-vat-tu"
               },
               {
-                "label": "Danh mục dịch vụ",
-                "path": "/admin/danh-muc/dich-vu"
+                "label": "Danh mục Bệnh (ICD-10)",
+                "path": "/admin/danh-muc/benh"
+              },
+              {
+                "label": "Danh mục chung & ĐVT",
+                "path": "/admin/danh-muc/chung"
+              },
+              {
+                "label": "Địa chỉ hành chính",
+                "path": "/admin/danh-muc/dia-chi"
               }
             ]
           },
           {
             "id": "templates",
-            "title": "Quản lý mẫu",
+            "title": "Biểu mẫu & Mẫu in",
             "icon": "FileText",
             "children": [
               {
-                "label": "Đơn thuốc mẫu",
-                "path": "/admin/quan-ly-mau/don-thuoc-mau"
-              },
-              {
-                "label": "Kê gói dịch vụ",
-                "path": "/admin/quan-ly-mau/dinh-muc-vat-tu"
-              },
-              {
-                "label": "Mẫu kết quả CLS",
-                "path": "/admin/quan-ly-mau/mau-ket-qua-cls"
-              },
-              {
-                "label": "Mẫu in",
+                "label": "Mẫu in Phiếu & Biên lai",
                 "path": "/admin/quan-ly-mau/mau-in"
               },
               {
-                "label": "Mẫu báo cáo",
+                "label": "Mẫu báo cáo Sở Y tế",
                 "path": "/admin/quan-ly-mau/mau-bao-cao"
               },
               {
-                "label": "Gõ tắt",
-                "path": "/admin/quan-ly-mau/go-tat"
+                "label": "Đơn thuốc mẫu chuyên khoa",
+                "path": "/admin/quan-ly-mau/don-thuoc-mau"
+              },
+              {
+                "label": "Mẫu kết quả Cận lâm sàng",
+                "path": "/admin/quan-ly-mau/mau-ket-qua-cls"
               }
             ]
-          },
+          }
+        ]
+      },
+      {
+        "id": "pillar-iam-hr",
+        "title": "3. NHÂN SỰ & PHÂN QUYỀN (IAM)",
+        "menus": [
           {
             "id": "users",
-            "title": "Phân quyền vai trò",
+            "title": "Nhân sự & Phân quyền",
             "icon": "ShieldCheck",
             "children": [
               {
-                "label": "Quản lý nhân viên & CCHN",
+                "label": "Nhân sự, Bác sĩ & CCHN",
                 "path": "/admin/nhan-vien"
               },
               {
-                "label": "Phân quyền vai trò",
+                "label": "Ma trận Phân quyền RBAC",
                 "path": "/admin/phan-quyen"
+              },
+              {
+                "label": "Duyệt nghỉ phép Bác sĩ",
+                "path": "/admin/nhan-vien?tab=nghi-phep"
               }
             ]
           },
           {
-            "id": "settings",
-            "title": "Cài đặt",
-            "icon": "Gear",
-            "path": "/admin/cai-dat"
+            "id": "patients",
+            "title": "Hồ sơ Bệnh nhân (Master)",
+            "icon": "IdentificationCard",
+            "path": "/admin/benh-nhan"
+          }
+        ]
+      },
+      {
+        "id": "pillar-compliance-settings",
+        "title": "4. TUÂN THỦ & CẤU HÌNH HỆ THỐNG",
+        "menus": [
+          {
+            "id": "compliance",
+            "title": "Tuân thủ & Liên thông QG",
+            "icon": "Scales",
+            "children": [
+              {
+                "label": "Tổng quan Tuân thủ Pháp lý",
+                "path": "/admin/tuan-thu"
+              },
+              {
+                "label": "Đồng bộ Đơn thuốc QG (TT26)",
+                "path": "/admin/don-thuoc-quoc-gia"
+              },
+              {
+                "label": "Đồng bộ Sổ sức khỏe (TT32)",
+                "path": "/admin/tuan-thu?tab=HSSK"
+              }
+            ]
           },
           {
-            "id": "download-app",
-            "title": "Tải ứng dụng",
-            "icon": "DownloadSimple",
-            "path": "/admin/tai-ung-dung"
+            "id": "audit-logs",
+            "title": "Nhật ký Kiểm toán (Audit)",
+            "icon": "ClipboardText",
+            "path": "/admin/lich-su-hoat-dong"
+          },
+          {
+            "id": "settings",
+            "title": "Cấu hình Phòng khám",
+            "icon": "Gear",
+            "path": "/admin/cai-dat"
           }
         ]
       }
@@ -451,191 +437,151 @@
     "sidebarMenus": [
       {
         "id": "dashboard",
-        "title": "Trang chủ",
+        "title": "Trung tâm Điều hành BI",
         "icon": "HouseLine",
         "path": "/admin"
       },
       {
-        "id": "reception",
-        "title": "Tiếp đón & Đăng ký",
-        "icon": "ClipboardText",
-        "path": "/admin/dang-ky-kham"
+        "id": "departments",
+        "title": "Khoa phòng & Buồng khám",
+        "icon": "Buildings",
+        "path": "/admin/danh-muc/khoa-phong"
       },
       {
-        "id": "patients",
-        "title": "Quản lý bệnh nhân",
-        "icon": "Users",
-        "path": "/admin/benh-nhan"
-      },
-      {
-        "id": "clinical",
-        "title": "Khám lâm sàng",
+        "id": "services",
+        "title": "Dịch vụ & Giá niêm yết",
         "icon": "Stethoscope",
-        "path": "/admin/kham-benh"
+        "path": "/admin/danh-muc/dich-vu"
       },
       {
-        "id": "appointments",
-        "title": "Quản lý Lịch hẹn",
-        "icon": "CalendarCheck",
-        "path": "/admin/lich-hen"
+        "id": "medicines",
+        "title": "Danh mục Thuốc BYT",
+        "icon": "Pill",
+        "path": "/admin/danh-muc/thuoc-vat-tu"
       },
       {
-        "id": "cashier",
-        "title": "Thu viện phí & Hóa đơn",
-        "icon": "Receipt",
-        "path": "/admin/thu-chi"
+        "id": "icd10",
+        "title": "Danh mục Bệnh ICD-10",
+        "icon": "Heartbeat",
+        "path": "/admin/danh-muc/benh"
+      },
+      {
+        "id": "staff",
+        "title": "Nhân sự & Chứng chỉ CCHN",
+        "icon": "Users",
+        "path": "/admin/nhan-vien"
+      },
+      {
+        "id": "users",
+        "title": "Phân quyền Vai trò RBAC",
+        "icon": "ShieldCheck",
+        "path": "/admin/phan-quyen"
       },
       {
         "id": "compliance",
-        "title": "Liên thông Quốc gia",
+        "title": "Tuân thủ & Liên thông QG",
         "icon": "Scales",
         "path": "/admin/tuan-thu"
       },
       {
-        "id": "catalogs",
-        "title": "Quản lý danh mục",
-        "icon": "Folders",
-        "path": "/admin/danh-muc/chung"
+        "id": "audit",
+        "title": "Nhật ký Kiểm toán EMR",
+        "icon": "ClipboardText",
+        "path": "/admin/lich-su-hoat-dong"
       },
       {
-        "id": "templates",
-        "title": "Quản lý mẫu",
-        "icon": "FileText",
-        "path": "/admin/quan-ly-mau/mau-in"
-      },
-      {
-        "id": "users",
-        "title": "Phân quyền & CCHN",
-        "icon": "ShieldCheck",
-        "path": "/admin/phan-quyen"
+        "id": "settings",
+        "title": "Cấu hình Phòng khám",
+        "icon": "Gear",
+        "path": "/admin/cai-dat"
       }
     ],
     "publicPortalModules": [
       {
-        "title": "1. Đăng ký khám",
-        "desc": "Tiếp đón bệnh nhân, tra cứu lịch hẹn & AI gợi ý chuyên khoa",
-        "path": "/admin/dang-ky-kham",
-        "icon": "ClipboardText"
+        "title": "1. Khoa phòng & Buồng khám",
+        "desc": "Thiết lập danh mục chuyên khoa, phòng chức năng và công suất tiếp nhận",
+        "path": "/admin/danh-muc/khoa-phong",
+        "icon": "Buildings"
       },
       {
-        "title": "2. Quản lý bệnh nhân",
-        "desc": "Hồ sơ hành chính & tài khoản người bệnh chuẩn hóa",
-        "path": "/admin/benh-nhan",
-        "icon": "Users"
-      },
-      {
-        "title": "3. Khám bệnh & Cận lâm sàng",
-        "desc": "Khám lâm sàng, sinh hiệu, ICD-10, Kê dịch vụ, X-Quang & Đơn thuốc QG",
-        "path": "/admin/kham-benh",
+        "title": "2. Dịch vụ & Giá niêm yết",
+        "desc": "Quản trị danh mục dịch vụ kỹ thuật, xét nghiệm, CĐHA và bảng giá",
+        "path": "/admin/danh-muc/dich-vu",
         "icon": "Stethoscope"
       },
       {
-        "title": "4. Quản lý Lịch hẹn",
-        "desc": "Tiếp nhận, xác nhận lịch khám trực tuyến & thống kê",
-        "path": "/admin/lich-hen",
-        "icon": "CalendarCheck"
+        "title": "3. Danh mục Thuốc & ICD-10",
+        "desc": "Chuẩn hóa danh mục thuốc kê đơn BYT và mã bệnh quốc tế ICD-10",
+        "path": "/admin/danh-muc/thuoc-vat-tu",
+        "icon": "Pill"
       },
       {
-        "title": "5. Thu viện phí & Hóa đơn",
-        "desc": "Lập phiếu thu viện phí, thanh toán không tiền mặt (VietQR) & in biên lai thu tiền",
-        "path": "/admin/thu-chi",
-        "icon": "Receipt"
+        "title": "4. Nhân sự & Chứng chỉ CCHN",
+        "desc": "Quản lý hồ sơ bác sĩ, lịch trực và tự động chặn phân công khi hết hạn CCHN",
+        "path": "/admin/nhan-vien",
+        "icon": "Users"
       },
       {
-        "title": "6. Quản lý Danh mục & Mẫu",
-        "desc": "Danh mục hành chính (5 tab), ICD-10, Thuốc, Dịch vụ & 7 loại Mẫu",
-        "path": "/admin/danh-muc/chung",
-        "icon": "Folders"
+        "title": "5. Phân quyền Vai trò (RBAC)",
+        "desc": "Phân tách nhiệm vụ (Separation of Duties) giữa Admin, Lễ tân, Bác sĩ, CLS, Thu ngân",
+        "path": "/admin/phan-quyen",
+        "icon": "ShieldCheck"
+      },
+      {
+        "title": "6. Tuân thủ & Cấu hình Hệ thống",
+        "desc": "Giám sát liên thông Cổng Dược Quốc gia, HSSK và Nhật ký kiểm toán Audit Log",
+        "path": "/admin/tuan-thu",
+        "icon": "Scales"
       }
     ],
     "dashboardQuickModules": [
       {
-        "step": "Video 01",
-        "title": "Đăng ký khám & Tiếp đón",
-        "desc": "Tra cứu lịch hẹn, tạo lượt KCB mới & AI Gợi ý Chuyên khoa từ triệu chứng",
-        "path": "/admin/dang-ky-kham",
-        "icon": "ClipboardText",
-        "badge": "Tiếp đón & AI Triage"
+        "step": "Trụ cột 01",
+        "title": "Khoa phòng & Buồng khám",
+        "desc": "Quản lý danh mục chuyên khoa, buồng khám lâm sàng/CLS và trạng thái vận hành",
+        "path": "/admin/danh-muc/khoa-phong",
+        "icon": "Buildings",
+        "badge": "Master Data"
       },
       {
-        "step": "Video 02",
-        "title": "Quản lý Bệnh nhân",
-        "desc": "Lập hồ sơ hành chính, tải ảnh đại diện, quản lý địa chỉ 3 cấp & lịch sử khám",
-        "path": "/admin/benh-nhan",
-        "icon": "Users",
-        "badge": "Hồ sơ BN"
-      },
-      {
-        "step": "Video 03A",
-        "title": "Khám bệnh Lâm sàng",
-        "desc": "Đo sinh hiệu, chẩn đoán ICD-10, chỉ định dịch vụ/gói khám & Kê đơn thuốc QG",
-        "path": "/admin/kham-benh",
+        "step": "Trụ cột 02",
+        "title": "Dịch vụ & Giá niêm yết",
+        "desc": "Cấu hình danh mục dịch vụ khám, xét nghiệm, CĐHA và niêm yết giá thu ngân",
+        "path": "/admin/danh-muc/dich-vu",
         "icon": "Stethoscope",
-        "badge": "Bác sĩ Khám"
+        "badge": "Bảng giá DV"
       },
       {
-        "step": "Video 03B",
-        "title": "Cận lâm sàng & PT-TT",
-        "desc": "Thực hiện X-Quang, Siêu âm, Thủ thuật, chọn mẫu kết quả & tải ảnh DICOM",
-        "path": "/admin/can-lam-sang",
-        "icon": "Microscope",
-        "badge": "Chẩn đoán hình ảnh"
+        "step": "Trụ cột 03",
+        "title": "Thuốc BYT & Bệnh ICD-10",
+        "desc": "Danh mục thuốc kê đơn ngoại trú (không quản lý kho) & từ điển bệnh lý ICD-10",
+        "path": "/admin/danh-muc/thuoc-vat-tu",
+        "icon": "Pill",
+        "badge": "Dược & ICD-10"
       },
       {
-        "step": "Video 04",
-        "title": "Quản lý Lịch hẹn",
-        "desc": "Xác nhận lịch hẹn trực tuyến, lọc theo trạng thái & chuyển thẳng vào phòng khám",
-        "path": "/admin/lich-hen",
-        "icon": "CalendarCheck",
-        "badge": "Lịch hẹn Online"
+        "step": "Trụ cột 04",
+        "title": "Nhân sự, Lịch trực & CCHN",
+        "desc": "Quản lý hồ sơ bác sĩ, kiểm soát hạn Chứng chỉ hành nghề & duyệt nghỉ phép",
+        "path": "/admin/nhan-vien",
+        "icon": "Users",
+        "badge": "HR & CCHN"
       },
       {
-        "step": "Video 05",
-        "title": "Thu viện phí",
-        "desc": "Lập phiếu thu viện phí tự động từ chỉ định dịch vụ & in biên lai thu tiền",
-        "path": "/admin/thu-chi",
-        "icon": "Receipt",
-        "badge": "Tài chính"
-      },
-      {
-        "step": "Video 06",
-        "title": "Tin tức & Danh mục tin",
-        "desc": "Biên tập bài viết truyền thông y tế, phân loại chuyên mục & thống kê lượt xem",
-        "path": "/admin/tin-tuc",
-        "icon": "Newspaper",
-        "badge": "Truyền thông"
-      },
-      {
-        "step": "Video 07",
-        "title": "Quản lý Danh mục",
-        "desc": "Danh mục chung (5 tab), Địa chỉ, Khoa phòng, Bệnh ICD-10, Thuốc & Dịch vụ",
-        "path": "/admin/danh-muc/chung",
-        "icon": "Folders",
-        "badge": "6 Phân hệ Danh mục"
-      },
-      {
-        "step": "Video 09",
-        "title": "Phân quyền & Nhân sự CCHN",
-        "desc": "Ma trận 23 quyền hạn theo vai trò & Kiểm soát hạn Chứng chỉ hành nghề (INT-05)",
+        "step": "Trụ cột 05",
+        "title": "Ma trận Phân quyền (RBAC)",
+        "desc": "Thiết lập ma trận phân quyền truy cập theo vai trò chuẩn Least Privilege",
         "path": "/admin/phan-quyen",
         "icon": "ShieldCheck",
-        "badge": "23 Quyền & CCHN"
+        "badge": "IAM & RBAC"
       },
       {
-        "step": "Video 10",
-        "title": "Quản lý 7 Loại Mẫu",
-        "desc": "Mẫu in, Mẫu báo cáo, Email, Kết quả CLS, Đơn thuốc mẫu, Tiêu hao & Gói dịch vụ",
-        "path": "/admin/quan-ly-mau/mau-in",
-        "icon": "FileText",
-        "badge": "7 Loại Mẫu"
-      },
-      {
-        "step": "Pháp lý",
-        "title": "Tuân thủ Pháp lý & Kiểm toán",
-        "desc": "Sổ đăng ký nghĩa vụ pháp lý, trạng thái liên thông đơn thuốc & Nhật ký Audit",
+        "step": "Trụ cột 06",
+        "title": "Tuân thủ, Audit & Cấu hình",
+        "desc": "Giám sát liên thông Đơn thuốc QG (TT26), Nhật ký Audit EMR & Cài đặt phòng khám",
         "path": "/admin/tuan-thu",
         "icon": "Scales",
-        "badge": "INT-03 / 04 / 05"
+        "badge": "Governance"
       }
     ]
   },

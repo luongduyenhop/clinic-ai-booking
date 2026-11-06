@@ -4,7 +4,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Optional
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import LichKham
@@ -201,12 +202,84 @@ class BffAdminService:
 
         # Luôn đảm bảo không tồn tại quản lý lô/kho thuốc
         data["inventoryBatches"] = []
+        data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
 
         # Đồng bộ hóa dữ liệu khởi tạo vào các bảng quan hệ nếu Database mới khởi tạo
         if len(existing_keys) < 5:
             await self.sync_all_collections_to_relational(db, data, existing_keys)
 
         return data
+
+    async def _project_relational_patients(self, db: AsyncSession, base_patients: list) -> list:
+        stmt = (
+            select(BenhNhan)
+            .options(selectinload(BenhNhan.nguoi_dung))
+            .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
+            .where(NguoiDung.is_deleted.is_(False))
+            .order_by(BenhNhan.id.desc())
+        )
+        db_patients = (await db.execute(stmt)).scalars().all()
+        if not db_patients:
+            return base_patients
+
+        merged_map = {}
+        for p in base_patients or []:
+            code = str(p.get("maBN") or p.get("id") or "").strip()
+            phone = str(p.get("dienThoai") or "").strip()
+            if code:
+                merged_map[code] = p
+            if phone:
+                merged_map[phone] = p
+
+        result = []
+        seen_codes = set()
+        for bn in db_patients:
+            u = bn.nguoi_dung
+            code = str(bn.ma_dinh_danh_y_te or f"BN{bn.id:07d}").strip()
+            phone = str(u.so_dien_thoai or "").strip() if u else ""
+            existing = merged_map.get(code) or (merged_map.get(phone) if phone else None)
+            birth_date_str = u.ngay_sinh.isoformat() if u and u.ngay_sinh else (existing.get("ngaySinh") if existing else "1995-01-01")
+            age_str = f"{date.today().year - u.ngay_sinh.year} tuổi" if u and u.ngay_sinh else (existing.get("tuoi") if existing else "30 tuổi")
+            item = {
+                "id": code,
+                "maBN": code,
+                "hoTen": u.ho_ten if u and u.ho_ten else (existing.get("hoTen") if existing else "Bệnh nhân"),
+                "ngaySinh": birth_date_str,
+                "tuoi": age_str,
+                "gioiTinh": u.gioi_tinh if u and u.gioi_tinh else (existing.get("gioiTinh") if existing else "Nam"),
+                "dienThoai": phone or (existing.get("dienThoai") if existing else ""),
+                "cccd": u.cccd_so if u and u.cccd_so else (existing.get("cccd") if existing else ""),
+                "email": u.email if u and u.email else (existing.get("email") if existing else ""),
+                "tinhThanh": existing.get("tinhThanh") if existing else "",
+                "quanHuyen": existing.get("quanHuyen") if existing else "",
+                "phuongXa": existing.get("phuongXa") if existing else "",
+                "diaChi": u.dia_chi if u and u.dia_chi else (existing.get("diaChi") if existing else ""),
+                "taiKhoan": phone or (u.email if u and u.email else code),
+                "nhomMau": bn.nhom_mau if bn.nhom_mau else (existing.get("nhomMau") if existing else "O+"),
+                "diUng": bn.di_ung_thuoc if bn.di_ung_thuoc else (existing.get("diUng") if existing else "Không ghi nhận dị ứng thuốc"),
+                "ngayTao": existing.get("ngayTao") if existing else date.today().strftime("%d/%m/%Y"),
+                "trangThai": existing.get("trangThai") if existing else "Đang hoạt động",
+            }
+            if existing:
+                for k, v in existing.items():
+                    if k not in item:
+                        item[k] = v
+            seen_codes.add(code)
+            if phone:
+                seen_codes.add(phone)
+            result.append(item)
+
+        for p in base_patients or []:
+            code = str(p.get("maBN") or p.get("id") or "").strip()
+            phone = str(p.get("dienThoai") or "").strip()
+            if code not in seen_codes and (not phone or phone not in seen_codes):
+                result.append(p)
+                if code:
+                    seen_codes.add(code)
+                if phone:
+                    seen_codes.add(phone)
+
+        return result
 
     async def sync_all_collections_to_relational(
         self,

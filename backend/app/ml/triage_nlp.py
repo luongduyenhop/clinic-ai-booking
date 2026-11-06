@@ -1,4 +1,4 @@
-"""Vietnamese rule/fuzzy NLP for the 450-feature medical routing model.
+"""Vietnamese rule/fuzzy NLP for the 849-feature medical routing model.
 
 This module is deliberately explainable: every detected feature is backed by
 an alias or a structured regex. It is a routing aid, not a diagnostic system.
@@ -334,14 +334,22 @@ def _is_negated(text: str, start: int) -> bool:
     return any(prefix.endswith(negator) for negator in NEGATORS)
 
 
-def _fuzzy_matches(text: str, alias_index, already: set[str]):
-    words = text.split()
+def _fuzzy_matches(text: str, alias_index, already: set[str], blocked_spans=()):
+    words = list(re.finditer(r"\S+", text))
+    tokens = [match.group() for match in words]
     matches = []
     for size in (4, 3, 2, 1):
-        for start in range(len(words) - size + 1):
-            phrase_words = words[start:start + size]
+        for start in range(len(tokens) - size + 1):
+            phrase_words = tokens[start:start + size]
             phrase = " ".join(phrase_words)
             if len(phrase) < 5:
+                continue
+            phrase_start = words[start].start()
+            phrase_end = words[start + size - 1].end()
+            if any(
+                phrase_start < span_end and phrase_end > span_start
+                for span_start, span_end in blocked_spans
+            ):
                 continue
             for alias, feature, original in alias_index:
                 if feature in already or abs(len(alias) - len(phrase)) > 3:
@@ -388,9 +396,18 @@ def extract_features(
     detections = []
 
     # Exact, longest-phrase-first matching with explicit negation handling.
+    # Once a longer alias claims a span, shorter aliases inside that span are
+    # skipped: "nôn ra máu" is vomiting_blood, not vomiting + vomiting_blood,
+    # and "đau bụng dưới bên phải" is not also plain abdominal_pain. This
+    # mirrors how the training data marks the most specific feature only.
+    matched_spans: list[tuple[int, int]] = []
     for alias, feature, original in alias_index:
         for match in re.finditer(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized):
-            negated = _is_negated(normalized, match.start())
+            start, end = match.span()
+            if any(start < span_end and end > span_start for span_start, span_end in matched_spans):
+                continue
+            negated = _is_negated(normalized, start)
+            matched_spans.append((start, end))
             if negated:
                 negated_positive.add(feature)
                 negative = NEGATIVE_FEATURES.get(feature)
@@ -405,7 +422,9 @@ def extract_features(
     # Conservative fuzzy matching catches small typing errors without trying
     # to semantically invent symptoms that were not written.
     fuzzy_blocked = active | negated_positive
-    for feature, original, score in _fuzzy_matches(normalized, alias_index, fuzzy_blocked):
+    for feature, original, score in _fuzzy_matches(
+        normalized, alias_index, fuzzy_blocked, matched_spans
+    ):
         active.add(feature)
         detections.append((feature, original, "fuzzy", score))
 

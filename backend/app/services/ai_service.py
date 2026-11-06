@@ -195,7 +195,7 @@ class AIService:
                 phan_tich_ai_id=log_ai.id,
             )
 
-        # 2. CHỐT CHẶN 2: NLP 450 đặc trưng + RandomForest 100 bệnh/5 khoa.
+        # 2. CHỐT CHẶN 2: NLP 849 đặc trưng + RandomForest 160 bệnh/5 khoa.
         model_failed = False
         try:
             def infer():
@@ -222,9 +222,10 @@ class AIService:
         default_assigned = False
         needs_more_information = False
 
-        # 3. CHỐT CHẶN 3: chỉ định tuyến khi >= 60% và có ít nhất 2 dấu
-        # hiệu lâm sàng được NLP nhận diện. Nếu không, tiếp nhận Nội tổng quát
-        # và yêu cầu bổ sung vị trí, thời gian, mức độ hoặc dấu hiệu đi kèm.
+        # 3. CHỐT CHẶN 3: chỉ định tuyến khi >= AI_CONFIDENCE_THRESHOLD (mặc định
+        # 40% cho model 5 khoa) và có ít nhất 2 dấu hiệu lâm sàng được NLP nhận
+        # diện. Nếu không, tiếp nhận Nội tổng quát và yêu cầu bổ sung vị trí,
+        # thời gian, mức độ hoặc dấu hiệu đi kèm.
         top_confidence = scored_specialties[0]["probability"] if scored_specialties else 0.0
         insufficient_evidence = model_result["clinical_match_count"] < 2
         if model_failed or top_confidence < settings.AI_CONFIDENCE_THRESHOLD or insufficient_evidence:
@@ -249,14 +250,15 @@ class AIService:
             )
         else:
             specialty_aliases = {
-                "Ngoại": "Ngoại tổng quát",
-                "Tai Mũi Họng": "Tai - Mũi - Họng",
+                # Tên khoa trong CSDL seed_5_departments là "Khoa Răng";
+                # model dùng tên đầy đủ "Răng Hàm Mặt".
+                "Răng Hàm Mặt": "Răng",
             }
             top_diseases = disease_predictions[:3]
             disease_context = ", ".join(
                 f"{item['ten_benh']} ({item['xac_suat']:.0%})" for item in top_diseases
             )
-            # Khoa đầu tiên phải đạt 60%; khoa thứ hai chỉ trả về nếu còn >= 20%.
+            # Khoa đầu tiên phải đạt ngưỡng cấu hình; khoa thứ hai chỉ trả về nếu còn >= 20%.
             for index, item in enumerate(scored_specialties[:2]):
                 spec_name = specialty_aliases.get(item["specialty"], item["specialty"])
                 conf = item["probability"]

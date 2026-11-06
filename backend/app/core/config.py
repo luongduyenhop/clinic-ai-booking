@@ -55,7 +55,9 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str = "Phòng Khám Đa Khoa AI"
 
     # AI Module Parameters
-    AI_CONFIDENCE_THRESHOLD: float = 0.60
+    # Model 849 đặc trưng / 160 bệnh / 5 chuyên khoa có xác suất nền 20% mỗi khoa.
+    # Ngưỡng 0.40 = gấp đôi nền ngẫu nhiên, phù hợp hơn 0.60 của model 100 bệnh cũ.
+    AI_CONFIDENCE_THRESHOLD: float = 0.40
     SLOT_DURATION_MINUTES: int = 30
     CANCELLATION_MINIMUM_HOURS: int = 2
     # Giờ khám lưu theo giờ Việt Nam (UTC+7, không có giờ mùa hè), độc lập với múi giờ của server/Docker

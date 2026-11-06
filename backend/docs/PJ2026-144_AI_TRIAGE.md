@@ -1,4 +1,4 @@
-# PJ2026-144: tích hợp TestAI v2
+# PJ2026-144: tích hợp TestAI v2.1
 
 API chính: `POST /api/v1/ai/analyze-symptoms`.
 
@@ -15,11 +15,14 @@ Luồng xử lý:
 
 1. Quét Red Flag từ CSDL và bộ quy tắc bổ sung, hỗ trợ không dấu/phủ định.
 2. Nếu có Red Flag: trả cảnh báo 115, không trả khoa/bác sĩ khám thường.
-3. NLP trích xuất vector 450 đặc trưng, RandomForest tính xác suất 100 bệnh.
-4. Cộng xác suất các bệnh cùng khoa để tính điểm khoa. Loại khoa Nhi nếu
-   không có bằng chứng người bệnh là trẻ em.
-5. Khoa đứng đầu phải đạt 60% và có ít nhất hai dấu hiệu lâm sàng nhận diện.
-   Nếu không, trả Nội tổng quát với `default_assigned` và
+3. NLP trích xuất vector 849 đặc trưng, RandomForest tính xác suất 160 bệnh.
+   Alias dài được ưu tiên theo vùng văn bản, nên "nôn ra máu" chỉ bật
+   `vomiting_blood` thay vì thêm cả `vomiting`.
+4. Cộng xác suất các bệnh cùng khoa để tính điểm khoa trong 5 chuyên khoa
+   (Mắt, Nội tổng quát, Ngoại, Răng Hàm Mặt, Tai Mũi Họng).
+5. Khoa đứng đầu phải đạt ngưỡng `AI_CONFIDENCE_THRESHOLD` (mặc định 40%,
+   gấp đôi xác suất nền 20% của 5 khoa) và có ít nhất hai dấu hiệu lâm sàng
+   nhận diện. Nếu không, trả Nội tổng quát với `default_assigned` và
    `needs_more_information`, kèm lời nhắc bổ sung mô tả.
 6. Tra danh mục khoa/bác sĩ thật và ghi nhật ký `phan_tich_ai`, liên kết đúng
    bệnh nhân đăng nhập; khách có thể sử dụng mà không gắn hồ sơ.

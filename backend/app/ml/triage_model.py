@@ -13,7 +13,7 @@ from app.ml.triage_nlp import detect_red_flags, extract_features
 
 logger = logging.getLogger("clinic_backend")
 
-MODEL_VERSION = "ai-disease-model-v2"
+MODEL_VERSION = "ai-disease-model-v2.1-849f"
 MODEL_DIR = Path(__file__).resolve().parent / "triage_assets"
 MODEL_PATH = MODEL_DIR / "ai_disease_model_v2.joblib"
 
@@ -41,9 +41,11 @@ class AITriageModel:
 
         self.model = bundle["model"]
         self.feature_names = list(bundle["feature_names"])
-        if len(self.feature_names) != 450:
+        expected_features = getattr(self.model, "n_features_in_", len(self.feature_names))
+        if not self.feature_names or len(self.feature_names) != int(expected_features):
             raise AITriageModelError(
-                f"AI model phải có 450 đặc trưng, nhận được {len(self.feature_names)}"
+                "AI model không nhất quán: "
+                f"{len(self.feature_names)} tên đặc trưng nhưng model cần {expected_features}"
             )
 
         disease_rows = bundle["disease_map"]
@@ -83,16 +85,8 @@ class AITriageModel:
         }
         has_pediatric_evidence = any(vector.get(name, 0) for name in pediatric_features)
 
-        # Không suy đoán bệnh nhi từ các triệu chứng chung nếu không có bằng chứng tuổi.
-        if not has_pediatric_evidence:
-            for index, disease_class in enumerate(self.model.classes_):
-                info = self.disease_lookup.get(str(disease_class))
-                if info and info.get("specialty") == "Nhi":
-                    probabilities[index] = 0.0
-            total = probabilities.sum()
-            if total > 0:
-                probabilities /= total
-
+        # Model v2.1 chỉ định tuyến 5 chuyên khoa người lớn, không còn lớp "Nhi";
+        # pediatric_evidence vẫn được trả về để tương thích hợp đồng API và hậu kiểm.
         specialty_scores = {specialty: 0.0 for specialty in self.specialties}
         for index, probability in enumerate(probabilities):
             info = self.disease_lookup.get(str(self.model.classes_[index]))
@@ -162,6 +156,6 @@ class AITriageModel:
 
 @lru_cache(maxsize=1)
 def get_ai_triage_model() -> AITriageModel:
-    """Load the 30 MB model once per backend worker."""
+    """Load the packaged model once per backend worker."""
     logger.info("Loading packaged AI Triage model: %s", MODEL_VERSION)
     return AITriageModel()

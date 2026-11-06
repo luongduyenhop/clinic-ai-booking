@@ -71,10 +71,10 @@ def test_confidence_tier_calculation():
     conf_high = 0.84
     assert conf_high >= 0.75
     
-    # Tầng 2: 60% <= conf < 75% -> Mức trung bình
+    # Tầng 2: 40% <= conf < 75% -> Mức trung bình
     conf_mid = 0.65
-    assert 0.60 <= conf_mid < 0.75
+    assert 0.40 <= conf_mid < 0.75
     
-    # Tầng 3: < 60% -> Mức thấp, fallback Nội tổng quát
-    conf_low = 0.45
-    assert conf_low < 0.60
+    # Tầng 3: < 40% -> Mức thấp, fallback Nội tổng quát
+    conf_low = 0.39
+    assert conf_low < 0.40

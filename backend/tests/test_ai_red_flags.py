@@ -222,8 +222,8 @@ async def test_specialty_classification_without_diacritics(api_client, booking, 
     assert data["has_emergency"] is False
     assert data["default_assigned"] is False
     assert data["suggested_specialties"][0]["ten_chuyen_khoa"] == "Nội tổng quát"
-    assert data["suggested_specialties"][0]["do_tin_cay"] >= 0.60
-    assert data["model_version"] == "ai-disease-model-v2"
+    assert data["suggested_specialties"][0]["do_tin_cay"] >= 0.40
+    assert data["model_version"] == "ai-disease-model-v2.1-849f"
 
 
 @pytest.mark.asyncio

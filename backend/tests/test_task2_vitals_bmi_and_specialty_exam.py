@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.models.medical import LuotKham, LuotKhamTheLuc, PhieuKhamChuyenKhoa
+from app.models.specialty_exam import KhamNoiKhoa
 from app.models.user import ChuyenKhoa
 
 
@@ -406,3 +407,82 @@ async def test_task2_edge_cases_empty_or_zero_values(api_client, booking, db_ses
     # Kiểm tra LuotKham: BMI vẫn là None (không tính do chiều cao = 0)
     lk = (await db_session.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one()
     assert lk.bmi is None
+
+
+@pytest.mark.asyncio
+async def test_ts_emr_004_01_specialty_exam_and_health_classification(api_client, booking, db_session):
+    """
+    Scenario: TS-EMR-004-01. Requirement: EMR-004.
+    Action: Ghi nhận khám chuyên khoa sâu (6 mục khám Tiêu hóa/Nội khoa) và tự động phân loại sức khỏe.
+    Endpoint: PUT /api/v1/clinical/encounters/{id}/specialty/{dept}
+    Expected Result: Lưu vào 5 bảng chuyên khoa tương ứng (kham_noi_khoa) và PhieuKhamChuyenKhoa (LOAI_1, LOAI_2, LOAI_3 theo BMI và bệnh lý)
+    """
+    token_bs = booking.tokens["bs_x"]
+    ck = await _dam_bao_chuyen_khoa(db_session, "KHOA_NOI", "Khoa Nội tổng quát")
+    booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
+    await db_session.flush()
+
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_enc = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kiểm tra sức khỏe chuyên khoa nội"},
+        headers=token_bs,
+    )
+    assert res_enc.status_code == 201
+    enc_id = res_enc.json()["data"]["id"]
+
+    # 1. Đo sinh hiệu: Cao 170cm, nặng 64.7kg -> BMI = 22.4 -> Chuẩn Thể trạng (LOAI_1)
+    await api_client.put(
+        "/api/v1/clinical/workspace-state",
+        json={
+            "encounters": {
+                str(enc_id): {
+                    "id": enc_id,
+                    "chieu_cao_cm": "170.0",
+                    "can_nang_kg": "64.7",
+                }
+            }
+        },
+        headers=token_bs,
+    )
+
+    # 2. Ghi nhận khám chuyên khoa sâu 6 mục Nội khoa / Tiêu hóa qua endpoint PUT /api/v1/clinical/encounters/{id}/specialty/{dept}
+    specialty_payload = {
+        "tuan_hoan": "Nhịp tim đều, T1 T2 rõ, tần số 78ck/p, không tiếng thổi bệnh lý",
+        "ho_hap": "Phổi 2 bên thông khí rõ, rì rào phế nang êm dịu, không rale",
+        "tieu_hoa": "Bụng mềm, gan lách không sờ chạm, không điểm đau khu trú",
+        "than_tiet_nieu": "Hố thắt lưng 2 bên không đầy, chạm thận âm tính",
+        "than_kinh": "Tỉnh táo, tiếp xúc tốt, GCS 15đ, không có dấu thần kinh khu trú",
+        "co_xuong_khop": "Trục chi thẳng, các khớp cử động bình thường, không sưng nóng đỏ",
+        "ket_luan_chuyen_khoa": "Hệ cơ quan nội khoa - tiêu hóa hoàn toàn bình thường",
+    }
+
+    res_spec = await api_client.put(
+        f"/api/v1/clinical/encounters/{enc_id}/specialty/noi-khoa",
+        json=specialty_payload,
+        headers=token_bs,
+    )
+    assert res_spec.status_code == 200
+
+    # 3. Kiểm tra lưu vào bảng chuyên khoa kham_noi_khoa đầy đủ 6 mục
+    stmt_noi = select(KhamNoiKhoa).where(KhamNoiKhoa.luot_kham_id == enc_id)
+    noi_rec = (await db_session.execute(stmt_noi)).scalar_one_or_none()
+    assert noi_rec is not None
+    assert "Nhịp tim đều" in noi_rec.tuan_hoan
+    assert "Phổi 2 bên" in noi_rec.ho_hap
+    assert "Bụng mềm" in noi_rec.tieu_hoa
+    assert "chạm thận âm tính" in noi_rec.than_tiet_nieu
+    assert "Tỉnh táo" in noi_rec.than_kinh
+    assert "Trục chi thẳng" in noi_rec.co_xuong_khop
+    assert noi_rec.ket_luan_chuyen_khoa == "Hệ cơ quan nội khoa - tiêu hóa hoàn toàn bình thường"
+
+    # 4. Kiểm tra tự động tạo/cập nhật PhieuKhamChuyenKhoa và phân loại sức khỏe LOAI_1
+    stmt_phieu = select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == enc_id)
+    phieu = (await db_session.execute(stmt_phieu)).scalar_one_or_none()
+    assert phieu is not None
+    assert phieu.phan_loai_suc_khoe == "LOAI_1"
+    assert "Tiêu hóa: Bụng mềm" in phieu.noi_dung_kham
+    assert "Tuần hoàn: Nhịp tim đều" in phieu.noi_dung_kham

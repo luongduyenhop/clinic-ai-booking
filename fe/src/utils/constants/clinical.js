@@ -49,58 +49,97 @@ export const SPECIALTY_PACKS = [
 
 // Khám lâm sàng theo chuyên khoa (8 khoa trong danh mục ChuyenKhoa của backend).
 // items: mục khám chọn Bình thường / Bất thường kèm mô tả; extras: chỉ số riêng của khoa.
+// Chuẩn hóa 5 Chuyên khoa cốt lõi theo Thông tư 32/2023/TT-BYT & CSDL (Nội, Ngoại, Mắt, Tai Mũi Họng, Răng Hàm Mặt)
 export const SPECIALTY_EXAMS = [
     {
-        key: 'NOI_TONG_QUAT',
-        label: 'Nội tổng quát',
-        items: ['Toàn trạng', 'Tim mạch', 'Hô hấp', 'Tiêu hóa', 'Thận – tiết niệu', 'Thần kinh', 'Cơ xương khớp'],
+        key: 'noi-khoa',
+        aliases: ['noi', 'NOI_TONG_QUAT', 'NOI_KHOA', 'KHOA_NOI', 'TIM_MACH', 'HO_HAP', 'TIEU_HOA', 'THAN_KINH', 'CO_XUONG_KHOP'],
+        deptCode: 'NOI',
+        label: 'Khoa Nội tổng quát',
+        items: [
+            'Tuần hoàn (Tim mạch)',
+            'Hô hấp',
+            'Tiêu hóa',
+            'Thận – Tiết niệu',
+            'Thần kinh',
+            'Cơ xương khớp',
+        ],
         extras: [],
     },
     {
-        key: 'TIM_MACH',
-        label: 'Tim mạch',
-        items: ['Nhịp tim', 'Tiếng tim T1, T2', 'Tiếng thổi', 'Mạch ngoại biên', 'Phù chi', 'Tĩnh mạch cổ'],
-        extras: [{ key: 'nyha', label: 'Phân độ suy tim NYHA', type: 'select', options: ['Không suy tim', 'I', 'II', 'III', 'IV'] }],
+        key: 'ngoai-khoa',
+        aliases: ['ngoai', 'NGOAI_KHOA', 'KHOA_NGOAI'],
+        deptCode: 'NGOAI',
+        label: 'Khoa Ngoại',
+        items: [
+            'Khám ngoại tổng quát',
+            'Vết thương / Vết mổ',
+            'Khối u / Thoát vị',
+            'Dị tật / Tầm vận động',
+        ],
+        extras: [
+            { key: 'chi_dinh_phau_thuat_thu_thuat', label: 'Chỉ định phẫu thuật / thủ thuật', type: 'text' },
+            { key: 'chi_dinh_tieu_phau', label: 'Chỉ định tiểu phẫu', type: 'text' },
+        ],
     },
     {
-        key: 'HO_HAP',
-        label: 'Hô hấp',
-        items: ['Lồng ngực', 'Co kéo cơ hô hấp', 'Rì rào phế nang', 'Ran phổi', 'Gõ phổi'],
+        key: 'mat',
+        aliases: ['MAT', 'KHOA_MAT', 'nhan-khoa', 'nhan_khoa'],
+        deptCode: 'MAT',
+        label: 'Khoa Mắt',
+        items: [
+            'Thị lực mắt phải (Snellen)',
+            'Thị lực mắt trái (Snellen)',
+            'Nhãn áp mắt phải (mmHg)',
+            'Nhãn áp mắt trái (mmHg)',
+            'Bán phần trước',
+            'Đáy mắt',
+        ],
         extras: [],
     },
     {
-        key: 'TIEU_HOA',
-        label: 'Tiêu hóa',
-        items: ['Bụng', 'Điểm đau khu trú', 'Phản ứng thành bụng', 'Gan', 'Lách', 'Nhu động ruột'],
+        key: 'tai-mui-hong',
+        aliases: ['tmh', 'TMH', 'KHOA_TMH'],
+        deptCode: 'TMH',
+        label: 'Khoa Tai Mũi Họng',
+        items: [
+            'Tai phải',
+            'Tai trái',
+            'Mũi – xoang',
+            'Họng – thanh quản',
+            'Hạch cổ',
+            'Thính lực 2 tai',
+        ],
         extras: [],
     },
     {
-        key: 'THAN_KINH',
-        label: 'Thần kinh',
-        items: ['Tri giác', 'Dấu thần kinh khu trú', 'Sức cơ', 'Phản xạ gân xương', 'Dấu màng não', 'Dây thần kinh sọ'],
-        extras: [{ key: 'gcs', label: 'Điểm Glasgow (GCS)', type: 'number', min: 3, max: 15, normal: 15 }],
-    },
-    {
-        key: 'TMH',
-        label: 'Tai – Mũi – Họng',
-        items: ['Tai phải', 'Tai trái', 'Mũi – xoang', 'Họng', 'Thanh quản', 'Hạch cổ'],
-        extras: [],
-    },
-    {
-        key: 'DA_LIEU',
-        label: 'Da liễu',
-        items: ['Vị trí tổn thương', 'Hình thái tổn thương', 'Phân bố – kích thước', 'Ngứa', 'Niêm mạc, móng, tóc'],
-        extras: [],
-    },
-    {
-        key: 'CO_XUONG_KHOP',
-        label: 'Cơ xương khớp',
-        items: ['Khớp đau', 'Sưng, nóng, đỏ', 'Tầm vận động', 'Biến dạng khớp', 'Cột sống'],
-        extras: [{ key: 'vas', label: 'Mức đau VAS (0–10)', type: 'number', min: 0, max: 10 }],
+        key: 'rang-ham-mat',
+        aliases: ['rhm', 'RHM', 'KHOA_RANG', 'RANG_HAM_MAT'],
+        deptCode: 'RHM',
+        label: 'Khoa Răng Hàm Mặt',
+        items: [
+            'Cung hàm trên',
+            'Cung hàm dưới',
+            'Nha chu & nướu lợi',
+            'Khớp thái dương hàm',
+            'Niêm mạc miệng',
+        ],
+        extras: [
+            { key: 'vi_tri_rang', label: 'Vị trí răng tổn thương', type: 'text' },
+            { key: 'tinh_trang_rang', label: 'Tình trạng răng', type: 'text' },
+        ],
     },
 ]
 
-export const findSpecialtyExam = (key) => SPECIALTY_EXAMS.find((s) => s.key === key) || SPECIALTY_EXAMS[0]
+export const findSpecialtyExam = (key) => {
+    if (!key) return SPECIALTY_EXAMS[0]
+    const normalized = String(key).trim().toLowerCase()
+    return (
+        SPECIALTY_EXAMS.find(
+            (s) => s.key === key || s.key === normalized || s.aliases?.some((a) => a.toLowerCase() === normalized)
+        ) || SPECIALTY_EXAMS[0]
+    )
+}
 
 // Ghép kết quả khám chuyên khoa thành văn bản cho trường luot_kham.kham_lam_sang_bo_phan
 export function composeSpecialtyText(exam) {

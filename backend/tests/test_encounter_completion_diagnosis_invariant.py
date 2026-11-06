@@ -173,3 +173,112 @@ async def test_locked_encounter_returns_409_even_if_diagnosis_missing(api_client
     # Phải trả về 409 vì is_locked guard đứng trước _assert_completion_diagnosis_invariant
     assert res_complete.status_code == 409
     assert "đã được hoàn tất và khóa" in res_complete.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_completion_fails_when_subclinical_orders_pending(api_client, booking, db_session):
+    """Case 6: Còn chỉ định CLS đang thực hiện dở dang (da_chi_dinh) -> Chặn 422 Unprocessable Entity"""
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_enc = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id},
+        headers=token_bs
+    )
+    enc_id = res_enc.json()["data"]["id"]
+
+    # Đã có đúng 1 chẩn đoán chính
+    await _dam_bao_ma_icd10(db_session, "I10", "Tăng huyết áp vô căn")
+    await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/diagnoses",
+        json={"ma_icd10": "I10", "ten_benh_chan_doan": "Tăng huyết áp", "loai_chan_doan": "chinh"},
+        headers=token_bs
+    )
+
+    # Lấy 1 dịch vụ CLS
+    from app.models.medical import DichVu, ChiDinh
+    stmt_dv = select(DichVu).where(DichVu.is_active.is_(True))
+    dv = (await db_session.execute(stmt_dv)).scalars().first()
+
+    # Kê chỉ định CLS
+    res_order = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/orders",
+        json={"dich_vu_id": dv.id, "so_luong": 1},
+        headers=token_bs
+    )
+    assert res_order.status_code == 201
+    assert res_order.json()["data"]["trang_thai"] == "da_chi_dinh"
+
+    # Thử complete khi chỉ định CLS chưa có kết quả -> Phải bị chặn 422
+    res_complete = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/complete",
+        json={"ket_luan_dieu_tri": "Xong"},
+        headers=token_bs
+    )
+    assert res_complete.status_code == 422
+    assert "chỉ định cận lâm sàng đang thực hiện dở dang" in res_complete.json()["message"]
+
+    # Kiểm tra hồ sơ vẫn chưa bị khóa
+    enc = (await db_session.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one()
+    assert enc.is_locked is False
+
+
+@pytest.mark.asyncio
+async def test_completion_succeeds_when_subclinical_orders_resolved(api_client, booking, db_session):
+    """Case 7: Các chỉ định CLS đã có kết quả (da_co_ket_qua) hoặc đã hủy (da_huy) -> Hoàn tất thành công 200 OK"""
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_enc = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id},
+        headers=token_bs
+    )
+    enc_id = res_enc.json()["data"]["id"]
+
+    await _dam_bao_ma_icd10(db_session, "I10", "Tăng huyết áp vô căn")
+    await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/diagnoses",
+        json={"ma_icd10": "I10", "ten_benh_chan_doan": "Tăng huyết áp", "loai_chan_doan": "chinh"},
+        headers=token_bs
+    )
+
+    from app.models.medical import DichVu, ChiDinh
+    services = (await db_session.execute(select(DichVu).where(DichVu.is_active.is_(True)).limit(2))).scalars().all()
+    dv1 = services[0]
+    dv2 = services[1] if len(services) > 1 else dv1
+
+    # Chỉ định 1: sau đó trả kết quả da_co_ket_qua
+    res_o1 = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/orders",
+        json={"dich_vu_id": dv1.id, "so_luong": 1},
+        headers=token_bs
+    )
+    o1_id = res_o1.json()["data"]["id"]
+
+    # Chỉ định 2: sau đó hủy da_huy
+    res_o2 = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/orders",
+        json={"dich_vu_id": dv2.id, "so_luong": 1},
+        headers=token_bs
+    )
+    o2_id = res_o2.json()["data"]["id"]
+
+    # Cập nhật kết quả CLS 1 sang da_co_ket_qua và CLS 2 sang da_huy
+    cd1 = (await db_session.execute(select(ChiDinh).where(ChiDinh.id == o1_id))).scalar_one()
+    cd1.trang_thai = "da_co_ket_qua"
+    cd2 = (await db_session.execute(select(ChiDinh).where(ChiDinh.id == o2_id))).scalar_one()
+    cd2.trang_thai = "da_huy"
+    await db_session.commit()
+
+    # Thử complete -> Phải thành công 200 OK
+    res_complete = await api_client.post(
+        f"/api/v1/clinical/encounters/{enc_id}/complete",
+        json={"ket_luan_dieu_tri": "Khám và điều trị hoàn tất"},
+        headers=token_bs
+    )
+    assert res_complete.status_code == 200
+    assert res_complete.json()["data"]["is_locked"] is True

@@ -607,6 +607,22 @@ class ClinicalService:
         # INV_DIAG: đặt SAU is_locked để hồ sơ đã khóa luôn trả 409 thay vì 422
         self._assert_completion_diagnosis_invariant(luot_kham)
 
+        # Kiểm tra chỉ định cận lâm sàng còn dở dang (Pha 1: validate trước khi mutate)
+        pending_orders = [
+            cd for cd in (luot_kham.danh_sach_chi_dinh or [])
+            if cd.trang_thai in ("da_chi_dinh", "dang_thuc_hien")
+        ]
+        if pending_orders:
+            logger.warning(
+                f"⚠️ [AUDIT - ENCOUNTER_COMPLETED_WITH_PENDING_ORDERS] "
+                f"encounter_id={encounter_id} doctor_id={bac_si.id} "
+                f"pending_count={len(pending_orders)} "
+                f"pending_order_ids={[cd.id for cd in pending_orders]}"
+            )
+            raise UnprocessableEntityException(
+                f"Không thể hoàn tất lượt khám: còn {len(pending_orders)} chỉ định cận lâm sàng đang thực hiện dở dang chưa có kết quả."
+            )
+
         # Pha 1 (chỉ đọc + validate): khóa mọi vé hàng đợi của lịch trong cùng transaction,
         # sau LuotKham (global lock order). Hàng đợi chỉ là lớp điều phối; LuotKham là nguồn sự thật.
         tickets: list = []
@@ -658,18 +674,7 @@ class ClinicalService:
             )
 
 
-        # Kiểm tra và ghi vết kiểm toán (Audit Trail) các chỉ định cận lâm sàng còn treo tại thời điểm khóa ca
-        pending_orders = [
-            cd for cd in (luot_kham.danh_sach_chi_dinh or [])
-            if cd.trang_thai in ("da_chi_dinh", "dang_thuc_hien")
-        ]
-        if pending_orders:
-            logger.warning(
-                f"⚠️ [AUDIT - ENCOUNTER_COMPLETED_WITH_PENDING_ORDERS] "
-                f"encounter_id={encounter_id} doctor_id={bac_si.id} "
-                f"pending_count={len(pending_orders)} "
-                f"pending_order_ids={[cd.id for cd in pending_orders]}"
-            )
+
 
         await db.commit()
 
@@ -1176,12 +1181,73 @@ class ClinicalService:
         else:
             record.bac_si_kham_id = bac_si.id
 
-        import json
         for k, v in (payload_data or {}).items():
             if k in valid_cols:
                 if k == "so_do_rang_fdi" and isinstance(v, (dict, list)):
                     v = json.dumps(v, ensure_ascii=False)
                 setattr(record, k, v)
+
+        # Tự động đồng bộ sang PhieuKhamChuyenKhoa (Tier 1) và tính phân loại sức khỏe
+        stmt_phieu = select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == encounter_id)
+        phieu = (await db.execute(stmt_phieu)).scalar_one_or_none()
+
+        noi_dung_parts = []
+        labels_map = {
+            "tuan_hoan": "Tuần hoàn",
+            "ho_hap": "Hô hấp",
+            "tieu_hoa": "Tiêu hóa",
+            "than_tiet_nieu": "Thận - Tiết niệu",
+            "than_kinh": "Thần kinh",
+            "co_xuong_khop": "Cơ xương khớp",
+            "ket_qua_kham_thuc_the": "Ngoại thực thể",
+            "tinh_trang_vet_thuong": "Vết thương",
+            "thi_luc_mat_phai": "Thị lực phải",
+            "thi_luc_mat_trai": "Thị lực trái",
+            "tai_phai": "Tai phải",
+            "tai_trai": "Tai trái",
+            "mui_xoang": "Mũi xoang",
+            "hong_thanh_quan": "Họng thanh quản",
+            "ham_tren": "Hàm trên",
+            "ham_duoi": "Hàm dưới",
+        }
+        for k, v in (payload_data or {}).items():
+            if v and k in labels_map:
+                noi_dung_parts.append(f"{labels_map[k]}: {v}")
+            elif v and k not in ("ket_luan_chuyen_khoa", "ghi_chu", "so_do_rang_fdi"):
+                noi_dung_parts.append(f"{k}: {v}")
+
+        noi_dung_kham = "\n".join(noi_dung_parts) or "Chưa có bất thường"
+
+        phan_loai = "LOAI_1"
+        if luot_kham.bmi:
+            if luot_kham.bmi >= 30 or luot_kham.bmi < Decimal("18.5"):
+                phan_loai = "LOAI_3"
+            elif luot_kham.bmi >= 25:
+                phan_loai = "LOAI_2"
+
+        chuyen_khoa_id = bac_si.chuyen_khoa_id
+        if not chuyen_khoa_id:
+            first_ck = (await db.execute(select(ChuyenKhoa).limit(1))).scalars().first()
+            if first_ck:
+                chuyen_khoa_id = first_ck.id
+
+        ket_luan = (payload_data or {}).get("ket_luan_chuyen_khoa") or "Theo dõi lâm sàng"
+
+        if not phieu:
+            if chuyen_khoa_id:
+                phieu = PhieuKhamChuyenKhoa(
+                    luot_kham_id=encounter_id,
+                    bac_si_id=bac_si.id,
+                    chuyen_khoa_id=chuyen_khoa_id,
+                    noi_dung_kham=noi_dung_kham,
+                    ket_luan_chuyen_khoa=ket_luan,
+                    phan_loai_suc_khoe=phan_loai,
+                )
+                db.add(phieu)
+        else:
+            phieu.noi_dung_kham = noi_dung_kham
+            phieu.ket_luan_chuyen_khoa = ket_luan
+            phieu.phan_loai_suc_khoe = phan_loai
 
         await db.commit()
         await db.refresh(record)
@@ -1307,6 +1373,14 @@ class ClinicalService:
             )
             row = (await db.execute(stmt)).scalar_one_or_none()
             if row:
+                old_data = row.data_json if isinstance(row.data_json, dict) else {}
+                old_queue = old_data.get("queue") or []
+                client_queue = payload.get("queue") or []
+                merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
+                for cq in client_queue:
+                    if isinstance(cq, dict) and "ticket_id" in cq:
+                        merged_queue_map[cq["ticket_id"]] = cq
+                payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
                 row.data_json = payload
                 row.updated_by_id = user_id
             else:
@@ -1317,6 +1391,67 @@ class ClinicalService:
                         updated_by_id=user_id,
                     )
                 )
+
+            # Đồng bộ trạng thái vé trong queue xuống bảng HangDoiKham
+            client_queue = payload.get("queue") or []
+            if isinstance(client_queue, list):
+                for q_item in client_queue:
+                    if isinstance(q_item, dict) and q_item.get("ticket_id"):
+                        try:
+                            tid = int(q_item["ticket_id"])
+                            t_rec = (await db.execute(select(HangDoiKham).where(HangDoiKham.id == tid))).scalar_one_or_none()
+                            if t_rec:
+                                q_status = q_item.get("trang_thai")
+                                q_note = q_item.get("ghi_chu")
+                                if q_status == "dang_kham":
+                                    t_rec.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
+                                    t_rec.thoi_gian_bat_dau = t_rec.thoi_gian_bat_dau or datetime.now(timezone.utc)
+                                    if q_item.get("so_lan_goi"):
+                                        try:
+                                            t_rec.so_lan_goi = int(q_item["so_lan_goi"])
+                                        except (ValueError, TypeError):
+                                            pass
+                                    t_rec.ghi_chu_dieu_phoi = q_note or "Đang khám"
+                                elif q_status == "tam_hoan":
+                                    t_rec.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+                                    if q_note:
+                                        t_rec.ghi_chu_dieu_phoi = q_note
+                                elif q_status == "da_kham":
+                                    t_rec.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
+                                    if q_note:
+                                        t_rec.ghi_chu_dieu_phoi = q_note
+                                elif q_status == "co_ket_qua_cls":
+                                    t_rec.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
+                                    t_rec.muc_do_uu_tien = 3
+                                    if q_note:
+                                        t_rec.ghi_chu_dieu_phoi = q_note
+                                elif q_status == "cho_kham":
+                                    t_rec.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
+                                    if q_note:
+                                        t_rec.ghi_chu_dieu_phoi = q_note
+                        except (ValueError, TypeError):
+                            pass
+
+            def _to_int(val):
+                try:
+                    return int(val) if val is not None and str(val).strip() != "" else None
+                except (ValueError, TypeError):
+                    return None
+
+            def _to_dec(val, precision=1):
+                try:
+                    return Decimal(str(round(float(val), precision))) if val is not None and str(val).strip() != "" else None
+                except (ValueError, TypeError):
+                    return None
+
+            async def _get_or_create_specialty(model_cls, lk_id, b_id):
+                rec = (await db.execute(select(model_cls).where(model_cls.luot_kham_id == lk_id))).scalars().first()
+                if not rec:
+                    rec = model_cls(luot_kham_id=lk_id, bac_si_thuc_hien_id=b_id)
+                    db.add(rec)
+                elif b_id:
+                    rec.bac_si_thuc_hien_id = b_id
+                return rec
 
             # 2. Đồng bộ xuống các bảng quan hệ (LuotKham, ChiDinh, ChanDoan)
             encounters = payload.get("encounters") or {}
@@ -1342,18 +1477,6 @@ class ClinicalService:
                             f"Bỏ qua đồng bộ encounter {raw_id}: không tìm thấy LuotKham tương ứng trong CSDL."
                         )
                         continue
-
-                    def _to_int(val):
-                        try:
-                            return int(val) if val is not None and str(val).strip() != "" else None
-                        except (ValueError, TypeError):
-                            return None
-
-                    def _to_dec(val, precision=1):
-                        try:
-                            return Decimal(str(round(float(val), precision))) if val is not None and str(val).strip() != "" else None
-                        except (ValueError, TypeError):
-                            return None
 
                     if "mach_lan_phut" in enc_data:
                         m = _to_int(enc_data.get("mach_lan_phut"))
@@ -1471,6 +1594,161 @@ class ClinicalService:
                                     phan_loai_suc_khoe=phan_loai,
                                 )
                             )
+
+                        # Đồng bộ dữ liệu chuyên khoa sâu (Tier 2) vào 5 bảng chuyên khoa
+                        raw_khoa = (kham_ck.get("khoa") if isinstance(kham_ck, dict) else None) or ""
+                        dept_key = None
+                        if "ngoai" in raw_khoa.lower():
+                            dept_key = "ngoai-khoa"
+                        elif "mat" in raw_khoa.lower():
+                            dept_key = "mat"
+                        elif "tai" in raw_khoa.lower() or "tmh" in raw_khoa.lower() or "hong" in raw_khoa.lower():
+                            dept_key = "tai-mui-hong"
+                        elif "rang" in raw_khoa.lower() or "rhm" in raw_khoa.lower():
+                            dept_key = "rang-ham-mat"
+                        elif "noi" in raw_khoa.lower():
+                            dept_key = "noi-khoa"
+                        elif chuyen_khoa_id:
+                            ck_row = (await db.execute(select(ChuyenKhoa).where(ChuyenKhoa.id == chuyen_khoa_id))).scalar_one_or_none()
+                            if ck_row:
+                                m_code = (ck_row.ma_chuyen_khoa or "").upper()
+                                if "NGOAI" in m_code: dept_key = "ngoai-khoa"
+                                elif "MAT" in m_code: dept_key = "mat"
+                                elif "TMH" in m_code or "TAI" in m_code: dept_key = "tai-mui-hong"
+                                elif "RANG" in m_code or "RHM" in m_code: dept_key = "rang-ham-mat"
+                                else: dept_key = "noi-khoa"
+                        else:
+                            dept_key = "noi-khoa"
+
+                        def _extract_item_value(kw_list):
+                            for label, it in items.items():
+                                if any(kw in label.lower() for kw in kw_list) and isinstance(it, dict):
+                                    st = "Bình thường" if it.get("status") == "BT" else ("Bất thường" if it.get("status") == "BAT" else (it.get("status") or ""))
+                                    return f"{st}: {it.get('note')}" if it.get("note") else st
+                            return None
+
+                        if dept_key == "noi-khoa":
+                            sp_noi = await _get_or_create_specialty(KhamNoiKhoa, target_lk.id, bs_id)
+                            th = _extract_item_value(["tuần hoàn", "tim mạch"])
+                            if th:
+                                sp_noi.tuan_hoan = th
+                            hh = _extract_item_value(["hô hấp", "phổi"])
+                            if hh:
+                                sp_noi.ho_hap = hh
+                            thoa = _extract_item_value(["tiêu hóa", "bụng"])
+                            if thoa:
+                                sp_noi.tieu_hoa = thoa
+                            tn = _extract_item_value(["thận", "tiết niệu"])
+                            if tn:
+                                sp_noi.than_tiet_nieu = tn
+                            tk = _extract_item_value(["thần kinh"])
+                            if tk:
+                                sp_noi.than_kinh = tk
+                            cxk = _extract_item_value(["cơ xương khớp"])
+                            if cxk:
+                                sp_noi.co_xuong_khop = cxk
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                sp_noi.ket_luan_chuyen_khoa = enc_data.get("ket_luan_dieu_tri")
+
+                        elif dept_key == "ngoai-khoa":
+                            sp_ngoai = await _get_or_create_specialty(KhamNgoaiKhoa, target_lk.id, bs_id)
+                            kham_tt = _extract_item_value(["ngoại tổng quát", "thực thể"])
+                            if kham_tt:
+                                sp_ngoai.ket_qua_kham_thuc_the = kham_tt
+                            vet_thuong = _extract_item_value(["vết thương", "vết mổ"])
+                            if vet_thuong:
+                                sp_ngoai.tinh_trang_vet_thuong = vet_thuong
+                            khoi_u = _extract_item_value(["khối u", "thoát vị"])
+                            if khoi_u:
+                                sp_ngoai.mo_ta_ton_thuong = khoi_u
+                            di_tat = _extract_item_value(["dị tật", "vận động", "vị trí"])
+                            if di_tat:
+                                sp_ngoai.vi_tri_ton_thuong = di_tat
+                            if extras.get("chi_dinh_phau_thuat_thu_thuat") or extras.get("loai_phau_thuat_thu_thuat"):
+                                sp_ngoai.chi_dinh_phau_thuat_thu_thuat = str(extras.get("chi_dinh_phau_thuat_thu_thuat") or extras.get("loai_phau_thuat_thu_thuat"))
+                            if "chi_dinh_tieu_phau" in extras:
+                                raw_tp = extras.get("chi_dinh_tieu_phau")
+                                if isinstance(raw_tp, bool):
+                                    sp_ngoai.chi_dinh_tieu_phau = "Có chỉ định tiểu phẫu" if raw_tp else None
+                                elif isinstance(raw_tp, str):
+                                    sp_ngoai.chi_dinh_tieu_phau = raw_tp.strip() or None
+                                elif raw_tp is not None:
+                                    sp_ngoai.chi_dinh_tieu_phau = str(raw_tp)
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                sp_ngoai.ket_luan_chuyen_khoa = enc_data.get("ket_luan_dieu_tri")
+
+                        elif dept_key == "mat":
+                            sp_mat = await _get_or_create_specialty(KhamMat, target_lk.id, bs_id)
+                            tl_phai = _extract_item_value(["thị lực mắt phải", "thị lực phải"])
+                            if tl_phai:
+                                sp_mat.thi_luc_mat_phai = tl_phai
+                            tl_trai = _extract_item_value(["thị lực mắt trái", "thị lực trái"])
+                            if tl_trai:
+                                sp_mat.thi_luc_mat_trai = tl_trai
+                            na_phai = _extract_item_value(["nhãn áp mắt phải", "nhãn áp phải"])
+                            if na_phai:
+                                sp_mat.nhan_ap_mat_phai = na_phai
+                            na_trai = _extract_item_value(["nhãn áp mắt trái", "nhãn áp trái"])
+                            if na_trai:
+                                sp_mat.nhan_ap_mat_trai = na_trai
+                            bp_truoc = _extract_item_value(["bán phần trước"])
+                            if bp_truoc:
+                                sp_mat.ban_phan_truoc_phai = bp_truoc
+                                sp_mat.ban_phan_truoc_trai = bp_truoc
+                            day_mat = _extract_item_value(["đáy mắt"])
+                            if day_mat:
+                                sp_mat.day_mat_phai = day_mat
+                                sp_mat.day_mat_trai = day_mat
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                sp_mat.ket_qua_kham_mat = enc_data.get("ket_luan_dieu_tri")
+
+                        elif dept_key == "tai-mui-hong":
+                            sp_tmh = await _get_or_create_specialty(KhamTaiMuiHong, target_lk.id, bs_id)
+                            tai_p = _extract_item_value(["tai phải"])
+                            if tai_p:
+                                sp_tmh.tai_phai = tai_p
+                            tai_t = _extract_item_value(["tai trái"])
+                            if tai_t:
+                                sp_tmh.tai_trai = tai_t
+                            mui = _extract_item_value(["mũi", "xoang"])
+                            if mui:
+                                sp_tmh.mui_xoang = mui
+                            hong = _extract_item_value(["họng", "thanh quản"])
+                            if hong:
+                                sp_tmh.hong_thanh_quan = hong
+                            hach = _extract_item_value(["hạch cổ"])
+                            if hach:
+                                sp_tmh.trieu_chung_lien_quan = hach
+                            thinh = _extract_item_value(["thính lực"])
+                            if thinh:
+                                sp_tmh.thinh_luc_tai_phai = thinh
+                                sp_tmh.thinh_luc_tai_trai = thinh
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                sp_tmh.ket_luan_chuyen_khoa = enc_data.get("ket_luan_dieu_tri")
+
+                        elif dept_key == "rang-ham-mat":
+                            sp_rhm = await _get_or_create_specialty(KhamRangHamMat, target_lk.id, bs_id)
+                            ham_tren = _extract_item_value(["hàm trên"])
+                            if ham_tren:
+                                sp_rhm.ham_tren = ham_tren
+                            ham_duoi = _extract_item_value(["hàm dưới"])
+                            if ham_duoi:
+                                sp_rhm.ham_duoi = ham_duoi
+                            nha_chu = _extract_item_value(["nha chu", "nướu"])
+                            if nha_chu:
+                                sp_rhm.nha_chu_nuou = nha_chu
+                            khop = _extract_item_value(["khớp thái dương", "khớp cắn"])
+                            if khop:
+                                sp_rhm.khop_can = khop
+                            niem_mac = _extract_item_value(["niêm mạc", "miệng"])
+                            if niem_mac:
+                                sp_rhm.ghi_chu = f"Niêm mạc miệng: {niem_mac}"
+                            if extras.get("vi_tri_rang"):
+                                sp_rhm.vi_tri_rang = str(extras.get("vi_tri_rang"))
+                            if extras.get("tinh_trang_rang"):
+                                sp_rhm.tinh_trang_rang = str(extras.get("tinh_trang_rang"))
+                            if enc_data.get("ket_luan_dieu_tri"):
+                                sp_rhm.huong_dieu_tri = enc_data.get("ket_luan_dieu_tri")
 
                     pe_rec = (
                         await db.execute(

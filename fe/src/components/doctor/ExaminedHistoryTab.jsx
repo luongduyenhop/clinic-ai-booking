@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
 
@@ -8,7 +8,8 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [selectedRecord, setSelectedRecord] = useState(null)
 
     // Lọc danh sách bệnh nhân đã khám
-    const filteredList = examinedList.filter((item) => {
+    const todayStr = useMemo(() => new Date().toLocaleDateString('vi-VN'), [])
+    const filteredList = useMemo(() => examinedList.filter((item) => {
         const matchesSearch =
             (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
             (item?.patientCode || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
@@ -17,10 +18,10 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
         if (!matchesSearch) return false
 
         if (timeFilter === 'TODAY') {
-            return item.completedDate === new Date().toLocaleDateString('vi-VN')
+            return item.completedDate === todayStr
         }
         return true
-    })
+    }), [examinedList, searchKeyword, timeFilter, todayStr])
 
     const handlePrintPrescription = (patient) => {
         AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng 204!`)

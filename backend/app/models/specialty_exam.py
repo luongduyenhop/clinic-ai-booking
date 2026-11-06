@@ -64,7 +64,7 @@ class KhamNgoaiKhoa(BaseModelWithTimestamp):
     ket_qua_kham_thuc_the = Column(Text, nullable=True)
     he_van_dong_ngoai = synonym("ket_qua_kham_thuc_the")
     chi_dinh_phau_thuat_thu_thuat = Column(Text, nullable=True)
-    chi_dinh_tieu_phau = Column(Boolean, default=False, nullable=False)
+    chi_dinh_tieu_phau = Column(Text, nullable=True)
     noi_dung_thu_thuat = synonym("chi_dinh_phau_thuat_thu_thuat")
     ket_luan_chuyen_khoa = Column(Text, nullable=True)
     ghi_chu = synonym("ket_luan_chuyen_khoa")

@@ -210,7 +210,7 @@ function App() {
                 <Route element={<ProtectedRoute allowedRoles={DOCTOR_ROLES} />}>
                     <Route path="/doctor" element={<DoctorTemplate />}>
                         <Route index element={<DoctorDashboardPage />} />
-                        <Route path="kham-benh" element={<ExamWorkstationPage />} />
+                        <Route path="kham-benh" element={<Navigate to="/doctor" replace />} />
                         <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
                     </Route>
                 </Route>

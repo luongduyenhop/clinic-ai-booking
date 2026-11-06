@@ -31,6 +31,10 @@ async def _dam_bao_chuyen_khoa(db_session, ma_ck="KHOA_NOI", ten_ck="Khoa Nội"
         )
         db_session.add(ck)
         await db_session.flush()
+    else:
+        if ck.vi_tri_phong != vi_tri_phong:
+            ck.vi_tri_phong = vi_tri_phong
+            await db_session.flush()
     return ck
 
 

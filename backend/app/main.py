@@ -88,6 +88,8 @@ async def normalize_fe_auth_case(request, call_next):
     path = request.scope.get("path", "")
     if path.startswith("/api/Auth/"):
         request.scope["path"] = "/api/auth/" + path[len("/api/Auth/"):]
+    elif path.startswith("/clinical/"):
+        request.scope["path"] = "/api/v1/clinical/" + path[len("/clinical/"):]
     return await call_next(request)
 
 

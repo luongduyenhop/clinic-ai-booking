@@ -1,7 +1,7 @@
 import logging
 from datetime import date, time
 from typing import Dict, List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -54,6 +54,21 @@ logger = logging.getLogger(__name__)
 class AdminShiftService:
     """Dịch vụ chuyên trách Phân ca trực, Lịch làm việc tuần và Quản lý vắng mặt (SRP)"""
 
+    async def _resolve_doctor_id(self, db: AsyncSession, doctor_id: Optional[int]) -> Optional[int]:
+        """Tự động chuẩn hóa doctor_id: ưu tiên BacSi.id trước; nếu không có thì tìm theo BacSi.nguoi_dung_id"""
+        if not doctor_id:
+            return None
+        # Kiểm tra xem doctor_id có trực tiếp là BacSi.id không
+        stmt_direct = select(BacSi.id).where(BacSi.id == doctor_id)
+        direct_id = (await db.execute(stmt_direct)).scalar_one_or_none()
+        if direct_id is not None:
+            return direct_id
+
+        # Nếu không phải, kiểm tra xem có phải là nguoi_dung_id / tai_khoan.id của bác sĩ không
+        stmt_nd = select(BacSi.id).where(BacSi.nguoi_dung_id == doctor_id)
+        resolved_id = (await db.execute(stmt_nd)).scalar_one_or_none()
+        return resolved_id or doctor_id
+
     # --- 2. Phân ca trực & Lịch làm việc (OpenEMR 7 Calendar) ---
     async def get_shifts(
         self, query_date: Optional[date], doctor_id: Optional[int], db: AsyncSession
@@ -70,7 +85,8 @@ class AdminShiftService:
         if query_date:
             stmt = stmt.where(LichLamViec.ngay_lam_viec == query_date)
         if doctor_id:
-            stmt = stmt.where(LichLamViec.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(LichLamViec.bac_si_id == resolved_doc_id)
 
         stmt = stmt.order_by(LichLamViec.ngay_lam_viec, LichLamViec.ca_lam_viec)
         shifts = (await db.execute(stmt)).scalars().all()
@@ -678,7 +694,8 @@ class AdminShiftService:
             .order_by(LichDinhKyBacSi.thu_trong_tuan.asc(), LichDinhKyBacSi.ca_lam_viec.asc())
         )
         if doctor_id:
-            stmt = stmt.where(LichDinhKyBacSi.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(LichDinhKyBacSi.bac_si_id == resolved_doc_id)
         rows = (await db.execute(stmt)).scalars().all()
         results = []
         for r in rows:
@@ -881,7 +898,8 @@ class AdminShiftService:
             .order_by(NghiPhepBacSi.created_at.desc())
         )
         if doctor_id:
-            stmt = stmt.where(NghiPhepBacSi.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(NghiPhepBacSi.bac_si_id == resolved_doc_id)
         if trang_thai:
             stmt = stmt.where(NghiPhepBacSi.trang_thai == trang_thai)
         rows = (await db.execute(stmt)).scalars().all()
@@ -1064,7 +1082,8 @@ class AdminShiftService:
             .where(BacSi.is_active.is_(True))
         )
         if doctor_id:
-            stmt_docs = stmt_docs.where(BacSi.id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt_docs = stmt_docs.where(BacSi.id == resolved_doc_id)
         if chuyen_khoa_id:
             stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
 

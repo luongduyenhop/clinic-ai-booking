@@ -22,8 +22,15 @@ export default function QueuePanel({
     onRecall,
     calling,
     currentTicket,
+    filter: externalFilter,
+    onFilterChange,
 }) {
-    const [filter, setFilter] = useState('cho_kham')
+    const [internalFilter, setInternalFilter] = useState('cho_kham')
+    const filter = externalFilter !== undefined ? externalFilter : internalFilter
+    const setFilter = (next) => {
+        setInternalFilter(next)
+        onFilterChange?.(next)
+    }
     const [voiceEnabled, setVoiceEnabled] = useState(audioAnnouncer.isEnabled())
 
     const handleToggleVoice = () => {
@@ -34,7 +41,8 @@ export default function QueuePanel({
 
     const handleCallNextWithVoice = async () => {
         if (!onCallNext) return
-        const nextPatient = visible.find((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
+        setFilter('cho_kham')
+        const nextPatient = queue.find((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
         onCallNext()
         if (nextPatient && voiceEnabled) {
             audioAnnouncer.announcePatient(nextPatient.ten_benh_nhan, nextPatient.so_thu_tu_kham, 'buồng khám số 1')
@@ -50,24 +58,46 @@ export default function QueuePanel({
     }
 
     // Helper kiểm tra có kết quả CLS quay lại (revita-be priority +10,000)
+    // Phải loại trừ vé đang tạm hoãn (tam_hoan) hoặc đã khám (da_kham)
     const isReturnedAfterCls = (t) =>
-        t.trang_thai === 'co_ket_qua_cls' ||
-        (t.ghi_chu && t.ghi_chu.toLowerCase().includes('kết quả')) ||
-        t.muc_do_uu_tien === 1
+        Boolean(
+            t &&
+            t.trang_thai !== 'tam_hoan' &&
+            t.trang_thai !== 'da_kham' &&
+            (t.trang_thai === 'co_ket_qua_cls' ||
+                (t.ghi_chu && (
+                    t.ghi_chu.startsWith('⭐ CÓ KQ CLS') ||
+                    t.ghi_chu.startsWith('🚨 KQ CLS') ||
+                    t.ghi_chu.toLowerCase().includes('đã có kết quả')
+                )))
+        )
+
+    const isWaitingCls = (t) =>
+        Boolean(
+            t &&
+            t.trang_thai !== 'da_kham' &&
+            !isReturnedAfterCls(t) &&
+            (t.trang_thai === 'tam_hoan' ||
+                (t.ghi_chu && (
+                    t.ghi_chu.toLowerCase().includes('chờ kết quả') ||
+                    t.ghi_chu.toLowerCase().includes('chờ cls') ||
+                    t.ghi_chu.toLowerCase().includes('cận lâm sàng')
+                )))
+        )
 
     const count = (key) => {
-        if (key === 'cho_kham') return queue.filter((t) => ['cho_kham', 'dang_kham'].includes(t.trang_thai)).length
+        if (key === 'cho_kham') return queue.filter((t) => ['cho_kham', 'dang_kham'].includes(t.trang_thai) && !isReturnedAfterCls(t) && !isWaitingCls(t)).length
         if (key === 'co_ket_qua') return queue.filter(isReturnedAfterCls).length
-        if (key === 'tam_hoan') return queue.filter((t) => t.trang_thai === 'tam_hoan').length
+        if (key === 'tam_hoan') return queue.filter(isWaitingCls).length
         if (key === 'da_kham') return queue.filter((t) => t.trang_thai === 'da_kham').length
         return 0
     }
 
     const visible = queue
         .filter((t) => {
-            if (filter === 'cho_kham') return ['cho_kham', 'dang_kham'].includes(t.trang_thai)
+            if (filter === 'cho_kham') return ['cho_kham', 'dang_kham'].includes(t.trang_thai) && !isReturnedAfterCls(t) && !isWaitingCls(t)
             if (filter === 'co_ket_qua') return isReturnedAfterCls(t)
-            if (filter === 'tam_hoan') return t.trang_thai === 'tam_hoan'
+            if (filter === 'tam_hoan') return isWaitingCls(t)
             if (filter === 'da_kham') return t.trang_thai === 'da_kham'
             return true
         })
@@ -174,7 +204,7 @@ export default function QueuePanel({
 
             <div className="flex flex-col gap-2 max-h-[62vh] overflow-y-auto pr-0.5">
                 {visible.map((t) => {
-                    const selected = t.encounter_id && t.encounter_id === selectedEncounterId
+                    const selected = t.encounter_id && String(t.encounter_id) === String(selectedEncounterId)
                     const tier = PRIORITY_TIERS[t.muc_do_uu_tien] || PRIORITY_TIERS[5]
                     const hasClsReady = isReturnedAfterCls(t)
                     const isExamining = t.trang_thai === 'dang_kham'
@@ -200,8 +230,12 @@ export default function QueuePanel({
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
                                     selected
                                         ? 'bg-[#00A9E3] text-white shadow-xs'
+                                        : t.trang_thai === 'da_kham'
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                         : hasClsReady
                                         ? 'bg-emerald-600 text-white'
+                                        : isWaitingCls(t)
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                         : isExamining
                                         ? 'bg-sky-600 text-white'
                                         : 'bg-slate-100 text-[#003553]'
@@ -222,9 +256,17 @@ export default function QueuePanel({
                                 {t.ly_do && <span className="truncate text-[11px] text-slate-500">{t.ly_do}</span>}
 
                                 <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                    {hasClsReady ? (
+                                    {t.trang_thai === 'da_kham' ? (
+                                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                            <ClinicIcon name="Check" size={11} weight="bold" /> Đã khám
+                                        </span>
+                                    ) : hasClsReady ? (
                                         <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white animate-pulse">
                                             ⭐ CÓ KQ CLS
+                                        </span>
+                                    ) : isWaitingCls(t) ? (
+                                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded">
+                                            Chờ CLS
                                         </span>
                                     ) : (
                                         <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${tier.badge}`}>
@@ -232,14 +274,9 @@ export default function QueuePanel({
                                         </span>
                                     )}
 
-                                    {isExamining && (
+                                    {isExamining && !isWaitingCls(t) && !hasClsReady && (
                                         <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-1 rounded">
                                             Đang khám
-                                        </span>
-                                    )}
-                                    {t.trang_thai === 'tam_hoan' && (
-                                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1 rounded">
-                                            Chờ CLS
                                         </span>
                                     )}
                                 </div>

@@ -154,6 +154,13 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     assert len(data_detail["danh_sach_chan_doan"]) == 1
     assert len(data_detail["danh_sach_chi_dinh"]) == 1
 
+    # 4.1. Kỹ thuật viên trả kết quả CLS (trạng thái sang da_co_ket_qua)
+    from app.models.medical import ChiDinh
+    order_id = res_order.json()["data"]["id"]
+    cd_db = (await db_session.execute(select(ChiDinh).where(ChiDinh.id == order_id))).scalar_one()
+    cd_db.trang_thai = "da_co_ket_qua"
+    await db_session.commit()
+
     # 5. Hoàn tất ca khám & khóa hồ sơ bệnh án
     complete_payload = {
         "ket_luan_dieu_tri": "Kê đơn Amlodipine 5mg, điều chỉnh chế độ ăn giảm muối",
@@ -221,17 +228,17 @@ async def test_diagnosis_links_concept_dictionary(api_client, booking, db_sessio
 
 @pytest.mark.asyncio
 async def test_diagnosis_subcode_links_parent_concept(api_client, booking, db_session):
-    """Mã con chi tiết (K29.7) chưa có trong từ điển -> lưu nguyên mã, gắn khái niệm nhóm cha K29"""
+    """Mã con chi tiết (K29.9) chưa có trong từ điển -> lưu nguyên mã, gắn khái niệm nhóm cha K29"""
     await _dam_bao_ma_icd10(db_session, "K29", "Viêm dạ dày và tá tràng")
     k29_id = (await db_session.execute(select(KhaiNiem.id).where(KhaiNiem.ma_khai_niem == "K29"))).scalar_one()
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
-        json={"ma_icd10": "k29.7", "ten_benh_chan_doan": "Viêm dạ dày, không đặc hiệu", "loai_chan_doan": "phu"},
+        json={"ma_icd10": "k29.9", "ten_benh_chan_doan": "Viêm dạ dày, không đặc hiệu", "loai_chan_doan": "phu"},
         headers=booking.tokens["bs_x"]
     )
     assert res.status_code == 201
-    assert res.json()["data"]["ma_icd10"] == "K29.7"
+    assert res.json()["data"]["ma_icd10"] == "K29.9"
     assert (await _chan_doan_trong_db(db_session, res.json()["data"]["id"])).khai_niem_id == k29_id
 
 

@@ -54,7 +54,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const rows = values.danh_sach_thuoc || []
     const [keyword, setKeyword] = useState('')
     const [options, setOptions] = useState([])
-    const debounced = useDebounce(keyword, 250)
+    const debounced = useDebounce(keyword, 200)
     const allergy = encounter?.benh_nhan?.di_ung_thuoc
 
     // Trạng thái khóa bất biến FSM SIGNED theo Quyết định BYT
@@ -108,7 +108,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 'Đã ký số đơn thuốc điện tử thành công! Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
             )
         } catch (err) {
-            console.error('Sign prescription error:', err)
             AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
         } finally {
             setSigningLoading(false)
@@ -116,7 +115,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     }
 
     useEffect(() => {
-        if (!debounced.trim()) return
+        if (!debounced.trim()) {
+            setOptions([])
+            return
+        }
         let cancelled = false
         dispatch(searchDrugsAsync(debounced))
             .unwrap()

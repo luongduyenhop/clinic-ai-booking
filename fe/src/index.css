@@ -382,3 +382,25 @@
     scrollbar-width: none;
   }
 }
+
+
+/* Tránh trình duyệt tự đổ màu xanh lên ô nhập sinh hiệu */
+input[name*="mach"],
+input[name*="nhiet_do"],
+input[name*="nhip_tho"],
+input[name*="huyet_ap"],
+input[name*="can_nang"],
+input[name*="chieu_cao"] {
+  background-color: transparent !important;
+}
+
+input[name*="mach"]:-webkit-autofill,
+input[name*="nhiet_do"]:-webkit-autofill,
+input[name*="nhip_tho"]:-webkit-autofill,
+input[name*="huyet_ap"]:-webkit-autofill,
+input[name*="can_nang"]:-webkit-autofill,
+input[name*="chieu_cao"]:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #003553 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}

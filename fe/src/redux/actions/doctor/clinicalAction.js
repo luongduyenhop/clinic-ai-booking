@@ -15,6 +15,9 @@ const thunk = (type, call) =>
 // Hàng đợi
 export const fetchDoctorQueueAsync = thunk('clinical/fetchQueue', () => clinicalService.getMyQueue())
 export const callNextPatientAsync = thunk('clinical/callNext', () => clinicalService.callNext())
+export const startPatientAsync = thunk('clinical/startPatient', (encounterIdOrTicketId) =>
+    clinicalService.startSpecificPatient(encounterIdOrTicketId)
+)
 export const recallPatientAsync = thunk('clinical/recall', (ticketId) => clinicalService.recall(ticketId))
 export const postponeTicketAsync = thunk('clinical/postpone', (ticketId) => clinicalService.postponeTicket(ticketId))
 

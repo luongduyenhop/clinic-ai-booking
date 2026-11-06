@@ -33,7 +33,19 @@ _NHOM_BYT_TO_GROUP = {
     "NOI_SOI": NOI_SOI,
 }
 
-_MA_DICH_VU_PREFIX_TO_GROUP = (("DV_NS_", NOI_SOI),)
+_MA_DICH_VU_PREFIX_TO_GROUP = (
+    ("DV_NS_", NOI_SOI),
+    ("DV_XN_", XET_NGHIEM),
+    ("DV_TEST_", XET_NGHIEM),
+    ("DV_SA_", CDHA),
+    ("DV_XQ_", CDHA),
+    ("DV_CT_", CDHA),
+    ("DV_MRI_", CDHA),
+    ("DV_ECG", TDCN),
+    ("DV_EEG", TDCN),
+    ("DV_HO_HAP_", TDCN),
+    ("DV_DO_", TDCN),
+)
 
 
 def nhom_dich_vu_of(ma_nhom_byt: Optional[str], ma_dich_vu: Optional[str] = None) -> Optional[str]:

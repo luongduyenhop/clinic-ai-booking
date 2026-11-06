@@ -292,6 +292,18 @@ class AuthService:
         nguoi_dung = (await db.execute(stmt_nd)).scalar_one_or_none()
         full_name = nguoi_dung.ho_ten if nguoi_dung else tai_khoan.email
 
+        # Nếu là Bác sĩ, truy vấn BacSi để gắn chính xác doctorId (BacSi.id) cho Frontend
+        doctor_id = None
+        phong_kham_id = None
+        chuyen_khoa_id = None
+        if tai_khoan.vai_tro == VaiTroEnum.BAC_SI.value or str(tai_khoan.vai_tro).lower() in ("bac_si", "doctor"):
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs:
+                doctor_id = bs.id
+                phong_kham_id = bs.phong_kham_id
+                chuyen_khoa_id = bs.chuyen_khoa_id
+
         # Phát hành Token và lưu DB
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
         refresh_token = create_refresh_token()
@@ -313,6 +325,11 @@ class AuthService:
             refreshToken=refresh_token,
             user={
                 "id": tai_khoan.id,
+                "doctorId": doctor_id or tai_khoan.id,
+                "doctor_id": doctor_id or tai_khoan.id,
+                "bac_si_id": doctor_id or tai_khoan.id,
+                "phong_kham_id": phong_kham_id,
+                "chuyen_khoa_id": chuyen_khoa_id,
                 "fullName": full_name,
                 "shortName": full_name,
                 "email": tai_khoan.email,

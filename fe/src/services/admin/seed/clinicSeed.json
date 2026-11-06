@@ -251,7 +251,7 @@
                 "path": "/admin/kham-chuyen-khoa/ngoai-khoa"
               },
               {
-                "label": "Khám Mắt (Nhãn khoa)",
+                "label": "Khám Mắt",
                 "path": "/admin/kham-chuyen-khoa/mat"
               },
               {

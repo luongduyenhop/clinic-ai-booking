@@ -1938,11 +1938,16 @@ class ClinicalService:
                             ck_row = (await db.execute(select(ChuyenKhoa).where(ChuyenKhoa.id == chuyen_khoa_id))).scalar_one_or_none()
                             if ck_row:
                                 m_code = (ck_row.ma_chuyen_khoa or "").upper()
-                                if "NGOAI" in m_code: dept_key = "ngoai-khoa"
-                                elif "MAT" in m_code: dept_key = "mat"
-                                elif "TMH" in m_code or "TAI" in m_code: dept_key = "tai-mui-hong"
-                                elif "RANG" in m_code or "RHM" in m_code: dept_key = "rang-ham-mat"
-                                else: dept_key = "noi-khoa"
+                                if "NGOAI" in m_code:
+                                    dept_key = "ngoai-khoa"
+                                elif "MAT" in m_code:
+                                    dept_key = "mat"
+                                elif "TMH" in m_code or "TAI" in m_code:
+                                    dept_key = "tai-mui-hong"
+                                elif "RANG" in m_code or "RHM" in m_code:
+                                    dept_key = "rang-ham-mat"
+                                else:
+                                    dept_key = "noi-khoa"
                         else:
                             dept_key = "noi-khoa"
 

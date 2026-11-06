@@ -21,9 +21,30 @@ from app.ml.triage_model import (
     MODEL_VERSION,
     get_ai_triage_model,
 )
-from app.ml.triage_nlp import detect_red_flags as detect_model_red_flags
+from app.ml.triage_nlp import (
+    detect_red_flags as detect_model_red_flags,
+    route_by_keywords,
+)
 
 logger = logging.getLogger("clinic_backend")
+
+# Định tuyến theo từ khóa cơ quan là quy tắc tất định, không phải xác suất bệnh.
+# Độ tin cậy dưới đây phản ánh độ chắc chắn của quy tắc định tuyến.
+KEYWORD_ROUTE_CONFIDENCE = {
+    "organ_trauma": 0.95,
+    "trauma_or_acute_abdomen": 0.90,
+    "organ_keyword": 0.85,
+}
+
+# Các từ khóa chấn thương/bụng cấp dùng chung một nhóm Ngoại; chỉ các ca có
+# dấu hiệu bụng cấp mới được gợi ý bệnh Ngoại tương ứng.
+ACUTE_ABDOMEN_TERMS = ("bụng", "hố chậu")
+
+SPECIALTY_ALIASES = {
+    # Tên khoa trong CSDL seed_5_departments là "Khoa Răng";
+    # model dùng tên đầy đủ "Răng Hàm Mặt".
+    "Răng Hàm Mặt": "Răng",
+}
 
 # Cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
 BUILT_IN_EMERGENCY = [
@@ -63,6 +84,28 @@ NEGATION_PAIRS = {
 }
 ADVERSATIVE_CONJUNCTIONS = {"nhưng", "nhung", "mà", "ma", "chứ", "chu", "song"}
 NEGATION_TRIGGERS = {"không", "khong", "chưa", "chua", "chẳng", "chang", "hết", "het", "đỡ", "do"}
+
+
+def _keyword_route_reason(route: dict, confidence: float) -> str:
+    """Diễn giải quy tắc định tuyến bằng ngôn ngữ an toàn (không chẩn đoán)."""
+    keywords = ", ".join(route["keywords"][:4])
+    if route["rule"] == "trauma_or_acute_abdomen":
+        has_abdominal_sign = any(
+            term in " ".join(route["keywords"]).lower() for term in ACUTE_ABDOMEN_TERMS
+        )
+        if has_abdominal_sign:
+            focus = f"dấu hiệu bụng cấp ({keywords})"
+        else:
+            focus = f"dấu hiệu chấn thương ({keywords})"
+        return (
+            f"[Định tuyến theo từ khóa: {confidence:.0%}] Phát hiện {focus}. "
+            "Chuyển khoa Ngoại để bác sĩ đánh giá trực tiếp; không phải chẩn đoán."
+        )
+    return (
+        f"[Định tuyến theo từ khóa: {confidence:.0%}] Phát hiện triệu chứng "
+        f"định hướng rõ tới {route['specialty']} ({keywords}). "
+        "Cần bác sĩ khám lâm sàng xác nhận; không phải chẩn đoán."
+    )
 
 
 class AIService:
@@ -217,18 +260,58 @@ class AIService:
 
         scored_specialties = model_result["specialties"]
         disease_predictions = model_result["diseases"]
+        disease_by_specialty = model_result.get("disease_by_specialty") or {}
         recognized_symptoms = list(dict.fromkeys(model_result["recognized_symptoms"]))
+        keyword_route = route_by_keywords(raw_text)
         suggestions: List[SpecialtySuggestion] = []
         default_assigned = False
         needs_more_information = False
 
-        # 3. CHỐT CHẶN 3: chỉ định tuyến khi >= AI_CONFIDENCE_THRESHOLD (mặc định
-        # 40% cho model 5 khoa) và có ít nhất 2 dấu hiệu lâm sàng được NLP nhận
-        # diện. Nếu không, tiếp nhận Nội tổng quát và yêu cầu bổ sung vị trí,
-        # thời gian, mức độ hoặc dấu hiệu đi kèm.
+        # 3. CHỐT CHẶN 3: ưu tiên định tuyến theo từ khóa cơ quan rõ ràng. Chỉ
+        # khi không có từ khóa mới dùng ngưỡng AI_CONFIDENCE_THRESHOLD (mặc định
+        # 40% cho model 5 khoa) + tối thiểu 2 dấu hiệu lâm sàng. Nếu không,
+        # tiếp nhận Nội tổng quát và yêu cầu bổ sung thông tin.
         top_confidence = scored_specialties[0]["probability"] if scored_specialties else 0.0
         insufficient_evidence = model_result["clinical_match_count"] < 2
-        if model_failed or top_confidence < settings.AI_CONFIDENCE_THRESHOLD or insufficient_evidence:
+        below_threshold = (
+            model_failed
+            or top_confidence < settings.AI_CONFIDENCE_THRESHOLD
+            or insufficient_evidence
+        )
+
+        if keyword_route:
+            # Từ khóa cơ quan/chấn thương rõ ràng thắng ngưỡng model: người bệnh
+            # nói "đau răng" không được chuyển Nội tổng quát chỉ vì model chưa
+            # đủ tự tin. Quy tắc đã loại phủ định và trường hợp đa cơ quan.
+            specialty_name = SPECIALTY_ALIASES.get(
+                keyword_route["specialty"], keyword_route["specialty"]
+            )
+            confidence = KEYWORD_ROUTE_CONFIDENCE.get(keyword_route["rule"], 0.80)
+            muc_do = "cao" if confidence >= 0.75 else "trung_binh"
+            suggestions.append(
+                await self._build_specialty_suggestion(
+                    specialty_name,
+                    confidence,
+                    _keyword_route_reason(keyword_route, confidence),
+                    db,
+                    muc_do=muc_do,
+                )
+            )
+            # Chỉ trả bệnh trong đúng khoa đã định tuyến. Với chấn thương chung,
+            # dataset chưa có nhóm bệnh chấn thương/chỉnh hình nên không gợi ý
+            # tên bệnh không liên quan.
+            keywords_text = " ".join(keyword_route["keywords"]).lower()
+            pure_trauma = keyword_route["rule"] == "trauma_or_acute_abdomen" and not any(
+                term in keywords_text for term in ACUTE_ABDOMEN_TERMS
+            )
+            scoped_diseases = disease_by_specialty.get(
+                keyword_route["specialty"], []
+            )
+            if pure_trauma:
+                disease_predictions = []
+            elif scoped_diseases:
+                disease_predictions = scoped_diseases
+        elif below_threshold:
             default_assigned = True
             needs_more_information = True
             confidence = top_confidence
@@ -249,18 +332,13 @@ class AIService:
                 )
             )
         else:
-            specialty_aliases = {
-                # Tên khoa trong CSDL seed_5_departments là "Khoa Răng";
-                # model dùng tên đầy đủ "Răng Hàm Mặt".
-                "Răng Hàm Mặt": "Răng",
-            }
             top_diseases = disease_predictions[:3]
             disease_context = ", ".join(
                 f"{item['ten_benh']} ({item['xac_suat']:.0%})" for item in top_diseases
             )
             # Khoa đầu tiên phải đạt ngưỡng cấu hình; khoa thứ hai chỉ trả về nếu còn >= 20%.
             for index, item in enumerate(scored_specialties[:2]):
-                spec_name = specialty_aliases.get(item["specialty"], item["specialty"])
+                spec_name = SPECIALTY_ALIASES.get(item["specialty"], item["specialty"])
                 conf = item["probability"]
                 if index > 0 and conf < 0.20:
                     continue

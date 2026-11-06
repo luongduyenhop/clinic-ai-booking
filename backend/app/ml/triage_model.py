@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from app.ml.triage_nlp import detect_red_flags, extract_features
+from app.ml.triage_nlp import detect_red_flags, extract_features, route_by_keywords
 
 logger = logging.getLogger("clinic_backend")
 
@@ -88,10 +88,28 @@ class AITriageModel:
         # Model v2.1 chỉ định tuyến 5 chuyên khoa người lớn, không còn lớp "Nhi";
         # pediatric_evidence vẫn được trả về để tương thích hợp đồng API và hậu kiểm.
         specialty_scores = {specialty: 0.0 for specialty in self.specialties}
+        disease_by_specialty: dict[str, list[dict[str, Any]]] = {}
         for index, probability in enumerate(probabilities):
-            info = self.disease_lookup.get(str(self.model.classes_[index]))
+            key = str(self.model.classes_[index])
+            info = self.disease_lookup.get(key)
             if info and info.get("specialty") in specialty_scores:
-                specialty_scores[info["specialty"]] += float(probability)
+                specialty = info["specialty"]
+                specialty_scores[specialty] += float(probability)
+                disease_by_specialty.setdefault(specialty, []).append(
+                    {
+                        "ma_benh": key,
+                        "ten_benh": info["disease_name_vi"],
+                        "chuyen_khoa": specialty,
+                        "xac_suat": float(probability),
+                    }
+                )
+
+        disease_by_specialty = {
+            specialty: sorted(
+                items, key=lambda item: item["xac_suat"], reverse=True
+            )[:3]
+            for specialty, items in disease_by_specialty.items()
+        }
 
         specialty_predictions = sorted(
             (
@@ -120,6 +138,8 @@ class AITriageModel:
         return {
             "specialties": specialty_predictions,
             "diseases": disease_predictions,
+            "disease_by_specialty": disease_by_specialty,
+            "keyword_route": route_by_keywords(text),
             "recognized_symptoms": [
                 label
                 for _feature, label, method, _score in extraction["detections"]

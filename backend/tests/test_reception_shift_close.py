@@ -11,11 +11,6 @@ from app.schemas.queue import (
 
 @pytest.mark.asyncio
 async def test_get_shift_pre_close_audit_service(db_session):
-    """
-    Kiểm thử service quét đối soát trước khi đóng ca trực:
-    - Đảm bảo trả về đúng cấu trúc PreCloseShiftAuditResponse
-    - Có cảnh báo tổng quan và danh sách chi tiết
-    """
     today = clinic_now().date()
     audit_res = await queue_service.get_shift_pre_close_audit(
         ca_kham="sang",
@@ -37,15 +32,9 @@ async def test_get_shift_pre_close_audit_service(db_session):
 
 @pytest.mark.asyncio
 async def test_api_reception_shift_close_endpoints(api_client, booking, db_session):
-    """
-    Kiểm thử 2 HTTP Endpoints:
-    1. GET /api/v1/reception/shift/pre-close-audit?ca_kham=sang
-    2. POST /api/v1/reception/shift/close (Bàn giao ca sáng sang ca chiều)
-    """
     token_admin = booking.tokens["admin"]
     today_str = clinic_now().date().isoformat()
 
-    # 1. Gọi Pre-close audit
     resp_audit = await api_client.get(
         f"/api/v1/reception/shift/pre-close-audit?ca_kham=sang&query_date={today_str}",
         headers=token_admin
@@ -57,7 +46,6 @@ async def test_api_reception_shift_close_endpoints(api_client, booking, db_sessi
     assert "chi_tiet" in data_audit["data"]
     assert "de_xuat_hanh_dong" in data_audit["data"]
 
-    # 2. Thực hiện Đóng ca trực
     close_payload = {
         "ca_kham": "sang",
         "ngay": today_str,
@@ -77,4 +65,26 @@ async def test_api_reception_shift_close_endpoints(api_client, booking, db_sessi
     assert "so_ve_chuyen_ca_chieu" in data_close["data"]
     assert "nguoi_dong_ca" in data_close["data"]
     assert data_close["data"]["nguoi_dong_ca"] is not None
+
+
+@pytest.mark.asyncio
+async def test_api_reception_rbac_and_time_validation(api_client, booking, db_session):
+    token_patient = booking.tokens["bn_a"]
+    token_admin = booking.tokens["admin"]
+
+    resp_patient = await api_client.post(
+        "/api/v1/reception/shift/close",
+        json={"ca_kham": "sang", "xu_ly_cho_kham": "CHUYEN_CA_TIEP_THEO"},
+        headers=token_patient
+    )
+    assert resp_patient.status_code == 403
+
+    future_date = date(2099, 1, 1).isoformat()
+    resp_future = await api_client.post(
+        "/api/v1/reception/shift/close",
+        json={"ca_kham": "sang", "ngay": future_date, "xu_ly_cho_kham": "CHUYEN_CA_TIEP_THEO"},
+        headers=token_admin
+    )
+    assert resp_future.status_code == 400
+    assert "tương lai" in resp_future.json()["message"]
 

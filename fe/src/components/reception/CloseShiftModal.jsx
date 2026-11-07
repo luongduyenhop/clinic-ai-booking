@@ -39,20 +39,17 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
         (state) => state.reception
     )
 
-    // Xác định ca mặc định dựa theo thời gian thực (trước 12:30 -> ca sáng, sau 12:30 -> ca chiều)
     const currentHour = dayjs().hour()
     const currentMinute = dayjs().minute()
     const isMorningTime = currentHour < 12 || (currentHour === 12 && currentMinute <= 30)
     const [shiftType, setShiftType] = useState(() => (isMorningTime ? 'sang' : 'chieu'))
     const [shiftDate, setShiftDate] = useState(() => dayjs().format('YYYY-MM-DD'))
 
-    // Form fields
     const [actionType, setActionType] = useState('CHUYEN_CA_TIEP_THEO')
     const [autoNoShow, setAutoNoShow] = useState(true)
     const [handoverNote, setHandoverNote] = useState('')
     const [closeResult, setCloseResult] = useState(null)
 
-    // Tự động load dữ liệu Pre-close Audit khi mở Modal hoặc đổi ca/ngày
     useEffect(() => {
         if (open) {
             setCloseResult(null)
@@ -65,7 +62,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
         }
     }, [open, shiftType, shiftDate, dispatch])
 
-    // Cập nhật phương án và ghi chú mặc định theo gợi ý từ Backend
     useEffect(() => {
         if (shiftAuditData?.de_xuat_hanh_dong) {
             const deXuat = shiftAuditData.de_xuat_hanh_dong
@@ -99,7 +95,7 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
             xu_ly_cho_kham: actionType,
             tu_dong_chot_no_show: autoNoShow,
             ghi_chu_ban_giao: handoverNote?.trim() || undefined,
-            nguoi_nhan_ban_giao_id: null, // Gán null theo phân công lịch trực hệ thống
+            nguoi_nhan_ban_giao_id: null, 
         }
 
         try {
@@ -109,14 +105,12 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
             dispatch(fetchShiftDashboardAsync())
             if (onSuccess) onSuccess(res)
         } catch {
-            // Lỗi đã được BaseService thông báo
         }
     }
 
     const canhBao = shiftAuditData?.canh_bao || {}
     const chiTiet = shiftAuditData?.chi_tiet || {}
 
-    // Bảng Chờ khám
     const choKhamColumns = [
         {
             title: 'Mã vé / STT',
@@ -162,7 +156,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
         },
     ]
 
-    // Bảng Đang khám
     const dangKhamColumns = [
         {
             title: 'Mã vé',
@@ -240,7 +233,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                 />
             ) : (
                 <div className="space-y-4 pt-2">
-                    {/* Thanh chọn ca trực và ngày đối soát */}
                     <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-slate-600">Ca trực cần đóng:</span>
@@ -279,8 +271,7 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                         </div>
                     ) : (
                         <>
-                            {/* 6 Thẻ KPI Cảnh Báo Đối Soát Tổng Quan */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-center">
                                 <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
                                     <div className="text-[11px] text-emerald-800 font-medium">Đang khám</div>
                                     <div className="text-lg font-bold text-emerald-700 font-mono">
@@ -320,23 +311,8 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                     </div>
                                     <div className="text-[9px] text-sky-600 truncate">Đang chờ slot</div>
                                 </div>
-
-                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                                    <div className="text-[11px] text-slate-700 font-medium truncate">Thu ngân</div>
-                                    <div className="text-xs font-bold text-slate-800 mt-1 truncate">
-                                        {canhBao.thu_ngan_da_khoa_so ? (
-                                            <Tag color="success" className="mr-0 text-[10px]">Đã khóa sổ</Tag>
-                                        ) : (
-                                            <Tag color="warning" className="mr-0 text-[10px]">Chưa khóa</Tag>
-                                        )}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                        {(canhBao.tien_mat_da_thu || 0).toLocaleString('vi-VN')}đ
-                                    </div>
-                                </div>
                             </div>
 
-                            {/* Thông báo nhắc nhở bảo toàn ca đang khám */}
                             {canhBao.so_dang_kham > 0 && (
                                 <Alert
                                     type="info"
@@ -347,7 +323,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                 />
                             )}
 
-                            {/* Danh sách việc tồn chi tiết */}
                             <div className="border border-slate-200 rounded-xl overflow-hidden">
                                 <Tabs
                                     defaultActiveKey="waiting"
@@ -424,51 +399,10 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                                 </div>
                                             ),
                                         },
-                                        {
-                                            key: 'cashier',
-                                            label: 'Đối chiếu Thu ngân',
-                                            children: (
-                                                <div className="p-3 bg-slate-50/70 rounded-lg text-xs space-y-1.5">
-                                                    {chiTiet.doi_chieu_thu_ngan ? (
-                                                        <>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Trạng thái khóa sổ két:</span>
-                                                                <span className="font-semibold">
-                                                                    {chiTiet.doi_chieu_thu_ngan.da_khoa_so ? (
-                                                                        <Tag color="success">Đã khóa sổ ({chiTiet.doi_chieu_thu_ngan.ma_khoa_so || 'N/A'})</Tag>
-                                                                    ) : (
-                                                                        <Tag color="error">Chưa chốt ca thu ngân</Tag>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Thu ngân chốt:</span>
-                                                                <span className="font-medium text-slate-800">{chiTiet.doi_chieu_thu_ngan.thu_ngan_chot || 'N/A'}</span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Tổng tiền mặt:</span>
-                                                                <span className="font-bold text-slate-800 font-mono">
-                                                                    {(chiTiet.doi_chieu_thu_ngan.tong_tien_mat || 0).toLocaleString('vi-VN')} đ
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between">
-                                                                <span className="text-slate-500">Tổng chuyển khoản / QR:</span>
-                                                                <span className="font-bold text-sky-700 font-mono">
-                                                                    {(chiTiet.doi_chieu_thu_ngan.tong_chuyen_khoan || 0).toLocaleString('vi-VN')} đ
-                                                                </span>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-slate-400">Chưa có thông tin đối chiếu từ quầy thu ngân</span>
-                                                    )}
-                                                </div>
-                                            ),
-                                        },
                                     ]}
                                 />
                             </div>
 
-                            {/* Cấu hình Phương Án Đóng Ca & Bàn Giao */}
                             <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 space-y-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -512,7 +446,6 @@ export default function CloseShiftModal({ open, onCancel, onSuccess }) {
                                 </div>
                             </div>
 
-                            {/* Nút hành động */}
                             <div className="flex justify-end gap-2 pt-2">
                                 <Button onClick={onCancel} disabled={closeShiftSubmitting}>
                                     Hủy bỏ

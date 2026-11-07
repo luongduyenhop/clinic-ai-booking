@@ -749,6 +749,30 @@ export const rebalanceQueueAsync = createAsyncThunk(
     }
 )
 
+export const fetchAffectedPatientsAsync = createAsyncThunk(
+    'reception/fetchAffectedPatients',
+    async (incidentId, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.getIncidentAffectedPatients(incidentId)
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải danh sách bệnh nhân bị ảnh hưởng'))
+        }
+    }
+)
+
+export const cancelIncidentTicketsAsync = createAsyncThunk(
+    'reception/cancelIncidentTickets',
+    async (payload, { rejectWithValue }) => {
+        try {
+            const res = await receptionService.cancelIncidentTickets(payload)
+            return unwrapApi(res)
+        } catch (e) {
+            return rejectWithValue(pickErrorMessage(e, 'Hủy vé sự cố thất bại'))
+        }
+    }
+)
+
 export const processNoShowsAsync = createAsyncThunk(
     'reception/processNoShows',
     async ({ queryDate, caKham } = {}, { dispatch, rejectWithValue }) => {

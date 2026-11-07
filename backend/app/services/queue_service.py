@@ -4253,6 +4253,15 @@ class QueueService:
         target_date = payload.ngay or now.date()
         target_ca = payload.ca_kham.lower().strip()
 
+        if target_date > now.date():
+            raise BadRequestException("Không thể đóng ca trực cho ngày trong tương lai!")
+
+        if target_date == now.date() and current_user.vai_tro != VaiTroEnum.ADMIN.value:
+            if target_ca == "sang" and now.time() < time(11, 0):
+                raise BadRequestException("Chưa đến thời điểm đóng ca sáng! Ca sáng chỉ được đóng từ sau 11:00.")
+            if target_ca == "chieu" and now.time() < time(16, 30):
+                raise BadRequestException("Chưa đến thời điểm đóng ca chiều! Ca chiều chỉ được đóng từ sau 16:30.")
+
         stmt_tickets = (
             select(HangDoiKham)
             .where(
@@ -4293,6 +4302,30 @@ class QueueService:
                     f"Lý do: {payload.ghi_chu_ban_giao or 'Hết ca trực/Hết giờ làm việc phòng khám'}"
                 )
                 so_dong += 1
+
+        stmt_waitlist = (
+            select(DanhSachCho)
+            .where(
+                DanhSachCho.ngay_mong_muon == target_date,
+                DanhSachCho.ca_mong_muon == target_ca,
+                DanhSachCho.trang_thai.in_([
+                    TrangThaiWaitlistEnum.DANG_CHO.value,
+                    TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+                ])
+            )
+            .with_for_update()
+        )
+        pending_waitlists = (await db.execute(stmt_waitlist)).scalars().all()
+        if payload.xu_ly_cho_kham == "CHUYEN_CA_TIEP_THEO":
+            for wl in pending_waitlists:
+                wl.ca_mong_muon = "chieu"
+                note_wl = f"Bàn giao chuyển tiếp sang ca chiều: {payload.ghi_chu_ban_giao or 'Chờ tiếp ca chiều'}"
+                wl.trieu_chung = f"{wl.trieu_chung or ''} | {note_wl}".strip(" | ")
+        else:
+            for wl in pending_waitlists:
+                wl.trang_thai = TrangThaiWaitlistEnum.DA_HUY.value
+                note_wl = f"Đóng ca trực kết thúc ngày: {payload.ghi_chu_ban_giao or 'Hết ca trực'}"
+                wl.trieu_chung = f"{wl.trieu_chung or ''} | {note_wl}".strip(" | ")
 
         so_no_show = 0
         if payload.tu_dong_chot_no_show:

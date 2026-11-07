@@ -13,7 +13,6 @@ import {
     CalendarCheck,
     Users,
     Stethoscope,
-    Receipt,
     WarningCircle,
     ChartBar,
 } from '../common/ClinicIcon'
@@ -67,11 +66,6 @@ export default function ReceptionSidebar() {
                     to: '/reception/schedule',
                     label: 'Lịch trực & Nguồn lực',
                     icon: Stethoscope,
-                },
-                {
-                    to: '/reception/administration',
-                    label: 'Thủ tục & Viện phí',
-                    icon: Receipt,
                 },
             ],
         },

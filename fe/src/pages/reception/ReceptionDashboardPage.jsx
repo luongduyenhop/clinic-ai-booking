@@ -244,9 +244,6 @@ export default function ReceptionDashboardPage() {
                         <div className="font-display text-2xl font-extrabold text-sky-600 mt-1">
                             {inConsultationCount}
                         </div>
-                        <Link to="/reception/queue" className="text-[11px] font-bold text-sky-600 hover:underline mt-1 inline-block">
-                            Chi tiết &rarr;
-                        </Link>
                     </div>
                     <div className="w-11 h-11 rounded-full bg-sky-50 text-sky-600 font-black flex items-center justify-center text-xs border border-sky-200 shrink-0">
                         ĐK
@@ -259,9 +256,6 @@ export default function ReceptionDashboardPage() {
                         <div className="font-display text-2xl font-extrabold text-emerald-600 mt-1">
                             {completedCount}
                         </div>
-                        <Link to="/reception/queue" className="text-[11px] font-bold text-emerald-600 hover:underline mt-1 inline-block">
-                            Chi tiết &rarr;
-                        </Link>
                     </div>
                     <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 font-black flex items-center justify-center text-xs border border-emerald-200 shrink-0">
                         KTK
@@ -274,9 +268,6 @@ export default function ReceptionDashboardPage() {
                         <div className="font-display text-2xl font-extrabold text-rose-600 mt-1">
                             {lateOrNoShowCount}
                         </div>
-                        <Link to="/reception/tasks" className="text-[11px] font-bold text-rose-600 hover:underline mt-1 inline-block">
-                            Chi tiết &rarr;
-                        </Link>
                     </div>
                     <div className="w-11 h-11 rounded-full bg-rose-50 text-rose-600 font-black flex items-center justify-center text-xs border border-rose-200 shrink-0">
                         VM

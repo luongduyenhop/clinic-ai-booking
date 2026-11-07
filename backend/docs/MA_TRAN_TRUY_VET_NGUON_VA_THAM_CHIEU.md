@@ -185,8 +185,8 @@ flowchart TD
     
     G --> H{CHỐT CHẶN 3:\nĐánh giá 3 tầng độ tin cậy}
     H -- "Do_tin_cay >= 75%" --> I["Tầng 1 (Cao):\nGợi ý chuyên khoa ưu tiên + DS Bác sĩ"]
-    H -- "60% <= Do_tin_cay < 75%" --> J["Tầng 2 (Trung bình):\nGợi ý tham khảo + Khuyến nghị BS hội chẩn"]
-    H -- "Do_tin_cay < 60% hoặc Không rõ" --> K["Tầng 3 (Thấp):\nFallback tự động về 'Nội tổng quát'"]
+    H -- "Ngưỡng <= Do_tin_cay < 75%" --> J["Tầng 2 (Trung bình):\nGợi ý tham khảo + Khuyến nghị BS hội chẩn"]
+    H -- "Do_tin_cay < Ngưỡng hoặc Không rõ" --> K["Tầng 3 (Thấp):\nFallback tự động về 'Nội tổng quát'"]
     
     I --> L[Lưu vết suy luận CSDL PhanTichAI]
     J --> L
@@ -210,7 +210,7 @@ flowchart TD
 | **Nhóm A: Dấu hiệu Cờ đỏ (Red Flags)** | 10 | Kiểm tra khả năng phát hiện cấp cứu (Tim mạch, Hô hấp, Đột quỵ, Xuất huyết). | `has_emergency=True`, chặn đặt lịch, hiện số 115 và trích dẫn văn bản BYT. |
 | **Nhóm B: Phủ định Triệu chứng (Negation Test)** | 10 | Bệnh nhân nêu từ khóa cấp cứu nhưng có từ phủ định đi kèm ("không đau ngực", "không nôn ra máu"). | `has_emergency=False`, không báo động giả, tiếp tục phân luồng bình thường. |
 | **Nhóm C: Phân luồng Độ tin cậy cao ($\ge 75\%$)** | 20 | Mô tả đặc hiệu rõ ràng cho 5 chuyên khoa: Tim mạch (4), Hô hấp (4), Tiêu hóa (4), Thần kinh (4), Tai-Mũi-Họng (4). | `do_tin_cay >= 0.75`, `muc_do_tin_cay="cao"`, đúng mã chuyên khoa tương ứng. |
-| **Nhóm D: Mô tả Mơ hồ / Fallback an toàn (< 60%)** | 10 | Mô tả chung chung: "mệt mỏi người yếu", "khó chịu trong người", "sụt cân không rõ nguyên nhân". | `default_assigned=True`, `muc_do_tin_cay="thap"`, gợi ý về **Nội tổng quát**. |
+| **Nhóm D: Mô tả Mơ hồ / Fallback an toàn (dưới ngưỡng định tuyến)** | 10 | Mô tả chung chung: "mệt mỏi người yếu", "khó chịu trong người", "sụt cân không rõ nguyên nhân". | `default_assigned=True`, `muc_do_tin_cay="thap"`, gợi ý về **Nội tổng quát**. |
 
 ---
 

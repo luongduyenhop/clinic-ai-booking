@@ -21,11 +21,25 @@ from app.ml.triage_model import (
     MODEL_VERSION,
     get_ai_triage_model,
 )
-from app.ml.triage_nlp import detect_red_flags as detect_model_red_flags
+from app.ml.triage_nlp import (
+    detect_red_flags as detect_model_red_flags,
+    route_by_keywords,
+)
 
 logger = logging.getLogger("clinic_backend")
 
-# Cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
+KEYWORD_ROUTE_CONFIDENCE = {
+    "organ_trauma": 0.95,
+    "trauma_or_acute_abdomen": 0.90,
+    "organ_keyword": 0.85,
+}
+
+ACUTE_ABDOMEN_TERMS = ("bụng", "hố chậu")
+
+SPECIALTY_ALIASES = {
+    "Răng Hàm Mặt": "Răng",
+}
+
 BUILT_IN_EMERGENCY = [
     "đau ngực dữ dội", "khó thở cấp", "ngất xỉu", "hôn mê",
     "co giật", "liệt nửa người", "sốt co giật", "nôn ra máu",
@@ -50,7 +64,6 @@ def _remove_diacritics(text: str) -> str:
 
 @lru_cache(maxsize=1024)
 def _keyword_tokens(keyword: str) -> Tuple[Tuple[str, str], ...]:
-    """Tách từ khóa thành từng tiếng kèm dạng bỏ dấu; cache vì từ khóa lặp lại ở mọi request"""
     return tuple((word, _remove_diacritics(word)) for word in _normalize_vietnamese(keyword).split())
 
 
@@ -65,25 +78,39 @@ ADVERSATIVE_CONJUNCTIONS = {"nhưng", "nhung", "mà", "ma", "chứ", "chu", "son
 NEGATION_TRIGGERS = {"không", "khong", "chưa", "chua", "chẳng", "chang", "hết", "het", "đỡ", "do"}
 
 
+def _keyword_route_reason(route: dict, confidence: float) -> str:
+    keywords = ", ".join(route["keywords"][:4])
+    if route["rule"] == "trauma_or_acute_abdomen":
+        has_abdominal_sign = any(
+            term in " ".join(route["keywords"]).lower() for term in ACUTE_ABDOMEN_TERMS
+        )
+        if has_abdominal_sign:
+            focus = f"dấu hiệu bụng cấp ({keywords})"
+        else:
+            focus = f"dấu hiệu chấn thương ({keywords})"
+        return (
+            f"[Định tuyến theo từ khóa: {confidence:.0%}] Phát hiện {focus}. "
+            "Chuyển khoa Ngoại để bác sĩ đánh giá trực tiếp; không phải chẩn đoán."
+        )
+    return (
+        f"[Định tuyến theo từ khóa: {confidence:.0%}] Phát hiện triệu chứng "
+        f"định hướng rõ tới {route['specialty']} ({keywords}). "
+        "Cần bác sĩ khám lâm sàng xác nhận; không phải chẩn đoán."
+    )
+
+
 class AIService:
-    """Tầng Control xử lý Trí tuệ nhân tạo phân tích triệu chứng và Bộ lọc Red Flags y tế (Package C)"""
 
     def normalize_vietnamese(self, text: str) -> str:
-        """Chuẩn hóa chuỗi văn bản tiếng Việt sang dạng Unicode dựng sẵn NFC và chữ thường"""
         return _normalize_vietnamese(text)
 
     def remove_diacritics(self, text: str) -> str:
-        """Bỏ dấu tiếng Việt ('đau ngực' -> 'dau nguc') để nhận diện cả khi người bệnh gõ không dấu"""
         return _remove_diacritics(text)
 
     def tokenize(self, text_normalized: str) -> List[Tuple[str, str]]:
-        """Tách văn bản đã chuẩn hóa thành từng tiếng kèm dạng bỏ dấu; làm 1 lần mỗi request rồi dùng cho cả 2 chốt chặn"""
         return [(word, _remove_diacritics(word)) for word in text_normalized.split()]
 
     def contains_phrase(self, tokens: Union[str, List[Tuple[str, str]]], keyword: str, check_negation: bool = False) -> bool:
-        """So khớp cụm từ theo nguyên tiếng (hỗ trợ cả str lẫn danh sách tokens).
-        Nếu check_negation=True: Bỏ qua các lần xuất hiện bị phủ định ('không khó thở', 'chưa từng co giật').
-        Chỉ trả về True nếu có ít nhất 1 lần xuất hiện mang tính khẳng định."""
         if isinstance(tokens, str):
             tokens = self.tokenize(tokens)
 
@@ -97,32 +124,27 @@ class AIService:
                 for (word, plain), (kw, kw_plain) in zip(tokens[start:start + len(phrase)], phrase)
             ):
                 if check_negation:
-                    # Thuật toán cửa sổ quét ngược NegEx (Lookback window tối đa 3 từ)
                     is_neg = False
                     for offset in range(1, min(start + 1, 4)):
                         w, p = tokens[start - offset]
                         if w in ADVERSATIVE_CONJUNCTIONS or p in ADVERSATIVE_CONJUNCTIONS:
-                            # Gặp liên từ đối lập ("nhưng đau ngực") -> ngắt phạm vi phủ định của vế trước
                             break
                         if w in NEGATION_TRIGGERS or p in NEGATION_TRIGGERS:
                             is_neg = True
                             break
 
                     if not is_neg:
-                        return True  # Tìm thấy ít nhất 1 lần xuất hiện khẳng định
+                        return True
                 else:
                     return True
         return False
 
     def contains_red_flag(self, text_normalized: str, keyword: str) -> bool:
-        """Kiểm tra 1 cụm từ cấp cứu trong văn bản đã chuẩn hóa (có kiểm tra phủ định)"""
         return self.contains_phrase(self.tokenize(text_normalized), keyword, check_negation=True)
 
     async def scan_red_flags(
         self, tokens: List[Tuple[str, str]], db: AsyncSession
     ) -> Tuple[bool, str, Optional[str]]:
-        """Chốt chặn an toàn số 1: Quét từ điển dấu hiệu cấp cứu nguy hiểm tính mạng (có Negation Handling).
-        Trả về (có cấp cứu, hướng dẫn xử trí kèm căn cứ BYT, từ khóa đã bắt trúng) để ghi vết phục vụ hậu kiểm"""
         stmt = select(TuKhoaCapCuu).where(TuKhoaCapCuu.is_active.is_(True))
         red_flag_rules = (await db.execute(stmt)).scalars().all()
 
@@ -133,7 +155,6 @@ class AIService:
                 logger.critical(f"🚨 [RED FLAG DETECTED] Bắt trúng từ khóa nguy hiểm: '{rule.tu_khoa}' | Căn cứ: {rule.van_ban_byt_ref}")
                 return True, alert_text, rule.tu_khoa
 
-        # Kiểm tra thêm một số cụm từ cấp cứu kinh điển đề phòng DB chưa seed đủ
         for emg in BUILT_IN_EMERGENCY:
             if self.contains_phrase(tokens, emg, check_negation=True):
                 logger.critical(f"🚨 [RED FLAG DETECTED] Bắt trúng từ khóa nguy hiểm (built-in): '{emg}'")
@@ -142,7 +163,6 @@ class AIService:
         return False, "", None
 
     async def _get_patient_id(self, user: Optional[TaiKhoan], db: AsyncSession) -> Optional[int]:
-        """Mã hồ sơ bệnh nhân của người gọi để gắn vào nhật ký suy luận; khách vãng lai/bác sĩ/admin -> None"""
         if not user or user.vai_tro != VaiTroEnum.BENH_NHAN.value:
             return None
         stmt = select(BenhNhan.id).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
@@ -154,14 +174,10 @@ class AIService:
         user: Optional[TaiKhoan] = None,
         db: AsyncSession = None
     ) -> SymptomTriageResponse:
-        """Quy trình 3 chốt chặn suy luận phân loại chuyên khoa và gợi ý bác sĩ"""
         raw_text = payload.trieu_chung
-        # Chuẩn hóa + tách tiếng 1 lần, dùng chung cho chốt chặn 1 và 2 (cùng nhận diện được văn bản gõ không dấu)
         tokens = self.tokenize(self.normalize_vietnamese(raw_text))
         benh_nhan_id = await self._get_patient_id(user, db)
 
-        # 1. CHỐT CHẶN 1: Quét dấu hiệu cấp cứu Red Flags. Chạy trước model để
-        # cảnh báo 115 không phụ thuộc vào độ tin cậy hoặc trạng thái model.
         is_emergency, alert_msg, tu_khoa = await self.scan_red_flags(tokens, db)
         model_red_flags = detect_model_red_flags(raw_text)
         if not is_emergency and model_red_flags:
@@ -173,7 +189,6 @@ class AIService:
                 "gần nhất; không chờ kết quả phân loại chuyên khoa."
             )
         if is_emergency:
-            # Ghi vết nhật ký cấp cứu kèm từ khóa đã bắt trúng để hậu kiểm báo động
             log_ai = PhanTichAI(
                 benh_nhan_id=benh_nhan_id,
                 trieu_chung_nhap=raw_text,
@@ -195,7 +210,6 @@ class AIService:
                 phan_tich_ai_id=log_ai.id,
             )
 
-        # 2. CHỐT CHẶN 2: NLP 450 đặc trưng + RandomForest 100 bệnh/5 khoa.
         model_failed = False
         try:
             def infer():
@@ -217,17 +231,48 @@ class AIService:
 
         scored_specialties = model_result["specialties"]
         disease_predictions = model_result["diseases"]
+        disease_by_specialty = model_result.get("disease_by_specialty") or {}
         recognized_symptoms = list(dict.fromkeys(model_result["recognized_symptoms"]))
+        keyword_route = route_by_keywords(raw_text)
         suggestions: List[SpecialtySuggestion] = []
         default_assigned = False
         needs_more_information = False
 
-        # 3. CHỐT CHẶN 3: chỉ định tuyến khi >= 60% và có ít nhất 2 dấu
-        # hiệu lâm sàng được NLP nhận diện. Nếu không, tiếp nhận Nội tổng quát
-        # và yêu cầu bổ sung vị trí, thời gian, mức độ hoặc dấu hiệu đi kèm.
         top_confidence = scored_specialties[0]["probability"] if scored_specialties else 0.0
         insufficient_evidence = model_result["clinical_match_count"] < 2
-        if model_failed or top_confidence < settings.AI_CONFIDENCE_THRESHOLD or insufficient_evidence:
+        below_threshold = (
+            model_failed
+            or top_confidence < settings.AI_CONFIDENCE_THRESHOLD
+            or insufficient_evidence
+        )
+
+        if keyword_route:
+            specialty_name = SPECIALTY_ALIASES.get(
+                keyword_route["specialty"], keyword_route["specialty"]
+            )
+            confidence = KEYWORD_ROUTE_CONFIDENCE.get(keyword_route["rule"], 0.80)
+            muc_do = "cao" if confidence >= 0.75 else "trung_binh"
+            suggestions.append(
+                await self._build_specialty_suggestion(
+                    specialty_name,
+                    confidence,
+                    _keyword_route_reason(keyword_route, confidence),
+                    db,
+                    muc_do=muc_do,
+                )
+            )
+            keywords_text = " ".join(keyword_route["keywords"]).lower()
+            pure_trauma = keyword_route["rule"] == "trauma_or_acute_abdomen" and not any(
+                term in keywords_text for term in ACUTE_ABDOMEN_TERMS
+            )
+            scoped_diseases = disease_by_specialty.get(
+                keyword_route["specialty"], []
+            )
+            if pure_trauma:
+                disease_predictions = []
+            elif scoped_diseases:
+                disease_predictions = scoped_diseases
+        elif below_threshold:
             default_assigned = True
             needs_more_information = True
             confidence = top_confidence
@@ -248,17 +293,12 @@ class AIService:
                 )
             )
         else:
-            specialty_aliases = {
-                "Ngoại": "Ngoại tổng quát",
-                "Tai Mũi Họng": "Tai - Mũi - Họng",
-            }
             top_diseases = disease_predictions[:3]
             disease_context = ", ".join(
                 f"{item['ten_benh']} ({item['xac_suat']:.0%})" for item in top_diseases
             )
-            # Khoa đầu tiên phải đạt 60%; khoa thứ hai chỉ trả về nếu còn >= 20%.
             for index, item in enumerate(scored_specialties[:2]):
-                spec_name = specialty_aliases.get(item["specialty"], item["specialty"])
+                spec_name = SPECIALTY_ALIASES.get(item["specialty"], item["specialty"])
                 conf = item["probability"]
                 if index > 0 and conf < 0.20:
                     continue
@@ -277,7 +317,6 @@ class AIService:
                     await self._build_specialty_suggestion(spec_name, conf, full_reason, db, muc_do=muc_do)
                 )
 
-        # 4. Ghi nhận vết suy luận vào CSDL
         top_suggestion = suggestions[0]
         log_ai = PhanTichAI(
             benh_nhan_id=benh_nhan_id,
@@ -322,8 +361,6 @@ class AIService:
         db: AsyncSession,
         muc_do: Optional[str] = None
     ) -> SpecialtySuggestion:
-        """Helper tìm kiếm chuyên khoa và danh sách bác sĩ tương ứng trong CSDL"""
-        # Nhiều khoa có thể cùng chứa tên gợi ý ('Tim mạch', 'Tim mạch nhi'): ưu tiên khớp đúng tên, sau đó tên ngắn nhất
         stmt_ck = (
             select(ChuyenKhoa)
             .where(ChuyenKhoa.ten_chuyen_khoa.ilike(f"%{specialty_name}%"), ChuyenKhoa.is_active.is_(True))
@@ -337,15 +374,12 @@ class AIService:
         ck = (await db.execute(stmt_ck)).scalars().first()
 
         doctor_briefs = []
-        # None (không phải 0) khi khoa gợi ý chưa có trong CSDL (chưa seed/đổi tên): 0 là ID không tồn tại,
-        # vừa gây lỗi khóa ngoại khi ghi nhật ký vừa khiến frontend lọc/đặt lịch theo khoa ma
         ck_id = None
         display_name = specialty_name
 
         if ck:
             ck_id = ck.id
             display_name = ck.ten_chuyen_khoa
-            # Lấy các bác sĩ của chuyên khoa
             stmt_bs = (
                 select(BacSi, NguoiDung)
                 .join(NguoiDung, BacSi.nguoi_dung_id == NguoiDung.id)

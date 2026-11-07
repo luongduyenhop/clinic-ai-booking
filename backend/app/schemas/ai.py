@@ -12,7 +12,6 @@ class TriageContext(BaseModel):
 
 
 class SymptomTriageRequest(BaseModel):
-    """Yêu cầu phân tích triệu chứng ngôn ngữ tự nhiên (UC-C01)"""
     trieu_chung: str = Field(
         ...,
         min_length=5,
@@ -35,17 +34,15 @@ class SymptomTriageRequest(BaseModel):
 
 
 class SpecialtySuggestion(BaseModel):
-    """Gợi ý chuyên khoa phù hợp kèm độ tin cậy và danh sách bác sĩ"""
     chuyen_khoa_id: Optional[int] = Field(None, description="Mã chuyên khoa, null nếu chuyên khoa gợi ý chưa có trong hệ thống")
     ten_chuyen_khoa: str
     do_tin_cay: float = Field(..., description="Độ tin cậy từ mô hình AI (0.0 - 1.0)")
-    muc_do_tin_cay: Optional[str] = Field(None, description="Mức độ tin cậy: 'cao' (>=75%), 'trung_binh' (60-74%), 'thap' (<60%)")
+    muc_do_tin_cay: Optional[str] = Field(None, description="Mức độ tin cậy: 'cao' (>=75%), 'trung_binh' (đạt ngưỡng định tuyến), 'thap' (dưới ngưỡng, chuyển Nội tổng quát)")
     ly_do_de_xuat: str = Field(..., description="Giải thích căn cứ y khoa tóm tắt")
     danh_sach_bac_si: List[DoctorBriefResponse] = []
 
 
 class DiseasePrediction(BaseModel):
-    """Bệnh có xác suất cao để giải thích kết quả model; không phải chẩn đoán."""
 
     ma_benh: str
     ten_benh: str
@@ -54,11 +51,10 @@ class DiseasePrediction(BaseModel):
 
 
 class SymptomTriageResponse(BaseModel):
-    """Kết quả phân tích từ AI Triage Assistant (UC-C02, UC-C03)"""
     has_emergency: bool = Field(False, description="Cờ cảnh báo đỏ dấu hiệu nguy kịch cấp cứu")
     emergency_alert: Optional[str] = Field(None, description="Nội dung cảnh báo khẩn cấp (nếu có)")
     suggested_specialties: List[SpecialtySuggestion] = []
-    default_assigned: bool = Field(False, description="True nếu tự động gán Nội tổng quát do độ tin cậy thấp < 60%")
+    default_assigned: bool = Field(False, description="True nếu tự động gán Nội tổng quát do độ tin cậy thấp dưới ngưỡng định tuyến")
     needs_more_information: bool = Field(
         False,
         description="True khi mô tả chưa đủ dấu hiệu để model định tuyến an toàn",

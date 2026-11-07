@@ -65,6 +65,29 @@ function detectCellType(val, headerText = '') {
     return 'text'
 }
 
+function getColumnWidth(type, headerText = '') {
+    const text = String(headerText).toLowerCase()
+    if (text.includes('tên') || text.includes('nội dung') || text.includes('mô tả') || text.includes('bệnh nhân')) {
+        return { px: 260, pt: 195 }
+    }
+    if (text.includes('nhóm') || text.includes('chuyên khoa') || text.includes('chẩn đoán') || text.includes('hành động') || text.includes('lý do')) {
+        return { px: 180, pt: 135 }
+    }
+    if (text.includes('mã') || text.includes('stt') || text.includes('ip') || text.includes('đơn vị')) {
+        return { px: 100, pt: 75 }
+    }
+    if (type === 'currency') {
+        return { px: 140, pt: 105 }
+    }
+    if (type === 'date' || text.includes('thời gian') || text.includes('ngày')) {
+        return { px: 150, pt: 112 }
+    }
+    if (text.includes('trạng thái') || text.includes('kết quả') || text.includes('xếp loại')) {
+        return { px: 120, pt: 90 }
+    }
+    return { px: 140, pt: 105 }
+}
+
 function formatCellValue(val, type) {
     if (val === null || val === undefined) return ''
     if (type === 'currency') {
@@ -138,6 +161,11 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
         return detectCellType('', h)
     })
 
+    const columnWidths = headers.map((h, colIdx) => {
+        const type = columnTypes[colIdx] || 'text'
+        return getColumnWidth(type, h)
+    })
+
     let totalAmount = 0
     let hasCurrencyColumn = false
     let currencyColIdx = -1
@@ -192,15 +220,23 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
   .cell-center { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: center; mso-number-format: "\\@"; }
   .cell-number { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: right; mso-number-format: "\\#\\,\\#\\#0"; }
   .cell-currency { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: right; font-weight: bold; color: #047857; mso-number-format: "\\#\\,\\#\\#0\\ \\"₫\\""; }
-  .row-even { background-color: #F8FBFE; }
-  .row-odd { background-color: #FFFFFF; }
-  .summary-row { font-size: 10pt; font-weight: bold; background-color: #E0F2FE; color: #003553; border: 1px solid #7DD3FC; height: 30px; }
+  .cell-bg-even { background-color: #F8FBFE; }
+  .cell-bg-odd { background-color: #FFFFFF; }
+  .cell-summary-title { font-size: 10pt; font-weight: bold; background-color: #E0F2FE; color: #003553; border: 1px solid #7DD3FC; padding: 6px; text-align: left; }
+  .cell-summary-value { font-size: 10pt; font-weight: bold; background-color: #E0F2FE; color: #047857; border: 1px solid #7DD3FC; padding: 6px; text-align: right; mso-number-format: "\\#\\,\\#\\#0\\ \\"₫\\""; }
+  .cell-summary-empty { background-color: #E0F2FE; border: 1px solid #7DD3FC; }
   .sign-title { font-size: 10pt; font-weight: bold; color: #003553; text-align: center; }
   .sign-sub { font-size: 8.5pt; font-style: italic; color: #64748B; text-align: center; }
 </style>
 </head>
 <body>
 <table>
+  <colgroup>
+    ${columnWidths
+        .map((w) => `<col width="${w.px}" style="width: ${w.pt}pt;" />`)
+        .join('\n    ')}
+  </colgroup>
+
   <tr>
     <td colspan="${colCount}" class="clinic-name">${escapeXml(clinicName)}</td>
   </tr>
@@ -213,44 +249,44 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
   </tr>
   <tr>
     <td colspan="${colCount}" class="report-sub">
-      ${subtitle ? escapeXml(subtitle) + ' &bull; ' : ''}
-      Ngày xuất biểu: <strong>${escapeXml(exportTime)}</strong> &bull; 
-      Tổng số dữ liệu: <strong>${rows.length} bản ghi</strong>
+      ${subtitle ? escapeXml(subtitle) + ' &bull; ' : ''}Ngày xuất biểu: <strong>${escapeXml(exportTime)}</strong>
     </td>
   </tr>
   <tr><td colspan="${colCount}"></td></tr>
 
   <tr>
     ${headers
-        .map((h) => `<th class="table-header">${escapeXml(h)}</th>`)
+        .map((h, i) => `<th class="table-header" style="width: ${columnWidths[i]?.pt || 100}pt;">${escapeXml(h)}</th>`)
         .join('')}
   </tr>
 
   ${rows
       .map((row, rIdx) => {
-          const rowClass = rIdx % 2 === 0 ? 'row-even' : 'row-odd'
+          const bgClass = rIdx % 2 === 0 ? 'cell-bg-even' : 'cell-bg-odd'
           const cells = row
               .map((cellVal, cIdx) => {
                   const type = columnTypes[cIdx] || 'text'
                   const styleClass = getCellStyle(type)
                   const display = formatCellValue(cellVal, type)
-                  return `<td class="${styleClass}">${escapeXml(display)}</td>`
+                  return `<td class="${styleClass} ${bgClass}">${escapeXml(display)}</td>`
               })
               .join('')
-          return `<tr class="${rowClass}">${cells}</tr>`
+          return `<tr>${cells}</tr>`
       })
       .join('')}
 
-  <tr class="summary-row">
-    <td colspan="${hasCurrencyColumn && currencyColIdx > 0 ? currencyColIdx : 2}" class="cell-text" style="font-weight:bold; background-color: #E0F2FE;">
+  <tr style="height: 30px;">
+    <td colspan="${hasCurrencyColumn && currencyColIdx > 0 ? currencyColIdx : 2}" class="cell-summary-title">
       TỔNG CỘNG: ${rows.length} BẢN GHI
     </td>
     ${
         hasCurrencyColumn && currencyColIdx > 0
-            ? `<td class="cell-currency" style="background-color: #E0F2FE; font-size: 10pt;">${escapeXml(totalAmount.toLocaleString('vi-VN') + ' ₫')}</td>` +
-              `<td colspan="${colCount - currencyColIdx - 1}" style="background-color: #E0F2FE;"></td>`
+            ? `<td class="cell-summary-value">${escapeXml(totalAmount.toLocaleString('vi-VN') + ' ₫')}</td>` +
+              (colCount - currencyColIdx - 1 > 0
+                  ? `<td colspan="${colCount - currencyColIdx - 1}" class="cell-summary-empty"></td>`
+                  : '')
             : colCount > 2
-            ? `<td colspan="${colCount - 2}" style="background-color: #E0F2FE;"></td>`
+            ? `<td colspan="${colCount - 2}" class="cell-summary-empty"></td>`
             : ''
     }
   </tr>

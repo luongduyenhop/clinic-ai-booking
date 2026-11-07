@@ -46,19 +46,20 @@ export default function CatalogManagementPage() {
         }
         const currentTitle = titleMap[loaiDanhMuc] || 'DANH MỤC DỮ LIỆU CƠ SỞ Y TẾ'
         const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá (VNĐ)', 'Đơn vị tính', 'Trạng thái']
-        const rows = filteredList.map((item) => [
-            item.ma || item.maDichVu || item.maThuoc || item.maBenh || item.maPhong || item.maTinh || '',
-            item.ten || item.tenDichVu || item.tenThuoc || item.tenBenh || item.tenPhong || item.tenTinh || '',
-            item.chuyenKhoa || item.nhom || item.loai || item.tang || item.quanHuyen || '',
-            Number(item.donGia || item.gia || 0),
-            item.donViTinh || item.dvt || 'Lần',
-            item.is_active !== false && item.trangThai !== false ? 'Hoạt động' : 'Tạm dừng',
-        ])
+        const rows = filteredList.map((item) => {
+            const code = item.maDV || item.maThuoc || item.maICD || item.maPhong || item.maTinh || item.ma || item.id || ''
+            const name = item.tenDV || item.tenThuoc || item.tenBenh || item.tenPhong || item.tenTinh || item.noiDung || item.ten || ''
+            const group = item.nhomDV || item.nhomThuoc || item.chuongBenh || item.chuyenKhoa || item.quanHuyen || item.moTa || item.nhom || item.loai || ''
+            const price = Number(item.donGia || item.donGiaMacDinh || item.gia || 0)
+            const unit = item.dvt || item.donViTinh || (activeCatalogKey === 'dichVu' ? 'Lần' : '')
+            const status = item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng'
+            return [code, name, group, price, unit, status]
+        })
         exportToExcel({
             filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xls`,
             sheetName: 'Danh Mục',
             title: currentTitle,
-            subtitle: `Trích xuất từ Phân hệ Quản trị Danh mục Y tế • Tổng số bản ghi: ${rows.length}`,
+            subtitle: `Phân hệ Quản trị Danh mục Y tế • Tổng số: ${rows.length} bản ghi`,
             headers,
             rows,
             signOff: true,
@@ -127,10 +128,10 @@ export default function CatalogManagementPage() {
         if (!exportedServices.length) return
         const headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Thuế VAT (%)', 'Đơn giá sau VAT (VNĐ)', 'Thời gian TH (phút)', 'Số lượt đã làm', 'Doanh thu tích lũy (VNĐ)', 'Trạng thái']
         const rows = exportedServices.map((s) => [
-            s.ma_dich_vu,
-            s.ten_dich_vu,
-            s.nhom_dich_vu || '',
-            s.don_vi_tinh || 'Lần',
+            s.ma_dich_vu || s.maDV || '',
+            s.ten_dich_vu || s.tenDV || s.ten || '',
+            s.nhom_dich_vu || s.nhomDV || '',
+            s.don_vi_tinh || s.dvt || 'Lần',
             Number(s.don_gia) || 0,
             Number(s.vat_percent) || 0,
             Number(s.don_gia_sau_vat) || 0,

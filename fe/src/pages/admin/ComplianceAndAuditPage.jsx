@@ -215,7 +215,7 @@ export default function ComplianceAndAuditPage() {
             ]
         })
         exportToExcel({
-            filename: `danh-sach-don-thuoc-quoc-gia_${new Date().toISOString().slice(0, 10)}.xls`,
+            filename: `danh-sach-don-thuoc-quoc-gia_${new Date().toISOString().slice(0, 10)}.xlsx`,
             sheetName: 'Đơn Thuốc QG',
             title: 'BÁO CÁO LIÊN THÔNG CỔNG ĐƠN THUỐC QUỐC GIA (Bộ Y Tế)',
             subtitle: `Cơ sở: ${configuredClinicName} • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} đơn`,
@@ -225,7 +225,7 @@ export default function ComplianceAndAuditPage() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xls) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xlsx) thành công!`)
     }
 
     const handleSyncAllSignedPrescriptions = async () => {
@@ -383,7 +383,7 @@ export default function ComplianceAndAuditPage() {
                             l.ip || '127.0.0.1',
                         ])
                         exportToExcel({
-                            filename: `ho-so-thanh-tra-y-te-audit_${new Date().toISOString().slice(0, 10)}.xls`,
+                            filename: `ho-so-thanh-tra-y-te-audit_${new Date().toISOString().slice(0, 10)}.xlsx`,
                             sheetName: 'Nhật Ký Kiểm Toán',
                             title: 'HỒ SƠ THANH TRA Y TẾ & NHẬT KÝ KIỂM TOÁN AN TOÀN DỮ LIỆU',
                             subtitle: `Trích xuất phục vụ đoàn thanh tra y tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} bản ghi`,

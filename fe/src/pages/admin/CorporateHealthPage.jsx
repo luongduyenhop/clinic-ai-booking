@@ -418,7 +418,7 @@ export default function CorporateHealthPage() {
         e.ketLuan || 'Đủ sức khỏe làm việc',
     ])
     exportToExcel({
-        filename: `ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}_${new Date().toISOString().slice(0, 10)}.xls`,
+        filename: `ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
         sheetName: 'Kết Quả Khám Đoàn',
         title: 'BÁO CÁO KẾT QUẢ KHÁM SỨC KHỎE ĐỊNH KỲ (THÔNG TƯ 32/2023/TT-BYT)',
         subtitle: `Đơn vị: ${selectedCorp?.tenDoan || selectedCorp?.tenCongTy || 'Doanh nghiệp'} • Hợp đồng: ${selectedCorp?.soHopDong || 'Chưa có'} • Tổng số: ${rows.length} CBNV`,
@@ -428,7 +428,7 @@ export default function CorporateHealthPage() {
         rows,
         signOff: true,
     })
-    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xls) thành công!')
+    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công!')
 }}
                                             className="px-2.5 py-1.5 rounded-lg bg-[#00B5F1] text-white text-xs font-bold hover:bg-[#009bd1] transition flex items-center gap-1"
                                         >

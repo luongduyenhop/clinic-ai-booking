@@ -117,7 +117,7 @@ export default function CatalogManagementPage() {
         ].filter(Boolean).join(' | ')
 
         exportToExcel({
-            filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xls`,
+            filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xlsx`,
             sheetName: 'Bảng Giá Dịch Vụ',
             title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
             subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
@@ -355,7 +355,7 @@ export default function CatalogManagementPage() {
         }
 
         exportToExcel({
-            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xls`,
+            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xlsx`,
             sheetName: 'Danh Mục',
             title,
             subtitle: `Phân hệ Quản trị Danh mục Y tế • Tổng số: ${rows.length} bản ghi`,
@@ -365,7 +365,7 @@ export default function CatalogManagementPage() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xls) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xlsx) thành công!`)
     }
 
     return (

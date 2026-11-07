@@ -1,117 +1,4 @@
-function escapeXml(value) {
-    if (value === null || value === undefined) return ''
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-}
-
-function detectCellType(val, headerText = '') {
-    if (val === null || val === undefined || val === '') return 'text'
-    const str = String(val).trim()
-    const headerLower = String(headerText).toLowerCase()
-
-    if (
-        headerLower.includes('giá') ||
-        headerLower.includes('tiền') ||
-        headerLower.includes('chi phí') ||
-        headerLower.includes('doanh thu') ||
-        headerLower.includes('viện phí') ||
-        headerLower.includes('đơn giá') ||
-        headerLower.includes('lương') ||
-        headerLower.includes('vnđ') ||
-        headerLower.includes('vnd')
-    ) {
-        const num = Number(String(val).replace(/[^\d.-]/g, ''))
-        if (!isNaN(num) && str !== '') return 'currency'
-    }
-
-    if (
-        headerLower.includes('số lượng') ||
-        headerLower.includes('tuổi') ||
-        headerLower.includes('lượt')
-    ) {
-        const num = Number(str)
-        if (!isNaN(num)) return 'number'
-    }
-
-    if (
-        str.startsWith('0') &&
-        str.length > 1 &&
-        /^\d+$/.test(str)
-    ) {
-        return 'text-preserve-zero'
-    }
-
-    if (
-        /^\d{4}-\d{2}-\d{2}/.test(str) ||
-        /^\d{2}\/\d{2}\/\d{4}/.test(str)
-    ) {
-        return 'center'
-    }
-
-    if (
-        headerLower.includes('mã') ||
-        headerLower.includes('stt') ||
-        headerLower.includes('ip') ||
-        headerLower.includes('giới tính') ||
-        headerLower.includes('trạng thái')
-    ) {
-        return 'center'
-    }
-
-    return 'text'
-}
-
-function getColumnWidth(type, headerText = '') {
-    const text = String(headerText).toLowerCase()
-    if (text.includes('tên') || text.includes('nội dung') || text.includes('mô tả') || text.includes('bệnh nhân')) {
-        return { px: 260, pt: 195 }
-    }
-    if (text.includes('nhóm') || text.includes('chuyên khoa') || text.includes('chẩn đoán') || text.includes('chương') || text.includes('hành động') || text.includes('lý do')) {
-        return { px: 180, pt: 135 }
-    }
-    if (text.includes('mã') || text.includes('stt') || text.includes('ip') || text.includes('đơn vị')) {
-        return { px: 100, pt: 75 }
-    }
-    if (type === 'currency') {
-        return { px: 140, pt: 105 }
-    }
-    if (type === 'date' || text.includes('thời gian') || text.includes('ngày')) {
-        return { px: 150, pt: 112 }
-    }
-    if (text.includes('trạng thái') || text.includes('kết quả') || text.includes('xếp loại') || text.includes('truyền nhiễm')) {
-        return { px: 130, pt: 98 }
-    }
-    return { px: 140, pt: 105 }
-}
-
-function formatCellValue(val, type) {
-    if (val === null || val === undefined) return ''
-    if (type === 'currency') {
-        const num = Number(String(val).replace(/[^\d.-]/g, ''))
-        if (!isNaN(num)) {
-            return num.toLocaleString('vi-VN') + ' ₫'
-        }
-    }
-    return String(val)
-}
-
-function getCellStyle(type) {
-    switch (type) {
-        case 'currency':
-            return 'cell-currency'
-        case 'number':
-            return 'cell-number'
-        case 'center':
-        case 'text-preserve-zero':
-            return 'cell-center'
-        default:
-            return 'cell-text'
-    }
-}
+import ExcelJS from 'exceljs'
 
 function getResolvedClinicInfo() {
     try {
@@ -144,7 +31,84 @@ function getResolvedClinicInfo() {
     }
 }
 
-export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) {
+function inferColumnType(headerText, sampleValues = []) {
+    const headerLower = String(headerText || '').toLowerCase()
+
+    if (
+        headerLower.includes('giá') ||
+        headerLower.includes('tiền') ||
+        headerLower.includes('chi phí') ||
+        headerLower.includes('doanh thu') ||
+        headerLower.includes('viện phí') ||
+        headerLower.includes('đơn giá') ||
+        headerLower.includes('lương') ||
+        headerLower.includes('vnđ') ||
+        headerLower.includes('vnd')
+    ) {
+        return 'currency'
+    }
+
+    if (
+        headerLower.includes('số lượng') ||
+        headerLower.includes('tuổi') ||
+        headerLower.includes('thứ tự')
+    ) {
+        return 'number'
+    }
+
+    if (
+        headerLower.includes('ngày') ||
+        headerLower.includes('thời gian')
+    ) {
+        return 'date'
+    }
+
+    if (
+        headerLower.includes('mã') ||
+        headerLower.includes('stt') ||
+        headerLower.includes('icd') ||
+        headerLower.includes('ip') ||
+        headerLower.includes('trạng thái')
+    ) {
+        return 'code'
+    }
+
+    const hasOnlyNumbers = sampleValues.length > 0 && sampleValues.every((v) => {
+        if (v === null || v === undefined || v === '') return true
+        return typeof v === 'number' || (!isNaN(Number(v)) && !String(v).startsWith('0'))
+    })
+
+    if (hasOnlyNumbers && sampleValues.some((v) => typeof v === 'number')) {
+        return 'number'
+    }
+
+    return 'text'
+}
+
+function inferColumnWidth(headerText, type) {
+    const text = String(headerText || '').toLowerCase()
+    if (text.includes('tên') || text.includes('nội dung') || text.includes('mô tả') || text.includes('bệnh nhân')) {
+        return 34
+    }
+    if (text.includes('nhóm') || text.includes('chuyên khoa') || text.includes('chẩn đoán') || text.includes('chương') || text.includes('hoạt chất') || text.includes('lý do')) {
+        return 26
+    }
+    if (type === 'currency') {
+        return 20
+    }
+    if (type === 'date' || text.includes('thời gian') || text.includes('ngày')) {
+        return 22
+    }
+    if (text.includes('trạng thái') || text.includes('kết quả') || text.includes('xếp loại') || text.includes('truyền nhiễm')) {
+        return 18
+    }
+    if (text.includes('mã') || text.includes('stt') || text.includes('đơn vị')) {
+        return 14
+    }
+    return 20
+}
+
+export async function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) {
     let config = {}
     if (typeof optionsOrFilename === 'string') {
         config = {
@@ -167,6 +131,8 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
         clinicAddress = defaultClinic.address,
         headers = [],
         rows = [],
+        columnTypes: customColumnTypes = [],
+        columnWidths: customColumnWidths = [],
         signOff = true,
     } = config
 
@@ -184,197 +150,251 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
         second: '2-digit',
     })
 
-    const columnTypes = headers.map((h, colIdx) => {
-        for (let rowIdx = 0; rowIdx < Math.min(rows.length, 5); rowIdx++) {
-            const cellVal = rows[rowIdx]?.[colIdx]
-            if (cellVal !== null && cellVal !== undefined && cellVal !== '') {
-                return detectCellType(cellVal, h)
+    const columnTypes = headers.map((h, i) => {
+        if (customColumnTypes[i]) return customColumnTypes[i]
+        const sampleColValues = rows.slice(0, 20).map((r) => r[i])
+        return inferColumnType(h, sampleColValues)
+    })
+
+    const columnWidths = headers.map((h, i) => {
+        if (customColumnWidths[i]) return customColumnWidths[i]
+        return inferColumnWidth(h, columnTypes[i])
+    })
+
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'Clinic-AI Healthcare HIS'
+    workbook.lastModifiedBy = 'Clinic-AI Admin'
+    workbook.created = new Date()
+    workbook.modified = new Date()
+
+    const worksheet = workbook.addWorksheet(sheetName.slice(0, 31), {
+        views: [{ showGridLines: true }],
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true },
+    })
+
+    worksheet.columns = columnWidths.map((w) => ({ width: w }))
+
+    worksheet.mergeCells(1, 1, 1, colCount)
+    const clinicNameCell = worksheet.getCell(1, 1)
+    clinicNameCell.value = String(clinicName).toUpperCase()
+    clinicNameCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF003553' } }
+    clinicNameCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    worksheet.getRow(1).height = 24
+
+    worksheet.mergeCells(2, 1, 2, colCount)
+    const clinicAddressCell = worksheet.getCell(2, 1)
+    clinicAddressCell.value = clinicAddress
+    clinicAddressCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF64748B' } }
+    clinicAddressCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    worksheet.getRow(2).height = 18
+
+    worksheet.getRow(3).height = 10
+
+    worksheet.mergeCells(4, 1, 4, colCount)
+    const titleCell = worksheet.getCell(4, 1)
+    titleCell.value = String(title).toUpperCase()
+    titleCell.font = { name: 'Segoe UI', size: 15, bold: true, color: { argb: 'FF007AA8' } }
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(4).height = 30
+
+    worksheet.mergeCells(5, 1, 5, colCount)
+    const subtitleCell = worksheet.getCell(5, 1)
+    const subParts = [
+        subtitle ? subtitle : null,
+        `Ngày xuất biểu: ${exportTime}`,
+    ].filter(Boolean)
+    subtitleCell.value = subParts.join(' • ')
+    subtitleCell.font = { name: 'Segoe UI', size: 9.5, italic: true, color: { argb: 'FF475569' } }
+    subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(5).height = 20
+
+    worksheet.getRow(6).height = 10
+
+    const headerRow = worksheet.getRow(7)
+    headerRow.values = headers
+    headerRow.height = 28
+
+    const headerBorder = {
+        top: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+        bottom: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+        left: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+        right: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+    }
+
+    for (let c = 1; c <= colCount; c++) {
+        const cell = headerRow.getCell(c)
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B5F1' } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        cell.border = headerBorder
+    }
+
+    const dataBorder = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    }
+
+    let currentRowIndex = 8
+    const currencyTotals = {}
+
+    rows.forEach((row, rIdx) => {
+        const dataRow = worksheet.getRow(currentRowIndex)
+        dataRow.height = 22
+        const isEven = rIdx % 2 === 0
+        const rowBgColor = isEven ? 'FFFFFFFF' : 'FFF8FAFC'
+
+        for (let c = 1; c <= colCount; c++) {
+            const cell = dataRow.getCell(c)
+            const val = row[c - 1]
+            const type = columnTypes[c - 1] || 'text'
+
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } }
+            cell.border = dataBorder
+            cell.font = { name: 'Segoe UI', size: 9.5, color: { argb: 'FF1E293B' } }
+
+            if (type === 'currency') {
+                const numericVal = typeof val === 'number' ? val : Number(String(val || '').replace(/[^\d.-]/g, ''))
+                const safeNum = isNaN(numericVal) ? 0 : numericVal
+                cell.value = safeNum
+                cell.numFmt = '#,##0 "₫"'
+                cell.alignment = { horizontal: 'right', vertical: 'middle' }
+                currencyTotals[c] = (currencyTotals[c] || 0) + safeNum
+            } else if (type === 'number') {
+                const numericVal = typeof val === 'number' ? val : Number(val)
+                const safeNum = isNaN(numericVal) ? 0 : numericVal
+                cell.value = safeNum
+                cell.numFmt = '#,##0'
+                cell.alignment = { horizontal: 'right', vertical: 'middle' }
+            } else if (type === 'code' || type === 'date') {
+                cell.value = val === null || val === undefined ? '' : String(val)
+                cell.alignment = { horizontal: 'center', vertical: 'middle' }
+            } else {
+                cell.value = val === null || val === undefined ? '' : String(val)
+                cell.alignment = { horizontal: 'left', vertical: 'middle' }
             }
         }
-        return detectCellType('', h)
+        currentRowIndex++
     })
 
-    const columnWidths = headers.map((h, colIdx) => {
-        const type = columnTypes[colIdx] || 'text'
-        return getColumnWidth(type, h)
-    })
+    const hasCurrencyColumns = Object.keys(currencyTotals).length > 0
+    const summaryRow = worksheet.getRow(currentRowIndex)
+    summaryRow.height = 24
 
-    let totalAmount = 0
-    let hasCurrencyColumn = false
-    let currencyColIdx = -1
+    const summaryBorder = {
+        top: { style: 'medium', color: { argb: 'FF00B5F1' } },
+        bottom: { style: 'medium', color: { argb: 'FF00B5F1' } },
+        left: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+        right: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+    }
 
-    columnTypes.forEach((t, idx) => {
-        if (t === 'currency') {
-            hasCurrencyColumn = true
-            currencyColIdx = idx
+    const firstCurrencyCol = hasCurrencyColumns ? Math.min(...Object.keys(currencyTotals).map(Number)) : colCount
+
+    if (firstCurrencyCol > 1) {
+        worksheet.mergeCells(currentRowIndex, 1, currentRowIndex, firstCurrencyCol - 1)
+    }
+
+    const summaryTitleCell = summaryRow.getCell(1)
+    summaryTitleCell.value = `TỔNG CỘNG: ${rows.length} BẢN GHI`
+    summaryTitleCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF003553' } }
+    summaryTitleCell.alignment = { horizontal: 'left', vertical: 'middle' }
+
+    for (let c = 1; c <= colCount; c++) {
+        const cell = summaryRow.getCell(c)
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } }
+        cell.border = summaryBorder
+
+        if (currencyTotals[c] !== undefined) {
+            cell.value = currencyTotals[c]
+            cell.numFmt = '#,##0 "₫"'
+            cell.alignment = { horizontal: 'right', vertical: 'middle' }
+            cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF007AA8' } }
         }
-    })
+    }
+    currentRowIndex++
 
-    if (hasCurrencyColumn && currencyColIdx >= 0) {
-        rows.forEach((row) => {
-            const rawVal = row[currencyColIdx]
-            const num = Number(String(rawVal).replace(/[^\d.-]/g, ''))
-            if (!isNaN(num)) totalAmount += num
-        })
+    if (signOff) {
+        currentRowIndex += 2
+        const signTitleRow = worksheet.getRow(currentRowIndex)
+        signTitleRow.height = 20
+
+        const signTitleFont = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF003553' } }
+        const signSubFont = { name: 'Segoe UI', size: 8.5, italic: true, color: { argb: 'FF64748B' } }
+
+        const colLeft = 1
+        const colMid = Math.max(2, Math.floor(colCount / 2))
+        const colRight = colCount
+
+        const leftCell = signTitleRow.getCell(colLeft)
+        leftCell.value = 'NGƯỜI LẬP BIỂU'
+        leftCell.font = signTitleFont
+        leftCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
+        if (colMid !== colLeft && colMid !== colRight) {
+            const midCell = signTitleRow.getCell(colMid)
+            midCell.value = 'TRƯỞNG BỘ PHẬN'
+            midCell.font = signTitleFont
+            midCell.alignment = { horizontal: 'center', vertical: 'middle' }
+        }
+
+        const rightCell = signTitleRow.getCell(colRight)
+        rightCell.value = 'GIÁM ĐỐC CHUYÊN MÔN'
+        rightCell.font = signTitleFont
+        rightCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
+        const signSubRow = worksheet.getRow(currentRowIndex + 1)
+        signSubRow.height = 18
+
+        const leftSub = signSubRow.getCell(colLeft)
+        leftSub.value = '(Ký, ghi rõ họ tên)'
+        leftSub.font = signSubFont
+        leftSub.alignment = { horizontal: 'center', vertical: 'middle' }
+
+        if (colMid !== colLeft && colMid !== colRight) {
+            const midSub = signSubRow.getCell(colMid)
+            midSub.value = '(Ký, ghi rõ họ tên)'
+            midSub.font = signSubFont
+            midSub.alignment = { horizontal: 'center', vertical: 'middle' }
+        }
+
+        const rightSub = signSubRow.getCell(colRight)
+        rightSub.value = '(Ký, đóng dấu)'
+        rightSub.font = signSubFont
+        rightSub.alignment = { horizontal: 'center', vertical: 'middle' }
     }
 
-    const xmlTemplate = `
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<!--[if gte mso 9]>
-<xml>
-  <x:ExcelWorkbook>
-    <x:ExcelWorksheets>
-      <x:ExcelWorksheet>
-        <x:Name>${escapeXml(sheetName)}</x:Name>
-        <x:WorksheetOptions>
-          <x:DisplayGridlines/>
-          <x:Print>
-            <x:ValidPrinterInfo/>
-            <x:PaperSizeIndex>9</x:PaperSizeIndex>
-            <x:HorizontalResolution>600</x:HorizontalResolution>
-            <x:VerticalResolution>600</x:VerticalResolution>
-          </x:Print>
-        </x:WorksheetOptions>
-      </x:ExcelWorksheet>
-    </x:ExcelWorksheets>
-  </x:ExcelWorkbook>
-</xml>
-<![endif]-->
-<style>
-  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
-  .clinic-name { font-size: 11pt; font-weight: bold; color: #003553; text-transform: uppercase; }
-  .clinic-meta { font-size: 9pt; color: #64748B; font-style: italic; }
-  .report-title { font-size: 15pt; font-weight: bold; color: #007AA8; text-align: center; text-transform: uppercase; padding: 12px 0 4px 0; }
-  .report-sub { font-size: 9.5pt; color: #475569; text-align: center; padding-bottom: 12px; }
-  .table-header { font-size: 10pt; font-weight: bold; background-color: #00B5F1; color: #FFFFFF; text-align: center; vertical-align: middle; height: 32px; border: 1px solid #7DD3FC; }
-  .cell-text { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: left; mso-number-format: "\\@"; }
-  .cell-center { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: center; mso-number-format: "\\@"; }
-  .cell-number { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: right; mso-number-format: "\\#\\,\\#\\#0"; }
-  .cell-currency { font-size: 9.5pt; vertical-align: middle; padding: 6px; border: 1px solid #CBD5E1; text-align: right; font-weight: bold; color: #047857; mso-number-format: "\\#\\,\\#\\#0\\ \\"₫\\""; }
-  .cell-bg-even { background-color: #F8FBFE; }
-  .cell-bg-odd { background-color: #FFFFFF; }
-  .cell-summary-title { font-size: 10pt; font-weight: bold; background-color: #E0F2FE; color: #003553; border: 1px solid #7DD3FC; padding: 6px; text-align: left; }
-  .cell-summary-value { font-size: 10pt; font-weight: bold; background-color: #E0F2FE; color: #047857; border: 1px solid #7DD3FC; padding: 6px; text-align: right; mso-number-format: "\\#\\,\\#\\#0\\ \\"₫\\""; }
-  .cell-summary-empty { background-color: #E0F2FE; border: 1px solid #7DD3FC; }
-  .sign-title { font-size: 10pt; font-weight: bold; color: #003553; text-align: center; }
-  .sign-sub { font-size: 8.5pt; font-style: italic; color: #64748B; text-align: center; }
-</style>
-</head>
-<body>
-<table>
-  <colgroup>
-    ${columnWidths
-        .map((w) => `<col width="${w.px}" style="width: ${w.pt}pt;" />`)
-        .join('\n    ')}
-  </colgroup>
-
-  <tr>
-    <td colspan="${colCount}" class="clinic-name">${escapeXml(clinicName)}</td>
-  </tr>
-  <tr>
-    <td colspan="${colCount}" class="clinic-meta">${escapeXml(clinicAddress)}</td>
-  </tr>
-  <tr><td colspan="${colCount}"></td></tr>
-  <tr>
-    <td colspan="${colCount}" class="report-title">${escapeXml(title)}</td>
-  </tr>
-  <tr>
-    <td colspan="${colCount}" class="report-sub">
-      ${subtitle ? escapeXml(subtitle) + ' &bull; ' : ''}Ngày xuất biểu: <strong>${escapeXml(exportTime)}</strong>
-    </td>
-  </tr>
-  <tr><td colspan="${colCount}"></td></tr>
-
-  <tr>
-    ${headers
-        .map((h, i) => `<th class="table-header" style="width: ${columnWidths[i]?.pt || 100}pt;">${escapeXml(h)}</th>`)
-        .join('')}
-  </tr>
-
-  ${rows
-      .map((row, rIdx) => {
-          const bgClass = rIdx % 2 === 0 ? 'cell-bg-even' : 'cell-bg-odd'
-          const cells = row
-              .map((cellVal, cIdx) => {
-                  const type = columnTypes[cIdx] || 'text'
-                  const styleClass = getCellStyle(type)
-                  const display = formatCellValue(cellVal, type)
-                  return `<td class="${styleClass} ${bgClass}">${escapeXml(display)}</td>`
-              })
-              .join('')
-          return `<tr>${cells}</tr>`
-      })
-      .join('')}
-
-  <tr style="height: 30px;">
-    <td colspan="${hasCurrencyColumn && currencyColIdx > 0 ? currencyColIdx : Math.min(2, colCount)}" class="cell-summary-title">
-      TỔNG CỘNG: ${rows.length} BẢN GHI
-    </td>
-    ${
-        hasCurrencyColumn && currencyColIdx > 0
-            ? `<td class="cell-summary-value">${escapeXml(totalAmount.toLocaleString('vi-VN') + ' ₫')}</td>` +
-              (colCount - currencyColIdx - 1 > 0
-                  ? `<td colspan="${colCount - currencyColIdx - 1}" class="cell-summary-empty"></td>`
-                  : '')
-            : colCount > 2
-            ? `<td colspan="${colCount - 2}" class="cell-summary-empty"></td>`
-            : colCount === 2
-            ? ''
-            : ''
-    }
-  </tr>
-
-  ${
-      signOff
-          ? `
-  <tr><td colspan="${colCount}"></td></tr>
-  <tr><td colspan="${colCount}"></td></tr>
-  <tr>
-    <td colspan="${Math.max(1, Math.floor(colCount / 3))}" class="sign-title">NGƯỜI LẬP BIỂU</td>
-    <td colspan="${Math.max(1, Math.floor(colCount / 3))}" class="sign-title">TRƯỞNG BỘ PHẬN</td>
-    <td colspan="${colCount - 2 * Math.max(1, Math.floor(colCount / 3))}" class="sign-title">GIÁM ĐỐC CHUYÊN MÔN</td>
-  </tr>
-  <tr>
-    <td colspan="${Math.max(1, Math.floor(colCount / 3))}" class="sign-sub">(Ký, ghi rõ họ tên)</td>
-    <td colspan="${Math.max(1, Math.floor(colCount / 3))}" class="sign-sub">(Ký, ghi rõ họ tên)</td>
-    <td colspan="${colCount - 2 * Math.max(1, Math.floor(colCount / 3))}" class="sign-sub">(Ký, đóng dấu)</td>
-  </tr>
-  <tr><td colspan="${colCount}" style="height: 48px;"></td></tr>
-  `
-          : ''
-  }
-</table>
-</body>
-</html>
-`
-
-    const BOM = '\uFEFF'
-    const blob = new Blob([BOM + xmlTemplate.trim()], {
-        type: 'application/vnd.ms-excel;charset=utf-8;',
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
 
     let cleanFilename = filename
     if (cleanFilename.toLowerCase().endsWith('.csv')) {
         cleanFilename = cleanFilename.slice(0, -4)
     }
-    if (!cleanFilename.toLowerCase().endsWith('.xls')) {
-        cleanFilename = `${cleanFilename}.xls`
+    if (cleanFilename.toLowerCase().endsWith('.xls')) {
+        cleanFilename = cleanFilename.slice(0, -4)
+    }
+    if (!cleanFilename.toLowerCase().endsWith('.xlsx')) {
+        cleanFilename = `${cleanFilename}.xlsx`
     }
 
-    link.download = cleanFilename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    if (typeof document !== 'undefined') {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = cleanFilename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
     return true
 }
 
-export function exportToCsv(filename, headers, rows) {
+export async function exportToCsv(filename, headers, rows) {
     return exportToExcel({
         filename,
         headers,

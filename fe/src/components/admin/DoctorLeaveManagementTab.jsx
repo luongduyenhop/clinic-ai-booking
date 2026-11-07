@@ -282,7 +282,7 @@ export default function DoctorLeaveManagementTab() {
             ]
         })
         exportToExcel({
-            filename: `danh-sach-nghi-phep-bac-si_${new Date().toISOString().slice(0, 10)}.xls`,
+            filename: `danh-sach-nghi-phep-bac-si_${new Date().toISOString().slice(0, 10)}.xlsx`,
             sheetName: 'Nghỉ Phép Bác Sĩ',
             title: 'DANH SÁCH ĐĂNG KÝ NGHỈ PHÉP & ĐIỀU PHỐI LỊCH BÁC SĨ',
             subtitle: `Phân hệ Quản trị Nhân sự & Lịch khám • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} đơn`,
@@ -292,7 +292,7 @@ export default function DoctorLeaveManagementTab() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} đơn nghỉ phép ra file Excel (.xls) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} đơn nghỉ phép ra file Excel (.xlsx) thành công!`)
     }
 
     const handleExportAffectedBookingsExcel = () => {
@@ -308,7 +308,7 @@ export default function DoctorLeaveManagementTab() {
             b.ly_do_kham || b.ly_do || 'Khám chuyên khoa',
         ])
         exportToExcel({
-            filename: `danh-sach-benh-nhan-anh-huong-NP${selectedLeaveForAffected?.id || ''}_${new Date().toISOString().slice(0, 10)}.xls`,
+            filename: `danh-sach-benh-nhan-anh-huong-NP${selectedLeaveForAffected?.id || ''}_${new Date().toISOString().slice(0, 10)}.xlsx`,
             sheetName: 'DS Bệnh Nhân Ảnh Hưởng',
             title: 'DANH SÁCH BỆNH NHÂN BỊ ẢNH HƯỞNG BỞI LỊCH NGHỈ BÁC SĨ',
             subtitle: `Bác sĩ: ${selectedLeaveForAffected?.ten_bac_si || ''} • Thời gian nghỉ: ${selectedLeaveForAffected?.tu_ngay || ''} đến ${selectedLeaveForAffected?.den_ngay || ''} • Tổng số: ${rows.length} bệnh nhân`,
@@ -318,7 +318,7 @@ export default function DoctorLeaveManagementTab() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} bệnh nhân ảnh hưởng ra file Excel (.xls) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} bệnh nhân ảnh hưởng ra file Excel (.xlsx) thành công!`)
     }
 
     const handleOpenCreateModal = () => {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import ExcelJS from 'exceljs'
 import { exportToExcel, exportToCsv } from '../src/utils/helpers/exportUtils.js'
 
 let lastCreatedBlob = null
@@ -9,7 +10,7 @@ class MockBlob {
     constructor(parts, options) {
         this.parts = parts
         this.options = options
-        this.content = parts.join('')
+        this.buffer = parts[0]
         lastCreatedBlob = this
     }
 }
@@ -53,11 +54,11 @@ globalThis.Blob = MockBlob
 globalThis.document = mockDoc
 globalThis.URL = mockUrl
 
-test('exportToExcel generates valid Excel HTML template with UTF-8 BOM and clinic header', () => {
+test('exportToExcel generates valid Excel OpenXML .xlsx workbook with clinic branding and styles', async () => {
     lastCreatedBlob = null
     lastDownloadName = null
 
-    const success = exportToExcel({
+    const success = await exportToExcel({
         filename: 'bang-gia-dich-vu.xls',
         sheetName: 'Dịch Vụ',
         title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT',
@@ -71,44 +72,58 @@ test('exportToExcel generates valid Excel HTML template with UTF-8 BOM and clini
     })
 
     assert.equal(success, true)
-    assert.equal(lastDownloadName, 'bang-gia-dich-vu.xls')
+    assert.equal(lastDownloadName, 'bang-gia-dich-vu.xlsx')
     assert.ok(lastCreatedBlob)
-    assert.equal(lastCreatedBlob.options.type, 'application/vnd.ms-excel;charset=utf-8;')
+    assert.equal(lastCreatedBlob.options.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    const raw = lastCreatedBlob.content
-    assert.ok(raw.startsWith('\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office"'))
-    assert.ok(raw.includes('PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI'))
-    assert.ok(raw.includes('BẢNG GIÁ DỊCH VỤ KỸ THUẬT'))
-    assert.ok(raw.includes('Niêm yết tháng 11/2026'))
-    assert.ok(raw.includes('DV001'))
-    assert.ok(raw.includes('250.000 ₫'))
-    assert.ok(raw.includes('180.000 ₫'))
-    assert.ok(raw.includes('mso-number-format:'))
-    assert.ok(raw.includes('0901234567'))
-    assert.ok(raw.includes('<colgroup>'))
-    assert.ok(raw.includes('cell-summary-title'))
-    assert.ok(raw.includes('cell-summary-value'))
-    assert.ok(raw.includes('TỔNG CỘNG: 2 BẢN GHI'))
-    assert.ok(raw.includes('430.000 ₫'))
-    assert.ok(raw.includes('NGƯỜI LẬP BIỂU'))
-    assert.ok(raw.includes('TRƯỞNG BỘ PHẬN'))
-    assert.ok(raw.includes('GIÁM ĐỐC CHUYÊN MÔN'))
+    const readWorkbook = new ExcelJS.Workbook()
+    await readWorkbook.xlsx.load(lastCreatedBlob.buffer)
+    const worksheet = readWorkbook.getWorksheet('Dịch Vụ')
+    assert.ok(worksheet)
+
+    assert.ok(String(worksheet.getCell(1, 1).value).includes('PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI'))
+    assert.equal(worksheet.getCell(4, 1).value, 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT')
+    assert.ok(String(worksheet.getCell(5, 1).value).includes('Niêm yết tháng 11/2026'))
+
+    const headerRow = worksheet.getRow(7)
+    assert.equal(headerRow.getCell(1).value, 'Mã DV')
+    assert.equal(headerRow.getCell(2).value, 'Tên dịch vụ')
+    assert.equal(headerRow.getCell(3).value, 'Đơn giá niêm yết (VNĐ)')
+
+    const dataRow1 = worksheet.getRow(8)
+    assert.equal(dataRow1.getCell(1).value, 'DV001')
+    assert.equal(dataRow1.getCell(2).value, 'Khám Tim mạch')
+    assert.equal(dataRow1.getCell(3).value, 250000)
+    assert.equal(dataRow1.getCell(3).numFmt, '#,##0 "₫"')
+
+    const dataRow2 = worksheet.getRow(9)
+    assert.equal(dataRow2.getCell(1).value, 'DV002')
+    assert.equal(dataRow2.getCell(3).value, 180000)
+
+    const summaryRow = worksheet.getRow(10)
+    assert.equal(summaryRow.getCell(1).value, 'TỔNG CỘNG: 2 BẢN GHI')
+    assert.equal(summaryRow.getCell(3).value, 430000)
+    assert.equal(summaryRow.getCell(3).numFmt, '#,##0 "₫"')
+
+    const signRow = worksheet.getRow(13)
+    assert.equal(signRow.getCell(1).value, 'NGƯỜI LẬP BIỂU')
+    assert.equal(signRow.getCell(5).value, 'GIÁM ĐỐC CHUYÊN MÔN')
 })
 
-test('exportToExcel automatically normalizes .csv extension to .xls', () => {
+test('exportToExcel automatically normalizes .csv and .xls extension to .xlsx', async () => {
     lastCreatedBlob = null
     lastDownloadName = null
 
-    exportToExcel({
+    await exportToExcel({
         filename: 'report.csv',
         headers: ['Mã', 'Tên'],
         rows: [['01', 'Test']],
     })
 
-    assert.equal(lastDownloadName, 'report.xls')
+    assert.equal(lastDownloadName, 'report.xlsx')
 })
 
-test('exportToCsv wraps exportToExcel transparently and generates readable spreadsheet', () => {
+test('exportToCsv wraps exportToExcel transparently and generates readable .xlsx workbook', async () => {
     lastCreatedBlob = null
     lastDownloadName = null
 
@@ -118,22 +133,29 @@ test('exportToCsv wraps exportToExcel transparently and generates readable sprea
         ['NV02', 'Trần Thị B', 18000000],
     ]
 
-    exportToCsv('danh-sach-nhan-vien.csv', headers, rows)
+    await exportToCsv('danh-sach-nhan-vien.csv', headers, rows)
 
-    assert.equal(lastDownloadName, 'danh-sach-nhan-vien.xls')
-    assert.ok(lastCreatedBlob.content.includes('BẢNG DỮ LIỆU TRÍCH XUẤT HỆ THỐNG'))
-    assert.ok(lastCreatedBlob.content.includes('15.000.000 ₫'))
-    assert.ok(lastCreatedBlob.content.includes('18.000.000 ₫'))
-    assert.ok(lastCreatedBlob.content.includes('TỔNG CỘNG: 2 BẢN GHI'))
-    assert.ok(lastCreatedBlob.content.includes('33.000.000 ₫'))
+    assert.equal(lastDownloadName, 'danh-sach-nhan-vien.xlsx')
+    assert.ok(lastCreatedBlob)
+
+    const readWorkbook = new ExcelJS.Workbook()
+    await readWorkbook.xlsx.load(lastCreatedBlob.buffer)
+    const worksheet = readWorkbook.worksheets[0]
+    assert.ok(worksheet)
+    assert.equal(worksheet.getCell(4, 1).value, 'BẢNG DỮ LIỆU TRÍCH XUẤT HỆ THỐNG')
+
+    const summaryRow = worksheet.getRow(10)
+    assert.equal(summaryRow.getCell(1).value, 'TỔNG CỘNG: 2 BẢN GHI')
+    assert.equal(summaryRow.getCell(3).value, 33000000)
+    assert.equal(summaryRow.getCell(3).numFmt, '#,##0 "₫"')
 })
 
-test('exportToExcel returns false safely when rows are empty', () => {
+test('exportToExcel returns false safely when rows are empty', async () => {
     lastCreatedBlob = null
     lastDownloadName = null
 
-    const success = exportToExcel({
-        filename: 'empty-catalog.xls',
+    const success = await exportToExcel({
+        filename: 'empty-catalog.xlsx',
         headers: ['Mã', 'Tên'],
         rows: [],
     })

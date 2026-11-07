@@ -993,19 +993,19 @@ export default function DoctorLeaveManagementTab() {
                                             affectedBookings.map((b, idx) => (
                                                 <tr key={b.lich_kham_id || idx} className="hover:bg-slate-50">
                                                     <td className="p-2.5 font-mono font-bold text-[#003553]">
-                                                        {b.ma_lich_kham || `#${b.lich_kham_id}`}
+                                                        {b.ma_lich_kham || b.ma_lich_hen || `#${b.lich_kham_id || b.id || idx + 1}`}
                                                     </td>
                                                     <td className="p-2.5 font-bold text-slate-800">
-                                                        {b.ten_benh_nhan}
+                                                        {b.ten_benh_nhan || b.ho_ten || "Bệnh nhân"}
                                                     </td>
                                                     <td className="p-2.5 font-mono text-slate-700">
                                                         {b.so_dien_thoai || 'Chưa có SĐT'}
                                                     </td>
                                                     <td className="p-2.5 whitespace-nowrap text-slate-700">
-                                                        {b.ngay_kham} {b.gio_kham ? `(${b.gio_kham})` : ''}
+                                                        {b.ngay_kham ? `${b.ngay_kham} ${b.gio_kham ? `(${b.gio_kham})` : ''}` : (b.thoi_gian_kham || 'Theo ca trực')}
                                                     </td>
                                                     <td className="p-2.5 text-slate-600">
-                                                        {b.ten_chuyen_khoa || 'Khám bệnh'}
+                                                        {b.ten_chuyen_khoa || b.chuyen_khoa || 'Khám bệnh'}
                                                     </td>
                                                     <td className="p-2.5 whitespace-nowrap">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">

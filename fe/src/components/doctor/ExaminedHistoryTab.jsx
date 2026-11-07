@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
 
 export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [searchKeyword, setSearchKeyword] = useState('')
-    const [timeFilter, setTimeFilter] = useState('ALL') // ALL | TODAY | WEEK
+    const [timeFilter, setTimeFilter] = useState('ALL') 
     const [selectedRecord, setSelectedRecord] = useState(null)
 
-    // Lọc danh sách bệnh nhân đã khám
-    const filteredList = examinedList.filter((item) => {
+    const todayStr = useMemo(() => new Date().toLocaleDateString('vi-VN'), [])
+    const filteredList = useMemo(() => examinedList.filter((item) => {
         const matchesSearch =
             (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
             (item?.patientCode || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
@@ -17,10 +17,10 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
         if (!matchesSearch) return false
 
         if (timeFilter === 'TODAY') {
-            return item.completedDate === new Date().toLocaleDateString('vi-VN')
+            return item.completedDate === todayStr
         }
         return true
-    })
+    }), [examinedList, searchKeyword, timeFilter, todayStr])
 
     const handlePrintPrescription = (patient) => {
         AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng 204!`)
@@ -28,7 +28,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
 
     return (
         <div className="space-y-6">
-            {/* Header Bộ lọc & Tìm kiếm */}
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -53,7 +52,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                    {/* Thanh tìm kiếm */}
                     <div className="relative flex-1 w-full">
                         <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
                             🔍
@@ -67,7 +65,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                         />
                     </div>
 
-                    {/* Bộ lọc thời gian */}
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button
                             type="button"
@@ -95,7 +92,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 </div>
             </div>
 
-            {/* Bảng danh sách bệnh nhân đã khám */}
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs text-slate-600">
@@ -119,7 +115,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             ) : (
                                 filteredList.map((item) => (
                                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                                        {/* Mã hồ sơ & Giờ khám */}
                                         <td className="py-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
                                             <div className="font-bold text-[#003553]">{item.patientCode}</div>
                                             <div className="text-[11px] text-slate-400">
@@ -127,7 +122,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                             </div>
                                         </td>
 
-                                        {/* Thông tin bệnh nhân */}
                                         <td className="py-3.5 px-4 whitespace-nowrap">
                                             <div className="font-bold text-slate-900">{item.fullName}</div>
                                             <div className="text-[11px] text-slate-500">
@@ -135,7 +129,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                             </div>
                                         </td>
 
-                                        {/* Chẩn đoán */}
                                         <td className="py-3.5 px-4 max-w-xs">
                                             <div className="font-semibold text-slate-800 line-clamp-2">
                                                 {item.finalDiagnosis || 'Khám nội tim mạch định kỳ'}
@@ -145,7 +138,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                             </div>
                                         </td>
 
-                                        {/* CLS & Đơn thuốc */}
                                         <td className="py-3.5 px-4">
                                             <div className="flex flex-wrap gap-1">
                                                 {item.labTests && item.labTests.length > 0 ? (
@@ -159,7 +151,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                             </div>
                                         </td>
 
-                                        {/* Trạng thái */}
                                         <td className="py-3.5 px-4 whitespace-nowrap">
                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[11px] border border-emerald-200">
                                                 <span>✓</span>
@@ -167,7 +158,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                             </span>
                                         </td>
 
-                                        {/* Thao tác */}
                                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <button
@@ -195,9 +185,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                MODAL XEM CHI TIẾT HỒ SƠ BỆNH ÁN ĐÃ KHÁM
-            ═══════════════════════════════════════════════════════════════════ */}
             {selectedRecord &&
                 createPortal(
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
@@ -220,10 +207,8 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                 </button>
                             </div>
 
-                            {/* Modal Body */}
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
-                        {/* Thông tin bệnh nhân */}
                         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                             <div>
                                 <span className="text-slate-400 block text-[11px]">Họ và tên:</span>
@@ -251,7 +236,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </div>
                         </div>
 
-                        {/* Chẩn đoán */}
                         <div className="space-y-1.5 text-xs">
                             <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
                                 Chẩn đoán xác định:
@@ -261,7 +245,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </p>
                         </div>
 
-                        {/* Chỉ định cận lâm sàng */}
                         {selectedRecord.labTests && selectedRecord.labTests.length > 0 && (
                             <div className="space-y-1.5 text-xs">
                                 <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
@@ -280,7 +263,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </div>
                         )}
 
-                        {/* Đơn thuốc đã kê */}
                         <div className="space-y-2 text-xs">
                             <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
                                 Đơn thuốc chi tiết:
@@ -300,7 +282,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </div>
                         </div>
 
-                        {/* Lời dặn dò */}
                         <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1">
                             <span className="font-bold block">📌 Lời dặn của bác sĩ:</span>
                             <p>{selectedRecord.doctorNotes || 'Ăn uống hợp lý, hạn chế mỡ động vật. Tái khám sau 14 ngày.'}</p>
@@ -308,7 +289,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
 
                             </div>
 
-                            {/* Modal Footer */}
                             <div className="flex justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
                                 <button
                                     type="button"

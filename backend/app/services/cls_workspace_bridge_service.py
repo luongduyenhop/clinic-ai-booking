@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
+from app.models.appointment import HangDoiKham, TrangThaiHangDoiEnum
 from app.models.medical import ChiDinh, DichVu, LuotKham
 from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.subclinical import (
@@ -27,11 +28,6 @@ def _normalize_name(name: str) -> str:
 
 
 class ClsWorkspaceBridgeService:
-    """Cầu nối bàn khám bác sĩ (lượt khám lưu trong workspace-state) với bảng chi_dinh.
-
-    Bàn khám hiện chưa tạo luot_kham thật nên mỗi lượt khám của workspace được ánh xạ sang 1 LuotKham
-    có ma_kcb = "WS-<workspace_encounter_id>-<benh_nhan_id>". Gọi lại nhiều lần không tạo trùng.
-    """
 
     async def _find_or_create_patient(
         self, workspace_encounter_id: str, payload: WorkspacePatientIn, db: AsyncSession
@@ -51,11 +47,13 @@ class ClsWorkspaceBridgeService:
             if taken:
                 so_dien_thoai = None
 
+        safe_ma = "".join(c if c.isalnum() else "_" for c in str(ma)).lower()
+        fake_email = f"bn_{safe_ma}_{int(datetime.now().timestamp() * 1000)}@clinic.local"
         nguoi_dung = NguoiDung(
             ho_ten=payload.ho_ten.strip(),
+            email=fake_email,
             gioi_tinh=payload.gioi_tinh,
             so_dien_thoai=so_dien_thoai,
-            # Bàn khám chỉ có tuổi: quy ước ngày 01/01 của năm sinh
             ngay_sinh=date(date.today().year - payload.tuoi, 1, 1) if payload.tuoi is not None else None,
         )
         db.add(nguoi_dung)
@@ -143,6 +141,15 @@ class ClsWorkspaceBridgeService:
         await db.commit()
         for order in orders:
             await db.refresh(order)
+
+        stmt_active_t = select(HangDoiKham).where(
+            HangDoiKham.benh_nhan_id == benh_nhan.id,
+            HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
+        )
+        active_t = (await db.execute(stmt_active_t)).scalars().first()
+        if active_t:
+            active_t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+            active_t.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
 
         logger.info(
             f"🧪 [WORKSPACE ORDERS] workspace={payload.workspace_encounter_id} luot_kham={luot_kham.id} "

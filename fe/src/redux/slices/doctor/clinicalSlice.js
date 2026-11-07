@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit'
 import {
     fetchDoctorQueueAsync,
     callNextPatientAsync,
+    startPatientAsync,
     recallPatientAsync,
     fetchEncounterAsync,
     createOrdersAsync,
@@ -57,10 +58,43 @@ const clinicalSlice = createSlice({
                 state.queueError = payload
             })
             .addCase(callNextPatientAsync.fulfilled, (state, { payload }) => {
-                state.queue = state.queue.map((t) => (t.ticket_id === payload.ticket_id ? payload : t))
+                const item = payload?.data || payload
+                if (item) {
+                    state.queue = state.queue.map((t) => {
+                        const isMatch = String(t.ticket_id) === String(item.ticket_id) || String(t.encounter_id) === String(item.encounter_id)
+                        if (isMatch) {
+                            return { ...t, ...item, trang_thai: 'dang_kham', ghi_chu: 'Đang khám' }
+                        }
+                        if (t.trang_thai === 'dang_kham') {
+                            return { ...t, trang_thai: 'cho_kham', ghi_chu: 'Chờ khám' }
+                        }
+                        return t
+                    })
+                    if (state.encounter && (String(state.encounter.id) === String(item.encounter_id) || (state.encounter.ticket_id && String(state.encounter.ticket_id) === String(item.ticket_id)))) {
+                        state.encounter.thoi_gian_bat_dau = state.encounter.thoi_gian_bat_dau || new Date().toISOString()
+                    }
+                }
+            })
+            .addCase(startPatientAsync.fulfilled, (state, { payload }) => {
+                const item = payload?.data || payload
+                if (item) {
+                    state.queue = state.queue.map((t) => {
+                        const isMatch = String(t.ticket_id) === String(item.ticket_id) || String(t.encounter_id) === String(item.encounter_id)
+                        if (isMatch) {
+                            return { ...t, ...item, trang_thai: 'dang_kham', ghi_chu: 'Đang khám' }
+                        }
+                        if (t.trang_thai === 'dang_kham') {
+                            return { ...t, trang_thai: 'cho_kham', ghi_chu: 'Chờ khám' }
+                        }
+                        return t
+                    })
+                    if (state.encounter && (String(state.encounter.id) === String(item.encounter_id) || (state.encounter.ticket_id && String(state.encounter.ticket_id) === String(item.ticket_id)))) {
+                        state.encounter.thoi_gian_bat_dau = state.encounter.thoi_gian_bat_dau || new Date().toISOString()
+                    }
+                }
             })
             .addCase(recallPatientAsync.fulfilled, (state, { payload }) => {
-                state.queue = state.queue.map((t) => (t.ticket_id === payload.ticket_id ? payload : t))
+                state.queue = state.queue.map((t) => (String(t.ticket_id) === String(payload?.ticket_id) ? payload : t))
             })
 
             .addCase(fetchEncounterAsync.pending, (state) => {
@@ -77,6 +111,14 @@ const clinicalSlice = createSlice({
             })
             .addCase(createOrdersAsync.fulfilled, (state, { payload }) => {
                 if (state.encounter) state.encounter.danh_sach_chi_dinh = payload
+                const encId = state.encounter?.id
+                if (encId) {
+                    state.queue = state.queue.map((t) =>
+                        String(t.encounter_id) === String(encId) || String(t.ticket_id) === String(state.encounter?.ticket_id)
+                            ? { ...t, trang_thai: 'tam_hoan', ghi_chu: 'Chờ kết quả Cận lâm sàng' }
+                            : t
+                    )
+                }
             })
             .addCase(cancelOrderAsync.fulfilled, (state, { payload }) => {
                 if (state.encounter) state.encounter.danh_sach_chi_dinh = payload
@@ -84,7 +126,11 @@ const clinicalSlice = createSlice({
             .addCase(completeEncounterAsync.fulfilled, (state, { payload }) => {
                 state.encounter = payload
                 state.queue = state.queue.map((t) =>
-                    t.encounter_id === payload.id ? { ...t, trang_thai: 'da_kham', ghi_chu: 'Đã khám xong' } : t
+                    String(t.encounter_id) === String(payload?.id) ||
+                    (payload?.lich_kham_id && String(t.ticket_id) === String(payload.lich_kham_id)) ||
+                    (payload?.ticket_id && String(t.ticket_id) === String(payload.ticket_id))
+                        ? { ...t, trang_thai: 'da_kham', ghi_chu: 'Đã khám xong' }
+                        : t
                 )
             })
 

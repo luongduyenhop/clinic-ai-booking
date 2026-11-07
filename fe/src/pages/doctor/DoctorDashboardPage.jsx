@@ -1,192 +1,169 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import WaitingQueueTab from '../../components/doctor/WaitingQueueTab'
+import { useSearchParams } from 'react-router-dom'
+import ExamWorkstationPage from './ExamWorkstationPage'
 import DoctorScheduleTab from '../../components/doctor/DoctorScheduleTab'
 import ExaminedHistoryTab from '../../components/doctor/ExaminedHistoryTab'
-import { fetchReceptionDataAsync } from '../../redux/slices/reception/receptionSlice'
+import { fetchDoctorQueueAsync } from '../../redux/actions/doctor/clinicalAction'
+import { clinicalService } from '../../services/doctor/ClinicalService'
 
 export default function DoctorDashboardPage() {
     const dispatch = useDispatch()
+    const [searchParams, setSearchParams] = useSearchParams()
     const { user } = useSelector((state) => state.app.auth)
-    const { queueEntries = [], patients = [], isInitialized } = useSelector((state) => state.reception)
+    const { queue = [] } = useSelector((state) => state.doctor.clinical)
 
-    // 3 Tab: 'QUEUE' (Chờ khám) | 'SCHEDULE' (Lịch làm việc) | 'HISTORY' (Bệnh nhân đã khám)
-    const [activeTab, setActiveTab] = useState('QUEUE')
-
-    // Danh sách bệnh nhân trong hàng đợi chờ khám
-    const [queueList, setQueueList] = useState([])
-
-    // Danh sách bệnh nhân đã được khám hoàn thành
-    const [examinedList, setExaminedList] = useState([])
+    const tabParam = (searchParams.get('tab') || '').toUpperCase()
+    const initialTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
+    const [activeTab, setActiveTab] = useState(initialTab)
 
     useEffect(() => {
-        if (!isInitialized) {
-            dispatch(fetchReceptionDataAsync())
+        dispatch(fetchDoctorQueueAsync())
+    }, [dispatch])
+
+    useEffect(() => {
+        if (tabParam === 'SCHEDULE' || tabParam === 'HISTORY' || tabParam === 'EXAM') {
+            setActiveTab(tabParam)
         }
-    }, [dispatch, isInitialized])
+    }, [tabParam])
 
-    useEffect(() => {
-        if (!queueEntries || queueEntries.length === 0) return
+    const handleTabChange = (newTab) => {
+        setActiveTab(newTab)
+        if (newTab === 'HISTORY' || newTab === 'EXAM') {
+            dispatch(fetchDoctorQueueAsync())
+        }
+        const nextParams = new URLSearchParams(searchParams)
+        if (newTab === 'EXAM') {
+            nextParams.delete('tab')
+        } else {
+            nextParams.set('tab', newTab.toLowerCase())
+        }
+        setSearchParams(nextParams, { replace: true })
+    }
 
-        // 1. Lấy danh sách bệnh nhân đang chờ khám hoặc đang trong phòng khám
-        const activeQueue = queueEntries
-            .filter((entry) => entry.status !== 'COMPLETED' && entry.status !== 'ABSENT')
-            .map((entry, idx) => {
-                const patient = patients.find((p) => p.id === entry.patientId) || {}
-                const birthYear = patient.dob ? parseInt(patient.dob.slice(0, 4)) : 1990
-                const age = 2026 - birthYear
+    const activeQueueCount = useMemo(() => {
+        const allEncounters = clinicalService.getAllEncountersSync()
+        return queue.filter((t) => {
+            if (t.trang_thai === 'da_kham') return false
+            const enc = allEncounters[t.encounter_id] || allEncounters[String(t.encounter_id)]
+            return !enc?.is_locked
+        }).length
+    }, [queue])
 
-                return {
-                    id: entry.id,
-                    queueNumber: entry.ticketNumber || `A${101 + idx}`,
-                    patientId: entry.patientId,
-                    patientCode: patient.patientCode || `BN-2026-00${idx + 1}`,
-                    fullName: patient.fullName || `Bệnh nhân ${entry.ticketNumber || idx + 1}`,
-                    gender: patient.gender === 'FEMALE' ? 'Nữ' : 'Nam',
-                    age: age > 0 && age < 120 ? age : 35,
-                    phone: patient.phone || '0912345678',
-                    healthInsurance: patient.healthInsurance || 'DN4010112233445',
-                    status: entry.status === 'IN_CONSULTATION' ? 'EXAMINING' : (entry.status || 'WAITING'),
-                    isUrgent: entry.isUrgent || entry.status === 'PRIORITY' || idx === 1,
-                    appointmentTime: entry.calledAt ? new Date(entry.calledAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '08:30',
-                    symptoms: entry.symptoms || patient.note || 'Đau đầu, tức ngực trái âm ỉ, hồi hộp khi leo cầu thang',
-                    aiDiagnosisSummary: entry.aiDiagnosisSummary || 'Gợi ý kiểm tra tim mạch & chỉ số huyết áp (ICD-10: I10)',
-                    allergies: patient.allergies && patient.allergies.length > 0 ? patient.allergies : ['Penicillin', 'Aspirin'],
-                    vitals: {
-                        bloodPressure: '135/85',
-                        heartRate: '82',
-                        temperature: '36.8',
-                        spo2: '98',
-                    },
-                    roomId: entry.roomId,
-                    departmentId: entry.departmentId,
-                }
+    const examinedList = useMemo(() => {
+        const allEncounters = clinicalService.getAllEncountersSync()
+        const completedFromQueue = queue
+            .filter((t) => {
+                if (t.trang_thai === 'da_kham') return true
+                const enc = allEncounters[t.encounter_id] || allEncounters[String(t.encounter_id)]
+                return Boolean(enc?.is_locked)
             })
+            .map((t, idx) => {
+                const enc = clinicalService.getEncounterSync(t.encounter_id)
+                const bn = enc?.benh_nhan || t.benh_nhan || {}
+                const dxList = enc?.danh_sach_chan_doan || []
+                const primaryDx = dxList.find((d) => d.loai_chan_doan === 'chinh') || dxList[0]
+                const finalDiagnosis = primaryDx
+                    ? `${primaryDx.ma_icd10} - ${primaryDx.ten_benh_chan_doan}`
+                    : 'Chưa có chẩn đoán'
 
-        setQueueList(activeQueue)
+                const timeStr = enc?.thoi_gian_khoa
+                    ? new Date(enc.thoi_gian_khoa).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                    : ''
+                const dateStr = enc?.thoi_gian_khoa
+                    ? new Date(enc.thoi_gian_khoa).toLocaleDateString('vi-VN')
+                    : new Date().toLocaleDateString('vi-VN')
 
-        // 2. Lấy danh sách bệnh nhân đã hoàn thành khám để hiển thị ở tab Bệnh Nhân Đã Khám
-        const completedEntries = queueEntries
-            .filter((entry) => entry.status === 'COMPLETED')
-            .map((entry, idx) => {
-                const patient = patients.find((p) => p.id === entry.patientId) || {}
-                const birthYear = patient.dob ? parseInt(patient.dob.slice(0, 4)) : 1985
-                const age = 2026 - birthYear
+                const labTests = (enc?.danh_sach_chi_dinh || [])
+                    .filter((o) => o.trang_thai !== 'da_huy')
+                    .map((o) => o.ten_dich_vu)
+
+                const rawRx = enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || []
+                const prescriptions = rawRx.map((m, mIdx) => ({
+                    id: m.id || mIdx + 1,
+                    name: m.ten_thuoc,
+                    dosage: m.cach_dung_day_du || m.cach_dung || 'Theo chỉ định',
+                    quantity: `${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'}`,
+                }))
 
                 return {
-                    id: entry.id,
-                    queueNumber: entry.ticketNumber || `A09${idx + 1}`,
-                    patientId: entry.patientId,
-                    patientCode: patient.patientCode || `BN-2026-00${idx + 80}`,
-                    fullName: patient.fullName || `Bệnh nhân A09${idx + 1}`,
-                    gender: patient.gender === 'FEMALE' ? 'Nữ' : 'Nam',
-                    age: age > 0 && age < 120 ? age : 40,
-                    phone: patient.phone || '0987654321',
-                    healthInsurance: patient.healthInsurance || 'GD4010889900112',
+                    id: t.ticket_id || t.encounter_id || idx + 1,
+                    queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
+                    patientId: t.patient_id,
+                    patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),
+                    fullName: t.ten_benh_nhan || bn.ho_ten || 'Bệnh nhân',
+                    gender: t.gioi_tinh || bn.gioi_tinh || 'Nam',
+                    age: t.tuoi || bn.tuoi || 30,
+                    phone: bn.so_dien_thoai || '',
+                    healthInsurance: bn.so_bhyt || bn.healthInsurance || '',
                     status: 'COMPLETED',
-                    completedAt: '09:15',
-                    completedDate: new Date().toLocaleDateString('vi-VN'),
-                    finalDiagnosis: idx === 0 ? 'I10 - Tăng huyết áp vô căn (nguyên phát)' : 'K02.1 - Sâu ngà răng hàm trên',
-                    labTests: idx === 0 
-                        ? ['Điện tâm đồ (ECG 12 chuyển đạo)', 'Xét nghiệm công thức máu toàn phần (CBC)']
-                        : ['Chụp X-quang quanh chóp răng hàm trên', 'Thử tủy định lượng nhiệt độ'],
-                    prescriptions: idx === 0 ? [
-                        { id: 1, name: 'Amlodipine 5mg', dosage: 'Uống 1 viên vào buổi sáng sau ăn', quantity: '30 Viên' },
-                        { id: 2, name: 'Panadol Extra', dosage: 'Uống 1 viên khi đau đầu nhiều', quantity: '10 Viên' },
-                    ] : [
-                        { id: 1, name: 'Rodogyl (Spiramycin + Metronidazol)', dosage: 'Uống 2 viên/ngày chia 2 lần sau ăn', quantity: '20 Viên' },
-                        { id: 2, name: 'Efferalgan 500mg', dosage: 'Uống 1 viên khi đau buốt nhiều', quantity: '10 Viên' },
-                    ],
-                    doctorNotes: idx === 0
-                        ? 'Huyết áp kiểm soát tốt. Ăn nhạt, hạn chế mỡ động vật. Tái khám sau 30 ngày.'
-                        : 'Đã trám xoang ngà sâu. Vệ sinh răng miệng sạch sẽ, tránh nhai đồ quá cứng trong 48h tới. Tái khám sau 6 tháng.',
+                    completedAt: timeStr,
+                    completedDate: dateStr,
+                    finalDiagnosis,
+                    labTests,
+                    prescriptions,
+                    doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
                 }
             })
 
-        if (completedEntries.length > 0) {
-            setExaminedList(completedEntries)
-        }
-    }, [queueEntries, patients])
-
-    // Cập nhật trạng thái bệnh nhân trong hàng đợi (vd: từ WAITING sang EXAMINING)
-    const handleUpdatePatientStatus = (patientId, newStatus) => {
-        setQueueList((prev) =>
-            prev.map((item) => (item.id === patientId ? { ...item, status: newStatus } : item))
-        )
-    }
-
-    // Hoàn thành khám bệnh: chuyển bệnh nhân từ queueList sang examinedList
-    const handleCompleteExamination = (completedPatientData) => {
-        // Xóa khỏi hàng đợi
-        setQueueList((prev) => prev.filter((item) => item.id !== completedPatientData.id))
-        // Thêm vào danh sách đã khám
-        setExaminedList((prev) => [completedPatientData, ...prev])
-    }
+        return completedFromQueue
+    }, [queue])
 
     return (
-        <div className="space-y-6">
-            {/* ═══════════════════════════════════════════════════════════════════
-                BỘ 3 TABS ĐIỀU HƯỚNG CHÍNH (MEDPRO PALETTE & STYLING)
-            ═══════════════════════════════════════════════════════════════════ */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-2">
-                <nav className="flex flex-wrap items-center gap-2" aria-label="Doctor Portal Tabs">
-                    {/* Tab 1: Hàng đợi khám bệnh */}
+        <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-1.5 w-fit">
+                <nav className="flex items-center gap-1.5" aria-label="Doctor Workstation Tabs">
                     <button
                         type="button"
-                        onClick={() => setActiveTab('QUEUE')}
-                        className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-bold transition cursor-pointer select-none ${
-                            activeTab === 'QUEUE'
-                                ? 'bg-[#E8F4FD] text-[#003553] border border-[#00B5F1]/30 shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        onClick={() => handleTabChange('EXAM')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                            activeTab === 'EXAM'
+                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
-                        <span className="text-sm">🩺</span>
-                        <span>Khám Bệnh & Hàng Đợi</span>
+                        <span>🩺</span>
+                        <span>Khám Bệnh</span>
                         <span
                             className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                activeTab === 'QUEUE'
-                                    ? 'bg-[#00B5F1] text-white'
-                                    : 'bg-slate-100 text-slate-500'
+                                activeTab === 'EXAM'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-slate-200 text-slate-700'
                             }`}
                         >
-                            {queueList.length}
+                            {activeQueueCount}
                         </span>
                     </button>
 
-                    {/* Tab 2: Lịch làm việc của bác sĩ */}
                     <button
                         type="button"
-                        onClick={() => setActiveTab('SCHEDULE')}
-                        className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-bold transition cursor-pointer select-none ${
+                        onClick={() => handleTabChange('SCHEDULE')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                             activeTab === 'SCHEDULE'
-                                ? 'bg-[#E8F4FD] text-[#003553] border border-[#00B5F1]/30 shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
-                        <span className="text-sm">📅</span>
-                        <span>Lịch Làm Việc & Ca Trực</span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-extrabold border border-emerald-200">
-                            Hôm nay: Ca sáng
-                        </span>
+                        <span>📅</span>
+                        <span>Lịch Làm Việc &amp; Ca Trực</span>
                     </button>
 
-                    {/* Tab 3: Bệnh nhân đã được khám */}
                     <button
                         type="button"
-                        onClick={() => setActiveTab('HISTORY')}
-                        className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-bold transition cursor-pointer select-none ${
+                        onClick={() => handleTabChange('HISTORY')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                             activeTab === 'HISTORY'
-                                ? 'bg-[#E8F4FD] text-[#003553] border border-[#00B5F1]/30 shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
-                        <span className="text-sm">📋</span>
+                        <span>📋</span>
                         <span>Bệnh Nhân Đã Khám</span>
                         <span
                             className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
                                 activeTab === 'HISTORY'
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-slate-100 text-slate-500'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-slate-200 text-slate-700'
                             }`}
                         >
                             {examinedList.length}
@@ -195,19 +172,14 @@ export default function DoctorDashboardPage() {
                 </nav>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                NỘI DUNG TỪNG TAB
-            ═══════════════════════════════════════════════════════════════════ */}
             <div>
-                {activeTab === 'QUEUE' && (
-                    <WaitingQueueTab
-                        queueList={queueList}
-                        onUpdatePatientStatus={handleUpdatePatientStatus}
-                        onCompleteExamination={handleCompleteExamination}
-                    />
+                {activeTab === 'EXAM' && (
+                    <ExamWorkstationPage />
                 )}
 
-                {activeTab === 'SCHEDULE' && <DoctorScheduleTab />}
+                {activeTab === 'SCHEDULE' && (
+                    <DoctorScheduleTab doctorInfo={user} />
+                )}
 
                 {activeTab === 'HISTORY' && (
                     <ExaminedHistoryTab examinedList={examinedList} />

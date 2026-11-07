@@ -1,7 +1,7 @@
 import logging
 from datetime import date, time
 from typing import Dict, List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -52,13 +52,22 @@ logger = logging.getLogger(__name__)
 
 
 class AdminShiftService:
-    """Dịch vụ chuyên trách Phân ca trực, Lịch làm việc tuần và Quản lý vắng mặt (SRP)"""
 
-    # --- 2. Phân ca trực & Lịch làm việc (OpenEMR 7 Calendar) ---
+    async def _resolve_doctor_id(self, db: AsyncSession, doctor_id: Optional[int]) -> Optional[int]:
+        if not doctor_id:
+            return None
+        stmt_direct = select(BacSi.id).where(BacSi.id == doctor_id)
+        direct_id = (await db.execute(stmt_direct)).scalar_one_or_none()
+        if direct_id is not None:
+            return direct_id
+
+        stmt_nd = select(BacSi.id).where(BacSi.nguoi_dung_id == doctor_id)
+        resolved_id = (await db.execute(stmt_nd)).scalar_one_or_none()
+        return resolved_id or doctor_id
+
     async def get_shifts(
         self, query_date: Optional[date], doctor_id: Optional[int], db: AsyncSession
     ) -> List[ShiftResponse]:
-        """Lấy danh sách ca làm việc theo ngày và bác sĩ kèm thông tin buồng khám và hạn mức quota"""
         stmt = (
             select(LichLamViec)
             .options(
@@ -70,14 +79,14 @@ class AdminShiftService:
         if query_date:
             stmt = stmt.where(LichLamViec.ngay_lam_viec == query_date)
         if doctor_id:
-            stmt = stmt.where(LichLamViec.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(LichLamViec.bac_si_id == resolved_doc_id)
 
         stmt = stmt.order_by(LichLamViec.ngay_lam_viec, LichLamViec.ca_lam_viec)
         shifts = (await db.execute(stmt)).scalars().all()
 
         res = []
         for s in shifts:
-            # Đếm số lịch khám đã đặt trong ca này
             stmt_booked = select(func.count(LichKham.id)).where(
                 LichKham.bac_si_id == s.bac_si_id,
                 LichKham.ngay_kham == s.ngay_lam_viec,
@@ -125,14 +134,6 @@ class AdminShiftService:
         return res
 
     async def create_shift(self, payload: ShiftCreateRequest, db: AsyncSession) -> ShiftResponse:
-        """
-        Phân ca trực mới với các kiểm tra bất biến OpenEMR:
-        1. Bác sĩ không được có 2 ca trùng nhau trong cùng ngày (Unique constraint).
-        2. Buồng khám vật lý không được xung đột (1 phòng chỉ 1 bác sĩ trực trong cùng ca).
-        3. Phân bổ hạn mức kép: Đặt hẹn trước (online) vs Vãng lai (walk-in).
-        4. Giờ bắt đầu và kết thúc chuẩn theo ca sáng/chiều.
-        """
-        # Kiểm tra bác sĩ tồn tại
         stmt_bs = (
             select(BacSi)
             .options(
@@ -145,11 +146,9 @@ class AdminShiftService:
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ với ID {payload.bac_si_id}!")
 
-        # INT-05 Credential Guard: Chặn phân ca cho bác sĩ có giấy phép EXPIRED hoặc SUSPENDED
         from app.services.credential_service import credential_service
         await credential_service.check_doctor_license_valid(db, payload.bac_si_id)
 
-        # Kiểm tra trùng ca trực của bác sĩ
         stmt_dup = select(LichLamViec).where(
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
@@ -160,7 +159,6 @@ class AdminShiftService:
                 f"Bác sĩ {doc.nguoi_dung.ho_ten} đã được phân ca {payload.ca_lam_viec} vào ngày {payload.ngay_lam_viec}!"
             )
 
-        # Kiểm tra buồng khám vật lý (Physical Room Verification & Criteria Check)
         target_room_id = payload.phong_kham_id or doc.phong_kham_id
         room = None
         if target_room_id:
@@ -175,7 +173,6 @@ class AdminShiftService:
             if not room.is_active:
                 raise BadRequestException(f"Buồng khám '{room.ten_phong}' đang tạm dừng hoạt động hoặc bảo trì!")
 
-            # Tiêu chí 1: Buồng khám phải là loại khám bệnh lâm sàng
             if room.loai_phong != "kham_benh":
                 loai_phong_label = {
                     "xet_nghiem": "Phòng xét nghiệm cận lâm sàng",
@@ -186,7 +183,6 @@ class AdminShiftService:
                     f"Không thể phân ca khám cho buồng '{room.ten_phong}' vì đây là {loai_phong_label}, không phải buồng khám bệnh lâm sàng!"
                 )
 
-            # Tiêu chí 2: Tương thích chuyên khoa lâm sàng
             if room.chuyen_khoa_id and doc.chuyen_khoa_id and room.chuyen_khoa_id != doc.chuyen_khoa_id:
                 ten_ck_room = room.chuyen_khoa.ten_chuyen_khoa if room.chuyen_khoa else f"CK #{room.chuyen_khoa_id}"
                 ten_ck_doc = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else f"CK #{doc.chuyen_khoa_id}"
@@ -194,7 +190,6 @@ class AdminShiftService:
                     f"Sai lệch chuyên khoa: Buồng '{room.ten_phong}' thuộc chuyên khoa '{ten_ck_room}', không tương thích với chuyên khoa của BS {doc.nguoi_dung.ho_ten} ('{ten_ck_doc}')!"
                 )
 
-            # Tiêu chí 3: Kiểm tra xung đột buồng khám trong cùng buổi
             stmt_conflict_room = select(LichLamViec).where(
                 LichLamViec.phong_kham_id == target_room_id,
                 LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
@@ -210,7 +205,6 @@ class AdminShiftService:
                     f"Xung đột buồng khám: Buồng '{room.ma_phong} - {room.ten_phong}' đã được phân cho bác sĩ {c_doc_name} trong ca {payload.ca_lam_viec} ngày {payload.ngay_lam_viec}!"
                 )
 
-        # Thiết lập giờ chuẩn nếu không chỉ định
         if payload.ca_lam_viec == CaLamViecEnum.SANG.value:
             s_time = payload.gio_bat_dau or time(7, 30)
             e_time = payload.gio_ket_thuc or time(11, 30)
@@ -218,7 +212,6 @@ class AdminShiftService:
             s_time = payload.gio_bat_dau or time(13, 30)
             e_time = payload.gio_ket_thuc or time(17, 0)
 
-        # Tính toán hạn mức đặt hẹn trước vs vãng lai
         gioi_han = payload.gioi_han_ca_kham
         han_muc_dat_truoc = payload.han_muc_dat_truoc if payload.han_muc_dat_truoc is not None else max(1, int(gioi_han * 0.75))
         han_muc_vang_lai = payload.han_muc_vang_lai if payload.han_muc_vang_lai is not None else max(1, gioi_han - han_muc_dat_truoc)
@@ -266,7 +259,6 @@ class AdminShiftService:
     async def toggle_lock_shift(
         self, shift_id: int, payload: ShiftToggleLockRequest, db: AsyncSession
     ) -> ShiftResponse:
-        """Khóa ca trực hoặc mở lại (OpenEMR Out of office rule: giữ nguyên các lịch đã đặt để xử lý dời lịch)"""
         stmt = (
             select(LichLamViec)
             .options(
@@ -322,7 +314,6 @@ class AdminShiftService:
     async def declare_emergency_leave(
         self, shift_id: int, payload: EmergencyLeaveDeclareRequest, admin_user: TaiKhoan, db: AsyncSession
     ) -> EmergencyLeaveSummaryResponse:
-        """Khai báo bác sĩ nghỉ đột xuất cho ca trực và thống kê bệnh nhân bị ảnh hưởng"""
         stmt = (
             select(LichLamViec)
             .options(
@@ -339,11 +330,9 @@ class AdminShiftService:
         if not shift.is_active:
             raise ConflictException("Ca làm việc này đã được đánh dấu nghỉ/khóa trước đó!")
 
-        # 1. Đánh dấu nghỉ đột xuất
         shift.is_active = False
         shift.ghi_chu_nghi = f"Nghỉ đột xuất: {payload.ly_do_nghi}"
 
-        # 2. Đếm số vé chờ khám (N1)
         stmt_cho = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == shift.bac_si_id,
             HangDoiKham.ngay_kham == shift.ngay_lam_viec,
@@ -352,7 +341,6 @@ class AdminShiftService:
         )
         n_cho = (await db.execute(stmt_cho)).scalar() or 0
 
-        # 3. Đếm số ca đang khám dở (N2)
         stmt_dang = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == shift.bac_si_id,
             HangDoiKham.ngay_kham == shift.ngay_lam_viec,
@@ -361,7 +349,6 @@ class AdminShiftService:
         )
         n_dang = (await db.execute(stmt_dang)).scalar() or 0
 
-        # 4. Đếm số lịch hẹn chưa check-in trong ca (N3)
         stmt_lich = select(func.count(LichKham.id)).where(
             LichKham.bac_si_id == shift.bac_si_id,
             LichKham.ngay_kham == shift.ngay_lam_viec,
@@ -399,8 +386,6 @@ class AdminShiftService:
     async def reassign_queue_to_replacement(
         self, shift_id: int, payload: ReassignQueueRequest, admin_user: TaiKhoan, db: AsyncSession
     ) -> ReassignQueueResponse:
-        """Điều phối toàn bộ hàng đợi của ca nghỉ sang Bác sĩ trực thay thế"""
-        # 1. Khóa ca làm việc gốc
         stmt_goc = (
             select(LichLamViec)
             .options(
@@ -417,7 +402,6 @@ class AdminShiftService:
         if shift_goc.is_active:
             raise ConflictException("Ca làm việc này chưa được khai báo nghỉ đột xuất!")
 
-        # 2. Kiểm tra Bác sĩ thay thế
         stmt_bs_thay = (
             select(BacSi)
             .options(
@@ -433,14 +417,12 @@ class AdminShiftService:
         if bs_thay.id == shift_goc.bac_si_id:
             raise BadRequestException("Bác sĩ thay thế không thể là chính bác sĩ đang nghỉ!")
 
-        # 3. Invariant: Cùng chuyên khoa
         if bs_thay.chuyen_khoa_id != shift_goc.bac_si.chuyen_khoa_id:
             raise BadRequestException(
                 f"Bác sĩ thay thế thuộc chuyên khoa '{bs_thay.chuyen_khoa.ten_chuyen_khoa if bs_thay.chuyen_khoa else ''}', "
                 f"không cùng chuyên khoa với bác sĩ nghỉ ('{shift_goc.bac_si.chuyen_khoa.ten_chuyen_khoa if shift_goc.bac_si.chuyen_khoa else ''}')!"
             )
 
-        # 4. Kiểm tra ca trực của BS thay thế trong cùng buổi
         stmt_shift_thay = (
             select(LichLamViec)
             .where(
@@ -456,7 +438,6 @@ class AdminShiftService:
                 f"Bác sĩ thay thế {bs_thay.nguoi_dung.ho_ten} không có ca trực đang hoạt động trong ca {shift_goc.ca_lam_viec} ngày {shift_goc.ngay_lam_viec}!"
             )
 
-        # 5. Lấy danh sách vé CHO_KHAM cần chuyển
         stmt_ve_cho = (
             select(HangDoiKham)
             .where(
@@ -470,7 +451,6 @@ class AdminShiftService:
         )
         ve_cho_list = (await db.execute(stmt_ve_cho)).scalars().all()
 
-        # 6. Kiểm tra tải (Capacity Check)
         stmt_count_thay = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == bs_thay.id,
             HangDoiKham.ngay_kham == shift_goc.ngay_lam_viec,
@@ -488,7 +468,6 @@ class AdminShiftService:
                 f"Hiện tại: {so_hien_tai}, Cần chuyển: {len(ve_cho_list)}, Giới hạn ca: {shift_thay.gioi_han_ca_kham}."
             )
 
-        # 7. Tính STT cơ sở cho bác sĩ thay thế
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
             HangDoiKham.bac_si_id == bs_thay.id,
             HangDoiKham.ngay_kham == shift_goc.ngay_lam_viec,
@@ -496,7 +475,6 @@ class AdminShiftService:
         )
         curr_max_stt = (await db.execute(stmt_max_stt)).scalar() or 0
 
-        # 8. Cập nhật từng vé CHO_KHAM sang BS thay thế với STT mới
         ten_goc = shift_goc.bac_si.nguoi_dung.ho_ten
         ten_moi = bs_thay.nguoi_dung.ho_ten
         count_cho = 0
@@ -512,7 +490,6 @@ class AdminShiftService:
                     lk_item.bac_si_id = bs_thay.id
             count_cho += 1
 
-        # 9. Xử lý ca DANG_KHAM (Bàn giao tiếp quản)
         stmt_dang_kham = (
             select(HangDoiKham)
             .where(
@@ -541,7 +518,6 @@ class AdminShiftService:
                     luot.ly_do_tiep_quan = f"Bàn giao ca do BS {ten_goc} nghỉ đột xuất"
             count_dang += 1
 
-        # 10. Chuyển các lịch hẹn chưa check-in trong ca sang BS thay thế
         stmt_lich_chua_den = (
             select(LichKham)
             .where(
@@ -584,7 +560,6 @@ class AdminShiftService:
     async def postpone_and_cancel_unassigned(
         self, shift_id: int, admin_user: TaiKhoan, db: AsyncSession
     ) -> PostponeAndCancelResponse:
-        """Tạm hoãn hàng đợi và hủy lịch không có người thay thế (Bảo vệ quyền lợi bệnh nhân No-fault)"""
         stmt = (
             select(LichLamViec)
             .where(LichLamViec.id == shift_id)
@@ -597,7 +572,6 @@ class AdminShiftService:
         if shift.is_active:
             raise ConflictException("Ca làm việc này chưa được khai báo nghỉ đột xuất!")
 
-        # 1. Tạm hoãn các vé CHO_KHAM trong hàng đợi
         stmt_ve_cho = (
             select(HangDoiKham)
             .where(
@@ -615,7 +589,6 @@ class AdminShiftService:
             ve.ghi_chu_dieu_phoi = "Tạm hoãn do Bác sĩ nghỉ đột xuất không có người trực thay thế"
             count_hoan += 1
 
-        # 2. Hủy các lịch hẹn chưa đến (No-fault policy: bảo toàn điểm tín nhiệm)
         stmt_lich = (
             select(LichKham)
             .where(
@@ -654,8 +627,6 @@ class AdminShiftService:
 
 
 
-    # GÓI 2: QUẢN LÝ LỊCH ĐỊNH KỲ TUẦN CỦA BÁC SĨ (Bahmni Weekly Roster)
-    # =========================================================================
     DAY_NAME_VN = {
         2: "Thứ 2",
         3: "Thứ 3",
@@ -667,7 +638,6 @@ class AdminShiftService:
     }
 
     async def get_roster_templates_admin(self, db: AsyncSession, doctor_id: Optional[int] = None) -> List[RosterTemplateResponse]:
-        """Lấy danh sách khuôn mẫu lịch tuần định kỳ"""
         stmt = (
             select(LichDinhKyBacSi)
             .options(
@@ -678,7 +648,8 @@ class AdminShiftService:
             .order_by(LichDinhKyBacSi.thu_trong_tuan.asc(), LichDinhKyBacSi.ca_lam_viec.asc())
         )
         if doctor_id:
-            stmt = stmt.where(LichDinhKyBacSi.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(LichDinhKyBacSi.bac_si_id == resolved_doc_id)
         rows = (await db.execute(stmt)).scalars().all()
         results = []
         for r in rows:
@@ -703,7 +674,6 @@ class AdminShiftService:
         return results
 
     async def create_roster_template_admin(self, payload: RosterTemplateCreateRequest, db: AsyncSession) -> RosterTemplateResponse:
-        """Tạo mới mẫu phân ca tuần cho bác sĩ"""
         doc = await db.get(BacSi, payload.bac_si_id)
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ có ID {payload.bac_si_id}")
@@ -740,7 +710,6 @@ class AdminShiftService:
         return (await self.get_roster_templates_admin(db, doctor_id=payload.bac_si_id))[0]
 
     async def update_roster_template_admin(self, roster_id: int, payload: RosterTemplateUpdateRequest, db: AsyncSession) -> RosterTemplateResponse:
-        """Cập nhật mẫu phân ca tuần"""
         tmpl = await db.get(LichDinhKyBacSi, roster_id)
         if not tmpl:
             raise NotFoundException(f"Không tìm thấy mẫu ca ID {roster_id}")
@@ -762,7 +731,6 @@ class AdminShiftService:
         return [r for r in res if r.id == tmpl.id][0]
 
     async def delete_roster_template_admin(self, roster_id: int, db: AsyncSession):
-        """Xóa mẫu phân ca tuần"""
         tmpl = await db.get(LichDinhKyBacSi, roster_id)
         if not tmpl:
             raise NotFoundException(f"Không tìm thấy mẫu ca ID {roster_id}")
@@ -770,7 +738,6 @@ class AdminShiftService:
         await db.commit()
 
     async def generate_shifts_from_roster(self, payload: RosterBatchGenerateRequest, db: AsyncSession) -> RosterBatchGenerateResponse:
-        """Phát sinh ca trực hàng loạt từ các mẫu tuần theo chuẩn Bahmni Batch Generator"""
         from datetime import timedelta
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu!")
@@ -799,12 +766,10 @@ class AdminShiftService:
         total_days = (payload.den_ngay - payload.tu_ngay).days + 1
 
         while cur <= payload.den_ngay:
-            # cur.weekday(): 0 -> Thứ 2 (2), 6 -> CN (8)
             thu_num = cur.weekday() + 2
             matching_tmpls = [t for t in templates if t.thu_trong_tuan == thu_num]
 
             for t in matching_tmpls:
-                # 1. Kiểm tra đã có ca của bác sĩ này vào ngày này & ca này chưa
                 shift_exist = (await db.execute(
                     select(LichLamViec).where(
                         LichLamViec.bac_si_id == t.bac_si_id,
@@ -816,7 +781,6 @@ class AdminShiftService:
                     so_da_co += 1
                     continue
 
-                # 2. Kiểm tra buồng khám có bị trùng với bác sĩ khác không
                 if t.phong_kham_id:
                     room_conflict = (await db.execute(
                         select(LichLamViec).where(
@@ -831,7 +795,6 @@ class AdminShiftService:
                         details.append(f"Bỏ qua ca ngày {cur} của BS ID {t.bac_si_id}: Buồng khám ID {t.phong_kham_id} đã có bác sĩ khác trực")
                         continue
 
-                # 3. Tạo mới LichLamViec
                 new_shift = LichLamViec(
                     bac_si_id=t.bac_si_id,
                     ngay_lam_viec=cur,
@@ -861,11 +824,8 @@ class AdminShiftService:
             chi_tiet=details
         )
 
-    # =========================================================================
 
 
-    # GÓI 3: QUẢN LÝ NGÀY NGHỈ & LỊCH NGHỈ ĐỘT XUẤT CỦA BÁC SĨ (Absence Management)
-    # =========================================================================
     async def get_leaves_admin(
         self,
         db: AsyncSession,
@@ -881,7 +841,8 @@ class AdminShiftService:
             .order_by(NghiPhepBacSi.created_at.desc())
         )
         if doctor_id:
-            stmt = stmt.where(NghiPhepBacSi.bac_si_id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt = stmt.where(NghiPhepBacSi.bac_si_id == resolved_doc_id)
         if trang_thai:
             stmt = stmt.where(NghiPhepBacSi.trang_thai == trang_thai)
         rows = (await db.execute(stmt)).scalars().all()
@@ -906,14 +867,12 @@ class AdminShiftService:
         return results
 
     async def create_leave_admin(self, payload: DoctorLeaveCreateRequest, db: AsyncSession) -> DoctorLeaveResponse:
-        """Đăng ký lịch nghỉ phép mới (Planned hoặc Emergency)"""
         doc = await db.get(BacSi, payload.bac_si_id)
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ ID {payload.bac_si_id}")
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc nghỉ phải lớn hơn hoặc bằng ngày bắt đầu!")
 
-        # Đếm số ca và lịch hẹn bị ảnh hưởng
         shift_stmt = select(LichLamViec.id).where(
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec >= payload.tu_ngay,
@@ -950,7 +909,6 @@ class AdminShiftService:
         await db.commit()
         await db.refresh(leave)
 
-        # Nếu là nghỉ đột xuất, khóa luôn các ca đó
         if payload.loai_nghi == "NGHI_DOT_XUAT" and shift_ids:
             for s_id in shift_ids:
                 s = await db.get(LichLamViec, s_id)
@@ -969,7 +927,6 @@ class AdminShiftService:
         admin_user: TaiKhoan,
         db: AsyncSession
     ) -> DoctorLeaveResponse:
-        """Phê duyệt hoặc từ chối đơn nghỉ phép của bác sĩ"""
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
@@ -979,7 +936,6 @@ class AdminShiftService:
         leave.ghi_chu_duyet = payload.ghi_chu
 
         if payload.hanh_dong == "DA_DUYET":
-            # Khóa tất cả ca làm việc trong khoảng ngày đó
             stmt = select(LichLamViec).where(
                 LichLamViec.bac_si_id == leave.bac_si_id,
                 LichLamViec.ngay_lam_viec >= leave.tu_ngay,
@@ -999,7 +955,6 @@ class AdminShiftService:
         return [lv for lv in leaves if lv.id == leave.id][0]
 
     async def get_leave_affected_bookings(self, leave_id: int, db: AsyncSession) -> List[AffectedBookingItem]:
-        """Lấy danh sách các lịch hẹn bị ảnh hưởng để nhân viên hỗ trợ dời lịch cho bệnh nhân"""
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
@@ -1035,9 +990,6 @@ class AdminShiftService:
             ))
         return results
 
-    # =========================================================================
-    # GÓI 4: MA TRẬN PHÂN CA TRỰC & BÁO CÁO CHẤM CÔNG (tClinic HIS Standardized)
-    # =========================================================================
     async def get_doctor_schedule_matrix(
         self,
         db: AsyncSession,
@@ -1047,14 +999,9 @@ class AdminShiftService:
         doctor_id: Optional[int] = None,
         phong_kham_id: Optional[int] = None,
     ) -> DoctorScheduleMatrixResponse:
-        """
-        Ma trận phân ca trực và tình trạng slot khả dụng theo thời gian thực (tClinic Roster Matrix).
-        Hỗ trợ hiển thị lịch trực toàn viện, đếm số slot trực tuyến/vãng lai và danh sách bệnh nhân.
-        """
         if den_ngay < tu_ngay:
             raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
 
-        # 1. Truy vấn danh sách bác sĩ
         stmt_docs = (
             select(BacSi)
             .options(
@@ -1064,7 +1011,8 @@ class AdminShiftService:
             .where(BacSi.is_active.is_(True))
         )
         if doctor_id:
-            stmt_docs = stmt_docs.where(BacSi.id == doctor_id)
+            resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
+            stmt_docs = stmt_docs.where(BacSi.id == resolved_doc_id)
         if chuyen_khoa_id:
             stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
 
@@ -1080,7 +1028,6 @@ class AdminShiftService:
                 matrix=[],
             )
 
-        # 2. Truy vấn ca làm việc LichLamViec trong khoảng thời gian
         stmt_shifts = (
             select(LichLamViec)
             .options(selectinload(LichLamViec.phong_kham))
@@ -1095,7 +1042,6 @@ class AdminShiftService:
 
         shifts = (await db.execute(stmt_shifts)).scalars().all()
 
-        # 3. Truy vấn các đơn nghỉ phép đã duyệt hoặc nghỉ đột xuất
         stmt_leaves = select(NghiPhepBacSi).where(
             NghiPhepBacSi.bac_si_id.in_(doc_ids),
             NghiPhepBacSi.den_ngay >= tu_ngay,
@@ -1104,7 +1050,6 @@ class AdminShiftService:
         )
         leaves = (await db.execute(stmt_leaves)).scalars().all()
 
-        # 4. Truy vấn các lịch hẹn khám trong khoảng ngày
         stmt_apts = (
             select(LichKham)
             .options(selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung))
@@ -1120,13 +1065,11 @@ class AdminShiftService:
         )
         apts = (await db.execute(stmt_apts)).scalars().all()
 
-        # Mapping cấu trúc dữ liệu
         doc_map = {d.id: d for d in docs}
         leaves_by_doc: Dict[int, List[NghiPhepBacSi]] = {}
         for leave_item in leaves:
             leaves_by_doc.setdefault(leave_item.bac_si_id, []).append(leave_item)
 
-        # Phân loại lịch hẹn theo ca: (bac_si_id, ngay_kham, ca_kham)
         apts_by_shift: Dict[tuple, List[LichKham]] = {}
         for a in apts:
             ca_str = "sang" if a.gio_kham.hour < 12 else "chieu"
@@ -1142,7 +1085,6 @@ class AdminShiftService:
             if not doc:
                 continue
 
-            # Kiểm tra trạng thái nghỉ phép
             doc_leaves = leaves_by_doc.get(s.bac_si_id, [])
             status_ca = "DANG_HOAT_DONG" if s.is_active else "DA_KHOA"
             ly_do = s.ghi_chu_nghi
@@ -1157,7 +1099,6 @@ class AdminShiftService:
                         ly_do = leave_item.ly_do
                         break
 
-            # Lấy danh sách bệnh nhân đã đặt ca này
             shift_apts = apts_by_shift.get((s.bac_si_id, s.ngay_lam_viec, s.ca_lam_viec), [])
             so_online = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") != "vang_lai")
             so_vang_lai = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") == "vang_lai")
@@ -1227,9 +1168,6 @@ class AdminShiftService:
         den_ngay: date,
         chuyen_khoa_id: Optional[int] = None,
     ) -> DoctorTimesheetReportResponse:
-        """
-        Báo cáo chấm công và công suất phục vụ theo ca của từng bác sĩ (tClinic xuatbaocao).
-        """
         if den_ngay < tu_ngay:
             raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
 
@@ -1256,7 +1194,6 @@ class AdminShiftService:
                 danh_sach_cham_cong=[],
             )
 
-        # Lấy toàn bộ ca trực trong khoảng
         shifts = (await db.execute(
             select(LichLamViec).where(
                 LichLamViec.bac_si_id.in_(doc_ids),
@@ -1265,7 +1202,6 @@ class AdminShiftService:
             )
         )).scalars().all()
 
-        # Lấy toàn bộ nghỉ phép trong khoảng
         leaves = (await db.execute(
             select(NghiPhepBacSi).where(
                 NghiPhepBacSi.bac_si_id.in_(doc_ids),
@@ -1275,7 +1211,6 @@ class AdminShiftService:
             )
         )).scalars().all()
 
-        # Lấy toàn bộ lượt khám hoàn thành DA_KHAM
         apts = (await db.execute(
             select(LichKham).where(
                 LichKham.bac_si_id.in_(doc_ids),
@@ -1327,7 +1262,6 @@ class AdminShiftService:
             danh_sach_cham_cong=report_items,
         )
 
-    # =========================================================================
 
 
 admin_shift_service = AdminShiftService()

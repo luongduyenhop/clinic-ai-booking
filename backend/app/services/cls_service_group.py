@@ -1,8 +1,3 @@
-"""Nhóm dịch vụ cận lâm sàng (Xét nghiệm / CĐHA / TDCN / Nội soi).
-
-DichVu chưa có cột nhóm riêng nên nhóm được suy ra từ `ma_nhom_byt` (không cần migration).
-Seed cũ xếp nội soi chung nhóm thủ thuật "TT", nên các mã `DV_NS_*` được nhận diện theo tiền tố.
-"""
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional, Tuple
 
@@ -17,7 +12,6 @@ TDCN = "TDCN"
 NOI_SOI = "NOI_SOI"
 CLS_GROUPS = (XET_NGHIEM, CDHA, TDCN, NOI_SOI)
 
-# Giờ phòng khám để xác định "hôm nay" cho hàng đợi CLS
 CLINIC_TZ = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
 
 _NHOM_BYT_TO_GROUP = {
@@ -33,11 +27,22 @@ _NHOM_BYT_TO_GROUP = {
     "NOI_SOI": NOI_SOI,
 }
 
-_MA_DICH_VU_PREFIX_TO_GROUP = (("DV_NS_", NOI_SOI),)
+_MA_DICH_VU_PREFIX_TO_GROUP = (
+    ("DV_NS_", NOI_SOI),
+    ("DV_XN_", XET_NGHIEM),
+    ("DV_TEST_", XET_NGHIEM),
+    ("DV_SA_", CDHA),
+    ("DV_XQ_", CDHA),
+    ("DV_CT_", CDHA),
+    ("DV_MRI_", CDHA),
+    ("DV_ECG", TDCN),
+    ("DV_EEG", TDCN),
+    ("DV_HO_HAP_", TDCN),
+    ("DV_DO_", TDCN),
+)
 
 
 def nhom_dich_vu_of(ma_nhom_byt: Optional[str], ma_dich_vu: Optional[str] = None) -> Optional[str]:
-    """Trả về nhóm CLS của dịch vụ, None nếu không phải dịch vụ cận lâm sàng (khám, thủ thuật...)"""
     group = _NHOM_BYT_TO_GROUP.get((ma_nhom_byt or "").strip().upper())
     if group:
         return group
@@ -48,7 +53,6 @@ def nhom_dich_vu_of(ma_nhom_byt: Optional[str], ma_dich_vu: Optional[str] = None
 
 
 def nhom_dich_vu_condition(group: str):
-    """Điều kiện SQL trên DichVu tương đương với nhom_dich_vu_of(...) == group"""
     nhom_byt = func.upper(func.coalesce(DichVu.ma_nhom_byt, ""))
     codes = [code for code, code_group in _NHOM_BYT_TO_GROUP.items() if code_group == group]
     prefixes = [prefix for prefix, prefix_group in _MA_DICH_VU_PREFIX_TO_GROUP if prefix_group == group]
@@ -63,7 +67,6 @@ def nhom_dich_vu_condition(group: str):
 
 
 def clinic_day_range(day: Optional[date] = None) -> Tuple[datetime, datetime]:
-    """Khoảng [00:00, 24:00) của một ngày theo giờ phòng khám, mặc định là hôm nay"""
     day = day or datetime.now(CLINIC_TZ).date()
     start = datetime.combine(day, time.min, tzinfo=CLINIC_TZ)
     return start, start + timedelta(days=1)

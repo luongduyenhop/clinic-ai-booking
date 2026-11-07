@@ -81,11 +81,9 @@ function App() {
             <Loading />
             <ApiErrorModal />
             <Routes>
-                
                 <Route path="/staff/login" element={<StaffLoginPage />} />
                 <Route path="/admin/login" element={<Navigate to="/staff/login" replace />} />
 
-                
                 <Route element={<ProtectedRoute allowedRoles={RECEPTIONIST_ROLES} />}>
                     <Route path="/reception" element={<ReceptionLayout />}>
                         <Route index element={<Navigate to="/reception/dashboard" replace />} />
@@ -101,7 +99,6 @@ function App() {
                     </Route>
                 </Route>
 
-                
                 <Route element={<UserTemplate />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/bac-si" element={<DoctorSection />} />
@@ -112,7 +109,6 @@ function App() {
                     <Route path="/dat-lich-kham" element={<BookingWizardPage />} />
                     <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
 
-                    
                     <Route element={<ProtectedRoute allowedRoles={CUSTOMER_ROLES} />}>
                         <Route path="/benh-nhan" element={<PatientPortalLayout />}>
                             <Route index element={<PatientDashboardPage />} />
@@ -129,57 +125,44 @@ function App() {
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
 
-                
                 <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
                     <Route path="/admin" element={<AdminTemplate />}>
                         <Route index element={<DashboardAdminPage />} />
                         <Route path="bao-cao" element={<DashboardAdminPage />} />
 
-                        
                         <Route path="dang-ky-kham" element={<ReceptionRegistrationPage />} />
 
-                        
                         <Route path="benh-nhan" element={<PatientManagementPage />} />
                         <Route path="benh-nhan/them-moi" element={<PatientManagementPage />} />
 
-                        
                         <Route path="kham-benh" element={<ExamWorkstationPage />} />
                         <Route path="khambenh" element={<ExamWorkstationPage />} />
                         <Route path="kham-chuyen-khoa/:deptKey" element={<SpecialtyExamPage />} />
                         <Route path="khamlamsang/:deptKey" element={<SpecialtyExamPage />} />
 
-                        
                         <Route path="can-lam-sang" element={<ParaclinicalPage />} />
                         <Route path="pt-tt" element={<ParaclinicalPage />} />
 
-                        
                         <Route path="lich-hen" element={<AppointmentManagementPage />} />
 
-                        
                         <Route path="thu-chi" element={<CashierManagementPage />} />
 
-                        
                         <Route path="tin-tuc" element={<NewsManagementPage />} />
                         <Route path="danh-muc-tin-tuc" element={<NewsManagementPage />} />
 
-                        
                         <Route path="danh-muc" element={<Navigate to="/admin/danh-muc/chung" replace />} />
                         <Route path="danh-muc/:loaiDanhMuc" element={<CatalogManagementPage />} />
 
-                        
                         <Route path="phan-quyen" element={<RolePermissionPage />} />
                         <Route path="nhan-vien" element={<RolePermissionPage />} />
                         <Route path="nghi-phep" element={<RolePermissionPage />} />
 
-                        
                         <Route path="quan-ly-mau" element={<Navigate to="/admin/quan-ly-mau/mau-in" replace />} />
                         <Route path="quan-ly-mau/:loaiMau" element={<TemplateManagementPage />} />
 
-                        
                         <Route path="tuan-thu" element={<ComplianceAndAuditPage />} />
                         <Route path="lich-su-hoat-dong" element={<ComplianceAndAuditPage />} />
 
-                        
                         <Route path="huong-dan" element={<Navigate to="/admin" replace />} />
                         <Route path="danh-muc-huong-dan" element={<Navigate to="/admin" replace />} />
                         <Route path="hoi-dap" element={<Navigate to="/admin" replace />} />
@@ -187,40 +170,32 @@ function App() {
                         <Route path="dangkydoan" element={<Navigate to="/admin" replace />} />
                         <Route path="kham-doan" element={<Navigate to="/admin" replace />} />
 
-                        
                         <Route path="goi-dich-vu" element={<ServicePackagesPage />} />
                         <Route path="goidichvu" element={<ServicePackagesPage />} />
 
-                        
                         <Route path="lieu-trinh" element={<TreatmentCoursePage />} />
                         <Route path="lieutrinh" element={<TreatmentCoursePage />} />
 
-                        
                         <Route path="giadinh-benhnhan" element={<PatientManagementPage />} />
 
-                        
                         <Route path="don-thuoc-quoc-gia" element={<ComplianceAndAuditPage />} />
                         <Route path="donthuocquocgia" element={<ComplianceAndAuditPage />} />
 
-                        
                         <Route path="cai-dat" element={<SettingClinicPage />} />
                         <Route path="setting" element={<SettingClinicPage />} />
 
-                        
                         <Route path="tai-ung-dung" element={<DownloadAppPage />} />
                     </Route>
                 </Route>
 
-                
                 <Route element={<ProtectedRoute allowedRoles={DOCTOR_ROLES} />}>
                     <Route path="/doctor" element={<DoctorTemplate />}>
                         <Route index element={<DoctorDashboardPage />} />
-                        <Route path="kham-benh" element={<ExamWorkstationPage />} />
+                        <Route path="kham-benh" element={<Navigate to="/doctor" replace />} />
                         <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
                     </Route>
                 </Route>
 
-                
                 <Route element={<ProtectedRoute allowedRoles={STAFF_ROLES} />}>
                     <Route path="/staff" element={<StaffLayout />}>
                         <Route index element={<Navigate to="/staff/dashboard" replace />} />

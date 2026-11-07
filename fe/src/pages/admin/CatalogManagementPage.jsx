@@ -1,4 +1,4 @@
-import { exportToCsv } from '../../utils/helpers/exportUtils'
+import { exportToExcel, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
@@ -36,17 +36,34 @@ export default function CatalogManagementPage() {
     const fileInputRef = useRef(null)
 
     const handleExportCatalog = () => {
-        const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá', 'Đơn vị tính', 'Trạng thái']
+        const titleMap = {
+            'dich-vu': 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & KHÁM BỆNH',
+            'thuoc-vat-tu': 'DANH MỤC THUỐC & DƯỢC PHẨM Y TẾ',
+            'benh': 'DANH MỤC MÃ BỆNH QUỐC TẾ (ICD-10)',
+            'khoa-phong': 'DANH MỤC KHOA PHÒNG & BUỒNG BỆNH',
+            'dia-chi': 'DANH MỤC ĐỊA BÀN HÀNH CHÍNH Y TẾ',
+            'chung': 'DANH MỤC THIẾT LẬP CHUNG HỆ THỐNG',
+        }
+        const currentTitle = titleMap[loaiDanhMuc] || 'DANH MỤC DỮ LIỆU CƠ SỞ Y TẾ'
+        const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá (VNĐ)', 'Đơn vị tính', 'Trạng thái']
         const rows = filteredList.map((item) => [
-            item.ma || item.maDichVu || item.maThuoc || item.maBenh || '',
-            item.ten || item.tenDichVu || item.tenThuoc || item.tenBenh || '',
-            item.chuyenKhoa || item.nhom || item.loai || '',
-            item.donGia || item.gia || 0,
-            item.donViTinh || item.dvt || '',
-            item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            item.ma || item.maDichVu || item.maThuoc || item.maBenh || item.maPhong || item.maTinh || '',
+            item.ten || item.tenDichVu || item.tenThuoc || item.tenBenh || item.tenPhong || item.tenTinh || '',
+            item.chuyenKhoa || item.nhom || item.loai || item.tang || item.quanHuyen || '',
+            Number(item.donGia || item.gia || 0),
+            item.donViTinh || item.dvt || 'Lần',
+            item.is_active !== false && item.trangThai !== false ? 'Hoạt động' : 'Tạm dừng',
         ])
-        exportToCsv(`danh-muc-${loaiDanhMuc}.csv`, headers, rows)
-        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.csv) thành công!`)
+        exportToExcel({
+            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xls`,
+            sheetName: 'Danh Mục',
+            title: currentTitle,
+            subtitle: `Trích xuất từ Phân hệ Quản trị Danh mục Y tế • Tổng số bản ghi: ${rows.length}`,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xls) thành công!`)
     }
 
     const handleImportFile = (e) => {
@@ -110,28 +127,28 @@ export default function CatalogManagementPage() {
         if (!exportedServices.length) return
         const headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Thuế VAT (%)', 'Đơn giá sau VAT (VNĐ)', 'Thời gian TH (phút)', 'Số lượt đã làm', 'Doanh thu tích lũy (VNĐ)', 'Trạng thái']
         const rows = exportedServices.map((s) => [
-            `"${s.ma_dich_vu}"`,
-            `"${s.ten_dich_vu}"`,
-            `"${s.nhom_dich_vu || ''}"`,
-            `"${s.don_vi_tinh || 'Lần'}"`,
-            s.don_gia,
-            s.vat_percent || 0,
-            s.don_gia_sau_vat,
-            s.thoi_gian_thuc_hien || 15,
-            s.so_luong_da_lam || 0,
-            s.doanh_thu_tich_luy || 0,
-            s.trang_thai ? '"Đang áp dụng"' : '"Tạm ngưng"'
+            s.ma_dich_vu,
+            s.ten_dich_vu,
+            s.nhom_dich_vu || '',
+            s.don_vi_tinh || 'Lần',
+            Number(s.don_gia) || 0,
+            Number(s.vat_percent) || 0,
+            Number(s.don_gia_sau_vat) || 0,
+            Number(s.thoi_gian_thuc_hien) || 15,
+            Number(s.so_luong_da_lam) || 0,
+            Number(s.doanh_thu_tich_luy) || 0,
+            s.trang_thai ? 'Đang áp dụng' : 'Tạm ngưng',
         ])
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.setAttribute('href', url)
-        link.setAttribute('download', `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.csv`)
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (CSV)!')
+        exportToExcel({
+            filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xls`,
+            sheetName: 'Bảng Giá Dịch Vụ',
+            title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
+            subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (Excel)!')
     }
 
     const activeCatalogKey =
@@ -886,7 +903,7 @@ export default function CatalogManagementPage() {
                                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                                 >
                                     <DownloadSimple size={14} weight="bold" />
-                                    <span>Tải file CSV Excel</span>
+                                    <span>Tải file Excel danh mục</span>
                                 </button>
                                 <button
                                     type="button"

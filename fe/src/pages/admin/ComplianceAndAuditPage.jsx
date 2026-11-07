@@ -1,4 +1,4 @@
-import { exportToCsv } from '../../utils/helpers/exportUtils'
+import { exportToExcel, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, useSearchParams, Link } from 'react-router-dom'
@@ -193,6 +193,33 @@ export default function ComplianceAndAuditPage() {
         AppToast.success(`Đã liên thông thành công đơn thuốc ca ${targetKcb} lên Cổng Quốc gia!`)
     }
 
+    const handleExportPrescriptionsExcel = () => {
+        const headers = ['Mã KCB', 'Họ tên người bệnh', 'Mã ĐD Y tế / CCCD', 'Bác sĩ phụ trách', 'Mã Đơn Quốc Gia', 'Trạng thái FSM', 'Thời gian ký / tạo']
+        const rows = (filteredRegistrations || []).map((r) => {
+            const p = r.prescription || {}
+            const fsmStatus = p.trangThaiFSM === 'ACCEPTED' ? 'Đã liên thông' : p.trangThaiFSM === 'SIGNED' ? 'Đã ký số' : 'Bản nháp'
+            return [
+                r.maKCB || r.id || '',
+                r.tenBenhNhan || r.hoTen || '',
+                r.maDinhDanhYTe || r.cccd || '',
+                r.bacSiKham || '',
+                p.maDonThuocQG || 'Chưa cấp',
+                fsmStatus,
+                p.ngayKy || r.thoiGian || '',
+            ]
+        })
+        exportToExcel({
+            filename: `danh-sach-don-thuoc-quoc-gia_${new Date().toISOString().slice(0, 10)}.xls`,
+            sheetName: 'Đơn Thuốc QG',
+            title: 'BÁO CÁO LIÊN THÔNG CỔNG ĐƠN THUỐC QUỐC GIA (Bộ Y Tế)',
+            subtitle: `Cơ sở: Phòng khám Đa khoa MedPro • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} đơn`,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xls) thành công!`)
+    }
+
     const handleSyncAllSignedPrescriptions = async () => {
         setSyncingKey('ALL')
         const updatedRegistrations = registrations.map((r) => {
@@ -341,13 +368,21 @@ export default function ComplianceAndAuditPage() {
                         const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Mô tả', 'Phân hệ', 'Địa chỉ IP']
                         const rows = (auditLogs || []).map((l) => [
                             l.timestamp || l.thoiGian || '',
-                            l.actor || l.nguoiDung || '',
-                            l.action || l.hanhDong || '',
+                            ROLE_LABEL_MAP[l.role] || l.role || l.actor || l.nguoiDung || '',
+                            ACTION_LABEL_MAP[l.action] || l.action || l.hanhDong || '',
                             l.description || l.moTa || '',
                             l.module || l.phanHe || '',
                             l.ip || '127.0.0.1',
                         ])
-                        exportToCsv('ho-so-thanh-tra-y-te-audit.csv', headers, rows)
+                        exportToExcel({
+                            filename: `ho-so-thanh-tra-y-te-audit_${new Date().toISOString().slice(0, 10)}.xls`,
+                            sheetName: 'Nhật Ký Kiểm Toán',
+                            title: 'HỒ SƠ THANH TRA Y TẾ & NHẬT KÝ KIỂM TOÁN AN TOÀN DỮ LIỆU',
+                            subtitle: `Trích xuất phục vụ đoàn thanh tra y tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} bản ghi`,
+                            headers,
+                            rows,
+                            signOff: true,
+                        })
                         AppToast.success(`Đã trích xuất ${rows.length} nhật ký kiểm toán phục vụ đoàn thanh tra y tế!`)
                     }}
                     className="medpro-btn-amber text-xs font-bold"
@@ -579,6 +614,14 @@ export default function ComplianceAndAuditPage() {
                                 >
                                     <ArrowsClockwise size={14} className={syncingKey === 'ALL' ? 'animate-spin' : ''} />
                                     <span>Đồng bộ tất cả đơn đã ký ({signedPrescriptions})</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleExportPrescriptionsExcel}
+                                    className="medpro-btn-outline text-xs font-bold !bg-white hover:!bg-slate-50"
+                                >
+                                    <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <span>Xuất Excel Đơn thuốc</span>
                                 </button>
                             </div>
                         </div>

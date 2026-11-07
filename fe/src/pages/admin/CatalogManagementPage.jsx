@@ -70,7 +70,6 @@ export default function CatalogManagementPage() {
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState(generalSubTabs[0]?.key || 'goTat')
     const [searchText, setSearchText] = useState('')
 
-    // ── Export Danh mục Dịch vụ Chuẩn y tế (/api/v1/admin/services/export) ───
     const [isExportModalOpen, setIsExportModalOpen] = useState(false)
     const [exportLoading, setExportLoading] = useState(false)
     const [exportedServices, setExportedServices] = useState([])
@@ -255,7 +254,7 @@ export default function CatalogManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Top 6 Catalog Modules Navigation Bar */}
+            
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                     {Object.entries(catalogRouteMap).map(([key, meta]) => {
@@ -302,7 +301,7 @@ export default function CatalogManagementPage() {
                 </div>
             </div>
 
-            {/* If loaiDanhMuc === 'chung', show the 5 Sub-Tabs matching Video 07 */}
+            
             {loaiDanhMuc === 'chung' && (
                 <div className="medpro-card p-2.5 flex flex-wrap items-center gap-1.5 bg-[#F8FBFE]">
                     {generalSubTabs.map((sub) => {
@@ -336,7 +335,7 @@ export default function CatalogManagementPage() {
                 </div>
             )}
 
-            {/* Standardized Services Export Banner for Dịch vụ Kỹ thuật */}
+            
             {loaiDanhMuc === 'dich-vu' && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-sky-50 via-[#E8F4FD] to-indigo-50/60 p-3 rounded-xl border border-[#00B5F1]/30">
                     <div className="flex items-center gap-2.5">
@@ -345,7 +344,7 @@ export default function CatalogManagementPage() {
                         </span>
                         <div>
                             <div className="text-xs font-extrabold text-[#003553]">
-                                DANH MỤC DỊCH VỤ KỸ THUẬT & BẢNG GIÁ Y TẾ CHUẨN HÓA (tClinic & HIS Standard)
+                                DANH MỤC DỊCH VỤ KỸ THUẬT & BẢNG GIÁ Y TẾ NIÊM YẾT
                             </div>
                             <div className="text-[11px] text-slate-500">
                                 Quản lý Đơn vị tính (Lần/Test/Răng), Thuế suất VAT theo Luật Thuế GTGT, Thời gian thực hiện và Doanh thu tích lũy.
@@ -363,9 +362,9 @@ export default function CatalogManagementPage() {
                 </div>
             )}
 
-            {/* Main 2-Column Workspace */}
+            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    {/* LEFT PANEL (6 cols): Bảng danh sách danh mục */}
+                    
                     <div className="lg:col-span-6 medpro-card p-3.5 flex flex-col h-[calc(100vh-195px)]">
                         <div className="medpro-section-title">
                             <span>
@@ -451,12 +450,12 @@ export default function CatalogManagementPage() {
                     </div>
                 </div>
 
-                {/* RIGHT PANEL (6 cols): Biểu mẫu Thêm / Sửa / Xóa chi tiết */}
+                
                 <div className="lg:col-span-6 medpro-card p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                         <div>
                             <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                                CHI TIẾT BẢN GHI DANH MỤC (VIDEO 07)
+                                CHI TIẾT BẢN GHI DANH MỤC
                             </h2>
                             <p className="text-xs text-slate-500">
                                 Chỉnh sửa hoặc thêm mới dữ liệu chuẩn hóa dùng chung toàn phòng khám
@@ -480,7 +479,7 @@ export default function CatalogManagementPage() {
                         </div>
                     </div>
 
-                    {/* Dynamic Fields by Active Catalog Type */}
+                    
                     {activeCatalogKey === 'diaChi' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
@@ -862,7 +861,7 @@ export default function CatalogManagementPage() {
                 </div>
             </div>
 
-            {/* MODAL XUẤT BẢNG GIÁ DỊCH VỤ CHUẨN Y TẾ */}
+            
             {isExportModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">

@@ -148,7 +148,7 @@ export default function TemplateManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Top 7 Template Categories Tabs matching Video 10 */}
+            
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                     {templateTypes.map((t) => {
@@ -173,11 +173,11 @@ export default function TemplateManagementPage() {
                         )
                     })}
                 </div>
-                <span className="text-xs text-slate-500">Phân hệ Video 10: Quản lý 7 loại Mẫu nghiệp vụ</span>
+                <span className="text-xs text-slate-500">Quản lý các biểu mẫu và mẫu in nghiệp vụ phòng khám</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                {/* LEFT PANEL (5 cols): Danh sách mẫu */}
+                
                 <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col h-[calc(100vh-145px)]">
                     <div className="medpro-section-title">
                         <span>DANH SÁCH {currentTypeMeta.label.toUpperCase()}</span>
@@ -247,7 +247,7 @@ export default function TemplateManagementPage() {
                     </div>
                 </div>
 
-                {/* RIGHT PANEL (7 cols): Biểu mẫu Cấu hình & Upload File Mẫu */}
+                
                 <div className="lg:col-span-7 medpro-card p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                         <div>

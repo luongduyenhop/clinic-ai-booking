@@ -94,6 +94,12 @@ export default function ComplianceAndAuditPage() {
     const registrations = clinicData?.registrations || []
     const nationalEhrSync = clinicData?.nationalEhrSync || []
     const rawSettings = clinicData?.clinicSettings || {}
+    const configuredClinicName = (rawSettings.tenPhongKham || rawSettings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+    const configuredClinicAddress = [
+        rawSettings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        rawSettings.dienThoai ? `Hotline: ${rawSettings.dienThoai}` : 'Hotline: 1900 2115',
+        rawSettings.giayPhepHoatDong ? `GPHĐ: ${rawSettings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+    ].filter(Boolean).join(' | ')
 
     const getResolvedSettings = (raw = {}) => ({
         tenCoSo: raw.tenCoSo || raw.tenPhongKham || 'Phòng khám Đa khoa Medpro - Clinic-AI',
@@ -212,7 +218,9 @@ export default function ComplianceAndAuditPage() {
             filename: `danh-sach-don-thuoc-quoc-gia_${new Date().toISOString().slice(0, 10)}.xls`,
             sheetName: 'Đơn Thuốc QG',
             title: 'BÁO CÁO LIÊN THÔNG CỔNG ĐƠN THUỐC QUỐC GIA (Bộ Y Tế)',
-            subtitle: `Cơ sở: Phòng khám Đa khoa MedPro • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} đơn`,
+            subtitle: `Cơ sở: ${configuredClinicName} • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} đơn`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
             headers,
             rows,
             signOff: true,
@@ -379,6 +387,8 @@ export default function ComplianceAndAuditPage() {
                             sheetName: 'Nhật Ký Kiểm Toán',
                             title: 'HỒ SƠ THANH TRA Y TẾ & NHẬT KÝ KIỂM TOÁN AN TOÀN DỮ LIỆU',
                             subtitle: `Trích xuất phục vụ đoàn thanh tra y tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} bản ghi`,
+                            clinicName: configuredClinicName,
+                            clinicAddress: configuredClinicAddress,
                             headers,
                             rows,
                             signOff: true,

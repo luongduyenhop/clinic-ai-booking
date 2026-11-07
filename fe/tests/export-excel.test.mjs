@@ -77,7 +77,7 @@ test('exportToExcel generates valid Excel HTML template with UTF-8 BOM and clini
 
     const raw = lastCreatedBlob.content
     assert.ok(raw.startsWith('\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office"'))
-    assert.ok(raw.includes('PHÒNG KHÁM ĐA KHOA QUỐC TẾ MEDPRO'))
+    assert.ok(raw.includes('PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI'))
     assert.ok(raw.includes('BẢNG GIÁ DỊCH VỤ KỸ THUẬT'))
     assert.ok(raw.includes('Niêm yết tháng 11/2026'))
     assert.ok(raw.includes('DV001'))

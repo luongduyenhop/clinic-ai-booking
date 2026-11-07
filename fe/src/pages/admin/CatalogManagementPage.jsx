@@ -35,38 +35,6 @@ export default function CatalogManagementPage() {
 
     const fileInputRef = useRef(null)
 
-    const handleExportCatalog = () => {
-        const titleMap = {
-            'dich-vu': 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & KHÁM BỆNH',
-            'thuoc-vat-tu': 'DANH MỤC THUỐC & DƯỢC PHẨM Y TẾ',
-            'benh': 'DANH MỤC MÃ BỆNH QUỐC TẾ (ICD-10)',
-            'khoa-phong': 'DANH MỤC KHOA PHÒNG & BUỒNG BỆNH',
-            'dia-chi': 'DANH MỤC ĐỊA BÀN HÀNH CHÍNH Y TẾ',
-            'chung': 'DANH MỤC THIẾT LẬP CHUNG HỆ THỐNG',
-        }
-        const currentTitle = titleMap[loaiDanhMuc] || 'DANH MỤC DỮ LIỆU CƠ SỞ Y TẾ'
-        const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá (VNĐ)', 'Đơn vị tính', 'Trạng thái']
-        const rows = filteredList.map((item) => {
-            const code = item.maDV || item.maThuoc || item.maICD || item.maPhong || item.maTinh || item.ma || item.id || ''
-            const name = item.tenDV || item.tenThuoc || item.tenBenh || item.tenPhong || item.tenTinh || item.noiDung || item.ten || ''
-            const group = item.nhomDV || item.nhomThuoc || item.chuongBenh || item.chuyenKhoa || item.quanHuyen || item.moTa || item.nhom || item.loai || ''
-            const price = Number(item.donGia || item.donGiaMacDinh || item.gia || 0)
-            const unit = item.dvt || item.donViTinh || (activeCatalogKey === 'dichVu' ? 'Lần' : '')
-            const status = item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng'
-            return [code, name, group, price, unit, status]
-        })
-        exportToExcel({
-            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xls`,
-            sheetName: 'Danh Mục',
-            title: currentTitle,
-            subtitle: `Phân hệ Quản trị Danh mục Y tế • Tổng số: ${rows.length} bản ghi`,
-            headers,
-            rows,
-            signOff: true,
-        })
-        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xls) thành công!`)
-    }
-
     const handleImportFile = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -78,6 +46,7 @@ export default function CatalogManagementPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
     const catalogs = clinicData?.catalogs || {}
 
     const masterOptions = getMasterOptions(clinicData)
@@ -140,11 +109,20 @@ export default function CatalogManagementPage() {
             Number(s.doanh_thu_tich_luy) || 0,
             s.trang_thai ? 'Đang áp dụng' : 'Tạm ngưng',
         ])
+        const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+        const configuredClinicAddress = [
+            settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+            settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+        ].filter(Boolean).join(' | ')
+
         exportToExcel({
             filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xls`,
             sheetName: 'Bảng Giá Dịch Vụ',
             title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
             subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
             headers,
             rows,
             signOff: true,
@@ -269,6 +247,126 @@ export default function CatalogManagementPage() {
         const raw = JSON.stringify(item).toLowerCase()
         return raw.includes(searchText.toLowerCase())
     })
+
+    const handleExportCatalog = () => {
+        const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+        const configuredClinicAddress = [
+            settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+            settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+        ].filter(Boolean).join(' | ')
+
+        let title = 'DANH MỤC DỮ LIỆU CƠ SỞ Y TẾ'
+        let headers = []
+        let rows = []
+
+        if (loaiDanhMuc === 'dich-vu') {
+            title = 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & KHÁM BỆNH NIÊM YẾT'
+            headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maDV || item.ma || '',
+                item.tenDV || item.ten || '',
+                item.nhomDV || 'Khám bệnh',
+                item.dvt || 'Lần',
+                Number(item.donGia || 0),
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'benh') {
+            title = 'DANH MỤC MÃ BỆNH QUỐC TẾ (ICD-10 CHUẨN BỘ Y TẾ)'
+            headers = ['Mã ICD-10', 'Tên bệnh / Chẩn đoán y khoa', 'Chương bệnh', 'Truyền nhiễm / Báo cáo dịch', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maICD || item.ma || '',
+                item.tenBenh || item.ten || '',
+                item.chuongBenh || '',
+                item.truyenNhiem ? 'Bệnh truyền nhiễm (Cần báo cáo dịch)' : 'Không',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'thuoc-vat-tu') {
+            title = 'DANH MỤC THUỐC & DƯỢC PHẨM KÊ ĐƠN BỘ Y TẾ'
+            headers = ['Mã thuốc', 'Tên thuốc & Biệt dược', 'Hoạt chất & Hàm lượng', 'Đường dùng', 'Đơn vị tính', 'Nhóm thuốc', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maThuoc || item.ma || '',
+                item.tenThuoc || item.ten || '',
+                item.hoatChat || '',
+                item.duongDung || 'Đường uống',
+                item.dvt || 'Viên',
+                item.nhomThuoc || 'Thuốc kê đơn',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'khoa-phong') {
+            title = 'DANH MỤC KHOA PHÒNG & BUỒNG KHÁM CHUYÊN KHOA'
+            headers = ['Mã buồng / phòng', 'Tên khoa phòng', 'Chuyên khoa phụ trách', 'Vị trí tầng', 'Bác sĩ phụ trách chuyên môn', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maPhong || item.ma || '',
+                item.tenPhong || item.ten || '',
+                item.chuyenKhoa || '',
+                item.tang || 'Tầng 1',
+                item.bacSiPhuTrach || '',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'dia-chi') {
+            title = 'DANH MỤC ĐỊA BÀN HÀNH CHÍNH Y TẾ'
+            headers = ['Mã Tỉnh / TP', 'Tỉnh / Thành phố', 'Quận / Huyện', 'Phường / Xã', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maTinh || item.ma || '',
+                item.tenTinh || item.ten || '',
+                item.quanHuyen || '',
+                item.phuongXa || '',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else {
+            if (activeGeneralSubTab === 'khoanThu') {
+                title = 'DANH MỤC KHOẢN THU PHÍ & LỆ PHÍ VIỆN PHÍ'
+                headers = ['Mã khoản thu', 'Tên khoản thu viện phí', 'Đơn giá định mức (VNĐ)', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    Number(item.donGiaMacDinh || 0),
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else if (activeGeneralSubTab === 'donViTinh') {
+                title = 'DANH MỤC ĐƠN VỊ TÍNH CHUẨN Y TẾ'
+                headers = ['Mã ĐVT', 'Tên đơn vị tính', 'Mô tả phạm vi áp dụng', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    item.moTa || '',
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else if (activeGeneralSubTab === 'phuongPhapTruDau') {
+                title = 'DANH MỤC PHƯƠNG PHÁP TRỪ ĐAU & GÂY MÊ HỒI SỨC'
+                headers = ['Mã phương pháp', 'Tên phương pháp', 'Mô tả kỹ thuật', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    item.moTa || '',
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else {
+                title = 'DANH MỤC TỪ VIẾT TẮT & GÕ TẮT LÂM SÀNG'
+                headers = ['Mã gõ tắt', 'Nội dung mở rộng / Cụm từ thay thế', 'Thứ tự', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.noiDung || '',
+                    item.thuTu || 1,
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            }
+        }
+
+        exportToExcel({
+            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xls`,
+            sheetName: 'Danh Mục',
+            title,
+            subtitle: `Phân hệ Quản trị Danh mục Y tế • Tổng số: ${rows.length} bản ghi`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xls) thành công!`)
+    }
 
     return (
         <div className="space-y-3.5">

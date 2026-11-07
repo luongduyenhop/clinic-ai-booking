@@ -152,6 +152,13 @@ const saveStoredLeaves = (list) => {
 
 export default function DoctorLeaveManagementTab() {
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
+    const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+    const configuredClinicAddress = [
+        settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+        settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+    ].filter(Boolean).join(' | ')
     const staffList = clinicData?.staffList || []
 
     const doctorOptions = useMemo(() => {
@@ -279,6 +286,8 @@ export default function DoctorLeaveManagementTab() {
             sheetName: 'Nghỉ Phép Bác Sĩ',
             title: 'DANH SÁCH ĐĂNG KÝ NGHỈ PHÉP & ĐIỀU PHỐI LỊCH BÁC SĨ',
             subtitle: `Phân hệ Quản trị Nhân sự & Lịch khám • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} đơn`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
             headers,
             rows,
             signOff: true,
@@ -303,6 +312,8 @@ export default function DoctorLeaveManagementTab() {
             sheetName: 'DS Bệnh Nhân Ảnh Hưởng',
             title: 'DANH SÁCH BỆNH NHÂN BỊ ẢNH HƯỞNG BỞI LỊCH NGHỈ BÁC SĨ',
             subtitle: `Bác sĩ: ${selectedLeaveForAffected?.ten_bac_si || ''} • Thời gian nghỉ: ${selectedLeaveForAffected?.tu_ngay || ''} đến ${selectedLeaveForAffected?.den_ngay || ''} • Tổng số: ${rows.length} bệnh nhân`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
             headers,
             rows,
             signOff: true,

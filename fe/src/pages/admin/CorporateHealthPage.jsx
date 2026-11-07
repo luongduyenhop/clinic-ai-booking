@@ -25,6 +25,13 @@ export default function CorporateHealthPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
+    const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+    const configuredClinicAddress = [
+        settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+        settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+    ].filter(Boolean).join(' | ')
     const corporateCheckups = clinicData?.corporateCheckups || []
 
     const queryTab = new URLSearchParams(location.search).get('tab')
@@ -415,6 +422,8 @@ export default function CorporateHealthPage() {
         sheetName: 'Kết Quả Khám Đoàn',
         title: 'BÁO CÁO KẾT QUẢ KHÁM SỨC KHỎE ĐỊNH KỲ (THÔNG TƯ 32/2023/TT-BYT)',
         subtitle: `Đơn vị: ${selectedCorp?.tenDoan || selectedCorp?.tenCongTy || 'Doanh nghiệp'} • Hợp đồng: ${selectedCorp?.soHopDong || 'Chưa có'} • Tổng số: ${rows.length} CBNV`,
+        clinicName: configuredClinicName,
+        clinicAddress: configuredClinicAddress,
         headers,
         rows,
         signOff: true,

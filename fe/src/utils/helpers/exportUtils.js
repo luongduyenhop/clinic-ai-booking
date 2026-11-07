@@ -70,7 +70,7 @@ function getColumnWidth(type, headerText = '') {
     if (text.includes('tên') || text.includes('nội dung') || text.includes('mô tả') || text.includes('bệnh nhân')) {
         return { px: 260, pt: 195 }
     }
-    if (text.includes('nhóm') || text.includes('chuyên khoa') || text.includes('chẩn đoán') || text.includes('hành động') || text.includes('lý do')) {
+    if (text.includes('nhóm') || text.includes('chuyên khoa') || text.includes('chẩn đoán') || text.includes('chương') || text.includes('hành động') || text.includes('lý do')) {
         return { px: 180, pt: 135 }
     }
     if (text.includes('mã') || text.includes('stt') || text.includes('ip') || text.includes('đơn vị')) {
@@ -82,8 +82,8 @@ function getColumnWidth(type, headerText = '') {
     if (type === 'date' || text.includes('thời gian') || text.includes('ngày')) {
         return { px: 150, pt: 112 }
     }
-    if (text.includes('trạng thái') || text.includes('kết quả') || text.includes('xếp loại')) {
-        return { px: 120, pt: 90 }
+    if (text.includes('trạng thái') || text.includes('kết quả') || text.includes('xếp loại') || text.includes('truyền nhiễm')) {
+        return { px: 130, pt: 98 }
     }
     return { px: 140, pt: 105 }
 }
@@ -113,6 +113,37 @@ function getCellStyle(type) {
     }
 }
 
+function getResolvedClinicInfo() {
+    try {
+        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL') : null
+        if (raw) {
+            const parsed = JSON.parse(raw)
+            const s = parsed.clinicSettings
+            if (s && (s.tenPhongKham || s.tenCoSo)) {
+                const name = String(s.tenPhongKham || s.tenCoSo).toUpperCase()
+                const parts = [
+                    s.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+                    s.dienThoai ? `Hotline: ${s.dienThoai}` : 'Hotline: 1900 2115',
+                    s.giayPhepHoatDong ? `GPHĐ: ${s.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+                ].filter(Boolean)
+                return {
+                    name,
+                    address: parts.join(' | '),
+                }
+            }
+        }
+    } catch {
+        return {
+            name: 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI',
+            address: 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội | Hotline: 1900 2115 | GPHĐ: Số 1428/HNO-GPHĐ',
+        }
+    }
+    return {
+        name: 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI',
+        address: 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội | Hotline: 1900 2115 | GPHĐ: Số 1428/HNO-GPHĐ',
+    }
+}
+
 export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) {
     let config = {}
     if (typeof optionsOrFilename === 'string') {
@@ -125,13 +156,15 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
         config = { ...optionsOrFilename }
     }
 
+    const defaultClinic = getResolvedClinicInfo()
+
     const {
         filename = 'bao-cao-clinic-ai',
         sheetName = 'Báo cáo',
         title = 'BÁO CÁO QUẢN TRỊ PHÒNG KHÁM',
         subtitle = '',
-        clinicName = 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ MEDPRO - CLINIC-AI',
-        clinicAddress = 'Số 18 Duy Tân, Cầu Giấy, Hà Nội | Hotline: 1900 2115 | GPHĐ: 1428/HNO-GPHD',
+        clinicName = defaultClinic.name,
+        clinicAddress = defaultClinic.address,
         headers = [],
         rows = [],
         signOff = true,
@@ -276,7 +309,7 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
       .join('')}
 
   <tr style="height: 30px;">
-    <td colspan="${hasCurrencyColumn && currencyColIdx > 0 ? currencyColIdx : 2}" class="cell-summary-title">
+    <td colspan="${hasCurrencyColumn && currencyColIdx > 0 ? currencyColIdx : Math.min(2, colCount)}" class="cell-summary-title">
       TỔNG CỘNG: ${rows.length} BẢN GHI
     </td>
     ${
@@ -287,6 +320,8 @@ export function exportToExcel(optionsOrFilename, optionalHeaders, optionalRows) 
                   : '')
             : colCount > 2
             ? `<td colspan="${colCount - 2}" class="cell-summary-empty"></td>`
+            : colCount === 2
+            ? ''
             : ''
     }
   </tr>

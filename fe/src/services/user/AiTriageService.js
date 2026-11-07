@@ -40,7 +40,7 @@ class AiTriageService {
             confidence,
             analysisId: data.phan_tich_ai_id,
             symptoms: combinedText,
-            needsHumanSupport: Boolean(data.default_assigned || data.needs_more_information || confidence < 60),
+            needsHumanSupport: Boolean(data.default_assigned || data.needs_more_information || confidence < 40),
             recommendations: suggestions.map((item) => ({ specialtyId: specialtyId(item.ten_chuyen_khoa), specialtyName: item.ten_chuyen_khoa, reason: item.ly_do_de_xuat })),
             source: 'BACKEND_API',
         }

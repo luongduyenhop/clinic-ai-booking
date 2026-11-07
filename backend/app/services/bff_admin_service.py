@@ -173,7 +173,6 @@ class BffAdminService:
             "treatmentCourses": seed.get("treatmentCourses", []),
             "corporateCheckups": seed.get("corporateCheckups", []),
             "healthCheckupClassifications": seed.get("healthCheckupClassifications", []),
-            # Ràng buộc bắt buộc: Phòng khám không quản lý kho thuốc / lô thuốc
             "inventoryBatches": [],
             "cashierClosings": seed.get("cashierClosings", []),
             "nationalDrugSync": seed.get("nationalDrugSync", []),
@@ -191,7 +190,7 @@ class BffAdminService:
         existing_keys = set()
         for row in rows:
             existing_keys.add(row.collection_key)
-            if row.collection_key == "inventoryBatches":
+            if row.collection_key in ("inventoryBatches", "navigationConfig"):
                 continue
             if row.collection_key == "catalogs" and isinstance(row.data_json, dict):
                 merged_catalogs = copy.deepcopy(data.get("catalogs", {}))
@@ -200,11 +199,9 @@ class BffAdminService:
             else:
                 data[row.collection_key] = row.data_json
 
-        # Luôn đảm bảo không tồn tại quản lý lô/kho thuốc
         data["inventoryBatches"] = []
         data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
 
-        # Đồng bộ hóa dữ liệu khởi tạo vào các bảng quan hệ nếu Database mới khởi tạo
         if len(existing_keys) < 5:
             await self.sync_all_collections_to_relational(db, data, existing_keys)
 
@@ -384,7 +381,6 @@ class BffAdminService:
         current_data["auditLogs"] = audit_logs
         await self._upsert_bff_key(db, "auditLogs", audit_logs, user_id=user_id)
 
-        # Ghi trực tiếp vào bảng quan hệ nhat_ky_truy_cap_y_te
         db.add(NhatKyTruyCapDuLieuYTe(
             user_id=user_id or 1,
             user_role=str(new_audit["vaiTro"])[:50],

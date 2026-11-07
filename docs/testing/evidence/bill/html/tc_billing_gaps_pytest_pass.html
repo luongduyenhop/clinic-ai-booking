@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pytest Execution Result - 100% Passed</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 30px;
+            background: #0d1117;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            color: #c9d1d9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .window {
+            width: 1080px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .window-header {
+            background: #21262d;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
+        .window-title {
+            margin-left: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b949e;
+        }
+        .terminal-body {
+            padding: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .line-cmd {
+            color: #58a6ff;
+            margin-bottom: 14px;
+            font-weight: bold;
+        }
+        .line-header {
+            color: #8b949e;
+        }
+        .line-pass {
+            color: #3fb950;
+            font-weight: bold;
+        }
+        .line-test {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .test-name {
+            color: #e6edf3;
+        }
+        .badge-passed {
+            background: rgba(63, 185, 80, 0.15);
+            color: #3fb950;
+            border: 1px solid #3fb950;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .summary-banner {
+            margin-top: 20px;
+            padding: 14px 20px;
+            background: rgba(63, 185, 80, 0.15);
+            border: 1px solid #3fb950;
+            border-radius: 6px;
+            color: #3fb950;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        .meta-info {
+            margin-top: 14px;
+            font-size: 12px;
+            color: #8b949e;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="window">
+        <div class="window-header">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            <span class="window-title">bash - clinic-ai/backend - pytest tests/test_billing_gaps.py</span>
+        </div>
+        <div class="terminal-body">
+            <div class="line-cmd">$ pytest tests/test_billing_gaps.py -v</div>
+            <div class="line-header">============================= test session starts =============================</div>
+            <div class="line-header">platform win32 -- Python 3.14.0, pytest-9.1.1, pluggy-1.6.0</div>
+            <div class="line-header">rootdir: D:\dowload\tailieu\clinic-ai\backend, configfile: pytest.ini</div>
+            <div class="line-header" style="margin-bottom: 12px;">collected 5 items</div>
+
+            <div class="line-test">
+                <span class="test-name">tests/test_billing_gaps.py::test_fc16_refund_invoice_full_and_partial</span>
+                <span class="badge-passed">PASSED [ 20%]</span>
+            </div>
+            <div class="line-test">
+                <span class="test-name">tests/test_billing_gaps.py::test_fc17_patient_packages_and_history_summary</span>
+                <span class="badge-passed">PASSED [ 40%]</span>
+            </div>
+            <div class="line-test">
+                <span class="test-name">tests/test_billing_gaps.py::test_fc18_no_show_end_of_shift_and_role_access</span>
+                <span class="badge-passed">PASSED [ 60%]</span>
+            </div>
+            <div class="line-test" style="background: rgba(56, 139, 253, 0.08); padding-left: 6px; border-radius: 4px;">
+                <span class="test-name" style="color: #79c0ff; font-weight: bold;">tests/test_billing_gaps.py::test_pj2026_290_tc_bill_007_03_cumulative_refund_guard</span>
+                <span class="badge-passed">PASSED [ 80%]</span>
+            </div>
+            <div class="line-test" style="background: rgba(56, 139, 253, 0.08); padding-left: 6px; border-radius: 4px;">
+                <span class="test-name" style="color: #79c0ff; font-weight: bold;">tests/test_billing_gaps.py::test_pj2026_302_tc_bill_006_02_block_refund_on_closed_shift</span>
+                <span class="badge-passed">PASSED [100%]</span>
+            </div>
+
+            <div class="summary-banner">
+                ✔ 5 PASSED in 1.12s (100% REGRESSION & INVARIANT AUDIT SUCCESS)
+            </div>
+            <div class="meta-info">
+                <span>Verified: DEF-G3-02 Resolved & Guarded</span>
+                <span>Audit Target: cashier_service.py</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -407,11 +407,11 @@
             "children": [
               {
                 "label": "Tổng quan Tuân thủ Pháp lý",
-                "path": "/admin/tuan-thu"
+                "path": "/admin/tuan-thu?tab=OVERVIEW"
               },
               {
                 "label": "Đồng bộ Đơn thuốc QG (TT26)",
-                "path": "/admin/don-thuoc-quoc-gia"
+                "path": "/admin/tuan-thu?tab=DON_THUOC"
               },
               {
                 "label": "Đồng bộ Sổ sức khỏe (TT32)",
@@ -710,19 +710,19 @@
     "licenseStatuses": [
       {
         "code": "ACTIVE",
-        "label": "ACTIVE (Đủ điều kiện hành nghề)"
+        "label": "Đủ điều kiện hành nghề"
       },
       {
         "code": "EXPIRING_SOON",
-        "label": "EXPIRING_SOON (Sắp hết hạn < 60 ngày)"
+        "label": "Sắp hết hạn (< 60 ngày)"
       },
       {
         "code": "EXPIRED",
-        "label": "EXPIRED (Hết hạn - Chặn phân công)"
+        "label": "Hết hạn (Chặn phân công)"
       },
       {
         "code": "SUSPENDED",
-        "label": "SUSPENDED (Đình chỉ - Chặn phân công)"
+        "label": "Đang đình chỉ (Chặn phân công)"
       }
     ],
     "staffRoleOptions": [
@@ -2708,7 +2708,7 @@
     {
       "id": "AUD-1003",
       "thoiGian": "2026-10-12 08:42:05",
-      "nguoiDung": "Hệ thống Kiểm soát CCHN (INT-05)",
+      "nguoiDung": "Hệ thống Kiểm soát CCHN",
       "vaiTro": "SYSTEM",
       "hanhDong": "BLOCK_ASSIGNMENT_EXPIRED_LICENSE",
       "doiTuong": "BS.CKI Phạm Quang Huy (003219/HNO-CCHN)",
@@ -3199,7 +3199,7 @@
       "content": "Đơn thuốc ĐTQG-2026-000150 đã được Cổng Đơn thuốc Quốc gia xác nhận (Receipt: REC-77491).",
       "time": "25 phút trước",
       "unread": true,
-      "link": "/admin/tuan-thu"
+      "link": "/admin/tuan-thu?tab=DON_THUOC"
     },
     {
       "id": "notif-04",

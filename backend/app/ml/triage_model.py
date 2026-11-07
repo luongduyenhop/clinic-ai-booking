@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -9,21 +9,20 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from app.ml.triage_nlp import detect_red_flags, extract_features
+from app.ml.triage_nlp import detect_red_flags, extract_features, route_by_keywords
 
 logger = logging.getLogger("clinic_backend")
 
-MODEL_VERSION = "ai-disease-model-v2"
+MODEL_VERSION = "ai-disease-model-v2.1-849f"
 MODEL_DIR = Path(__file__).resolve().parent / "triage_assets"
 MODEL_PATH = MODEL_DIR / "ai_disease_model_v2.joblib"
 
 
 class AITriageModelError(RuntimeError):
-    """Raised when the packaged AI model cannot be loaded or evaluated."""
+    pass
 
 
 class AITriageModel:
-    """Adapter around the standalone TestAI model for backend-safe inference."""
 
     def __init__(self) -> None:
         if not MODEL_PATH.is_file():
@@ -31,7 +30,7 @@ class AITriageModel:
 
         try:
             bundle = joblib.load(MODEL_PATH)
-        except Exception as exc:  # pragma: no cover - depends on deployment image
+        except Exception as exc:
             raise AITriageModelError("Không thể nạp AI model") from exc
 
         required = {"model", "feature_names", "disease_map"}
@@ -41,9 +40,11 @@ class AITriageModel:
 
         self.model = bundle["model"]
         self.feature_names = list(bundle["feature_names"])
-        if len(self.feature_names) != 450:
+        expected_features = getattr(self.model, "n_features_in_", len(self.feature_names))
+        if not self.feature_names or len(self.feature_names) != int(expected_features):
             raise AITriageModelError(
-                f"AI model phải có 450 đặc trưng, nhận được {len(self.feature_names)}"
+                "AI model không nhất quán: "
+                f"{len(self.feature_names)} tên đặc trưng nhưng model cần {expected_features}"
             )
 
         disease_rows = bundle["disease_map"]
@@ -83,21 +84,29 @@ class AITriageModel:
         }
         has_pediatric_evidence = any(vector.get(name, 0) for name in pediatric_features)
 
-        # Không suy đoán bệnh nhi từ các triệu chứng chung nếu không có bằng chứng tuổi.
-        if not has_pediatric_evidence:
-            for index, disease_class in enumerate(self.model.classes_):
-                info = self.disease_lookup.get(str(disease_class))
-                if info and info.get("specialty") == "Nhi":
-                    probabilities[index] = 0.0
-            total = probabilities.sum()
-            if total > 0:
-                probabilities /= total
-
         specialty_scores = {specialty: 0.0 for specialty in self.specialties}
+        disease_by_specialty: dict[str, list[dict[str, Any]]] = {}
         for index, probability in enumerate(probabilities):
-            info = self.disease_lookup.get(str(self.model.classes_[index]))
+            key = str(self.model.classes_[index])
+            info = self.disease_lookup.get(key)
             if info and info.get("specialty") in specialty_scores:
-                specialty_scores[info["specialty"]] += float(probability)
+                specialty = info["specialty"]
+                specialty_scores[specialty] += float(probability)
+                disease_by_specialty.setdefault(specialty, []).append(
+                    {
+                        "ma_benh": key,
+                        "ten_benh": info["disease_name_vi"],
+                        "chuyen_khoa": specialty,
+                        "xac_suat": float(probability),
+                    }
+                )
+
+        disease_by_specialty = {
+            specialty: sorted(
+                items, key=lambda item: item["xac_suat"], reverse=True
+            )[:3]
+            for specialty, items in disease_by_specialty.items()
+        }
 
         specialty_predictions = sorted(
             (
@@ -126,6 +135,8 @@ class AITriageModel:
         return {
             "specialties": specialty_predictions,
             "diseases": disease_predictions,
+            "disease_by_specialty": disease_by_specialty,
+            "keyword_route": route_by_keywords(text),
             "recognized_symptoms": [
                 label
                 for _feature, label, method, _score in extraction["detections"]
@@ -160,8 +171,16 @@ class AITriageModel:
         return context
 
 
-@lru_cache(maxsize=1)
+_model_instance: AITriageModel | None = None
+_model_lock = threading.Lock()
+
+
 def get_ai_triage_model() -> AITriageModel:
-    """Load the 30 MB model once per backend worker."""
-    logger.info("Loading packaged AI Triage model: %s", MODEL_VERSION)
-    return AITriageModel()
+    global _model_instance
+    if _model_instance is not None:
+        return _model_instance
+    with _model_lock:
+        if _model_instance is None:
+            logger.info("Loading packaged AI Triage model: %s", MODEL_VERSION)
+            _model_instance = AITriageModel()
+    return _model_instance

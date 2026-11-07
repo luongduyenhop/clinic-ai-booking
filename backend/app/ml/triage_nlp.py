@@ -1,8 +1,3 @@
-"""Vietnamese rule/fuzzy NLP for the 849-feature medical routing model.
-
-This module is deliberately explainable: every detected feature is backed by
-an alias or a structured regex. It is a routing aid, not a diagnostic system.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +17,6 @@ def normalize_text(value: str) -> str:
 
 
 def _diacritic_tokens(value: str) -> list[str]:
-    """Tokenize while keeping Vietnamese diacritics for disambiguation."""
     value = unicodedata.normalize("NFC", value or "").lower()
     value = re.sub(r"[^\w\s]", " ", value)
     return value.split()
@@ -36,12 +30,6 @@ def _tone_marks(word: str) -> frozenset[str]:
 
 
 def _tones_compatible(original_word: str, alias_word: str) -> bool:
-    """Reject only when both words are accented and their tone marks differ.
-
-    Stripping diacritics makes ``mắt`` (eye) and ``mặt`` (face), or ``mất``
-    (lost) and ``mắt`` (eye), collapse to the same token. Comparing the marks
-    keeps the no-diacritics input working while preventing those collisions.
-    """
     original_marks = _tone_marks(original_word)
     alias_marks = _tone_marks(alias_word)
     if not original_marks or not alias_marks:
@@ -88,10 +76,7 @@ def _extract_temperatures(text: str) -> list[float]:
     return [value for value in values if 34.0 <= value <= 43.0]
 
 
-# Feature -> Vietnamese aliases. Aliases are normalized automatically, so each
-# entry supports both accented and unaccented input.
 FEATURE_ALIASES = {
-    # General/internal medicine
     "fever": ["sốt", "nóng sốt"],
     "acute_fever": ["sốt cấp", "sốt đột ngột"],
     "high_fever": ["sốt cao", "sốt trên 39 độ"],
@@ -178,10 +163,6 @@ FEATURE_ALIASES = {
     "pain_behind_eyes": ["đau sau hốc mắt", "nhức sau mắt"],
     "rash": ["phát ban", "nổi ban"],
 
-    # Eye / ophthalmology. These aliases are important because the triage app
-    # previously returned zero features for obvious complaints such as
-    # "đau mắt đỏ": the model has the columns, but the text layer could not
-    # reach them.
     "eye_redness": ["đỏ mắt", "mắt đỏ", "mắt đỏ ngầu"],
     "bilateral_eye_redness": ["đỏ cả hai mắt", "hai mắt đỏ", "đỏ hai bên mắt"],
     "painless_red_eye": ["đỏ mắt không đau", "mắt đỏ nhưng không đau"],
@@ -273,7 +254,6 @@ FEATURE_ALIASES = {
     "red_chemical_eye_burn": ["bỏng mắt do hóa chất", "hóa chất vào mắt"],
     "red_severe_eye_pain_with_headache": ["đau mắt dữ dội kèm đau đầu"],
 
-    # General surgery
     "groin_bulge": ["khối phồng bẹn", "bẹn phồng", "u vùng bẹn"],
     "groin_discomfort": ["đau bẹn", "khó chịu vùng bẹn"],
     "pain_when_coughing": ["đau khi ho", "ho làm đau hơn"],
@@ -302,7 +282,6 @@ FEATURE_ALIASES = {
     "neck_lump": ["khối ở cổ", "nổi cục ở cổ"],
     "breast_lump": ["khối ở vú", "cục ở vú"],
 
-    # Pediatrics
     "child_patient": ["trẻ em", "bé", "em bé", "trẻ nhỏ"],
     "newborn_patient": ["trẻ sơ sinh", "bé sơ sinh"],
     "poor_feeding": ["bú kém", "bé bú kém", "trẻ bỏ bú", "bỏ bú", "ăn kém"],
@@ -331,7 +310,6 @@ FEATURE_ALIASES = {
     "muscle_wasting": ["teo cơ", "gầy mòn"],
     "developmental_delay": ["chậm phát triển", "chậm biết đi nói"],
 
-    # Dental/maxillofacial
     "toothache": ["đau răng", "nhức răng"],
     "severe_tooth_pain": ["đau răng dữ dội", "nhức răng dữ dội", "đau răng rất nhiều"],
     "tooth_cavity": ["lỗ sâu răng", "răng bị sâu", "sâu răng"],
@@ -363,7 +341,6 @@ FEATURE_ALIASES = {
     "meal_related_salivary_pain": ["đau tuyến nước bọt khi ăn", "ăn vào đau dưới hàm"],
     "salivary_gland_swelling": ["sưng tuyến nước bọt", "sưng dưới hàm khi ăn"],
 
-    # ENT
     "sneezing": ["hắt hơi", "hắt xì"],
     "itchy_nose": ["ngứa mũi"],
     "runny_nose": ["sổ mũi", "chảy nước mũi"],
@@ -425,13 +402,8 @@ NEGATIVE_FEATURES = {
 
 NEGATORS = ("khong", "chua", "chang", "het", "khong co", "khong bi")
 
-# "đau mắt" is also the first half of "đau mắt cá chân" (ankle pain). When the
-# next token is "cá" the phrase is orthopaedic, not ophthalmological.
 ALIAS_TRAILING_EXCLUSIONS = {"dau mat": {"ca"}, "nga": {"ba", "tu", "gia"}}
 
-# Hard keyword routing is intentionally narrow: it only forces a specialty when
-# the text names an organ/emergency context explicitly. Anything ambiguous is
-# left to the model instead of being guessed.
 ORGAN_TRAUMA_KEYWORDS = (
     ("Mắt", ("chấn thương mắt", "va đập mắt", "bị đánh vào mắt", "tai nạn mắt", "dị vật trong mắt")),
     ("Răng Hàm Mặt", ("chấn thương răng", "gãy răng", "răng bị va đập", "tai nạn răng")),
@@ -501,8 +473,6 @@ def _alias_index(valid_features: set[str]):
     return index, display
 
 
-# Các cụm dễ trùng khi bỏ dấu cần so cả thanh điệu trên văn bản gốc:
-# "co giật" (co giật) khác "có giật" (giật nhẹ), "hôn mê" khác "hôn mẹ".
 AMBIGUOUS_RED_FLAG_ALIASES = {
     "Co giật": {"co giat": "co giật", "len con giat": "lên cơn giật"},
     "Rối loạn ý thức": {"hon me": "hôn mê"},
@@ -516,11 +486,6 @@ def _span_tones_match_strict(
     start: int,
     end: int,
 ) -> bool:
-    """So thanh điệu cho các cụm red flag dễ nhầm khi bỏ dấu.
-
-    Khác ``_span_tones_match``: nếu từ gốc có dấu thì phải khớp đúng thanh,
-    kể cả khi từ chuẩn không có dấu ("có" không được khớp "co").
-    """
     first = last = None
     for index, (token_start, token_end) in enumerate(token_spans):
         if token_start == start:
@@ -571,7 +536,6 @@ def detect_red_flags(text: str) -> list[str]:
     if temperatures and max(temperatures) >= 40.0:
         flags.append("Sốt rất cao (≥40°C)")
 
-    # Fever in a baby younger than 3 months needs prompt medical assessment.
     age_in_days = re.search(r"\b(\d{1,2})\s*ngay tuoi\b", normalized)
     age_in_months = re.search(r"\b(\d{1,2})\s*thang tuoi\b", normalized)
     under_three_months = (
@@ -593,12 +557,6 @@ _NEGATION_WORDS = {"khong", "chua", "chang", "het"}
 
 
 def _is_negated_in_clause(text: str, start: int) -> bool:
-    """Keyword routing often matches a bare noun ("răng", "họng").
-
-    Checking only the immediate prefix misses "không bị đau răng", while an
-    unbounded prefix would wrongly negate "không đau họng, chỉ đau răng".
-    Walk back a short window and stop at contrast/coordination words.
-    """
     window: list[str] = []
     for token in reversed(text[max(0, start - 40):start].split()):
         if token in _CLAUSE_BOUNDARY_WORDS:
@@ -637,14 +595,6 @@ def _find_keyword_hits(
 
 
 def route_by_keywords(text: str):
-    """Return a safe department override based on explicit organ/trauma words.
-
-    Precedence:
-    1. Organ-specific trauma (e.g. "chấn thương mắt" stays in Mắt).
-    2. General trauma or acute abdomen -> Ngoại.
-    3. Exactly one organ keyword group -> that specialty.
-    4. Multiple organ groups or nothing -> no override, let the model decide.
-    """
     normalized = normalize_text(text)
     if not normalized:
         return None
@@ -708,8 +658,6 @@ def _fuzzy_matches(
                 if feature in already or abs(len(alias) - len(phrase)) > 3:
                     continue
                 alias_words = alias.split()
-                # Không so cụm khác số từ: điều này từng khiến "đau đầu,
-                # chóng mặt" bị sửa sai thành "đau căng mặt".
                 if len(alias_words) != size:
                     continue
                 tone_alias_words = _diacritic_tokens(original)
@@ -733,8 +681,6 @@ def _fuzzy_matches(
                     for left, right in zip(phrase_words, alias_words)
                 ):
                     continue
-                # Mọi từ ở cùng vị trí đều phải gần nhau. Nhờ đó "đau đầu"
-                # không thể biến thành "đau họng" chỉ vì cùng có từ "đau".
                 if size == 1:
                     if phrase_words[0][0] != alias_words[0][0] or token_scores[0] < 0.92:
                         continue
@@ -764,11 +710,6 @@ def extract_features(
     negated_positive: set[str] = set()
     detections = []
 
-    # Exact, longest-phrase-first matching with explicit negation handling.
-    # Once a longer alias claims a span, only matches fully inside that span
-    # are skipped: "nôn ra máu" is vomiting_blood, not vomiting + vomiting_blood.
-    # Partial overlaps are kept because they can be two real symptoms, e.g.
-    # "đau mắt đỏ" is both acute_eye_pain ("đau mắt") and eye_redness ("mắt đỏ").
     matched_spans: list[tuple[int, int]] = []
     for alias, feature, original in alias_index:
         for match in re.finditer(rf"(?<!\w){re.escape(alias)}(?!\w)", normalized):
@@ -777,7 +718,6 @@ def extract_features(
                 re.match(rf"\s+{re.escape(word)}(?!\w)", normalized[end:])
                 for word in ALIAS_TRAILING_EXCLUSIONS.get(alias, ())
             ):
-                # Claim the span so fuzzy matching cannot re-add the same phrase.
                 matched_spans.append((start, end))
                 continue
             if any(
@@ -786,7 +726,6 @@ def extract_features(
             ):
                 continue
             if not _span_tones_match(original_tokens, token_spans, original, start, end):
-                # Claim the span so fuzzy matching cannot re-add the same phrase.
                 matched_spans.append((start, end))
                 continue
             negated = _is_negated(normalized, start)
@@ -802,8 +741,6 @@ def extract_features(
                 detections.append((feature, original, "exact", 1.0))
             break
 
-    # Conservative fuzzy matching catches small typing errors without trying
-    # to semantically invent symptoms that were not written.
     fuzzy_blocked = active | negated_positive
     for feature, original, score in _fuzzy_matches(
         normalized, alias_index, fuzzy_blocked, matched_spans, original_tokens
@@ -811,10 +748,6 @@ def extract_features(
         active.add(feature)
         detections.append((feature, original, "fuzzy", score))
 
-    # Parse body temperature written as a number. Normalization removes the
-    # degree symbol and punctuation, so accept both the original comma/dot
-    # decimal form and the normalized integer form. A temperature context is
-    # required to avoid treating unrelated numbers (age, dates, etc.) as fever.
     plausible_temperatures = _extract_temperatures(text)
     if plausible_temperatures:
         temperature = max(plausible_temperatures)
@@ -825,14 +758,10 @@ def extract_features(
             active.add("high_fever")
             detections.append(("high_fever", f"nhiệt độ {temperature:g}°C", "numeric", 1.0))
 
-    # Text-derived demographic/context features.
     age_match = re.search(r"\b(\d{1,3})\s*(tuoi|thang tuoi|ngay tuoi)\b", normalized)
     if age_match:
         age = int(age_match.group(1))
         unit = age_match.group(2)
-        # The current 849-feature model only keeps `age_child` for everyone
-        # below 13; the finer-grained keys are still emitted when a future
-        # model bundle defines them.
         if unit == "ngay tuoi" and age <= 28:
             active.update({"age_newborn", "newborn_patient", "age_child"} & valid)
         elif unit in {"ngay tuoi", "thang tuoi"} and age < 24:
@@ -854,7 +783,6 @@ def extract_features(
         if value in valid:
             active.add(value)
 
-    # Common free-text context.
     context_patterns = {
         "onset_sudden": ["dot ngot", "bat ngo"],
         "onset_gradual": ["tu tu", "tang dan"],

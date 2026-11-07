@@ -19,22 +19,17 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 
 try:
-    display  # type: ignore
+    display
 except NameError:
     display = print
 
 
-# =========================================================
-# 1. CẤU HÌNH
-# =========================================================
 
 SEED = 42
 TARGET = "prognosis"
 EXPECTED_FEATURES = 849
 EXPECTED_CLASSES = 160
 
-# Tự động chọn thư mục output: /kaggle/working trên Kaggle, hoặc
-# backend/app/ml/triage_assets khi chạy local (nơi backend nạp model).
 if os.path.exists("/kaggle"):
     OUTPUT_DIR = "/kaggle/working"
 else:
@@ -44,9 +39,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 print(f"Output directory: {OUTPUT_DIR}")
 
 
-# =========================================================
-# 2. TÌM FILE DỮ LIỆU (KAGGLE INPUT HOẶC LOCAL)
-# =========================================================
 
 def find_file(pattern: str, local_fallback: str) -> str:
     kaggle_matches = glob.glob(f"/kaggle/input/**/{pattern}", recursive=True)
@@ -69,9 +61,6 @@ print("Disease mapping:", MAPPING_PATH)
 print("Feature dictionary:", DICTIONARY_PATH)
 
 
-# =========================================================
-# 3. ĐỌC DỮ LIỆU
-# =========================================================
 
 df = pd.read_csv(TRAIN_PATH, encoding="utf-8-sig")
 disease_map = pd.read_csv(MAPPING_PATH, encoding="utf-8-sig")
@@ -89,9 +78,6 @@ print("Số mẫu mỗi bệnh:")
 print(y.value_counts().describe())
 
 
-# =========================================================
-# 4. KIỂM TRA DỮ LIỆU
-# =========================================================
 
 assert TARGET in df.columns, f"Thiếu cột nhãn '{TARGET}' trong dữ liệu"
 assert X.shape[1] == EXPECTED_FEATURES, (
@@ -124,9 +110,6 @@ assert not missing_mapping, (
 print("\nKiểm tra dữ liệu thành công.")
 
 
-# =========================================================
-# 5. CHIA TRAIN/TEST (STRATIFIED)
-# =========================================================
 
 X_train, X_test, y_train, y_test = train_test_split(
     X,
@@ -140,9 +123,6 @@ print(f"\nTrain set: {X_train.shape[0]} mẫu, {X_train.shape[1]} đặc trưng"
 print(f"Test set:  {X_test.shape[0]} mẫu, {X_test.shape[1]} đặc trưng")
 
 
-# =========================================================
-# 6. TRAIN MODEL ĐÁNH GIÁ (RANDOM FOREST)
-# =========================================================
 
 evaluation_model = RandomForestClassifier(
     n_estimators=600,
@@ -173,9 +153,6 @@ print(f"Weighted F1:       {weighted_f1:.4f}")
 print(f"OOB score:         {evaluation_model.oob_score_:.4f}")
 
 
-# =========================================================
-# 7. BÁO CÁO CHI TIẾT
-# =========================================================
 
 report = classification_report(
     y_test,
@@ -199,9 +176,6 @@ display(
 )
 
 
-# =========================================================
-# 8. CÁC CẶP BỆNH DỄ NHẦM (CONFUSION MATRIX)
-# =========================================================
 
 labels = list(evaluation_model.classes_)
 
@@ -238,9 +212,6 @@ print("\nCác cặp bệnh dễ nhầm nhất:")
 display(confusion_df.head(30) if not confusion_df.empty else "Không có mẫu nào bị nhầm lẫn!")
 
 
-# =========================================================
-# 9. ĐỘ QUAN TRỌNG CỦA ĐẶC TRƯNG (FEATURE IMPORTANCE)
-# =========================================================
 
 importance_df = pd.DataFrame({
     "feature": feature_names,
@@ -257,9 +228,6 @@ print("\n30 đặc trưng quan trọng nhất:")
 display(importance_df.head(30))
 
 
-# =========================================================
-# 10. TRAIN MODEL CUỐI TRÊN TOÀN BỘ DỮ LIỆU
-# =========================================================
 
 final_model = RandomForestClassifier(
     n_estimators=600,
@@ -276,9 +244,6 @@ final_model.fit(X, y)
 print("Đã hoàn thành train model cuối.")
 
 
-# =========================================================
-# 11. LƯU MODEL VÀ METADATA
-# =========================================================
 
 metrics = {
     "accuracy": float(accuracy),
@@ -329,9 +294,6 @@ with open(os.path.join(OUTPUT_DIR, "requirements_model.txt"), "w", encoding="utf
     file.write(f"joblib=={joblib.__version__}\n")
 
 
-# =========================================================
-# 12. KIỂM TRA NẠP LẠI MODEL
-# =========================================================
 
 loaded_bundle = joblib.load(MODEL_PATH)
 

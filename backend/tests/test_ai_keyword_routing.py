@@ -1,11 +1,3 @@
-"""Định tuyến theo từ khóa cơ quan phải thắng ngưỡng model nhưng không thắng red flag.
-
-Các ca ở đây khóa lại hợp đồng an toàn:
-- từ khóa cơ quan rõ ràng -> đúng khoa, kể cả khi model chưa đủ tự tin;
-- phủ định / đa cơ quan -> không chốt cứng;
-- chấn thương chung -> Ngoại nhưng không gợi ý bệnh Ngoại không liên quan;
-- red flag luôn chạy trước và chặn mọi gợi ý chuyên khoa.
-"""
 
 from importlib import import_module
 from types import SimpleNamespace
@@ -53,7 +45,6 @@ async def test_explicit_organ_keywords_route_to_the_right_department(
     assert data["has_emergency"] is False
     assert data["default_assigned"] is False
     assert data["needs_more_information"] is False
-    # CSDL seed đặt tên khoa là "Khoa Răng" trong khi model dùng "Răng Hàm Mặt".
     assert expected in data["suggested_specialties"][0]["ten_chuyen_khoa"]
     assert "từ khóa" in data["suggested_specialties"][0]["ly_do_de_xuat"].lower()
 

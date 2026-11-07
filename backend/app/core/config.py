@@ -2,7 +2,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field, field_validator
 from typing import Optional
 
-# Thời lượng 1 lượt khám hợp lệ - khớp CHECK (thoi_luong_phut IN (15, 30, 45, 60)) của bảng lich_kham
 ALLOWED_SLOT_DURATIONS = (15, 30, 45, 60)
 
 
@@ -13,7 +12,6 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    # Core Application
     PROJECT_NAME: str = "Clinic AI Booking System"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = True
@@ -21,7 +19,6 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_EMAIL: str = "admin@clinic.com"
     INITIAL_ADMIN_PASSWORD: Optional[str] = None
 
-    # Database
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "clinic_user"
@@ -39,13 +36,11 @@ class Settings(BaseSettings):
             return self.DATABASE_URL
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    # JWT Authentication
     SECRET_KEY: str = "super_secret_clinic_jwt_key_project_1_change_in_production_2026"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 2  # 2 hours
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 2
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
-    # Email Service (OTP)
     SMTP_TLS: bool = True
     SMTP_PORT: int = 587
     SMTP_HOST: str = "smtp.gmail.com"
@@ -54,17 +49,11 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: Optional[str] = None
     EMAILS_FROM_NAME: str = "Phòng Khám Đa Khoa AI"
 
-    # AI Module Parameters
-    # Model 849 đặc trưng / 160 bệnh / 5 chuyên khoa có xác suất nền 20% mỗi khoa.
-    # Ngưỡng 0.40 = gấp đôi nền ngẫu nhiên, phù hợp hơn 0.60 của model 100 bệnh cũ.
     AI_CONFIDENCE_THRESHOLD: float = 0.40
     SLOT_DURATION_MINUTES: int = 30
     CANCELLATION_MINIMUM_HOURS: int = 2
-    # Giờ khám lưu theo giờ Việt Nam (UTC+7, không có giờ mùa hè), độc lập với múi giờ của server/Docker
     CLINIC_UTC_OFFSET_HOURS: int = 7
-    # Thư mục lưu ảnh kết quả CLS (mặc định backend/uploads/cls); ảnh y tế chỉ xem qua API có xác thực
     CLS_UPLOAD_DIR: Optional[str] = None
-    # Tiêu đề phiếu kết quả CLS in ra giấy (A4/A5)
     CLINIC_PARENT_AGENCY: str = "SỞ Y TẾ TP. HỒ CHÍ MINH"
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
@@ -73,8 +62,6 @@ class Settings(BaseSettings):
     @field_validator("SLOT_DURATION_MINUTES")
     @classmethod
     def _validate_slot_duration(cls, value: int) -> int:
-        """Cấu hình sai (VD 20 phút) phải báo lỗi ngay khi khởi động, thay vì mọi lượt đặt lịch đều lỗi 500
-        do vi phạm ràng buộc CHECK trên CSDL"""
         if value not in ALLOWED_SLOT_DURATIONS:
             raise ValueError(f"SLOT_DURATION_MINUTES phải thuộc {ALLOWED_SLOT_DURATIONS}, nhận được {value}")
         return value

@@ -1,9 +1,3 @@
-"""Generate an expanded, auditable synthetic dataset for five specialties:
-Nội tổng quát, Ngoại, Mắt, Răng Hàm Mặt, Tai Mũi Họng.
-
-Educational/prototyping use only. The profiles are synthetic and require
-specialist clinical review before any real-world healthcare use.
-"""
 from __future__ import annotations
 
 import csv
@@ -22,9 +16,6 @@ def p(key, vi, specialty, symptoms):
 
 
 PROFILES = [
-    # ==========================================
-    # 1. MẮT (Ophthalmology) - 32 diseases
-    # ==========================================
     p("acute_conjunctivitis", "Viêm kết mạc cấp", "Mắt", "eye_redness conjunctival_discharge watery_eyes itchy_eyes foreign_body_sensation eyelid_sticking"),
     p("allergic_conjunctivitis", "Viêm kết mạc dị ứng", "Mắt", "severe_itchy_eyes watery_eyes bilateral_eye_redness eyelid_edema allergic_history seasonal_trigger"),
     p("bacterial_conjunctivitis", "Viêm kết mạc do vi khuẩn", "Mắt", "purulent_eye_discharge crusty_eyelids eye_redness eye_burning foreign_body_sensation morning_eye_sticking"),
@@ -58,9 +49,6 @@ PROFILES = [
     p("strabismus", "Lác mắt", "Mắt", "misaligned_eyes double_vision head_tilting eye_strain lack_of_coordination"),
     p("optic_neuritis", "Viêm thị thần kinh", "Mắt", "eye_pain_with_movement sudden_vision_loss impaired_color_vision afferent_pupillary_defect young_female_risk"),
 
-    # ==========================================
-    # 2. NỘI TỔNG QUÁT (Internal Medicine) - 32 diseases
-    # ==========================================
     p("gerd", "Trào ngược dạ dày thực quản", "Nội tổng quát", "heartburn acid_regurgitation chest_discomfort difficulty_swallowing chronic_cough nausea"),
     p("hypertension", "Tăng huyết áp", "Nội tổng quát", "high_blood_pressure palpitations headache dizziness blurred_vision chest_discomfort fatigue"),
     p("type_2_diabetes", "Đái tháo đường típ 2", "Nội tổng quát", "excessive_thirst frequent_urination increased_hunger fatigue blurred_vision slow_wound_healing weight_loss"),
@@ -94,9 +82,6 @@ PROFILES = [
     p("addison_disease", "Bệnh suy thượng thận mạn", "Nội tổng quát", "chronic_fatigue skin_hyperpigmentation weight_loss low_blood_pressure salt_craving dizziness nausea"),
     p("osteoporosis", "Loãng xương", "Nội tổng quát", "loss_of_height dowager_hump back_pain fragility_fracture older_age postmenopausal_female"),
 
-    # ==========================================
-    # 3. NGOẠI (Surgery) - 32 diseases
-    # ==========================================
     p("appendicitis", "Viêm ruột thừa", "Ngoại", "right_lower_abdominal_pain sudden_onset_abdominal_pain loss_of_appetite nausea vomiting fever abdominal_tenderness"),
     p("hemorrhoids", "Bệnh trĩ", "Ngoại", "rectal_bleeding perianal_pain anal_itching painful_bowel_movement anal_lump constipation"),
     p("inguinal_hernia", "Thoát vị bẹn", "Ngoại", "groin_lump groin_pain pain_when_coughing pain_when_lifting abdominal_pressure nausea"),
@@ -130,9 +115,6 @@ PROFILES = [
     p("cellulitis", "Viêm mô tế bào", "Ngoại", "diffuse_spreading_skin_redness skin_warmth_swelling tenderness fever skin_breakdown_portal"),
     p("carbuncle", "Nhọt cụm", "Ngoại", "cluster_of_boils multiple_pus_draining_openings severe_throbbing_skin_pain fever chills posterior_neck_location"),
 
-    # ==========================================
-    # 4. RĂNG HÀM MẶT (Maxillofacial) - 32 diseases
-    # ==========================================
     p("dental_caries", "Sâu răng", "Răng Hàm Mặt", "tooth_cavity pain_when_eating toothache pain_with_sweets pain_with_hot_cold bad_breath"),
     p("pulpitis", "Viêm tủy răng", "Răng Hàm Mặt", "throbbing_tooth_pain prolonged_cold_pain night_tooth_pain pain_when_biting pain_radiates_to_jaw tooth_sensitivity"),
     p("gingivitis", "Viêm nướu", "Răng Hàm Mặt", "bleeding_gums_brushing swollen_gums red_gums bad_breath gum_tenderness gum_recession"),
@@ -166,9 +148,6 @@ PROFILES = [
     p("mandibular_fracture", "Gãy xương hàm dưới", "Răng Hàm Mặt", "jaw_pain_after_impact malocclusion_after_trauma inability_to_bite intraoral_bleeding chin_numbness facial_swelling"),
     p("zygomatic_fracture", "Gãy xương gò má", "Răng Hàm Mặt", "flattened_cheek_after_trauma periorbital_bruising trismus infraorbital_nerve_numbness diplopia subconjunctival_hemorrhage"),
 
-    # ==========================================
-    # 5. TAI MŨI HỌNG (ENT) - 32 diseases
-    # ==========================================
     p("allergic_rhinitis", "Viêm mũi dị ứng", "Tai Mũi Họng", "sneezing_fits itchy_nose runny_nose nasal_congestion itchy_watery_eyes postnasal_drip"),
     p("acute_sinusitis", "Viêm xoang cấp", "Tai Mũi Họng", "facial_pain_pressure purulent_nasal_discharge thick_nasal_discharge reduced_smell headache fever tooth_pressure"),
     p("chronic_sinusitis", "Viêm xoang mạn", "Tai Mũi Họng", "chronic_nasal_congestion facial_pressure reduced_smell postnasal_drip thick_nasal_discharge symptoms_over_12_weeks"),
@@ -287,7 +266,6 @@ def build():
             while len(active & set(core)) < min(2, len(core)):
                 active.add(rng.choice(core))
 
-            # General demographic distributions
             active.add(rng.choices(["age_child", "age_adolescent", "age_adult", "age_older_adult"], [1, 2, 8, 4])[0])
             sex = rng.choice(["sex_female", "sex_male"])
             active.add(sex)
@@ -326,14 +304,12 @@ def main():
     print("Generating dataset v2 (5 specialties: Mat, Noi tong quat, Ngoai, Rang Ham Mat, Tai Mui Hong)...")
     profiles, features, rows = build()
 
-    # 1. Output training data
     out_csv = ROOT / "training_data_5_specialties_v2.csv"
     with out_csv.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=features + ["prognosis"])
         w.writeheader()
         w.writerows(rows)
 
-    # 2. Output disease specialty mapping
     map_csv = ROOT / "disease_specialty_map_v2.csv"
     with map_csv.open("w", encoding="utf-8-sig", newline="") as f:
         fields = ["disease_key", "disease_name_vi", "specialty", "data_status"]
@@ -347,7 +323,6 @@ def main():
                 "data_status": "synthetic_requires_clinical_review"
             })
 
-    # 3. Output feature dictionary
     clinical = {s for _, _, _, core, optional in profiles for s in core + optional}
     dict_csv = ROOT / "feature_dictionary_v2.csv"
     with dict_csv.open("w", encoding="utf-8-sig", newline="") as f:

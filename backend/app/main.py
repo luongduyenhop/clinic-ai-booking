@@ -9,10 +9,8 @@ from app.core.database import engine, Base
 from app.core.exceptions import setup_exception_handlers
 from app.core.response import ResponseEnvelope
 from app.routers.api_v1 import api_router
-# Import toàn bộ models để Base.metadata nhận biết đầy đủ các bảng
 import app.models
 
-# Cấu hình Logging có cấu trúc
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -22,15 +20,12 @@ logger = logging.getLogger("clinic_backend")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Quản lý vòng đời ứng dụng: Khởi tạo kết nối CSDL và dọn dẹp khi tắt server"""
     logger.info("🚀 [SYSTEM STARTING] Đang kết nối Cơ sở dữ liệu PostgreSQL...")
     try:
         async with engine.begin() as conn:
-            # Tự động tạo bảng nếu chưa có (phục vụ môi trường dev chạy ngay)
             await conn.run_sync(Base.metadata.create_all)
             logger.info("✅ [DATABASE CONNECTED] Toàn bộ Entity Models đã được khởi tạo trên PostgreSQL.")
 
-        # Tự động nạp dữ liệu mẫu ban đầu nếu CSDL trống (Zero-Config / Out-of-the-box Docker startup)
         try:
             from seed_data import seed_database
             await seed_database()
@@ -39,17 +34,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ [DATABASE ERROR] Không thể kết nối tới PostgreSQL: {str(e)}")
 
-    # Nạp sẵn model AI trong lúc khởi động: bundle joblib ~35 MB nên lần suy luận
-    # đầu tiên (nhất là sau khi container vừa start hoặc --reload) phải chịu
-    # 5-15 giây đọc/unpickle. Nạp trước giúp request phân tích đầu tiên của người
-    # bệnh chỉ còn ~0,2 giây. Chạy trong threadpool để không chặn event loop.
     try:
         from starlette.concurrency import run_in_threadpool
         from app.ml.triage_model import MODEL_VERSION, get_ai_triage_model
 
         started = time.perf_counter()
         model = await run_in_threadpool(get_ai_triage_model)
-        # Một lượt suy luận nhẹ để khởi tạo cache NLP (alias index, fuzzy match).
         await run_in_threadpool(model.analyze, "đau đầu nhẹ", age=30)
         logger.info(
             "🤖 [AI MODEL READY] %s nạp xong sau %.1f giây.",
@@ -87,10 +77,8 @@ app = FastAPI(
 
 from app.core.rate_limit import limiter
 
-# Thêm state limiter cho ứng dụng
 app.state.limiter = limiter
 
-# 1. Cấu hình CORS cho phép ứng dụng Next.js kết nối an toàn
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
@@ -99,10 +87,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Đăng ký bộ xử lý lỗi toàn cục (Global Exception Handler)
 setup_exception_handlers(app)
 
-# 3. Đăng ký Routers API v1 và Alias tương thích ngược cho Frontend (/api/auth/*, /api/Auth/*)
 from app.routers.auth import router as auth_router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(auth_router, prefix="/api", include_in_schema=False)
@@ -118,7 +104,6 @@ async def normalize_fe_auth_case(request, call_next):
 
 @app.get("/", tags=["Health Check"])
 async def root():
-    """Endpoint gốc kiểm tra trạng thái hoạt động của Backend"""
     return {
         "service": settings.PROJECT_NAME,
         "status": "online",
@@ -129,7 +114,6 @@ async def root():
 
 @app.get("/health", tags=["Health Check"], response_model=ResponseEnvelope[dict])
 async def health_check():
-    """Kiểm tra sức khỏe kết nối CSDL PostgreSQL"""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))

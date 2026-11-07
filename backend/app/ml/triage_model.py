@@ -19,11 +19,10 @@ MODEL_PATH = MODEL_DIR / "ai_disease_model_v2.joblib"
 
 
 class AITriageModelError(RuntimeError):
-    """Raised when the packaged AI model cannot be loaded or evaluated."""
+    pass
 
 
 class AITriageModel:
-    """Adapter around the standalone TestAI model for backend-safe inference."""
 
     def __init__(self) -> None:
         if not MODEL_PATH.is_file():
@@ -31,7 +30,7 @@ class AITriageModel:
 
         try:
             bundle = joblib.load(MODEL_PATH)
-        except Exception as exc:  # pragma: no cover - depends on deployment image
+        except Exception as exc:
             raise AITriageModelError("Không thể nạp AI model") from exc
 
         required = {"model", "feature_names", "disease_map"}
@@ -85,8 +84,6 @@ class AITriageModel:
         }
         has_pediatric_evidence = any(vector.get(name, 0) for name in pediatric_features)
 
-        # Model v2.1 chỉ định tuyến 5 chuyên khoa người lớn, không còn lớp "Nhi";
-        # pediatric_evidence vẫn được trả về để tương thích hợp đồng API và hậu kiểm.
         specialty_scores = {specialty: 0.0 for specialty in self.specialties}
         disease_by_specialty: dict[str, list[dict[str, Any]]] = {}
         for index, probability in enumerate(probabilities):
@@ -179,12 +176,6 @@ _model_lock = threading.Lock()
 
 
 def get_ai_triage_model() -> AITriageModel:
-    """Load the packaged model once per backend worker.
-
-    Dùng lock thay cho ``lru_cache`` vì lru_cache không giữ khóa trong lúc hàm
-    đang chạy: một loạt request đồng thời lúc cold start có thể cùng unpickle
-    bundle 35 MB nhiều lần, vừa chậm vừa tốn RAM.
-    """
     global _model_instance
     if _model_instance is not None:
         return _model_instance

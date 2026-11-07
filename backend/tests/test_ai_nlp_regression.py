@@ -1,9 +1,3 @@
-"""Regression tests cho NLP 849 đặc trưng và định tuyến từ khóa cơ quan.
-
-Bộ ca kiểm thử được dùng chung với script
-``python -m app.ml.training.check_nlp_regression --strict`` để tránh hai nguồn
-sự thật khác nhau giữa CI và môi trường phát triển.
-"""
 
 import pytest
 

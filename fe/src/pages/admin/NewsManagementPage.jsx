@@ -171,7 +171,7 @@ export default function NewsManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Mode Switch Header */}
+            {}
             <div className="medpro-card p-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <Link
@@ -198,12 +198,12 @@ export default function NewsManagementPage() {
                     </Link>
                 </div>
                 <span className="text-xs text-slate-500">
-                    Phân hệ Video 06: Quản lý Danh mục tin tức & Biên tập Tin tức Y tế
+                    Quản lý danh mục tin tức và biên tập nội dung y tế
                 </span>
             </div>
 
             {isCategoryMode ? (
-                /* ── VIEW 1: DANH MỤC TIN TỨC ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col">
                         <div className="medpro-section-title">
@@ -337,7 +337,7 @@ export default function NewsManagementPage() {
                     </div>
                 </div>
             ) : (
-                /* ── VIEW 2: QUẢN LÝ BÀI VIẾT TIN TỨC ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col">
                         <div className="medpro-section-title">

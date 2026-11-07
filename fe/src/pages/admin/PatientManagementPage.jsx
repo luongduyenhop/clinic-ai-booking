@@ -260,7 +260,7 @@ export default function PatientManagementPage() {
 
     return (
         <div className="space-y-3">
-            {/* Sub-tabs header: Hồ sơ cá nhân vs Hồ sơ gia đình */}
+            
             <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
                 <button
                     type="button"
@@ -288,7 +288,7 @@ export default function PatientManagementPage() {
 
             {activeMainTab === 'HO_SO' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    {/* LEFT PANEL (4 cols): Danh sách bệnh nhân */}
+                    
                     <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-130px)]">
                 <div className="medpro-section-title">
                     <span className="inline-flex items-center gap-1.5">
@@ -364,12 +364,12 @@ export default function PatientManagementPage() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL (8 cols): Thông tin chi tiết bệnh nhân & Tài khoản */}
+            
             <div className="lg:col-span-8 medpro-card p-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
                     <div>
                         <h2 className="font-display text-base font-extrabold text-[#003553] uppercase">
-                            QUẢN LÝ HỒ SƠ BỆNH NHÂN (VIDEO 02)
+                            QUẢN LÝ HỒ SƠ BỆNH NHÂN
                         </h2>
                         <p className="text-xs text-slate-500">
                             Cập nhật thông tin hành chính, ảnh đại diện, tài khoản đăng nhập Cổng bệnh nhân & lịch sử khám
@@ -401,9 +401,9 @@ export default function PatientManagementPage() {
                     </div>
                 </div>
 
-                {/* Form Layout matching Video 02 (Avatar Left + Fields Right) */}
+                
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    {/* Avatar Upload Column */}
+                    
                     <div className="md:col-span-3 flex flex-col items-center justify-start p-3 rounded-xl bg-[#F8FBFE] border border-[#E5EEF5]">
                         <div className="w-28 h-32 rounded-xl bg-[#E8F4FD] border-2 border-dashed border-[#00B5F1]/60 flex flex-col items-center justify-center text-[#003553] mb-2.5">
                             <Camera size={30} weight="duotone" className="text-[#00B5F1]" />
@@ -427,7 +427,7 @@ export default function PatientManagementPage() {
                         </div>
                     </div>
 
-                    {/* Administrative Fields Column */}
+                    
                     <div className="md:col-span-9 space-y-3">
                         <div className="medpro-section-title">
                             <span>1. THÔNG TIN CÁ NHÂN & ĐỊA CHỈ HÀNH CHÍNH</span>
@@ -604,7 +604,7 @@ export default function PatientManagementPage() {
                             </div>
                         </div>
 
-                        {/* Section 2: Thông tin tài khoản */}
+                        
                         <div className="pt-2">
                             <div className="medpro-section-title">
                                 <span>2. THÔNG TIN TÀI KHOẢN TRA CỨU BỆNH ÁN & ĐẶT LỊCH</span>
@@ -642,7 +642,7 @@ export default function PatientManagementPage() {
                     </div>
                 </div>
 
-                {/* Section 3: Lịch sử khám chữa bệnh của Bệnh nhân */}
+                
                 <div>
                     <div className="medpro-section-title">
                         <span>3. LỊCH SỬ KHÁM CHỮA BỆNH CỦA BỆNH NHÂN ({patientHistory.length} LƯỢT)</span>
@@ -692,7 +692,6 @@ export default function PatientManagementPage() {
             </div>
         </div>
         ) : (
-                /* VIEW HỒ SƠ SỨC KHỎE HỘ GIA ĐÌNH (/giadinh-benhnhan) */
                 <div className="space-y-4">
                     <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">

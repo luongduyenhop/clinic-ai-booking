@@ -529,10 +529,10 @@ export default function DoctorLeaveManagementTab() {
                         </div>
                         <div>
                             <h2 className="text-sm font-bold text-[#003553]">
-                                QUẢN LÝ &amp; PHÊ DUYỆT NGHỈ PHÉP BÁC SĨ (APT-008)
+                                QUẢN LÝ &amp; PHÊ DUYỆT NGHỈ PHÉP BÁC SĨ
                             </h2>
                             <p className="text-[11px] text-slate-500">
-                                Chuẩn OpenMRS/Bahmni Absence Management: Phê duyệt đơn nghỉ, tự động khóa lịch trực và cảnh báo lịch hẹn bị ảnh hưởng
+                                Phê duyệt đơn nghỉ phép, tự động khóa ca khám và cảnh báo các lịch hẹn của bệnh nhân bị ảnh hưởng
                             </p>
                         </div>
                     </div>

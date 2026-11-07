@@ -1,4 +1,9 @@
+import { STATUS_LABEL_MAP } from './ClinicIcon'
+
 export default function StatusBadge({ status, text }) {
+    const normalized = String(status || '').trim()
+    const displayText = text || STATUS_LABEL_MAP[normalized] || normalized
+
     const configMap = {
         active: { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
         pending: { bg: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
@@ -14,7 +19,7 @@ export default function StatusBadge({ status, text }) {
     return (
         <span className={`status-badge ${current.bg}`}>
             <span className={`status-dot ${current.dot}`} />
-            <span>{text}</span>
+            <span>{displayText}</span>
         </span>
     )
 }

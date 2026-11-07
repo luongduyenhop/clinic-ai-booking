@@ -48,11 +48,11 @@ export default function RolePermissionPage() {
 
     const masterOptions = getMasterOptions(clinicData)
     const defaults = getFormDefaults(clinicData)
-    const licenseStatuses = masterOptions.licenseStatuses || [
-        { code: 'ACTIVE', label: 'ACTIVE (Đủ điều kiện hành nghề)' },
-        { code: 'EXPIRING_SOON', label: 'EXPIRING_SOON (Sắp hết hạn < 60 ngày)' },
-        { code: 'EXPIRED', label: 'EXPIRED (Hết hạn - Chặn phân công)' },
-        { code: 'SUSPENDED', label: 'SUSPENDED (Đình chỉ - Chặn phân công)' },
+    const licenseStatuses = [
+        { code: 'ACTIVE', label: 'Đủ điều kiện hành nghề' },
+        { code: 'EXPIRING_SOON', label: 'Sắp hết hạn (< 60 ngày)' },
+        { code: 'EXPIRED', label: 'Hết hạn (Chặn phân công)' },
+        { code: 'SUSPENDED', label: 'Đang đình chỉ (Chặn phân công)' },
     ]
     const staffRoleOptions = masterOptions.staffRoleOptions || [
         'Admin / Phụ trách chuyên môn',
@@ -165,7 +165,7 @@ export default function RolePermissionPage() {
                 auditEntry: {
                     hanhDong: exists ? 'UPDATE_STAFF_CREDENTIAL' : 'CREATE_STAFF_CREDENTIAL',
                     doiTuong: `${formWithCode.hoTen} (${nextMa}) - CCHN: ${formWithCode.soCCHN} (${formWithCode.trangThaiCCHN})`,
-                    mucDich: 'Quản lý nhân sự & Chứng chỉ hành nghề (INT-05)',
+                    mucDich: 'Quản lý hồ sơ nhân sự và Chứng chỉ hành nghề',
                 },
             })
         )
@@ -174,7 +174,7 @@ export default function RolePermissionPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Top Mode Switcher */}
+            {}
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <Link
@@ -197,7 +197,7 @@ export default function RolePermissionPage() {
                         }`}
                     >
                         <UserGear size={15} weight={isStaffMode ? "fill" : "duotone"} />
-                        <span>2. Quản lý Nhân sự &amp; Chứng chỉ hành nghề (INT-05)</span>
+                        <span>2. Quản trị Nhân sự &amp; Chứng chỉ Hành nghề</span>
                     </Link>
                     <Link
                         to="/admin/nhan-vien?tab=nghi-phep"
@@ -208,20 +208,20 @@ export default function RolePermissionPage() {
                         }`}
                     >
                         <CalendarCheck size={15} weight={isLeaveMode ? "fill" : "duotone"} />
-                        <span>3. Quản lý &amp; Phê duyệt Nghỉ phép Bác sĩ (APT-008)</span>
+                        <span>3. Phê duyệt Nghỉ phép &amp; Điều phối Ca trực</span>
                     </Link>
                 </div>
                 <span className="text-xs text-slate-500">
                     {isLeaveMode
-                        ? "Phân hệ APT-008: Phê duyệt nghỉ phép, tự động khóa ca trực & cảnh báo lịch hẹn bị ảnh hưởng"
-                        : "Phân hệ Video 09 & INT-05: Phân quyền vai trò & Kiểm soát điều kiện hành nghề Bác sĩ"}
+                        ? "Phê duyệt đơn nghỉ phép bác sĩ, tự động khóa lịch trực và điều chuyển lịch khám bị ảnh hưởng"
+                        : "Quản trị vai trò, ma trận phân quyền và kiểm soát điều kiện hành nghề bác sĩ"}
                 </span>
             </div>
 
             {isLeaveMode ? (
                 <DoctorLeaveManagementTab />
             ) : !isStaffMode ? (
-                /* ── VIEW 1: MA TRẬN 23 QUYỀN HẠN THEO VAI TRÒ (VIDEO 09) ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-4 medpro-card p-3.5 space-y-4">
                         <div className="medpro-section-title">
@@ -350,7 +350,7 @@ export default function RolePermissionPage() {
                     </div>
                 </div>
             ) : (
-                /* ── VIEW 2: QUẢN LÝ NHÂN VIÊN & CHỨNG CHỈ HÀNH NGHỀ (INT-05) ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col">
                         <div className="medpro-section-title">
@@ -392,7 +392,7 @@ export default function RolePermissionPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                             <div>
                                 <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                                    HỒ SƠ NHÂN SỰ &amp; CHỨNG CHỈ HÀNH NGHỀ Y TẾ (INT-05)
+                                    HỒ SƠ NHÂN SỰ &amp; CHỨNG CHỈ HÀNH NGHỀ Y TẾ
                                 </h2>
                                 <p className="text-xs text-slate-500">
                                     Theo Luật KCB 15/2023/QH15 &amp; NĐ 96/2023/NĐ-CP: Hệ thống tự động chặn phân công nếu CCHN hết hạn
@@ -508,7 +508,7 @@ export default function RolePermissionPage() {
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Trạng thái pháp lý CCHN (INT-05)</label>
+                                <label className="medpro-label">Trạng thái pháp lý CCHN</label>
                                 <select
                                     value={staffForm.trangThaiCCHN || 'ACTIVE'}
                                     onChange={(e) => setStaffForm({ ...staffForm, trangThaiCCHN: e.target.value })}

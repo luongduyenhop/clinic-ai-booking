@@ -12,6 +12,7 @@ import {
     Hospital,
     GlobeHemisphereWest,
     HouseLine,
+    ShieldCheck,
 } from '../components/common/ClinicIcon'
 
 export default function AdminTemplate() {
@@ -22,10 +23,10 @@ export default function AdminTemplate() {
 
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [openGroups, setOpenGroups] = useState({
-        patients: true,
         catalogs: true,
+        users: true,
+        compliance: false,
         templates: false,
-        users: false,
     })
 
     useEffect(() => {
@@ -43,7 +44,6 @@ export default function AdminTemplate() {
         const [itemBase, itemQuery] = path.split('?')
         const currentParams = new URLSearchParams(location.search)
 
-        // Nếu menu có query string (ví dụ ?tab=GOI_DICH_VU, ?tab=KHOA_SO)
         if (itemQuery) {
             const itemParams = new URLSearchParams(itemQuery)
             const itemTab = itemParams.get('tab')
@@ -57,8 +57,6 @@ export default function AdminTemplate() {
             )
         }
 
-        // Nếu menu KHÔNG có query string (ví dụ /admin/lich-hen)
-        // Khi trang hiện tại đang mở 1 sub-tab cụ thể (?tab=...), menu gốc không được active
         const currentTab = currentParams.get('tab')
         if (currentTab && location.pathname === itemBase) {
             return false
@@ -72,38 +70,34 @@ export default function AdminTemplate() {
         return (group.children || []).some((child) => isPathActive(child.path))
     }
 
-    // Friendly breadcrumb resolution
     const getBreadcrumbTitle = () => {
         const p = location.pathname
-        if (p === '/admin') return 'Trung tâm Điều hành & Bàn làm việc'
-        if (p.includes('/dang-ky-kham')) return 'Tiếp đón & Đăng ký Khám bệnh'
-        if (p.includes('/benh-nhan')) return 'Quản lý Hồ sơ Bệnh nhân'
-        if (p.includes('/kham-chuyen-khoa')) return 'Khám bệnh chuyên khoa sâu (Nội, Ngoại, Mắt, TMH, RHM)'
-        if (p.includes('/kham-benh') || p.includes('/khambenh')) return 'Khám bệnh ngoại trú & Kê đơn thuốc'
-        if (p.includes('/can-lam-sang')) return 'Chỉ định & Trả kết quả Cận lâm sàng (CLS)'
-        if (p.includes('/pt-tt')) return 'Phẫu thuật & Thủ thuật (PT-TT)'
-        if (p.includes('/lich-hen')) return 'Quản lý Lịch hẹn & Gói dịch vụ'
-        if (p.includes('/thu-chi')) return 'Quản lý Thu chi Viện phí & Khóa sổ ca trực'
-        if (p.includes('/danh-muc')) return 'Quản lý Danh mục Y tế'
-        if (p.includes('/tuan-thu')) return 'Tuân thủ Pháp lý & Liên thông Cổng Quốc gia'
-        if (p.includes('/bao-cao')) return 'Báo cáo Doanh thu & Thống kê Y tế'
-        if (p.includes('/goi-dich-vu') || p.includes('/goidichvu')) return 'Quản lý Gói dịch vụ khám sức khỏe'
-        if (p.includes('/lieu-trinh') || p.includes('/lieutrinh')) return 'Liệu trình điều trị & Bài tập phục hồi chức năng'
-        if (p.includes('/cai-dat') || p.includes('/setting')) return 'Cài đặt hệ thống phòng khám & Cổng liên thông BYT'
-        if (p.includes('/nghi-phep') || location.search.includes('tab=nghi-phep')) return 'Quản lý & Phê duyệt Nghỉ phép Bác sĩ (APT-008)'
-        if (p.includes('/tai-ung-dung')) return 'Tải ứng dụng di động Clinic-AI Mobile'
-        return 'Quản lý Phòng khám'
+        if (p === '/admin') return 'Trung tâm Điều hành & Thống kê BI'
+        if (p.includes('/danh-muc/khoa-phong')) return 'Quản trị Danh mục Khoa phòng & Buồng khám'
+        if (p.includes('/danh-muc/dich-vu')) return 'Quản trị Danh mục Dịch vụ Kỹ thuật & Giá niêm yết'
+        if (p.includes('/danh-muc/thuoc-vat-tu')) return 'Quản trị Danh mục Thuốc kê đơn (BYT)'
+        if (p.includes('/danh-muc/benh')) return 'Quản trị Danh mục Bệnh lý Quốc tế (ICD-10)'
+        if (p.includes('/danh-muc/dia-chi')) return 'Quản trị Danh mục Địa chỉ Hành chính'
+        if (p.includes('/danh-muc')) return 'Quản trị Danh mục Y tế Nền tảng'
+        if (p.includes('/quan-ly-mau')) return 'Quản trị Biểu mẫu & Mẫu in Y tế'
+        if (p.includes('/nghi-phep') || location.search.includes('tab=nghi-phep')) return 'Phê duyệt Nghỉ phép Bác sĩ & Điều phối Ca trực'
+        if (p.includes('/nhan-vien')) return 'Quản trị Hồ sơ Nhân sự, Bác sĩ & Kiểm soát CCHN'
+        if (p.includes('/phan-quyen')) return 'Ma trận Phân quyền Vai trò (RBAC)'
+        if (p.includes('/benh-nhan')) return 'Tra cứu Danh mục Hồ sơ Bệnh nhân (Master)'
+        if (p.includes('/tuan-thu') || p.includes('/don-thuoc-quoc-gia')) return 'Tuân thủ Pháp lý & Liên thông Cổng Quốc gia (TT26/TT32)'
+        if (p.includes('/lich-su-hoat-dong')) return 'Nhật ký Kiểm toán Truy cập Dữ liệu Y tế (Audit Log)'
+        if (p.includes('/cai-dat') || p.includes('/setting')) return 'Cấu hình Hệ thống Phòng khám & Cổng Liên thông'
+        if (p.includes('/bao-cao')) return 'Báo cáo Thống kê Tổng hợp & Phân tích Vận hành'
+        return 'Quản trị Hệ thống Phòng khám'
     }
 
     return (
         <div className="h-screen flex bg-[#F4F8FB] text-[#0F172A] overflow-hidden">
-            {/* Left Sidebar — Deep Medical Navy (#003553) with Smooth Collapse */}
             <aside
                 className={`h-screen sticky top-0 bg-[#003553] text-white flex flex-col shrink-0 shadow-xl select-none border-r border-white/10 transition-all duration-200 z-40 overflow-hidden ${
-                    isCollapsed ? 'w-[64px]' : 'w-[244px]'
+                    isCollapsed ? 'w-[64px]' : 'w-[252px]'
                 }`}
             >
-                {/* Brand Logo */}
                 <div className="h-14 px-3 flex items-center justify-between border-b border-white/10 bg-[#002840]">
                     <Link to="/admin" className="flex items-center gap-2.5 group overflow-hidden">
                         <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md ring-2 ring-white/15 shrink-0 group-hover:scale-105 transition-transform">
@@ -112,24 +106,22 @@ export default function AdminTemplate() {
                         {!isCollapsed && (
                             <div className="leading-tight truncate">
                                 <div className="font-display font-extrabold text-sm tracking-wide text-white">
-                                    CLINIC<span className="text-[#00B5F1]">-AI</span> HIS
+                                    CLINIC<span className="text-[#00B5F1]">-AI</span> ADMIN
                                 </div>
                                 <div className="text-[10px] text-sky-200/80 font-medium truncate">
-                                    PK Đa Khoa Medpro
+                                    Quản Trị Hệ Thống HIS
                                 </div>
                             </div>
                         )}
                     </Link>
                 </div>
 
-                {/* Navigation Sections from Seed */}
                 <nav className="flex-1 overflow-y-auto py-2.5 px-2 space-y-3 text-[12px] no-scrollbar">
                     {(sidebarSections.length > 0 ? sidebarSections : [{ id: 'default', menus: sidebarMenus }]).map((section) => (
                         <div key={section.id} className="space-y-1">
-                            {/* Section Header */}
                             {!isCollapsed && section.title && (
-                                <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-sky-300/60 flex items-center gap-1.5">
-                                    <span className="w-1 h-1 rounded-full bg-[#00B5F1]" />
+                                <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-sky-300/70 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#00B5F1]" />
                                     <span className="truncate">{section.title}</span>
                                 </div>
                             )}
@@ -137,7 +129,6 @@ export default function AdminTemplate() {
                                 <div className="border-t border-white/10 my-1 mx-2" />
                             )}
 
-                            {/* Section Menu Items */}
                             {section.menus.map((item) => {
                                 const active = isGroupActive(item)
                                 if (!item.children) {
@@ -241,9 +232,7 @@ export default function AdminTemplate() {
                     ))}
                 </nav>
 
-                {/* Bottom Bar: Toggle Collapse & Gateway Status */}
                 <div className="p-2.5 border-t border-white/10 bg-[#002840] text-[11px] text-sky-200/80 space-y-1.5">
-                    {/* Collapse Button (TCLINIC STYLE) */}
                     <button
                         type="button"
                         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -266,7 +255,7 @@ export default function AdminTemplate() {
                                 <span>Cổng ĐTQG (TT 26):</span>
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-400/25">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    ONLINE
+                                    Trực tuyến
                                 </span>
                             </div>
                             <Link
@@ -281,16 +270,14 @@ export default function AdminTemplate() {
                 </div>
             </aside>
 
-            {/* Right Main Area with Friendly Breadcrumbs */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <AdminHeader />
 
-                {/* Friendly Operational Breadcrumb & Context Header */}
                 <div className="h-8 bg-white/70 border-b border-[#E2EDF5] px-3.5 lg:px-4 flex items-center justify-between text-xs text-slate-500 shrink-0">
                     <div className="flex items-center gap-1.5 font-medium">
                         <Link to="/admin" className="inline-flex items-center gap-1 hover:text-[#00B5F1] transition">
                             <HouseLine size={13} weight="duotone" className="text-[#00B5F1]" />
-                            <span>Trang chủ</span>
+                            <span>Quản trị HIS</span>
                         </Link>
                         <span>/</span>
                         <span className="font-bold text-[#003553]">{getBreadcrumbTitle()}</span>
@@ -299,16 +286,16 @@ export default function AdminTemplate() {
                     <div className="hidden sm:flex items-center gap-3 text-[11px] text-slate-400">
                         <span className="flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="font-medium text-slate-600">Ca sáng (07:30 - 12:00)</span>
+                            <span className="font-medium text-slate-600">Hệ thống Quản trị &amp; Danh mục Trung tâm</span>
                         </span>
                         <span>•</span>
-                        <span className="font-mono text-slate-500 font-semibold">
-                            Phím tắt: F2 Tiếp đón | F5 Lưu | F7 Kê DV | F8 Lịch sử | F9 In
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#003553]">
+                            <ShieldCheck size={13} weight="fill" className="text-[#00B5F1]" />
+                            <span>Phân quyền theo vai trò (Đang kích hoạt)</span>
                         </span>
                     </div>
                 </div>
 
-                {/* Page Content Body */}
                 <main className="flex-1 p-3 sm:p-4 overflow-y-auto">
                     <Outlet />
                 </main>
@@ -316,4 +303,3 @@ export default function AdminTemplate() {
         </div>
     )
 }
-

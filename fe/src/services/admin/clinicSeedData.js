@@ -1,5 +1,3 @@
-// Tầng nạp Dữ liệu Seed Tập trung (clinicSeed.json)
-// Khi kết nối Backend thực tế, chỉ cần thay đổi nguồn dữ liệu tại AdminService.js mà không cần sửa code giao diện React.
 
 import rawSeed from './seed/clinicSeed.json'
 

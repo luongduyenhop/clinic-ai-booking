@@ -4,11 +4,11 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.models.medical import LuotKham, LuotKhamTheLuc, PhieuKhamChuyenKhoa
+from app.models.specialty_exam import KhamNoiKhoa
 from app.models.user import ChuyenKhoa
 
 
 async def _dam_bao_chuyen_khoa(db_session, ma_ck="NOI_TONG_QUAT", ten_ck="Khoa Nội Tổng Quát"):
-    """Đảm bảo có dữ liệu chuyên khoa trong CSDL và gắn với bác sĩ khám."""
     stmt = select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == ma_ck)
     ck = (await db_session.execute(stmt)).scalar_one_or_none()
     if not ck:
@@ -20,10 +20,6 @@ async def _dam_bao_chuyen_khoa(db_session, ma_ck="NOI_TONG_QUAT", ten_ck="Khoa N
 
 @pytest.mark.asyncio
 async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, db_session):
-    """
-    Task 2 AC1: Nhập và đồng bộ chỉ số sinh hiệu (HA, Mạch, Nhiệt độ, Chiều cao, Cân nặng)
-    từ Bàn khám bác sĩ. Hệ thống tự động tính BMI chuẩn xác và lưu vào luot_kham & luot_kham_the_luc.
-    """
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
@@ -33,7 +29,6 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
     now = datetime.now(timezone.utc)
     lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
 
-    # 1. Khởi tạo ca khám lâm sàng
     res_enc = await api_client.post(
         "/api/v1/clinical/encounters",
         json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Đau đầu, hoa mắt, chóng mặt"},
@@ -42,7 +37,6 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
     assert res_enc.status_code == 201
     enc_id = res_enc.json()["data"]["id"]
 
-    # 2. Bác sĩ đo sinh hiệu: Cao 170cm, Nặng 65kg -> BMI = 65 / (1.7^2) = 22.4913... làm tròn 22.5
     workspace_payload = {
         "encounters": {
             str(enc_id): {
@@ -68,7 +62,6 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
     )
     assert res_sync.status_code == 200
 
-    # 3. Kiểm tra bảng luot_kham: Lưu đầy đủ sinh hiệu và tự động tính BMI
     stmt_lk = select(LuotKham).where(LuotKham.id == enc_id)
     lk = (await db_session.execute(stmt_lk)).scalar_one()
 
@@ -85,7 +78,6 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
     assert lk.kham_lam_sang_bo_phan == "Tim đều, T1 T2 rõ; Phổi thông khí tốt, không rale"
     assert lk.trieu_chung == "Đau đầu, hoa mắt, chóng mặt khi thay đổi tư thế"
 
-    # 4. Kiểm tra bảng luot_kham_the_luc: Đồng bộ thể lực
     stmt_pe = select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == enc_id)
     pe = (await db_session.execute(stmt_pe)).scalar_one_or_none()
     assert pe is not None
@@ -102,10 +94,6 @@ async def test_task2_vitals_sync_and_bmi_auto_calculation(api_client, booking, d
 
 @pytest.mark.asyncio
 async def test_task2_specialty_exam_checklist_and_health_classification(api_client, booking, db_session):
-    """
-    Task 2 AC2: Ghi nhận checklist khám chuyên khoa (items & extras),
-    tổng hợp định dạng nội dung khám và tự động phân loại sức khỏe vào phieu_kham_chuyen_khoa.
-    """
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session, "KHOA_HO_HAP", "Khoa Hô Hấp")
     booking.bs_x.chuyen_khoa_id = ck.id
@@ -122,7 +110,6 @@ async def test_task2_specialty_exam_checklist_and_health_classification(api_clie
     )
     enc_id = res_enc.json()["data"]["id"]
 
-    # BMI = 90 / (1.65^2) = 33.06 -> BMI >= 30 => LOAI_3 (Béo phì độ II / nguy cơ cao)
     workspace_payload = {
         "encounters": {
             str(enc_id): {
@@ -151,7 +138,6 @@ async def test_task2_specialty_exam_checklist_and_health_classification(api_clie
     )
     assert res_sync.status_code == 200
 
-    # Kiểm tra phieu_kham_chuyen_khoa được tạo chính xác
     stmt_ck = select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == enc_id)
     phieu = (await db_session.execute(stmt_ck)).scalar_one_or_none()
     assert phieu is not None
@@ -159,31 +145,22 @@ async def test_task2_specialty_exam_checklist_and_health_classification(api_clie
     assert phieu.chuyen_khoa_id == ck.id
     assert phieu.ket_luan_chuyen_khoa == "Viêm phế quản co thắt, theo dõi hen phế quản"
 
-    # Kiểm tra format nội dung khám từ checklist
     assert "Tim mạch: Bình thường (Nhịp tim bình thường)" in phieu.noi_dung_kham
     assert "Hô hấp: Bất thường (Ran rít, ran ẩm đáy phổi)" in phieu.noi_dung_kham
     assert "Tai Mũi Họng: Bình thường (Họng không sưng đỏ)" in phieu.noi_dung_kham
     assert "Ghi chú bổ sung: Bệnh nhân khó thở khi gắng sức" in phieu.noi_dung_kham
 
-    # BMI >= 30 -> phân loại LOAI_3
     assert phieu.phan_loai_suc_khoe == "LOAI_3"
 
 
 @pytest.mark.asyncio
 async def test_task2_health_classification_bmi_thresholds(api_client, booking, db_session):
-    """
-    Task 2 AC2: Kiểm tra phân loại sức khỏe LOAI_1, LOAI_2, LOAI_3 theo các ngưỡng BMI chuẩn Châu Á:
-    - LOAI_1: Thể trạng chuẩn (18.5 <= BMI < 25)
-    - LOAI_2: Tiền béo phì / Thừa cân (25 <= BMI < 30)
-    - LOAI_3: Béo phì hoặc gầy thiếu cân (BMI >= 30 hoặc BMI < 18.5)
-    """
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
     booking.bs_x.chuyen_khoa = ck
     await db_session.flush()
 
-    # Trường hợp 1: Thể trạng chuẩn (Cao 170cm, nặng 60kg -> BMI = 20.8 -> LOAI_1)
     now = datetime.now(timezone.utc)
     lich1 = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
     res_enc1 = await api_client.post(
@@ -214,7 +191,6 @@ async def test_task2_health_classification_bmi_thresholds(api_client, booking, d
     ).scalar_one()
     assert phieu1.phan_loai_suc_khoe == "LOAI_1"
 
-    # Trường hợp 2: Tiền béo phì (Cao 170cm, nặng 75kg -> BMI = 26.0 -> LOAI_2)
     lich2 = await booking.tao_lich(booking.bn_b, booking.bs_x, now + timedelta(hours=1))
     res_enc2 = await api_client.post(
         "/api/v1/clinical/encounters",
@@ -244,7 +220,6 @@ async def test_task2_health_classification_bmi_thresholds(api_client, booking, d
     ).scalar_one()
     assert phieu2.phan_loai_suc_khoe == "LOAI_2"
 
-    # Trường hợp 3: Thiếu cân (Cao 165cm, nặng 42kg -> BMI = 15.4 < 18.5 -> LOAI_3)
     lich3 = await booking.tao_lich(booking.bn_a, booking.bs_x, now + timedelta(hours=2))
     res_enc3 = await api_client.post(
         "/api/v1/clinical/encounters",
@@ -277,11 +252,6 @@ async def test_task2_health_classification_bmi_thresholds(api_client, booking, d
 
 @pytest.mark.asyncio
 async def test_task2_update_and_idempotency(api_client, booking, db_session):
-    """
-    Task 2 AC1 & AC2: Bác sĩ chỉnh sửa số đo sinh hiệu và kết luận khám nhiều lần (draft update).
-    Hệ thống cập nhật tại chỗ các bản ghi LuotKham, PhieuKhamChuyenKhoa, LuotKhamTheLuc
-    mà không sinh bản ghi nhân đôi (idempotent update).
-    """
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
@@ -298,7 +268,6 @@ async def test_task2_update_and_idempotency(api_client, booking, db_session):
     )
     enc_id = res_enc.json()["data"]["id"]
 
-    # Lần 1: Lưu sinh hiệu ban đầu (Nặng 60kg, Cao 170cm -> BMI = 20.8, LOAI_1)
     payload_v1 = {
         "encounters": {
             str(enc_id): {
@@ -316,14 +285,13 @@ async def test_task2_update_and_idempotency(api_client, booking, db_session):
     res_v1 = await api_client.put("/api/v1/clinical/workspace-state", json=payload_v1, headers=token_bs)
     assert res_v1.status_code == 200
 
-    # Lần 2: Cập nhật lại số đo chính xác hơn và kết luận mới
     payload_v2 = {
         "encounters": {
             str(enc_id): {
                 "id": enc_id,
                 "mach_lan_phut": 75,
                 "chieu_cao_cm": "170.0",
-                "can_nang_kg": "76.0",  # BMI mới: 76 / 1.7^2 = 26.3 -> LOAI_2
+                "can_nang_kg": "76.0",
                 "kham_chuyen_khoa": {
                     "items": {"Họng": {"status": "BAT", "note": "Họng sung huyết đỏ, có mủ"}},
                 },
@@ -334,13 +302,11 @@ async def test_task2_update_and_idempotency(api_client, booking, db_session):
     res_v2 = await api_client.put("/api/v1/clinical/workspace-state", json=payload_v2, headers=token_bs)
     assert res_v2.status_code == 200
 
-    # Kiểm tra LuotKham cập nhật đúng
     lk = (await db_session.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one()
     assert lk.mach_lan_phut == 75
     assert lk.can_nang_kg == Decimal("76.00")
     assert lk.bmi == Decimal("26.3")
 
-    # Kiểm tra chỉ có DUY NHẤT 1 PhieuKhamChuyenKhoa và 1 LuotKhamTheLuc
     phieu_list = (
         await db_session.execute(
             select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == enc_id)
@@ -363,10 +329,6 @@ async def test_task2_update_and_idempotency(api_client, booking, db_session):
 
 @pytest.mark.asyncio
 async def test_task2_edge_cases_empty_or_zero_values(api_client, booking, db_session):
-    """
-    Task 2 Edge cases: Bác sĩ gửi dữ liệu sinh hiệu trống, chuỗi rỗng hoặc chiều cao = 0.
-    Hệ thống xử lý an toàn (graceful handling), không văng lỗi chia cho 0 (ZeroDivisionError).
-    """
     token_bs = booking.tokens["bs_x"]
     ck = await _dam_bao_chuyen_khoa(db_session)
     booking.bs_x.chuyen_khoa_id = ck.id
@@ -389,7 +351,7 @@ async def test_task2_edge_cases_empty_or_zero_values(api_client, booking, db_ses
                 "id": enc_id,
                 "mach_lan_phut": "",
                 "huyet_ap_tam_thu": None,
-                "chieu_cao_cm": "0",  # Chiều cao = 0 không được gây ZeroDivisionError
+                "chieu_cao_cm": "0",
                 "can_nang_kg": "55.0",
                 "nhiet_do_c": "  ",
             }
@@ -403,6 +365,74 @@ async def test_task2_edge_cases_empty_or_zero_values(api_client, booking, db_ses
     )
     assert res_sync.status_code == 200
 
-    # Kiểm tra LuotKham: BMI vẫn là None (không tính do chiều cao = 0)
     lk = (await db_session.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one()
     assert lk.bmi is None
+
+
+@pytest.mark.asyncio
+async def test_ts_emr_004_01_specialty_exam_and_health_classification(api_client, booking, db_session):
+    token_bs = booking.tokens["bs_x"]
+    ck = await _dam_bao_chuyen_khoa(db_session, "KHOA_NOI", "Khoa Nội tổng quát")
+    booking.bs_x.chuyen_khoa_id = ck.id
+    booking.bs_x.chuyen_khoa = ck
+    await db_session.flush()
+
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_enc = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Kiểm tra sức khỏe chuyên khoa nội"},
+        headers=token_bs,
+    )
+    assert res_enc.status_code == 201
+    enc_id = res_enc.json()["data"]["id"]
+
+    await api_client.put(
+        "/api/v1/clinical/workspace-state",
+        json={
+            "encounters": {
+                str(enc_id): {
+                    "id": enc_id,
+                    "chieu_cao_cm": "170.0",
+                    "can_nang_kg": "64.7",
+                }
+            }
+        },
+        headers=token_bs,
+    )
+
+    specialty_payload = {
+        "tuan_hoan": "Nhịp tim đều, T1 T2 rõ, tần số 78ck/p, không tiếng thổi bệnh lý",
+        "ho_hap": "Phổi 2 bên thông khí rõ, rì rào phế nang êm dịu, không rale",
+        "tieu_hoa": "Bụng mềm, gan lách không sờ chạm, không điểm đau khu trú",
+        "than_tiet_nieu": "Hố thắt lưng 2 bên không đầy, chạm thận âm tính",
+        "than_kinh": "Tỉnh táo, tiếp xúc tốt, GCS 15đ, không có dấu thần kinh khu trú",
+        "co_xuong_khop": "Trục chi thẳng, các khớp cử động bình thường, không sưng nóng đỏ",
+        "ket_luan_chuyen_khoa": "Hệ cơ quan nội khoa - tiêu hóa hoàn toàn bình thường",
+    }
+
+    res_spec = await api_client.put(
+        f"/api/v1/clinical/encounters/{enc_id}/specialty/noi-khoa",
+        json=specialty_payload,
+        headers=token_bs,
+    )
+    assert res_spec.status_code == 200
+
+    stmt_noi = select(KhamNoiKhoa).where(KhamNoiKhoa.luot_kham_id == enc_id)
+    noi_rec = (await db_session.execute(stmt_noi)).scalar_one_or_none()
+    assert noi_rec is not None
+    assert "Nhịp tim đều" in noi_rec.tuan_hoan
+    assert "Phổi 2 bên" in noi_rec.ho_hap
+    assert "Bụng mềm" in noi_rec.tieu_hoa
+    assert "chạm thận âm tính" in noi_rec.than_tiet_nieu
+    assert "Tỉnh táo" in noi_rec.than_kinh
+    assert "Trục chi thẳng" in noi_rec.co_xuong_khop
+    assert noi_rec.ket_luan_chuyen_khoa == "Hệ cơ quan nội khoa - tiêu hóa hoàn toàn bình thường"
+
+    stmt_phieu = select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == enc_id)
+    phieu = (await db_session.execute(stmt_phieu)).scalar_one_or_none()
+    assert phieu is not None
+    assert phieu.phan_loai_suc_khoe == "LOAI_1"
+    assert "Tiêu hóa: Bụng mềm" in phieu.noi_dung_kham
+    assert "Tuần hoàn: Nhịp tim đều" in phieu.noi_dung_kham

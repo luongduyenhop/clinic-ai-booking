@@ -37,7 +37,7 @@ Qua khảo sát thực tế tại các phòng khám đa khoa tư nhân trên đ�
 ### 2.4. Luồng 4: Trí tuệ nhân tạo phân tích triệu chứng & An toàn y tế (AI Triage & Red Flags)
 * **Chốt chặn 1:** Bộ lọc Red Flags quét từ điển `tu_khoa_cap_cuu`. Bắt trúng dấu hiệu nguy kịch $\rightarrow$ ngắt luồng, cảnh báo gọi 115.
 * **Chốt chặn 2:** Mô hình AI phân loại chuyên khoa (huấn luyện từ Kaggle `ai_bac_si.pkl`).
-* **Chốt chặn 3:** Ngưỡng tin cậy 60% ($\ge 60\%$ gợi ý khoa/bác sĩ, $< 60\%$ gán về Nội tổng quát); kèm disclaimer y tế bắt buộc.
+* **Chốt chặn 3:** Ngưỡng tin cậy cấu hình qua `AI_CONFIDENCE_THRESHOLD` (mặc định 40% cho model 5 chuyên khoa; $\ge$ ngưỡng gợi ý khoa/bác sĩ, $<$ ngưỡng gán về Nội tổng quát); kèm disclaimer y tế bắt buộc.
 
 ### 2.5. Luồng 5: Thăm khám lâm sàng & Khóa bệnh án điện tử (Medical Visit & EMR)
 * Bác sĩ khám lâm sàng, đo sinh hiệu, tạo bản ghi `luot_kham`.

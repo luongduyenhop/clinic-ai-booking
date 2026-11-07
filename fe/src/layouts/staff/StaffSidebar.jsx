@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import {
@@ -17,20 +17,14 @@ import {
     ShieldCheck,
     LockKey,
     Buildings,
-    Package,
     Clock,
     CaretLeft,
     CaretRight,
-    CaretDown,
-    Eye,
-    ArrowsClockwise,
 } from '../../components/common/ClinicIcon'
 
-// ── CẤU HÌNH MENU THEO TỪNG VAI TRÒ ──────────────────────────────────────────
 export const getStaffMenuForRole = (role) => {
     const normalizedRole = normalizeStaffRole(role)
 
-    // 1. Vai trò: BÁC SĨ
     if (normalizedRole === 'BAC_SI' || normalizedRole === 'DOCTOR') {
         return [
             {
@@ -57,7 +51,6 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 2. Vai trò: LỄ TÂN
     if (normalizedRole === 'LE_TAN' || normalizedRole === 'RECEPTIONIST' || normalizedRole === 'RECEPTION_SUPERVISOR') {
         return [
             {
@@ -80,7 +73,6 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 3. Vai trò: THU NGÂN
     if (normalizedRole === 'THU_NGAN' || normalizedRole === 'CASHIER') {
         return [
             {
@@ -100,7 +92,6 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 4A. Vai trò: KỸ THUẬT VIÊN XÉT NGHIỆM (LIS CHUYÊN SÂU)
     if (normalizedRole === 'KTV_XET_NGHIEM' || normalizedRole === 'LAB_TECH' || normalizedRole === 'ROLE-LAB-TECH') {
         return [
             {
@@ -121,7 +112,6 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 4. Vai trò: KỸ THUẬT VIÊN CẬN LÂM SÀNG
     if (normalizedRole === 'KTV_CLS' || normalizedRole === 'TECHNICIAN') {
         return [
             {
@@ -135,7 +125,6 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    // 5. Vai trò: BỆNH NHÂN (Chế độ xem trước hoặc lối tắt)
     if (normalizedRole === 'BENH_NHAN' || normalizedRole === 'CUSTOMER' || normalizedRole === 'PATIENT' || normalizedRole === 'USER') {
         return [
             {
@@ -150,49 +139,36 @@ export const getStaffMenuForRole = (role) => {
 
     if (normalizedRole !== 'ADMIN') return []
 
-    // 6. ADMIN (Quản trị viên toàn quyền)
     return [
         {
-            group: 'Tổng quan & Báo cáo',
+            group: '1. Điều hành & Thống kê BI',
             items: [
-                { to: '/staff/dashboard', label: 'Tổng quan HIS', icon: HouseLine },
+                { to: '/staff/dashboard', label: 'Trung tâm Điều hành BI', icon: HouseLine },
                 { to: '/staff/reports', label: 'Báo cáo & Thống kê', icon: ChartBar },
             ],
         },
         {
-            group: 'Tiếp đón & Bệnh nhân',
+            group: '2. Danh mục Y tế (Master Data)',
             items: [
-                { to: '/staff/reception', label: 'Đăng ký tiếp đón', icon: IdentificationCard },
-                { to: '/staff/check-in', label: 'Check-in tiếp đón', icon: IdentificationCard },
-                { to: '/staff/queue', label: 'Hàng chờ điều phối', icon: Clock },
-                { to: '/staff/appointments', label: 'Quản lý lịch hẹn', icon: CalendarCheck },
-                { to: '/staff/patients', label: 'Hồ sơ bệnh nhân', icon: Users },
+                { to: '/staff/catalogs/khoa-phong', label: 'Khoa phòng & Buồng khám', icon: Buildings },
+                { to: '/staff/catalogs/dich-vu', label: 'Dịch vụ & Giá niêm yết', icon: Stethoscope },
+                { to: '/staff/catalogs/thuoc-vat-tu', label: 'Danh mục Thuốc BYT', icon: Folders },
+                { to: '/staff/catalogs/benh', label: 'Danh mục Bệnh ICD-10', icon: ClipboardText },
+                { to: '/staff/templates/mau-in', label: 'Biểu mẫu & Mẫu in', icon: ClipboardText },
             ],
         },
         {
-            group: 'Khám bệnh & Cận lâm sàng',
+            group: '3. Nhân sự & Phân quyền (IAM)',
             items: [
-                { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng TT32', icon: Stethoscope },
-                { to: '/staff/specialty-exam', label: 'Khám chuyên khoa', icon: FirstAidKit },
-                { to: '/staff/paraclinical-work', label: 'Thực hiện cận lâm sàng', icon: Microscope },
-                { to: '/staff/paraclinical', label: 'Chỉ định CLS & PT-TT', icon: ClipboardText },
+                { to: '/staff/permissions', label: 'Nhân sự, CCHN & Phân quyền', icon: ShieldCheck, badge: 'RBAC' },
+                { to: '/staff/patients', label: 'Hồ sơ Bệnh nhân (Master)', icon: Users },
             ],
         },
         {
-            group: 'Tài chính & Dịch vụ',
+            group: '4. Tuân thủ & Cấu hình Hệ thống',
             items: [
-                { to: '/staff/cashier', label: 'Thu chi & Viện phí (VietQR)', icon: Receipt },
-                { to: '/staff/service-packages', label: 'Gói dịch vụ & Liệu trình', icon: Package },
-            ],
-        },
-        {
-            group: 'Quản trị hệ thống',
-            items: [
-                { to: '/staff/catalogs', label: 'Quản lý danh mục y tế', icon: Folders },
-                { to: '/staff/permissions', label: 'Phân quyền & Nhân sự', icon: ShieldCheck },
-                { to: '/staff/templates', label: 'Quản lý mẫu in', icon: ClipboardText },
-                { to: '/staff/compliance', label: 'Tuân thủ pháp lý & EMR', icon: LockKey },
-                { to: '/staff/settings', label: 'Cấu hình phòng khám', icon: Buildings },
+                { to: '/staff/compliance', label: 'Tuân thủ Pháp lý & Audit', icon: LockKey },
+                { to: '/staff/settings', label: 'Cấu hình Phòng khám', icon: Buildings },
             ],
         },
     ]
@@ -205,16 +181,12 @@ export default function StaffSidebar({
     onToggleCollapse,
 }) {
     const location = useLocation()
-    // Dropdown removed
 
-    // Xác định vai trò hiển thị menu
     const effectiveRole = normalizeStaffRole(realRole || activeRole)
     const roleConfig = getStaffRoleConfig(effectiveRole)
 
-    // Menu động theo vai trò
     const menuSections = useMemo(() => getStaffMenuForRole(effectiveRole), [effectiveRole])
 
-    // Kiểm tra active link
     const isPathActive = (to) => {
         if (!to) return false
         if (to === '/staff/dashboard') {
@@ -223,15 +195,12 @@ export default function StaffSidebar({
         return location.pathname.startsWith(to)
     }
 
-    // Mode 100% strictly bound to authenticated role
-
     return (
         <aside
             className={`h-screen sticky top-0 flex flex-col shrink-0 bg-white border-r border-slate-200/80 shadow-xs z-30 transition-all duration-300 ease-in-out ${
                 isCollapsed ? 'w-20' : 'w-72'
             }`}
         >
-            {/* ── HEADER SIDEBAR: LOGO & TÊN CỔNG ─────────────────────────────── */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
                 <Link
                     to="/staff/dashboard"
@@ -264,7 +233,6 @@ export default function StaffSidebar({
                 )}
             </div>
 
-            {/* ── NÚT MỞ RỘNG KHI COLLAPSED ───────────────────────────────────── */}
             {isCollapsed && (
                 <div className="p-2 flex justify-center border-b border-slate-100">
                     <button
@@ -278,7 +246,6 @@ export default function StaffSidebar({
                 </div>
             )}
 
-            {/* ── DANH SÁCH MENU ĐIỀU HƯỚNG ──────────────────────────────────── */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar">
                 {menuSections.map((section, sIdx) => (
                     <div key={sIdx} className="space-y-1">
@@ -333,7 +300,6 @@ export default function StaffSidebar({
                 ))}
             </nav>
 
-            {/* ── FOOTER SIDEBAR: THÔNG TIN VAI TRÒ & PHIÊN BẢN ────────────────── */}
             <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
                 {!isCollapsed ? (
                     <div className="flex items-center justify-between gap-2">

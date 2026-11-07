@@ -10,7 +10,7 @@ import { AppToast } from '../../common/AppNotification'
 
 const GRID = 'grid grid-cols-[36px_minmax(190px,2fr)_repeat(4,48px)_56px_52px_minmax(180px,2fr)_40px] items-center gap-1.5'
 
-// Các gợi ý cách dùng phổ biến tại phòng khám (SimpleClinic & tClinic)
+
 const QUICK_USAGE_TAGS = [
     'Uống sau ăn no',
     'Uống trước ăn 30 phút',
@@ -20,7 +20,7 @@ const QUICK_USAGE_TAGS = [
     'Uống nhiều nước',
 ]
 
-// Các mốc hẹn tái khám nhanh (tClinic)
+
 const FOLLOW_UP_PRESETS = [
     { label: '3 ngày', days: 3 },
     { label: '5 ngày', days: 5 },
@@ -37,7 +37,7 @@ const QUICK_NOTES = [
     'Nghỉ ngơi nhiều, uống đủ 2 lít nước ấm/ngày.',
 ]
 
-// Helper tự động sinh câu cách dùng từ liều dùng Sáng/Trưa/Chiều/Tối (SimpleClinic)
+
 function generateDoseText(sang, trua, chieu, toi, dvt = 'viên') {
     const parts = []
     if (sang && Number(sang) > 0) parts.push(`sáng ${sang} ${dvt}`)
@@ -54,10 +54,9 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const rows = values.danh_sach_thuoc || []
     const [keyword, setKeyword] = useState('')
     const [options, setOptions] = useState([])
-    const debounced = useDebounce(keyword, 250)
+    const debounced = useDebounce(keyword, 200)
     const allergy = encounter?.benh_nhan?.di_ung_thuoc
 
-    // Trạng thái khóa bất biến FSM SIGNED theo Quyết định BYT
     const isSigned =
         values.trang_thai_don_thuoc === 'SIGNED' ||
         encounter?.don_thuoc?.trang_thai === 'SIGNED' ||
@@ -68,13 +67,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const [signingLoading, setSigningLoading] = useState(false)
     const [showSignConfirm, setShowSignConfirm] = useState(false)
 
-    // Số ngày dùng chung cho cả đơn (tClinic batch duration)
     const [batchDays, setBatchDays] = useState(rows[0]?.so_ngay_dung || '5')
 
-    // Trạng thái đồng bộ Cổng Đơn thuốc Quốc gia
     const [nationalSyncStatus, setNationalSyncStatus] = useState('pending')
 
-    // Số ngày hẹn tái khám
     const [followUpDays, setFollowUpDays] = useState(7)
 
     const nationalRxCode = `DTQG-2026-LK${String(encounter?.id || '001').padStart(6, '0')}`
@@ -108,7 +104,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 'Đã ký số đơn thuốc điện tử thành công! Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
             )
         } catch (err) {
-            console.error('Sign prescription error:', err)
             AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
         } finally {
             setSigningLoading(false)
@@ -116,7 +111,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     }
 
     useEffect(() => {
-        if (!debounced.trim()) return
+        if (!debounced.trim()) {
+            setOptions([])
+            return
+        }
         let cancelled = false
         dispatch(searchDrugsAsync(debounced))
             .unwrap()
@@ -146,7 +144,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         }
     }, [debounced, dispatch])
 
-    // Áp dụng số ngày dùng hàng loạt cho toàn bộ thuốc trong đơn (tClinic)
     const applyBatchDays = (days) => {
         setBatchDays(String(days))
         const updated = rows.map((r) => ({
@@ -172,7 +169,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         const updated = rows.map((r, i) => {
             if (i !== index) return r
             const newRow = { ...r, ...patch }
-            // Tự động cập nhật câu cách dùng nếu người dùng sửa liều mà chưa gõ cách dùng riêng
             if (('sang' in patch || 'trua' in patch || 'chieu' in patch || 'toi' in patch) && (!r.cach_dung || r.cach_dung.startsWith('Uống'))) {
                 const auto = generateDoseText(newRow.sang, newRow.trua, newRow.chieu, newRow.toi, newRow.don_vi_tinh?.toLowerCase() || 'viên')
                 if (auto) newRow.cach_dung = auto
@@ -184,7 +180,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     const removeRow = (index) => setFieldValue('danh_sach_thuoc', rows.filter((_, i) => i !== index))
 
-    // Di chuyển thứ tự thuốc lên / xuống (tClinic sortable)
     const moveRow = (index, direction) => {
         const targetIndex = index + direction
         if (targetIndex < 0 || targetIndex >= rows.length) return
@@ -195,7 +190,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         setFieldValue('danh_sach_thuoc', newRows)
     }
 
-    // Đính kèm tag cách dùng nhanh vào dòng thuốc
     const appendUsageTag = (index, tag) => {
         const currentRow = rows[index]
         if (!currentRow) return
@@ -217,7 +211,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             cach_dung: 'Uống khi sốt >= 38.5°C hoặc đau đầu, cách nhau ít nhất 4 giờ',
         })
 
-    // Xử lý hẹn tái khám thông minh bằng số ngày (tClinic)
     const handleSetFollowUpDays = (days) => {
         setFollowUpDays(days)
         const targetDate = new Date()
@@ -236,7 +229,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     return (
         <div className="flex flex-col gap-4">
-            {/* THÔNG BÁO BẢO VỆ BẤT BIẾN FSM KHI ĐÃ KÝ SỐ (INT-04 / Thông tư 04/2022/TT-BYT) */}
             {isSigned && (
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 shadow-xs animate-fadeIn">
                     <div className="flex items-center gap-2.5">
@@ -246,7 +238,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         <div>
                             <div className="flex items-center gap-2">
                                 <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
-                                    ĐÃ KÝ SỐ ĐIỆN TỬ (FSM: SIGNED) — DỮ LIỆU ĐÃ KHÓA BẤT BIẾN
+                                    ĐÃ KÝ SỐ ĐIỆN TỬ — DỮ LIỆU ĐÃ KHÓA BẤT BIẾN
                                 </span>
                                 <span className="bg-emerald-200/90 text-emerald-900 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
                                     TT 04/2022/TT-BYT
@@ -279,7 +271,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     </button>
                 </div>
             )}
-            {/* THANH LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (Bộ Y tế - TT 27/2021/TT-BYT) */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
                 <div className="flex items-center gap-2">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0077B6] text-white">
@@ -317,7 +308,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </div>
 
-            {/* THANH TÌM THUỐC & CÔNG CỤ NHANH */}
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="flex-1 min-w-[280px]">
                     <span className="medpro-label">Thêm thuốc điều trị</span>
@@ -334,7 +324,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     />
                 </div>
 
-                {/* SỐ NGÀY DÙNG CHUNG CHO CẢ ĐƠN (tClinic Batch Duration) */}
                 <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
                         Số ngày dùng chung toàn đơn
@@ -401,7 +390,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 disabled={rows.length === 0 || signingLoading || isReadOnly}
                                 onClick={() => setShowSignConfirm(true)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-                                title="Ký số đơn thuốc điện tử (Chuyển FSM sang SIGNED và khóa bất biến)"
+                                title="Ký số đơn thuốc điện tử và khóa dữ liệu"
                             >
                                 <ClinicIcon name="Pen" size={14} weight="bold" />
                                 <span>{signingLoading ? 'Đang ký số…' : 'Ký số đơn thuốc'}</span>
@@ -409,7 +398,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         ) : (
                             <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
                                 <ClinicIcon name="CheckCircle" size={14} weight="fill" className="text-emerald-600" />
-                                <span>Đã Ký Số (SIGNED)</span>
+                                <span>Đã ký số</span>
                             </span>
                         )}
 
@@ -427,7 +416,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 )}
             </div>
 
-            {/* BẢNG KÊ THUỐC ĐIỀU TRỊ */}
             <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 bg-white shadow-2xs">
                 <div className="min-w-[920px]">
                     <div className={`${GRID} rounded-t-xl bg-[#F0F7FC] px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#003553]`}>
@@ -454,11 +442,9 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     {rows.map((r, i) => {
                         const conflict = findAllergyConflict(r.hoat_chat, allergy)
                         const totalQty = computeQuantity(r)
-                        
                         return (
                             <div key={`${r.ten_thuoc}-${i}`} className={`border-t border-slate-100 ${conflict ? 'bg-rose-50/50' : i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
                                 <div className={`${GRID} px-3 py-2.5`}>
-                                    {/* Cột 1: Thứ tự & Mũi tên di chuyển (tClinic sortable) */}
                                     <div className="flex flex-col items-center justify-center gap-0.5 text-slate-400">
                                         <button
                                             type="button"
@@ -481,7 +467,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         </button>
                                     </div>
 
-                                    {/* Cột 2: Tên thuốc, hoạt chất, đường dùng */}
                                     <div className="min-w-0 pr-2">
                                         <div className="font-bold text-[#003553] text-[13px] truncate">{r.ten_thuoc}</div>
                                         <div className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -494,7 +479,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         </div>
                                     </div>
 
-                                    {/* Cột 3-6: Sáng, Trưa, Chiều, Tối */}
                                     {DOSE_SLOTS.map((s) => (
                                         <input
                                             key={s.key}
@@ -508,7 +492,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         />
                                     ))}
 
-                                    {/* Cột 7: Số ngày dùng */}
                                     <input
                                         aria-label={`Số ngày — ${r.ten_thuoc}`}
                                         inputMode="numeric"
@@ -518,13 +501,11 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         disabled={isReadOnly}
                                     />
 
-                                    {/* Cột 8: Tổng số lượng tự tính */}
                                     <div className="text-center">
                                         <span className="font-extrabold text-[#003553] text-sm">{totalQty}</span>
                                         <span className="block text-[10px] text-slate-400">{r.don_vi_tinh || 'viên'}</span>
                                     </div>
 
-                                    {/* Cột 9: Hướng dẫn / Cách dùng chi tiết */}
                                     <div className="flex flex-col gap-1 min-w-0">
                                         <input
                                             aria-label={`Cách dùng — ${r.ten_thuoc}`}
@@ -550,7 +531,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         )}
                                     </div>
 
-                                    {/* Cột 10: Nút xóa dòng */}
                                     <div className="flex justify-center">
                                         {!isReadOnly ? (
                                             <button
@@ -568,7 +548,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     </div>
                                 </div>
 
-                                {/* Cảnh báo dị ứng thuốc (Allergy warning) */}
                                 {conflict && (
                                     <div className="mx-3 mb-2 flex flex-wrap items-center gap-3 rounded-lg bg-rose-100/80 px-3 py-2 text-[12px] font-medium text-rose-900 border border-rose-300">
                                         <ClinicIcon name="Warning" size={16} weight="bold" className="text-rose-600" />
@@ -588,7 +567,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </div>
 
-            {/* LỜI DẶN DÙNG THUỐC CHUNG */}
             <div>
                 <div className="flex items-center justify-between mb-1">
                     <span className="medpro-label !mb-0">Lời dặn dùng thuốc của bác sĩ</span>
@@ -617,7 +595,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 />
             </div>
 
-            {/* HẸN TÁI KHÁM THÔNG MINH (tClinic Smart Follow-up) */}
             <section className="rounded-xl bg-[#E8F4FD]/80 border border-sky-200 p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#003553] flex items-center gap-1.5">
@@ -682,7 +659,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </section>
 
-            {/* MODAL XÁC NHẬN KÝ SỐ ĐƠN THUỐC ĐIỆN TỬ (FSM SIGNED) */}
             {showSignConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
                     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
@@ -695,7 +671,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     Xác nhận Ký số Đơn thuốc
                                 </h4>
                                 <span className="text-xs text-slate-500">
-                                    Quy chuẩn FSM · Thông tư 04/2022/TT-BYT
+                                    Theo Thông tư 04/2022/TT-BYT
                                 </span>
                             </div>
                         </div>
@@ -708,7 +684,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             </p>
                             <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-medium leading-relaxed">
                                 ⚠️ <strong>Lưu ý quan trọng:</strong> Sau khi ký số, trạng thái đơn thuốc sẽ chuyển sang{' '}
-                                <span className="font-bold text-emerald-700">SIGNED</span>. Toàn bộ thông tin thuốc, liều dùng sẽ bị{' '}
+                                <span className="font-bold text-emerald-700">Đã ký số</span>. Toàn bộ thông tin thuốc, liều dùng sẽ bị{' '}
                                 <strong>KHÓA BẤT BIẾN</strong>, không thể chỉnh sửa trực tiếp theo quy định y tế!
                             </div>
                         </div>

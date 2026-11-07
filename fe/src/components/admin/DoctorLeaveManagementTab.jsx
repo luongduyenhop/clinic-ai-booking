@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { exportToExcel } from '../../utils/helpers/exportUtils'
 import { useSelector } from 'react-redux'
 import { adminService } from '../../services/admin/AdminService'
 import { AppToast } from '../common/AppNotification'
@@ -16,6 +17,7 @@ import {
     LockKey,
     Stethoscope,
     Users,
+    DownloadSimple,
 } from '../common/ClinicIcon'
 
 const DEMO_INITIAL_LEAVES = [
@@ -150,6 +152,13 @@ const saveStoredLeaves = (list) => {
 
 export default function DoctorLeaveManagementTab() {
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
+    const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+    const configuredClinicAddress = [
+        settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+        settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+    ].filter(Boolean).join(' | ')
     const staffList = clinicData?.staffList || []
 
     const doctorOptions = useMemo(() => {
@@ -251,6 +260,66 @@ export default function DoctorLeaveManagementTab() {
             return docName.includes(q) || reason.includes(q) || code.includes(q)
         })
     }, [leaves, searchQuery])
+
+    const handleExportLeavesExcel = () => {
+        const headers = ['Mã đơn', 'Bác sĩ', 'Chuyên khoa', 'Loại nghỉ', 'Từ ngày', 'Đến ngày', 'Ca làm việc', 'Lý do', 'Số ca ảnh hưởng', 'Số lịch hẹn', 'Trạng thái']
+        const rows = (filteredLeaves || []).map((l) => {
+            const statusLabel = l.trang_thai === 'DA_DUYET' ? 'Đã duyệt' : l.trang_thai === 'TU_CHOI' ? 'Từ chối' : 'Chờ duyệt'
+            const shiftLabel = l.ca_lam_viec === 'sang' ? 'Sáng' : l.ca_lam_viec === 'chieu' ? 'Chiều' : 'Cả ngày'
+            const typeLabel = l.loai_nghi === 'NGHI_PHEP' ? 'Nghỉ phép năm' : l.loai_nghi === 'NGHI_DOT_XUAT' ? 'Nghỉ đột xuất' : l.loai_nghi === 'NGHI_OM' ? 'Nghỉ ốm' : 'Công tác'
+            return [
+                `NP${String(l.id).padStart(4, '0')}`,
+                l.ten_bac_si || '',
+                l.chuyen_khoa || '',
+                typeLabel,
+                l.tu_ngay || '',
+                l.den_ngay || '',
+                shiftLabel,
+                l.ly_do || '',
+                Number(l.so_ca_anh_huong) || 0,
+                Number(l.so_lich_anh_huong) || 0,
+                statusLabel,
+            ]
+        })
+        exportToExcel({
+            filename: `danh-sach-nghi-phep-bac-si_${new Date().toISOString().slice(0, 10)}.xlsx`,
+            sheetName: 'Nghỉ Phép Bác Sĩ',
+            title: 'DANH SÁCH ĐĂNG KÝ NGHỈ PHÉP & ĐIỀU PHỐI LỊCH BÁC SĨ',
+            subtitle: `Phân hệ Quản trị Nhân sự & Lịch khám • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} đơn`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} đơn nghỉ phép ra file Excel (.xlsx) thành công!`)
+    }
+
+    const handleExportAffectedBookingsExcel = () => {
+        if (!affectedBookings.length) return
+        const headers = ['Mã lịch', 'Họ tên người bệnh', 'Số điện thoại', 'Thời gian hẹn', 'Chuyên khoa', 'Trạng thái hẹn', 'Lý do khám']
+        const rows = affectedBookings.map((b) => [
+            b.ma_lich_kham || b.ma_lich_hen || `LK${b.id || ''}`,
+            b.ten_benh_nhan || b.ho_ten || 'Bệnh nhân',
+            b.so_dien_thoai || b.sdt || '',
+            `${b.ngay_kham || ''} ${b.khung_gio || b.gio_kham || ''}`.trim(),
+            b.chuyen_khoa || selectedLeaveForAffected?.chuyen_khoa || '',
+            b.trang_thai || 'Đã xác nhận',
+            b.ly_do_kham || b.ly_do || 'Khám chuyên khoa',
+        ])
+        exportToExcel({
+            filename: `danh-sach-benh-nhan-anh-huong-NP${selectedLeaveForAffected?.id || ''}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+            sheetName: 'DS Bệnh Nhân Ảnh Hưởng',
+            title: 'DANH SÁCH BỆNH NHÂN BỊ ẢNH HƯỞNG BỞI LỊCH NGHỈ BÁC SĨ',
+            subtitle: `Bác sĩ: ${selectedLeaveForAffected?.ten_bac_si || ''} • Thời gian nghỉ: ${selectedLeaveForAffected?.tu_ngay || ''} đến ${selectedLeaveForAffected?.den_ngay || ''} • Tổng số: ${rows.length} bệnh nhân`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} bệnh nhân ảnh hưởng ra file Excel (.xlsx) thành công!`)
+    }
 
     const handleOpenCreateModal = () => {
         const today = new Date().toISOString().split('T')[0]
@@ -529,10 +598,10 @@ export default function DoctorLeaveManagementTab() {
                         </div>
                         <div>
                             <h2 className="text-sm font-bold text-[#003553]">
-                                QUẢN LÝ &amp; PHÊ DUYỆT NGHỈ PHÉP BÁC SĨ (APT-008)
+                                QUẢN LÝ &amp; PHÊ DUYỆT NGHỈ PHÉP BÁC SĨ
                             </h2>
                             <p className="text-[11px] text-slate-500">
-                                Chuẩn OpenMRS/Bahmni Absence Management: Phê duyệt đơn nghỉ, tự động khóa lịch trực và cảnh báo lịch hẹn bị ảnh hưởng
+                                Phê duyệt đơn nghỉ phép, tự động khóa ca khám và cảnh báo các lịch hẹn của bệnh nhân bị ảnh hưởng
                             </p>
                         </div>
                     </div>
@@ -545,6 +614,14 @@ export default function DoctorLeaveManagementTab() {
                             title="Tải lại danh sách"
                         >
                             <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportLeavesExcel}
+                            className="medpro-btn-outline text-xs !bg-white hover:!bg-slate-50"
+                        >
+                            <DownloadSimple size={15} weight="bold" className="text-[#00B5F1]" />
+                            <span>Xuất Excel</span>
                         </button>
                         <button
                             type="button"
@@ -993,19 +1070,19 @@ export default function DoctorLeaveManagementTab() {
                                             affectedBookings.map((b, idx) => (
                                                 <tr key={b.lich_kham_id || idx} className="hover:bg-slate-50">
                                                     <td className="p-2.5 font-mono font-bold text-[#003553]">
-                                                        {b.ma_lich_kham || `#${b.lich_kham_id}`}
+                                                        {b.ma_lich_kham || b.ma_lich_hen || `#${b.lich_kham_id || b.id || idx + 1}`}
                                                     </td>
                                                     <td className="p-2.5 font-bold text-slate-800">
-                                                        {b.ten_benh_nhan}
+                                                        {b.ten_benh_nhan || b.ho_ten || "Bệnh nhân"}
                                                     </td>
                                                     <td className="p-2.5 font-mono text-slate-700">
                                                         {b.so_dien_thoai || 'Chưa có SĐT'}
                                                     </td>
                                                     <td className="p-2.5 whitespace-nowrap text-slate-700">
-                                                        {b.ngay_kham} {b.gio_kham ? `(${b.gio_kham})` : ''}
+                                                        {b.ngay_kham ? `${b.ngay_kham} ${b.gio_kham ? `(${b.gio_kham})` : ''}` : (b.thoi_gian_kham || 'Theo ca trực')}
                                                     </td>
                                                     <td className="p-2.5 text-slate-600">
-                                                        {b.ten_chuyen_khoa || 'Khám bệnh'}
+                                                        {b.ten_chuyen_khoa || b.chuyen_khoa || 'Khám bệnh'}
                                                     </td>
                                                     <td className="p-2.5 whitespace-nowrap">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
@@ -1024,13 +1101,24 @@ export default function DoctorLeaveManagementTab() {
                             <span className="text-[11px] text-slate-500">
                                 Tổng cộng: <strong>{affectedBookings.length}</strong> bệnh nhân cần điều phối
                             </span>
-                            <button
-                                type="button"
-                                onClick={() => setIsAffectedModalOpen(false)}
-                                className="medpro-btn-secondary text-xs"
-                            >
-                                Đóng lại
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleExportAffectedBookingsExcel}
+                                    disabled={!affectedBookings.length}
+                                    className="medpro-btn-outline text-xs !bg-white hover:!bg-slate-50 disabled:opacity-50"
+                                >
+                                    <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <span>Xuất Excel DS liên hệ</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAffectedModalOpen(false)}
+                                    className="medpro-btn-secondary text-xs"
+                                >
+                                    Đóng lại
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

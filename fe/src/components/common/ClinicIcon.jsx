@@ -195,12 +195,47 @@ export function ClinicIcon({ name, size = 18, weight = 'regular', className = ''
     return <IconComponent size={size} weight={weight} className={`shrink-0 ${className}`} aria-hidden="true" />
 }
 
-/**
- * Semantic Status Badge following UI/UX Pro Max WCAG Guidelines:
- * Never rely on color alone — combines subtle background, border, vector icon/ring dot, and clear typography.
- */
-export function StatusBadge({ status, showText = true, compact = false, className = '' }) {
+export const STATUS_LABEL_MAP = {
+    ACTIVE: 'Đang hoạt động',
+    EXPIRING_SOON: 'Sắp hết hạn',
+    EXPIRED: 'Đã hết hạn',
+    SUSPENDED: 'Đang đình chỉ',
+    REVOKED: 'Đã thu hồi',
+    ACCEPTED: 'Đã liên thông',
+    SIGNED: 'Đã ký số',
+    ISSUED: 'Đã cấp',
+    DRAFT: 'Bản nháp',
+    VALIDATED: 'Đã kiểm tra',
+    SUBMISSION_PENDING: 'Chờ gửi liên thông',
+    SUBMITTED: 'Đã gửi liên thông',
+    RETRY_PENDING: 'Chờ gửi lại',
+    CHO_DUYET: 'Chờ duyệt',
+    DA_DUYET: 'Đã duyệt',
+    TU_CHOI: 'Từ chối',
+    SUCCESS: 'Thành công',
+    FAILED: 'Thất bại',
+    FAILURE: 'Thất bại',
+    ONLINE: 'Trực tuyến',
+    OFFLINE: 'Ngoại tuyến',
+    CONNECTED: 'Đã kết nối',
+    DISCONNECTED: 'Mất kết nối',
+    da_thu: 'Đã thu tiền',
+    chua_thu: 'Chưa thu',
+    hoan_tien_mot_phan: 'Hoàn một phần',
+    da_hoan_tien: 'Đã hoàn tiền',
+    da_huy: 'Đã hủy',
+    cho_kham: 'Chờ khám',
+    dang_kham: 'Đang khám',
+    da_kham: 'Đã khám',
+    cho_thuc_hien: 'Chờ thực hiện',
+    dang_thuc_hien: 'Đang thực hiện',
+    da_co_ket_qua: 'Đã có kết quả',
+    ket_thuc_kham: 'Kết thúc khám',
+}
+
+export function StatusBadge({ status, text, showText = true, compact = false, className = '' }) {
     const normalized = String(status || '').trim()
+    const displayText = text || STATUS_LABEL_MAP[normalized] || normalized
 
     let tone = 'info'
     let iconName = 'Clock'
@@ -221,7 +256,35 @@ export function StatusBadge({ status, showText = true, compact = false, classNam
             'SIGNED',
             'ISSUED',
             'THÀNH CÔNG',
+            'SUCCESS',
+            'ONLINE',
+            'CONNECTED',
+            'DA_DUYET',
+            'da_thu',
+            'da_hoan_tien',
+            'Đã duyệt',
+            'Đã liên thông',
+            'Đã ký số',
+            'Trực tuyến',
+            'Đã kết nối',
+            'Đã thu tiền',
         ].includes(normalized) ||
+        [
+            'Đã khám',
+            'Kết thúc khám',
+            'Đã có kết quả',
+            'Hoàn thành',
+            'Xác nhận',
+            'Đã thu',
+            'Đang hoạt động',
+            'Đã duyệt',
+            'Đã liên thông',
+            'Đã ký số',
+            'Trực tuyến',
+            'Đã kết nối',
+            'Đã thu tiền',
+            'Thành công',
+        ].includes(displayText) ||
         normalized.includes('100%') ||
         normalized.includes('ự động')
     ) {
@@ -243,11 +306,35 @@ export function StatusBadge({ status, showText = true, compact = false, classNam
             'SUBMISSION_PENDING',
             'SUBMITTED',
             'RETRY_PENDING',
+            'CHO_DUYET',
+            'cho_kham',
+            'dang_kham',
+            'chua_thu',
+            'hoan_tien_mot_phan',
+            'Sắp hết hạn',
+            'Bản nháp',
+            'Chờ gửi liên thông',
+            'Chờ gửi lại',
+            'Chờ duyệt',
+            'Hoàn một phần',
         ].includes(normalized) ||
+        [
+            'Đang khám',
+            'Chờ khám',
+            'Chờ xác nhận',
+            'Chờ thực hiện',
+            'Đang thực hiện',
+            'Sắp hết hạn',
+            'Bản nháp',
+            'Chờ gửi liên thông',
+            'Chờ gửi lại',
+            'Chờ duyệt',
+            'Hoàn một phần',
+        ].includes(displayText) ||
         normalized.includes('Phát hiện')
     ) {
         tone = 'warning'
-        iconName = normalized.includes('Đang') ? 'Pulse' : 'Clock'
+        iconName = normalized.includes('Đang') || displayText.includes('Đang') ? 'Pulse' : 'Clock'
     } else if (
         [
             'Từ chối',
@@ -256,9 +343,28 @@ export function StatusBadge({ status, showText = true, compact = false, classNam
             'SUSPENDED',
             'REVOKED',
             'REJECTED',
+            'TU_CHOI',
+            'FAILED',
+            'FAILURE',
+            'DISCONNECTED',
+            'da_huy',
             'Ẩn',
             'Ngừng',
+            'Đã hết hạn',
+            'Đang đình chỉ',
+            'Đã thu hồi',
+            'Thất bại',
+            'Mất kết nối',
         ].includes(normalized) ||
+        [
+            'Từ chối',
+            'Đã hủy',
+            'Đã hết hạn',
+            'Đang đình chỉ',
+            'Đã thu hồi',
+            'Thất bại',
+            'Mất kết nối',
+        ].includes(displayText) ||
         normalized.includes('CHẶN')
     ) {
         tone = 'danger'
@@ -282,8 +388,8 @@ export function StatusBadge({ status, showText = true, compact = false, classNam
     if (!showText) {
         return (
             <span
-                title={normalized}
-                aria-label={normalized}
+                title={displayText}
+                aria-label={displayText}
                 className={`inline-flex items-center justify-center w-6 h-6 rounded-full border ${styles[tone]} ${className}`}
             >
                 <ClinicIcon name={iconName} size={14} weight="fill" />
@@ -298,7 +404,7 @@ export function StatusBadge({ status, showText = true, compact = false, classNam
             } ${styles[tone]} ${className}`}
         >
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotStyles[tone]}`} aria-hidden="true" />
-            <span>{normalized}</span>
+            <span>{displayText}</span>
         </span>
     )
 }

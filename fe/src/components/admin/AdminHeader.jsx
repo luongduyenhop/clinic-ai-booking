@@ -10,13 +10,42 @@ import {
     ArrowsClockwise,
     SignOut,
     ShieldCheck,
-    MagnifyingGlass,
     CaretDown,
-    X,
     Bell,
     ArrowsOut,
     ArrowsIn,
 } from '../common/ClinicIcon'
+
+const SPECIALIZED_PORTALS = [
+    {
+        label: 'Cổng Lễ Tân & Tiếp Đón',
+        path: '/reception/dashboard',
+        icon: 'ClipboardText',
+        badge: 'Lễ tân',
+        desc: 'Tiếp đón SĐT/CCCD, hàng chờ realtime & lịch hẹn',
+    },
+    {
+        label: 'Cổng Bác Sĩ Lâm Sàng',
+        path: '/doctor',
+        icon: 'Stethoscope',
+        badge: 'Bác sĩ',
+        desc: 'Bàn khám chuyên khoa, chẩn đoán ICD-10 & kê đơn',
+    },
+    {
+        label: 'Cổng Kỹ Thuật Viên CLS',
+        path: '/staff/paraclinical-work',
+        icon: 'Microscope',
+        badge: 'KTV CLS',
+        desc: 'Xét nghiệm, siêu âm, X-quang & trả kết quả',
+    },
+    {
+        label: 'Cổng Thu Ngân & Viện Phí',
+        path: '/staff/cashier',
+        icon: 'Receipt',
+        badge: 'Thu ngân',
+        desc: 'Thu tiền VietQR/Tiền mặt, hóa đơn & đối soát ca',
+    },
+]
 
 export default function AdminHeader() {
     const location = useLocation()
@@ -27,21 +56,17 @@ export default function AdminHeader() {
 
     const { headerWorkflowTabs = [] } = getNavigationConfig(clinicData)
     const defaultUser = getAuthSeed()?.user || {}
-    const patients = clinicData?.patients || []
     const systemNotifications = clinicData?.systemNotifications || []
 
     const [activeDropdown, setActiveDropdown] = useState(null)
+    const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false)
     const [isNotifOpen, setIsNotifOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
-    const [isSearchOpen, setIsSearchOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [notifications, setNotifications] = useState(systemNotifications)
 
     const headerRef = useRef(null)
-    const searchRef = useRef(null)
 
-    // Sync notifications from seed data if updated
     useEffect(() => {
         if (systemNotifications.length > 0) {
             setNotifications(systemNotifications)
@@ -50,35 +75,19 @@ export default function AdminHeader() {
 
     const unreadCount = notifications.filter((n) => n.unread).length
 
-    // Filter patients by query
-    const filteredPatients = searchQuery.trim()
-        ? patients
-              .filter(
-                  (p) =>
-                      p.hoTen?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      p.maBN?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      p.dienThoai?.includes(searchQuery)
-              )
-              .slice(0, 5)
-        : []
-
-    // Close all popups on click outside
     useEffect(() => {
         function handleClickOutside(e) {
             if (headerRef.current && !headerRef.current.contains(e.target)) {
                 setActiveDropdown(null)
+                setIsPortalMenuOpen(false)
                 setIsNotifOpen(false)
                 setIsUserMenuOpen(false)
-            }
-            if (searchRef.current && !searchRef.current.contains(e.target)) {
-                setIsSearchOpen(false)
             }
         }
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    // Track fullscreen change
     useEffect(() => {
         function handleFullscreenChange() {
             setIsFullscreen(Boolean(document.fullscreenElement))
@@ -97,20 +106,13 @@ export default function AdminHeader() {
 
     const handleResetDemo = async () => {
         await dispatch(resetClinicDemoDataAsync())
-        AppToast.success('Đã khôi phục dữ liệu gốc từ file Seed (clinicSeed.json) thành công!')
+        AppToast.success('Đã đồng bộ lại dữ liệu cấu hình chuẩn từ máy chủ!')
     }
 
     const handleLogout = async () => {
         const result = await dispatch(logoutUserAsync())
         if (result.payload?.sessionChanged || result.meta.condition) return
         navigate('/login')
-    }
-
-    const handleSelectPatient = (patient) => {
-        setSearchQuery('')
-        setIsSearchOpen(false)
-        navigate(`/admin/dang-ky-kham?patientId=${patient.id || patient.maBN}`)
-        AppToast.info(`Đã chuyển tới Tiếp đón BN: ${patient.hoTen} (${patient.maBN})`)
     }
 
     const handleMarkAllNotifsRead = () => {
@@ -128,7 +130,6 @@ export default function AdminHeader() {
         }
     }
 
-    // Check if a header tab or any of its submenus is active
     const isTabActive = (tab) => {
         const currentFull = location.pathname + (location.search || '')
         if (location.pathname === tab.path) return true
@@ -138,7 +139,7 @@ export default function AdminHeader() {
                 return currentFull === sub.path || location.pathname === subBase
             })
         }
-        return location.pathname.startsWith(`${tab.path}/`)
+        return tab.path !== '/admin' && location.pathname.startsWith(`${tab.path}/`)
     }
 
     return (
@@ -146,10 +147,7 @@ export default function AdminHeader() {
             ref={headerRef}
             className="h-14 bg-white border-b border-[#E2EDF5] px-3 lg:px-4 flex items-center justify-between gap-3 shrink-0 shadow-2xs z-30 select-none"
         >
-            {/* ========================================================= */}
-            {/* 7 TOP OPERATIONAL WORKFLOW TABS (DETAILED TCLINIC ARCHITECTURE) */}
-            {/* ========================================================= */}
-            <div className="flex items-center gap-1 overflow-visible py-1">
+            <div className="flex items-center gap-1.5 overflow-visible py-1">
                 {headerWorkflowTabs.map((tab) => {
                     const active = isTabActive(tab)
                     const isDropdownOpen = activeDropdown === tab.path
@@ -160,11 +158,12 @@ export default function AdminHeader() {
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        setIsPortalMenuOpen(false)
                                         setIsNotifOpen(false)
                                         setIsUserMenuOpen(false)
                                         setActiveDropdown(isDropdownOpen ? null : tab.path)
                                     }}
-                                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all cursor-pointer ${
                                         active || isDropdownOpen
                                             ? 'bg-[#00B5F1] text-white shadow-xs ring-2 ring-[#00B5F1]/20'
                                             : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/12 hover:text-[#00B5F1]'
@@ -177,15 +176,6 @@ export default function AdminHeader() {
                                         className={active || isDropdownOpen ? 'text-white' : 'text-[#00B5F1]'}
                                     />
                                     <span>{tab.label}</span>
-                                    {tab.badge && (
-                                        <span
-                                            className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-full text-white shrink-0 ${
-                                                tab.badgeColor || 'bg-sky-500'
-                                            }`}
-                                        >
-                                            {tab.badge}
-                                        </span>
-                                    )}
                                     <CaretDown
                                         size={11}
                                         weight="bold"
@@ -195,13 +185,12 @@ export default function AdminHeader() {
                                     />
                                 </button>
 
-                                {/* FLOATING DETAILED SUBMENU POPOVER */}
                                 {isDropdownOpen && (
-                                    <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="absolute left-0 top-full mt-2 w-76 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                                         <div className="px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
                                             <span>{tab.dropdownTitle || tab.label}</span>
                                             <span className="text-[9px] font-semibold text-[#00B5F1] lowercase">
-                                                {tab.submenu.length} mục
+                                                {tab.submenu.length} phân mục
                                             </span>
                                         </div>
                                         <div className="max-h-80 overflow-y-auto py-0.5 space-y-0.5">
@@ -257,7 +246,7 @@ export default function AdminHeader() {
                         <Link
                             key={tab.path}
                             to={tab.path}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all ${
                                 active
                                     ? 'bg-[#00B5F1] text-white shadow-xs ring-2 ring-[#00B5F1]/20'
                                     : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/12 hover:text-[#00B5F1]'
@@ -270,85 +259,71 @@ export default function AdminHeader() {
                                 className={active ? 'text-white' : 'text-[#00B5F1]'}
                             />
                             <span>{tab.label}</span>
-                            {tab.badge && (
-                                <span
-                                    className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-full text-white shrink-0 ${
-                                        tab.badgeColor || 'bg-sky-500'
-                                    }`}
-                                >
-                                    {tab.badge}
-                                </span>
-                            )}
                         </Link>
                     )
                 })}
             </div>
 
-            {/* ========================================================= */}
-            {/* QUICK PATIENT SEARCH BAR (TCLINIC SHORTCUT) */}
-            {/* ========================================================= */}
-            <div className="hidden 2xl:flex items-center relative flex-1 max-w-[210px]" ref={searchRef}>
-                <MagnifyingGlass
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                        setSearchQuery(e.target.value)
-                        setIsSearchOpen(true)
-                    }}
-                    onFocus={() => setIsSearchOpen(true)}
-                    placeholder="Tìm nhanh BN: Tên, SĐT, Mã KCB..."
-                    className="w-full text-xs pl-8 pr-7 py-1.5 rounded-full border border-[#D5E6F2] bg-[#F8FBFE] hover:border-[#00B5F1] focus:border-[#00B5F1] focus:bg-white focus:outline-none transition placeholder:text-slate-400 text-[#003553]"
-                />
-                {searchQuery && (
+            <div className="flex items-center gap-2 shrink-0">
+                <div className="relative hidden md:block">
                     <button
                         type="button"
                         onClick={() => {
-                            setSearchQuery('')
-                            setIsSearchOpen(false)
+                            setActiveDropdown(null)
+                            setIsNotifOpen(false)
+                            setIsUserMenuOpen(false)
+                            setIsPortalMenuOpen(!isPortalMenuOpen)
                         }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+                            isPortalMenuOpen
+                                ? 'bg-[#003553] text-white border-[#003553]'
+                                : 'bg-slate-50 text-[#003553] border-slate-200 hover:border-[#00B5F1] hover:text-[#00B5F1]'
+                        }`}
                     >
-                        <X size={13} weight="bold" />
+                        <ClinicIcon name="Buildings" size={14} weight="duotone" />
+                        <span>Giám sát Cổng Nghiệp Vụ</span>
+                        <CaretDown
+                            size={11}
+                            weight="bold"
+                            className={`transition-transform ${isPortalMenuOpen ? 'rotate-180' : ''}`}
+                        />
                     </button>
-                )}
 
-                {/* Dropdown Live Results */}
-                {isSearchOpen && filteredPatients.length > 0 && (
-                    <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50">
-                        <div className="px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
-                            KẾT QUẢ TÌM KIẾM BỆNH NHÂN ({filteredPatients.length})
+                    {isPortalMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50">
+                            <div className="px-3.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
+                                <span>CHUYỂN CỔNG TÁC NGHIỆP CHUYÊN BIỆT</span>
+                                <span className="text-[9px] font-bold text-emerald-600">4 Phân hệ</span>
+                            </div>
+                            <div className="py-0.5 space-y-0.5">
+                                {SPECIALIZED_PORTALS.map((portal) => (
+                                    <Link
+                                        key={portal.path}
+                                        to={portal.path}
+                                        onClick={() => setIsPortalMenuOpen(false)}
+                                        className="flex items-start gap-2.5 px-3 py-2 text-xs text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition rounded-lg mx-1"
+                                    >
+                                        <div className="w-7 h-7 rounded-lg bg-[#F0F7FC] text-[#00B5F1] flex items-center justify-center shrink-0 mt-0.5">
+                                            <ClinicIcon name={portal.icon} size={14} weight="bold" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="font-bold text-[12px] truncate">{portal.label}</span>
+                                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-[#00B5F1] shrink-0">
+                                                    {portal.badge}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 truncate font-normal leading-tight mt-0.5">
+                                                {portal.desc}
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
-                        {filteredPatients.map((p) => (
-                            <button
-                                key={p.id}
-                                type="button"
-                                onClick={() => handleSelectPatient(p)}
-                                className="w-full text-left px-3.5 py-2 hover:bg-[#F0F7FC] transition flex items-center justify-between cursor-pointer"
-                            >
-                                <div>
-                                    <div className="text-xs font-bold text-[#003553]">{p.hoTen}</div>
-                                    <div className="text-[11px] text-slate-500 font-mono">
-                                        Mã: {p.maBN} • ĐT: {p.dienThoai}
-                                    </div>
-                                </div>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8F4FD] text-[#00B5F1] font-bold">
-                                    Tiếp đón →
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
 
-            {/* ========================================================= */}
-            {/* RIGHT UTILITY SUITE (TCLINIC PROMAX UTILITIES) */}
-            {/* ========================================================= */}
-            <div className="flex items-center gap-1.5 shrink-0">
-                {/* 1. Nút Làm Mới Dữ Liệu (Seed Reset) */}
                 <button
                     type="button"
                     onClick={handleResetDemo}
@@ -358,12 +333,12 @@ export default function AdminHeader() {
                     <ArrowsClockwise size={16} weight="bold" />
                 </button>
 
-                {/* 2. Chuông Thông Báo Y Tế Lâm Sàng */}
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => {
                             setActiveDropdown(null)
+                            setIsPortalMenuOpen(false)
                             setIsUserMenuOpen(false)
                             setIsNotifOpen(!isNotifOpen)
                         }}
@@ -372,7 +347,7 @@ export default function AdminHeader() {
                                 ? 'bg-[#E8F4FD] text-[#00B5F1]'
                                 : 'text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD]'
                         }`}
-                        title="Thông báo y tế lâm sàng"
+                        title="Thông báo hệ thống quản trị"
                     >
                         <Bell size={17} weight={unreadCount > 0 ? 'fill' : 'bold'} />
                         {unreadCount > 0 && (
@@ -382,12 +357,11 @@ export default function AdminHeader() {
                         )}
                     </button>
 
-                    {/* Popover Thông báo */}
                     {isNotifOpen && (
                         <div className="absolute right-0 top-full mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                             <div className="px-3.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
                                 <span className="text-xs font-black text-[#003553] uppercase tracking-wide">
-                                    THÔNG BÁO Y TẾ ({unreadCount} MỚI)
+                                    THÔNG BÁO HỆ THỐNG ({unreadCount} MỚI)
                                 </span>
                                 {unreadCount > 0 && (
                                     <button
@@ -431,7 +405,6 @@ export default function AdminHeader() {
                     )}
                 </div>
 
-                {/* 3. Chế độ Toàn Màn Hình (Fullscreen) */}
                 <button
                     type="button"
                     onClick={toggleFullscreen}
@@ -441,26 +414,26 @@ export default function AdminHeader() {
                     {isFullscreen ? <ArrowsIn size={16} weight="bold" /> : <ArrowsOut size={16} weight="bold" />}
                 </button>
 
-                {/* 5. Dropdown Bác Sĩ & Phòng Khám (User Menu) */}
                 <div className="relative pl-1.5 border-l border-slate-200 shrink-0">
                     <button
                         type="button"
                         onClick={() => {
                             setActiveDropdown(null)
+                            setIsPortalMenuOpen(false)
                             setIsNotifOpen(false)
                             setIsUserMenuOpen(!isUserMenuOpen)
                         }}
                         className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20 shrink-0">
-                            BS
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003553] to-[#00B5F1] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20 shrink-0">
+                            QT
                         </div>
                         <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
-                            <div className="text-[11.5px] font-bold text-[#003553] max-w-[130px] truncate">
-                                {user?.shortName || user?.fullName || defaultUser.shortName}
+                            <div className="text-[11.5px] font-bold text-[#003553] max-w-[140px] truncate">
+                                {user?.shortName || user?.fullName || defaultUser.shortName || 'Quản trị viên HIS'}
                             </div>
                             <div className="text-[10px] text-[#00B5F1] font-semibold">
-                                CCHN: {user?.licenseNo || defaultUser.licenseNo}
+                                Quản trị Hệ thống (Admin)
                             </div>
                         </div>
                         <CaretDown
@@ -470,44 +443,51 @@ export default function AdminHeader() {
                         />
                     </button>
 
-                    {/* Popover Hồ sơ Bác sĩ */}
                     {isUserMenuOpen && (
                         <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                             <div className="px-3.5 py-2 border-b border-slate-100">
                                 <div className="text-xs font-bold text-[#003553]">
-                                    {user?.fullName || defaultUser.fullName}
+                                    {user?.fullName || defaultUser.fullName || 'Quản trị viên Hệ thống'}
                                 </div>
                                 <div className="text-[10.5px] text-slate-500 font-medium mt-0.5">
-                                    Phòng Khám Đa Khoa Clinic-AI &bull; CCHN {user?.licenseNo || defaultUser.licenseNo}
+                                    Phòng Khám Đa Khoa Clinic-AI &bull; Vai trò: ADMIN
                                 </div>
                                 <div className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <span>Hành nghề hợp lệ đến 2028</span>
+                                    <span>Quyền Quản trị Toàn hệ thống</span>
                                 </div>
                             </div>
                             <div className="py-1">
                                 <Link
-                                    to="/admin/tuan-thu?tab=SETTING"
+                                    to="/admin/cai-dat"
                                     onClick={() => setIsUserMenuOpen(false)}
                                     className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
                                 >
                                     <ClinicIcon name="SlidersHorizontal" size={14} weight="bold" />
-                                    <span>Cài đặt phòng khám (/setting)</span>
+                                    <span>Cấu hình phòng khám (/cai-dat)</span>
+                                </Link>
+                                <Link
+                                    to="/admin/phan-quyen"
+                                    onClick={() => setIsUserMenuOpen(false)}
+                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
+                                >
+                                    <ShieldCheck size={14} weight="bold" />
+                                    <span>Phân quyền Vai trò (RBAC)</span>
                                 </Link>
                                 <Link
                                     to="/admin/nhan-vien"
                                     onClick={() => setIsUserMenuOpen(false)}
                                     className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
                                 >
-                                    <ShieldCheck size={14} weight="bold" />
-                                    <span>Quản lý Chứng chỉ hành nghề</span>
+                                    <ClinicIcon name="Users" size={14} weight="bold" />
+                                    <span>Quản lý Nhân sự & CCHN</span>
                                 </Link>
                             </div>
                             <div className="border-t border-slate-100 pt-1">
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                disabled={isLoggingOut}
+                                    disabled={isLoggingOut}
                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                                 >
                                     <SignOut size={14} weight="bold" />

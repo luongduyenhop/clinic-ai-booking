@@ -4256,7 +4256,6 @@ class QueueService:
         if target_date > now.date():
             raise BadRequestException("Không thể đóng ca trực cho ngày trong tương lai!")
 
-        # Kiểm tra khung giờ đóng ca nếu đóng ca của ngày hiện tại (Admin được phép bypass nếu cần cưỡng chế)
         if target_date == now.date() and current_user.vai_tro != VaiTroEnum.ADMIN.value:
             if target_ca == "sang" and now.time() < time(11, 0):
                 raise BadRequestException("Chưa đến thời điểm đóng ca sáng! Ca sáng chỉ được đóng từ sau 11:00.")
@@ -4304,7 +4303,6 @@ class QueueService:
                 )
                 so_dong += 1
 
-        # Xử lý Danh sách chờ (DanhSachCho) đồng bộ theo ca, không để sót dữ liệu mồ côi
         stmt_waitlist = (
             select(DanhSachCho)
             .where(

@@ -1,6 +1,6 @@
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -259,9 +259,6 @@ async def get_prescription(
     )
 
 
-# ==============================================================================
-# QUẢN LÝ VÒNG ĐỜI MÁY TRẠNG THÁI ĐƠN THUỐC & CỔNG QUỐC GIA (INT-04 / R3)
-# ==============================================================================
 
 @router.get(
     "/prescriptions/{prescription_id}",
@@ -662,30 +659,24 @@ async def copy_old_prescription(
     )
 
 
-# ==============================================================================
-# ĐỒNG BỘ TRẠNG THÁI BÀN KHÁM BÁC SĨ & CẬN LÂM SÀNG XUỐNG CSDL POSTGRESQL
-# ==============================================================================
-from sqlalchemy import select
 from app.core.dependencies import get_optional_current_user
-from app.models.bff_store import HeThongTrangThaiBff
 
 
 @router.get(
     "/workspace-state",
     response_model=ResponseEnvelope[Optional[dict]],
-    summary="Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng đã lưu bền vững từ PostgreSQL"
+    summary="Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng từ PostgreSQL (100% dữ liệu thật từ DB)"
 )
 async def get_clinical_workspace_state(
+    doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ (tùy chọn)"),
     current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(HeThongTrangThaiBff).where(
-        HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
+    data = await clinical_service.get_or_sync_workspace_state(
+        db=db,
+        current_user=current_user,
+        doctor_id=doctor_id,
     )
-    row = (await db.execute(stmt)).scalar_one_or_none()
-    data = row.data_json if row else None
-    if data and current_user and current_user.vai_tro in ("bac_si", "admin"):
-        data = await clinical_service.enrich_workspace_ai(data, db)
     return ResponseEnvelope.success_response(
         data=data,
         message="Tải trạng thái bàn khám từ PostgreSQL thành công",

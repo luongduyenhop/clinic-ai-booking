@@ -215,9 +215,10 @@ WHERE trang_thai NOT IN ('da_huy', 'tu_dong_huy');
 1. **Bộ lọc Red Flags chạy ĐỘC LẬP & ƯU TIÊN TRƯỚC HẾT:**
    * Đối soát danh từ khóa cấp cứu trong CSDL (`tu_khoa_cap_cuu`).
    * Nếu phát hiện: **NGẮT NGAY** luồng đặt lịch, trả về cảnh báo gọi 115.
-2. **Ngưỡng tin cậy 60% (Confidence Threshold):**
-   * Nếu điểm tin cậy $\ge 60\%$: Đề xuất 1-2 chuyên khoa và danh sách bác sĩ.
-   * Nếu điểm tin cậy $< 60\%$: Tự động đề xuất về khoa `Nội tổng quát` để bác sĩ khám sàng lọc.
+2. **Ngưỡng tin cậy định tuyến (Confidence Threshold):**
+   * Ngưỡng lấy từ `AI_CONFIDENCE_THRESHOLD`, mặc định $40\%$ cho model 5 chuyên khoa.
+   * Nếu điểm tin cậy $\ge$ ngưỡng: Đề xuất 1-2 chuyên khoa và danh sách bác sĩ.
+   * Nếu điểm tin cậy $<$ ngưỡng: Tự động đề xuất về khoa `Nội tổng quát` để bác sĩ khám sàng lọc.
 3. **Disclaimer y tế bắt buộc:**
    * `"disclaimer": "Kết quả phân tích từ AI chỉ mang tính chất tham khảo sơ bộ, không thay thế chẩn đoán y khoa của bác sĩ chuyên môn."`
 4. **Bác sĩ là người quyết định cuối cùng:**

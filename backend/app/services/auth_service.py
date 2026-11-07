@@ -32,28 +32,22 @@ ROLE_MAP = {
 
 
 def map_vai_tro_to_role(vai_tro: str | None) -> str:
-    """Chuẩn hóa vai trò tiếng Việt sang mã hằng số tiếng Anh cho frontend"""
     if not vai_tro:
         return "PATIENT"
     return ROLE_MAP.get(str(vai_tro).lower(), "PATIENT")
 
 
 class AuthService:
-    """Tầng Control điều phối toàn bộ nghiệp vụ xác thực và tài khoản (Package A)"""
 
     async def register_user(self, payload: RegisterRequest, db: AsyncSession) -> dict:
-        """Đăng ký tài khoản người bệnh mới và gửi mã xác thực OTP (UC-A01)"""
-        # 1. Kiểm tra Email đã tồn tại hay chưa
         stmt_check = select(TaiKhoan).where(TaiKhoan.email == payload.email)
         existing_account = (await db.execute(stmt_check)).scalar_one_or_none()
         if existing_account:
             raise ConflictException(f"Địa chỉ email '{payload.email}' đã được đăng ký trong hệ thống!")
 
-        # 2. Sinh mã OTP 6 số với TTL 5 phút
         otp_code = generate_otp(6)
         otp_expired_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
-        # 3. Tạo bản ghi NguoiDung (Person Pattern)
         nguoi_dung = NguoiDung(
             ho_ten=payload.ho_ten,
             email=payload.email,
@@ -62,13 +56,12 @@ class AuthService:
             gioi_tinh=payload.gioi_tinh
         )
         db.add(nguoi_dung)
-        await db.flush()  # Sinh nguoi_dung.id
+        await db.flush()
 
-        # 4. Tạo bản ghi TaiKhoan lưu mật khẩu tạm chưa kích hoạt
         tai_khoan = TaiKhoan(
             nguoi_dung_id=nguoi_dung.id,
             email=payload.email,
-            mat_khau_hash=hash_password(payload.mat_khau),  # Băm BCrypt cost 12
+            mat_khau_hash=hash_password(payload.mat_khau),
             vai_tro=VaiTroEnum.BENH_NHAN.value,
             is_active=False,
             otp_code=otp_code,
@@ -77,7 +70,6 @@ class AuthService:
         db.add(tai_khoan)
         await db.commit()
 
-        # 5. Gửi OTP qua Email (log console và gọi SMTP nếu có cấu hình)
         logger.info(f"🔑 [OTP GENERATED] Email: {payload.email} | Code: {otp_code} | Hết hạn lúc: {otp_expired_at}")
         try:
             await email_service.send_otp_email(recipient_email=payload.email, otp_code=otp_code)
@@ -88,12 +80,10 @@ class AuthService:
             "email": payload.email,
             "message": "Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
             "expires_in_seconds": 300,
-            # Chế độ debug cho phép hiển thị OTP để test nhanh
             "debug_otp": otp_code if settings.DEBUG else None
         }
 
     async def register_patient(self, payload: PatientRegisterRequest, db: AsyncSession) -> TokenResponse:
-        """Đăng ký tài khoản người bệnh mới trực tiếp qua Email và cấp phát JWT token ngay lập tức"""
         login_ident = str(payload.email).strip().lower()
         stmt_check = select(TaiKhoan).where(TaiKhoan.email == login_ident)
         existing_account = (await db.execute(stmt_check)).scalar_one_or_none()
@@ -112,7 +102,6 @@ class AuthService:
         db.add(nguoi_dung)
         await db.flush()
 
-        # Tạo mã định danh BN-YYYY-XXXX
         ma_bn = f"BN-{datetime.now().year}-{nguoi_dung.id:04d}"
         benh_nhan = BenhNhan(
             nguoi_dung_id=nguoi_dung.id,
@@ -165,7 +154,6 @@ class AuthService:
         )
 
     async def verify_otp(self, payload: VerifyOtpRequest, db: AsyncSession) -> TokenResponse:
-        """Xác thực mã OTP để kích hoạt tài khoản và cấp phát JWT Token"""
         stmt = select(TaiKhoan).where(TaiKhoan.email == payload.email)
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
 
@@ -178,16 +166,13 @@ class AuthService:
         if tai_khoan.is_active:
             raise ConflictException("Tài khoản này đã được kích hoạt trước đó!")
 
-        # Kiểm tra thời hạn OTP
         now_utc = datetime.now(timezone.utc)
         if not tai_khoan.otp_expired_at or now_utc > tai_khoan.otp_expired_at:
             raise UnauthorizedException("Mã OTP đã hết hạn hiệu lực (5 phút). Vui lòng yêu cầu mã mới!")
 
-        # Kiểm tra mã OTP
         if tai_khoan.otp_code != payload.otp_code:
             raise UnauthorizedException("Mã OTP nhập vào không chính xác!")
 
-        # Kích hoạt tài khoản và gán token
         tai_khoan.is_active = True
         tai_khoan.otp_code = None
         tai_khoan.otp_expired_at = None
@@ -196,7 +181,6 @@ class AuthService:
         tai_khoan.refresh_token = refresh_token
         tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
-        # Tự động khởi tạo hồ sơ BenhNhan nếu chưa có
         stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == tai_khoan.nguoi_dung_id)
         benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
         if not benh_nhan:
@@ -209,7 +193,6 @@ class AuthService:
 
         await db.commit()
 
-        # Sinh JWT Bearer Token
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
 
         return TokenResponse(
@@ -225,7 +208,6 @@ class AuthService:
         )
 
     async def _ensure_default_fe_admin(self, login_identifier: str, password: str, db: AsyncSession) -> TaiKhoan | None:
-        """Tự động ánh xạ hoặc khởi tạo tài khoản Admin mặc định của Frontend (admin@clinic-ai.vn / phongkham5)"""
         normalized = login_identifier.strip().lower()
         if normalized not in ("admin@clinic-ai.vn", "phongkham5", "admin@clinic.com"):
             return None
@@ -238,7 +220,6 @@ class AuthService:
         if tk:
             return tk
 
-        # Tạo tài khoản Admin mặc định cho FE nếu chưa có trong DB
         nd = NguoiDung(
             ho_ten="BS.CKII Nguyễn Minh Hoàng (Admin)",
             email=target_email,
@@ -260,7 +241,6 @@ class AuthService:
         return tk
 
     async def login_user(self, payload: LoginRequest, db: AsyncSession) -> TokenResponse:
-        """Đăng nhập hệ thống bằng Email/SĐT/Username và Mật khẩu (UC-A03)"""
         email_or_user = payload.email.strip()
         stmt = (
             select(TaiKhoan)
@@ -280,7 +260,6 @@ class AuthService:
         if not tai_khoan:
             raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
 
-        # Đối chiếu mật khẩu BCrypt (hoặc cho phép mật khẩu mặc định của tài khoản demo FE)
         is_valid_pw = verify_password(payload.mat_khau, tai_khoan.mat_khau_hash)
         if not is_valid_pw and email_or_user.lower() in ("admin@clinic-ai.vn", "phongkham5") and payload.mat_khau in ("password123", "admin@123", "Admin@123456"):
             is_valid_pw = True
@@ -288,15 +267,23 @@ class AuthService:
         if not is_valid_pw:
             raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
 
-        # Kiểm tra trạng thái tài khoản
         ensure_account_active(tai_khoan)
 
-        # Lấy thông tin NguoiDung để trả kèm đối tượng user cho FE
         stmt_nd = select(NguoiDung).where(NguoiDung.id == tai_khoan.nguoi_dung_id)
         nguoi_dung = (await db.execute(stmt_nd)).scalar_one_or_none()
         full_name = nguoi_dung.ho_ten if nguoi_dung else tai_khoan.email
 
-        # Phát hành Token và lưu DB
+        doctor_id = None
+        phong_kham_id = None
+        chuyen_khoa_id = None
+        if tai_khoan.vai_tro == VaiTroEnum.BAC_SI.value or str(tai_khoan.vai_tro).lower() in ("bac_si", "doctor"):
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs:
+                doctor_id = bs.id
+                phong_kham_id = bs.phong_kham_id
+                chuyen_khoa_id = bs.chuyen_khoa_id
+
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
         refresh_token = create_refresh_token()
         
@@ -317,6 +304,11 @@ class AuthService:
             refreshToken=refresh_token,
             user={
                 "id": tai_khoan.id,
+                "doctorId": doctor_id or tai_khoan.id,
+                "doctor_id": doctor_id or tai_khoan.id,
+                "bac_si_id": doctor_id or tai_khoan.id,
+                "phong_kham_id": phong_kham_id,
+                "chuyen_khoa_id": chuyen_khoa_id,
                 "fullName": full_name,
                 "shortName": full_name,
                 "email": tai_khoan.email,
@@ -328,7 +320,6 @@ class AuthService:
         )
 
     async def logout_user(self, user: TaiKhoan, db: AsyncSession) -> None:
-        """Revoke the account's stored refresh token; repeated logout is harmless."""
         await db.execute(
             update(TaiKhoan).where(TaiKhoan.id == user.id).values(
                 refresh_token_hash=None, refresh_token_expired_at=None,
@@ -337,7 +328,6 @@ class AuthService:
         await db.commit()
 
     async def get_user_profile(self, user: TaiKhoan, db: AsyncSession) -> UserProfileResponse:
-        """Lấy thông tin hồ sơ người dùng đầy đủ (UC-A04)"""
         stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id)
         nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
 
@@ -374,12 +364,9 @@ class AuthService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> UserProfileResponse:
-        """Cập nhật thông tin hồ sơ cá nhân theo chuẩn OpenMRS Person & Patient (UC-A04)"""
-        # 1. Lấy thông tin Person (NguoiDung) với Pessimistic Locking
         stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id).with_for_update()
         nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
 
-        # 2. Kiểm tra tính duy nhất của số điện thoại nếu người dùng thay đổi SĐT
         if payload.so_dien_thoai and payload.so_dien_thoai != nguoi_dung.so_dien_thoai:
             stmt_phone = select(NguoiDung).where(
                 and_(
@@ -392,7 +379,6 @@ class AuthService:
                 raise ConflictException(f"Số điện thoại '{payload.so_dien_thoai}' đã được sử dụng bởi người dùng khác!")
             nguoi_dung.so_dien_thoai = payload.so_dien_thoai
 
-        # 3. Cập nhật thông tin nhân khẩu học (OpenMRS Person Pattern)
         if payload.ho_ten is not None:
             nguoi_dung.ho_ten = payload.ho_ten
         if payload.ngay_sinh is not None:
@@ -402,7 +388,6 @@ class AuthService:
         if payload.dia_chi is not None:
             nguoi_dung.dia_chi = payload.dia_chi
 
-        # 4. Cập nhật thông tin y tế lâm sàng nếu là bệnh nhân (OpenMRS Patient Pattern)
         if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
             stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id).with_for_update()
             benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
@@ -421,7 +406,6 @@ class AuthService:
         return await self.get_user_profile(user, db)
 
     async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
-        """Cấp lại Access Token mới dựa trên Refresh Token lưu trong Database"""
         stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token).with_for_update()
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
         

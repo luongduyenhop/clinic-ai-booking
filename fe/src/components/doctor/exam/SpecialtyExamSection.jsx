@@ -5,12 +5,13 @@ const STATUS_OPTIONS = [
     { code: 'BAT', label: 'Bất thường', on: 'bg-rose-50 text-rose-800 ring-2 ring-rose-500' },
 ]
 
-// Khối khám lâm sàng theo chuyên khoa: mục khám đổi theo khoa của lượt khám
+
 export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
     const { values, setFieldValue } = formik
     const exam = values.kham_chuyen_khoa
-    const khoa = exam.khoa || defaultKhoa
-    const spec = findSpecialtyExam(khoa)
+    const rawKhoa = exam.khoa || defaultKhoa
+    const spec = findSpecialtyExam(rawKhoa)
+    const khoa = spec.key
 
     const update = (patch) => setFieldValue('kham_chuyen_khoa', { ...exam, khoa, ...patch })
     const setItem = (label, patch) => update({ items: { ...exam.items, [label]: { ...exam.items?.[label], ...patch } } })
@@ -42,7 +43,6 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                             {SPECIALTY_EXAMS.map((s) => (
                                 <option key={s.key} value={s.key}>
                                     {s.label}
-                                    {s.key === defaultKhoa ? ' (khoa của lượt khám)' : ''}
                                 </option>
                             ))}
                         </select>
@@ -111,12 +111,21 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                                         </option>
                                     ))}
                                 </select>
-                            ) : (
+                            ) : x.type === 'number' ? (
                                 <input
                                     type="number"
                                     min={x.min}
                                     max={x.max}
                                     className="medpro-input"
+                                    value={exam.extras?.[x.key] ?? ''}
+                                    onChange={(e) => setExtra(x.key, e.target.value)}
+                                    disabled={locked}
+                                />
+                            ) : (
+                                <input
+                                    type="text"
+                                    className="medpro-input"
+                                    placeholder={x.placeholder || `Nhập ${x.label.toLowerCase()}…`}
                                     value={exam.extras?.[x.key] ?? ''}
                                     onChange={(e) => setExtra(x.key, e.target.value)}
                                     disabled={locked}

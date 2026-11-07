@@ -41,7 +41,6 @@ async def seed_reception_data():
     async with AsyncSessionLocal() as session:
         print("--> Bắt đầu nạp dữ liệu kiểm thử nghiệp vụ Lễ tân...")
 
-        # 1. Lấy thông tin Chuyên khoa, Phòng khám, Bác sĩ đã có
         stmt_ck = select(ChuyenKhoa)
         chuyen_khoas = {ck.ma_chuyen_khoa: ck for ck in (await session.execute(stmt_ck)).scalars().all()}
 
@@ -52,7 +51,6 @@ async def seed_reception_data():
         bac_si_list = (await session.execute(stmt_bs)).scalars().all()
         bac_sis = {bs.nguoi_dung.ho_ten: bs for bs in bac_si_list if bs.nguoi_dung}
 
-        # Map tên bác sĩ tiện dụng
         bs_minh = next((bs for name, bs in bac_sis.items() if "Phạm Đức Minh" in name), None)
         bs_hoang = next((bs for name, bs in bac_sis.items() if "Nguyễn Minh Hoàng" in name), None)
         bs_phuong = next((bs for name, bs in bac_sis.items() if "Đặng Hải Phương" in name), None)
@@ -60,7 +58,6 @@ async def seed_reception_data():
         bs_huy = next((bs for name, bs in bac_sis.items() if "Trần Quốc Huy" in name), None)
         bs_lan = next((bs for name, bs in bac_sis.items() if "Lê Ngọc Lan" in name), None)
 
-        # Lấy tài khoản Lễ tân đang trực
         stmt_letan = select(TaiKhoan).where(TaiKhoan.vai_tro == VaiTroEnum.LE_TAN.value)
         le_tan_account = (await session.execute(stmt_letan)).scalars().first()
         le_tan_id = le_tan_account.id if le_tan_account else None
@@ -69,7 +66,6 @@ async def seed_reception_data():
         admin_account = (await session.execute(stmt_admin)).scalars().first()
         admin_id = admin_account.id if admin_account else None
 
-        # 2. Tạo danh sách 13 bệnh nhân mẫu với đa dạng kịch bản
         patients_raw = [
             {
                 "email": "an.tran@example.com",
@@ -97,7 +93,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 30,
                 "so_lan_no_show": 2,
-                "is_blocked": True, # Test khóa đặt online do No-Show
+                "is_blocked": True,
             },
             {
                 "email": "hung.pham@example.com",
@@ -111,7 +107,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 100,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Ưu tiên người già
+                "is_blocked": False,
             },
             {
                 "email": "tri.hoang@example.com",
@@ -125,7 +121,7 @@ async def seed_reception_data():
                 "di_ung": "Dị ứng Aspirin",
                 "diem_tin_nhiem": 90,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Chờ lâu >30p
+                "is_blocked": False,
             },
             {
                 "email": "thao.vu@example.com",
@@ -139,7 +135,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 100,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Khách vãng lai
+                "is_blocked": False,
             },
             {
                 "email": "kiet.dang@example.com",
@@ -153,7 +149,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 85,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Tạm hoãn -> Tiếp nhận lại
+                "is_blocked": False,
             },
             {
                 "email": "huong.bui@example.com",
@@ -167,7 +163,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 100,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Đang khám
+                "is_blocked": False,
             },
             {
                 "email": "huy.ngo@example.com",
@@ -181,7 +177,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 95,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Đang khám ngoại khoa
+                "is_blocked": False,
             },
             {
                 "email": "linh.do@example.com",
@@ -195,7 +191,7 @@ async def seed_reception_data():
                 "di_ung": "Dị ứng phấn hoa",
                 "diem_tin_nhiem": 80,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Bỏ về
+                "is_blocked": False,
             },
             {
                 "email": "trong.duong@example.com",
@@ -209,7 +205,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 100,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Waitlist
+                "is_blocked": False,
             },
             {
                 "email": "chau.nguyen@example.com",
@@ -223,7 +219,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 100,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Sắp đến / Cân bằng tải theo khoa
+                "is_blocked": False,
             },
             {
                 "email": "trang.trinh@example.com",
@@ -237,7 +233,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 90,
                 "so_lan_no_show": 0,
-                "is_blocked": False, # Test Chờ xác nhận
+                "is_blocked": False,
             },
             {
                 "email": "duc.phan@example.com",
@@ -251,7 +247,7 @@ async def seed_reception_data():
                 "di_ung": "Không có",
                 "diem_tin_nhiem": 50,
                 "so_lan_no_show": 1,
-                "is_blocked": False, # Test No-Show hôm nay
+                "is_blocked": False,
             },
         ]
 
@@ -301,7 +297,6 @@ async def seed_reception_data():
                 session.add(patient)
                 await session.flush()
             else:
-                # Cập nhật thông tin để test đúng kịch bản
                 patient.nhom_mau = p["nhom_mau"]
                 patient.tien_su_benh = p["tien_su"]
                 patient.di_ung_thuoc = p["di_ung"]
@@ -314,7 +309,6 @@ async def seed_reception_data():
         await session.flush()
         print(f"--> Đã kiểm tra/tạo {len(patient_map)} hồ sơ bệnh nhân kiểm thử.")
 
-        # 3. Gán Gói khám còn hạn cho Bệnh nhân Trần Văn An (an.tran@example.com)
         an_patient = patient_map.get("an.tran@example.com")
         if an_patient:
             stmt_pkg_exist = select(GoiKhamDaMua).where(GoiKhamDaMua.benh_nhan_id == an_patient.id)
@@ -341,7 +335,6 @@ async def seed_reception_data():
                     session.add(bought_pkg)
                     await session.flush()
 
-                    # Chi tiết gói khám
                     stmt_svc = select(DichVu).where(DichVu.ma_dich_vu.in_(["KHAM_NOI", "XN_TPTTM", "CDHA_SA_OB"]))
                     services = (await session.execute(stmt_svc)).scalars().all()
                     for svc in services:
@@ -360,24 +353,19 @@ async def seed_reception_data():
                         )
                     print("--> Đã kích hoạt Gói khám mẫu cho bệnh nhân Trần Văn An.")
 
-        # Ngày mục tiêu kiểm thử: Hôm nay (2026-11-05)
         today = date(2026, 11, 5)
         vn_tz = timezone(timedelta(hours=7))
 
-        # Lấy lịch làm việc hôm nay
         stmt_llv = select(LichLamViec).where(LichLamViec.ngay_lam_viec == today)
         llv_list = (await session.execute(stmt_llv)).scalars().all()
         llv_map = {(llv.bac_si_id, llv.ca_lam_viec): llv for llv in llv_list}
 
-        # 4. DỌN SẠCH DỮ LIỆU CỦA NGÀY HÔM NAY (Đảm bảo reset 100% sạch sẽ)
-        # 4.1 Xóa Hàng đợi khám hôm nay trước (tránh vướng FK với lịch khám)
         stmt_del_queue = select(HangDoiKham).where(HangDoiKham.ngay_kham == today)
         del_queues = (await session.execute(stmt_del_queue)).scalars().all()
         for dq in del_queues:
             await session.delete(dq)
         await session.flush()
 
-        # 4.2 Xóa tất cả Lịch hẹn khám hôm nay
         stmt_del_apt = select(LichKham).where(LichKham.ngay_kham == today)
         del_apts = (await session.execute(stmt_del_apt)).scalars().all()
         for da in del_apts:
@@ -388,7 +376,7 @@ async def seed_reception_data():
             {
                 "code": "LK-20261105-0001",
                 "patient": patient_map["chau.nguyen@example.com"],
-                "doctor": None, # Test đặt theo khoa, chưa có BS -> Cân bằng tải khi check-in
+                "doctor": None,
                 "dept": chuyen_khoas.get("NGOAI"),
                 "ca": "chieu",
                 "time": time(15, 30),
@@ -447,7 +435,7 @@ async def seed_reception_data():
                 "duration": 30,
                 "stt": 5,
                 "reason": "Viêm họng hạt tái phát nuốt nghẹn",
-                "status": TrangThaiLichEnum.NO_SHOW.value, # Test thống kê Vắng mặt
+                "status": TrangThaiLichEnum.NO_SHOW.value,
                 "reconfirmed": True,
             },
             {
@@ -496,9 +484,7 @@ async def seed_reception_data():
         await session.flush()
         print(f"--> Đã tạo {len(created_appointments)} lịch hẹn hôm nay (gồm Đã xác nhận, Chờ xác nhận, No-show, Đã hủy).")
 
-        # 5. Nạp lại Hàng đợi khám (HangDoiKham) hôm nay
         queue_tickets = [
-            # Ca sáng: Tạo 4 ca hoàn tất để vẽ biểu đồ Mật độ check-in theo giờ (07:30, 08:30, 09:30, 10:30)
             {
                 "patient": patient_map["an.tran@example.com"],
                 "doctor": bs_minh,
@@ -556,8 +542,6 @@ async def seed_reception_data():
                 "so_lan_goi": 1,
             },
 
-            # Ca chiều: Trực tiếp phục vụ màn hình Quản lý Hàng đợi & Dashboard hiện tại
-            # 1. P101 - PGS.TS Phạm Đức Minh (Sẽ bị sự cố đột xuất để test Rebalance)
             {
                 "patient": patient_map["tri.hoang@example.com"],
                 "doctor": bs_minh,
@@ -567,7 +551,6 @@ async def seed_reception_data():
                 "loai": LoaiHangDoiEnum.DUNG_HEN.value,
                 "priority": 2,
                 "status": TrangThaiHangDoiEnum.CHO_KHAM.value,
-                # Check-in từ 13:10 -> Đã chờ > 45 phút -> Test cảnh báo Bệnh nhân chờ lâu (>30P)
                 "check_in": datetime(2026, 11, 5, 13, 10, tzinfo=vn_tz),
                 "so_lan_goi": 0,
             },
@@ -590,13 +573,12 @@ async def seed_reception_data():
                 "ca": "chieu",
                 "stt": 3,
                 "loai": "uu_tien",
-                "priority": 1, # Ưu tiên người cao tuổi 82t / cấp cứu -> Lên đầu hàng
+                "priority": 1,
                 "status": TrangThaiHangDoiEnum.CHO_KHAM.value,
                 "check_in": datetime(2026, 11, 5, 13, 45, tzinfo=vn_tz),
                 "so_lan_goi": 0,
             },
 
-            # 2. P102 - BS. CKII Nguyễn Minh Hoàng
             {
                 "patient": patient_map["huong.bui@example.com"],
                 "doctor": bs_hoang,
@@ -605,7 +587,7 @@ async def seed_reception_data():
                 "stt": 1,
                 "loai": LoaiHangDoiEnum.DUNG_HEN.value,
                 "priority": 2,
-                "status": TrangThaiHangDoiEnum.DANG_KHAM.value, # Test Bệnh nhân Đang khám
+                "status": TrangThaiHangDoiEnum.DANG_KHAM.value,
                 "check_in": datetime(2026, 11, 5, 13, 20, tzinfo=vn_tz),
                 "goi": datetime(2026, 11, 5, 13, 30, tzinfo=vn_tz),
                 "so_lan_goi": 1,
@@ -623,7 +605,6 @@ async def seed_reception_data():
                 "so_lan_goi": 0,
             },
 
-            # 3. P201 - ThS. BS Đặng Hải Phương
             {
                 "patient": patient_map["huy.ngo@example.com"],
                 "doctor": bs_phuong,
@@ -645,14 +626,13 @@ async def seed_reception_data():
                 "stt": 2,
                 "loai": LoaiHangDoiEnum.DUNG_HEN.value,
                 "priority": 2,
-                "status": TrangThaiHangDoiEnum.TAM_HOAN.value, # Test Tạm hoãn gọi 3 lần
+                "status": TrangThaiHangDoiEnum.TAM_HOAN.value,
                 "check_in": datetime(2026, 11, 5, 13, 25, tzinfo=vn_tz),
                 "goi": datetime(2026, 11, 5, 13, 35, tzinfo=vn_tz),
                 "so_lan_goi": 3,
                 "ghi_chu": "Bệnh nhân vắng mặt sau 3 lần gọi loa phòng khám",
             },
 
-            # 4. P202 - BS. CKI Lê Hoàng Long
             {
                 "patient": patient_map["an.tran@example.com"],
                 "doctor": bs_long,
@@ -673,13 +653,12 @@ async def seed_reception_data():
                 "stt": 2,
                 "loai": LoaiHangDoiEnum.DUNG_HEN.value,
                 "priority": 2,
-                "status": TrangThaiHangDoiEnum.BO_KHAM.value, # Test Bỏ về
+                "status": TrangThaiHangDoiEnum.BO_KHAM.value,
                 "check_in": datetime(2026, 11, 5, 13, 15, tzinfo=vn_tz),
                 "so_lan_goi": 0,
                 "ghi_chu": "Bệnh nhân có việc gia đình đột xuất xin hủy lượt khám",
             },
 
-            # 5. P301 - BS. CKII Trần Quốc Huy
             {
                 "patient": patient_map["trong.duong@example.com"],
                 "doctor": bs_huy,
@@ -688,14 +667,13 @@ async def seed_reception_data():
                 "stt": 1,
                 "loai": LoaiHangDoiEnum.DUNG_HEN.value,
                 "priority": 2,
-                "status": TrangThaiHangDoiEnum.DA_KHAM.value, # Test Hoàn tất khám ca chiều
+                "status": TrangThaiHangDoiEnum.DA_KHAM.value,
                 "check_in": datetime(2026, 11, 5, 13, 5, tzinfo=vn_tz),
                 "goi": datetime(2026, 11, 5, 13, 10, tzinfo=vn_tz),
                 "ket_thuc": datetime(2026, 11, 5, 13, 35, tzinfo=vn_tz),
                 "so_lan_goi": 1,
             },
 
-            # 6. P302 - ThS. BS Lê Ngọc Lan
             {
                 "patient": patient_map["trang.trinh@example.com"],
                 "doctor": bs_lan,
@@ -739,7 +717,6 @@ async def seed_reception_data():
         await session.flush()
         print(f"--> Đã nạp {len(queue_tickets)} vé hàng đợi vào các buồng khám.")
 
-        # 6. Nạp Danh sách chờ Waitlist (danh_sach_cho)
         stmt_del_wl = select(DanhSachCho).where(DanhSachCho.ngay_mong_muon == today)
         del_wls = (await session.execute(stmt_del_wl)).scalars().all()
         for dw in del_wls:
@@ -776,7 +753,6 @@ async def seed_reception_data():
         await session.flush()
         print(f"--> Đã tạo {len(waitlists)} bản ghi Danh sách chờ (Waitlist).")
 
-        # 7. Nạp Sự cố Bác sĩ nghỉ đột xuất (nghi_phep_bac_si)
         stmt_del_np = select(NghiPhepBacSi).where(
             NghiPhepBacSi.tu_ngay <= today,
             NghiPhepBacSi.den_ngay >= today,
@@ -805,7 +781,6 @@ async def seed_reception_data():
         await session.flush()
         print("--> Đã tạo sự cố Bác sĩ PGS.TS Phạm Đức Minh nghỉ đột xuất ca chiều.")
 
-        # 8. Nạp Lịch trực định kỳ theo tuần (lich_dinh_ky_bac_si)
         stmt_del_tmpl = select(LichDinhKyBacSi)
         del_tmpls = (await session.execute(stmt_del_tmpl)).scalars().all()
         for dt in del_tmpls:
@@ -817,8 +792,7 @@ async def seed_reception_data():
         for doc in doctors_list:
             if not doc:
                 continue
-            for day in range(2, 8):  # Thứ Hai (2) đến Thứ Bảy (7)
-                # Ca sáng
+            for day in range(2, 8):
                 template_records.append(
                     LichDinhKyBacSi(
                         bac_si_id=doc.id,
@@ -834,7 +808,6 @@ async def seed_reception_data():
                         is_active=True,
                     )
                 )
-                # Ca chiều
                 template_records.append(
                     LichDinhKyBacSi(
                         bac_si_id=doc.id,
@@ -857,7 +830,6 @@ async def seed_reception_data():
         await session.flush()
         print(f"--> Đã nạp {len(template_records)} ca trực định kỳ mẫu theo tuần (Khuôn mẫu).")
 
-        # Commit toàn bộ transaction
         await session.commit()
         print("==> HOÀN TẤT NẠP DỮ LIỆU TEST NGHIỆP VỤ LỄ TÂN THÀNH CÔNG! <==")
 

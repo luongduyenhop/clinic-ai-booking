@@ -1,4 +1,4 @@
-import { exportToCsv } from '../../utils/helpers/exportUtils'
+import { exportToExcel, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
@@ -35,20 +35,6 @@ export default function CatalogManagementPage() {
 
     const fileInputRef = useRef(null)
 
-    const handleExportCatalog = () => {
-        const headers = ['Mã', 'Tên', 'Nhóm / Chuyên khoa', 'Đơn giá', 'Đơn vị tính', 'Trạng thái']
-        const rows = filteredList.map((item) => [
-            item.ma || item.maDichVu || item.maThuoc || item.maBenh || '',
-            item.ten || item.tenDichVu || item.tenThuoc || item.tenBenh || '',
-            item.chuyenKhoa || item.nhom || item.loai || '',
-            item.donGia || item.gia || 0,
-            item.donViTinh || item.dvt || '',
-            item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
-        ])
-        exportToCsv(`danh-muc-${loaiDanhMuc}.csv`, headers, rows)
-        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.csv) thành công!`)
-    }
-
     const handleImportFile = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -60,6 +46,7 @@ export default function CatalogManagementPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
     const catalogs = clinicData?.catalogs || {}
 
     const masterOptions = getMasterOptions(clinicData)
@@ -70,7 +57,6 @@ export default function CatalogManagementPage() {
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState(generalSubTabs[0]?.key || 'goTat')
     const [searchText, setSearchText] = useState('')
 
-    // ── Export Danh mục Dịch vụ Chuẩn y tế (/api/v1/admin/services/export) ───
     const [isExportModalOpen, setIsExportModalOpen] = useState(false)
     const [exportLoading, setExportLoading] = useState(false)
     const [exportedServices, setExportedServices] = useState([])
@@ -111,28 +97,37 @@ export default function CatalogManagementPage() {
         if (!exportedServices.length) return
         const headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Thuế VAT (%)', 'Đơn giá sau VAT (VNĐ)', 'Thời gian TH (phút)', 'Số lượt đã làm', 'Doanh thu tích lũy (VNĐ)', 'Trạng thái']
         const rows = exportedServices.map((s) => [
-            `"${s.ma_dich_vu}"`,
-            `"${s.ten_dich_vu}"`,
-            `"${s.nhom_dich_vu || ''}"`,
-            `"${s.don_vi_tinh || 'Lần'}"`,
-            s.don_gia,
-            s.vat_percent || 0,
-            s.don_gia_sau_vat,
-            s.thoi_gian_thuc_hien || 15,
-            s.so_luong_da_lam || 0,
-            s.doanh_thu_tich_luy || 0,
-            s.trang_thai ? '"Đang áp dụng"' : '"Tạm ngưng"'
+            s.ma_dich_vu || s.maDV || '',
+            s.ten_dich_vu || s.tenDV || s.ten || '',
+            s.nhom_dich_vu || s.nhomDV || '',
+            s.don_vi_tinh || s.dvt || 'Lần',
+            Number(s.don_gia) || 0,
+            Number(s.vat_percent) || 0,
+            Number(s.don_gia_sau_vat) || 0,
+            Number(s.thoi_gian_thuc_hien) || 15,
+            Number(s.so_luong_da_lam) || 0,
+            Number(s.doanh_thu_tich_luy) || 0,
+            s.trang_thai ? 'Đang áp dụng' : 'Tạm ngưng',
         ])
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.setAttribute('href', url)
-        link.setAttribute('download', `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.csv`)
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (CSV)!')
+        const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+        const configuredClinicAddress = [
+            settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+            settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+        ].filter(Boolean).join(' | ')
+
+        exportToExcel({
+            filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xlsx`,
+            sheetName: 'Bảng Giá Dịch Vụ',
+            title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
+            subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (Excel)!')
     }
 
     const activeCatalogKey =
@@ -253,9 +248,129 @@ export default function CatalogManagementPage() {
         return raw.includes(searchText.toLowerCase())
     })
 
+    const handleExportCatalog = () => {
+        const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+        const configuredClinicAddress = [
+            settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+            settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+        ].filter(Boolean).join(' | ')
+
+        let title = 'DANH MỤC DỮ LIỆU CƠ SỞ Y TẾ'
+        let headers = []
+        let rows = []
+
+        if (loaiDanhMuc === 'dich-vu') {
+            title = 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & KHÁM BỆNH NIÊM YẾT'
+            headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maDV || item.ma || '',
+                item.tenDV || item.ten || '',
+                item.nhomDV || 'Khám bệnh',
+                item.dvt || 'Lần',
+                Number(item.donGia || 0),
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'benh') {
+            title = 'DANH MỤC MÃ BỆNH QUỐC TẾ (ICD-10 CHUẨN BỘ Y TẾ)'
+            headers = ['Mã ICD-10', 'Tên bệnh / Chẩn đoán y khoa', 'Chương bệnh', 'Truyền nhiễm / Báo cáo dịch', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maICD || item.ma || '',
+                item.tenBenh || item.ten || '',
+                item.chuongBenh || '',
+                item.truyenNhiem ? 'Bệnh truyền nhiễm (Cần báo cáo dịch)' : 'Không',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'thuoc-vat-tu') {
+            title = 'DANH MỤC THUỐC & DƯỢC PHẨM KÊ ĐƠN BỘ Y TẾ'
+            headers = ['Mã thuốc', 'Tên thuốc & Biệt dược', 'Hoạt chất & Hàm lượng', 'Đường dùng', 'Đơn vị tính', 'Nhóm thuốc', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maThuoc || item.ma || '',
+                item.tenThuoc || item.ten || '',
+                item.hoatChat || '',
+                item.duongDung || 'Đường uống',
+                item.dvt || 'Viên',
+                item.nhomThuoc || 'Thuốc kê đơn',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'khoa-phong') {
+            title = 'DANH MỤC KHOA PHÒNG & BUỒNG KHÁM CHUYÊN KHOA'
+            headers = ['Mã buồng / phòng', 'Tên khoa phòng', 'Chuyên khoa phụ trách', 'Vị trí tầng', 'Bác sĩ phụ trách chuyên môn', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maPhong || item.ma || '',
+                item.tenPhong || item.ten || '',
+                item.chuyenKhoa || '',
+                item.tang || 'Tầng 1',
+                item.bacSiPhuTrach || '',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else if (loaiDanhMuc === 'dia-chi') {
+            title = 'DANH MỤC ĐỊA BÀN HÀNH CHÍNH Y TẾ'
+            headers = ['Mã Tỉnh / TP', 'Tỉnh / Thành phố', 'Quận / Huyện', 'Phường / Xã', 'Trạng thái']
+            rows = filteredList.map((item) => [
+                item.maTinh || item.ma || '',
+                item.tenTinh || item.ten || '',
+                item.quanHuyen || '',
+                item.phuongXa || '',
+                item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+            ])
+        } else {
+            if (activeGeneralSubTab === 'khoanThu') {
+                title = 'DANH MỤC KHOẢN THU PHÍ & LỆ PHÍ VIỆN PHÍ'
+                headers = ['Mã khoản thu', 'Tên khoản thu viện phí', 'Đơn giá định mức (VNĐ)', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    Number(item.donGiaMacDinh || 0),
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else if (activeGeneralSubTab === 'donViTinh') {
+                title = 'DANH MỤC ĐƠN VỊ TÍNH CHUẨN Y TẾ'
+                headers = ['Mã ĐVT', 'Tên đơn vị tính', 'Mô tả phạm vi áp dụng', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    item.moTa || '',
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else if (activeGeneralSubTab === 'phuongPhapTruDau') {
+                title = 'DANH MỤC PHƯƠNG PHÁP TRỪ ĐAU & GÂY MÊ HỒI SỨC'
+                headers = ['Mã phương pháp', 'Tên phương pháp', 'Mô tả kỹ thuật', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.ten || '',
+                    item.moTa || '',
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            } else {
+                title = 'DANH MỤC TỪ VIẾT TẮT & GÕ TẮT LÂM SÀNG'
+                headers = ['Mã gõ tắt', 'Nội dung mở rộng / Cụm từ thay thế', 'Thứ tự', 'Trạng thái']
+                rows = filteredList.map((item) => [
+                    item.ma || '',
+                    item.noiDung || '',
+                    item.thuTu || 1,
+                    item.trangThai !== false && item.is_active !== false ? 'Hoạt động' : 'Tạm dừng',
+                ])
+            }
+        }
+
+        exportToExcel({
+            filename: `danh-muc-${loaiDanhMuc}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+            sheetName: 'Danh Mục',
+            title,
+            subtitle: `Phân hệ Quản trị Danh mục Y tế • Tổng số: ${rows.length} bản ghi`,
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xlsx) thành công!`)
+    }
+
     return (
         <div className="space-y-3.5">
-            {/* Top 6 Catalog Modules Navigation Bar */}
+            
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                     {Object.entries(catalogRouteMap).map(([key, meta]) => {
@@ -302,7 +417,7 @@ export default function CatalogManagementPage() {
                 </div>
             </div>
 
-            {/* If loaiDanhMuc === 'chung', show the 5 Sub-Tabs matching Video 07 */}
+            
             {loaiDanhMuc === 'chung' && (
                 <div className="medpro-card p-2.5 flex flex-wrap items-center gap-1.5 bg-[#F8FBFE]">
                     {generalSubTabs.map((sub) => {
@@ -336,7 +451,7 @@ export default function CatalogManagementPage() {
                 </div>
             )}
 
-            {/* Standardized Services Export Banner for Dịch vụ Kỹ thuật */}
+            
             {loaiDanhMuc === 'dich-vu' && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-sky-50 via-[#E8F4FD] to-indigo-50/60 p-3 rounded-xl border border-[#00B5F1]/30">
                     <div className="flex items-center gap-2.5">
@@ -345,7 +460,7 @@ export default function CatalogManagementPage() {
                         </span>
                         <div>
                             <div className="text-xs font-extrabold text-[#003553]">
-                                DANH MỤC DỊCH VỤ KỸ THUẬT & BẢNG GIÁ Y TẾ CHUẨN HÓA (tClinic & HIS Standard)
+                                DANH MỤC DỊCH VỤ KỸ THUẬT & BẢNG GIÁ Y TẾ NIÊM YẾT
                             </div>
                             <div className="text-[11px] text-slate-500">
                                 Quản lý Đơn vị tính (Lần/Test/Răng), Thuế suất VAT theo Luật Thuế GTGT, Thời gian thực hiện và Doanh thu tích lũy.
@@ -363,9 +478,9 @@ export default function CatalogManagementPage() {
                 </div>
             )}
 
-            {/* Main 2-Column Workspace */}
+            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    {/* LEFT PANEL (6 cols): Bảng danh sách danh mục */}
+                    
                     <div className="lg:col-span-6 medpro-card p-3.5 flex flex-col h-[calc(100vh-195px)]">
                         <div className="medpro-section-title">
                             <span>
@@ -451,12 +566,12 @@ export default function CatalogManagementPage() {
                     </div>
                 </div>
 
-                {/* RIGHT PANEL (6 cols): Biểu mẫu Thêm / Sửa / Xóa chi tiết */}
+                
                 <div className="lg:col-span-6 medpro-card p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                         <div>
                             <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                                CHI TIẾT BẢN GHI DANH MỤC (VIDEO 07)
+                                CHI TIẾT BẢN GHI DANH MỤC
                             </h2>
                             <p className="text-xs text-slate-500">
                                 Chỉnh sửa hoặc thêm mới dữ liệu chuẩn hóa dùng chung toàn phòng khám
@@ -480,7 +595,7 @@ export default function CatalogManagementPage() {
                         </div>
                     </div>
 
-                    {/* Dynamic Fields by Active Catalog Type */}
+                    
                     {activeCatalogKey === 'diaChi' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
@@ -862,7 +977,7 @@ export default function CatalogManagementPage() {
                 </div>
             </div>
 
-            {/* MODAL XUẤT BẢNG GIÁ DỊCH VỤ CHUẨN Y TẾ */}
+            
             {isExportModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
@@ -887,7 +1002,7 @@ export default function CatalogManagementPage() {
                                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                                 >
                                     <DownloadSimple size={14} weight="bold" />
-                                    <span>Tải file CSV Excel</span>
+                                    <span>Tải file Excel danh mục</span>
                                 </button>
                                 <button
                                     type="button"

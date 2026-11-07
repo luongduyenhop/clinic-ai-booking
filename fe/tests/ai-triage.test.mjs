@@ -42,6 +42,13 @@ test('đọc đúng gợi ý và confidence thật, không tự điền 78%', as
     assert.equal(result.recommendations[0].reason, 'Lý do từ model')
 })
 
+test('ngưỡng hỗ trợ con người đồng bộ 40% với model 5 chuyên khoa', async () => {
+    response = { data: { data: { has_emergency: false, suggested_specialties: [{ ten_chuyen_khoa: 'Răng Hàm Mặt', do_tin_cay: 0.48, ly_do_de_xuat: 'Lý do từ model' }] } } }
+    const result = await aiTriageService.analyze({ mainSymptom: 'Đau răng và sưng nướu' })
+    assert.equal(result.confidence, 48)
+    assert.equal(result.needsHumanSupport, false)
+})
+
 test('API lỗi không sinh gợi ý khám thường giả', async () => {
     response = new Error('offline')
     await assert.rejects(aiTriageService.analyze({ mainSymptom: 'Đau đầu nhẹ' }), /offline/)

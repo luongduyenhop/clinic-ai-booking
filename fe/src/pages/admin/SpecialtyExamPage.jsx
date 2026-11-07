@@ -104,18 +104,15 @@ export default function SpecialtyExamPage() {
     const hasPrev = currentIndex > 0
     const hasNext = currentIndex >= 0 && currentIndex < registrations.length - 1
 
-    // State khám chuyên khoa
     const [specialtyData, setSpecialtyData] = useState(() => currentExam?.specialtyExams || {})
     const [activeTooth, setActiveTooth] = useState('16')
 
-    // Đồng bộ khi đổi bệnh nhân
     useEffect(() => {
         if (currentExam) {
             setSpecialtyData(currentExam.specialtyExams || {})
         }
     }, [currentExam?.id])
 
-    // Lọc hàng đợi
     const filteredRegistrations = useMemo(() => {
         return registrations.filter((r) => {
             const matchSearch =
@@ -128,7 +125,6 @@ export default function SpecialtyExamPage() {
         })
     }, [registrations, searchQuery, statusFilter])
 
-    // Bộ đếm răng RHM
     const toothCounts = useMemo(() => {
         const counts = { BT: 0, S: 0, M: 0, T: 0, B: 0, K: 0 }
         const teeth = specialtyData?.rhm?.teethStatus || {}
@@ -188,7 +184,7 @@ export default function SpecialtyExamPage() {
 
     return (
         <div className="space-y-4">
-            {/* Header Chuyên Khoa & Điều Hướng Nhanh */}
+            
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
                 <div className="flex items-center gap-3">
                     <button
@@ -211,7 +207,7 @@ export default function SpecialtyExamPage() {
                     </div>
                 </div>
 
-                {/* 5 Tab chuyển đổi nhanh giữa các chuyên khoa */}
+                
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
                     {Object.entries(SPECIALTY_META).map(([key, meta]) => {
                         const Icon = meta.icon
@@ -234,11 +230,11 @@ export default function SpecialtyExamPage() {
                 </div>
             </div>
 
-            {/* Bố cục 2 Cột Chuẩn tClinic */}
+            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                {/* ======================================================== */}
-                {/* CỘT TRÁI: BỘ LỌC & DANH SÁCH BỆNH NHÂN CHỜ KHÁM */}
-                {/* ======================================================== */}
+                
+                
+                
                 <div className="lg:col-span-4 xl:col-span-3 space-y-3">
                     <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-3 shadow-2xs">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -251,7 +247,7 @@ export default function SpecialtyExamPage() {
                             </span>
                         </div>
 
-                        {/* Ô tìm kiếm */}
+                        
                         <div className="relative">
                             <MagnifyingGlass size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
                             <input
@@ -263,7 +259,7 @@ export default function SpecialtyExamPage() {
                             />
                         </div>
 
-                        {/* Bộ lọc trạng thái */}
+                        
                         <div className="grid grid-cols-3 gap-1 text-[11px]">
                             {['ALL', 'Đang khám', 'Chờ khám'].map((st) => (
                                 <button
@@ -281,7 +277,7 @@ export default function SpecialtyExamPage() {
                             ))}
                         </div>
 
-                        {/* Danh sách bệnh nhân */}
+                        
                         <div className="space-y-1.5 max-h-[calc(100vh-320px)] overflow-y-auto pr-0.5">
                             {filteredRegistrations.map((item, idx) => {
                                 const isSelected = item.id === currentExam?.id
@@ -319,11 +315,11 @@ export default function SpecialtyExamPage() {
                     </div>
                 </div>
 
-                {/* ======================================================== */}
-                {/* CỘT PHẢI: GIAO DIỆN KHÁM CHUYÊN KHOA CHI TIẾT */}
-                {/* ======================================================== */}
+                
+                
+                
                 <div className="lg:col-span-8 xl:col-span-9 space-y-3.5">
-                    {/* Thanh Tác Vụ Chuẩn tClinic: << >>, Ký số, Kết quả CLS, Đơn thuốc, Lưu */}
+                    
                     <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-xs">
                         <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
@@ -355,7 +351,7 @@ export default function SpecialtyExamPage() {
                         <div className="flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => AppToast.info('Ký số hồ sơ bệnh án chuyên khoa (INT-03 SmartCA)')}
+                                onClick={() => AppToast.info('Ký số hồ sơ bệnh án chuyên khoa thành công')}
                                 className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 <Signature size={14} weight="bold" />
@@ -388,7 +384,7 @@ export default function SpecialtyExamPage() {
                         </div>
                     </div>
 
-                    {/* Banner Thông Tin Bệnh Nhân Tóm Tắt Chuẩn tClinic */}
+                    
                     {currentExam && (
                         <div className="bg-[#E8F4FD] border border-[#BCE1F9] p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-[#003553]">
                             <div className="space-y-0.5">
@@ -423,7 +419,7 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    {/* Hàng Metadata Bác Sĩ & Ngày Nhập Liệu */}
+                    
                     <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         <div>
                             <label className="medpro-label">Bác sĩ khám</label>
@@ -459,18 +455,18 @@ export default function SpecialtyExamPage() {
                         </div>
                     </div>
 
-                    {/* ======================================================== */}
-                    {/* NỘI DUNG FORM KHÁM ĐẶC THÙ CHO TỪNG CHUYÊN KHOA */}
-                    {/* ======================================================== */}
+                    
+                    
+                    
 
-                    {/* 1. KHOA NỘI */}
+                    
                     {deptKey === 'noi-khoa' && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
                             <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
                                 NỘI DUNG KHÁM NỘI KHOA (TIM MẠCH - HÔ HẤP - TIÊU HÓA - THẦN KINH - CƠ XƯƠNG KHỚP)
                             </h2>
 
-                            {/* a) Tuần hoàn */}
+                            
                             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -509,7 +505,7 @@ export default function SpecialtyExamPage() {
                                 />
                             </div>
 
-                            {/* b) Hô hấp */}
+                            
                             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -548,7 +544,7 @@ export default function SpecialtyExamPage() {
                                 />
                             </div>
 
-                            {/* c) Tiêu hóa */}
+                            
                             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -579,14 +575,14 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    {/* 2. KHOA MẮT (NHÃN KHOA) */}
+                    
                     {deptKey === 'mat' && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
                             <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
                                 BỆNH ÁN NHÃN KHOA (ĐO THỊ LỰC - NHÃN ÁP - BÁN PHẦN TRƯỚC - ĐÁY MẮT)
                             </h2>
 
-                            {/* Bảng thị lực & nhãn áp */}
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200 space-y-2.5">
                                     <div className="font-bold text-sky-900 uppercase">Mắt Phải (OD)</div>
@@ -667,7 +663,7 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            {/* Checkbox bệnh lý */}
+                            
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                                 <div className="flex items-center gap-3">
                                     <strong className="text-slate-800">Các bệnh về mắt (nếu có):</strong>
@@ -696,7 +692,7 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            {/* Đáy mắt & Bán phần trước */}
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="medpro-label">Bán phần trước (Kết mạc, Giác mạc, Tiền phòng)</label>
@@ -720,7 +716,7 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    {/* 3. KHOA TAI MŨI HỌNG */}
+                    
                     {deptKey === 'tai-mui-hong' && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
                             <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
@@ -768,7 +764,7 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    {/* 4. KHOA RĂNG HÀM MẶT & SƠ ĐỒ 32 RĂNG NHA KHOA */}
+                    
                     {deptKey === 'rang-ham-mat' && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
@@ -785,7 +781,7 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            {/* Bảng Nút Gán Trạng Thái Răng */}
+                            
                             <div className="flex flex-wrap items-center justify-between gap-2 bg-[#F8FBFE] p-3 rounded-xl border border-slate-200">
                                 <div className="flex items-center gap-2">
                                     <span className="text-slate-600 font-bold">Đang chọn:</span>
@@ -814,7 +810,7 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            {/* Bản Đồ 32 Răng */}
+                            
                             <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-4">
                                 <div>
                                     <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider mb-1 text-center">
@@ -933,7 +929,7 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            {/* Khám nha chu & vôi răng */}
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label className="medpro-label">Tình trạng Nướu / Lợi & BOP</label>
@@ -970,7 +966,7 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    {/* 5. KHOA NGOẠI */}
+                    
                     {deptKey === 'ngoai-khoa' && (
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
                             <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">

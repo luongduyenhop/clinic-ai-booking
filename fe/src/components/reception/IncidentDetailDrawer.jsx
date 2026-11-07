@@ -19,18 +19,14 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
     const [affectedData, setAffectedData] = useState(null)
     const [activeTab, setActiveTab] = useState('hang_doi')
 
-    // Selected tickets in hang_doi
     const [selectedTicketIds, setSelectedTicketIds] = useState([])
-    // Specific doctor assignment per ticket: { [ticketId]: doctorId | null }
     const [doctorAssignments, setDoctorAssignments] = useState({})
 
-    // Selected waitlist in hang_cho_waitlist
     const [selectedWaitlistIds, setSelectedWaitlistIds] = useState([])
 
-    // Action states
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [cancelModalOpen, setCancelModalOpen] = useState(false)
-    const [cancelMode, setCancelMode] = useState('hang_doi') // 'hang_doi' | 'waitlist'
+    const [cancelMode, setCancelMode] = useState('hang_doi') 
     const [cancelReason, setCancelReason] = useState('')
 
     const loadAffectedPatients = async () => {
@@ -78,7 +74,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
         }))
     }
 
-    // Thực hiện điều chuyển lẻ các vé đã chọn
     const handleRebalanceSelected = async () => {
         if (selectedTicketIds.length === 0) {
             message.warning('Vui lòng chọn ít nhất 1 bệnh nhân để điều chuyển')
@@ -110,7 +105,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
         }
     }
 
-    // Mở modal xác nhận hủy
     const openCancelModal = (mode) => {
         if (mode === 'hang_doi' && selectedTicketIds.length === 0) {
             message.warning('Vui lòng chọn ít nhất 1 bệnh nhân trong hàng đợi để hủy')
@@ -124,7 +118,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
         setCancelModalOpen(true)
     }
 
-    // Thực hiện hủy vé / waitlist do sự cố
     const handleConfirmCancel = async () => {
         setIsSubmitting(true)
         try {
@@ -302,7 +295,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                     />
                 ) : (
                     <div className="space-y-4">
-                        {/* Summary Header Card */}
                         <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
                             <div className="space-y-1">
                                 <div>
@@ -330,7 +322,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                             />
                         ) : null}
 
-                        {/* Tabs: Hàng đợi vs Waitlist */}
                         <Tabs
                             activeKey={activeTab}
                             onChange={setActiveTab}
@@ -340,7 +331,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                                     label: `Hàng đợi khám (${hangDoiList.length})`,
                                     children: (
                                         <div className="space-y-3">
-                                            {/* Action Bar */}
                                             <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#F0F7FC] rounded-xl border border-[#D5E6F2]">
                                                 <span className="text-xs text-slate-600 font-medium">
                                                     Đã chọn: <strong className="text-sky-700">{selectedTicketIds.length}</strong> / {hangDoiList.length} bệnh nhân
@@ -390,7 +380,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                                     label: `Hàng chờ Waitlist (${waitlistList.length})`,
                                     children: (
                                         <div className="space-y-3">
-                                            {/* Action Bar */}
                                             <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-amber-50/70 rounded-xl border border-amber-200">
                                                 <span className="text-xs text-amber-800 font-medium">
                                                     Đã chọn: <strong className="text-amber-900">{selectedWaitlistIds.length}</strong> / {waitlistList.length} lượt chờ
@@ -428,7 +417,6 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                 )}
             </Drawer>
 
-            {/* Modal Xác nhận hủy khám (Bảo vệ bệnh nhân - Zero Penalty) */}
             <Modal
                 title={
                     <div className="flex items-center gap-2 text-rose-600 font-bold">

@@ -3,7 +3,35 @@ from sqlalchemy import select
 
 from app.ml.triage_model import MODEL_VERSION, get_ai_triage_model
 from app.models.user import ChuyenKhoa
-from app.ml.triage_nlp import detect_red_flags
+from app.ml.triage_nlp import detect_red_flags, extract_features
+
+
+def test_packaged_model_shape_matches_v2_1_metadata():
+    model = get_ai_triage_model()
+
+    assert len(model.feature_names) == 849
+    assert len(model.model.classes_) == 160
+    assert set(model.specialties) == {
+        "Mắt",
+        "Nội tổng quát",
+        "Ngoại",
+        "Răng Hàm Mặt",
+        "Tai Mũi Họng",
+    }
+
+
+@pytest.mark.parametrize(
+    "text,expected,unexpected",
+    [
+        ("nôn ra máu", "vomiting_blood", "vomiting"),
+        ("đau bụng dưới bên phải, ấn bụng đau", "right_lower_abdominal_pain", "abdominal_pain"),
+    ],
+)
+def test_longest_alias_wins_span_conflicts(text, expected, unexpected):
+    result = extract_features(text, get_ai_triage_model().feature_names)
+
+    assert expected in result["active_features"]
+    assert unexpected not in result["active_features"]
 
 
 @pytest.mark.parametrize("text", [
@@ -16,16 +44,16 @@ def test_extra_red_flags_respect_negation_and_accent_collisions(text):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("confidence,expected_fallback", [(0.59, True), (0.60, False)])
-async def test_api_sixty_percent_boundary(api_client, monkeypatch, confidence, expected_fallback):
+@pytest.mark.parametrize("confidence,expected_fallback", [(0.39, True), (0.40, False)])
+async def test_api_confidence_threshold_boundary(api_client, monkeypatch, confidence, expected_fallback):
     from types import SimpleNamespace
     from importlib import import_module
     service_module = import_module("app.services.ai_service")
 
     result = {
-        "specialties": [{"specialty": "Răng Hàm Mặt", "probability": confidence}],
+        "specialties": [{"specialty": "Nội tổng quát", "probability": confidence}],
         "diseases": [],
-        "recognized_symptoms": ["đau răng", "sưng nướu"],
+        "recognized_symptoms": ["mệt mỏi", "chóng mặt"],
         "clinical_match_count": 2,
     }
     monkeypatch.setattr(
@@ -33,7 +61,7 @@ async def test_api_sixty_percent_boundary(api_client, monkeypatch, confidence, e
         lambda: SimpleNamespace(analyze=lambda *args, **kwargs: result),
     )
     response = await api_client.post(
-        "/api/v1/ai/analyze-symptoms", json={"trieu_chung": "Đau răng, sưng nướu"},
+        "/api/v1/ai/analyze-symptoms", json={"trieu_chung": "Tôi thấy mệt mỏi và chóng mặt"},
     )
     assert response.status_code == 200
     assert response.json()["data"]["default_assigned"] is expected_fallback
@@ -70,9 +98,9 @@ def test_packaged_model_routes_dental_symptoms():
     )
 
     assert result["specialties"][0]["specialty"] == "Răng Hàm Mặt"
-    assert result["specialties"][0]["probability"] >= 0.60
+    assert result["specialties"][0]["probability"] >= 0.40
     assert result["clinical_match_count"] >= 2
-    assert "đau răng dữ dội" in result["recognized_symptoms"]
+    assert any("răng" in label for label in result["recognized_symptoms"])
 
 
 def test_packaged_model_supports_unaccented_vietnamese():
@@ -82,7 +110,7 @@ def test_packaged_model_supports_unaccented_vietnamese():
     )
 
     assert result["specialties"][0]["specialty"] == "Tai Mũi Họng"
-    assert result["specialties"][0]["probability"] >= 0.60
+    assert result["specialties"][0]["probability"] >= 0.40
 
 
 def test_packaged_model_does_not_infer_pediatrics_without_age_evidence():
@@ -117,10 +145,28 @@ async def test_api_uses_model_and_returns_explainability(api_client, db_session)
     assert data["model_version"] == MODEL_VERSION
     assert data["has_emergency"] is False
     assert data["default_assigned"] is False
-    assert data["suggested_specialties"][0]["ten_chuyen_khoa"] == "Răng Hàm Mặt"
-    assert data["suggested_specialties"][0]["do_tin_cay"] >= 0.60
+    assert data["suggested_specialties"][0]["ten_chuyen_khoa"] in {"Răng Hàm Mặt", "Khoa Răng"}
+    assert data["suggested_specialties"][0]["do_tin_cay"] >= 0.40
     assert len(data["recognized_symptoms"]) >= 2
     assert data["disease_predictions"]
+
+
+@pytest.mark.asyncio
+async def test_api_maps_dental_model_specialty_to_seed_department(api_client, db_session):
+    await _ensure_specialty(db_session, "KHOA_RANG_AI_TEST", "Khoa Răng")
+
+    response = await api_client.post(
+        "/api/v1/ai/analyze-symptoms",
+        json={
+            "trieu_chung": "Đau răng dữ dội, sưng nướu và hôi miệng",
+            "tuoi": 30,
+        },
+    )
+
+    assert response.status_code == 200
+    top = response.json()["data"]["suggested_specialties"][0]
+    assert top["ten_chuyen_khoa"] == "Khoa Răng"
+    assert top["chuyen_khoa_id"] is not None
 
 
 @pytest.mark.asyncio

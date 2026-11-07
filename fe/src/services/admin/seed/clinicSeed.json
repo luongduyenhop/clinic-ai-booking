@@ -172,17 +172,143 @@
             "path": "/admin"
           },
           {
-            "id": "reports",
-            "title": "Báo cáo Thống kê",
-            "icon": "ChartBar",
-            "path": "/admin/bao-cao"
-          }
-        ]
-      },
-      {
-        "id": "pillar-catalogs",
-        "title": "2. QUẢN TRỊ DANH MỤC Y TẾ",
-        "menus": [
+            "id": "patients",
+            "title": "Quản lý bệnh nhân",
+            "icon": "IdentificationCard",
+            "children": [
+              {
+                "label": "Hồ sơ bệnh nhân",
+                "path": "/admin/benh-nhan"
+              },
+              {
+                "label": "Hồ sơ gia đình",
+                "path": "/admin/benh-nhan?tab=GIA_DINH"
+              }
+            ]
+          },
+          {
+            "id": "clinical",
+            "title": "Khám lâm sàng",
+            "icon": "Stethoscope",
+            "children": [
+              {
+                "label": "Bàn khám chung",
+                "path": "/admin/kham-benh"
+              },
+              {
+                "label": "Khám Nội khoa",
+                "path": "/admin/kham-chuyen-khoa/noi-khoa"
+              },
+              {
+                "label": "Khám Ngoại khoa",
+                "path": "/admin/kham-chuyen-khoa/ngoai-khoa"
+              },
+              {
+                "label": "Khám Mắt",
+                "path": "/admin/kham-chuyen-khoa/mat"
+              },
+              {
+                "label": "Khám Tai Mũi Họng",
+                "path": "/admin/kham-chuyen-khoa/tai-mui-hong"
+              },
+              {
+                "label": "Khám Răng Hàm Mặt",
+                "path": "/admin/kham-chuyen-khoa/rang-ham-mat"
+              }
+            ]
+          },
+          {
+            "id": "packages",
+            "title": "Gói dịch vụ",
+            "icon": "Storefront",
+            "children": [
+              {
+                "label": "Gói dịch vụ",
+                "path": "/admin/goi-dich-vu"
+              },
+              {
+                "label": "Thanh toán gói",
+                "path": "/admin/goi-dich-vu?tab=THANH_TOAN"
+              },
+              {
+                "label": "Hoá đơn gói",
+                "path": "/admin/goi-dich-vu?tab=HOA_DON"
+              },
+              {
+                "label": "Mẫu gói dịch vụ",
+                "path": "/admin/goi-dich-vu?tab=MAU_GOI"
+              }
+            ]
+          },
+          {
+            "id": "courses",
+            "title": "Liệu trình",
+            "icon": "ClipboardText",
+            "children": [
+              {
+                "label": "Liệu trình",
+                "path": "/admin/lieu-trinh"
+              },
+              {
+                "label": "Hóa đơn",
+                "path": "/admin/lieu-trinh?tab=HOA_DON"
+              },
+              {
+                "label": "Danh mục liệu trình",
+                "path": "/admin/lieu-trinh?tab=DANH_MUC"
+              },
+              {
+                "label": "Lịch liệu trình",
+                "path": "/admin/lieu-trinh?tab=LICH"
+              },
+              {
+                "label": "Báo cáo liệu trình",
+                "path": "/admin/lieu-trinh?tab=BAO_CAO"
+              },
+              {
+                "label": "Danh mục bài tập",
+                "path": "/admin/lieu-trinh?tab=BAI_TAP"
+              }
+            ]
+          },
+          {
+            "id": "compliance",
+            "title": "Liên thông dữ liệu quốc gia",
+            "icon": "Cloud",
+            "children": [
+              {
+                "label": "Đồng bộ đơn thuốc",
+                "path": "/admin/don-thuoc-quoc-gia"
+              },
+              {
+                "label": "Lịch sử đồng bộ",
+                "path": "/admin/tuan-thu?tab=DON_THUOC"
+              },
+              {
+                "label": "Đồng bộ sổ sức khỏe",
+                "path": "/admin/tuan-thu?tab=HSSK"
+              },
+              {
+                "label": "Lịch sử HSSK",
+                "path": "/admin/tuan-thu?tab=AUDIT"
+              }
+            ]
+          },
+          {
+            "id": "news",
+            "title": "Tin tức",
+            "icon": "Newspaper",
+            "children": [
+              {
+                "label": "Tin tức",
+                "path": "/admin/tin-tuc"
+              },
+              {
+                "label": "Danh mục tin tức",
+                "path": "/admin/danh-muc-tin-tuc"
+              }
+            ]
+          },
           {
             "id": "catalogs",
             "title": "Danh mục Nền tảng",
@@ -281,11 +407,11 @@
             "children": [
               {
                 "label": "Tổng quan Tuân thủ Pháp lý",
-                "path": "/admin/tuan-thu"
+                "path": "/admin/tuan-thu?tab=OVERVIEW"
               },
               {
                 "label": "Đồng bộ Đơn thuốc QG (TT26)",
-                "path": "/admin/don-thuoc-quoc-gia"
+                "path": "/admin/tuan-thu?tab=DON_THUOC"
               },
               {
                 "label": "Đồng bộ Sổ sức khỏe (TT32)",
@@ -584,19 +710,19 @@
     "licenseStatuses": [
       {
         "code": "ACTIVE",
-        "label": "ACTIVE (Đủ điều kiện hành nghề)"
+        "label": "Đủ điều kiện hành nghề"
       },
       {
         "code": "EXPIRING_SOON",
-        "label": "EXPIRING_SOON (Sắp hết hạn < 60 ngày)"
+        "label": "Sắp hết hạn (< 60 ngày)"
       },
       {
         "code": "EXPIRED",
-        "label": "EXPIRED (Hết hạn - Chặn phân công)"
+        "label": "Hết hạn (Chặn phân công)"
       },
       {
         "code": "SUSPENDED",
-        "label": "SUSPENDED (Đình chỉ - Chặn phân công)"
+        "label": "Đang đình chỉ (Chặn phân công)"
       }
     ],
     "staffRoleOptions": [
@@ -2582,7 +2708,7 @@
     {
       "id": "AUD-1003",
       "thoiGian": "2026-10-12 08:42:05",
-      "nguoiDung": "Hệ thống Kiểm soát CCHN (INT-05)",
+      "nguoiDung": "Hệ thống Kiểm soát CCHN",
       "vaiTro": "SYSTEM",
       "hanhDong": "BLOCK_ASSIGNMENT_EXPIRED_LICENSE",
       "doiTuong": "BS.CKI Phạm Quang Huy (003219/HNO-CCHN)",
@@ -3073,7 +3199,7 @@
       "content": "Đơn thuốc ĐTQG-2026-000150 đã được Cổng Đơn thuốc Quốc gia xác nhận (Receipt: REC-77491).",
       "time": "25 phút trước",
       "unread": true,
-      "link": "/admin/tuan-thu"
+      "link": "/admin/tuan-thu?tab=DON_THUOC"
     },
     {
       "id": "notif-04",

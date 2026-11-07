@@ -87,7 +87,6 @@ class IncidentService:
 
             alternatives: List[DoctorAlternativeItem] = []
             if ck_id:
-                # 1. Truy vấn các bác sĩ cùng chuyên khoa có ca trực active
                 stmt_alt = (
                     select(BacSi, LichLamViec)
                     .join(LichLamViec, LichLamViec.bac_si_id == BacSi.id)
@@ -113,7 +112,6 @@ class IncidentService:
                 if alt_rows:
                     alt_doc_ids = [bs_item.id for bs_item, _ in alt_rows]
 
-                    # 2. Loại trừ các bác sĩ đang có đơn nghỉ phép đã duyệt trong ngày/ca
                     stmt_leaves_check = (
                         select(NghiPhepBacSi.bac_si_id)
                         .where(
@@ -140,7 +138,6 @@ class IncidentService:
                             continue
                         seen_bs.add(ad.id)
 
-                        # 3. Đếm số bệnh nhân chờ đúng theo ca làm việc của sự cố
                         stmt_ad_load = select(func.count(HangDoiKham.id)).where(
                             HangDoiKham.bac_si_id == ad.id,
                             HangDoiKham.ngay_kham == target_date,
@@ -154,7 +151,6 @@ class IncidentService:
 
                         load = (await db.execute(stmt_ad_load)).scalar() or 0
 
-                        # 4. Lấy buồng khám vật lý từ ca trực, fallback sang buồng khám mặc định của bác sĩ
                         room_name = None
                         if shift.phong_kham and shift.phong_kham.ten_phong:
                             room_name = shift.phong_kham.ten_phong
@@ -237,7 +233,6 @@ class IncidentService:
             )
             .with_for_update()
         )
-        # Hỗ trợ truyền assignments (chuyển lẻ từng vé sang bác sĩ chỉ định) hoặc ticket_ids
         target_ticket_ids = payload.ticket_ids or []
         assignment_map = {}
         if payload.assignments:
@@ -281,7 +276,6 @@ class IncidentService:
         for old_ticket in tickets_to_move:
             target_date = old_ticket.ngay_kham
 
-            # Ưu tiên assignment cụ thể cho từng vé, sau đó đến specified_doc chung, sau đó đến tự động cân bằng tải
             ticket_doc = None
             if old_ticket.id in assignment_map:
                 stmt_assign = (
@@ -296,7 +290,6 @@ class IncidentService:
                 ticket_doc = specified_doc
 
             if ticket_doc:
-                # Validate chặt chẽ: Cùng chuyên khoa & Đang có ca trực hợp lệ & Không nghỉ phép
                 await self._validate_target_doctor(
                     target_bs=ticket_doc,
                     absent_bs=absent_bs,
@@ -326,7 +319,6 @@ class IncidentService:
             max_stt = (await db.execute(stmt_max)).scalar()
             new_stt = max_stt + 1
 
-            # Cập nhật trực tiếp trên vé hiện tại, tuân thủ nguyên tắc hàng đợi (không tạo vé rác mới)
             old_ticket.bac_si_id = rec_doc_id
             if rec_phong_kham_id:
                 old_ticket.phong_kham_id = rec_phong_kham_id
@@ -356,7 +348,6 @@ class IncidentService:
 
         leave.so_ca_anh_huong += len(details)
 
-        # Kiểm tra xem còn vé nào chưa xử lý không, nếu hết thì đánh dấu DA_XU_LY
         stmt_remain = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == leave.bac_si_id,
             HangDoiKham.ngay_kham >= leave.tu_ngay,
@@ -386,7 +377,6 @@ class IncidentService:
         ca_kham: str,
         db: AsyncSession
     ) -> None:
-        """Đảm bảo bác sĩ tiếp nhận cùng chuyên khoa và đang có lịch trực hợp lệ, không nghỉ phép."""
         if target_bs.chuyen_khoa_id != absent_bs.chuyen_khoa_id:
             doc_name = target_bs.nguoi_dung.ho_ten if target_bs.nguoi_dung else f"ID {target_bs.id}"
             raise BadRequestException(f"Bác sĩ tiếp nhận ({doc_name}) không cùng chuyên khoa với bác sĩ vắng mặt!")
@@ -395,7 +385,6 @@ class IncidentService:
             doc_name = target_bs.nguoi_dung.ho_ten if target_bs.nguoi_dung else f"ID {target_bs.id}"
             raise BadRequestException(f"Bác sĩ {doc_name} hiện không ở trạng thái sẵn sàng tiếp nhận khám!")
 
-        # 1. Kiểm tra lịch trực
         stmt_shift = select(LichLamViec).where(
             LichLamViec.bac_si_id == target_bs.id,
             LichLamViec.ngay_lam_viec == target_date,
@@ -408,7 +397,6 @@ class IncidentService:
             doc_name = target_bs.nguoi_dung.ho_ten if target_bs.nguoi_dung else f"ID {target_bs.id}"
             raise BadRequestException(f"Bác sĩ {doc_name} không có lịch trực hợp lệ trong ca {ca_kham} ngày {target_date}!")
 
-        # 2. Kiểm tra nghỉ phép
         stmt_leave = select(NghiPhepBacSi).where(
             NghiPhepBacSi.bac_si_id == target_bs.id,
             NghiPhepBacSi.tu_ngay <= target_date,
@@ -430,7 +418,6 @@ class IncidentService:
         current_user: TaiKhoan,
         db: AsyncSession
     ) -> DoctorAbsenceAffectedPatientsResponse:
-        """Lấy danh sách chi tiết bệnh nhân trong hàng đợi & hàng chờ bị ảnh hưởng để lễ tân điều phối lẻ."""
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
@@ -450,7 +437,6 @@ class IncidentService:
         bs_name = bs.nguoi_dung.ho_ten if (bs and bs.nguoi_dung) else f"BS {leave.bac_si_id}"
         ck_name = bs.chuyen_khoa.ten_chuyen_khoa if (bs and bs.chuyen_khoa) else None
 
-        # 1. Lấy danh sách hàng đợi
         stmt_tickets = (
             select(HangDoiKham)
             .options(
@@ -494,7 +480,6 @@ class IncidentService:
                 )
             )
 
-        # 2. Lấy danh sách hàng chờ (Waitlist)
         stmt_wl = (
             select(DanhSachCho)
             .options(
@@ -550,7 +535,6 @@ class IncidentService:
         current_user: TaiKhoan,
         db: AsyncSession
     ) -> CancelIncidentTicketsResponse:
-        """Hủy lượt hàng đợi & hàng chờ do bệnh nhân không đồng ý đổi bác sĩ khi có sự cố."""
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
@@ -589,7 +573,6 @@ class IncidentService:
                 ):
                     t.lich_kham.trang_thai = TrangThaiLichEnum.DA_HUY.value
                     t.lich_kham.ly_do_huy = f"Sự cố bác sĩ nghỉ: {cancel_reason}"
-                    # Sự cố từ phòng khám, tuyệt đối không tính lỗi phạt No-show
                     so_lich_huy += 1
 
         so_wl_huy = 0
@@ -608,7 +591,6 @@ class IncidentService:
                 w.trieu_chung = f"{w.trieu_chung or ''} | Hủy do sự cố: {cancel_reason}".strip(" | ")
                 so_wl_huy += 1
 
-        # Cập nhật trạng thái sự cố nếu tất cả vé đã được xử lý
         stmt_remain = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == leave.bac_si_id,
             HangDoiKham.ngay_kham >= leave.tu_ngay,

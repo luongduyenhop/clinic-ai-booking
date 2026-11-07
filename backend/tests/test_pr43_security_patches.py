@@ -4,17 +4,12 @@ from app.models.user import VaiTroEnum
 
 @pytest.mark.asyncio
 async def test_post_cashier_refund_rbac_denies_patient_and_doctor(api_client, booking, db_session):
-    """
-    Test RBAC cho POST /api/v1/cashier/refund:
-    - Bệnh nhân (BENH_NHAN) và Bác sĩ (BAC_SI) không có quyền hoàn tiền -> 403 Forbidden
-    """
     payload = {
         "invoice_id": 999999,
         "so_tien_hoan": 100000.0,
         "ly_do": "Hủy dịch vụ khám xét nghiệm",
     }
 
-    # 1. Bệnh nhân gọi refund -> 403
     res_bn = await api_client.post(
         "/api/v1/cashier/refund",
         json=payload,
@@ -23,7 +18,6 @@ async def test_post_cashier_refund_rbac_denies_patient_and_doctor(api_client, bo
     assert res_bn.status_code == 403
     assert "quyền" in res_bn.json()["message"]
 
-    # 2. Bác sĩ gọi refund -> 403
     res_bs = await api_client.post(
         "/api/v1/cashier/refund",
         json=payload,
@@ -35,17 +29,12 @@ async def test_post_cashier_refund_rbac_denies_patient_and_doctor(api_client, bo
 
 @pytest.mark.asyncio
 async def test_post_cashier_refund_rbac_allows_authorized_roles(api_client, booking, db_session):
-    """
-    Test RBAC cho POST /api/v1/cashier/refund:
-    - Thu ngân (THU_NGAN), Lễ tân (LE_TAN), Admin (ADMIN) được phép vượt qua role check (không bị 403).
-    """
     payload = {
         "invoice_id": 999999,
         "so_tien_hoan": 50000.0,
         "ly_do": "Bệnh nhân chuyển tuyến cấp cứu",
     }
 
-    # Tạo tài khoản Thu ngân và Lễ tân
     await booking.tao_tai_khoan("letan_user", VaiTroEnum.LE_TAN.value)
     await booking.tao_tai_khoan("thungan_user", VaiTroEnum.THU_NGAN.value)
 
@@ -55,30 +44,21 @@ async def test_post_cashier_refund_rbac_allows_authorized_roles(api_client, book
             json=payload,
             headers=booking.tokens[role_key],
         )
-        # Không được trả về 403 Forbidden (sẽ trả về 404 vì hóa đơn 999999 không tồn tại)
         assert res.status_code != 403
 
 
 @pytest.mark.asyncio
 async def test_get_reception_appointments_rbac_denies_patient(api_client, booking, db_session):
-    """
-    Test RBAC cho GET /api/v1/reception/appointments:
-    - Bệnh nhân không có quyền xem toàn bộ danh sách lịch hẹn tại quầy tiếp đón -> 403 Forbidden
-    """
     res = await api_client.get(
         "/api/v1/reception/appointments",
         headers=booking.tokens["bn_a"],
     )
     assert res.status_code == 403
-    assert "Chỉ Lễ tân, Bác sĩ, Thu ngân hoặc Quản trị viên" in res.json()["message"]
+    assert "Bạn không có quyền truy cập chức năng này" in res.json()["message"] or "Chỉ Lễ tân, Bác sĩ, Thu ngân hoặc Quản trị viên" in res.json()["message"]
 
 
 @pytest.mark.asyncio
 async def test_get_reception_appointments_rbac_allows_staff(api_client, booking, db_session):
-    """
-    Test RBAC cho GET /api/v1/reception/appointments:
-    - Admin, Bác sĩ, Lễ tân có quyền truy cập danh sách lịch hẹn -> 200 OK
-    """
     await booking.tao_tai_khoan("letan_staff", VaiTroEnum.LE_TAN.value)
 
     for staff_key in ("admin", "bs_x", "letan_staff"):
@@ -92,16 +72,9 @@ async def test_get_reception_appointments_rbac_allows_staff(api_client, booking,
 
 @pytest.mark.asyncio
 async def test_idor_protection_patient_packages(api_client, booking, db_session):
-    """
-    Test chống lỗ hổng IDOR trên GET /api/v1/reception/patients/{benh_nhan_id}/packages:
-    - Bệnh nhân A tra cứu gói của Bệnh nhân B -> 403 Forbidden
-    - Bệnh nhân A tra cứu gói của chính mình -> 200 OK
-    - Lễ tân tra cứu gói của Bệnh nhân B -> 200 OK
-    """
     bn_a = booking.bn_a
     bn_b = booking.bn_b
 
-    # 1. Bệnh nhân A cố tình truy cập gói khám của Bệnh nhân B (IDOR)
     res_idor = await api_client.get(
         f"/api/v1/reception/patients/{bn_b.id}/packages",
         headers=booking.tokens["bn_a"],
@@ -109,14 +82,12 @@ async def test_idor_protection_patient_packages(api_client, booking, db_session)
     assert res_idor.status_code == 403
     assert "Bạn không có quyền truy cập hồ sơ của bệnh nhân khác" in res_idor.json()["message"]
 
-    # 2. Bệnh nhân A truy cập gói của chính mình
     res_own = await api_client.get(
         f"/api/v1/reception/patients/{bn_a.id}/packages",
         headers=booking.tokens["bn_a"],
     )
     assert res_own.status_code == 200
 
-    # 3. Nhân viên Lễ tân tra cứu hồ sơ bệnh nhân B
     await booking.tao_tai_khoan("letan_idor_test", VaiTroEnum.LE_TAN.value)
     res_staff = await api_client.get(
         f"/api/v1/reception/patients/{bn_b.id}/packages",
@@ -127,16 +98,9 @@ async def test_idor_protection_patient_packages(api_client, booking, db_session)
 
 @pytest.mark.asyncio
 async def test_idor_protection_patient_history_summary(api_client, booking, db_session):
-    """
-    Test chống lỗ hổng IDOR trên GET /api/v1/reception/patients/{benh_nhan_id}/history-summary:
-    - Bệnh nhân A tra cứu lịch sử tóm tắt của Bệnh nhân B -> 403 Forbidden
-    - Bệnh nhân A tra cứu của chính mình -> 200 OK
-    - Bác sĩ / Admin tra cứu hồ sơ bệnh nhân B -> 200 OK
-    """
     bn_a = booking.bn_a
     bn_b = booking.bn_b
 
-    # 1. Bệnh nhân A cố tình truy cập lịch sử của Bệnh nhân B (IDOR)
     res_idor = await api_client.get(
         f"/api/v1/reception/patients/{bn_b.id}/history-summary",
         headers=booking.tokens["bn_a"],
@@ -144,14 +108,12 @@ async def test_idor_protection_patient_history_summary(api_client, booking, db_s
     assert res_idor.status_code == 403
     assert "Bạn không có quyền truy cập hồ sơ của bệnh nhân khác" in res_idor.json()["message"]
 
-    # 2. Bệnh nhân A truy cập hồ sơ của chính mình
     res_own = await api_client.get(
         f"/api/v1/reception/patients/{bn_a.id}/history-summary",
         headers=booking.tokens["bn_a"],
     )
     assert res_own.status_code == 200
 
-    # 3. Bác sĩ tra cứu hồ sơ bệnh nhân B
     res_doctor = await api_client.get(
         f"/api/v1/reception/patients/{bn_b.id}/history-summary",
         headers=booking.tokens["bs_x"],
@@ -161,10 +123,6 @@ async def test_idor_protection_patient_history_summary(api_client, booking, db_s
 
 @pytest.mark.asyncio
 async def test_patient_denied_reception_dashboards_and_resources(api_client, booking, db_session):
-    """
-    Test RBAC cho các endpoint Dashboard, Flow Board, và Resource tại quầy:
-    - Bệnh nhân không được phép xem các endpoint nội bộ vận hành -> 403 Forbidden
-    """
     endpoints = [
         "/api/v1/reception/search-appointments?q=test",
         "/api/v1/reception/dashboard/shift-summary",
@@ -182,10 +140,6 @@ async def test_patient_denied_reception_dashboards_and_resources(api_client, boo
 
 @pytest.mark.asyncio
 async def test_staff_allowed_reception_dashboards_and_resources(api_client, booking, db_session):
-    """
-    Test RBAC cho các endpoint Dashboard, Flow Board, và Resource tại quầy:
-    - Lễ tân và Admin được phép truy cập đầy đủ -> 200 OK
-    """
     await booking.tao_tai_khoan("letan_dash", VaiTroEnum.LE_TAN.value)
 
     endpoints = [
@@ -204,10 +158,6 @@ async def test_staff_allowed_reception_dashboards_and_resources(api_client, book
 
 @pytest.mark.asyncio
 async def test_walk_in_validation_missing_doctor_and_department(api_client, booking, db_session):
-    """
-    Test validation trong check_in_walk_in:
-    - Nếu cả bac_si_id và chuyen_khoa_id đều không có -> 400 Bad Request
-    """
     await booking.tao_tai_khoan("letan_wlk_val", VaiTroEnum.LE_TAN.value)
 
     payload = {
@@ -227,10 +177,6 @@ async def test_walk_in_validation_missing_doctor_and_department(api_client, book
 
 @pytest.mark.asyncio
 async def test_walk_in_validation_nonexistent_department(api_client, booking, db_session):
-    """
-    Test validation trong check_in_walk_in:
-    - Nếu chuyen_khoa_id không tồn tại -> 404 Not Found rõ ràng, không để lọt vào ConflictException
-    """
     await booking.tao_tai_khoan("letan_wlk_ck", VaiTroEnum.LE_TAN.value)
 
     payload = {
@@ -250,10 +196,6 @@ async def test_walk_in_validation_nonexistent_department(api_client, booking, db
 
 @pytest.mark.asyncio
 async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
-    """
-    Test Multi-tenancy check trong rebalance_queue:
-    - Lễ tân có phong_kham_id khác với phòng khám của bác sĩ vắng mặt -> 403 Forbidden
-    """
     from datetime import date
     import uuid
     from app.services.incident_service import incident_service
@@ -282,7 +224,6 @@ async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
     db_session.add_all([room1, room2])
     await db_session.flush()
 
-    # Tạo đơn nghỉ phép cho bs_x gắn với room1
     np = NghiPhepBacSi(
         bac_si_id=booking.bs_x.id,
         phong_kham_id=room1.id,
@@ -296,7 +237,6 @@ async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
     db_session.add(np)
     await db_session.flush()
 
-    # Tạo Lễ tân thuộc room2 (khác với room1)
     letan_nd = await booking.tao_tai_khoan("letan_tenant", VaiTroEnum.LE_TAN.value)
     stmt_tk = select(TaiKhoan).where(TaiKhoan.nguoi_dung_id == letan_nd.id)
     letan = (await db_session.execute(stmt_tk)).scalar_one()

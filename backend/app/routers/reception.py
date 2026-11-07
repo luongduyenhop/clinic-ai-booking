@@ -57,7 +57,6 @@ from app.services.reception_service import reception_service
 
 router = APIRouter(prefix="/reception", tags=["6. Tiếp Đón & Điều Phối Hàng Đợi (Bahmni Queue Module)"])
 
-# RBAC Dependencies chuẩn hóa qua require_roles
 require_reception_admin = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN])
 require_reception_staff = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN, VaiTroEnum.BAC_SI, VaiTroEnum.THU_NGAN])
 require_queue_view = require_roles([VaiTroEnum.LE_TAN, VaiTroEnum.ADMIN, VaiTroEnum.BAC_SI, VaiTroEnum.THU_NGAN, VaiTroEnum.KY_THUAT_VIEN])
@@ -268,9 +267,6 @@ async def patient_leave_queue(
     )
 
 
-# =========================================================================
-# FC-10: DASHBOARD VẬN HÀNH CA TRỰC LỄ TÂN
-# =========================================================================
 @router.get(
     "/dashboard/shift-summary",
     response_model=ResponseEnvelope[ShiftDashboardResponse],
@@ -289,9 +285,6 @@ async def get_shift_dashboard(
     )
 
 
-# =========================================================================
-# FC-11: GIÁM SÁT TÌNH TRẠNG BUỒNG KHÁM THỜI GIAN THỰC
-# =========================================================================
 @router.get(
     "/dashboard/room-status",
     response_model=ResponseEnvelope[RoomStatusDashboardResponse],
@@ -310,9 +303,6 @@ async def get_room_status_dashboard(
     )
 
 
-# =========================================================================
-# FC-12: TRA CỨU DANH SÁCH LỊCH HẸN TOÀN DIỆN CHO LỄ TÂN
-# =========================================================================
 @router.get(
     "/appointments",
     response_model=ResponseEnvelope[ReceptionAppointmentsResponse],
@@ -347,9 +337,6 @@ async def get_reception_appointments(
     )
 
 
-# =========================================================================
-# FC-13: TRUNG TÂM SỰ CỐ BÁC SĨ NGHỈ ĐỘT XUẤT
-# =========================================================================
 @router.get(
     "/incidents/doctor-absences",
     response_model=ResponseEnvelope[List[DoctorAbsenceIncidentResponse]],
@@ -367,9 +354,6 @@ async def get_doctor_absences_incidents(
     )
 
 
-# =========================================================================
-# FC-14: ĐIỀU PHỐI TẢI HÀNG ĐỢI HÀNG LOẠT (REBALANCE QUEUE)
-# =========================================================================
 @router.post(
     "/incidents/rebalance-queue",
     response_model=ResponseEnvelope[RebalanceQueueResponse],
@@ -421,9 +405,6 @@ async def cancel_incident_tickets(
     )
 
 
-# =========================================================================
-# FC-15: TRA CỨU TÀI NGUYÊN CA TRỰC, BUỒNG KHÁM, ROSTER TEMPLATE
-# =========================================================================
 @router.get(
     "/resources/roster",
     response_model=ResponseEnvelope[List[RosterItem]],
@@ -482,14 +463,12 @@ async def get_roster_template_resources(
     )
 
 
-# =========================================================================
 
 async def _verify_patient_history_and_package_access(
     benh_nhan_id: int,
     current_user: TaiKhoan,
     db: AsyncSession
 ) -> None:
-    """Ngăn chặn lỗ hổng IDOR: Cho phép nhân viên y tế tra cứu, bệnh nhân chỉ được xem hồ sơ của chính mình."""
     staff_roles = {
         VaiTroEnum.LE_TAN.value,
         VaiTroEnum.THU_NGAN.value,
@@ -586,8 +565,6 @@ async def update_patient_reception(
         message=f"Cập nhật hồ sơ bệnh nhân {data.ho_ten} thành công!"
     )
 
-# FC-17: TRA CỨU GÓI KHÁM & TÓM TẮT LỊCH SỬ BỆNH NHÂN TẠI QUẦY TIẾP ĐÓN
-# =========================================================================
 @router.get(
     "/patients/{benh_nhan_id}/packages",
     response_model=ResponseEnvelope[List[PatientPackageItem]],
@@ -624,9 +601,6 @@ async def get_patient_history_summary(
     )
 
 
-# =========================================================================
-# FC-18: QUÉT & XỬ LÝ BỆNH NHÂN VẮNG MẶT NO-SHOW CUỐI CA
-# =========================================================================
 @router.post(
     "/process-no-shows",
     response_model=ResponseEnvelope[ProcessNoShowResponse],
@@ -647,9 +621,6 @@ async def process_no_shows_end_of_shift(
 
 
 
-# =========================================================================
-# FC-19: DANH SÁCH CHỜ (WAITLIST) TẠI QUẦY LỄ TÂN
-# =========================================================================
 @router.get(
     "/waitlist",
     response_model=ResponseEnvelope[ReceptionWaitlistResponse],
@@ -706,9 +677,6 @@ async def cancel_waitlist_entry(
     )
 
 
-# ============================================================================
-# Phân hệ 9: Báo cáo đối soát & Nhật ký kiểm toán (Reports & Audit Trail)
-# ============================================================================
 
 @router.get(
     "/reports/summary",
@@ -749,9 +717,6 @@ async def get_reception_audit_logs(
     )
 
 
-# ============================================================================
-# Quản lý Đóng & Bàn giao Ca trực Lễ tân (Reception Shift Close & Handover)
-# ============================================================================
 
 @router.get(
     "/shift/pre-close-audit",

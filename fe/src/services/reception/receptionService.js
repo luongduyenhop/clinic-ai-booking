@@ -1,7 +1,6 @@
 import { BaseServices } from '../BaseService'
 
 export class ReceptionService extends BaseServices {
-    // ── 1. Danh mục & Tài nguyên (100% API động từ backend, không load toàn cục) ──
     getSpecialties = (config = {}) =>
         this.get('/api/v1/medical/specialties', { __skipGlobalLoading: true, ...config })
 
@@ -30,7 +29,6 @@ export class ReceptionService extends BaseServices {
     getServices = (config = {}) =>
         this.get('/api/v1/medical/services', { __skipGlobalLoading: true, ...config })
 
-    // ── 2. Hàng đợi & Điều phối (Flow Board) ──────────────────────────
     getFlowBoard = (params = {}, config = {}) =>
         this.get('/api/v1/reception/flow-board', { params, __skipGlobalLoading: true, ...config })
 
@@ -40,14 +38,12 @@ export class ReceptionService extends BaseServices {
     getRoomStatusDashboard = (params = {}, config = {}) =>
         this.get('/api/v1/reception/dashboard/room-status', { params, __skipGlobalLoading: true, ...config })
 
-    // ── 3. Check-in & Cấp số thứ tự (STT theo buồng khám) ────────────
     checkIn = (payload, config = {}) =>
         this.post('/api/v1/reception/check-in', payload, config)
 
     walkIn = (payload, config = {}) =>
         this.post('/api/v1/reception/walk-in', payload, { __skipGlobalError: true, ...config })
 
-    // ── 4. Thao tác vé khám hàng đợi ───────────────────────────────────
     restoreTicket = (ticketId, config = {}) =>
         this.post(`/api/v1/reception/queue/${ticketId}/restore`, {}, config)
 
@@ -66,7 +62,6 @@ export class ReceptionService extends BaseServices {
     getDoctorQueue = (doctorId, params = {}, config = {}) =>
         this.get(`/api/v1/reception/queue/${doctorId}`, { params, __skipGlobalLoading: true, ...config })
 
-    // ── 5. Tra cứu Lịch hẹn & Bệnh nhân ───────────────────────────────
     searchAppointments = (params = {}, config = {}) =>
         this.get('/api/v1/reception/search-appointments', { params, __skipGlobalLoading: true, ...config })
 
@@ -96,14 +91,12 @@ export class ReceptionService extends BaseServices {
     getPatientHistorySummary = (patientId, config = {}) =>
         this.get(`/api/v1/reception/patients/${patientId}/history-summary`, { __skipGlobalLoading: true, ...config })
 
-    // ── 6. Lịch trực & Nguồn lực ──────────────────────────────────────
     getRoster = (params = {}, config = {}) =>
         this.get('/api/v1/reception/resources/roster', { params, __skipGlobalLoading: true, ...config })
 
     getRosterTemplate = (params = {}, config = {}) =>
         this.get('/api/v1/reception/resources/roster-template', { params, __skipGlobalLoading: true, ...config })
 
-    // ── 7. Sự cố ca trực & Điều phối khẩn cấp ────────────────────────
     getDoctorAbsences = (params = {}, config = {}) =>
         this.get('/api/v1/reception/incidents/doctor-absences', { params, __skipGlobalLoading: true, ...config })
 
@@ -119,7 +112,6 @@ export class ReceptionService extends BaseServices {
     processNoShows = (params = {}, config = {}) =>
         this.post('/api/v1/reception/process-no-shows', null, { params, ...config })
 
-    // ── 8. Lịch hẹn (Appointments Core API) ───────────────────────────
     getDoctorSlots = (doctorId, queryDate, config = {}) =>
         this.get(`/api/v1/appointments/doctors/${doctorId}/slots`, {
             params: { query_date: queryDate },
@@ -148,7 +140,6 @@ export class ReceptionService extends BaseServices {
     processUnconfirmedAppointments = (params = {}, config = {}) =>
         this.post('/api/v1/appointments/process-unconfirmed', null, { params, ...config })
 
-    // ── 9. Danh sách chờ (Waitlist Core API) ──────────────────────────
     getWaitlist = (params = {}, config = {}) =>
         this.get('/api/v1/reception/waitlist', { params, __skipGlobalLoading: true, ...config })
 
@@ -161,14 +152,12 @@ export class ReceptionService extends BaseServices {
     payInvoice = (invoiceId, payload, config = {}) =>
         this.post(`/api/v1/cashier/invoices/${invoiceId}/pay`, payload, config)
 
-    // ── 10. Báo cáo đối soát & Nhật ký kiểm toán (Reports & Audit Trail - Phân hệ 9) ──
     getReportSummary = (params = {}, config = {}) =>
         this.get('/api/v1/reception/reports/summary', { params, __skipGlobalLoading: true, ...config })
 
     getAuditLogs = (params = {}, config = {}) =>
         this.get('/api/v1/reception/reports/audit-logs', { params, __skipGlobalLoading: true, ...config })
 
-    // ── 11. Đóng ca trực & Bàn giao ca (Shift Close & Handover) ──────
     getShiftPreCloseAudit = (params = {}, config = {}) =>
         this.get('/api/v1/reception/shift/pre-close-audit', { params, __skipGlobalLoading: true, ...config })
 

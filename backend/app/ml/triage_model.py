@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -174,8 +174,22 @@ class AITriageModel:
         return context
 
 
-@lru_cache(maxsize=1)
+_model_instance: AITriageModel | None = None
+_model_lock = threading.Lock()
+
+
 def get_ai_triage_model() -> AITriageModel:
-    """Load the packaged model once per backend worker."""
-    logger.info("Loading packaged AI Triage model: %s", MODEL_VERSION)
-    return AITriageModel()
+    """Load the packaged model once per backend worker.
+
+    Dùng lock thay cho ``lru_cache`` vì lru_cache không giữ khóa trong lúc hàm
+    đang chạy: một loạt request đồng thời lúc cold start có thể cùng unpickle
+    bundle 35 MB nhiều lần, vừa chậm vừa tốn RAM.
+    """
+    global _model_instance
+    if _model_instance is not None:
+        return _model_instance
+    with _model_lock:
+        if _model_instance is None:
+            logger.info("Loading packaged AI Triage model: %s", MODEL_VERSION)
+            _model_instance = AITriageModel()
+    return _model_instance

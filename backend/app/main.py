@@ -1,4 +1,5 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +38,31 @@ async def lifespan(app: FastAPI):
             logger.warning(f"⚠️ [AUTO SEED] Bỏ qua nạp dữ liệu mẫu: {str(seed_err)}")
     except Exception as e:
         logger.error(f"❌ [DATABASE ERROR] Không thể kết nối tới PostgreSQL: {str(e)}")
-    
+
+    # Nạp sẵn model AI trong lúc khởi động: bundle joblib ~35 MB nên lần suy luận
+    # đầu tiên (nhất là sau khi container vừa start hoặc --reload) phải chịu
+    # 5-15 giây đọc/unpickle. Nạp trước giúp request phân tích đầu tiên của người
+    # bệnh chỉ còn ~0,2 giây. Chạy trong threadpool để không chặn event loop.
+    try:
+        from starlette.concurrency import run_in_threadpool
+        from app.ml.triage_model import MODEL_VERSION, get_ai_triage_model
+
+        started = time.perf_counter()
+        model = await run_in_threadpool(get_ai_triage_model)
+        # Một lượt suy luận nhẹ để khởi tạo cache NLP (alias index, fuzzy match).
+        await run_in_threadpool(model.analyze, "đau đầu nhẹ", age=30)
+        logger.info(
+            "🤖 [AI MODEL READY] %s nạp xong sau %.1f giây.",
+            MODEL_VERSION,
+            time.perf_counter() - started,
+        )
+    except Exception as warmup_err:
+        logger.warning(
+            "⚠️ [AI MODEL WARMUP] Không nạp trước được model, request đầu tiên "
+            "sẽ tự nạp: %s",
+            warmup_err,
+        )
+
     yield
     
     logger.info("🛑 [SYSTEM STOPPING] Đóng kết nối PostgreSQL Engine...")

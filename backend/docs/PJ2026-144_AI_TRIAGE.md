@@ -45,7 +45,13 @@ trên bệnh nhân thật. Cần thẩm định lâm sàng trước khi sử d�
 
 Model và NLP được đóng gói trong `app/ml/`, không cần đường dẫn TestAI bên ngoài.
 Bundle joblib chỉ được nạp từ file tin cậy trong repository, không nhận upload
-model từ người dùng. Suy luận chạy qua thread pool; model được cache theo worker.
+model từ người dùng. Suy luận chạy qua thread pool; model được cache theo worker
+bằng singleton có khóa, tránh nhiều request cold start cùng unpickle một lúc.
+
+Model được nạp sẵn (warm-up) trong `lifespan` lúc khởi động, kèm một lượt suy
+luận nhẹ để khởi tạo cache NLP. Nhờ vậy request phân tích đầu tiên của người
+bệnh chỉ còn ~0,2 giây thay vì 4-15 giây đọc/unpickle bundle ~35 MB. Nếu warm-up
+lỗi, server vẫn khởi động và request đầu tiên sẽ tự nạp model.
 
 Cài dependency bằng `python -m pip install -r requirements.txt`, hoặc rebuild
 Docker để cài đúng scikit-learn 1.6.1 và các dependency đã ghim.

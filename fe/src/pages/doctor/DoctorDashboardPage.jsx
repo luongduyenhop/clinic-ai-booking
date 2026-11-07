@@ -13,7 +13,6 @@ export default function DoctorDashboardPage() {
     const { user } = useSelector((state) => state.app.auth)
     const { queue = [] } = useSelector((state) => state.doctor.clinical)
 
-    // 3 Tab chính: 'EXAM' (Khám bệnh) | 'SCHEDULE' (Lịch làm việc) | 'HISTORY' (Bệnh nhân đã khám)
     const tabParam = (searchParams.get('tab') || '').toUpperCase()
     const initialTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
     const [activeTab, setActiveTab] = useState(initialTab)
@@ -22,7 +21,6 @@ export default function DoctorDashboardPage() {
         dispatch(fetchDoctorQueueAsync())
     }, [dispatch])
 
-    // Cập nhật tab khi query param thay đổi
     useEffect(() => {
         if (tabParam === 'SCHEDULE' || tabParam === 'HISTORY' || tabParam === 'EXAM') {
             setActiveTab(tabParam)
@@ -43,7 +41,6 @@ export default function DoctorDashboardPage() {
         setSearchParams(nextParams, { replace: true })
     }
 
-    // Đếm số lượng ca đang chờ/khám và đã xong (100% từ Database)
     const activeQueueCount = useMemo(() => {
         const allEncounters = clinicalService.getAllEncountersSync()
         return queue.filter((t) => {
@@ -53,7 +50,6 @@ export default function DoctorDashboardPage() {
         }).length
     }, [queue])
 
-    // Danh sách bệnh nhân đã hoàn tất khám
     const examinedList = useMemo(() => {
         const allEncounters = clinicalService.getAllEncountersSync()
         const completedFromQueue = queue
@@ -115,9 +111,6 @@ export default function DoctorDashboardPage() {
 
     return (
         <div className="space-y-4">
-            {/* ═══════════════════════════════════════════════════════════════════
-                BỘ 3 TABS ĐIỀU HƯỚNG CHÍNH DÀNH CHO BÁC SĨ (CHUẨN HÓA BỆNH VIỆN)
-            ═══════════════════════════════════════════════════════════════════ */}
             <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-1.5 w-fit">
                 <nav className="flex items-center gap-1.5" aria-label="Doctor Workstation Tabs">
                     <button
@@ -179,9 +172,6 @@ export default function DoctorDashboardPage() {
                 </nav>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════════════
-                NỘI DUNG TƯƠNG ỨNG THEO TAB
-            ═══════════════════════════════════════════════════════════════════ */}
             <div>
                 {activeTab === 'EXAM' && (
                     <ExamWorkstationPage />

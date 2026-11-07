@@ -43,10 +43,10 @@ import { clinicalService } from '../../services/doctor/ClinicalService'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/clinical/StateBlocks'
 
 const QUEUE_POLL_MS = 15000
-// Hỏi máy chủ kết quả CLS vừa được KTV duyệt: bác sĩ thấy kết quả trong vài giây, không cần tải lại trang
+
 const CLS_RESULT_POLL_MS = 5000
 
-// Các trường được tự lưu nháp (PATCH lượt khám)
+
 const DRAFT_FIELDS = [
     'ly_do_vao_kham',
     'benh_su',
@@ -105,7 +105,6 @@ export default function ExamWorkstationPage() {
     const [pickedEncounterId, setPickedEncounterId] = useState(null)
     const [searchParams, setSearchParams] = useSearchParams()
 
-    // Đọc encounterId hoặc ticket từ URL khi tải trang hoặc khi searchParams thay đổi
     useEffect(() => {
         const raw = searchParams.get('encounterId') || searchParams.get('ticketId')
         const ticketParam = searchParams.get('ticket')
@@ -249,7 +248,6 @@ export default function ExamWorkstationPage() {
         }
     }, [loadQueue])
 
-    // Kết quả CLS đã duyệt: hỏi định kỳ (khác máy/khác tài khoản), cùng trình duyệt thì sự kiện cầu nối gọi hỏi ngay
     const checkReturnedResults = useCallback(async () => {
         const changed = await clinicalService.pollReturnedResults()
         if (changed.length === 0) return
@@ -296,7 +294,6 @@ export default function ExamWorkstationPage() {
         onSubmit: () => {},
     })
 
-    // Tự lưu nháp các trường lâm sàng (Debounced 800ms)
     const draft = useMemo(
         () => ({ encounterId: encounter?.id, fields: Object.fromEntries(DRAFT_FIELDS.map((k) => [k, formik.values[k]])) }),
         [encounter?.id, formik.values]
@@ -360,7 +357,6 @@ export default function ExamWorkstationPage() {
         }
     }
 
-    // Tạm hoãn ca khám để giải phóng buồng khám khi bệnh nhân đi làm Cận lâm sàng (revita-be)
     const handlePostponeForCls = async () => {
         const currentActiveOrdersCount = (encounter?.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy').length
         const currentActiveTicket = queue.find((t) => t.encounter_id === encounterId || t.ticket_id === encounter?.ticket_id) || currentTicket
@@ -459,7 +455,6 @@ export default function ExamWorkstationPage() {
         }
     }
 
-    // Nạp đơn thuốc từ Cột 3 (Toa mẫu hoặc Đơn cũ)
     const handleApplyPrescription = (items, note) => {
         formik.setFieldValue('danh_sach_thuoc', items)
         if (note && !formik.values.loi_dan_uong_thuoc) {
@@ -467,7 +462,6 @@ export default function ExamWorkstationPage() {
         }
     }
 
-    // 1-Click Copy Tóm tắt Bệnh án & Đơn thuốc dạng Text gửi Zalo/SMS (SimpleClinic)
     const handleQuickCopyZaloText = async () => {
         const bn = encounter?.benh_nhan || {}
         const dxText = (formik.values.danh_sach_chan_doan || []).length > 0
@@ -553,31 +547,26 @@ export default function ExamWorkstationPage() {
     }
 
     const handleComplete = async () => {
-        // 0. Tự động kích hoạt bắt đầu khám nếu ca khám đang ở trạng thái chờ
         if (encounter && !encounter.thoi_gian_bat_dau) {
             encounter.thoi_gian_bat_dau = new Date().toISOString()
         }
 
-        // 1. Chỉ cho phép hoàn tất khi đã ở Bước 4 (Đơn thuốc & Dặn dò)
         if (step !== 4) {
             AppToast.warning('Bạn cần hoàn thành các bước tuần tự đến Bước 4 (Đơn thuốc & Dặn dò) trước khi hoàn tất ca khám!')
             setStep(4)
             return
         }
 
-        // 2. Kiểm tra nếu có dịch vụ CLS chọn dở ở Bước 2 chưa gửi
         if (pickedOrders.length > 0) {
             AppToast.warning(`Bạn đang chọn ${pickedOrders.length} dịch vụ CLS ở Bước 2 chưa gửi sang KTV. Vui lòng bấm gửi chỉ định trước khi hoàn tất!`)
             setStep(2)
             return
         }
 
-        // 3. Kiểm tra danh sách chỉ định CLS chưa có kết quả hoặc trạng thái vé đang Chờ CLS
         const pendingList = (encounter?.danh_sach_chi_dinh || []).filter(
             (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua'
         )
 
-        // CHẶN NGHIÊM NGẶT: Bệnh nhân đang chờ CLS hoặc còn chỉ định CLS dở dang
         if (isWaitingCls || pendingList.length > 0) {
             Modal.warning({
                 title: 'Chưa thể kết thúc ca khám!',
@@ -670,7 +659,6 @@ export default function ExamWorkstationPage() {
 
 
 
-    // Tự động phát hiện Toa thuốc mẫu phù hợp theo Chẩn đoán chính ICD-10 (SimpleClinic)
     const primaryDiagnosis = (formik.values.danh_sach_chan_doan || []).find((d) => d.loai_chan_doan === 'chinh')
     const matchingTemplate = useMemo(() => {
         if (!primaryDiagnosis) return null
@@ -692,7 +680,6 @@ export default function ExamWorkstationPage() {
         )
     }, [primaryDiagnosis])
 
-    // Phím tắt bác sĩ khám bệnh (tClinic & SimpleClinic)
     useDoctorShortcuts({
         onCallNext: handleCallNext,
         onOpenTemplates: () => setRxModalState({ open: true, tab: 'templates' }),
@@ -717,7 +704,6 @@ export default function ExamWorkstationPage() {
 
     return (
         <div className="flex flex-col gap-4 max-w-[1720px] mx-auto w-full">
-            {/* Top Workspace Header */}
             <div className="medpro-card flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-white border border-slate-200">
                 <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003553] text-white font-extrabold text-sm shadow-xs">
@@ -733,7 +719,6 @@ export default function ExamWorkstationPage() {
                     </div>
                 </div>
 
-                {/* Trạng thái lưu bệnh án (Chỉ hiển thị khi đang trong phiên khám của bệnh nhân) */}
                 {encounterId && (
                     <div className="flex items-center gap-3">
                         <span className="text-[12px] text-slate-500 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
@@ -748,9 +733,7 @@ export default function ExamWorkstationPage() {
                 )}
             </div>
 
-            {/* 3-Column Layout: Hàng đợi (Cột 1) | Khám chính (Cột 2) | Trợ lý lâm sàng & CLS (Cột 3) */}
             <div className="flex flex-col lg:flex-row items-start gap-4">
-                {/* CỘT 1: HÀNG ĐỢI (280px) */}
                 <QueuePanel
                     queue={queue}
                     loading={queueLoading}
@@ -766,7 +749,6 @@ export default function ExamWorkstationPage() {
                     onFilterChange={setQueueFilter}
                 />
 
-                {/* CỘT 2: KHU VỰC KHÁM & KÊ ĐƠN CHÍNH (Flex-1) */}
                 <section aria-label="Hồ sơ lượt khám" className="flex min-w-0 flex-1 flex-col gap-4 w-full">
                     {!encounterId && (
                         <div className="flex-1 min-h-[540px] flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200/90 bg-white p-8 text-center shadow-xs">
@@ -793,7 +775,6 @@ export default function ExamWorkstationPage() {
                                 </button>
                             </div>
 
-                            {/* Thống kê hàng đợi nhanh */}
                             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg">
                                 <div className="rounded-2xl bg-slate-50 border border-slate-200/70 p-3.5 text-left">
                                     <span className="text-[11px] font-medium text-slate-500">Bệnh nhân đang chờ</span>
@@ -831,7 +812,6 @@ export default function ExamWorkstationPage() {
 
                     {encounterId && encounter && !encounterError && (
                         <>
-                            {/* Thanh Điều Hướng Trên: Nút Quay Lại Bàn Khám & Trạng Thái Ca Khám */}
                             <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
                                 <button
                                     type="button"
@@ -872,7 +852,6 @@ export default function ExamWorkstationPage() {
                                 </div>
                             </div>
 
-                            {/* Sticky Patient Banner with quick vitals pill */}
                             <PatientBanner
                                 encounter={encounter}
                                 vitals={formik.values}
@@ -886,7 +865,6 @@ export default function ExamWorkstationPage() {
 
 
 
-                            {/* Cảnh báo Bệnh án đã khóa (TT32) */}
                             {locked && (
                                 <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl bg-[#003553] px-5 py-3.5 text-white">
                                     <ClinicIcon name="LockKey" size={22} className="text-[#00B5F1]" />
@@ -899,7 +877,6 @@ export default function ExamWorkstationPage() {
                                 </div>
                             )}
 
-                            {/* Thanh 4 Bước Khám Tuần Tự Chuẩn TT32 */}
                             <ExamStepTabs
                                 step={step}
                                 locked={isReadOnly}
@@ -911,7 +888,6 @@ export default function ExamWorkstationPage() {
                                 }}
                             />
 
-                            {/* Khung nội dung tương ứng từng bước */}
                             <div className="medpro-card flex flex-col gap-5 p-5">
                                 {step === 1 && <StepClinical formik={formik} encounter={encounter} locked={isReadOnly} />}
                                 {step === 2 && (
@@ -948,7 +924,6 @@ export default function ExamWorkstationPage() {
                                 )}
                             </div>
 
-                            {/* THANH ĐIỀU HÀNH ĐÁY CỐ ĐỊNH (STICKY ACTION BAR - CHUẨN HIS) */}
                             <div className="sticky bottom-3 z-30 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs font-bold text-[#003553]">
@@ -968,7 +943,6 @@ export default function ExamWorkstationPage() {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                    {/* 1-Click Copy Zalo/SMS (SimpleClinic) */}
                                     <button
                                         type="button"
                                         onClick={handleQuickCopyZaloText}
@@ -979,7 +953,6 @@ export default function ExamWorkstationPage() {
                                         <span>Copy Zalo / SMS</span>
                                     </button>
 
-                                    {/* In Đơn thuốc & VietQR */}
                                     <button
                                         type="button"
                                         onClick={() => setRxModalState({ open: true, tab: 'print' })}
@@ -989,7 +962,6 @@ export default function ExamWorkstationPage() {
                                         <span>In Đơn &amp; Mã QR</span>
                                     </button>
 
-                                    {/* Nút Tạm hoãn giải phóng buồng khám khi bệnh nhân đi làm CLS */}
                                     {!locked && (activeOrders.length > 0 || isWaitingCls) && (
                                         <button
                                             type="button"
@@ -1006,7 +978,6 @@ export default function ExamWorkstationPage() {
                                         </button>
                                     )}
 
-                                    {/* Nút Quay lại bước trước nếu step > 1 */}
                                     {step > 1 && (
                                         <button
                                             type="button"
@@ -1018,7 +989,6 @@ export default function ExamWorkstationPage() {
                                         </button>
                                     )}
 
-                                    {/* Ở Bước 1, 2, 3: Nút điều hướng tuần tự tiếp theo */}
                                     {!locked && step < 4 && (
                                         <button
                                             type="button"
@@ -1039,7 +1009,6 @@ export default function ExamWorkstationPage() {
                                         </button>
                                     )}
 
-                                    {/* CHỈ HIỂN THỊ NÚT Hoàn tất khám & Khóa bệnh án KHI ĐÃ ĐẾN BƯỚC 4 (ĐƠN THUỐC & DẶN DÒ) */}
                                     {!locked && step === 4 && (
                                         <button
                                             type="button"
@@ -1058,7 +1027,6 @@ export default function ExamWorkstationPage() {
                 </section>
             </div>
 
-            {/* Drawer Lịch sử bệnh án cũ */}
             <Drawer title="Lịch sử bệnh án" open={historyOpen} onClose={() => setHistoryOpen(false)} width={420}>
                 {(encounter?.lich_su || []).length === 0 ? (
                     <EmptyBlock icon="Clock" title="Chưa có lần khám trước" />
@@ -1077,10 +1045,8 @@ export default function ExamWorkstationPage() {
                 )}
             </Drawer>
 
-            {/* Modal Biên bản đính chính */}
             <AmendmentModal open={amendmentOpen} onClose={() => setAmendmentOpen(false)} onSubmit={handleAmendment} />
 
-            {/* Modal In Đơn Thuốc, Toa Mẫu & Sao Chép Đơn Cũ */}
             <PrescriptionPrintAndCopyModal
                 isOpen={rxModalState.open}
                 initialTab={rxModalState.tab}

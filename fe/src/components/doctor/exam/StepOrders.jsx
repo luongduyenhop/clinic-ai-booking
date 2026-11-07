@@ -126,7 +126,6 @@ export default function StepOrders({
             </div>
 
             <div className="flex flex-[1_1_280px] flex-col gap-3.5 self-start rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
-                {/* 1. KHỐI CÁC DỊCH VỤ ĐANG CHỌN (CHỜ BÁC SĨ GỬI SANG KTV) */}
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                         <span className="text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
@@ -189,7 +188,6 @@ export default function StepOrders({
                     </button>
                 </div>
 
-                {/* 2. KHỐI CÁC DỊCH VỤ ĐÃ CHỈ ĐỊNH CHÍNH THỨC TRONG HỒ SƠ */}
                 <div className="flex flex-col gap-2 pt-3 border-t border-sky-200">
                     <div className="flex items-center justify-between">
                         <span className="text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">

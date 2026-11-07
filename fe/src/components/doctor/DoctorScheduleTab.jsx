@@ -6,7 +6,7 @@ const DAY_NAMES = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ S�
 
 function getWeekBoundaries(offsetWeeks = 0) {
     const now = new Date()
-    const day = now.getDay() // 0 = CN, 1 = T2, ..., 6 = T7
+    const day = now.getDay() 
     const diffToMonday = day === 0 ? -6 : 1 - day
     const monday = new Date(now)
     monday.setDate(now.getDate() + diffToMonday + offsetWeeks * 7)
@@ -20,7 +20,6 @@ function getWeekBoundaries(offsetWeeks = 0) {
     const formatYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
     const formatDMY = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
 
-    // Tính số tuần trong năm
     const firstDayOfYear = new Date(monday.getFullYear(), 0, 1)
     const pastDaysOfYear = (monday - firstDayOfYear) / 86400000
     const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
@@ -37,7 +36,7 @@ function getWeekBoundaries(offsetWeeks = 0) {
 }
 
 export default function DoctorScheduleTab({ doctorInfo }) {
-    const [selectedWeek, setSelectedWeek] = useState('CURRENT') // CURRENT | NEXT
+    const [selectedWeek, setSelectedWeek] = useState('CURRENT') 
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [scheduleStats, setScheduleStats] = useState({
@@ -74,7 +73,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                 deptName: firstCell?.chuyen_khoa || 'Khoa Nội Tổng Quát',
             })
 
-            // Gom nhóm ma trận ca trực theo 7 ngày trong tuần
             const days = []
             for (let i = 0; i < 7; i++) {
                 const dayDate = new Date(weekInfo.monday)
@@ -89,7 +87,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
 
                 const shifts = []
 
-                // 1. Ca Sáng (07:30 - 11:30)
                 if (morningCell) {
                     let status = 'UPCOMING'
                     if (morningCell.trang_thai_ca === 'NGHI_PHEP' || morningCell.trang_thai_ca === 'NGHI_DOT_XUAT') {
@@ -113,7 +110,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                     })
                 }
 
-                // 2. Ca Chiều (13:30 - 17:00)
                 if (afternoonCell) {
                     let status = 'UPCOMING'
                     if (afternoonCell.trang_thai_ca === 'NGHI_PHEP' || afternoonCell.trang_thai_ca === 'NGHI_DOT_XUAT') {
@@ -147,7 +143,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
 
             setScheduleDays(days)
         } catch {
-            // Trường hợp mạng lag, tính toán khung ngày thực tế từ Date
             const fallbackDays = []
             for (let i = 0; i < 7; i++) {
                 const dayDate = new Date(weekInfo.monday)
@@ -202,7 +197,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
 
     return (
         <div className="space-y-6">
-            {/* Header thống kê tổng quan ca trực dựa trên dữ liệu thực tế Database */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng số ca trực tuần</span>
@@ -243,7 +237,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                 </div>
             </div>
 
-            {/* Bộ điều khiển tuần làm việc */}
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
@@ -286,7 +279,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                     </div>
                 </div>
 
-                {/* Danh sách các ngày trong tuần */}
                 {loading ? (
                     <div className="py-16 text-center text-slate-400 text-xs">
                         Đang đồng bộ dữ liệu ca trực từ máy chủ...
@@ -310,7 +302,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                                         : 'border-slate-200/90 bg-white hover:border-slate-300'
                                 }`}
                             >
-                                {/* Tiêu đề ngày */}
                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
                                     <div className="flex items-center gap-2">
                                         <span className="font-extrabold text-sm text-[#003553]">
@@ -325,7 +316,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                                     )}
                                 </div>
 
-                                {/* Các ca trong ngày */}
                                 <div className="space-y-3">
                                     {item.shifts.map((shift) => (
                                         <div
@@ -345,7 +335,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                                                     <span>{shift.type === 'MORNING' ? '☀️' : '⛅'}</span>
                                                     <span>{shift.name} ({shift.time})</span>
                                                 </span>
-                                                {/* Status Badge */}
                                                 {shift.status === 'IN_PROGRESS' && (
                                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-200 text-[#003553] font-bold animate-pulse">
                                                         Đang trực
@@ -393,7 +382,6 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                 )}
             </div>
 
-            {/* Modal Yêu cầu đổi ca & Xin nghỉ */}
             <DoctorShiftRequestModal
                 isOpen={isRequestModalOpen}
                 onClose={() => setIsRequestModalOpen(false)}

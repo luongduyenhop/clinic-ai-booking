@@ -5,7 +5,7 @@ const STATUS_OPTIONS = [
     { code: 'BAT', label: 'Bất thường', on: 'bg-rose-50 text-rose-800 ring-2 ring-rose-500' },
 ]
 
-// Khối khám lâm sàng theo chuyên khoa: mục khám đổi theo khoa của lượt khám
+
 export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
     const { values, setFieldValue } = formik
     const exam = values.kham_chuyen_khoa

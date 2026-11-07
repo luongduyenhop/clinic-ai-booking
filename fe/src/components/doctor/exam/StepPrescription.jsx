@@ -57,7 +57,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const debounced = useDebounce(keyword, 200)
     const allergy = encounter?.benh_nhan?.di_ung_thuoc
 
-    
     const isSigned =
         values.trang_thai_don_thuoc === 'SIGNED' ||
         encounter?.don_thuoc?.trang_thai === 'SIGNED' ||
@@ -68,13 +67,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const [signingLoading, setSigningLoading] = useState(false)
     const [showSignConfirm, setShowSignConfirm] = useState(false)
 
-    
     const [batchDays, setBatchDays] = useState(rows[0]?.so_ngay_dung || '5')
 
-    
     const [nationalSyncStatus, setNationalSyncStatus] = useState('pending')
 
-    
     const [followUpDays, setFollowUpDays] = useState(7)
 
     const nationalRxCode = `DTQG-2026-LK${String(encounter?.id || '001').padStart(6, '0')}`
@@ -148,7 +144,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         }
     }, [debounced, dispatch])
 
-    
     const applyBatchDays = (days) => {
         setBatchDays(String(days))
         const updated = rows.map((r) => ({
@@ -174,7 +169,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         const updated = rows.map((r, i) => {
             if (i !== index) return r
             const newRow = { ...r, ...patch }
-            
             if (('sang' in patch || 'trua' in patch || 'chieu' in patch || 'toi' in patch) && (!r.cach_dung || r.cach_dung.startsWith('Uống'))) {
                 const auto = generateDoseText(newRow.sang, newRow.trua, newRow.chieu, newRow.toi, newRow.don_vi_tinh?.toLowerCase() || 'viên')
                 if (auto) newRow.cach_dung = auto
@@ -186,7 +180,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     const removeRow = (index) => setFieldValue('danh_sach_thuoc', rows.filter((_, i) => i !== index))
 
-    
     const moveRow = (index, direction) => {
         const targetIndex = index + direction
         if (targetIndex < 0 || targetIndex >= rows.length) return
@@ -197,7 +190,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         setFieldValue('danh_sach_thuoc', newRows)
     }
 
-    
     const appendUsageTag = (index, tag) => {
         const currentRow = rows[index]
         if (!currentRow) return
@@ -219,7 +211,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             cach_dung: 'Uống khi sốt >= 38.5°C hoặc đau đầu, cách nhau ít nhất 4 giờ',
         })
 
-    
     const handleSetFollowUpDays = (days) => {
         setFollowUpDays(days)
         const targetDate = new Date()
@@ -238,7 +229,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     return (
         <div className="flex flex-col gap-4">
-            
             {isSigned && (
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 shadow-xs animate-fadeIn">
                     <div className="flex items-center gap-2.5">
@@ -281,7 +271,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     </button>
                 </div>
             )}
-            
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
                 <div className="flex items-center gap-2">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0077B6] text-white">
@@ -319,7 +308,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </div>
 
-            
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="flex-1 min-w-[280px]">
                     <span className="medpro-label">Thêm thuốc điều trị</span>
@@ -336,7 +324,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     />
                 </div>
 
-                
                 <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
                         Số ngày dùng chung toàn đơn
@@ -429,7 +416,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 )}
             </div>
 
-            
             <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 bg-white shadow-2xs">
                 <div className="min-w-[920px]">
                     <div className={`${GRID} rounded-t-xl bg-[#F0F7FC] px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#003553]`}>
@@ -456,11 +442,9 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     {rows.map((r, i) => {
                         const conflict = findAllergyConflict(r.hoat_chat, allergy)
                         const totalQty = computeQuantity(r)
-                        
                         return (
                             <div key={`${r.ten_thuoc}-${i}`} className={`border-t border-slate-100 ${conflict ? 'bg-rose-50/50' : i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
                                 <div className={`${GRID} px-3 py-2.5`}>
-                                    
                                     <div className="flex flex-col items-center justify-center gap-0.5 text-slate-400">
                                         <button
                                             type="button"
@@ -483,7 +467,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         </button>
                                     </div>
 
-                                    
                                     <div className="min-w-0 pr-2">
                                         <div className="font-bold text-[#003553] text-[13px] truncate">{r.ten_thuoc}</div>
                                         <div className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -496,7 +479,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         </div>
                                     </div>
 
-                                    
                                     {DOSE_SLOTS.map((s) => (
                                         <input
                                             key={s.key}
@@ -510,7 +492,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         />
                                     ))}
 
-                                    
                                     <input
                                         aria-label={`Số ngày — ${r.ten_thuoc}`}
                                         inputMode="numeric"
@@ -520,13 +501,11 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         disabled={isReadOnly}
                                     />
 
-                                    
                                     <div className="text-center">
                                         <span className="font-extrabold text-[#003553] text-sm">{totalQty}</span>
                                         <span className="block text-[10px] text-slate-400">{r.don_vi_tinh || 'viên'}</span>
                                     </div>
 
-                                    
                                     <div className="flex flex-col gap-1 min-w-0">
                                         <input
                                             aria-label={`Cách dùng — ${r.ten_thuoc}`}
@@ -552,7 +531,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                         )}
                                     </div>
 
-                                    
                                     <div className="flex justify-center">
                                         {!isReadOnly ? (
                                             <button
@@ -570,7 +548,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     </div>
                                 </div>
 
-                                
                                 {conflict && (
                                     <div className="mx-3 mb-2 flex flex-wrap items-center gap-3 rounded-lg bg-rose-100/80 px-3 py-2 text-[12px] font-medium text-rose-900 border border-rose-300">
                                         <ClinicIcon name="Warning" size={16} weight="bold" className="text-rose-600" />
@@ -590,7 +567,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </div>
 
-            
             <div>
                 <div className="flex items-center justify-between mb-1">
                     <span className="medpro-label !mb-0">Lời dặn dùng thuốc của bác sĩ</span>
@@ -619,7 +595,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 />
             </div>
 
-            
             <section className="rounded-xl bg-[#E8F4FD]/80 border border-sky-200 p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#003553] flex items-center gap-1.5">
@@ -684,7 +659,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
             </section>
 
-            
             {showSignConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
                     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">

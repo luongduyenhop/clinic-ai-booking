@@ -41,20 +41,21 @@ export default function PatientBanner({
                       ))
               )
 
-    const isExamining = Boolean(
-        activeTicket?.trang_thai === 'dang_kham' ||
-        (encounter?.thoi_gian_bat_dau && !encounter?.is_locked && !isWaitingCls && !hasClsReady)
+    const isExamining = Boolean(
+
+        activeTicket?.trang_thai === 'dang_kham' ||
+
+        (encounter?.thoi_gian_bat_dau && !encounter?.is_locked && !isWaitingCls && !hasClsReady)
+
     )
 
     return (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3.5">
-                {/* Avatar Initial */}
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#003553] text-[16px] font-extrabold text-white shadow-2xs">
                     {initials(bn.ho_ten || 'BN')}
                 </span>
 
-                {/* Identity & Demographics */}
                 <div className="flex min-w-[240px] flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                         <h1 className="text-[18px] font-extrabold text-[#003553] tracking-tight">{bn.ho_ten}</h1>
@@ -70,7 +71,6 @@ export default function PatientBanner({
                             </span>
                         )}
 
-                        {/* Tiền sử dị ứng thuốc - CRITICAL SAFETY ALERT */}
                         {bn.di_ung_thuoc ? (
                             <span className="text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse">
                                 <ClinicIcon name="Warning" size={13} weight="bold" />
@@ -119,7 +119,6 @@ export default function PatientBanner({
                             <span>{calling ? 'Đang gọi…' : 'Gọi vào khám'}</span>
                         </button>
                     )}
-                    {/* History Trigger Button */}
                     {onShowHistory && (
                         <button
                             type="button"

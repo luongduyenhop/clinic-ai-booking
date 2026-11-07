@@ -1,6 +1,6 @@
 import { BaseServices } from '../BaseService'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
-// Connected to Backend PostgreSQL / SQLite API (/api/v1/clinical & /api/v1/medical)
+
 
 export const USE_MOCK = false
 const WORKSPACE_STORAGE_KEY = 'clinic_doctor_workspace_v1'
@@ -38,7 +38,6 @@ const loadInitialDb = () => {
         localStorage.removeItem(WORKSPACE_STORAGE_KEY)
         localStorage.removeItem('clinic_doctor_clinical_workspace_v2')
     } catch {}
-    // 100% dữ liệu hàng đợi nạp trực tiếp từ PostgreSQL, không dùng dữ liệu mẫu
     return {
         encounters: {},
         queue: [],
@@ -97,8 +96,8 @@ const ticketToQueueItem = (t) => {
     }
 }
 
-// ── Cầu nối CLS: chỉ định trên bàn khám (workspace) ↔ bảng chi_dinh thật (/api/v1/subclinical) ──
-// Chỉ định đã ghi vào chi_dinh mang server_order_id; KTV thao tác bằng id thật, bàn khám giữ bản sao để hiển thị.
+
+
 const findMirrorOrder = (serverOrderId) => {
     for (const enc of Object.values(db.encounters)) {
         const o = (enc.danh_sach_chi_dinh || []).find((x) => x.server_order_id === serverOrderId)
@@ -149,11 +148,9 @@ const toWorklistItem = (item) => {
         ly_do: item.ly_do_vao_kham,
         chan_doan_so_bo: item.chan_doan_so_bo,
         bac_si_chi_dinh: item.bac_si_chi_dinh || 'Bác sĩ',
-        // Bản nháp kết quả chưa có cột trong chi_dinh nên lấy từ bản sao trên bàn khám
         ket_qua_chi_tiet: (hasResult && parseResultDetail(item)) || mirror?.ket_qua_chi_tiet || null,
         ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : mirror?.ket_qua_phan_loai || null,
         tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || mirror?.tep_dinh_kem_url || null,
-        // Phiếu kết quả: NHAP / DA_CO_KET_QUA (KTV hoàn tất, chờ duyệt) / DA_DUYET
         trang_thai_ket_qua: item.trang_thai_ket_qua || null,
         thoi_gian_duyet: item.thoi_gian_duyet || null,
     }
@@ -161,7 +158,7 @@ const toWorklistItem = (item) => {
 
 const sameInstant = (a, b) => Boolean(a && b) && Date.parse(a) === Date.parse(b)
 
-// Kết quả đã duyệt từ máy chủ -> các trường của bản sao chỉ định trên bàn khám (cùng cấu trúc ResultView)
+
 const toMirrorPatch = (r) => ({
     trang_thai: r.trang_thai,
     ket_qua_phan_loai: r.ket_qua_phan_loai,
@@ -173,8 +170,8 @@ const toMirrorPatch = (r) => ({
     nguoi_duyet: r.nguoi_duyet,
 })
 
-// Ghi kết quả vào bản sao và đẩy lượt khám lên đầu hàng đợi để bác sĩ gọi lại kết luận
-// (bệnh nhân đang ở trong phòng khám thì giữ nguyên trạng thái, không đẩy ra khỏi bàn khám)
+
+
 const applyReturnedResult = (mirror, patch) => {
     Object.assign(mirror.order, patch)
     const ticket = db.queue.find((t) => t.encounter_id === mirror.enc.id)
@@ -196,7 +193,6 @@ export class ClinicalService extends BaseServices {
         this.hydrateFromPostgres()
     }
 
-    // ── Đồng bộ 2 chiều với PostgreSQL (/api/v1/clinical/workspace-state) ──
     hydrateFromPostgres = async (force = false) => {
         if (this._hydratedFromPg && !force) return
         this._hydratedFromPg = true
@@ -211,7 +207,6 @@ export class ClinicalService extends BaseServices {
                 const localEncounters = db.encounters || {}
 
                 const mergedEncounters = { ...remote.encounters }
-                // 1. Chỉ bảo toàn các hồ sơ còn thực sự tồn tại trong danh sách server
                 Object.entries(localEncounters).forEach(([k, lEnc]) => {
                     if (remote.encounters?.[k] && lEnc?.is_locked) {
                         mergedEncounters[k] = { ...mergedEncounters[k], ...lEnc }
@@ -257,13 +252,11 @@ export class ClinicalService extends BaseServices {
                 try {
                     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
                 } catch {
-                    // Ignore quota errors
                 }
             } else {
                 await this.persistToPostgres()
             }
         } catch {
-            // Backend chưa sẵn sàng hoặc đang khởi động -> dùng bản lưu localStorage
         }
     }
 
@@ -271,22 +264,18 @@ export class ClinicalService extends BaseServices {
         try {
             localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
         } catch {
-            // Ignore storage quota errors
         }
         try {
             await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true })
         } catch {
-            // Giữ dữ liệu ở localStorage nếu mất kết nối tạm thời
         }
     }
 
-    // Tải lại bản mới nhất trước khi sửa bản sao, tránh ghi đè thay đổi của máy khác bằng dữ liệu cũ
     reloadFromPostgres = async () => {
         this._hydratedFromPg = false
         await this.hydrateFromPostgres()
     }
 
-    // Ghi các chỉ định chưa có trên server vào bảng chi_dinh; lỗi mạng thì giữ nguyên, lần chỉ định sau gửi lại
     syncOrdersToServer = async (enc) => {
         const pending = (enc.danh_sach_chi_dinh || []).filter((o) => !o.server_order_id && o.trang_thai !== 'da_huy')
         if (pending.length === 0) return
@@ -325,7 +314,6 @@ export class ClinicalService extends BaseServices {
     }
 
 
-    // ── Hàng đợi ──────────────────────────────────────────────────────────
     reconcileQueueState = () => {
         for (const t of db.queue) {
             const enc = db.encounters[t.encounter_id] || db.encounters[String(t.encounter_id)]
@@ -353,7 +341,6 @@ export class ClinicalService extends BaseServices {
         }
         const activeDangKham = db.queue.filter((t) => t.trang_thai === 'dang_kham')
         if (activeDangKham.length > 1) {
-            // Giữ lại ca đang khám mới nhất / ca sau cùng được gọi
             const keepTicket = activeDangKham[activeDangKham.length - 1]
             activeDangKham.forEach((t) => {
                 if (t !== keepTicket) {
@@ -381,7 +368,6 @@ export class ClinicalService extends BaseServices {
         const eligible = db.queue.filter((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
         if (eligible.length === 0) return reject('Không còn bệnh nhân chờ khám.')
 
-        // Ưu tiên ca có kết quả CLS trước, sau đó theo mức độ ưu tiên và số thứ tự
         const next = eligible.sort((a, b) => {
             const aReturned = a.trang_thai === 'co_ket_qua_cls' || (a.ghi_chu && a.ghi_chu.includes('CÓ KQ CLS'))
             const bReturned = b.trang_thai === 'co_ket_qua_cls' || (b.ghi_chu && b.ghi_chu.includes('CÓ KQ CLS'))
@@ -445,7 +431,6 @@ export class ClinicalService extends BaseServices {
         return delay(ticketToQueueItem(t))
     }
 
-    // ── Lượt khám ─────────────────────────────────────────────────────────
     getEncounterSync = (encounterId) => db?.encounters?.[encounterId] || db?.encounters?.[String(encounterId)] || null
     getAllEncountersSync = () => db?.encounters || {}
 
@@ -496,7 +481,6 @@ export class ClinicalService extends BaseServices {
                     thoi_gian_chi_dinh: new Date().toISOString(),
                 })
             })
-        // TỰ ĐỘNG CHUYỂN BỆNH NHÂN SANG DANH SÁCH "Chờ CLS" (tam_hoan)
         const ticket = db.queue.find(
             (t) =>
                 String(t.encounter_id) === String(encounterId) ||
@@ -528,7 +512,6 @@ export class ClinicalService extends BaseServices {
         if (!o) return reject('Không tìm thấy chỉ định')
         if (o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
         if (o.server_order_id) {
-            // Hủy cả bản ghi chi_dinh để chỉ định không còn nằm trong hàng đợi KTV (409 nếu KTV đã bắt đầu)
             await this.post(`/api/v1/subclinical/orders/${o.server_order_id}/cancel?ly_do=${encodeURIComponent('Bác sĩ hủy chỉ định')}`, {})
         }
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
@@ -563,7 +546,6 @@ export class ClinicalService extends BaseServices {
         }
         await this.persistToPostgres()
 
-        // ── Tự động tạo Phiếu thu Viện phí sang Quầy Thu ngân (Cashier) ──
         let newVoucher = null
         try {
             const examFee = 150000
@@ -577,7 +559,6 @@ export class ClinicalService extends BaseServices {
                 },
             ]
 
-            // Tiền dịch vụ CLS
             const servicesCatalog = (await this.getServicesCatalog()) || []
             ;(enc.danh_sach_chi_dinh || []).forEach((cls) => {
                 const s = servicesCatalog.find((x) => String(x.id) === String(cls.dich_vu_id) || x.ma_dich_vu === cls.ma_dich_vu)
@@ -591,7 +572,6 @@ export class ClinicalService extends BaseServices {
                 })
             })
 
-            // Tiền thuốc
             const drugsList = payload.don_thuoc?.danh_sach_thuoc || []
             let totalDrugFee = 0
             drugsList.forEach((d) => {
@@ -621,7 +601,7 @@ export class ClinicalService extends BaseServices {
                 ngayThu: new Date().toISOString().replace('T', ' ').slice(0, 16),
                 nguoiThu: 'Phạm Thu Nga (Thu ngân)',
                 hinhThuc: 'Chuyển khoản',
-                daThu: false, // Trạng thái Chờ thu (Pending)
+                daThu: false, 
                 ghiChu: `Khoa: ${enc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'} · Bác sĩ: ${enc.bac_si_kham || 'BS. CKI Trần Quốc Huy'} · Đơn: ${payload.don_thuoc?.ma_don_thuoc_quoc_gia || 'DTQG-2026'}`,
                 items: invoiceItems,
                 tongTien: totalAmount,
@@ -632,7 +612,6 @@ export class ClinicalService extends BaseServices {
                 thuocTaiPhongKham: true,
             }
 
-            // Ghi vào store Admin DB
             const ADMIN_STORE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
             const rawAdminStore = localStorage.getItem(ADMIN_STORE_KEY)
             if (rawAdminStore) {
@@ -643,7 +622,6 @@ export class ClinicalService extends BaseServices {
                 }
             }
 
-            // Lưu ca khám hoàn tất vào Cổng bệnh nhân
             const PATIENT_HISTORY_KEY = 'clinic_patient_completed_encounters_v1'
             const rawPatientHist = localStorage.getItem(PATIENT_HISTORY_KEY)
             const historyList = rawPatientHist ? JSON.parse(rawPatientHist) : []
@@ -687,13 +665,11 @@ export class ClinicalService extends BaseServices {
         return delay(enc.danh_gia_ai, 150)
     }
 
-    // ── Danh mục Thực tế từ PostgreSQL ──────────────────────────────────
     getServices = async () => {
         try {
             const res = await this.get('/api/v1/medical/services', { __skipGlobalLoading: true })
             if (res?.data?.data && res.data.data.length > 0) return res.data.data
         } catch {
-            // Dự phòng offline
         }
         return delay(FALLBACK_SERVICES, 100)
     }
@@ -709,7 +685,6 @@ export class ClinicalService extends BaseServices {
             const res = await this.get(`/api/v1/medical/icd10?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true })
             if (Array.isArray(res?.data?.data)) return res.data.data
         } catch {
-            // Dự phòng khi mất kết nối mạng backend
         }
         const q = String(keyword || '').trim().toLowerCase()
         const result = FALLBACK_ICD10.filter((x) => x.ma.toLowerCase().includes(q) || x.ten.toLowerCase().includes(q)).slice(0, 15)
@@ -722,15 +697,12 @@ export class ClinicalService extends BaseServices {
             const res = await this.get(`/api/v1/medical/drugs?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true })
             if (Array.isArray(res?.data?.data)) return res.data.data
         } catch {
-            // Dự phòng khi mất kết nối mạng backend
         }
         const q = String(keyword || '').trim().toLowerCase()
         const result = FALLBACK_DRUGS.filter((x) => x.ten_thuoc.toLowerCase().includes(q) || x.hoat_chat.toLowerCase().includes(q)).slice(0, 15)
         return delay(result, 100)
     }
 
-    // ── Cận lâm sàng ──────────────────────────────────────────────────────
-    // Hàng đợi KTV đọc từ bảng chi_dinh (GET /api/v1/subclinical/queue); orderId bên dưới là chi_dinh.id thật
     getClsWorklist = async ({ nhom, tuKhoa, ngay } = {}) => {
         await this.hydrateFromPostgres()
         const params = new URLSearchParams({ nhom_dich_vu: nhom, trang_thai: 'tat_ca' })
@@ -756,7 +728,6 @@ export class ClinicalService extends BaseServices {
     submitOrderResult = async (orderId, payload) => {
         const final = payload.trang_thai === 'da_co_ket_qua'
         let trangThai = payload.trang_thai
-        // CĐHA ghi phiếu kết quả riêng (kể cả bản nháp); ảnh đã nằm sẵn trên máy chủ nên không đi qua /results
         const imaging = payload.ket_qua_chi_tiet?.loai === 'CDHA'
         if (imaging) {
             const res = await this.saveImagingResult(orderId, payload, final)
@@ -775,7 +746,6 @@ export class ClinicalService extends BaseServices {
         const result = { ...payload, id: orderId, trang_thai: trangThai }
         if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
 
-        // Cập nhật bản sao trên bàn khám để bác sĩ thấy kết quả và lượt khám được ưu tiên gọi lại
         await this.reloadFromPostgres()
         const mirror = findMirrorOrder(orderId)
         if (mirror) {
@@ -785,7 +755,7 @@ export class ClinicalService extends BaseServices {
             const ticket = final ? db.queue.find((t) => t.encounter_id === mirror.enc.id) : null
             if (ticket) {
                 ticket.trang_thai = 'co_ket_qua_cls'
-                ticket.muc_do_uu_tien = 0 // Ưu tiên cao nhất để lên đầu danh sách
+                ticket.muc_do_uu_tien = 0 
                 ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
             }
             await this.persistToPostgres()
@@ -810,7 +780,6 @@ export class ClinicalService extends BaseServices {
         return delay({ url: URL.createObjectURL(file), ten_tep: file.name }, 300)
     }
 
-    // ── Ảnh kết quả CLS & phiếu Chẩn đoán hình ảnh (lưu trên máy chủ, xem qua API có xác thực) ──
     getImagingResult = (orderId) =>
         this.get(`/api/v1/subclinical/orders/${orderId}/imaging-result`, { __skipGlobalLoading: true })
 
@@ -829,7 +798,6 @@ export class ClinicalService extends BaseServices {
         const form = new FormData()
         form.append('file', file)
         return this.post(`/api/v1/subclinical/orders/${orderId}/files`, form, {
-            // Bỏ Content-Type JSON mặc định để trình duyệt tự gắn boundary multipart
             headers: { 'Content-Type': 'multipart/form-data' },
             __skipGlobalLoading: true,
             onUploadProgress: (e) => onProgress?.(e.total ? Math.round((e.loaded * 100) / e.total) : 0),
@@ -838,13 +806,11 @@ export class ClinicalService extends BaseServices {
 
     deleteClsImage = (url) => this.delete(url)
 
-    // <img src> không gửi được Bearer token nên tải ảnh thành blob rồi hiển thị bằng object URL
     fetchClsImageBlob = async (url) => {
         const res = await this.get(url, { responseType: 'blob', __skipGlobalLoading: true })
         return res.data
     }
 
-    // ── Khám Chuyên Khoa 2 Tầng (5 Bảng Chuyên Khoa Độc Lập) ──────────────
     getSpecialtyExam = async (encounterId, deptCode) => {
         try {
             const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/specialty/${deptCode}`)
@@ -886,7 +852,6 @@ export class ClinicalService extends BaseServices {
         }
     }
 
-    // ── Sao chép đơn thuốc cũ 1-chạm (Kế thừa từ TheDuckHospital OldPrescription) ──
     copyOldPrescription = async (encounterId, sourcePrescriptionId, fallbackItems = []) => {
         try {
             const res = await this.post(
@@ -910,13 +875,11 @@ export class ClinicalService extends BaseServices {
         }
     }
 
-    // ── Kết quả xét nghiệm: bộ chỉ số mẫu + đánh giá vượt ngưỡng do backend tính, lưu ở bảng ket_qua_cls ──
     getLabTemplate = async (orderId) => {
         const res = await this.get(`/api/v1/subclinical/orders/${orderId}/lab-template`, { __skipGlobalLoading: true })
         return { data: res?.data?.data }
     }
 
-    // body: { chi_so: { WBC: 11.5, ... }, ket_luan, ghi_chu, luu_nhap }
     submitLabResult = async (orderId, body) => {
         const res = await this.post(`/api/v1/subclinical/orders/${orderId}/lab-results`, body)
         const { trang_thai, ket_qua: kq } = res.data.data

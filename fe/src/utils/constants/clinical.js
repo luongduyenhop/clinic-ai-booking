@@ -1,6 +1,6 @@
-// Hằng số nghiệp vụ dùng chung cho Bàn khám & Cận lâm sàng (phân hệ Bác sĩ)
 
-// 5 bậc ưu tiên hàng đợi (HangDoiKham.muc_do_uu_tien)
+
+
 export const PRIORITY_TIERS = {
     1: { label: 'B1 · Cờ đỏ', badge: 'medpro-badge-danger' },
     2: { label: 'B2 · Đúng hẹn', badge: 'medpro-badge-info' },
@@ -9,7 +9,7 @@ export const PRIORITY_TIERS = {
     5: { label: 'B5 · Vãng lai', badge: 'medpro-badge' },
 }
 
-// Nhóm dịch vụ CLS (đề xuất cột DichVu.nhom_dich_vu)
+
 export const SERVICE_GROUPS = [
     { key: 'XET_NGHIEM', label: 'Xét nghiệm', icon: 'Flask' },
     { key: 'CDHA', label: 'Chẩn đoán hình ảnh', icon: 'Scan' },
@@ -17,7 +17,7 @@ export const SERVICE_GROUPS = [
     { key: 'NOI_SOI', label: 'Nội soi', icon: 'Eye' },
 ]
 
-// Trạng thái chỉ định (ChiDinh.trang_thai)
+
 export const ORDER_STATUS = {
     CHO_THUC_HIEN: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
     da_chi_dinh: { label: 'Chờ thực hiện', badge: 'medpro-badge' },
@@ -31,12 +31,11 @@ export const ORDER_STATUS = {
     HOAN_THANH: { label: 'Hoàn thành', badge: 'medpro-badge-success' },
     da_huy: { label: 'Đã hủy', badge: 'medpro-badge-danger' },
     DA_HUY: { label: 'Đã hủy', badge: 'medpro-badge-danger' },
-    // Trạng thái hiển thị (chỉ định vẫn dang_thuc_hien): KTV đã hoàn tất kết quả, chờ "Duyệt & Trả kết quả"
     cho_duyet: { label: 'Chờ duyệt', badge: 'medpro-badge-warning' },
     CHO_DUYET: { label: 'Chờ duyệt', badge: 'medpro-badge-warning' },
 }
 
-// Trạng thái hiển thị trên bàn KTV: tách ca đã hoàn tất kết quả nhưng chưa duyệt khỏi "Đang làm"
+
 export const clsDisplayStatus = (order) =>
     order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA' ? 'cho_duyet' : order.trang_thai
 
@@ -46,7 +45,7 @@ export const RESULT_CLASS = {
     NGUY_KICH: { label: 'Nguy kịch', badge: 'medpro-badge-danger' },
 }
 
-// Gói chỉ định nhanh theo 5 chuyên khoa của AI Triage
+
 export const SPECIALTY_PACKS = [
     { key: 'TIM_MACH', label: 'Tim mạch', services: ['DV_ECG', 'DV_SA_TIM', 'DV_XN_MO_MAU'] },
     { key: 'HO_HAP', label: 'Hô hấp', services: ['DV_XQ_NGUC', 'DV_HO_HAP_KY', 'DV_XN_MAU'] },
@@ -55,9 +54,9 @@ export const SPECIALTY_PACKS = [
     { key: 'TMH', label: 'Tai – Mũi – Họng', services: ['DV_NS_TMH', 'DV_DO_THINH_LUC'] },
 ]
 
-// Khám lâm sàng theo chuyên khoa (8 khoa trong danh mục ChuyenKhoa của backend).
-// items: mục khám chọn Bình thường / Bất thường kèm mô tả; extras: chỉ số riêng của khoa.
-// Chuẩn hóa 5 Chuyên khoa cốt lõi theo Thông tư 32/2023/TT-BYT & CSDL (Nội, Ngoại, Mắt, Tai Mũi Họng, Răng Hàm Mặt)
+
+
+
 export const SPECIALTY_EXAMS = [
     {
         key: 'noi-khoa',
@@ -149,7 +148,7 @@ export const findSpecialtyExam = (key) => {
     )
 }
 
-// Ghép kết quả khám chuyên khoa thành văn bản cho trường luot_kham.kham_lam_sang_bo_phan
+
 export function composeSpecialtyText(exam) {
     if (!exam?.khoa) return ''
     const spec = findSpecialtyExam(exam.khoa)
@@ -167,7 +166,7 @@ export function composeSpecialtyText(exam) {
     return parts.length ? `[Khám ${spec.label}] ${parts.join('; ')}.` : ''
 }
 
-// Mẫu chỉ số xét nghiệm theo mã dịch vụ. Chỉ số định tính dùng `normal`, định lượng dùng `low/high`
+
 export const LAB_TEMPLATES = {
     DV_XN_MAU: [
         { code: 'WBC', name: 'Bạch cầu', unit: 'G/L', low: 4, high: 10 },
@@ -200,7 +199,7 @@ export const LAB_TEMPLATES = {
     DV_XN_CRP: [{ code: 'CRP', name: 'CRP định lượng', unit: 'mg/L', low: 0, high: 5 }],
 }
 
-// Thông số thăm dò chức năng theo mã dịch vụ
+
 export const FUNCTIONAL_TEMPLATES = {
     DV_ECG: {
         params: [
@@ -251,7 +250,7 @@ export const FUNCTIONAL_TEMPLATES = {
     },
 }
 
-// Mẫu kết quả chẩn đoán hình ảnh
+
 export const IMAGING_PRESETS = {
     DV_SA_BUNG: {
         'Ổ bụng bình thường': {
@@ -281,7 +280,7 @@ export const IMAGING_PRESETS = {
     },
 }
 
-// Nội soi: mô tả theo vị trí giải phẫu
+
 export const ENDOSCOPY_TEMPLATES = {
     DV_NS_TMH: {
         sites: ['Tai phải', 'Tai trái', 'Mũi – xoang', 'Họng – thanh quản'],
@@ -321,14 +320,14 @@ export const ENDOSCOPY_TEMPLATES = {
     },
 }
 
-// Nhóm hoạt chất dùng để cảnh báo dị ứng thuốc (đối chiếu BenhNhan.di_ung_thuoc)
+
 export const DRUG_ALLERGY_GROUPS = [
     { group: 'NSAID', actives: ['ibuprofen', 'diclofenac', 'meloxicam', 'naproxen', 'aspirin', 'celecoxib', 'piroxicam', 'ketoprofen'] },
     { group: 'Penicillin', actives: ['penicillin', 'amoxicillin', 'ampicillin', 'augmentin', 'cloxacillin'] },
     { group: 'Sulfamid', actives: ['sulfamethoxazole', 'cotrimoxazole'] },
 ]
 
-// Tra nhóm dị ứng cho một hoạt chất; trả về tên nhóm nếu bệnh nhân có ghi nhận dị ứng tương ứng
+
 export function findAllergyConflict(activeIngredient, patientAllergyText) {
     const allergy = String(patientAllergyText || '').toLowerCase()
     const active = String(activeIngredient || '').toLowerCase()
@@ -340,7 +339,7 @@ export function findAllergyConflict(activeIngredient, patientAllergyText) {
     return hit ? hit.group : null
 }
 
-// Đánh giá một chỉ số: trả về 'HIGH' | 'LOW' | 'ABN' | null
+
 export function evaluateIndicator(param, rawValue) {
     const value = String(rawValue ?? '').trim()
     if (!value) return null
@@ -363,15 +362,15 @@ export function formatReference(param) {
 
 export const FLAG_LABEL = { HIGH: 'Cao ▲', LOW: 'Thấp ▼', ABN: 'Bất thường' }
 
-// Đánh giá chỉ số xét nghiệm (backend tính, lưu ở ket_qua_cls): cam = ngoài khoảng tham chiếu, đỏ = vượt ngưỡng nguy kịch
+
 export const LAB_DANH_GIA = {
     THAP: { label: 'Thấp ▼', badge: 'medpro-badge-warning', row: 'bg-amber-50', text: 'text-amber-700', input: '!border-amber-500', icon: 'Warning' },
     CAO: { label: 'Cao ▲', badge: 'medpro-badge-warning', row: 'bg-amber-50', text: 'text-amber-700', input: '!border-amber-500', icon: 'Warning' },
     NGUY_HIEM: { label: 'Nguy hiểm', badge: 'medpro-badge-danger', row: 'bg-rose-50', text: 'text-rose-700', input: '!border-rose-600', icon: 'WarningCircle' },
 }
 
-// Cùng quy tắc với backend (cls_lab_result_service.danh_gia_chi_so): bằng ngưỡng vẫn chưa bị nâng mức.
-// Trả về { danh_gia, huong } | null khi chưa nhập | { invalid: true } khi không phải số hợp lệ
+
+
 export function evaluateLabValue(chiSo, rawValue) {
     const text = String(rawValue ?? '').trim().replace(',', '.')
     if (!text) return null

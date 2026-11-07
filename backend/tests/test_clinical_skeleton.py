@@ -9,7 +9,6 @@ from app.services.clinical_service import clinical_service
 
 
 def test_clinical_service_non_doctor_forbidden():
-    """Kiểm tra service ném ForbiddenException nếu tài khoản không mang vai trò Bác sĩ"""
     user_patient = TaiKhoan(id=10, nguoi_dung_id=10, vai_tro=VaiTroEnum.BENH_NHAN.value, is_active=True)
     with pytest.raises(ForbiddenException) as exc:
         import asyncio
@@ -19,7 +18,6 @@ def test_clinical_service_non_doctor_forbidden():
 
 @pytest.mark.asyncio
 async def test_clinical_endpoints_require_auth(api_client):
-    """Kiểm tra toàn bộ endpoint lâm sàng Package D bắt buộc phải có Authorization Bearer Token"""
     res1 = await api_client.post("/api/v1/clinical/encounters", json={"lich_kham_id": 1})
     assert res1.status_code == 401
     assert "Authorization Bearer Token" in res1.json()["message"]
@@ -39,7 +37,6 @@ async def test_clinical_endpoints_require_auth(api_client):
 
 @pytest.mark.asyncio
 async def test_patient_role_forbidden_on_clinical_actions(api_client, booking):
-    """Bệnh nhân không được phép tự tạo lượt khám lâm sàng (403 Forbidden)"""
     token_patient = booking.tokens["bn_a"]
     payload = {"lich_kham_id": 1, "ly_do_vao_kham": "Tự mở ca khám"}
     response = await api_client.post("/api/v1/clinical/encounters", json=payload, headers=token_patient)
@@ -50,7 +47,6 @@ async def test_patient_role_forbidden_on_clinical_actions(api_client, booking):
 
 
 async def _dam_bao_ma_icd10(db_session, ma, ten):
-    """Chẩn đoán chỉ nhận mã có trong từ điển khai_niem: thêm mã nếu DB test chưa seed (DB dev đã có sẵn từ seed_data)"""
     stmt = select(KhaiNiem).where(KhaiNiem.ma_khai_niem == ma)
     if (await db_session.execute(stmt)).scalar_one_or_none() is None:
         db_session.add(KhaiNiem(ma_khai_niem=ma, ten_khai_niem=ten, loai_khai_niem="benh_icd10"))
@@ -68,22 +64,12 @@ async def _bat_dau_ca_kham(api_client, booking):
 
 @pytest.mark.asyncio
 async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, booking, db_session):
-    """
-    Kiểm tra vòng đời đầy đủ của phân hệ lâm sàng Package D (OpenMRS Encounter Pattern):
-    1. Bác sĩ tiếp nhận và bắt đầu ca khám thực tế (kèm chỉ số sinh hiệu).
-    2. Bác sĩ gán mã chẩn đoán ICD-10 (chính/phụ).
-    3. Bác sĩ kê phiếu chỉ định cận lâm sàng.
-    4. Bác sĩ hoàn tất ca khám và khóa hồ sơ bệnh án Read-only (Thông tư 32/2023/TT-BYT).
-    5. Không thể bổ sung chẩn đoán sau khi hồ sơ đã bị khóa.
-    """
     token_bs = booking.tokens["bs_x"]
     now = datetime.now(timezone.utc)
 
-    # Khởi tạo lịch hẹn mẫu cho bs_x và bn_a
     lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
     await _dam_bao_ma_icd10(db_session, "I10", "Bệnh tăng huyết áp vô căn (nguyên phát)")
 
-    # Thêm dịch vụ cận lâm sàng mẫu vào database
     dv = DichVu(
         ma_dich_vu=f"DV-XQ-{booking.suffix}",
         ten_dich_vu="Chụp X-quang Tim phổi thẳng",
@@ -94,7 +80,6 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     db_session.add(dv)
     await db_session.flush()
 
-    # 1. Bác sĩ tiếp nhận ca khám
     start_payload = {
         "lich_kham_id": lich.id,
         "ly_do_vao_kham": "Đau tức ngực trái khi gắng sức",
@@ -117,7 +102,6 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     assert body_start["data"]["mach_lan_phut"] == 82
     assert body_start["data"]["huyet_ap_tam_thu"] == 135
 
-    # 2. Thêm chẩn đoán bệnh mã WHO ICD-10
     diag_payload = {
         "ma_icd10": "I10",
         "ten_benh_chan_doan": "Bệnh tăng huyết áp vô căn (nguyên phát)",
@@ -133,7 +117,6 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     assert res_diag.json()["data"]["ma_icd10"] == "I10"
     assert res_diag.json()["data"]["loai_chan_doan"] == "chinh"
 
-    # 3. Kê chỉ định cận lâm sàng
     order_payload = {
         "dich_vu_id": dv.id,
         "so_luong": 1
@@ -147,21 +130,18 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     assert res_order.json()["data"]["don_gia_tai_thoi_diem"] == 150000.0
     assert res_order.json()["data"]["trang_thai"] == "da_chi_dinh"
 
-    # 4. Tra cứu chi tiết ca khám
     res_detail = await api_client.get(f"/api/v1/clinical/encounters/{encounter_id}", headers=token_bs)
     assert res_detail.status_code == 200
     data_detail = res_detail.json()["data"]
     assert len(data_detail["danh_sach_chan_doan"]) == 1
     assert len(data_detail["danh_sach_chi_dinh"]) == 1
 
-    # 4.1. Kỹ thuật viên trả kết quả CLS (trạng thái sang da_co_ket_qua)
     from app.models.medical import ChiDinh
     order_id = res_order.json()["data"]["id"]
     cd_db = (await db_session.execute(select(ChiDinh).where(ChiDinh.id == order_id))).scalar_one()
     cd_db.trang_thai = "da_co_ket_qua"
     await db_session.commit()
 
-    # 5. Hoàn tất ca khám & khóa hồ sơ bệnh án
     complete_payload = {
         "ket_luan_dieu_tri": "Kê đơn Amlodipine 5mg, điều chỉnh chế độ ăn giảm muối",
         "loi_dan_bac_si": "Theo dõi huyết áp tại nhà 2 lần/ngày, tái khám sau 14 ngày",
@@ -177,11 +157,9 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
     assert data_complete["is_locked"] is True
     assert data_complete["thoi_gian_khoa"] is not None
 
-    # Lịch hẹn phải được cập nhật sang trạng thái 'da_kham'
     await db_session.refresh(lich)
     assert lich.trang_thai == TrangThaiLichEnum.DA_KHAM.value
 
-    # 6. Thử bổ sung chẩn đoán vào hồ sơ đã khóa -> Phải bị chặn 409 Conflict
     res_blocked = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
         json={"ma_icd10": "E11", "ten_benh_chan_doan": "Đái tháo đường typ 2"},
@@ -194,7 +172,6 @@ async def test_full_clinical_encounter_lifecycle_and_emr_lock(api_client, bookin
 @pytest.mark.parametrize("ma_icd10", ["ZZZ99", "10I", "K29..7", ""])
 @pytest.mark.asyncio
 async def test_diagnosis_rejects_malformed_icd10_code(api_client, booking, ma_icd10):
-    """Mã sai định dạng ICD-10 bị chặn ở schema (422), phân biệt với 404 không tìm thấy lượt khám"""
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
@@ -213,7 +190,6 @@ async def _chan_doan_trong_db(db_session, chan_doan_id):
 
 @pytest.mark.asyncio
 async def test_diagnosis_links_concept_dictionary(api_client, booking, db_session):
-    """Mã có trong từ điển -> chan_doan.khai_niem_id trỏ đúng khái niệm"""
     await _dam_bao_ma_icd10(db_session, "I10", "Bệnh tăng huyết áp vô căn (nguyên phát)")
     khai_niem_id = (await db_session.execute(select(KhaiNiem.id).where(KhaiNiem.ma_khai_niem == "I10"))).scalar_one()
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
@@ -228,7 +204,6 @@ async def test_diagnosis_links_concept_dictionary(api_client, booking, db_sessio
 
 @pytest.mark.asyncio
 async def test_diagnosis_subcode_links_parent_concept(api_client, booking, db_session):
-    """Mã con chi tiết (K29.9) chưa có trong từ điển -> lưu nguyên mã, gắn khái niệm nhóm cha K29"""
     await _dam_bao_ma_icd10(db_session, "K29", "Viêm dạ dày và tá tràng")
     k29_id = (await db_session.execute(select(KhaiNiem.id).where(KhaiNiem.ma_khai_niem == "K29"))).scalar_one()
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
@@ -244,7 +219,6 @@ async def test_diagnosis_subcode_links_parent_concept(api_client, booking, db_se
 
 @pytest.mark.asyncio
 async def test_diagnosis_accepts_valid_code_missing_from_dictionary(api_client, booking, db_session):
-    """Mã đúng định dạng nhưng từ điển chưa seed (VD E11 - ĐTĐ type 2) vẫn lưu được khi bác sĩ nhập tên bệnh"""
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
@@ -259,7 +233,6 @@ async def test_diagnosis_accepts_valid_code_missing_from_dictionary(api_client, 
 
 @pytest.mark.asyncio
 async def test_diagnosis_requires_name_when_code_missing_from_dictionary(api_client, booking):
-    """Mã chưa có trong từ điển và không nhập tên bệnh -> 422 (không có tên chuẩn để điền thay)"""
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
@@ -272,7 +245,6 @@ async def test_diagnosis_requires_name_when_code_missing_from_dictionary(api_cli
 
 @pytest.mark.asyncio
 async def test_diagnosis_normalizes_icd10_code_before_lookup(api_client, booking, db_session):
-    """Mã nhập chữ thường/kèm khoảng trắng vẫn khớp từ điển và được lưu ở dạng chuẩn"""
     await _dam_bao_ma_icd10(db_session, "K29", "Viêm dạ dày và tá tràng")
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(
@@ -287,7 +259,6 @@ async def test_diagnosis_normalizes_icd10_code_before_lookup(api_client, booking
 @pytest.mark.parametrize("loai_chan_doan", ["xyz", "chẩn đoán chính rất dài vượt cột"])
 @pytest.mark.asyncio
 async def test_diagnosis_type_must_be_chinh_or_phu(api_client, booking, loai_chan_doan):
-    """loai_chan_doan chỉ nhận 'chinh'/'phu' (422), không lưu giá trị rác hay lỗi 500 khi vượt VARCHAR(20)"""
     res = await api_client.post(
         "/api/v1/clinical/encounters/1/diagnoses",
         json={"ma_icd10": "I10", "ten_benh_chan_doan": "Tăng HA", "loai_chan_doan": loai_chan_doan},
@@ -299,7 +270,6 @@ async def test_diagnosis_type_must_be_chinh_or_phu(api_client, booking, loai_cha
 @pytest.mark.parametrize("ten_bac_si_nhap", [None, "   "])
 @pytest.mark.asyncio
 async def test_diagnosis_defaults_name_from_icd10_dictionary(api_client, booking, db_session, ten_bac_si_nhap):
-    """Bỏ trống tên bệnh -> lấy tên chuẩn trong từ điển, bệnh án không bị lưu tên rỗng"""
     await _dam_bao_ma_icd10(db_session, "I10", "Bệnh tăng huyết áp vô căn (nguyên phát)")
     ten_chuan = (await db_session.execute(
         select(KhaiNiem.ten_khai_niem).where(KhaiNiem.ma_khai_niem == "I10")
@@ -315,12 +285,11 @@ async def test_diagnosis_defaults_name_from_icd10_dictionary(api_client, booking
         assert res.status_code == 201
         assert res.json()["data"]["ten_benh_chan_doan"] == ten_chuan
     else:
-        assert res.status_code == 422  # chuỗi toàn khoảng trắng không được coi là "bỏ trống"
+        assert res.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_diagnosis_keeps_doctor_detailed_name(api_client, booking, db_session):
-    """Bác sĩ ghi tên chi tiết hơn tên chuẩn thì giữ nguyên tên bác sĩ nhập"""
     await _dam_bao_ma_icd10(db_session, "I10", "Bệnh tăng huyết áp vô căn (nguyên phát)")
     encounter_id = await _bat_dau_ca_kham(api_client, booking)
     res = await api_client.post(

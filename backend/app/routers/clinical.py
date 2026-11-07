@@ -259,9 +259,6 @@ async def get_prescription(
     )
 
 
-# ==============================================================================
-# QUẢN LÝ VÒNG ĐỜI MÁY TRẠNG THÁI ĐƠN THUỐC & CỔNG QUỐC GIA (INT-04 / R3)
-# ==============================================================================
 
 @router.get(
     "/prescriptions/{prescription_id}",
@@ -662,9 +659,6 @@ async def copy_old_prescription(
     )
 
 
-# ==============================================================================
-# ĐỒNG BỘ TRẠNG THÁI BÀN KHÁM BÁC SĨ & CẬN LÂM SÀNG XUỐNG CSDL POSTGRESQL
-# ==============================================================================
 from app.core.dependencies import get_optional_current_user
 
 

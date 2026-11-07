@@ -124,7 +124,6 @@ export default function StepDiagnosis({
 
     const remove = (ma) => {
         const next = list.filter((d) => d.ma_icd10 !== ma)
-        // Nếu xóa chẩn đoán chính và vẫn còn chẩn đoán phụ, đôn chẩn đoán đầu tiên lên làm chính
         if (next.length > 0 && !next.some((d) => d.loai_chan_doan === 'chinh')) {
             next[0] = { ...next[0], loai_chan_doan: 'chinh' }
         }
@@ -189,13 +188,11 @@ export default function StepDiagnosis({
                 </label>
             </div>
 
-            {/* Khối Cận lâm sàng & Kết quả phục vụ Chẩn đoán */}
             <div className="flex flex-[1_1_280px] flex-col gap-3 self-start rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
                 <h3 className="flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
                     <ClinicIcon name="Microscope" size={16} /> Chỉ định Cận lâm sàng ({clsOrders.length + (pickedServices?.length || 0)})
                 </h3>
 
-                {/* Danh sách chỉ định đang chọn dở ở Bước 2 chưa gửi sang KTV */}
                 {pickedServices.length > 0 && (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-2">
                         <div className="flex items-center justify-between">

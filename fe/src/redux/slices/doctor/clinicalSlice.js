@@ -65,7 +65,6 @@ const clinicalSlice = createSlice({
                         if (isMatch) {
                             return { ...t, ...item, trang_thai: 'dang_kham', ghi_chu: 'Đang khám' }
                         }
-                        // Đảm bảo chỉ có 1 bệnh nhân ở trạng thái dang_kham tại một thời điểm
                         if (t.trang_thai === 'dang_kham') {
                             return { ...t, trang_thai: 'cho_kham', ghi_chu: 'Chờ khám' }
                         }
@@ -84,7 +83,6 @@ const clinicalSlice = createSlice({
                         if (isMatch) {
                             return { ...t, ...item, trang_thai: 'dang_kham', ghi_chu: 'Đang khám' }
                         }
-                        // Đảm bảo chỉ có 1 bệnh nhân ở trạng thái dang_kham tại một thời điểm
                         if (t.trang_thai === 'dang_kham') {
                             return { ...t, trang_thai: 'cho_kham', ghi_chu: 'Chờ khám' }
                         }

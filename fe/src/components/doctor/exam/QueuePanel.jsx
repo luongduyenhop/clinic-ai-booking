@@ -57,8 +57,6 @@ export default function QueuePanel({
         }
     }
 
-    // Helper kiểm tra có kết quả CLS quay lại (revita-be priority +10,000)
-    // Phải loại trừ vé đang tạm hoãn (tam_hoan) hoặc đã khám (da_kham)
     const isReturnedAfterCls = (t) =>
         Boolean(
             t &&
@@ -104,7 +102,6 @@ export default function QueuePanel({
         .sort((a, b) => {
             if (a.trang_thai === 'dang_kham') return -1
             if (b.trang_thai === 'dang_kham') return 1
-            // Ưu tiên ca có kết quả CLS quay lại
             if (isReturnedAfterCls(a) && !isReturnedAfterCls(b)) return -1
             if (!isReturnedAfterCls(a) && isReturnedAfterCls(b)) return 1
             if (a.muc_do_uu_tien !== b.muc_do_uu_tien) return a.muc_do_uu_tien - b.muc_do_uu_tien
@@ -116,7 +113,6 @@ export default function QueuePanel({
             aria-label="Hàng đợi bệnh nhân"
             className="flex flex-col gap-3 w-full lg:w-[280px] lg:shrink-0 bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 h-fit"
         >
-            {/* Header: Title & Calling controls */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div>
                     <h2 className="text-sm font-extrabold text-[#003553] flex items-center gap-1.5">
@@ -145,7 +141,6 @@ export default function QueuePanel({
                 </div>
             </div>
 
-            {/* Calling Buttons directly integrated */}
             {(onCallNext || onRecall) && (
                 <div className="flex flex-col gap-1.5">
                     <button
@@ -174,7 +169,6 @@ export default function QueuePanel({
                 </div>
             )}
 
-            {/* Filters Tabs */}
             <div role="group" aria-label="Lọc hàng đợi" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
                 {FILTERS.map((f) => {
                     const c = count(f.key)
@@ -195,7 +189,6 @@ export default function QueuePanel({
                 })}
             </div>
 
-            {/* Content List */}
             {loading && queue.length === 0 && <LoadingBlock text="Đang tải hàng đợi..." />}
             {error && <ErrorBlock message={error} onRetry={onRetry} />}
             {!loading && !error && visible.length === 0 && (
@@ -225,7 +218,6 @@ export default function QueuePanel({
                                     : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70'
                             }`}
                         >
-                            {/* Số thứ tự vé */}
                             <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
                                     selected
@@ -244,7 +236,6 @@ export default function QueuePanel({
                                 #{String(t.so_thu_tu_kham).padStart(2, '0')}
                             </span>
 
-                            {/* Thông tin bệnh nhân */}
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <div className="flex items-center justify-between gap-1">
                                     <span className="truncate text-xs font-bold text-[#003553]">{t.ten_benh_nhan}</span>

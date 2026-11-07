@@ -60,10 +60,8 @@ logger = logging.getLogger(__name__)
 
 
 class ClinicalService:
-    """Nghiệp vụ Phân hệ Khám lâm sàng & Bệnh án điện tử EMR (OpenMRS Encounter Pattern - Package D)"""
 
     async def _get_doctor_from_user(self, user: TaiKhoan, db: AsyncSession) -> BacSi:
-        """Kiểm tra RBAC và lấy thông tin bác sĩ từ tài khoản đăng nhập"""
         if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng khám bệnh lâm sàng chỉ dành riêng cho Bác sĩ!")
 
@@ -74,7 +72,6 @@ class ClinicalService:
         return bac_si
 
     async def enrich_workspace_ai(self, payload: dict, db: AsyncSession) -> dict:
-        """Attach persisted triage results to checked-in appointments represented in the doctor workspace."""
         encounters = payload.get("encounters")
         if not isinstance(encounters, dict):
             return payload
@@ -153,7 +150,6 @@ class ClinicalService:
         current_user: Optional[TaiKhoan] = None,
         doctor_id: Optional[int] = None,
     ) -> Optional[dict]:
-        """Tải trạng thái Bàn khám lâm sàng & Cận lâm sàng từ PostgreSQL (đồng bộ từ HangDoiKham)"""
         stmt = select(HeThongTrangThaiBff).where(
             HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
         )
@@ -179,14 +175,11 @@ class ClinicalService:
             if bs_row:
                 target_doc_id = bs_row.id
 
-        # Truy vấn danh sách vé khám THỰC TẾ từ bảng HangDoiKham trong CSDL
         active_tickets = (await db.execute(self._build_hang_doi_query(today, target_doc_id))).scalars().all()
 
-        # Nếu bác sĩ hiện tại chưa có vé hôm nay, fallback lấy các vé của hôm nay trên toàn hệ thống
         if not active_tickets and target_doc_id:
             active_tickets = (await db.execute(self._build_hang_doi_query(today))).scalars().all()
 
-        # Xây dựng danh sách queue 100% TỪ DATABASE THẬT (KHÔNG DÙNG VÉ MẪU)
         queue = []
         invalid_reasons = {
             "chờ khám bệnh", "cho kham benh", "chờ khám", "cho kham",
@@ -336,8 +329,6 @@ class ClinicalService:
 
     @staticmethod
     def _assert_completion_diagnosis_invariant(luot_kham: LuotKham) -> None:
-        """INV_DIAG: lượt khám chỉ được hoàn tất khi có đúng 1 chẩn đoán chính kèm mã ICD-10 không rỗng.
-        Đồng bộ, không query: danh_sach_chan_doan đã được selectinload trong _get_encounter_with_relations."""
         primary_diagnoses = [
             diagnosis
             for diagnosis in luot_kham.danh_sach_chan_doan
@@ -355,7 +346,6 @@ class ClinicalService:
             )
 
     async def _find_icd10_concept(self, ma_icd10: str, db: AsyncSession) -> Optional[KhaiNiem]:
-        """Tra từ điển ICD-10: ưu tiên khớp đúng mã, không có thì lùi về nhóm bệnh cha (K29.7 -> K29)"""
         candidates = [ma_icd10]
         if "." in ma_icd10:
             candidates.append(ma_icd10.split(".", 1)[0])
@@ -373,7 +363,6 @@ class ClinicalService:
         db: AsyncSession,
         for_update: bool = False
     ) -> Optional[LuotKham]:
-        """Truy vấn thực thể LuotKham cùng danh sách quan hệ con qua eager-loading tránh lỗi MissingGreenlet"""
         stmt = (
             select(LuotKham)
             .options(
@@ -388,7 +377,6 @@ class ClinicalService:
         return (await db.execute(stmt)).scalar_one_or_none()
 
     def _to_prescription_response(self, dt: DonThuoc) -> PrescriptionResponse:
-        """Ánh xạ entity DonThuoc sang PrescriptionResponse DTO"""
         return PrescriptionResponse(
             id=dt.id,
             luot_kham_id=dt.luot_kham_id,
@@ -434,7 +422,6 @@ class ClinicalService:
         )
 
     def _to_encounter_response(self, lk: LuotKham) -> EncounterResponse:
-        """Ánh xạ entity LuotKham sang EncounterResponse DTO"""
         diagnoses = [
             DiagnosisResponse(
                 id=cd.id,
@@ -509,7 +496,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> AiFeedbackResponse:
-        """Persist clinician feedback for an AI analysis linked to the clinician's appointment."""
         if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng đánh giá gợi ý AI chỉ dành cho Bác sĩ.")
 
@@ -556,14 +542,11 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> EncounterResponse:
-        """Bác sĩ tiếp nhận bệnh nhân và khởi tạo lượt khám lâm sàng thực tế (OpenMRS Encounter)"""
         bac_si = await self._get_doctor_from_user(user, db)
 
-        # INT-05 Credential Guard: Chặn mở ca khám nếu giấy phép bác sĩ EXPIRED hoặc SUSPENDED
         from app.services.credential_service import credential_service
         await credential_service.check_doctor_license_valid(db, bac_si.id)
 
-        # 1. Kiểm tra lịch hẹn tồn tại và thuộc phụ trách của bác sĩ
         stmt_lich = select(LichKham).where(LichKham.id == payload.lich_kham_id)
         lich_kham = (await db.execute(stmt_lich)).scalar_one_or_none()
         if not lich_kham:
@@ -575,13 +558,11 @@ class ClinicalService:
         if lich_kham.trang_thai in CANCELLED_STATUSES:
             raise ConflictException("Không thể bắt đầu ca khám cho lịch hẹn đã bị hủy!")
 
-        # 2. Đảm bảo 1 lịch hẹn chỉ có 1 lượt khám thực tế
         stmt_existing = select(LuotKham).where(LuotKham.lich_kham_id == payload.lich_kham_id)
         existing_encounter = (await db.execute(stmt_existing)).scalar_one_or_none()
         if existing_encounter:
             raise ConflictException("Lịch hẹn này đã được tạo lượt khám trước đó!")
 
-        # 3. Tạo bản ghi LuotKham mới
         luot_kham = LuotKham(
             lich_kham_id=lich_kham.id,
             bac_si_id=bac_si.id,
@@ -606,12 +587,10 @@ class ClinicalService:
         )
         db.add(luot_kham)
 
-        # Cập nhật trạng thái lịch hẹn sang Đang khám
         lich_kham.trang_thai = TrangThaiLichEnum.DANG_KHAM.value
 
         await db.commit()
 
-        # Nạp lại thực thể cùng quan hệ đầy đủ qua selectinload
         encounter = await self._get_encounter_with_relations(luot_kham.id, db)
         if not encounter:
             raise NotFoundException("Lỗi không tìm thấy lượt khám vừa khởi tạo!")
@@ -625,12 +604,10 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> EncounterResponse:
-        """Tra cứu chi tiết lượt khám lâm sàng kèm chẩn đoán và chỉ định cận lâm sàng"""
         luot_kham = await self._get_encounter_with_relations(encounter_id, db)
         if not luot_kham:
             raise NotFoundException("Không tìm thấy thông tin lượt khám!")
 
-        # Phân quyền: Bệnh nhân chỉ xem bệnh án của mình, Bác sĩ chỉ xem bệnh án mình phụ trách, Admin xem tất cả
         if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
             stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
             benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
@@ -652,7 +629,6 @@ class ClinicalService:
             resource_id=luot_kham.id,
             purpose="Xem hồ sơ bệnh án điện tử (EMR)",
         )
-        # Persist the audit event before returning protected medical data.
         await db.commit()
 
         return self._to_encounter_response(luot_kham)
@@ -664,7 +640,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> DiagnosisResponse:
-        """Thêm kết luận chẩn đoán bệnh theo chuẩn mã quốc tế WHO ICD-10"""
         bac_si = await self._get_doctor_from_user(user, db)
 
         stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
@@ -675,7 +650,6 @@ class ClinicalService:
         if luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value:
             raise ForbiddenException("Bạn không có quyền thêm chẩn đoán cho ca khám của bác sĩ khác!")
 
-        # Ràng buộc Thông tư 32/2023/TT-BYT: Bệnh án đã khóa là Read-only, chống sửa hồi tố
         if luot_kham.is_locked:
             logger.warning(
                 f"🔒 [AUDIT - ATTEMPTED_WRITE_ON_LOCKED] action=ADD_DIAGNOSIS encounter_id={encounter_id} user_id={user.id}"
@@ -684,8 +658,6 @@ class ClinicalService:
                 "Hồ sơ bệnh án đã hoàn tất và bị khóa (Read-only theo TT 32/2023/TT-BYT), không thể bổ sung chẩn đoán!"
             )
 
-        # Concept Dictionary (OpenMRS): liên kết mã chẩn đoán với từ điển ICD-10 nếu có. Từ điển mới seed vài nhóm bệnh
-        # nên không bắt buộc mã phải có sẵn (định dạng đã kiểm ở schema); mã con (K29.7) gắn về nhóm cha (K29)
         khai_niem = await self._find_icd10_concept(payload.ma_icd10, db)
         ten_benh = payload.ten_benh_chan_doan or (khai_niem.ten_khai_niem if khai_niem else None)
         if not ten_benh:
@@ -697,7 +669,6 @@ class ClinicalService:
             luot_kham_id=encounter_id,
             khai_niem_id=khai_niem.id if khai_niem else None,
             ma_icd10=payload.ma_icd10,
-            # Bác sĩ có thể ghi tên chi tiết hơn; bỏ trống thì lấy tên chuẩn trong từ điển để bệnh án luôn có tên bệnh
             ten_benh_chan_doan=ten_benh,
             loai_chan_doan=payload.loai_chan_doan,
             ghi_chu_chuyen_mon=payload.ghi_chu_chuyen_mon
@@ -724,7 +695,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> OrderResponse:
-        """Kê y lệnh chỉ định dịch vụ cận lâm sàng (xét nghiệm, X-quang, siêu âm)"""
         bac_si = await self._get_doctor_from_user(user, db)
 
         stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
@@ -741,13 +711,11 @@ class ClinicalService:
             )
             raise ConflictException("Hồ sơ bệnh án đã bị khóa, không thể kê thêm chỉ định dịch vụ!")
 
-        # Kiểm tra dịch vụ có tồn tại và đang hoạt động không
         stmt_dv = select(DichVu).where(DichVu.id == payload.dich_vu_id)
         dich_vu = (await db.execute(stmt_dv)).scalar_one_or_none()
         if not dich_vu or not dich_vu.is_active:
             raise NotFoundException("Dịch vụ cận lâm sàng không tồn tại hoặc đã tạm dừng cung cấp!")
 
-        # INT-05 Scope Guard: Dịch vụ y tế phải thuộc phạm vi hành nghề được cấp phép của bác sĩ
         from app.services.credential_service import credential_service
         await credential_service.check_doctor_scope_of_practice(db, bac_si.id, dich_vu.id)
 
@@ -784,7 +752,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> OrderResponse:
-        """Cập nhật kết quả chỉ định cận lâm sàng (Lab/Imaging Result)"""
         stmt = (
             select(ChiDinh)
             .options(selectinload(ChiDinh.luot_kham), selectinload(ChiDinh.dich_vu))
@@ -797,7 +764,6 @@ class ClinicalService:
 
         luot_kham = chi_dinh.luot_kham
         if luot_kham and luot_kham.is_locked:
-            # Mô hình B: Nếu chỉ định này đã có kết quả từ trước -> Cấm sửa đổi hồi tố trực tiếp (bắt buộc qua Four-Eyes Amendment)
             if chi_dinh.trang_thai == "da_co_ket_qua":
                 logger.warning(
                     f"🔒 [AUDIT - ATTEMPTED_OVERWRITE_RESULT_ON_LOCKED_ENCOUNTER] order_id={order_id} encounter_id={luot_kham.id} user_id={user.id}"
@@ -805,8 +771,6 @@ class ClinicalService:
                 raise ConflictException(
                     "Kết quả cận lâm sàng của hồ sơ đã khóa không thể sửa đổi trực tiếp. Vui lòng lập biên bản đính chính (Four-Eyes Amendment)!"
                 )
-            # Ngược lại, nếu đây là chỉ định treo (chưa có kết quả) được trả muộn sau khi bác sĩ đã khóa phần khám lâm sàng:
-            # Cho phép nhân viên CLS hoàn tất kết quả lần đầu kèm ghi vết kiểm toán (Audit Trail)
             logger.info(
                 f"📥 [AUDIT - LATE_RESULT_FULFILLMENT_ON_LOCKED_ENCOUNTER] order_id={order_id} encounter_id={luot_kham.id} tech_user_id={user.id}"
             )
@@ -814,7 +778,6 @@ class ClinicalService:
         if chi_dinh.trang_thai == "da_huy":
             raise ConflictException("Y lệnh cận lâm sàng này đã bị hủy, không thể nhập kết quả!")
 
-        # Cập nhật kết quả: ép trạng thái sang da_co_ket_qua khi có nội dung kết quả
         chi_dinh.ket_qua_chi_tiet = payload.ket_qua_chi_tiet
         chi_dinh.tep_dinh_kem_url = payload.tep_dinh_kem_url
         chi_dinh.thoi_gian_tra_ket_qua = payload.thoi_gian_tra_ket_qua or datetime.now(timezone.utc)
@@ -850,7 +813,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[OrderResponse]:
-        """Lấy danh sách y lệnh chỉ định cận lâm sàng kèm kết quả của lượt khám"""
         stmt = (
             select(ChiDinh)
             .options(selectinload(ChiDinh.dich_vu))
@@ -883,7 +845,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[EncounterResponse]:
-        """Tra cứu lịch sử bệnh án dài hạn (Longitudinal EMR Record) của bệnh nhân"""
         stmt = (
             select(LuotKham)
             .options(
@@ -902,7 +863,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[EncounterResponse]:
-        """Bệnh nhân tự tra cứu toàn bộ hồ sơ bệnh án các lần khám trước của chính mình"""
         stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.id)
         benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
         if not benh_nhan:
@@ -917,7 +877,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> EncounterResponse:
-        """Hoàn tất ca khám và khóa vĩnh viễn hồ sơ bệnh án thành Read-only (Thông tư 32/2023/TT-BYT)"""
         bac_si = await self._get_doctor_from_user(user, db)
 
         luot_kham = await self._get_encounter_with_relations(encounter_id, db, for_update=True)
@@ -930,10 +889,8 @@ class ClinicalService:
         if luot_kham.is_locked:
             raise ConflictException("Hồ sơ bệnh án này đã được hoàn tất và khóa trước đó!")
 
-        # INV_DIAG: đặt SAU is_locked để hồ sơ đã khóa luôn trả 409 thay vì 422
         self._assert_completion_diagnosis_invariant(luot_kham)
 
-        # Kiểm tra chỉ định cận lâm sàng còn dở dang (Pha 1: validate trước khi mutate)
         pending_orders = [
             cd for cd in (luot_kham.danh_sach_chi_dinh or [])
             if cd.trang_thai in ("da_chi_dinh", "dang_thuc_hien")
@@ -949,8 +906,6 @@ class ClinicalService:
                 f"Không thể hoàn tất lượt khám: còn {len(pending_orders)} chỉ định cận lâm sàng đang thực hiện dở dang chưa có kết quả."
             )
 
-        # Pha 1 (chỉ đọc + validate): khóa mọi vé hàng đợi của lịch trong cùng transaction,
-        # sau LuotKham (global lock order). Hàng đợi chỉ là lớp điều phối; LuotKham là nguồn sự thật.
         tickets: list = []
         active_ticket = None
         if luot_kham.lich_kham_id is not None:
@@ -964,14 +919,12 @@ class ClinicalService:
                 t for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value
             ]
             if len(active_tickets) > 1:
-                # Lỗi dữ liệu: không được chọn bừa một vé -> từ chối trước khi sửa bất cứ thứ gì
                 raise ConflictException(
                     "Dữ liệu hàng đợi không nhất quán: lịch khám có nhiều vé đang khám. "
                     "Vui lòng liên hệ quản trị viên."
                 )
             active_ticket = active_tickets[0] if active_tickets else None
 
-        # Pha 2 (ghi): cập nhật kết luận điều trị, khóa hồ sơ, lịch khám và vé hàng đợi
         now = datetime.now(timezone.utc)
         luot_kham.ket_luan_dieu_tri = payload.ket_luan_dieu_tri
         luot_kham.loi_dan_bac_si = payload.loi_dan_bac_si
@@ -982,13 +935,11 @@ class ClinicalService:
         luot_kham.thoi_gian_khoa = now
         luot_kham.nguoi_khoa_id = user.nguoi_dung_id
 
-        # Đồng bộ trạng thái lịch khám sang Đã khám
         stmt_lich = select(LichKham).where(LichKham.id == luot_kham.lich_kham_id)
         lich_kham = (await db.execute(stmt_lich)).scalar_one_or_none()
         if lich_kham:
             lich_kham.trang_thai = TrangThaiLichEnum.DA_KHAM.value
 
-        # Chỉ DANG_KHAM -> DA_KHAM; các trạng thái vé khác không bị sửa
         if active_ticket is not None:
             active_ticket.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
             active_ticket.thoi_gian_ket_thuc = now
@@ -1004,7 +955,6 @@ class ClinicalService:
 
         await db.commit()
 
-        # Nạp lại dữ liệu sau khi commit
         encounter = await self._get_encounter_with_relations(luot_kham.id, db)
         if not encounter:
             raise NotFoundException("Lỗi không tìm thấy lượt khám sau khi hoàn tất!")
@@ -1019,7 +969,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> PrescriptionResponse:
-        """Kê đơn thuốc ngoại trú gắn chặt vào lượt khám lâm sàng (OpenMRS Drug Order)"""
         bac_si = await self._get_doctor_from_user(user, db)
 
         luot_kham = await self._get_encounter_with_relations(encounter_id, db, for_update=True)
@@ -1074,7 +1023,6 @@ class ClinicalService:
 
         await db.commit()
 
-        # Nạp lại dữ liệu đơn thuốc kèm chi tiết thuốc
         stmt_dt = (
             select(DonThuoc)
             .options(selectinload(DonThuoc.danh_sach_chi_tiet))
@@ -1091,12 +1039,10 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> PrescriptionResponse:
-        """Lấy thông tin đơn thuốc của một ca khám lâm sàng"""
         luot_kham = await self._get_encounter_with_relations(encounter_id, db)
         if not luot_kham:
             raise NotFoundException(f"Không tìm thấy lượt khám với ID {encounter_id}!")
 
-        # Kiểm tra quyền xem: Admin, Bác sĩ phụ trách, hoặc Bệnh nhân sở hữu ca khám
         if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
             stmt_bn = select(BenhNhan.id).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
             bn_id = (await db.execute(stmt_bn)).scalar_one_or_none()
@@ -1114,7 +1060,6 @@ class ClinicalService:
         return self._to_prescription_response(luot_kham.don_thuoc)
 
     def _to_amendment_response(self, bb: BienBanDinhChinh) -> AmendmentResponse:
-        """Ánh xạ entity BienBanDinhChinh sang AmendmentResponse DTO"""
         return AmendmentResponse(
             id=bb.id,
             luot_kham_id=bb.luot_kham_id,
@@ -1143,7 +1088,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> AmendmentResponse:
-        """Tạo yêu cầu đính chính bệnh án đã khóa (OpenMRS / FHIR Amendment Pattern)"""
         stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
         luot_kham = (await db.execute(stmt)).scalar_one_or_none()
         if not luot_kham:
@@ -1152,7 +1096,6 @@ class ClinicalService:
         if not luot_kham.is_locked:
             raise ConflictException("Chỉ được tạo yêu cầu đính chính khi hồ sơ bệnh án đã hoàn tất và khóa!")
 
-        # Kiểm tra quyền: Bác sĩ điều trị hoặc Admin mới có quyền tạo yêu cầu đính chính
         if user.vai_tro == VaiTroEnum.BAC_SI.value:
             stmt_bs = select(BacSi.id).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
             bs_id = (await db.execute(stmt_bs)).scalar_one_or_none()
@@ -1161,7 +1104,6 @@ class ClinicalService:
         elif user.vai_tro != VaiTroEnum.ADMIN.value:
             raise ForbiddenException("Chỉ Bác sĩ điều trị hoặc Admin mới có quyền tạo yêu cầu đính chính!")
 
-        # Tự động trích xuất snapshot dữ liệu cũ (Audit Diff) và xác định mức độ rủi ro lâm sàng
         noi_dung_cu = None
         muc_do = payload.muc_do_nghiem_trong
 
@@ -1257,7 +1199,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> AmendmentResponse:
-        """Phê duyệt đính chính bệnh án tuân thủ Four-Eyes Principle và Quy chế kiểm thảo y khoa (Điều 69 Luật KCB)"""
         stmt = select(BienBanDinhChinh).where(BienBanDinhChinh.id == amendment_id).with_for_update()
         amendment = (await db.execute(stmt)).scalar_one_or_none()
         if not amendment:
@@ -1266,18 +1207,15 @@ class ClinicalService:
         if amendment.trang_thai != AmendmentStatus.CHO_PHE_DUYET.value:
             raise ConflictException(f"Biên bản đính chính không ở trạng thái chờ phê duyệt (hiện tại: {amendment.trang_thai})!")
 
-        # Phân quyền: Chỉ Admin hoặc Bác sĩ (trưởng khoa) mới có quyền duyệt
         if user.vai_tro not in [VaiTroEnum.ADMIN.value, VaiTroEnum.BAC_SI.value]:
             raise ForbiddenException("Bạn không có quyền phê duyệt biên bản đính chính chuyên môn!")
 
-        # Four-Eyes Principle: Người duyệt không được là người yêu cầu
         if user.nguoi_dung_id == amendment.requested_by_id:
             logger.warning(
                 f"🚨 [AUDIT - FOUR_EYES_VIOLATION] user_id={user.id} requested_by_id={amendment.requested_by_id} amendment_id={amendment_id}"
             )
             raise ConflictException("Người phê duyệt không được trùng với người yêu cầu (Vi phạm Four-Eyes Principle)!")
 
-        # BẮT BUỘC KIỂM THẢO Y KHOA: Với mức độ CAO (sửa chẩn đoán ICD-10, đơn thuốc), bắt buộc phải có Biên bản kiểm thảo
         if amendment.muc_do_nghiem_trong == "CAO" and not payload.ma_kiem_thao:
             raise UnprocessableEntityException(
                 "Yêu cầu đính chính mức độ CAO (can thiệp chẩn đoán ICD-10 hoặc đơn thuốc điều trị) bắt buộc phải có Số biên bản kiểm thảo của Hội đồng chuyên môn theo Điều 69 Luật Khám bệnh, chữa bệnh 2023!"
@@ -1307,7 +1245,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> AmendmentResponse:
-        """Từ chối yêu cầu đính chính bệnh án"""
         stmt = select(BienBanDinhChinh).where(BienBanDinhChinh.id == amendment_id).with_for_update()
         amendment = (await db.execute(stmt)).scalar_one_or_none()
         if not amendment:
@@ -1340,7 +1277,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> list[AmendmentResponse]:
-        """Danh sách biên bản đính chính của một ca khám"""
         stmt_enc = select(LuotKham).where(LuotKham.id == encounter_id)
         enc = (await db.execute(stmt_enc)).scalar_one_or_none()
         if not enc:
@@ -1357,7 +1293,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> PhysicalExamResponse:
-        """Lưu hoặc cập nhật kết quả khám thể lực chuyên khoa sâu theo TT 32/2023"""
         bac_si = await self._get_doctor_from_user(user, db)
 
         stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
@@ -1371,7 +1306,6 @@ class ClinicalService:
         if luot_kham.is_locked:
             raise ConflictException("Hồ sơ bệnh án đã hoàn tất và bị khóa (Read-only), không thể cập nhật khám thể lực!")
 
-        # Tự động tính BMI nếu có chiều cao (cm) và cân nặng (kg)
         from decimal import Decimal
         bmi = None
         if payload.chieu_cao and payload.can_nang and payload.chieu_cao > 0:
@@ -1437,7 +1371,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> Optional[PhysicalExamResponse]:
-        """Lấy kết quả khám thể lực của lượt khám"""
         stmt = select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == encounter_id)
         pe = (await db.execute(stmt)).scalar_one_or_none()
         if not pe:
@@ -1465,7 +1398,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> dict:
-        """Lưu hoặc cập nhật hồ sơ khám chuyên khoa (Nội, Ngoại, Mắt, TMH, RHM) theo Kiến trúc 2 tầng"""
         key = (dept_code or "").strip().lower()
         model_cls = self._SPECIALTY_MODEL_MAP.get(key)
         if not model_cls:
@@ -1513,7 +1445,6 @@ class ClinicalService:
                     v = json.dumps(v, ensure_ascii=False)
                 setattr(record, k, v)
 
-        # Tự động đồng bộ sang PhieuKhamChuyenKhoa (Tier 1) và tính phân loại sức khỏe
         stmt_phieu = select(PhieuKhamChuyenKhoa).where(PhieuKhamChuyenKhoa.luot_kham_id == encounter_id)
         phieu = (await db.execute(stmt_phieu)).scalar_one_or_none()
 
@@ -1592,7 +1523,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> Optional[dict]:
-        """Lấy dữ liệu khám chuyên khoa cụ thể của một lượt khám"""
         key = (dept_code or "").strip().lower()
         model_cls = self._SPECIALTY_MODEL_MAP.get(key)
         if not model_cls:
@@ -1616,7 +1546,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> dict:
-        """Lấy toàn bộ dữ liệu 5 chuyên khoa của một lượt khám"""
         out = {}
         for key, model_cls in [
             ("noi", KhamNoiKhoa),
@@ -1645,7 +1574,6 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> PrescriptionResponse:
-        """Sao chép đơn thuốc cũ từ lần khám trước sang ca khám hiện tại (Kế thừa tính năng OldPrescription từ TheDuckHospital)"""
         stmt_src = (
             select(DonThuoc)
             .options(selectinload(DonThuoc.danh_sach_chi_tiet))
@@ -1684,16 +1612,9 @@ class ClinicalService:
         payload: dict,
         current_user: Optional[TaiKhoan] = None,
     ) -> dict:
-        """Đồng bộ bền vững trạng thái Bàn khám lâm sàng xuống CSDL PostgreSQL.
-        Tuân thủ:
-        - Clean Architecture: Logic nghiệp vụ DB đóng gói trong Service layer.
-        - Data Integrity: Không swallow ngoại lệ, rollback tức thì nếu có lỗi.
-        - Medical Safety: Tuyệt đối không fallback sang first_lk tránh ghi đè chẩn đoán/chỉ định nhầm bệnh nhân.
-        """
         user_id = current_user.id if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
 
         try:
-            # 1. Lưu snapshot JSON vào bảng HeThongTrangThaiBff
             stmt = select(HeThongTrangThaiBff).where(
                 HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
             )
@@ -1718,7 +1639,6 @@ class ClinicalService:
                     )
                 )
 
-            # Đồng bộ trạng thái vé trong queue xuống bảng HangDoiKham
             client_queue = payload.get("queue") or []
             if isinstance(client_queue, list):
                 for q_item in client_queue:
@@ -1779,7 +1699,6 @@ class ClinicalService:
                     rec.bac_si_thuc_hien_id = b_id
                 return rec
 
-            # 2. Đồng bộ xuống các bảng quan hệ (LuotKham, ChiDinh, ChanDoan)
             encounters = payload.get("encounters") or {}
             first_bs = (await db.execute(select(BacSi).limit(1))).scalars().first()
 
@@ -1788,7 +1707,6 @@ class ClinicalService:
                     if not isinstance(enc_data, dict):
                         continue
 
-                    # Tìm LuotKham tương ứng theo ID
                     target_lk = None
                     raw_id = enc_data.get("id") or enc_key
                     try:
@@ -1797,7 +1715,6 @@ class ClinicalService:
                     except (ValueError, TypeError):
                         target_lk = None
 
-                    # Tuyệt đối không fallback sang first_lk tránh ghi đè nhầm bệnh án
                     if not target_lk:
                         logger.warning(
                             f"Bỏ qua đồng bộ encounter {raw_id}: không tìm thấy LuotKham tương ứng trong CSDL."
@@ -1921,7 +1838,6 @@ class ClinicalService:
                                 )
                             )
 
-                        # Đồng bộ dữ liệu chuyên khoa sâu (Tier 2) vào 5 bảng chuyên khoa
                         raw_khoa = (kham_ck.get("khoa") if isinstance(kham_ck, dict) else None) or ""
                         dept_key = None
                         if "ngoai" in raw_khoa.lower():
@@ -2111,10 +2027,8 @@ class ClinicalService:
                             )
                         )
 
-                    # Task 3 AC2: Đồng bộ chỉ định cận lâm sàng (lưu trạng thái CHO_THUC_HIEN gửi phòng KTV)
                     orders = [o for o in (enc_data.get("danh_sach_chi_dinh") or []) if isinstance(o, dict)]
                     if orders:
-                        # Batch load existing services and existing orders to prevent N+1 queries
                         service_codes = [str(o.get("ma_dich_vu") or f"DV-{o.get('dich_vu_id', 1)}")[:50] for o in orders]
                         existing_dvs = (
                             await db.execute(select(DichVu).where(DichVu.ma_dich_vu.in_(service_codes)))
@@ -2181,7 +2095,6 @@ class ClinicalService:
                                 db.add(new_order)
                                 order_map[dv.id] = new_order
 
-                    # Task 3 AC1: Đồng bộ danh sách chẩn đoán ICD-10 vào bảng chan_doan
                     diagnoses = enc_data.get("danh_sach_chan_doan")
                     if isinstance(diagnoses, list):
                         cur_diags = (
@@ -2193,7 +2106,6 @@ class ClinicalService:
                             await db.delete(cd)
                         await db.flush()
 
-                        # Batch load KhaiNiem to eliminate N+1 queries
                         icd_codes = [
                             str(d.get("ma_icd10") or "").strip()
                             for d in diagnoses
@@ -2239,7 +2151,6 @@ class ClinicalService:
 
                         target_lk.chan_doan_so_bo = primary_diag_str[:255] if primary_diag_str else None
 
-                    # Task 4 AC1 & AC2: Đồng bộ đơn thuốc (DonThuoc) và danh sách thuốc (ChiTietDonThuoc)
                     med_items = enc_data.get("danh_sach_thuoc")
                     if med_items is None and isinstance(enc_data.get("don_thuoc"), dict):
                         med_items = enc_data.get("don_thuoc", {}).get("danh_sach_thuoc")
@@ -2257,7 +2168,6 @@ class ClinicalService:
                         if not requested_status and isinstance(enc_data.get("don_thuoc"), dict):
                             requested_status = str(enc_data.get("don_thuoc", {}).get("trang_thai") or "").strip()
 
-                        # Khóa bất biến FSM: Nếu đơn đã SIGNED, ISSUED, ACCEPTED, cấm sửa đổi thuốc trực tiếp
                         if existing_rx and existing_rx.trang_thai in (
                             TrangThaiDonThuoc.SIGNED.value,
                             TrangThaiDonThuoc.ISSUED.value,
@@ -2296,7 +2206,6 @@ class ClinicalService:
                                     existing_rx.trang_thai = TrangThaiDonThuoc.DRAFT.value
 
                             if existing_rx:
-                                # Xóa danh sách chi tiết cũ để nạp danh sách mới khi đơn ở DRAFT
                                 cur_items = (
                                     await db.execute(
                                         select(ChiTietDonThuoc).where(ChiTietDonThuoc.don_thuoc_id == existing_rx.id)
@@ -2379,7 +2288,6 @@ class ClinicalService:
                                         "cach_dung": c_dung,
                                     })
 
-                                # Nếu yêu cầu ký số (SIGNED): Chuyển trạng thái, khóa chữ ký và hash
                                 if requested_status == TrangThaiDonThuoc.SIGNED.value:
                                     existing_rx.trang_thai = TrangThaiDonThuoc.SIGNED.value
                                     existing_rx.ngay_ky = datetime.now(timezone.utc)

@@ -1,8 +1,24 @@
 import pytest
 from datetime import datetime, timezone
 from sqlalchemy import select
-from app.models.medical import ChanDoan, LuotKham
+from app.models.medical import ChanDoan, LuotKham, DichVu, ChiDinh
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
+
+
+async def _dam_bao_dich_vu(db_session, ma="DV-TEST-CLS", ten="Siêu âm ổ bụng test"):
+    stmt = select(DichVu).where(DichVu.ma_dich_vu == ma)
+    dv = (await db_session.execute(stmt)).scalar_one_or_none()
+    if not dv:
+        dv = DichVu(
+            ma_dich_vu=ma,
+            ten_dich_vu=ten,
+            don_gia=150000.0,
+            don_vi_tinh="Lần",
+            is_active=True,
+        )
+        db_session.add(dv)
+        await db_session.flush()
+    return dv
 
 
 @pytest.mark.asyncio
@@ -197,10 +213,10 @@ async def test_completion_fails_when_subclinical_orders_pending(api_client, book
         headers=token_bs
     )
 
-    # Lấy 1 dịch vụ CLS
-    from app.models.medical import DichVu, ChiDinh
-    stmt_dv = select(DichVu).where(DichVu.is_active.is_(True))
-    dv = (await db_session.execute(stmt_dv)).scalars().first()
+    # Đảm bảo có dịch vụ CLS
+
+
+    dv = await _dam_bao_dich_vu(db_session, "DV-TEST-CLS-01", "Siêu âm ổ bụng test 1")
 
     # Kê chỉ định CLS
     res_order = await api_client.post(
@@ -246,10 +262,10 @@ async def test_completion_succeeds_when_subclinical_orders_resolved(api_client, 
         headers=token_bs
     )
 
-    from app.models.medical import DichVu, ChiDinh
-    services = (await db_session.execute(select(DichVu).where(DichVu.is_active.is_(True)).limit(2))).scalars().all()
-    dv1 = services[0]
-    dv2 = services[1] if len(services) > 1 else dv1
+
+    dv1 = await _dam_bao_dich_vu(db_session, "DV-TEST-CLS-01", "Siêu âm ổ bụng test 1")
+
+    dv2 = await _dam_bao_dich_vu(db_session, "DV-TEST-CLS-02", "X-Quang ngực thẳng test 2")
 
     # Chỉ định 1: sau đó trả kết quả da_co_ket_qua
     res_o1 = await api_client.post(

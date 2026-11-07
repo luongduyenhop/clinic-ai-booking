@@ -53,7 +53,6 @@ export default function ParaclinicalPage() {
                 t.tenDV?.toLowerCase().includes(searchText.toLowerCase())
             const matchStatus = statusFilter === 'ALL' || t.trangThai === statusFilter
 
-            // Lọc theo chuyên khoa từ Query Filter trên Header Tabbar
             let matchType = true
             if (queryFilter) {
                 const lower = (t.tenDV || '').toLowerCase()
@@ -107,7 +106,7 @@ export default function ParaclinicalPage() {
         const doctor = staffList.find((s) => s.hoTen === form.bacSiThucHien)
         if (markCompleted && doctor && doctor.trangThaiCCHN === 'EXPIRED') {
             AppToast.error(
-                `CHẶN TRẢ KẾT QUẢ (INT-05): Bác sĩ ${doctor.hoTen} có Chứng chỉ hành nghề (${doctor.soCCHN}) đã hết hạn ngày ${doctor.ngayHetHanCCHN}. Vui lòng chọn bác sĩ đủ điều kiện!`
+                `CHẶN TRẢ KẾT QUẢ: Bác sĩ ${doctor.hoTen} có Chứng chỉ hành nghề (${doctor.soCCHN}) đã hết hạn ngày ${doctor.ngayHetHanCCHN}. Vui lòng chọn bác sĩ đủ điều kiện!`
             )
             return
         }
@@ -131,7 +130,6 @@ export default function ParaclinicalPage() {
                 },
             })
         )
-        // Đồng bộ 2 chiều kết quả về Lượt khám bệnh án của Bác sĩ
         const registrations = clinicData?.registrations || []
         const hasMatchingReg = registrations.some((r) => r.maKCB === updatedRecord.maKCB)
         if (hasMatchingReg) {
@@ -166,7 +164,7 @@ export default function ParaclinicalPage() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-            {/* LEFT PANEL (4 cols): Danh sách chờ thực hiện CLS / PT-TT */}
+            
             <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-88px)]">
                 <div className="medpro-section-title">
                     <span className="inline-flex items-center gap-1.5">
@@ -258,14 +256,14 @@ export default function ParaclinicalPage() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL (8 cols): Thực hiện Cận lâm sàng (Mô tả, Kết luận, Mẫu kết quả, Hình ảnh DICOM) */}
+            
             <div className="lg:col-span-8 medpro-card p-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
                     <div>
                         <h2 className="font-display text-base font-extrabold text-[#003553] uppercase">
                             {isPtTtMode
-                                ? 'THỰC HIỆN PHẪU THUẬT - THỦ THUẬT & VLTL (VIDEO 03B)'
-                                : 'THỰC HIỆN CẬN LÂM SÀNG — X-QUANG, SIÊU ÂM, NỘI SOI (VIDEO 03B)'}
+                                ? 'THỰC HIỆN PHẪU THUẬT - THỦ THUẬT & VLTL'
+                                : 'THỰC HIỆN CẬN LÂM SÀNG — X-QUANG, SIÊU ÂM, NỘI SOI'}
                         </h2>
                         <p className="text-xs text-slate-500">
                             Bệnh nhân: <strong className="text-[#003553]">{form.hoTen}</strong> ({form.maBN}) • Dịch vụ:{' '}
@@ -301,7 +299,7 @@ export default function ParaclinicalPage() {
                     </div>
                 </div>
 
-                {/* Sub-tabs: Kết quả CLS | Kê thuốc & Vật tư tiêu hao */}
+                
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
                     <button
                         type="button"
@@ -329,7 +327,7 @@ export default function ParaclinicalPage() {
 
                 {activeSubTab === 'KET_QUA_CLS' ? (
                     <div className="space-y-4">
-                        {/* Execution Info Row */}
+                        
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                             <div>
                                 <label className="medpro-label">Phòng thực hiện</label>
@@ -344,7 +342,7 @@ export default function ParaclinicalPage() {
                                 >
                                     {staffList.map((s) => (
                                         <option key={s.id} value={s.hoTen}>
-                                            {s.hoTen} ({s.trangThaiCCHN})
+                                            {s.hoTen}{s.trangThaiCCHN === 'EXPIRED' ? ' (Hết hạn CCHN)' : s.trangThaiCCHN === 'EXPIRING_SOON' ? ' (Sắp hết hạn CCHN)' : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -380,7 +378,7 @@ export default function ParaclinicalPage() {
                             </div>
                         </div>
 
-                        {/* Description & Conclusion */}
+                        
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                             <div className="lg:col-span-7 space-y-3">
                                 <div>
@@ -412,7 +410,7 @@ export default function ParaclinicalPage() {
                                 </div>
                             </div>
 
-                            {/* Right Column: Image Upload & DICOM Preview */}
+                            
                             <div className="lg:col-span-5 p-3.5 rounded-xl bg-[#F8FBFE] border border-[#CBE9FA] space-y-3">
                                 <div className="text-xs font-bold text-[#003553] uppercase flex items-center justify-between">
                                     <span>DANH SÁCH HÌNH ẢNH KẾT QUẢ (X-QUANG / SIÊU ÂM)</span>
@@ -492,7 +490,7 @@ export default function ParaclinicalPage() {
                 ) : (
                     <div className="space-y-3">
                         <div className="p-3.5 rounded-xl bg-[#E8F4FD] text-xs text-[#003553]">
-                            Định mức vật tư tiêu hao áp dụng tự động theo <strong>Mẫu tiêu hao (Video 10)</strong> cho dịch vụ{' '}
+                            Định mức vật tư tiêu hao áp dụng tự động theo <strong>Mẫu định mức tiêu hao</strong> cho dịch vụ{' '}
                             <strong>{form.tenDV}</strong>:
                         </div>
                         <table className="medpro-table">

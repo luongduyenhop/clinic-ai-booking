@@ -208,7 +208,6 @@ export default function ClinicalExamPage() {
             }
     )
 
-    // Popups & Modals
     const [selectedIcdCode, setSelectedIcdCode] = useState(icdCatalog[0]?.maICD || 'I10')
     const [icdNote, setIcdNote] = useState('Bệnh chính')
     const [showServiceModal, setShowServiceModal] = useState(false)
@@ -216,7 +215,6 @@ export default function ClinicalExamPage() {
     const [showAmendmentModal, setShowAmendmentModal] = useState(false)
     const [amendmentReason, setAmendmentReason] = useState('')
 
-    // New Drug Input Row
     const [selectedDrugId, setSelectedDrugId] = useState(drugCatalog[0]?.maThuoc || 'TH001')
     const [drugQty, setDrugQty] = useState(14)
     const [drugDosage, setDrugDosage] = useState('Ngày uống 2 viên chia 2 lần Sáng - Chiều sau ăn')
@@ -252,7 +250,6 @@ export default function ClinicalExamPage() {
         }
     }
 
-    // Keyboard shortcuts (Alt+1...3, Alt+Left/Right)
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.altKey) {
@@ -303,7 +300,6 @@ export default function ClinicalExamPage() {
             })
         )
 
-        // Tự động đẩy chỉ định Cận lâm sàng sang phân hệ phòng CLS
         const currentTasks = clinicData?.paraclinicalTasks || []
         const effectiveServices = patch.services || services || []
         let hasNewCls = false
@@ -421,7 +417,7 @@ export default function ClinicalExamPage() {
     const handleAddDrug = () => {
         if (isPrescriptionImmutable) {
             AppToast.error(
-                `CHẶN SỬA ĐƠN THUỐC (INT-04): Đơn thuốc đã ở trạng thái ${prescription.trangThaiFSM}. Không thể sửa trực tiếp thuốc đã ký số!`
+                `CHẶN SỬA ĐƠN THUỐC: Đơn thuốc đã ở trạng thái đã ký số hoặc liên thông. Không thể sửa trực tiếp thuốc đã ký!`
             )
             return
         }
@@ -487,16 +483,16 @@ export default function ClinicalExamPage() {
             `PRESCRIPTION_FSM_${nextState}`,
             `Chuyển trạng thái Đơn thuốc điện tử sang ${nextState} theo Thông tư 26/2025/TT-BYT`
         )
-        AppToast.success(`Trạng thái Đơn thuốc Quốc gia đã chuyển sang: ${nextState}`)
+        const vnMap = { VALIDATED: "Đã kiểm tra", SIGNED: "Đã ký số", ACCEPTED: "Đã liên thông Quốc gia" }; AppToast.success(`Trạng thái Đơn thuốc Quốc gia: ${vnMap[nextState] || nextState}`)
     }
 
     const handleFinishAndLockEMR = async () => {
         await saveCurrentExamState(
             { trangThai: 'Đã khám', emrLocked: true },
             'LOCK_EMR_RECORD',
-            'Hoàn thành khám lâm sàng & Khóa Hồ sơ bệnh án điện tử bất biến (INT-03)'
+            'Hoàn thành khám lâm sàng & Khóa Hồ sơ bệnh án điện tử'
         )
-        AppToast.success('Đã hoàn thành ca khám và Khóa Bệnh án điện tử (INT-03)!')
+        AppToast.success('Đã hoàn thành ca khám và Khóa Bệnh án điện tử thành công!')
     }
 
     const handleCreateAmendment = async () => {
@@ -526,7 +522,7 @@ export default function ClinicalExamPage() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-            {/* LEFT PANEL (Queue): Danh sách bệnh nhân chờ khám / đang khám */}
+            
             <div
                 className={`medpro-card p-3 flex flex-col h-[calc(100vh-88px)] transition-all duration-200 ${
                     isQueueCollapsed ? 'hidden' : 'lg:col-span-3'
@@ -612,13 +608,13 @@ export default function ClinicalExamPage() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL: Workspace (Expands to 100% when queue is collapsed) */}
+            
             <div
                 className={`medpro-card p-4 space-y-3.5 transition-all duration-200 ${
                     isQueueCollapsed ? 'lg:col-span-12' : 'lg:col-span-9'
                 }`}
             >
-                {/* tClinic Unified Top Bar: Patient Prev/Next + Top Workflow Tabs + Action Controls */}
+                
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#E2EDF5]">
                     <div className="flex flex-wrap items-center gap-2">
                         {isQueueCollapsed && (
@@ -633,7 +629,7 @@ export default function ClinicalExamPage() {
                             </button>
                         )}
 
-                        {/* 1-Click Patient Prev/Next Switcher (tClinic style) */}
+                        
                         <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                             <button
                                 type="button"
@@ -660,7 +656,7 @@ export default function ClinicalExamPage() {
                             </button>
                         </div>
 
-                        {/* 2 Main Workflow Tabs (Matching demo.tclinic.io) */}
+                        
                         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                             <button
                                 type="button"
@@ -706,7 +702,7 @@ export default function ClinicalExamPage() {
                         </div>
                     </div>
 
-                    {/* Top Action Buttons (Matching tClinic: Lịch sử F8, Lưu tạm F5, Hoàn thành khám) */}
+                    
                     <div className="flex flex-wrap items-center gap-2">
                         {currentExam?.amendmentHistory?.length > 0 && (
                             <button
@@ -726,7 +722,7 @@ export default function ClinicalExamPage() {
                                 className="medpro-btn-amber text-xs font-bold"
                             >
                                 <PencilSimple size={14} weight="bold" />
-                                <span>Lập Biên bản Đính chính (INT-03)</span>
+                                <span>Lập Biên bản Đính chính Bệnh án</span>
                             </button>
                         ) : (
                             <>
@@ -754,12 +750,12 @@ export default function ClinicalExamPage() {
                     </div>
                 </div>
 
-                {/* ======================================================== */}
-                {/* TAB 1: KHÁM BỆNH (QUY TRÌNH 4 BƯỚC LIÊN HOÀN CHUẨN tClinic) */}
-                {/* ======================================================== */}
+                
+                
+                
                 {activeSubTab === 'KHAM_BENH' && (
                     <div className="space-y-3.5">
-                        {/* 1. THÔNG TIN NGƯỜI ĐĂNG KÝ KHÁM */}
+                        
                         <div className="rounded-xl border border-[#CBE9FA] bg-white overflow-hidden shadow-2xs">
                             <div
                                 onClick={() => setIsPatientInfoCollapsed(!isPatientInfoCollapsed)}
@@ -835,7 +831,7 @@ export default function ClinicalExamPage() {
                             )}
                         </div>
 
-                        {/* 2. KHÁM LÂM SÀNG & CHẨN ĐOÁN ICD-10 */}
+                        
                         <div className="rounded-xl border border-[#CBE9FA] bg-white overflow-hidden shadow-2xs space-y-3 p-3.5">
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
                                 <div className="flex items-center gap-2 text-xs font-extrabold text-[#003553]">
@@ -849,7 +845,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Dải chỉ số sinh hiệu (Phong cách tClinic nền dịu) */}
+                            
                             <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-200/70">
                                 <div className="text-[11px] font-bold text-amber-900 mb-2 uppercase flex items-center gap-1.5">
                                     <Pulse size={13} weight="bold" className="text-amber-600" />
@@ -880,7 +876,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Triệu chứng ban đầu & Khám toàn thân (Chuẩn tClinic) */}
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-100">
                                 <div>
                                     <label className="medpro-label">Triệu chứng ban đầu & Lý do đến khám</label>
@@ -906,7 +902,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Liên kết mở khám chuyên sâu theo 5 chuyên khoa chuẩn tClinic */}
+                            
                             <div className="p-3 rounded-xl bg-[#F0F7FC] border border-[#CBE9FA] flex flex-wrap items-center justify-between gap-2 text-xs">
                                 <div className="flex items-center gap-2 text-[#003553] font-bold">
                                     <Stethoscope size={16} weight="duotone" className="text-[#00B5F1]" />
@@ -932,7 +928,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* CHẨN ĐOÁN SƠ BỘ & HƯỚNG XỬ TRÍ CHUNG CHO CẢ 5 CHUYÊN KHOA */}
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1 border-t border-slate-100">
                                 <div>
                                     <label className="medpro-label">Chẩn đoán sơ bộ ban đầu</label>
@@ -969,7 +965,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Bảng chẩn đoán ICD-10 chuẩn tClinic */}
+                            
                             <div className="space-y-2 pt-2 border-t border-slate-100">
                                 <div className="flex flex-wrap items-end gap-2">
                                     <div className="flex-1 min-w-[240px]">
@@ -1068,12 +1064,12 @@ export default function ClinicalExamPage() {
                             </div>
                         </div>
 
-                        {/* 3. ĐƠN THUỐC ĐIỆN TỬ NGOẠI TRÚ (KHÔNG QUẢN LÝ KHO THUỐC) */}
+                        
                         <div className="rounded-xl border border-[#CBE9FA] bg-white overflow-hidden shadow-2xs space-y-3 p-3.5">
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
                                 <div className="flex items-center gap-2 text-xs font-extrabold text-[#003553]">
                                     <span className="w-1.5 h-3.5 rounded-full bg-[#00B5F1]" />
-                                    <span className="uppercase">3. ĐƠN THUỐC ĐIỆN TỬ NGOẠI TRÚ (INT-04)</span>
+                                    <span className="uppercase">3. ĐƠN THUỐC ĐIỆN TỬ NGOẠI TRÚ</span>
                                     <span className="font-mono text-[11px] font-bold text-[#00B5F1]">
                                         Mã: {prescription.maDon}
                                     </span>
@@ -1114,7 +1110,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Đơn thuốc mẫu nhanh */}
+                            
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                                 <span className="font-bold text-[#003553] text-[11px]">ĐƠN THUỐC MẪU GỢI Ý:</span>
                                 <div className="flex flex-wrap gap-1.5">
@@ -1131,7 +1127,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Ô nhập thêm thuốc: BỎ TỒN KHO, CHIA LIỀU SÁNG - TRƯA - CHIỀU - TỐI */}
+                            
                             <div className="p-3 rounded-xl bg-[#F8FBFE] border border-slate-200 space-y-2.5 text-xs">
                                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                                     <div className="sm:col-span-5">
@@ -1215,7 +1211,7 @@ export default function ClinicalExamPage() {
                                 </div>
                             </div>
 
-                            {/* Bảng đơn thuốc chuẩn tClinic */}
+                            
                             <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
                                 <table className="medpro-table">
                                     <thead>
@@ -1252,7 +1248,7 @@ export default function ClinicalExamPage() {
                                                         type="button"
                                                         onClick={() => {
                                                             if (isPrescriptionImmutable) {
-                                                                AppToast.error('Đơn thuốc đã ký số (INT-04), cấm xóa dòng thuốc!')
+                                                                AppToast.error('Đơn thuốc đã ký số, không thể xóa dòng thuốc!')
                                                                 return
                                                             }
                                                             setPrescription({
@@ -1291,7 +1287,7 @@ export default function ClinicalExamPage() {
                             </div>
                         </div>
 
-                        {/* 4. HẸN TÁI KHÁM & DẶN DÒ */}
+                        
                         <div className="rounded-xl border border-[#CBE9FA] bg-white overflow-hidden shadow-2xs p-3.5 space-y-2.5">
                             <div className="flex items-center gap-2 text-xs font-extrabold text-[#003553] border-b border-slate-100 pb-2">
                                 <span className="w-1.5 h-3.5 rounded-full bg-[#00B5F1]" />
@@ -1322,9 +1318,9 @@ export default function ClinicalExamPage() {
                     </div>
                 )}
 
-                {/* ======================================================== */}
-                {/* TAB 2: KÊ DỊCH VỤ & KÊ GÓI DỊCH VỤ (CLS / X-QUANG / XÉT NGHIỆM) */}
-                {/* ======================================================== */}
+                
+                
+                
                 {activeSubTab === 'KE_DICH_VU' && (
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 bg-[#F8FBFE] p-3 rounded-xl border border-[#CBE9FA]">
@@ -1432,7 +1428,7 @@ export default function ClinicalExamPage() {
                     </div>
                 )}
 
-                {/* SUB-TAB 4: KHÁM SỨC KHỎE PHÂN LOẠI I-V THEO THÔNG TƯ 32/2023/TT-BYT (tClinic /khamlamsang/noikhoa) */}
+                
                 {activeSubTab === 'KHAM_SUC_KHOE' && (
                     <div className="space-y-4">
                         <div className="p-3.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-[#B8E5FA] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1542,7 +1538,7 @@ export default function ClinicalExamPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.success(`Đã đồng bộ phiếu khám sức khỏe lên Cổng Sổ Sức Khỏe Điện Tử HSSK (Idempotency Key: HSSK-${currentExam?.maKCB})!`)}
+                                    onClick={() => AppToast.success("Đã đồng bộ phiếu khám sức khỏe lên Cổng Sổ Sức Khỏe Điện Tử HSSK thành công!")}
                                     className="medpro-btn-amber text-xs font-bold"
                                 >
                                     <UploadSimple size={14} weight="bold" />
@@ -1554,7 +1550,7 @@ export default function ClinicalExamPage() {
                 )}
             </div>
 
-            {/* Modal Chọn Dịch vụ Kỹ thuật (Popup Video 03A) */}
+            
             {showServiceModal && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="medpro-card max-w-3xl w-full p-5 space-y-4">
@@ -1633,13 +1629,13 @@ export default function ClinicalExamPage() {
                 </div>
             )}
 
-            {/* Modal Biên bản Đính chính Bệnh án (INT-03) */}
+            
             {showAmendmentModal && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="medpro-card max-w-lg w-full p-5 space-y-4">
                         <h3 className="font-display font-extrabold text-base text-[#003553] inline-flex items-center gap-2">
                             <PencilSimple size={18} weight="bold" className="text-[#00B5F1]" />
-                            <span>LẬP BIÊN BẢN ĐÍNH CHÍNH HỒ SƠ BỆNH ÁN ĐIỆN TỬ (INT-03)</span>
+                            <span>LẬP BIÊN BẢN ĐÍNH CHÍNH HỒ SƠ BỆNH ÁN ĐIỆN TỬ</span>
                         </h3>
                         <p className="text-xs text-slate-600">
                             Theo Thông tư 13/2025/TT-BYT và Nghị định 102/2025/NĐ-CP, bệnh án đã khóa không được chỉnh sửa âm thầm. Mọi đính chính phải lưu lại bản gốc và lý do đính chính.

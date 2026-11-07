@@ -1,4 +1,4 @@
-import { printDocument, exportToCsv } from '../../utils/helpers/exportUtils'
+import { printDocument, exportToExcel, exportToCsv } from '../../utils/helpers/exportUtils'
 import { useState, useMemo, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation } from 'react-router-dom'
@@ -25,6 +25,13 @@ export default function CorporateHealthPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const settings = clinicData?.clinicSettings || {}
+    const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+    const configuredClinicAddress = [
+        settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+        settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+    ].filter(Boolean).join(' | ')
     const corporateCheckups = clinicData?.corporateCheckups || []
 
     const queryTab = new URLSearchParams(location.search).get('tab')
@@ -46,7 +53,6 @@ export default function CorporateHealthPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
-    // Form thêm đoàn mới
     const [newCorpForm, setNewCorpForm] = useState({
         tenDoan: '',
         maSoThue: '',
@@ -60,7 +66,6 @@ export default function CorporateHealthPage() {
         chietKhau: 10,
     })
 
-    // Dữ liệu mẫu nhân viên cho đoàn được chọn
     const mockEmployees = useMemo(() => {
         if (!selectedCorp) return []
         const baseName = selectedCorp.tenDoan?.split(' ')[0] || 'NV'
@@ -150,7 +155,6 @@ export default function CorporateHealthPage() {
         })
     }, [corporateCheckups, searchText, statusFilter])
 
-    // KPI thống kê
     const stats = useMemo(() => {
         const totalCorps = corporateCheckups.length
         const totalEmployees = corporateCheckups.reduce((acc, c) => acc + (Number(c.soLuongNhanVien) || 0), 0)
@@ -202,7 +206,7 @@ export default function CorporateHealthPage() {
 
     return (
         <div className="space-y-4">
-            {/* Top Navigation & Operational Summary */}
+            
             <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
@@ -241,7 +245,7 @@ export default function CorporateHealthPage() {
                 </div>
             </div>
 
-            {/* KPI Cards */}
+            
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="bg-white rounded-xl p-3.5 border border-[#E5EEF5] shadow-2xs flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#00B5F1] flex items-center justify-center font-bold">
@@ -288,7 +292,7 @@ export default function CorporateHealthPage() {
                 </div>
             </div>
 
-            {/* Sub-Tabs bar (Chuẩn tClinic) */}
+            
             <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
                 {[
                     { id: 'DANG_KY_DOAN', label: '1. Đăng ký đoàn & Tiến độ trạm' },
@@ -311,10 +315,10 @@ export default function CorporateHealthPage() {
                 ))}
             </div>
 
-            {/* MAIN CONTENT AREA */}
+            
             {activeTab === 'DANG_KY_DOAN' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    {/* Cột trái: Danh sách Hợp đồng đoàn */}
+                    
                     <div className="lg:col-span-5 bg-white rounded-xl border border-[#E5EEF5] p-3.5 space-y-3">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                             <span className="text-xs font-black text-[#003553] uppercase">HỢP ĐỒNG ĐOÀN ({filteredCheckups.length})</span>
@@ -379,7 +383,7 @@ export default function CorporateHealthPage() {
                         </div>
                     </div>
 
-                    {/* Cột phải: Chi tiết tiến độ từng nhân viên trong đoàn */}
+                    
                     <div className="lg:col-span-7 bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                         {selectedCorp ? (
                             <>
@@ -402,8 +406,8 @@ export default function CorporateHealthPage() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => {
-    const headers = ['STT', 'Họ tên nhân viên', 'Mã NV', 'Năm sinh', 'Giới tính', 'Xếp loại sức khỏe', 'Kết luận']
+                             onClick={() => {
+    const headers = ['STT', 'Họ tên nhân viên', 'Mã NV', 'Năm sinh', 'Giới tính', 'Xếp loại sức khỏe', 'Kết luận chuyên môn']
     const rows = (selectedCorp?.employees || []).map((e, idx) => [
         idx + 1,
         e.hoTen || e.name || '',
@@ -413,8 +417,18 @@ export default function CorporateHealthPage() {
         e.xepLoai || 'Loại I',
         e.ketLuan || 'Đủ sức khỏe làm việc',
     ])
-    exportToCsv(`ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}.csv`, headers, rows)
-    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.csv)!')
+    exportToExcel({
+        filename: `ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: 'Kết Quả Khám Đoàn',
+        title: 'BÁO CÁO KẾT QUẢ KHÁM SỨC KHỎE ĐỊNH KỲ (THÔNG TƯ 32/2023/TT-BYT)',
+        subtitle: `Đơn vị: ${selectedCorp?.tenDoan || selectedCorp?.tenCongTy || 'Doanh nghiệp'} • Hợp đồng: ${selectedCorp?.soHopDong || 'Chưa có'} • Tổng số: ${rows.length} CBNV`,
+        clinicName: configuredClinicName,
+        clinicAddress: configuredClinicAddress,
+        headers,
+        rows,
+        signOff: true,
+    })
+    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công!')
 }}
                                             className="px-2.5 py-1.5 rounded-lg bg-[#00B5F1] text-white text-xs font-bold hover:bg-[#009bd1] transition flex items-center gap-1"
                                         >
@@ -497,7 +511,7 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            {/* TAB THANH TOAN */}
+            
             {activeTab === 'THANH_TOAN' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="text-sm font-bold text-[#003553]">QUẢN LÝ QUYẾT TOÁN CÔNG NỢ KHÁM ĐOÀN B2B</div>
@@ -557,7 +571,7 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            {/* TAB HOA DON */}
+            
             {activeTab === 'HOA_DON' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -605,7 +619,7 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            {/* TAB DANH MUC DOAN */}
+            
             {activeTab === 'DANH_MUC' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="text-sm font-bold text-[#003553]">DANH MỤC CƠ QUAN / ĐỐI TÁC KHÁM SỨC KHỎE</div>
@@ -625,7 +639,7 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            {/* MODAL THÊM HỢP ĐỒNG ĐOÀN */}
+            
             {isAddModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-5 space-y-4 animate-scaleUp">
@@ -749,7 +763,7 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            {/* MODAL IMPORT EXCEL */}
+            
             {isImportModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-5 space-y-4 animate-scaleUp">

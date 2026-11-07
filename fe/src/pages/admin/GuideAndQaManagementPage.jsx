@@ -135,7 +135,7 @@ export default function GuideAndQaManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Top Mode Switcher */}
+            {}
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -178,7 +178,7 @@ export default function GuideAndQaManagementPage() {
             </div>
 
             {isCategoryMode ? (
-                /* ── DANH MỤC HƯỚNG DẪN ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
@@ -257,7 +257,7 @@ export default function GuideAndQaManagementPage() {
                     </div>
                 </div>
             ) : isQaMode ? (
-                /* ── QUẢN LÝ HỎI ĐÁP BỆNH NHÂN ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
@@ -348,7 +348,7 @@ export default function GuideAndQaManagementPage() {
                     </div>
                 </div>
             ) : (
-                /* ── QUẢN LÝ BÀI VIẾT HƯỚNG DẪN (VIDEO 08) ── */
+                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
@@ -394,7 +394,7 @@ export default function GuideAndQaManagementPage() {
                     <div className="lg:col-span-7 medpro-card p-4 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                             <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                                THÔNG TIN BÀI VIẾT HƯỚNG DẪN QUY TRÌNH KHÁM (VIDEO 08)
+                                THÔNG TIN BÀI VIẾT HƯỚNG DẪN QUY TRÌNH KHÁM
                             </h2>
                             <div className="flex gap-2">
                                 <button

@@ -10,18 +10,13 @@ import {
 } from '@phosphor-icons/react'
 import { AppToast } from './AppNotification'
 
-/**
- * Modal hiển thị mã VietQR thanh toán viện phí
- * - Thông tin tài khoản đồng bộ từ cấu hình hệ thống ngân hàng phòng khám.
- * - Số tiền và mã nội dung chuyển khoản gắn chặt với Hóa đơn viện phí (CLINIC HD {id} {ma_bn}).
- * - Hỗ trợ Thu ngân kiểm tra sao kê và Xác nhận Đã thu tiền (Gạch nợ hóa đơn) trực tiếp.
- */
+
 export default function VietQrModal({
     isOpen,
     onClose,
     onConfirmPayment,
     invoice = {},
-    bankBin = '970422', // MBBank
+    bankBin = '970422', 
     bankName = 'MBBank (Ngân hàng TMCP Quân Đội)',
     accountNumber = '0901234567',
     accountName = 'PHONG KHAM CLINIC AI',
@@ -73,7 +68,9 @@ export default function VietQrModal({
             AppToast.success(`Hóa đơn #${invoiceId} đã được xác nhận thanh toán thành công!`)
             onClose()
         } catch (err) {
-            AppToast.error(err?.message || 'Không thể xác nhận thanh toán. Vui lòng thử lại.')
+            if (!err?.response) {
+                AppToast.error(err?.message || 'Không thể xác nhận thanh toán. Vui lòng thử lại.')
+            }
         } finally {
             setIsConfirming(false)
         }
@@ -82,7 +79,6 @@ export default function VietQrModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
             <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
-                {/* Header */}
                 <div className="bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-teal-300">
@@ -107,9 +103,7 @@ export default function VietQrModal({
                     </button>
                 </div>
 
-                {/* Body Content */}
                 <div className="p-6 overflow-y-auto space-y-4">
-                    {/* Hướng dẫn đối soát viện phí */}
                     <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200/90 text-sky-950 text-xs flex items-start gap-3">
                         <ShieldCheck size={22} weight="fill" className="text-[#00B5F1] shrink-0 mt-0.5" />
                         <div className="space-y-1">
@@ -149,7 +143,6 @@ export default function VietQrModal({
                         </div>
                     )}
 
-                    {/* Transaction Details */}
                     <div className="space-y-2.5 text-xs">
                         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
                             <span className="text-slate-500 flex items-center gap-1.5">
@@ -203,7 +196,6 @@ export default function VietQrModal({
                     </div>
                 </div>
 
-                {/* Footer Actions */}
                 <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
                     <button
                         type="button"

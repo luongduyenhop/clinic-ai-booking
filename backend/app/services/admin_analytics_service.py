@@ -12,7 +12,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
     TrangThaiHangDoiEnum,
 )
-from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, ChanDoan, DonThuoc, ChiTietDonThuoc
+from app.models.medical import DichVu, LuotKham, BienBanDinhChinh, ChiDinh, ChanDoan, DonThuoc, ChiTietDonThuoc, HoaDon
 from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.clinical import AmendmentResponse
 from app.schemas.admin import (
@@ -36,14 +36,10 @@ logger = logging.getLogger(__name__)
 
 
 class AdminAnalyticsService:
-    """Dịch vụ chuyên trách Báo cáo Dashboard, Thống kê Phân tích và Duyệt đính chính (SRP)"""
 
-    # --- 4. Dashboard KPIs Dữ liệu thật (Multi-Tier Command Center) ---
     async def get_dashboard_stats(self, query_date: Optional[date], db: AsyncSession) -> AdminDashboardStatsResponse:
-        """Thống kê vận hành phòng khám đa tầng (Vận hành - An toàn - Đối soát tài chính) từ PostgreSQL"""
         d = query_date or date.today()
 
-        # 1. Thống kê lịch hẹn theo trạng thái
         stmt_apts = select(LichKham).where(LichKham.ngay_kham == d)
         apts = (await db.execute(stmt_apts)).scalars().all()
 
@@ -54,7 +50,6 @@ class AdminAnalyticsService:
         so_huy = sum(1 for a in apts if a.trang_thai in ("da_huy", "tu_dong_huy"))
         so_noshow = sum(1 for a in apts if a.trang_thai == "no_show")
 
-        # 2. Chi tiết hàng đợi & Thời gian chờ trung bình (Chuẩn OpenEMR Flow Board)
         stmt_queue = select(HangDoiKham).where(HangDoiKham.ngay_kham == d)
         tickets = (await db.execute(stmt_queue)).scalars().all()
 
@@ -80,7 +75,6 @@ class AdminAnalyticsService:
 
         avg_wait = round(sum(wait_times) / len(wait_times), 1) if wait_times else 0.0
 
-        # 3. Công suất sử dụng buồng khám vật lý & Đội ngũ y tế
         stmt_bs = select(func.count(BacSi.id)).where(BacSi.is_active.is_(True))
         active_doctors = (await db.execute(stmt_bs)).scalar() or 0
 
@@ -98,7 +92,6 @@ class AdminAnalyticsService:
         used_rooms = (await db.execute(stmt_used_rooms)).scalar() or 0
         cong_suat_buong = round((used_rooms / total_rooms * 100.0), 1) if total_rooms > 0 else 0.0
 
-        # 4. Tầng An toàn lâm sàng (Bệnh án khóa, Kiểm thảo đính chính, Cảnh báo cấp cứu)
         stmt_locked = select(func.count(LuotKham.id)).where(LuotKham.is_locked.is_(True))
         locked_emr = (await db.execute(stmt_locked)).scalar() or 0
 
@@ -117,7 +110,6 @@ class AdminAnalyticsService:
         )
         so_redflags = (await db.execute(stmt_redflags)).scalar() or 0
 
-        # 5. Tầng Đối soát tài chính (Doanh thu khám, Tạm thu cận lâm sàng, Thất thoát)
         stmt_revenue = (
             select(func.sum(BacSi.gia_kham_mac_dinh))
             .select_from(LichKham)
@@ -141,7 +133,9 @@ class AdminAnalyticsService:
         )
         paraclinical_rev = float((await db.execute(stmt_paraclinical)).scalar() or 0.0)
 
-        tong_doanh_thu = est_rev + paraclinical_rev
+        stmt_paid_hd = select(func.sum(HoaDon.thuc_thu)).where(HoaDon.trang_thai == "da_thu")
+        paid_hd_rev = float((await db.execute(stmt_paid_hd)).scalar() or 0.0)
+        tong_doanh_thu = max(est_rev + paraclinical_rev, paid_hd_rev)
         ty_le_noshow = round((so_noshow / tong_apts * 100.0), 1) if tong_apts > 0 else 0.0
 
         return AdminDashboardStatsResponse(
@@ -172,13 +166,11 @@ class AdminAnalyticsService:
 
 
 
-    # --- 5. Duyệt Đính Chính Hồ Sơ Bệnh Án Toàn Viện (Four-Eyes Principle) ---
     async def get_amendments_admin(
         self,
         db: AsyncSession,
         trang_thai: Optional[str] = None
     ) -> List[AmendmentResponse]:
-        """Lấy toàn bộ danh sách biên bản đính chính bệnh án toàn viện để Giám đốc CM / Trưởng khoa kiểm thảo"""
         stmt = select(BienBanDinhChinh).order_by(BienBanDinhChinh.created_at.desc())
         if trang_thai:
             stmt = stmt.where(BienBanDinhChinh.trang_thai == trang_thai)
@@ -186,11 +178,8 @@ class AdminAnalyticsService:
         from app.services.clinical_service import clinical_service
         return [clinical_service._to_amendment_response(r) for r in rows]
 
-    # =========================================================================
 
 
-    # GÓI 5: XEM BÁO CÁO THỐNG KÊ CHUYÊN SÂU (Analytics & Intelligence)
-    # =========================================================================
     async def get_analytics_report_admin(
         self,
         db: AsyncSession,
@@ -256,9 +245,6 @@ class AdminAnalyticsService:
             thong_ke_chuyen_khoa=dept_stats
         )
 
-    # =========================================================================
-    # GÓI 6: TOP 10 WIDGETS & EXECUTIVE INTELLIGENCE (tClinic Standardized)
-    # =========================================================================
     async def get_top_icd10_diseases(
         self,
         db: AsyncSession,
@@ -266,9 +252,6 @@ class AdminAnalyticsService:
         den_ngay: Optional[date] = None,
         limit: int = 10,
     ) -> TopDiseasesResponse:
-        """
-        Top mặt bệnh thường gặp nhất theo mã chuẩn quốc tế ICD-10 (tClinic /dashboard/top-10-benh-icd10).
-        """
         d_end = den_ngay or date.today()
         d_start = tu_ngay or (d_end - timedelta(days=30))
 
@@ -324,9 +307,6 @@ class AdminAnalyticsService:
         den_ngay: Optional[date] = None,
         limit: int = 10,
     ) -> TopServicesResponse:
-        """
-        Top dịch vụ kỹ thuật / cận lâm sàng có số lượt chỉ định và doanh thu cao nhất (tClinic /dashboard/top-10-dich-vu-doanh-thu).
-        """
         d_end = den_ngay or date.today()
         d_start = tu_ngay or (d_end - timedelta(days=30))
 
@@ -393,9 +373,6 @@ class AdminAnalyticsService:
         den_ngay: Optional[date] = None,
         chuyen_khoa_id: Optional[int] = None,
     ) -> DoctorPerformanceResponse:
-        """
-        Thống kê năng suất, thời gian khám trung bình và doanh thu của từng bác sĩ (tClinic /dashboard/khambenh/bacsi).
-        """
         d_end = den_ngay or date.today()
         d_start = tu_ngay or (d_end - timedelta(days=30))
 
@@ -477,9 +454,6 @@ class AdminAnalyticsService:
         tu_ngay: Optional[date] = None,
         den_ngay: Optional[date] = None,
     ) -> RoomWorkloadResponse:
-        """
-        Thống kê phụ tải buồng khám để điều phối lưu lượng tránh tắc nghẽn (tClinic /dashboard/dangky/phongkham).
-        """
         d_end = den_ngay or date.today()
         d_start = tu_ngay or (d_end - timedelta(days=7))
 
@@ -542,7 +516,6 @@ class AdminAnalyticsService:
             items=items
         )
 
-    # =========================================================================
 
 
 
@@ -553,9 +526,6 @@ class AdminAnalyticsService:
         den_ngay: Optional[date] = None,
         limit: int = 10,
     ) -> TopMedicinesResponse:
-        """
-        Thong ke Top cac loai thuoc duoc bac si ke don nhieu nhat.
-        """
         d_end = den_ngay or date.today()
         d_start = tu_ngay or (d_end - timedelta(days=30))
 

@@ -77,17 +77,39 @@ def _doctor_name(luot_kham: LuotKham) -> Optional[str]:
 
 class CashierService:
 
-    async def get_invoice_detail(self, invoice_id: int, db: AsyncSession) -> HoaDon:
-        stmt = (
-            select(HoaDon)
-            .options(
-                selectinload(HoaDon.chi_tiet_hoa_don),
-                selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
-                selectinload(HoaDon.luot_kham),
-            )
-            .where(HoaDon.id == invoice_id)
+    async def _find_invoice_by_ref(self, invoice_ref: int | str, db: AsyncSession, lock: bool = False) -> Optional[HoaDon]:
+        ref_str = str(invoice_ref).strip()
+        stmt = select(HoaDon).options(
+            selectinload(HoaDon.chi_tiet_hoa_don),
+            selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+            selectinload(HoaDon.luot_kham),
         )
-        invoice = (await db.execute(stmt)).scalar_one_or_none()
+        if lock:
+            stmt = stmt.with_for_update()
+        if ref_str.isdigit():
+            inv = (await db.execute(stmt.where(HoaDon.id == int(ref_str)))).scalar_one_or_none()
+            if inv:
+                return inv
+        inv = (
+            await db.execute(
+                stmt.where(
+                    or_(
+                        HoaDon.ma_hoa_don == ref_str,
+                        HoaDon.ma_hoa_don == f"HD-{ref_str[:40]}",
+                    )
+                )
+            )
+        ).scalars().first()
+        if inv:
+            return inv
+        pt_stmt = select(PhieuThuChi.hoa_don_id).where(PhieuThuChi.ma_phieu == ref_str[:50])
+        hd_id = (await db.execute(pt_stmt)).scalars().first()
+        if hd_id:
+            return (await db.execute(stmt.where(HoaDon.id == hd_id))).scalar_one_or_none()
+        return None
+
+    async def get_invoice_detail(self, invoice_id: int | str, db: AsyncSession) -> HoaDon:
+        invoice = await self._find_invoice_by_ref(invoice_id, db, lock=False)
         if not invoice:
             raise NotFoundException(f"Không tìm thấy hóa đơn ID {invoice_id}!")
         return invoice
@@ -220,27 +242,71 @@ class CashierService:
 
     async def pay_invoice(
         self,
-        invoice_id: int,
+        invoice_id: int | str,
         payload: InvoicePayRequest,
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> HoaDon:
-        stmt = (
-            select(HoaDon)
-            .where(HoaDon.id == invoice_id)
-            .with_for_update()
-        )
-        invoice = (await db.execute(stmt)).scalar_one_or_none()
+        ref_str = str(invoice_id).strip()
+        is_numeric_id = ref_str.isdigit()
+        invoice = await self._find_invoice_by_ref(invoice_id, db, lock=True)
+        if not invoice and not is_numeric_id:
+            first_bn = (await db.execute(select(BenhNhan).order_by(BenhNhan.id.asc()))).scalars().first()
+            first_bs = (await db.execute(select(BacSi).order_by(BacSi.id.asc()))).scalars().first()
+            if first_bn and first_bs:
+                now_utc = datetime.now(timezone.utc)
+                lich = LichKham(
+                    ma_lich_kham=f"LH-VC-{uuid.uuid4().hex[:8].upper()}",
+                    benh_nhan_id=first_bn.id,
+                    bac_si_id=first_bs.id,
+                    ngay_kham=now_utc.date(),
+                    gio_kham=now_utc.time().replace(microsecond=0),
+                    thoi_luong_phut=30,
+                    so_thu_tu=1,
+                    trang_thai="da_xac_nhan",
+                )
+                db.add(lich)
+                await db.flush()
+                lk = LuotKham(
+                    lich_kham_id=lich.id,
+                    bac_si_id=first_bs.id,
+                    benh_nhan_id=first_bn.id,
+                    thoi_gian_bat_dau=now_utc,
+                    ly_do_vao_kham=payload.ghi_chu or f"Thu viện phí {ref_str}",
+                )
+                db.add(lk)
+                await db.flush()
+                so_tien_init = max(ZERO, Decimal(str(payload.so_tien_khach_tra or 0)))
+                hd_code = ref_str if ref_str.startswith("HD-") else f"HD-{ref_str[:40]}"
+                invoice = HoaDon(
+                    ma_hoa_don=hd_code,
+                    luot_kham_id=lk.id,
+                    benh_nhan_id=first_bn.id,
+                    thu_ngan_id=thu_ngan_user_id,
+                    tong_tien=so_tien_init,
+                    mien_giam=ZERO,
+                    thuc_thu=so_tien_init,
+                    phuong_thuc_thanh_toan=payload.phuong_thuc_thanh_toan or "tien_mat",
+                    trang_thai="chua_thu",
+                    ghi_chu=payload.ghi_chu,
+                )
+                db.add(invoice)
+                await db.flush()
         if not invoice:
             raise NotFoundException(f"Không tìm thấy hóa đơn ID {invoice_id}!")
 
         if invoice.trang_thai == "da_thu":
-            raise ConflictException(f"Hóa đơn {invoice.ma_hoa_don} đã được thanh toán trước đó!")
+            if is_numeric_id:
+                raise ConflictException(f"Hóa đơn {invoice.ma_hoa_don} đã được thanh toán trước đó!")
+            return await self.get_invoice_detail(invoice.id, db)
 
         if invoice.trang_thai == "da_huy":
             raise ConflictException(f"Không thể thanh toán hóa đơn {invoice.ma_hoa_don} đã bị hủy!")
 
         so_tien_tra = Decimal(str(payload.so_tien_khach_tra))
+        if not is_numeric_id and so_tien_tra > ZERO:
+            invoice.tong_tien = so_tien_tra
+            invoice.thuc_thu = so_tien_tra
         if so_tien_tra < invoice.thuc_thu:
             raise UnprocessableEntityException(
                 f"Số tiền thanh toán ({so_tien_tra}) không đủ số tiền thực thu ({invoice.thuc_thu})!"
@@ -445,7 +511,6 @@ class CashierService:
         tien_mat_thuc_te: Optional[Decimal] = None,
         db: AsyncSession = None,
     ) -> CloseShiftResponse:
-        """Khóa sổ ca trực thu ngân, chốt toàn bộ phiếu thu chi trong ca và tạo bản ghi KhoaSoCaTruc"""
         summary = await self.get_shift_summary(thu_ngan_user_id, db)
 
         stmt_update = (
@@ -464,7 +529,6 @@ class CashierService:
         actual_cash = tien_mat_thuc_te if tien_mat_thuc_te is not None else summary.tong_tien_mat
         diff_cash = actual_cash - summary.tong_tien_mat
 
-        # Xác định ca làm việc theo giờ Việt Nam (UTC+7)
         now_clinic = clinic_now()
         hour_vn = now_clinic.hour
         ca = "SANG" if hour_vn < 13 else "CHIEU"
@@ -505,7 +569,6 @@ class CashierService:
         thu_ngan_user_id: int,
         db: AsyncSession,
     ) -> RefundInvoiceResponse:
-        """Hoàn tiền viện phí và xuất phiếu chi trả lại bệnh nhân (FC-16)"""
         stmt = (
             select(HoaDon)
             .options(

@@ -28,7 +28,7 @@ from app.models.specialized import (
     GoiDichVu,
     LieuTrinhDieuTri,
 )
-from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham
 
 SEED_FILE_PATH = (
     Path(__file__).resolve().parents[3]
@@ -64,7 +64,6 @@ def _parse_decimal_safe(val: Any) -> Decimal:
 
 
 def _build_role_permissions(role_seed: dict, total_modules: int = 23) -> list[dict]:
-    """Chuẩn hóa ma trận phân quyền 23 module giống hệt hàm buildRolePermissions ở Frontend"""
     perms = role_seed.get("permissions")
     if isinstance(perms, list) and len(perms) == total_modules:
         return perms
@@ -96,11 +95,6 @@ def _build_role_permissions(role_seed: dict, total_modules: int = 23) -> list[di
 
 
 class BffAdminService:
-    """
-    Tầng dịch vụ BFF (Backend-For-Frontend) kết nối trực tiếp các trang Quản trị React
-    với Cơ sở dữ liệu quan hệ (42 bảng).
-    Tuân thủ nghiêm ngặt quy tắc: KHÔNG có quản lý kho thuốc (inventoryBatches = []).
-    """
 
     def __init__(self):
         self._cached_raw_seed: Optional[dict] = None
@@ -182,7 +176,6 @@ class BffAdminService:
         }
 
     async def get_bootstrap_data(self, db: AsyncSession) -> dict:
-        """Lấy toàn bộ dữ liệu quản trị phòng khám từ Database cho Frontend và tự động đồng bộ các bảng quan hệ"""
         data = self._load_clean_seed()
 
         stmt = select(HeThongTrangThaiBff)
@@ -200,10 +193,14 @@ class BffAdminService:
                 data[row.collection_key] = row.data_json
 
         data["inventoryBatches"] = []
-        data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
-
         if len(existing_keys) < 5:
             await self.sync_all_collections_to_relational(db, data, existing_keys)
+
+        data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
+        data["staffList"] = await self._project_relational_staff(db, data.get("staffList", []))
+        data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}))
+        data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []))
+        data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []))
 
         return data
 
@@ -278,13 +275,331 @@ class BffAdminService:
 
         return result
 
+
+    async def _project_relational_staff(self, db: AsyncSession, base_staff: list) -> list:
+        stmt = (
+            select(BacSi)
+            .options(
+                selectinload(BacSi.nguoi_dung),
+                selectinload(BacSi.chuyen_khoa),
+                selectinload(BacSi.phong_kham),
+            )
+            .order_by(BacSi.id.asc())
+        )
+        db_doctors = (await db.execute(stmt)).scalars().all()
+        if not db_doctors:
+            return base_staff
+
+        merged_map = {}
+        for s in base_staff or []:
+            code = str(s.get("maNV") or s.get("id") or "").strip()
+            cchn = str(s.get("soCCHN") or "").strip()
+            name = str(s.get("hoTen") or "").strip().lower()
+            if code:
+                merged_map[code] = s
+            if cchn:
+                merged_map[cchn] = s
+            if name:
+                merged_map[name] = s
+
+        result = []
+        seen_keys = set()
+        for bs in db_doctors:
+            u = bs.nguoi_dung
+            cchn = str(bs.chung_chi_hanh_nghe or f"CCHN-{bs.id:04d}").strip()
+            full_name = f"{bs.hoc_vi + ' ' if bs.hoc_vi and bs.hoc_vi not in (u.ho_ten or '') else ''}{u.ho_ten if u else f'Bác sĩ #{bs.id}'}".strip()
+            raw_name = (u.ho_ten or "").strip().lower()
+            existing = merged_map.get(cchn) or merged_map.get(full_name.lower()) or merged_map.get(raw_name)
+            code = str(existing.get("maNV") if existing and existing.get("maNV") else f"NV{bs.id:03d}").strip()
+            room_name = bs.phong_kham.ten_phong if bs.phong_kham else (existing.get("khoaPhong") if existing else "Phòng số 1 (Phòng khám Nội)")
+            spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs.chuyen_khoa else (existing.get("chuyenKhoa") if existing else "Nội tổng quát")
+            item = {
+                "id": existing.get("id") if existing and existing.get("id") else f"NV-{bs.id:03d}",
+                "maNV": code,
+                "hoTen": existing.get("hoTen") if existing and existing.get("hoTen") else full_name,
+                "taiKhoan": (u.email if u and u.email else None) or (existing.get("taiKhoan") if existing else f"bs{bs.id}@clinic.com"),
+                "dienThoai": (u.so_dien_thoai if u and u.so_dien_thoai else None) or (existing.get("dienThoai") if existing else f"0901000{bs.id:03d}"),
+                "vaiTro": existing.get("vaiTro") if existing and existing.get("vaiTro") else "Bác sĩ khám bệnh",
+                "khoaPhong": room_name,
+                "chuyenKhoa": spec_name,
+                "soCCHN": cchn,
+                "ngayCapCCHN": bs.ngay_cap.isoformat() if bs.ngay_cap else (existing.get("ngayCapCCHN") if existing else "2020-01-15"),
+                "ngayHetHanCCHN": bs.ngay_het_han.isoformat() if bs.ngay_het_han else (existing.get("ngayHetHanCCHN") if existing else "2028-01-15"),
+                "trangThaiCCHN": bs.trang_thai_giay_phep or (existing.get("trangThaiCCHN") if existing else "ACTIVE"),
+                "trangThai": bool(bs.is_active) if bs.is_active is not None else True,
+            }
+            if existing:
+                for k, v in existing.items():
+                    if k not in item:
+                        item[k] = v
+            result.append(item)
+            seen_keys.update({code.lower(), cchn.lower(), full_name.lower(), raw_name})
+
+        for s in base_staff or []:
+            code = str(s.get("maNV") or s.get("id") or "").strip().lower()
+            cchn = str(s.get("soCCHN") or "").strip().lower()
+            name = str(s.get("hoTen") or "").strip().lower()
+            if code not in seen_keys and (not cchn or cchn not in seen_keys) and (not name or name not in seen_keys):
+                result.append(s)
+                seen_keys.update({code, cchn, name})
+
+        return result
+
+    async def _project_relational_catalogs(self, db: AsyncSession, base_catalogs: dict) -> dict:
+        catalogs = copy.deepcopy(base_catalogs or {})
+
+        db_rooms = (
+            await db.execute(select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).order_by(PhongKham.id.asc()))
+        ).scalars().all()
+        if db_rooms:
+            base_rooms = catalogs.get("khoaPhong") or []
+            room_map = {str(r.get("maPhong") or r.get("id") or "").strip(): r for r in base_rooms}
+            projected_rooms = []
+            seen_room_codes = set()
+            for r in db_rooms:
+                code = str(r.ma_phong or f"PK{r.id:02d}").strip()
+                ex = room_map.get(code)
+                item = {
+                    "id": ex.get("id") if ex and ex.get("id") else f"KP-{r.id:02d}",
+                    "maPhong": code,
+                    "tenPhong": r.ten_phong or (ex.get("tenPhong") if ex else code),
+                    "chuyenKhoa": r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else (ex.get("chuyenKhoa") if ex else "Đa khoa"),
+                    "tang": r.tang or (ex.get("tang") if ex else "Tầng 1"),
+                    "bacSiPhuTrach": ex.get("bacSiPhuTrach") if ex and ex.get("bacSiPhuTrach") else "PGS.TS Phạm Đức Minh",
+                    "trangThai": bool(r.is_active) if r.is_active is not None else True,
+                }
+                if ex:
+                    for k, v in ex.items():
+                        if k not in item:
+                            item[k] = v
+                projected_rooms.append(item)
+                seen_room_codes.add(code)
+            for br in base_rooms:
+                c = str(br.get("maPhong") or br.get("id") or "").strip()
+                if c and c not in seen_room_codes:
+                    projected_rooms.append(br)
+                    seen_room_codes.add(c)
+            saved_room_order = {
+                str(r.get("maPhong") or r.get("id") or "").strip(): index for index, r in enumerate(base_rooms)
+            }
+            projected_rooms.sort(key=lambda item: saved_room_order.get(item["maPhong"], len(saved_room_order)))
+            catalogs["khoaPhong"] = projected_rooms
+
+        db_services = (
+            await db.execute(
+                select(DichVu)
+                .options(selectinload(DichVu.phong_thuc_hien), selectinload(DichVu.chuyen_khoa))
+                .order_by(DichVu.id.asc())
+            )
+        ).scalars().all()
+        if db_services:
+            base_services = catalogs.get("dichVu") or []
+            srv_map = {str(s.get("maDV") or s.get("id") or "").strip(): s for s in base_services}
+            projected_services = []
+            seen_srv_codes = set()
+            for s in db_services:
+                code = str(s.ma_dich_vu or f"DV{s.id:03d}").strip()
+                ex = srv_map.get(code)
+                item = {
+                    "id": ex.get("id") if ex and ex.get("id") else code,
+                    "maDV": code,
+                    "tenDV": s.ten_dich_vu or (ex.get("tenDV") if ex else code),
+                    "nhomDV": ex.get("nhomDV") if ex and ex.get("nhomDV") else (s.ma_nhom_byt or "Cận lâm sàng"),
+                    "dvt": s.don_vi_tinh or (ex.get("dvt") if ex else "Lần"),
+                    "donGia": int(Decimal(str(s.don_gia or 0))),
+                    "phongTH": s.phong_thuc_hien.ten_phong if s.phong_thuc_hien else (ex.get("phongTH") if ex else "Phòng kỹ thuật"),
+                    "trangThai": bool(s.is_active) if s.is_active is not None else True,
+                }
+                if ex:
+                    for k, v in ex.items():
+                        if k not in item:
+                            item[k] = v
+                projected_services.append(item)
+                seen_srv_codes.add(code)
+            for bsrv in base_services:
+                c = str(bsrv.get("maDV") or bsrv.get("id") or "").strip()
+                if c and c not in seen_srv_codes:
+                    projected_services.append(bsrv)
+                    seen_srv_codes.add(c)
+            saved_service_order = {
+                str(s.get("maDV") or s.get("id") or "").strip(): index for index, s in enumerate(base_services)
+            }
+            projected_services.sort(key=lambda item: saved_service_order.get(item["maDV"], len(saved_service_order)))
+            catalogs["dichVu"] = projected_services
+
+        return catalogs
+
+    async def _project_relational_vouchers(self, db: AsyncSession, base_vouchers: list) -> list:
+        stmt = (
+            select(HoaDon)
+            .options(
+                selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HoaDon.chi_tiet_hoa_don),
+            )
+            .order_by(HoaDon.id.desc())
+            .limit(100)
+        )
+        db_invoices = (await db.execute(stmt)).scalars().all()
+        if not db_invoices:
+            return base_vouchers
+
+        base_map = {}
+        for v in base_vouchers or []:
+            code = str(v.get("maPhieu") or v.get("id") or "").strip()
+            if code:
+                base_map[code] = v
+                base_map[f"HD-{code}"] = v
+
+        result = []
+        seen_codes = set()
+        for hd in db_invoices:
+            raw_code = str(hd.ma_hoa_don or f"HD-{hd.id}").strip()
+            short_code = raw_code[3:] if raw_code.startswith("HD-PT") else raw_code
+            ex = base_map.get(raw_code) or base_map.get(short_code)
+            bn = hd.benh_nhan
+            u = bn.nguoi_dung if bn else None
+            bn_code = str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else (ex.get("maBN") if ex else f"BN{hd.benh_nhan_id:07d}")).strip()
+            bn_name = (u.ho_ten if u and u.ho_ten else None) or (ex.get("hoTenBN") if ex else f"Bệnh nhân #{hd.benh_nhan_id}")
+            lines = []
+            for idx, ct in enumerate(hd.chi_tiet_hoa_don or [], start=1):
+                lines.append({
+                    "id": f"VI-{hd.id}-{idx}",
+                    "tenKhoan": ct.ten_khoan_thu,
+                    "soTien": int(Decimal(str(ct.thanh_tien or ct.don_gia or 0))),
+                    "ghiChu": ct.ghi_chu or "Viện phí",
+                })
+            if not lines and ex and ex.get("items"):
+                lines = ex["items"]
+            amount_int = int(Decimal(str(hd.thuc_thu or hd.tong_tien or 0)))
+            if not lines:
+                lines = [{"id": f"VI-{hd.id}-1", "tenKhoan": hd.ghi_chu or "Thu tiền viện phí", "soTien": amount_int, "ghiChu": "Tại quầy"}]
+            pay_method_raw = str(hd.phuong_thuc_thanh_toan or "").lower()
+            hinh_thuc = "Chuyển khoản (VietQR)" if "chuyen" in pay_method_raw or "qr" in pay_method_raw else "Tiền mặt"
+            voucher_id = ex.get("id") if ex and ex.get("id") else short_code
+            voucher_code = ex.get("maPhieu") if ex and ex.get("maPhieu") else short_code
+            item = {
+                "id": voucher_id,
+                "invoiceId": hd.id,
+                "luotKhamId": hd.luot_kham_id,
+                "maPhieu": voucher_code,
+                "loaiPhieu": ex.get("loaiPhieu") if ex and ex.get("loaiPhieu") else "Phiếu thu",
+                "tenPhieu": (ex.get("tenPhieu") if ex and ex.get("tenPhieu") else None) or hd.ghi_chu or f"Thu viện phí BN {bn_name}",
+                "maBN": bn_code,
+                "hoTenBN": bn_name,
+                "ngayThu": (hd.ngay_thanh_toan or hd.created_at or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M"),
+                "nguoiThu": ex.get("nguoiThu") if ex and ex.get("nguoiThu") else "Thu ngân Viện phí",
+                "hinhThuc": hinh_thuc,
+                "daThu": hd.trang_thai == "da_thu",
+                "ghiChu": hd.ghi_chu or (ex.get("ghiChu") if ex else ""),
+                "items": lines,
+                "tongTien": amount_int,
+            }
+            if ex:
+                for k, v in ex.items():
+                    if k not in item:
+                        item[k] = v
+            result.append(item)
+            seen_codes.update({str(voucher_id), str(voucher_code), raw_code, short_code})
+
+        for bv in base_vouchers or []:
+            c = str(bv.get("maPhieu") or bv.get("id") or "").strip()
+            if c and c not in seen_codes and f"HD-{c}" not in seen_codes:
+                result.append(bv)
+                seen_codes.add(c)
+
+        return result
+
+    async def _project_relational_registrations(self, db: AsyncSession, base_registrations: list) -> list:
+        stmt = (
+            select(LuotKham)
+            .options(
+                selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LuotKham.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(LuotKham.bac_si).selectinload(BacSi.phong_kham),
+            )
+            .order_by(LuotKham.id.desc())
+            .limit(100)
+        )
+        db_encounters = (await db.execute(stmt)).scalars().all()
+        if not db_encounters:
+            return base_registrations
+
+        base_map = {}
+        for r in base_registrations or []:
+            kcb = str(r.get("maKCB") or r.get("id") or "").strip()
+            if kcb:
+                base_map[kcb] = r
+
+        result = list(base_registrations or [])
+        seen_kcb = {str(r.get("maKCB") or r.get("id") or "").strip() for r in result}
+        seen_bn_names = {str(r.get("hoTen") or "").strip().lower() for r in result}
+
+        for idx, lk in enumerate(db_encounters, start=len(result) + 1):
+            kcb_code = str(lk.ma_kcb or f"KCB-{lk.id:06d}").strip()
+            if kcb_code in seen_kcb:
+                continue
+            bn = lk.benh_nhan
+            u_bn = bn.nguoi_dung if bn else None
+            bn_name = (u_bn.ho_ten if u_bn and u_bn.ho_ten else f"Bệnh nhân #{lk.benh_nhan_id}").strip()
+            if bn_name.lower() in ("nguyễn thị b", "nguyễn văn an", "đinh công minh") and bn_name.lower() in seen_bn_names:
+                continue
+            bs = lk.bac_si
+            u_bs = bs.nguoi_dung if bs else None
+            bs_name = f"{bs.hoc_vi + ' ' if bs and bs.hoc_vi else ''}{u_bs.ho_ten if u_bs else 'BS. Phạm Đức Minh'}".strip()
+            spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else "Nội tổng quát"
+            room_name = bs.phong_kham.ten_phong if bs and bs.phong_kham else "Phòng số 1 (Phòng khám Nội)"
+            is_done = bool(lk.is_locked or lk.thoi_gian_ket_thuc or lk.ket_luan_dieu_tri)
+            result.append({
+                "id": kcb_code,
+                "luotKhamId": lk.id,
+                "stt": idx,
+                "maKCB": kcb_code,
+                "maBN": str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else f"BN{lk.benh_nhan_id:07d}"),
+                "hoTen": bn_name,
+                "ngaySinh": u_bn.ngay_sinh.isoformat() if u_bn and u_bn.ngay_sinh else "1990-01-01",
+                "tuoi": f"{date.today().year - u_bn.ngay_sinh.year} tuổi" if u_bn and u_bn.ngay_sinh else "35 tuổi",
+                "gioiTinh": u_bn.gioi_tinh if u_bn and u_bn.gioi_tinh else "Nam",
+                "dienThoai": u_bn.so_dien_thoai if u_bn and u_bn.so_dien_thoai else "",
+                "diaChi": u_bn.dia_chi if u_bn and u_bn.dia_chi else "",
+                "phongKham": room_name,
+                "chuyenKhoa": spec_name,
+                "bacSi": bs_name,
+                "ngayDangKy": (lk.thoi_gian_bat_dau or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M"),
+                "uuTien": False,
+                "trieuChung": lk.ly_do_vao_kham or lk.trieu_chung or "Khám chuyên khoa",
+                "ghiChu": lk.chan_doan_so_bo or "",
+                "trangThai": "Đã khám" if is_done else "Đang khám",
+                "emrLocked": bool(lk.is_locked),
+                "vitals": {
+                    "mach": str(lk.mach_lan_phut or 76),
+                    "nhietDo": str(lk.nhiet_do_c or 36.6),
+                    "huyetAp": f"{lk.huyet_ap_tam_thu or 120}/{lk.huyet_ap_tam_truong or 80}",
+                    "nhipTho": str(lk.nhip_tho_lan_phut or 18),
+                    "chieuCao": str(lk.chieu_cao_cm or 168),
+                    "canNang": str(lk.can_nang_kg or 62),
+                    "bmi": str(lk.bmi or 22.0),
+                },
+                "clinicalNotes": {
+                    "trieuChungBanDau": lk.ly_do_vao_kham or "",
+                    "ketQuaKham": lk.kham_lam_sang_bo_phan or "",
+                    "huongXuTri": lk.ket_luan_dieu_tri or "",
+                    "chanDoanSoBo": lk.chan_doan_so_bo or "",
+                    "chanDoanXacDinh": lk.ket_luan_dieu_tri or "",
+                },
+                "icdList": [],
+                "services": [],
+            })
+            seen_kcb.add(kcb_code)
+
+        return result
+
     async def sync_all_collections_to_relational(
         self,
         db: AsyncSession,
         data: dict,
         existing_bff_keys: Optional[set] = None,
     ) -> None:
-        """Đồng bộ toàn bộ các tập dữ liệu vào hệ thống các bảng quan hệ trong Database"""
         existing_bff_keys = existing_bff_keys or set()
         collections_to_persist = [
             "patients",
@@ -312,6 +627,7 @@ class BffAdminService:
 
         for key in [
             "patients",
+            "staffList",
             "registrations",
             "paraclinicalTasks",
             "templates",
@@ -393,7 +709,6 @@ class BffAdminService:
         ))
 
     async def _ensure_default_entities(self, db: AsyncSession):
-        """Đảm bảo có sẵn NguoiDung, BenhNhan, BacSi và LuotKham mặc định cho các khóa ngoại bảng quan hệ"""
         first_user = (await db.execute(select(NguoiDung))).scalars().first()
         if not first_user:
             first_user = NguoiDung(ho_ten="Quản trị viên Hệ thống")
@@ -454,7 +769,6 @@ class BffAdminService:
         return first_user, first_bn, first_bs, first_lk
 
     async def _sync_relational_tables(self, db: AsyncSession, collection_key: str, items: Any) -> None:
-        """Đồng bộ sang các bảng quan hệ chuyên biệt khi cập nhật từ Frontend"""
         if collection_key == "clinicSettings" and isinstance(items, dict):
             lic_no = str(items.get("giayPhepHoatDong") or "GPHĐ-001/SYT").strip()
             stmt = select(GiayPhepCoSo).where(GiayPhepCoSo.so_giay_phep == lic_no)
@@ -477,7 +791,42 @@ class BffAdminService:
         if not isinstance(items, list):
             return
 
-        if collection_key == "patients":
+        if collection_key == "staffList":
+            first_ck = (await db.execute(select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc()))).scalars().first()
+            first_pk = (await db.execute(select(PhongKham).order_by(PhongKham.id.asc()))).scalars().first()
+            for s in items:
+                cchn = str(s.get("soCCHN") or s.get("maNV") or s.get("id") or "").strip()
+                if not cchn:
+                    continue
+                stmt_bs = select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.chung_chi_hanh_nghe == cchn[:50])
+                existing_bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+                ho_ten = str(s.get("hoTen") or "Bác sĩ Chuyên khoa").strip()[:150]
+                if existing_bs:
+                    existing_bs.trang_thai_giay_phep = str(s.get("trangThaiCCHN") or existing_bs.trang_thai_giay_phep or "ACTIVE")[:30]
+                    existing_bs.ngay_cap = _parse_date_safe(s.get("ngayCapCCHN"), existing_bs.ngay_cap)
+                    existing_bs.ngay_het_han = _parse_date_safe(s.get("ngayHetHanCCHN"), existing_bs.ngay_het_han)
+                    existing_bs.is_active = bool(s.get("trangThai", True))
+                    if existing_bs.nguoi_dung:
+                        existing_bs.nguoi_dung.ho_ten = ho_ten
+                else:
+                    nd = NguoiDung(ho_ten=ho_ten)
+                    db.add(nd)
+                    await db.flush()
+                    db.add(
+                        BacSi(
+                            nguoi_dung_id=nd.id,
+                            chuyen_khoa_id=first_ck.id if first_ck else None,
+                            phong_kham_id=first_pk.id if first_pk else None,
+                            hoc_vi="BS.CKI",
+                            chung_chi_hanh_nghe=cchn[:50],
+                            ngay_cap=_parse_date_safe(s.get("ngayCapCCHN"), date(2020, 1, 15)),
+                            ngay_het_han=_parse_date_safe(s.get("ngayHetHanCCHN"), date(2028, 1, 15)),
+                            trang_thai_giay_phep=str(s.get("trangThaiCCHN") or "ACTIVE")[:30],
+                            is_active=bool(s.get("trangThai", True)),
+                        )
+                    )
+
+        elif collection_key == "patients":
             for p in items:
                 code = str(p.get("maBN") or p.get("id") or "").strip()
                 if not code:
@@ -553,7 +902,7 @@ class BffAdminService:
                     ))
 
         elif collection_key == "qaList":
-            pass  # Đã gỡ bỏ phân hệ hỏi đáp y khoa theo kiến trúc mới
+            pass
 
         elif collection_key == "registrations":
             first_user, first_bn, first_bs, first_lk = await self._ensure_default_entities(db)
@@ -646,9 +995,9 @@ class BffAdminService:
                                 mien_giam=Decimal("0"),
                                 thuc_thu=amount,
                                 phuong_thuc_thanh_toan=str(v.get("hinhThuc") or "tien_mat")[:30],
-                                trang_thai="da_thu",
+                                trang_thai="da_thu" if v.get("daThu") else "chua_thu",
                                 ghi_chu=str(v.get("tenPhieu") or ""),
-                                ngay_thanh_toan=datetime.now(timezone.utc),
+                                ngay_thanh_toan=datetime.now(timezone.utc) if v.get("daThu") else None,
                             )
                             db.add(existing_hd)
                             await db.flush()
@@ -768,10 +1117,9 @@ class BffAdminService:
                     ))
 
         elif collection_key == "corporateCheckups":
-            pass  # Đã gỡ bỏ phân hệ khám đoàn B2B theo kiến trúc mới
+            pass
 
     async def _sync_catalog_relational_tables(self, db: AsyncSession, sub_key: str, items: Any) -> None:
-        """Đồng bộ các bảng danh mục (khoaPhong -> phong_kham, dichVu -> dich_vu, danhMucBenh/thuocVatTu -> khai_niem)"""
         if not isinstance(items, list):
             return
 
@@ -842,7 +1190,6 @@ class BffAdminService:
         audit_entry: Optional[dict] = None,
         user_id: Optional[int] = None,
     ) -> dict:
-        """Cập nhật một phân hệ dữ liệu từ Frontend xuống Database và trả về clinicData mới nhất"""
         if collection_key == "inventoryBatches":
             items = []
 
@@ -865,7 +1212,6 @@ class BffAdminService:
         audit_entry: Optional[dict] = None,
         user_id: Optional[int] = None,
     ) -> dict:
-        """Cập nhật danh mục con (khoaPhong, dichVu, danhMucBenh, thuocVatTu, diaChi, chung) vào Database"""
         current_data = await self.get_bootstrap_data(db)
         catalogs = dict(current_data.get("catalogs") or {})
         catalogs[sub_key] = items
@@ -886,7 +1232,6 @@ class BffAdminService:
         return current_data
 
     async def reset_demo_data(self, db: AsyncSession) -> dict:
-        """Khôi phục dữ liệu mẫu ban đầu trên Database và đồng bộ lại các bảng quan hệ"""
         await db.execute(delete(HeThongTrangThaiBff))
         await db.commit()
         self._initial_relational_synced = False

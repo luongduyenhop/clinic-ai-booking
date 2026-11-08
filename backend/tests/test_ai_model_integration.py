@@ -49,6 +49,7 @@ async def test_api_confidence_threshold_boundary(api_client, monkeypatch, confid
     from types import SimpleNamespace
     from importlib import import_module
     service_module = import_module("app.services.ai_service")
+    monkeypatch.setattr(service_module.settings, "AI_CONFIDENCE_THRESHOLD", 0.40)
 
     result = {
         "specialties": [{"specialty": "Nội tổng quát", "probability": confidence}],

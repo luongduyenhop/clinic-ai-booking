@@ -111,7 +111,6 @@ class CloseShiftResponse(BaseModel):
 
 
 class RefundInvoiceRequest(BaseModel):
-    """Yêu cầu hoàn tiền viện phí / xuất phiếu chi trả lại bệnh nhân (FC-16)"""
     invoice_id: int = Field(..., description="ID hóa đơn cần hoàn tiền")
     so_tien_hoan: Optional[Decimal] = Field(None, gt=0, description="Số tiền hoàn lại (None nếu hoàn 100% thực thu)")
     ly_do: str = Field(..., min_length=5, max_length=500, description="Lý do hoàn tiền (bệnh nhân bỏ về, hủy dịch vụ CLS, v.v.)")
@@ -119,7 +118,6 @@ class RefundInvoiceRequest(BaseModel):
 
 
 class RefundInvoiceResponse(BaseModel):
-    """Kết quả hoàn tiền viện phí"""
     ma_phieu_chi: str
     phieu_chi_id: int
     hoa_don_id: int

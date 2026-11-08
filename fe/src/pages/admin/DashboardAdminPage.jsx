@@ -134,10 +134,15 @@ export default function DashboardAdminPage() {
 
     const registrations = clinicData?.registrations || []
     const staffList = clinicData?.staffList || []
+    const vouchers = clinicData?.vouchers || []
     const roleWorkbenches = clinicData?.roleWorkbenches || {}
     const accountantSummary = roleWorkbenches.accountantSummary || {}
 
     const multiplier = timeFilter === 'today' ? 0.35 : timeFilter === 'month' ? 4.2 : 1.0
+    const paidVouchersRevenue = vouchers
+        .filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi'))
+        .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
+    const liveRevenue = Math.max(Number(stats?.tong_doanh_thu_trong_ngay || 0), paidVouchersRevenue)
 
     const expiredOrSoonLicenses = staffList.filter(
         (s) => s.trangThaiCCHN === 'EXPIRED' || s.trangThaiCCHN === 'EXPIRING_SOON'
@@ -297,7 +302,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu kỳ báo cáo</div>
                                 <div className="font-display text-xl font-extrabold text-amber-600 mt-1">
-                                    {Number(stats?.tong_doanh_thu_trong_ngay || Math.round((accountantSummary.doanhThuDichVu || 14850000) * multiplier)).toLocaleString('vi-VN')} đ
+                                    {Number(liveRevenue || Math.round((accountantSummary.doanhThuDichVu || 0) * multiplier)).toLocaleString('vi-VN')} đ
                                 </div>
                                 <button
                                     type="button"

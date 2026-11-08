@@ -141,7 +141,7 @@ async def create_invoice(
     summary="Xem chi tiết hóa đơn viện phí"
 )
 async def get_invoice(
-    invoice_id: int,
+    invoice_id: str,
     current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
@@ -189,7 +189,7 @@ async def get_invoice(
     summary="Thu tiền viện phí và xác nhận hoàn tất thanh toán"
 )
 async def pay_invoice(
-    invoice_id: int,
+    invoice_id: str,
     payload: InvoicePayRequest,
     current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)

@@ -193,7 +193,7 @@ class ClinicalService:
             gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
             so_dt = bn_user.so_dien_thoai if bn_user else ""
 
-            birth_year = bn_user.ngay_sinh.year if bn_user and bn_user.ngay_sinh else (t.benh_nhan.nam_sinh if t.benh_nhan else 1990)
+            birth_year = bn_user.ngay_sinh.year if bn_user and bn_user.ngay_sinh else 1990
             current_year = datetime.now(timezone.utc).year
             tuoi = current_year - birth_year if birth_year else 35
 

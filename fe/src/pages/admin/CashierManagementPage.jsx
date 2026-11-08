@@ -52,7 +52,6 @@ export default function CashierManagementPage() {
                 })
             }
         } catch {}
-        // Phòng khám tư chỉ thu tiền viện phí: lọc bỏ mọi chứng từ chi (nếu có từ bản cũ)
         return list.filter((v) => v.loaiPhieu !== 'Phiếu chi')
     }, [clinicData])
 
@@ -60,7 +59,6 @@ export default function CashierManagementPage() {
     const registrations = clinicData?.registrations || []
     const khoanThuCatalog = clinicData?.catalogs?.khoanThu || []
 
-    // Danh sách bệnh nhân chờ thu viện phí (Đã có dịch vụ chỉ định từ bàn khám)
     const pendingBillRegistrations = useMemo(() => {
         return (registrations || []).filter((r) => {
             const hasServices = Array.isArray(r.services) && r.services.length > 0
@@ -170,11 +168,14 @@ export default function CashierManagementPage() {
                     luot_kham_id: target.luotKhamId,
                     mien_giam: 0
                 })
+                const actualAmount = Number(created.thuc_thu ?? created.tong_tien ?? target.tongTien ?? 0)
                 const updatedTarget = {
                     ...target,
                     id: created.id,
                     invoiceId: created.id,
-                    maPhieu: created.ma_hoa_don
+                    maPhieu: created.ma_hoa_don,
+                    tongTien: actualAmount,
+                    thuc_thu: actualAmount
                 }
                 setForm(updatedTarget)
                 setQrInvoice(updatedTarget)
@@ -182,7 +183,23 @@ export default function CashierManagementPage() {
                 fetchLiveCashierData()
                 return
             } catch (err) {
-                AppToast.error(err?.response?.data?.message || err?.message || 'Không thể lập hóa đơn để tạo mã VietQR')
+                const existingBill = livePendingBills.find((pb) => pb.luot_kham_id === target.luotKhamId)
+                if (existingBill) {
+                    const fallbackTarget = {
+                        ...target,
+                        id: existingBill.id,
+                        invoiceId: existingBill.id,
+                        maPhieu: existingBill.ma_hoa_don,
+                        tongTien: Number(existingBill.thuc_thu ?? existingBill.tong_tien ?? target.tongTien ?? 0)
+                    }
+                    setForm(fallbackTarget)
+                    setQrInvoice(fallbackTarget)
+                    setIsQrModalOpen(true)
+                    return
+                }
+                if (!err?.response) {
+                    AppToast.error(err?.message || 'Không thể lập hóa đơn để tạo mã VietQR')
+                }
                 return
             }
         }
@@ -297,30 +314,57 @@ export default function CashierManagementPage() {
     const paidCount = allVouchers.filter((v) => v.daThu).length
 
     const handleSelectPatientAutoFill = (maBN, specificKCB) => {
+        if (!maBN && !specificKCB) return
+        const matchedUnbilled = liveUnbilled.find(
+            (u) => (specificKCB && u.ma_kcb === specificKCB) || (maBN && u.benh_nhan?.mabn === maBN)
+        )
+        if (matchedUnbilled) {
+            handleSelectUnbilledEncounter(matchedUnbilled)
+            return
+        }
+        const matchedPending = livePendingBills.find(
+            (pb) => (specificKCB && `KCB-${pb.luot_kham_id}` === specificKCB) || (maBN && pb.benh_nhan?.mabn === maBN)
+        )
         const patient = patients.find((p) => p.maBN === maBN)
         const reg = specificKCB
             ? registrations.find((r) => r.maKCB === specificKCB)
             : registrations.find((r) => r.maBN === maBN)
         const autoItems =
-            reg?.services?.map((s, i) => ({
-                id: `VI-AUTO-${i + 1}`,
-                tenKhoan: s.tenDV,
-                soTien: Number(s.thanhTien) || Number(s.donGia) || 0,
-                ghiChu: s.phongTH,
-            })) || []
-        const sum = autoItems.reduce((acc, it) => acc + it.soTien, 0)
+            matchedPending?.cac_khoan_thu?.length > 0
+                ? matchedPending.cac_khoan_thu.map((line) => ({
+                      id: `LINE-${line.id}`,
+                      tenKhoan: line.ten_khoan_thu,
+                      soTien: Number(line.thanh_tien),
+                      ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng',
+                  }))
+                : reg?.services?.map((s, i) => ({
+                      id: `VI-AUTO-${i + 1}`,
+                      tenKhoan: s.tenDV,
+                      soTien: Number(s.thanhTien) || Number(s.donGia) || 0,
+                      ghiChu: s.phongTH,
+                  })) || []
+        const sum = matchedPending
+            ? Number(matchedPending.thuc_thu ?? matchedPending.tong_tien ?? 0)
+            : autoItems.reduce((acc, it) => acc + it.soTien, 0)
+        const nextCode = matchedPending ? matchedPending.ma_hoa_don : getNextVoucherCode(vouchers)
+        const nextName = patient?.hoTen || matchedPending?.benh_nhan?.ho_ten || reg?.hoTen || form.hoTenBN
 
         setForm({
             ...form,
-            maBN,
-            maKCB: reg?.maKCB || '',
-            hoTenBN: patient?.hoTen || reg?.hoTen || form.hoTenBN,
-            tenPhieu: `Thu viện phí BN ${patient?.hoTen || reg?.hoTen || ''} ${reg ? `(Mã KCB: ${reg.maKCB})` : ''}`,
+            id: matchedPending ? matchedPending.id : nextCode,
+            invoiceId: matchedPending ? matchedPending.id : null,
+            luotKhamId: matchedPending ? matchedPending.luot_kham_id : null,
+            maPhieu: nextCode,
+            maBN: maBN || matchedPending?.benh_nhan?.mabn || '',
+            maKCB: reg?.maKCB || (matchedPending ? `KCB-${matchedPending.luot_kham_id}` : ''),
+            hoTenBN: nextName,
+            tenPhieu: `Thu viện phí BN ${nextName} ${reg ? `(Mã KCB: ${reg.maKCB})` : ''}`.trim(),
             items: autoItems.length > 0 ? autoItems : form.items,
             tongTien: autoItems.length > 0 ? sum : form.tongTien,
+            daThu: false,
         })
         if (autoItems.length > 0) {
-            AppToast.info(`Đã tự động tổng hợp ${autoItems.length} dịch vụ chỉ định của BN ${patient?.hoTen}!`)
+            AppToast.info(`Đã tự động tổng hợp ${autoItems.length} dịch vụ chỉ định của BN ${nextName}!`)
         }
     }
 
@@ -375,48 +419,53 @@ export default function CashierManagementPage() {
             }
         }
 
-        if (form.daThu && !activeInvoiceId) {
-            AppToast.warning('Phiếu thu chưa liên kết với Hóa đơn viện phí Backend. Vui lòng lập hóa đơn từ ca khám trước khi xác nhận Đã thu!')
-            return
-        }
+        const calculatedTotal =
+            (form.items || []).length > 0
+                ? (form.items || []).reduce((sum, i) => sum + (Number(i.soTien) || 0), 0)
+                : Number(form.tongTien || 0)
 
-        const calculatedTotal = (form.items || []).reduce((sum, i) => sum + (Number(i.soTien) || 0), 0)
-        const payload = {
-            ...form,
-            id: activeId || form.id,
-            invoiceId: activeInvoiceId,
-            maPhieu: activeMaPhieu,
-            loaiPhieu: 'Phiếu thu',
-            tongTien: calculatedTotal
-        }
-
-        const exists = vouchers.some((v) => v.id === payload.id && payload.id)
-        let updated
-        if (exists) {
-            updated = vouchers.map((v) => (v.id === payload.id ? payload : v))
-        } else {
-            const newVoucher = { ...payload, id: payload.maPhieu || `PT-${Date.now().toString().slice(-5)}` }
-            updated = [newVoucher, ...vouchers]
-            setForm(newVoucher)
-        }
-
-        if (activeInvoiceId && form.daThu) {
+        const targetRef = activeInvoiceId || activeMaPhieu || form.id
+        if (targetRef && form.daThu) {
             try {
                 const methodMap = {
                     'Tiền mặt': 'tien_mat',
                     'Chuyển khoản': 'chuyen_khoan',
                     'Thẻ POS': 'the_pos'
                 }
-                await cashierService.payInvoice(activeInvoiceId, {
+                const paid = await cashierService.payInvoice(targetRef, {
                     phuong_thuc_thanh_toan: methodMap[form.hinhThuc] || 'tien_mat',
                     so_tien_khach_tra: calculatedTotal,
-                    ghi_chu: form.ghiChu || 'Thanh toán tại quầy'
+                    ghi_chu: form.ghiChu || form.tenPhieu || 'Thanh toán tại quầy'
                 })
+                if (paid?.id) {
+                    activeInvoiceId = paid.id
+                }
                 fetchLiveCashierData()
             } catch (err) {
-                AppToast.error(err?.response?.data?.message || err?.message || 'Thanh toán viện phí thất bại!')
+                if (!err?.response) {
+                    AppToast.error(err?.message || 'Thanh toán viện phí thất bại!')
+                }
                 return
             }
+        }
+
+        const payload = {
+            ...form,
+            id: activeId || form.id || activeMaPhieu,
+            invoiceId: activeInvoiceId,
+            maPhieu: activeMaPhieu,
+            loaiPhieu: 'Phiếu thu',
+            tongTien: calculatedTotal
+        }
+
+        const exists = vouchers.some((v) => (v.id === payload.id || v.maPhieu === payload.maPhieu) && payload.id)
+        let updated
+        if (exists) {
+            updated = vouchers.map((v) => (v.id === payload.id || v.maPhieu === payload.maPhieu ? payload : v))
+        } else {
+            const newVoucher = { ...payload, id: payload.id || payload.maPhieu || `PT-${Date.now().toString().slice(-5)}` }
+            updated = [newVoucher, ...vouchers]
+            setForm(newVoucher)
         }
         await dispatch(
             updateClinicCollectionAsync({
@@ -452,7 +501,6 @@ export default function CashierManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {/* Top Sub-tabs: Quản lý Thu viện phí vs Khóa sổ */}
             <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
                     <button
@@ -533,7 +581,6 @@ export default function CashierManagementPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    {/* LEFT PANEL (4 cols): Danh sách phiếu thu viện phí */}
                     <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-140px)]">
                         <div className="medpro-section-title">
                             <span className="inline-flex items-center gap-1.5">
@@ -717,7 +764,6 @@ export default function CashierManagementPage() {
                             </table>
                         </div>
 
-                        {/* Summary Footer */}
                         <div className="pt-2.5 grid grid-cols-2 gap-2 text-xs font-bold border-t border-slate-100 mt-2">
                             <div className="p-2 rounded-lg bg-emerald-50 text-emerald-700 flex justify-between">
                                 <span>Doanh thu:</span>
@@ -730,7 +776,6 @@ export default function CashierManagementPage() {
                         </div>
                     </div>
 
-                    {/* RIGHT PANEL (8 cols): Chi tiết Phiếu thu viện phí & Bảng khoản mục */}
                     <div className="lg:col-span-8 medpro-card p-4 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
                             <div>
@@ -780,7 +825,6 @@ export default function CashierManagementPage() {
                             </div>
                         </div>
 
-                        {/* Section 1: Thông tin chung phiếu thu viện phí */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
                                 <label className="medpro-label">Loại chứng từ</label>
@@ -870,7 +914,6 @@ export default function CashierManagementPage() {
                             </div>
                         </div>
 
-                        {/* Section 2: Chi tiết các khoản thu viện phí */}
                         <div>
                             <div className="medpro-section-title">
                                 <span>CHI TIẾT CÁC KHOẢN VIỆN PHÍ TRONG PHIẾU ({form.items?.length || 0} KHOẢN)</span>
@@ -998,22 +1041,54 @@ export default function CashierManagementPage() {
                 accountNumber={clinicData?.clinicSettings?.bankInfo?.accountNumber || '0901234567'}
                 accountName={clinicData?.clinicSettings?.bankInfo?.accountName || clinicData?.clinicSettings?.tenPhongKham || 'PHONG KHAM CLINIC AI'}
                 onConfirmPayment={async (inv) => {
-                    const targetId = inv?.invoiceId || inv?.id
-                    if (!targetId) return
-                    try {
-                        const targetAmount = inv?.thuc_thu !== undefined ? inv.thuc_thu : (inv?.thucThu !== undefined ? inv.thucThu : (inv?.tong_tien !== undefined ? inv.tong_tien : (inv?.tongTien ?? form.tongTien ?? 0)))
-                        await cashierService.payInvoice(targetId, {
-                            phuong_thuc_thanh_toan: 'chuyen_khoan',
-                            so_tien_khach_tra: Number(targetAmount),
-                            ghi_chu: 'Thanh toán qua quét mã VietQR'
-                        })
-                        fetchLiveCashierData()
-                        setForm((prev) => ({ ...prev, daThu: true }))
-                        AppToast.success(`Hóa đơn #${targetId} đã được gạch nợ thành công!`)
-                    } catch (err) {
-                        AppToast.error(err?.response?.data?.message || err?.message || 'Lỗi khi gạch nợ chuyển khoản')
-                        throw err
+                    const targetRef = inv?.invoiceId || inv?.maPhieu || inv?.id || form?.invoiceId || form?.maPhieu || form?.id
+                    if (!targetRef) return
+                    const rawTargetAmount =
+                        inv?.thuc_thu !== undefined
+                            ? inv.thuc_thu
+                            : inv?.thucThu !== undefined
+                              ? inv.thucThu
+                              : inv?.tong_tien !== undefined
+                                ? inv.tong_tien
+                                : inv?.tongTien ?? form.tongTien ?? 0
+                    const targetAmount = Math.max(0, Number(rawTargetAmount || 0))
+                    const paid = await cashierService.payInvoice(targetRef, {
+                        phuong_thuc_thanh_toan: 'chuyen_khoan',
+                        so_tien_khach_tra: targetAmount,
+                        ghi_chu: inv?.tenPhieu || form?.tenPhieu || 'Thanh toán qua quét mã VietQR'
+                    })
+                    const updatedVoucher = {
+                        ...form,
+                        ...(inv || {}),
+                        id: inv?.id || form.id || targetRef,
+                        invoiceId: paid?.id || inv?.invoiceId || form.invoiceId,
+                        maPhieu: inv?.maPhieu || form.maPhieu || paid?.ma_hoa_don || String(targetRef),
+                        loaiPhieu: 'Phiếu thu',
+                        hinhThuc: 'Chuyển khoản',
+                        daThu: true,
+                        tongTien: targetAmount,
                     }
+                    setForm(updatedVoucher)
+                    const exists = vouchers.some(
+                        (v) => v.id === updatedVoucher.id || v.maPhieu === updatedVoucher.maPhieu
+                    )
+                    const nextVouchers = exists
+                        ? vouchers.map((v) =>
+                              v.id === updatedVoucher.id || v.maPhieu === updatedVoucher.maPhieu ? updatedVoucher : v
+                          )
+                        : [updatedVoucher, ...vouchers]
+                    await dispatch(
+                        updateClinicCollectionAsync({
+                            collectionKey: 'vouchers',
+                            items: nextVouchers,
+                            auditEntry: {
+                                hanhDong: 'VIETQR_PAYMENT_CONFIRMED',
+                                doiTuong: `${updatedVoucher.maPhieu} - ${targetAmount.toLocaleString('vi-VN')} đ`,
+                                mucDich: 'Xác nhận gạch nợ chuyển khoản VietQR',
+                            },
+                        })
+                    )
+                    await fetchLiveCashierData()
                 }}
             />
 

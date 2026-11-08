@@ -25,7 +25,6 @@ function sanitizeThuocVatTu(list) {
 
 function loadClinicStore() {
     try {
-        // Tự động dọn dẹp các cache cũ nếu có
         localStorage.removeItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
         const raw = localStorage.getItem(STORAGE_KEY)
         if (!raw) {
@@ -76,14 +75,11 @@ function saveClinicStore(data) {
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch {
-        // ignore storage quota errors
     }
     return data
 }
 
 export class AdminService extends BaseServices {
-    // ── Kết nối Backend FastAPI (/api/v1) kèm đồng bộ Store Quản lý từ PostgreSQL ───
-    // Reject failures and stale sessions instead of reporting successful local-only writes.
     requestClinicData = async (method, path, payload) => {
         const token = localStorage.getItem(TOKEN)
         const options = { __skipGlobalLoading: true, __skipRefresh: true }
@@ -98,19 +94,19 @@ export class AdminService extends BaseServices {
 
     getDashboardStats = async () => {
         const { data: storeData } = await this.getAllClinicData()
-        try {
-            const res = await this.get('/api/v1/compliance/dashboard', { __skipGlobalLoading: true, __skipRefresh: true })
-            return { data: { storeData, backendCompliance: res?.data?.data || res?.data || null } }
-        } catch {
-            return { data: { storeData, backendCompliance: null } }
-        }
+        const [compRes, kpiRes] = await Promise.allSettled([
+            this.get('/api/v1/compliance/dashboard', { __skipGlobalLoading: true, __skipRefresh: true }),
+            this.get('/api/v1/admin/dashboard-stats', { __skipGlobalLoading: true, __skipRefresh: true }),
+        ])
+        const compData = compRes.status === 'fulfilled' ? (compRes.value?.data?.data || compRes.value?.data || {}) : {}
+        const kpiData = kpiRes.status === 'fulfilled' ? (kpiRes.value?.data?.data || kpiRes.value?.data || {}) : {}
+        return { data: { storeData, backendCompliance: { ...compData, ...kpiData } } }
     }
 
     getAllClinicData = async () => this.requestClinicData('get', `${managementPrefix()}/bootstrap`)
 
     resetClinicDemoData = async () => this.requestClinicData('post', '/api/v1/admin/reset-demo', {})
 
-    // ── AI Gợi ý Chuyên khoa (Phân luồng từ Backend AI Triage + danh mục Khoa phòng) ───
     suggestSpecialtyByAI = async (symptomsText) => {
         try {
             const res = await this.post(
@@ -122,7 +118,6 @@ export class AdminService extends BaseServices {
                 return { data: res.data.data }
             }
         } catch {
-            // Fallback phân tích từ khóa triệu chứng tiếng Việt kết hợp danh mục Khoa phòng trong Seed
         }
 
         const store = loadClinicStore()
@@ -167,7 +162,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── Thao tác CRUD đồng bộ toàn bộ 19 phân hệ xuống PostgreSQL ─────────────
     updateCollection = async ({ collectionKey, items, auditEntry }) => this.requestClinicData(
         'put', `${managementPrefix()}/collections/${encodeURIComponent(collectionKey)}`,
         { collectionKey, items, auditEntry },
@@ -177,7 +171,6 @@ export class AdminService extends BaseServices {
         'put', `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`, { subKey, items, auditEntry },
     )
 
-    // ── 1. Ma trận Lịch trực Bác sĩ & Slot Trống (tClinic standard) ───
     getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, chuyenKhoaId } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -197,7 +190,6 @@ export class AdminService extends BaseServices {
     }
 
 
-    // ── 3. Xuất Danh mục Dịch vụ Kỹ thuật Chuẩn Y tế (Catalog Export) ───
     exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -214,7 +206,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 4. Phân tích Mô hình Bệnh tật ICD-10 (Top 10 Diseases) ───
     getTopIcd10Diseases = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -232,7 +223,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 5. Doanh thu Top Dịch vụ Kỹ thuật (Top Services) ───
     getTopServicesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -250,7 +240,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 5b. Top Thuốc Kê Nhiều Nhất (ClinicManager statistic_medicine_frequency) ───
     getTopMedicinesAnalytics = async ({ tuNgay, denNgay, limit = 10 } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -268,7 +257,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 6. Đánh giá Hiệu suất & Năng suất Bác sĩ (Doctor KPI) ───
     getDoctorPerformanceAnalytics = async ({ tuNgay, denNgay } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -285,7 +273,6 @@ export class AdminService extends BaseServices {
         }
     }
 
-    // ── 7. Đo lường Tải trọng Buồng khám (Room Workload) ───
     getRoomWorkloadAnalytics = async ({ tuNgay, denNgay } = {}) => {
         try {
             const params = new URLSearchParams()

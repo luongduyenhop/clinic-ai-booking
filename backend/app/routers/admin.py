@@ -65,13 +65,12 @@ router = APIRouter(prefix="/admin", tags=["7. Quản Trị Phòng Khám & Phân 
 
 
 def _require_admin(current_user: TaiKhoan = Depends(get_current_user)):
-    """Kiểm tra phân quyền: Chỉ tài khoản Admin mới được thao tác cấu hình hệ thống"""
+
     if current_user.vai_tro != VaiTroEnum.ADMIN.value:
         raise ForbiddenException("Chức năng quản trị chỉ dành riêng cho Quản trị viên (Admin)!")
     return current_user
 
 
-# --- 1. Quản lý Bác sĩ ---
 @router.get(
     "/doctors",
     response_model=ResponseEnvelope[List[DoctorAdminResponse]],
@@ -119,7 +118,6 @@ async def update_doctor(
     return ResponseEnvelope.success_response(data=data, message="Cập nhật bác sĩ thành công")
 
 
-# --- 1b. Quản lý Buồng khám Vật lý (Physical Clinic Rooms) ---
 @router.get(
     "/rooms",
     response_model=ResponseEnvelope[List[RoomResponse]],
@@ -155,7 +153,6 @@ async def create_room(
     )
 
 
-# --- 2. Phân ca trực & Lịch làm việc (OpenEMR 7 Calendar) ---
 @router.get(
     "/shifts",
     response_model=ResponseEnvelope[List[ShiftResponse]],
@@ -224,7 +221,6 @@ async def export_shift_timesheet_report(
 ):
     data = await admin_service.export_timesheet_report(db, tu_ngay, den_ngay, chuyen_khoa_id)
     return ResponseEnvelope.success_response(data=data, message="Xuất báo cáo chấm công phân ca thành công")
-
 
 
 @router.put(
@@ -296,8 +292,6 @@ async def postpone_and_cancel_unassigned(
     )
 
 
-
-# --- 3. Danh mục Dịch vụ & Bảng giá ---
 @router.get(
     "/services",
     response_model=ResponseEnvelope[List[ServiceItemAdminResponse]],
@@ -324,7 +318,6 @@ async def export_services_catalog(
 ):
     data = await admin_service.export_services_catalog(db, chuyen_khoa_id, ma_nhom_byt)
     return ResponseEnvelope.success_response(data=data, message="Xuất danh mục bảng giá dịch vụ thành công")
-
 
 
 @router.post(
@@ -364,7 +357,6 @@ async def update_service(
     )
 
 
-# --- 4. Dashboard KPIs Dữ liệu thật ---
 @router.get(
     "/dashboard-stats",
     response_model=ResponseEnvelope[AdminDashboardStatsResponse],
@@ -372,14 +364,13 @@ async def update_service(
 )
 async def get_dashboard_stats(
     query_date: Optional[date] = Query(None, description="Ngày báo cáo (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_dashboard_stats(query_date, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu thống kê vận hành thành công")
 
 
-# --- 5. Duyệt Đính Chính Bệnh Án Toàn Viện (Four-Eyes Principle) ---
 @router.get(
     "/amendments",
     response_model=ResponseEnvelope[List[AmendmentResponse]],
@@ -393,10 +384,6 @@ async def get_admin_amendments(
     data = await admin_service.get_amendments_admin(db, trang_thai)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách biên bản đính chính thành công")
 
-
-# ==============================================================================
-# 6. GÓI 1: QUẢN LÝ DANH MỤC CHUYÊN KHOA KHÁM BỆNH (OpenMRS Department Catalog)
-# ==============================================================================
 
 @router.get(
     "/departments",
@@ -447,10 +434,6 @@ async def update_department(
         message=f"Cập nhật chuyên khoa {data.ten_chuyen_khoa} thành công!"
     )
 
-
-# ==============================================================================
-# 7. GÓI 2: QUẢN LÝ LỊCH LÀM VIỆC ĐỊNH KỲ CỦA BÁC SĨ (Bahmni Weekly Roster)
-# ==============================================================================
 
 @router.get(
     "/rosters",
@@ -531,10 +514,6 @@ async def generate_shifts_from_roster(
     )
 
 
-# ==============================================================================
-# 8. GÓI 3: QUẢN LÝ NGÀY NGHỈ & NGHỈ ĐỘT XUẤT CỦA BÁC SĨ (Absence Management)
-# ==============================================================================
-
 @router.get(
     "/leaves",
     response_model=ResponseEnvelope[List[DoctorLeaveResponse]],
@@ -598,10 +577,6 @@ async def get_leave_affected_bookings(
     data = await admin_service.get_leave_affected_bookings(leave_id, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bệnh nhân bị ảnh hưởng thành công")
 
-
-# ==============================================================================
-# 9. GÓI 4: QUẢN TRỊ ÁNH XẠ TRIỆU CHỨNG - CHUYÊN KHOA & ĐÁNH GIÁ AI
-# ==============================================================================
 
 @router.get(
     "/ai/concepts",
@@ -740,10 +715,6 @@ async def get_ai_accuracy(
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu độ chính xác AI thành công")
 
 
-# ==============================================================================
-# 10. GÓI 5: XEM BÁO CÁO THỐNG KÊ CHUYÊN SÂU (Analytics & Intelligence)
-# ==============================================================================
-
 @router.get(
     "/reports/analytics",
     response_model=ResponseEnvelope[AdminAnalyticsReportResponse],
@@ -838,12 +809,6 @@ async def get_top_medicines(
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top thuốc kê đơn thành công")
 
 
-
-
-# ==============================================================================
-# 11. GÓI 6: QUẢN TRỊ HỒ SƠ BỆNH NHÂN (OpenMRS Master Patient Directory)
-# ==============================================================================
-
 @router.get(
     "/patients",
     response_model=ResponseEnvelope[List[PatientAdminItemResponse]],
@@ -892,9 +857,6 @@ async def update_patient_status(
     )
 
 
-# ==============================================================================
-# 12. TẦNG ĐẤU NỐI BFF (BACKEND-FOR-FRONTEND) ĐỒNG BỘ 19 TRANG QUẢN TRỊ REACT
-# ==============================================================================
 from typing import Any
 from pydantic import BaseModel
 from app.services.bff_admin_service import bff_admin_service
@@ -992,4 +954,3 @@ async def reset_admin_demo_data(
         data=data,
         message="Đã khôi phục dữ liệu mẫu gốc trên PostgreSQL thành công!",
     )
-

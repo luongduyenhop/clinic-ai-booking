@@ -65,3 +65,12 @@ async def test_admin_bff_two_way_relational_sync(api_client: AsyncClient, bookin
     assert res_put.status_code == 200
     after_staff = res_put.json()["data"]["staffList"]
     assert any(s.get("soCCHN") == new_cchn for s in after_staff)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stats_requires_admin_role(api_client: AsyncClient, booking):
+    res_doctor = await api_client.get("/api/v1/admin/dashboard-stats", headers=booking.tokens["bs_x"])
+    assert res_doctor.status_code == 403
+
+    res_patient = await api_client.get("/api/v1/admin/dashboard-stats", headers=booking.tokens["bn_a"])
+    assert res_patient.status_code == 403

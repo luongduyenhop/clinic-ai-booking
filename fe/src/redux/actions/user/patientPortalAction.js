@@ -32,24 +32,55 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
         const prescriptionPage = rx.status === 'fulfilled' ? unwrapPagedApi(rx.value) : null
         const labPage = lab.status === 'fulfilled' ? unwrapPagedApi(lab.value) : null
         return {
-            appointments: bookings.status === 'fulfilled' ? unwrapApi(bookings.value).map((item) => ({
-                id: `BE-${item.id}`, realId: item.id, appointmentCode: item.ma_lich_kham,
-                doctorId: String(item.bac_si?.id || ''), doctorName: item.bac_si?.ho_ten || 'Bác sĩ phụ trách',
-                specialtyName: item.bac_si?.chuyen_khoa || '',
-                appointmentDate: item.ngay_kham, timeSlot: item.gio_kham?.slice(0, 5),
-                status: appointmentStatus(item.trang_thai), reason: item.ly_do_kham,
-            })) : [],
-            familyMembers: family.status === 'fulfilled' ? unwrapApi(family.value) : [],
-            medicalHistory: records.status === 'fulfilled' ? mapMedicalRecords(unwrapApi(records.value)).map((record) => ({
-                id: record.id, code: record.maKcb, date: record.ngayKham,
-                doctor: record.bacSi, specialty: record.chuyenKhoa, diagnosis: record.chanDoan.icd10Chinh,
-                symptoms: record.lyDoKham, advice: record.chanDoan.ketLuan, status: record.trangThai,
-            })) : [],
+            appointments: bookings.status === 'fulfilled' ? (() => {
+                try {
+                    return unwrapApi(bookings.value).map((item) => ({
+                        id: `BE-${item.id}`, realId: item.id, appointmentCode: item.ma_lich_kham,
+                        doctorId: String(item.bac_si?.id || ''), doctorName: item.bac_si?.ho_ten || 'Bác sĩ phụ trách',
+                        specialtyName: item.bac_si?.chuyen_khoa || '',
+                        appointmentDate: item.ngay_kham, timeSlot: item.gio_kham?.slice(0, 5),
+                        status: appointmentStatus(item.trang_thai), reason: item.ly_do_kham,
+                    }))
+                } catch {
+                    return []
+                }
+            })() : [],
+            familyMembers: family.status === 'fulfilled' ? (() => {
+                try {
+                    return unwrapApi(family.value)
+                } catch {
+                    return []
+                }
+            })() : [],
+            medicalHistory: records.status === 'fulfilled' ? (() => {
+                try {
+                    return mapMedicalRecords(unwrapApi(records.value)).map((record) => ({
+                        id: record.id, code: record.maKcb, date: record.ngayKham,
+                        doctor: record.bacSi, specialty: record.chuyenKhoa, diagnosis: record.chanDoan?.icd10Chinh || 'Chưa có chẩn đoán',
+                        symptoms: record.lyDoKham, advice: record.chanDoan?.ketLuan || 'Chưa có kết luận', status: record.trangThai,
+                    }))
+                } catch {
+                    return []
+                }
+            })() : [],
             doctorSchedules: [],
-            prescriptions: prescriptionPage ? mapPrescriptions(prescriptionPage.items) : [],
+            prescriptions: prescriptionPage ? (() => {
+                try {
+                    return mapPrescriptions(prescriptionPage.items)
+                } catch {
+                    return []
+                }
+            })() : [],
             prescriptionMeta: prescriptionPage?.meta,
             prescriptionError: rx.status === 'rejected' ? pickErrorMessage(rx.reason) : '',
-            labResults: labPage ? mapLabResults(labPage.items) : [], labMeta: labPage?.meta,
+            labResults: labPage ? (() => {
+                try {
+                    return mapLabResults(labPage.items)
+                } catch {
+                    return []
+                }
+            })() : [],
+            labMeta: labPage?.meta,
             labError: lab.status === 'rejected' ? pickErrorMessage(lab.reason) : '',
         }
     } catch (error) { return rejectWithValue(pickErrorMessage(error)) }

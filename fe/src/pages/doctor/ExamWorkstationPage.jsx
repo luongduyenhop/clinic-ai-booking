@@ -98,8 +98,21 @@ const toFormValues = (enc) => ({
 
 export default function ExamWorkstationPage() {
     const dispatch = useDispatch()
+    const currentUser = useSelector((state) => state.app?.auth?.user)
     const { queue, queueLoading, queueError, encounter, encounterLoading, encounterError, services } = useSelector(
         (state) => state.doctor.clinical
+    )
+    const resolvedSpecialty = useMemo(
+        () =>
+            findSpecialtyExam(
+                currentUser?.chuyen_khoa_ma ||
+                    currentUser?.specialty ||
+                    currentUser?.department ||
+                    encounter?.ma_chuyen_khoa ||
+                    encounter?.ten_chuyen_khoa ||
+                    encounter?.chuyen_khoa_kham
+            ),
+        [currentUser, encounter]
     )
 
     const [pickedEncounterId, setPickedEncounterId] = useState(null)
@@ -128,7 +141,7 @@ export default function ExamWorkstationPage() {
     const validateClinicalStep = () => {
         if (isReadOnly) return true
         const exam = formik.values.kham_chuyen_khoa || {}
-        const rawKhoa = exam.khoa || encounter?.chuyen_khoa_kham
+        const rawKhoa = resolvedSpecialty?.key || exam.khoa || encounter?.chuyen_khoa_kham
         const spec = findSpecialtyExam(rawKhoa)
         const items = exam.items || {}
         const done = spec.items.filter((label) => items[label]?.status).length
@@ -714,7 +727,7 @@ export default function ExamWorkstationPage() {
                             Bàn Khám Lâm Sàng TT32
                         </h1>
                         <p className="text-[12px] text-slate-500">
-                            Khoa: <strong className="text-slate-700">{encounter?.chuyen_khoa_kham || 'Nội tổng quát'}</strong> · Buồng khám số 1 · Phòng khám Đa khoa Clinic-AI
+                            Khoa: <strong className="text-slate-700">{resolvedSpecialty?.label || 'Khoa Nội tổng quát'}</strong> · {currentUser?.room || encounter?.ten_phong_kham || 'Buồng khám chuyên khoa'} · Phòng khám Đa khoa Clinic-AI
                         </p>
                     </div>
                 </div>

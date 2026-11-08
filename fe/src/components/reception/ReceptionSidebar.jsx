@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import {
-    ClinicIcon,
     Hospital,
     CaretLeft,
     CaretRight,
@@ -15,6 +14,7 @@ import {
     Stethoscope,
     WarningCircle,
     ChartBar,
+    Receipt,
 } from '../common/ClinicIcon'
 
 export default function ReceptionSidebar() {
@@ -27,7 +27,7 @@ export default function ReceptionSidebar() {
     const sections = [
         {
             id: 'reception_core',
-            title: 'Nghiệp vụ tiếp đón',
+            title: 'Tiếp đón & Thu ngân',
             items: [
                 {
                     to: '/reception/dashboard',
@@ -45,6 +45,13 @@ export default function ReceptionSidebar() {
                     icon: UserList,
                     badge: waitingCount > 0 ? `${waitingCount} chờ` : null,
                     badgeColor: 'bg-amber-400 text-[#003553]',
+                },
+                {
+                    to: '/reception/cashier',
+                    label: 'Thu viện phí & VietQR',
+                    icon: Receipt,
+                    badge: 'VietQR',
+                    badgeColor: 'bg-emerald-400 text-[#003553]',
                 },
                 {
                     to: '/reception/appointments',
@@ -106,7 +113,7 @@ export default function ReceptionSidebar() {
                                 CLINIC<span className="text-[#00B5F1]">-AI</span> HIS
                             </div>
                             <div className="text-[10px] text-sky-200/80 font-medium truncate">
-                                Bàn Tiếp Đón & Lễ Tân
+                                Lễ Tân · Tiếp Đón & Thu Ngân
                             </div>
                         </div>
                     )}

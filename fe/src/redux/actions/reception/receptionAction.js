@@ -820,8 +820,13 @@ export const createAppointmentAsync = createAsyncThunk(
                 body.gio_kham = `${body.gio_kham}:00`
             }
             const res = await receptionService.createAppointment(body)
+            const data = unwrapApi(res)
+            try {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.APPOINTMENT_CREATED, { appointment: data })
+            } catch {
+            }
             dispatch(fetchReceptionDataAsync())
-            return unwrapApi(res)
+            return data
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tạo lịch hẹn thất bại'))
         }

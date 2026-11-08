@@ -20,15 +20,18 @@ import {
 } from '../../components/common/ClinicIcon'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMedicalRecordsAsync, submitPatientFeedbackAsync } from '../../redux/actions/user/patientPortalAction'
+import ResultAttachments from '../../components/user/patient/ResultAttachments'
 
 export default function PatientMedicalRecordsPage() {
     const dispatch = useDispatch()
     const { items: records, loading: isLoading, error: loadError } = useSelector((state) => state.user.user.medicalRecords)
     const feedback = useSelector((state) => state.user.user.feedbackMutation)
+    const currentUser = useSelector((state) => state.app.auth.user)
+    const familyList = useSelector((state) => state.user.user.portalData?.familyMembers || [])
     const [selectedRecordId, setSelectedRecordId] = useState(null)
-    const [activeTab, setActiveTab] = useState('tong_quan') // 'tong_quan' | 'don_thuoc' | 'can_lam_sang' | 'tai_kham'
+    const [activeTab, setActiveTab] = useState('tong_quan')
 
-    // Modal đánh giá 5 sao
+
     const [ratingModalOpen, setRatingModalOpen] = useState(false)
     const [ratingScore, setRatingScore] = useState(5)
     const [ratingComment, setRatingComment] = useState('')
@@ -79,7 +82,7 @@ export default function PatientMedicalRecordsPage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-16">
-            {/* Header Banner */}
+            {}
             <div className="bg-gradient-to-r from-[#003553] via-[#004B75] to-[#0088BA] text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-[#002840]">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -114,7 +117,7 @@ export default function PatientMedicalRecordsPage() {
                     </div>
                 </div>
 
-                {/* Switch Family Profile */}
+                {}
                 <div className="max-w-7xl mx-auto mt-6 pt-4 border-t border-white/15 flex items-center gap-3 overflow-x-auto pb-1">
                     <span className="text-xs text-cyan-200 font-semibold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
                         <Users size={15} /> Người bệnh:
@@ -127,41 +130,31 @@ export default function PatientMedicalRecordsPage() {
                                 : 'bg-white/10 text-white/90 hover:bg-white/20'
                         }`}
                     >
-                        <User size={13} /> Nguyễn Văn An (Bản thân - 36 tuổi)
+                        <User size={13} /> {currentUser?.fullName || currentUser?.ho_ten || 'Bản thân'} (Bản thân)
                     </button>
-                    <button
-                        onClick={() => {
-                            setActiveFamilyMember('con')
-                            toast.info('Hồ sơ bé Nguyễn Minh Khang chưa có ca khám mới trong tháng này.')
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
-                            activeFamilyMember === 'con'
-                                ? 'bg-[#00B5F1] text-white shadow-sm'
-                                : 'bg-white/10 text-white/90 hover:bg-white/20'
-                        }`}
-                    >
-                        Nguyễn Minh Khang (Con - 5 tuổi)
-                    </button>
-                    <button
-                        onClick={() => {
-                            setActiveFamilyMember('bo')
-                            toast.info('Hồ sơ cụ Nguyễn Văn Hùng chưa có ca khám mới trong tháng này.')
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
-                            activeFamilyMember === 'bo'
-                                ? 'bg-[#00B5F1] text-white shadow-sm'
-                                : 'bg-white/10 text-white/90 hover:bg-white/20'
-                        }`}
-                    >
-                        Nguyễn Văn Hùng (Bố - 68 tuổi)
-                    </button>
+                    {familyList.map((m) => (
+                        <button
+                            key={m.id}
+                            onClick={() => {
+                                setActiveFamilyMember(String(m.id))
+                                toast.info(`Hồ sơ người thân ${m.ho_ten} đang hiển thị theo sổ sức khỏe gia đình.`)
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
+                                activeFamilyMember === String(m.id)
+                                    ? 'bg-[#00B5F1] text-white shadow-sm'
+                                    : 'bg-white/10 text-white/90 hover:bg-white/20'
+                            }`}
+                        >
+                            {m.ho_ten} ({m.quan_he || m.moi_quan_he || 'Người thân'})
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Main Content Layout */}
+            {}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left: Timeline of Medical Encounters */}
+                    {}
                     <div className="lg:col-span-4 space-y-4">
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
                             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
@@ -207,7 +200,7 @@ export default function PatientMedicalRecordsPage() {
                             </div>
                         </div>
 
-                        {/* Quick Tips Box */}
+                        {}
                         <div className="bg-gradient-to-br from-[#E8F4FD] to-[#F0F9FF] border border-[#B8E5FA] rounded-2xl p-4 text-xs text-[#003553] space-y-2">
                             <div className="font-bold flex items-center gap-1.5 text-[#0088BA]">
                                 <Sparkle size={15} weight="fill" />
@@ -219,10 +212,10 @@ export default function PatientMedicalRecordsPage() {
                         </div>
                     </div>
 
-                    {/* Right: Detailed Encounter Card */}
+                    {}
                     <div className="lg:col-span-8 space-y-5">
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-                            {/* Record Header Meta */}
+                            {}
                             <div className="p-5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
                                     <div className="flex items-center gap-2">
@@ -259,7 +252,7 @@ export default function PatientMedicalRecordsPage() {
                                 </div>
                             </div>
 
-                            {/* Sub Tabs */}
+                            {}
                             <div className="flex border-b border-slate-200 bg-slate-50/50 px-4 gap-2 text-xs font-bold overflow-x-auto">
                                 <button
                                     onClick={() => setActiveTab('tong_quan')}
@@ -306,10 +299,10 @@ export default function PatientMedicalRecordsPage() {
                                 </button>
                             </div>
 
-                            {/* Tab 1: Tổng quan & Chẩn đoán */}
+                            {}
                             {activeTab === 'tong_quan' && (
                                 <div className="p-5 space-y-6">
-                                    {/* Lý do khám & Bệnh sử */}
+                                    {}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Lý do vào viện</span>
@@ -321,7 +314,7 @@ export default function PatientMedicalRecordsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Sinh hiệu */}
+                                    {}
                                     <div>
                                         <h3 className="text-xs font-bold text-[#003553] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                                             <Heartbeat size={15} className="text-rose-500" />
@@ -355,7 +348,7 @@ export default function PatientMedicalRecordsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Chẩn đoán ICD-10 */}
+                                    {}
                                     <div className="p-4 rounded-xl bg-[#E8F4FD]/50 border border-[#B8E5FA] space-y-2.5">
                                         <div className="flex items-center gap-2">
                                             <span className="px-2 py-0.5 rounded-md bg-[#00B5F1] text-white text-[11px] font-extrabold">
@@ -379,7 +372,7 @@ export default function PatientMedicalRecordsPage() {
                                 </div>
                             )}
 
-                            {/* Tab 2: Đơn thuốc 4 Cữ Chuẩn tClinic */}
+                            {}
                             {activeTab === 'don_thuoc' && (
                                 <div className="p-5 space-y-4">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
@@ -396,7 +389,7 @@ export default function PatientMedicalRecordsPage() {
                                         </div>
                                     </div>
 
-                                    {/* 4-dosage table */}
+                                    {}
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-xs text-left border-collapse">
                                             <thead>
@@ -430,7 +423,7 @@ export default function PatientMedicalRecordsPage() {
                                 </div>
                             )}
 
-                            {/* Tab 3: Cận lâm sàng & Xét nghiệm */}
+                            {}
                             {activeTab === 'can_lam_sang' && (
                                 <div className="p-5 space-y-4">
                                     {currentRecord.canLamSang.map((cls) => (
@@ -445,7 +438,7 @@ export default function PatientMedicalRecordsPage() {
                                                 </span>
                                             </div>
 
-                                            {/* Table indicators if lab test */}
+                                            {}
                                             {cls.chiTiet && (
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-xs text-left border-collapse">
@@ -461,10 +454,10 @@ export default function PatientMedicalRecordsPage() {
                                                         <tbody className="divide-y divide-slate-100">
                                                             {cls.chiTiet.map((item, idx) => (
                                                                 <tr key={idx}>
-                                                                    <td className="p-2 font-semibold text-[#003553]">{item.chiSo}</td>
-                                                                    <td className="p-2 text-center font-bold text-[#003553]">{item.ketQua}</td>
-                                                                    <td className="p-2 text-center text-slate-500">{item.donVi}</td>
-                                                                    <td className="p-2 text-center text-slate-500">{item.thamChieu}</td>
+                                                                    <td className="p-2 font-semibold text-[#003553]">{item.chiSo || (Array.isArray(item) ? item[0] : '')}</td>
+                                                                    <td className="p-2 text-center font-bold text-[#003553]">{item.ketQua || (Array.isArray(item) ? item[1] : '')}</td>
+                                                                    <td className="p-2 text-center text-slate-500">{item.donVi || ''}</td>
+                                                                    <td className="p-2 text-center text-slate-500">{item.thamChieu || (Array.isArray(item) ? item[2] : '')}</td>
                                                                     <td className="p-2 text-center">
                                                                         {item.trangThai === 'high' ? (
                                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
@@ -483,31 +476,12 @@ export default function PatientMedicalRecordsPage() {
                                                 </div>
                                             )}
 
-                                            {/* Imaging PACS preview */}
+                                            {}
                                             {cls.hinhAnhUrl && (
-                                                <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                                    <img
-                                                        src={cls.hinhAnhUrl}
-                                                        alt={cls.tenDichVu}
-                                                        className="w-32 h-24 object-cover rounded-lg border border-slate-300"
-                                                    />
-                                                    <div className="text-xs space-y-1">
-                                                        <span className="font-bold text-[#003553] flex items-center gap-1">
-                                                            <Scan size={14} className="text-[#00B5F1]" />
-                                                            <span>Hình ảnh Chẩn đoán số hóa</span>
-                                                        </span>
-                                                        <p className="text-slate-600">Đã lưu trữ trên hệ thống PACS nội bộ của Clinic-AI.</p>
-                                                        <a
-                                                            href={cls.hinhAnhUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex items-center gap-1 text-[#00B5F1] hover:underline font-bold"
-                                                        >
-                                                            <Eye size={13} />
-                                                            <span>Xem ảnh độ phân giải cao</span>
-                                                        </a>
-                                                    </div>
-                                                </div>
+                                                <ResultAttachments
+                                                    files={cls.hinhAnhUrls?.length ? cls.hinhAnhUrls : [cls.hinhAnhUrl]}
+                                                    serviceName={cls.tenDichVu}
+                                                />
                                             )}
 
                                             <div className="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
@@ -519,7 +493,7 @@ export default function PatientMedicalRecordsPage() {
                                 </div>
                             )}
 
-                            {/* Tab 4: Tái khám & Dặn dò */}
+                            {}
                             {activeTab === 'tai_kham' && (
                                 <div className="p-5 space-y-5">
                                     <div className="p-5 rounded-2xl bg-gradient-to-br from-[#E8F4FD] to-white border border-[#B8E5FA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -559,7 +533,7 @@ export default function PatientMedicalRecordsPage() {
                 </div>
             </div>
 
-            {/* Modal Đánh giá Dịch vụ 5 Sao */}
+            {}
             {ratingModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">

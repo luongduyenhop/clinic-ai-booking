@@ -8,7 +8,7 @@ from sqlalchemy import delete, select, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.appointment import LichKham
+from app.models.appointment import HangDoiKham, LichKham
 from app.models.bff_store import HeThongTrangThaiBff
 from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
 from app.models.content import BaiVietTinTuc, MauBieuYTe
@@ -197,12 +197,115 @@ class BffAdminService:
             await self.sync_all_collections_to_relational(db, data, existing_keys)
 
         data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
+        data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []))
         data["staffList"] = await self._project_relational_staff(db, data.get("staffList", []))
         data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}))
         data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []))
         data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []))
 
         return data
+
+    async def _project_relational_appointments(self, db: AsyncSession, base_appointments: list) -> list:
+        stmt = (
+            select(LichKham)
+            .options(
+                selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(LichKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LichKham.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(LichKham.bac_si).selectinload(BacSi.phong_kham),
+                selectinload(LichKham.chuyen_khoa),
+            )
+            .order_by(LichKham.id.desc())
+            .limit(100)
+        )
+        db_appointments = (await db.execute(stmt)).scalars().all()
+        if not db_appointments:
+            return base_appointments
+
+        base_map = {}
+        for a in base_appointments or []:
+            code = str(a.get("maLH") or a.get("id") or "").strip()
+            if code:
+                base_map[code] = a
+
+        status_map = {
+            "cho_xac_nhan": "Chờ xác nhận",
+            "da_xac_nhan": "Xác nhận",
+            "da_tiep_nhan": "Đã tiếp nhận",
+            "dang_kham": "Đang khám",
+            "da_kham": "Kết thúc khám",
+            "da_huy": "Đã hủy",
+            "tu_dong_huy": "Đã hủy",
+            "no_show": "Từ chối",
+        }
+
+        result = []
+        seen_codes = set()
+        for lk in db_appointments:
+            code = str(lk.ma_lich_kham or f"LH{lk.id:07d}").strip()
+            ex = base_map.get(code)
+            bn = lk.benh_nhan
+            u_bn = bn.nguoi_dung if bn else None
+            bn_name = (u_bn.ho_ten if u_bn and u_bn.ho_ten else (ex.get("hoTen") if ex else f"Bệnh nhân #{lk.benh_nhan_id}")).strip()
+            bs = lk.bac_si
+            u_bs = bs.nguoi_dung if bs else None
+            bs_name = (
+                f"{bs.hoc_vi + ' ' if bs and bs.hoc_vi else ''}{u_bs.ho_ten if u_bs else 'BS. Phòng khám'}".strip()
+                if bs
+                else (ex.get("bacSi") if ex else "BS. Phòng khám")
+            )
+            spec_name = (
+                lk.chuyen_khoa.ten_chuyen_khoa
+                if lk.chuyen_khoa
+                else (bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else (ex.get("chuyenKhoa") if ex else "Nội tổng quát"))
+            )
+            room_name = (
+                bs.phong_kham.ten_phong
+                if bs and bs.phong_kham
+                else (ex.get("phongKham") if ex else "Phòng số 1 (Phòng khám Nội)")
+            )
+            time_part = lk.gio_kham.strftime("%H:%M") if lk.gio_kham else "08:00"
+            date_time_str = f"{lk.ngay_kham.isoformat()}T{time_part}" if lk.ngay_kham else (ex.get("ngayDatLich") if ex else "")
+            display_status = status_map.get(str(lk.trang_thai or "").lower(), ex.get("trangThai") if ex else "Xác nhận")
+            confirm_time_str = lk.thoi_gian_xac_nhan.strftime("%Y-%m-%d %H:%M") if lk.thoi_gian_xac_nhan else (ex.get("ngayXacNhan") if ex else "")
+
+            item = {
+                "id": code,
+                "appointmentId": lk.id,
+                "maLH": code,
+                "maBN": str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else (ex.get("maBN") if ex else f"BN{lk.benh_nhan_id:07d}")),
+                "hoTen": bn_name,
+                "ngaySinh": u_bn.ngay_sinh.isoformat() if u_bn and u_bn.ngay_sinh else (ex.get("ngaySinh") if ex else "1990-01-01"),
+                "tuoi": f"{date.today().year - u_bn.ngay_sinh.year} tuổi" if u_bn and u_bn.ngay_sinh else (ex.get("tuoi") if ex else "35 tuổi"),
+                "gioiTinh": u_bn.gioi_tinh if u_bn and u_bn.gioi_tinh else (ex.get("gioiTinh") if ex else "Nam"),
+                "dienThoai": (u_bn.so_dien_thoai if u_bn and u_bn.so_dien_thoai else None) or (ex.get("dienThoai") if ex else ""),
+                "taiKhoan": (u_bn.so_dien_thoai if u_bn and u_bn.so_dien_thoai else None) or (ex.get("taiKhoan") if ex else ""),
+                "diaChi": (u_bn.dia_chi if u_bn and u_bn.dia_chi else None) or (ex.get("diaChi") if ex else ""),
+                "ngayDatLich": date_time_str,
+                "bacSi": bs_name,
+                "chuyenKhoa": spec_name,
+                "phongKham": room_name,
+                "trieuChung": lk.ly_do_kham or lk.trieu_chung_ban_dau or (ex.get("trieuChung") if ex else "Khám theo lịch hẹn"),
+                "ghiChu": ex.get("ghiChu") if ex else "Đặt lịch qua hệ thống tiếp đón",
+                "trangThai": display_status,
+                "nhanVienXacNhan": ex.get("nhanVienXacNhan") if ex else "Lễ tân Tiếp đón",
+                "ngayXacNhan": confirm_time_str,
+                "noiDungXacNhan": ex.get("noiDungXacNhan") if ex else "Đã tiếp nhận lịch hẹn khám.",
+            }
+            if ex:
+                for k, v in ex.items():
+                    if k not in item:
+                        item[k] = v
+            result.append(item)
+            seen_codes.add(code)
+
+        for a in base_appointments or []:
+            c = str(a.get("maLH") or a.get("id") or "").strip()
+            if c and c not in seen_codes:
+                result.append(a)
+                seen_codes.add(c)
+
+        return result
 
     async def _project_relational_patients(self, db: AsyncSession, base_patients: list) -> list:
         stmt = (
@@ -510,19 +613,36 @@ class BffAdminService:
         return result
 
     async def _project_relational_registrations(self, db: AsyncSession, base_registrations: list) -> list:
-        stmt = (
+        stmt_lk = (
             select(LuotKham)
             .options(
                 selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
                 selectinload(LuotKham.bac_si).selectinload(BacSi.chuyen_khoa),
                 selectinload(LuotKham.bac_si).selectinload(BacSi.phong_kham),
+                selectinload(LuotKham.lich_kham),
             )
             .order_by(LuotKham.id.desc())
             .limit(100)
         )
-        db_encounters = (await db.execute(stmt)).scalars().all()
-        if not db_encounters:
+        db_encounters = (await db.execute(stmt_lk)).scalars().all()
+
+        stmt_queue = (
+            select(HangDoiKham)
+            .options(
+                selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.phong_kham),
+                selectinload(HangDoiKham.phong_kham),
+                selectinload(HangDoiKham.lich_kham),
+            )
+            .order_by(HangDoiKham.id.desc())
+            .limit(100)
+        )
+        db_tickets = (await db.execute(stmt_queue)).scalars().all()
+
+        if not db_encounters and not db_tickets:
             return base_registrations
 
         base_map = {}
@@ -531,30 +651,39 @@ class BffAdminService:
             if kcb:
                 base_map[kcb] = r
 
-        result = list(base_registrations or [])
-        seen_kcb = {str(r.get("maKCB") or r.get("id") or "").strip() for r in result}
-        seen_bn_names = {str(r.get("hoTen") or "").strip().lower() for r in result}
+        result = []
+        seen_kcb = set()
+        seen_ids = set()
+        handled_appointment_ids = set()
+        handled_ticket_ids = set()
 
-        for idx, lk in enumerate(db_encounters, start=len(result) + 1):
-            kcb_code = str(lk.ma_kcb or f"KCB-{lk.id:06d}").strip()
-            if kcb_code in seen_kcb:
-                continue
+        for idx, lk in enumerate(db_encounters, start=1):
             bn = lk.benh_nhan
             u_bn = bn.nguoi_dung if bn else None
             bn_name = (u_bn.ho_ten if u_bn and u_bn.ho_ten else f"Bệnh nhân #{lk.benh_nhan_id}").strip()
-            if bn_name.lower() in ("nguyễn thị b", "nguyễn văn an", "đinh công minh") and bn_name.lower() in seen_bn_names:
-                continue
             bs = lk.bac_si
             u_bs = bs.nguoi_dung if bs else None
-            bs_name = f"{bs.hoc_vi + ' ' if bs and bs.hoc_vi else ''}{u_bs.ho_ten if u_bs else 'BS. Phạm Đức Minh'}".strip()
+            bs_name = f"{bs.hoc_vi + ' ' if bs and bs.hoc_vi else ''}{u_bs.ho_ten if u_bs else 'BS. Phòng khám'}".strip()
             spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else "Nội tổng quát"
             room_name = bs.phong_kham.ten_phong if bs and bs.phong_kham else "Phòng số 1 (Phòng khám Nội)"
             is_done = bool(lk.is_locked or lk.thoi_gian_ket_thuc or lk.ket_luan_dieu_tri)
-            result.append({
+            apt_code = lk.lich_kham.ma_lich_kham if lk.lich_kham else ""
+            kcb_code = str(lk.ma_kcb or (f"KCB-{apt_code}" if apt_code else f"KCB-{lk.id:06d}")).strip()
+
+            if lk.lich_kham_id:
+                handled_appointment_ids.add(lk.lich_kham_id)
+            if lk.hang_doi_kham_id:
+                handled_ticket_ids.add(lk.hang_doi_kham_id)
+
+            if kcb_code in seen_kcb:
+                continue
+
+            item = {
                 "id": kcb_code,
                 "luotKhamId": lk.id,
                 "stt": idx,
                 "maKCB": kcb_code,
+                "maLichHen": apt_code,
                 "maBN": str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else f"BN{lk.benh_nhan_id:07d}"),
                 "hoTen": bn_name,
                 "ngaySinh": u_bn.ngay_sinh.isoformat() if u_bn and u_bn.ngay_sinh else "1990-01-01",
@@ -589,8 +718,93 @@ class BffAdminService:
                 },
                 "icdList": [],
                 "services": [],
-            })
+            }
+            result.append(item)
             seen_kcb.add(kcb_code)
+            seen_ids.add(item["id"])
+
+        for t in db_tickets:
+            if t.id in handled_ticket_ids or (t.lich_kham_id and t.lich_kham_id in handled_appointment_ids):
+                continue
+
+            apt_code = t.lich_kham.ma_lich_kham if t.lich_kham else ""
+            kcb_code = apt_code if apt_code else f"KCB-Q{t.id:05d}"
+            if kcb_code in seen_kcb:
+                continue
+
+            bn = t.benh_nhan
+            u_bn = bn.nguoi_dung if bn else None
+            bn_name = (u_bn.ho_ten if u_bn and u_bn.ho_ten else f"Bệnh nhân #{t.benh_nhan_id}").strip()
+            bs = t.bac_si
+            u_bs = bs.nguoi_dung if bs else None
+            bs_name = f"{bs.hoc_vi + ' ' if bs and bs.hoc_vi else ''}{u_bs.ho_ten if u_bs else 'BS. Phòng khám'}".strip()
+            spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else "Nội tổng quát"
+            pk = t.phong_kham or (bs.phong_kham if bs else None)
+            room_name = pk.ten_phong if pk else "Phòng số 1 (Phòng khám Nội)"
+
+            ticket_status = str(t.trang_thai or "").lower()
+            if ticket_status in ("cho_kham", "cho_goi", "dang_goi", "tam_hoan"):
+                display_status = "Chờ khám"
+            elif ticket_status == "dang_kham":
+                display_status = "Đang khám"
+            elif ticket_status == "da_kham":
+                display_status = "Đã khám"
+            else:
+                display_status = "Chờ khám"
+
+            item = {
+                "id": kcb_code,
+                "ticketId": t.id,
+                "stt": len(result) + 1,
+                "maKCB": kcb_code,
+                "maLichHen": apt_code,
+                "maBN": str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else f"BN{t.benh_nhan_id:07d}"),
+                "hoTen": bn_name,
+                "ngaySinh": u_bn.ngay_sinh.isoformat() if u_bn and u_bn.ngay_sinh else "1990-01-01",
+                "tuoi": f"{date.today().year - u_bn.ngay_sinh.year} tuổi" if u_bn and u_bn.ngay_sinh else "35 tuổi",
+                "gioiTinh": u_bn.gioi_tinh if u_bn and u_bn.gioi_tinh else "Nam",
+                "dienThoai": u_bn.so_dien_thoai if u_bn and u_bn.so_dien_thoai else "",
+                "diaChi": u_bn.dia_chi if u_bn and u_bn.dia_chi else "",
+                "phongKham": room_name,
+                "chuyenKhoa": spec_name,
+                "bacSi": bs_name,
+                "ngayDangKy": (t.thoi_gian_check_in or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M"),
+                "uuTien": bool(t.muc_do_uu_tien == 1),
+                "trieuChung": t.ghi_chu_dieu_phoi or "Tiếp đón tại quầy",
+                "ghiChu": f"Số thứ tự #{t.so_thu_tu_kham}",
+                "trangThai": display_status,
+                "emrLocked": False,
+                "vitals": {
+                    "mach": "76",
+                    "nhietDo": "36.8",
+                    "huyetAp": "120/80",
+                    "nhipTho": "18",
+                    "chieuCao": "165",
+                    "canNang": "60",
+                    "bmi": "22.0",
+                },
+                "clinicalNotes": {
+                    "trieuChungBanDau": t.ghi_chu_dieu_phoi or "",
+                    "ketQuaKham": "",
+                    "huongXuTri": "",
+                    "chanDoanSoBo": "",
+                    "chanDoanXacDinh": "",
+                },
+                "icdList": [],
+                "services": [],
+            }
+            result.append(item)
+            seen_kcb.add(kcb_code)
+            seen_ids.add(item["id"])
+
+        for br in base_registrations or []:
+            c = str(br.get("maKCB") or br.get("id") or "").strip()
+            if c and c not in seen_kcb and c not in seen_ids:
+                br_copy = copy.deepcopy(br)
+                br_copy["stt"] = len(result) + 1
+                result.append(br_copy)
+                seen_kcb.add(c)
+                seen_ids.add(c)
 
         return result
 
@@ -627,6 +841,7 @@ class BffAdminService:
 
         for key in [
             "patients",
+            "appointments",
             "staffList",
             "registrations",
             "paraclinicalTasks",
@@ -856,6 +1071,64 @@ class BffAdminService:
                         ma_dinh_danh_y_te=code[:50],
                         nhom_mau=str(p.get("nhomMau") or "O+")[:10],
                         di_ung_thuoc=str(p.get("diUng") or "Không"),
+                    ))
+
+        elif collection_key == "appointments":
+            status_reverse_map = {
+                "chờ xác nhận": "cho_xac_nhan",
+                "xác nhận": "da_xac_nhan",
+                "đã tiếp nhận": "da_tiep_nhan",
+                "đang khám": "dang_kham",
+                "kết thúc khám": "da_kham",
+                "từ chối": "da_huy",
+                "đã hủy": "da_huy",
+            }
+            first_user, first_bn, first_bs, _ = await self._ensure_default_entities(db)
+            for apt in items:
+                code = str(apt.get("maLH") or apt.get("id") or "").strip()
+                if not code:
+                    continue
+                apt_id = apt.get("appointmentId")
+                stmt = select(LichKham).where(
+                    or_(LichKham.ma_lich_kham == code, LichKham.id == apt_id)
+                    if apt_id
+                    else LichKham.ma_lich_kham == code
+                )
+                existing = (await db.execute(stmt)).scalars().first()
+                raw_st = str(apt.get("trangThai") or "").strip().lower()
+                target_status = status_reverse_map.get(raw_st, "da_xac_nhan")
+                dt_str = apt.get("ngayDatLich")
+                d_val = _parse_date_safe(dt_str, date.today())
+                t_val = time(8, 0)
+                if isinstance(dt_str, str) and "T" in dt_str:
+                    try:
+                        t_parts = dt_str.split("T")[1][:5].split(":")
+                        t_val = time(int(t_parts[0]), int(t_parts[1]))
+                    except Exception:
+                        pass
+                if existing:
+                    existing.trang_thai = target_status
+                    existing.ngay_kham = d_val
+                    existing.gio_kham = t_val
+                    existing.ly_do_kham = str(apt.get("trieuChung") or existing.ly_do_kham or "")[:255]
+                    if target_status == "da_xac_nhan" and not existing.thoi_gian_xac_nhan:
+                        existing.thoi_gian_xac_nhan = datetime.now(timezone.utc)
+                    elif target_status in ("da_huy", "no_show"):
+                        if not existing.thoi_gian_huy:
+                            existing.thoi_gian_huy = datetime.now(timezone.utc)
+                        existing.ly_do_huy = str(apt.get("noiDungXacNhan") or existing.ly_do_huy or "Hủy bởi quản trị viên")
+                else:
+                    db.add(LichKham(
+                        ma_lich_kham=code[:50],
+                        benh_nhan_id=first_bn.id,
+                        bac_si_id=first_bs.id if first_bs else None,
+                        ngay_kham=d_val,
+                        gio_kham=t_val,
+                        thoi_luong_phut=30,
+                        so_thu_tu=1,
+                        ly_do_kham=str(apt.get("trieuChung") or "Khám theo hẹn")[:255],
+                        trang_thai=target_status,
+                        thoi_gian_xac_nhan=datetime.now(timezone.utc) if target_status == "da_xac_nhan" else None,
                     ))
 
         elif collection_key == "templates":

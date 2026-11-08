@@ -12,7 +12,6 @@ import {
     ShieldCheck,
     Stethoscope,
     IdentificationCard,
-    Receipt,
     Microscope,
 } from '../../components/common/ClinicIcon'
 
@@ -39,8 +38,8 @@ const STAFF_ACCOUNTS = [
     {
         roleKey: 'DOCTOR',
         role: 'BAC_SI',
-        label: 'Bác sĩ Khám bệnh',
-        desc: 'PGS.TS Phạm Đức Minh · Phòng 101 Nội',
+        label: 'Bác sĩ Khám bệnh (Khoa Nội tổng quát)',
+        desc: 'PGS.TS Phạm Đức Minh · Phòng 101 Nội tổng quát',
         creds: { email: 'minh.doctor@clinic.com', mat_khau: 'Doctor@123456' },
         profile: {
             id: 'USER_DOC_01',
@@ -49,10 +48,12 @@ const STAFF_ACCOUNTS = [
             role: 'BAC_SI',
             email: 'minh.doctor@clinic.com',
             department: 'Khoa Nội tổng quát',
+            specialty: 'Khoa Nội tổng quát',
+            chuyen_khoa_ma: 'KHOA_NOI',
             room: 'Phòng 101',
             cchn: '001234/BYT-CCHN',
         },
-        defaultPath: '/doctor/kham-benh',
+        defaultPath: '/doctor',
         color: 'from-sky-500 to-sky-700',
         badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
         icon: Stethoscope,
@@ -60,46 +61,27 @@ const STAFF_ACCOUNTS = [
     {
         roleKey: 'RECEPTIONIST',
         role: 'LE_TAN',
-        label: 'Lễ tân Tiếp đón',
-        desc: 'Nguyễn Thị Thu Cúc · Quầy Tiếp đón F2',
+        label: 'Lễ tân – Thu ngân',
+        desc: 'Nguyễn Thị Thu Cúc · Tiếp đón, Điều phối Hàng đợi & Thu viện phí VietQR',
         creds: { email: 'letan@clinic.com', mat_khau: 'LeTan@123456' },
         profile: {
             id: 'USER_RECEPTION_01',
             fullName: 'Nguyễn Thị Thu Cúc',
-            shortName: 'Lễ tân Cúc',
+            shortName: 'Lễ tân – Thu ngân Cúc',
             role: 'LE_TAN',
             email: 'letan@clinic.com',
-            department: 'Khoa Khám Bệnh / Quầy Đăng Ký',
+            department: 'Quầy Tiếp Đón & Thu Ngân Viện Phí',
         },
         defaultPath: '/reception/dashboard',
-        color: 'from-teal-500 to-teal-700',
+        color: 'from-teal-500 to-emerald-700',
         badgeBg: 'bg-teal-100 text-teal-800 border-teal-200',
         icon: IdentificationCard,
     },
     {
-        roleKey: 'CASHIER',
-        role: 'THU_NGAN',
-        label: 'Thu ngân Viện phí',
-        desc: 'Trần Thu Ngân · Quầy Thu ngân & VietQR',
-        creds: { email: 'thungan@clinic.com', mat_khau: 'ThuNgan@123456' },
-        profile: {
-            id: 'USER_CASHIER_01',
-            fullName: 'Trần Thu Ngân',
-            shortName: 'Thu ngân Ngân',
-            role: 'THU_NGAN',
-            email: 'thungan@clinic.com',
-            department: 'Phòng Tài Chính - Kế Toán',
-        },
-        defaultPath: '/staff/cashier',
-        color: 'from-emerald-500 to-emerald-700',
-        badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        icon: Receipt,
-    },
-    {
         roleKey: 'LAB_TECH',
         role: 'KY_THUAT_VIEN',
-        label: 'KTV Xét nghiệm LIS',
-        desc: 'CN. Hoàng Thị Yến · Phòng Lab Huyết học',
+        label: 'KTV Cận lâm sàng & Xét nghiệm LIS',
+        desc: 'CN. Hoàng Thị Yến · Phòng Lab Huyết học & Chẩn đoán hình ảnh',
         creds: { email: 'ktv@clinic.com', mat_khau: 'Ktv@123456' },
         profile: {
             id: 'USER_LAB_01',
@@ -107,7 +89,7 @@ const STAFF_ACCOUNTS = [
             shortName: 'KTV. Yến LIS',
             role: 'KY_THUAT_VIEN',
             email: 'ktv@clinic.com',
-            department: 'Khoa Xét Nghiệm & Hóa Sinh LIS',
+            department: 'Khoa Xét Nghiệm & Cận Lâm Sàng',
         },
         defaultPath: '/staff/paraclinical-work?nhom=XET_NGHIEM',
         color: 'from-indigo-500 to-indigo-700',
@@ -143,6 +125,11 @@ export default function StaffLoginPage() {
                 userProfile = staffConfig.profile
             }
 
+            try {
+                localStorage.removeItem('CLINIC_AI_DOCTOR_WORKSPACE_V1')
+            } catch {
+            }
+
             dispatch(
                 setAuth({
                     accessToken,
@@ -171,8 +158,14 @@ export default function StaffLoginPage() {
                 const res = await authService.login({ email: values.email, mat_khau: values.password })
                 const data = res?.data?.data || res?.data || {}
                 const token = data.access_token || data.accessToken
-                const role = String(data.role || data.vai_tro || 'ADMIN').toUpperCase()
+                const rawRole = String(data.role || data.vai_tro || 'ADMIN').toUpperCase()
+                const role = rawRole === 'THU_NGAN' || rawRole === 'CASHIER' ? 'LE_TAN' : rawRole
                 const user = data.user || { email: values.email, fullName: values.email, role }
+
+                try {
+                    localStorage.removeItem('CLINIC_AI_DOCTOR_WORKSPACE_V1')
+                } catch {
+                }
 
                 dispatch(
                     setAuth({
@@ -254,7 +247,7 @@ export default function StaffLoginPage() {
                             <input
                                 type="email"
                                 name="email"
-                                placeholder="minh.doctor@clinic.com hoặc admin@clinic.com"
+                                placeholder="minh.doctor@clinic.com hoặc letan@clinic.com"
                                 value={formik.values.email}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}

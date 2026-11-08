@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Set
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,13 +53,23 @@ class ExamServiceResolver:
         return service
 
 
-def build_cls_lines(chi_dinh_list: Optional[Iterable[ChiDinh]]) -> List[BillingLine]:
+def build_cls_lines(
+    chi_dinh_list: Optional[Iterable[ChiDinh]],
+    excluded_ids: Optional[Set[int]] = None,
+) -> List[BillingLine]:
     lines: List[BillingLine] = []
+    excluded = excluded_ids or set()
     for cd in chi_dinh_list or []:
-        if cd.trang_thai == "da_huy":
+        if cd.trang_thai == "da_huy" or cd.id in excluded:
             continue
         so_luong = cd.so_luong or 1
-        don_gia = Decimal(str(cd.don_gia_tai_thoi_diem or 0))
+        unit_price = cd.don_gia_tai_thoi_diem
+        if unit_price is None or Decimal(str(unit_price)) <= ZERO:
+            if cd.dich_vu and cd.dich_vu.don_gia is not None:
+                unit_price = cd.dich_vu.don_gia
+            else:
+                unit_price = ZERO
+        don_gia = Decimal(str(unit_price))
         lines.append(
             BillingLine(
                 loai_muc="can_lam_sang",
@@ -78,12 +88,13 @@ async def resolve_exam_line(
     db: AsyncSession,
     resolver: Optional[ExamServiceResolver] = None,
 ) -> BillingLine:
-    bac_si = luot_kham.lich_kham.bac_si if luot_kham.lich_kham else None
+    bac_si = (luot_kham.lich_kham.bac_si if luot_kham.lich_kham else None) or luot_kham.bac_si
     gia_bac_si = Decimal(str(bac_si.gia_kham_mac_dinh)) if bac_si and bac_si.gia_kham_mac_dinh else ZERO
     if gia_bac_si > ZERO:
+        ref_id = luot_kham.lich_kham_id or (luot_kham.bac_si.id if luot_kham.bac_si else None)
         return BillingLine(
             loai_muc="cong_kham",
-            muc_tham_chieu_id=luot_kham.lich_kham_id,
+            muc_tham_chieu_id=ref_id,
             ten_khoan_thu="Công khám chuyên khoa ngoại trú",
             so_luong=1,
             don_gia=gia_bac_si,
@@ -105,12 +116,19 @@ async def estimate_encounter(
     luot_kham: LuotKham,
     db: AsyncSession,
     resolver: Optional[ExamServiceResolver] = None,
+    excluded_chidinh_ids: Optional[Set[int]] = None,
+    include_cong_kham: bool = True,
 ) -> BillingEstimate:
-    exam_line = await resolve_exam_line(luot_kham, db, resolver)
-    lines = [exam_line, *build_cls_lines(luot_kham.danh_sach_chi_dinh)]
+    lines: List[BillingLine] = []
+    if include_cong_kham:
+        lines.append(await resolve_exam_line(luot_kham, db, resolver))
+    lines.extend(build_cls_lines(luot_kham.danh_sach_chi_dinh, excluded_chidinh_ids))
     tong_tien = sum((line.thanh_tien for line in lines), ZERO)
     return BillingEstimate(lines=lines, tong_tien=tong_tien)
 
 
-def sum_cls_fee(chi_dinh_list: Optional[Iterable[ChiDinh]]) -> Decimal:
-    return sum((line.thanh_tien for line in build_cls_lines(chi_dinh_list)), ZERO)
+def sum_cls_fee(
+    chi_dinh_list: Optional[Iterable[ChiDinh]],
+    excluded_ids: Optional[Set[int]] = None,
+) -> Decimal:
+    return sum((line.thanh_tien for line in build_cls_lines(chi_dinh_list, excluded_ids)), ZERO)

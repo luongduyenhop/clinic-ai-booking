@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
@@ -60,7 +60,6 @@ export default function AppointmentManagementPage() {
         }
     }, [queryTab])
 
-    // ── Tab 4: Ma trận Lịch trực Bác sĩ & Slot (/shifts/schedule-matrix) ───
     const [matrixLoading, setMatrixLoading] = useState(false)
     const [scheduleMatrix, setScheduleMatrix] = useState(null)
     const [matrixTuNgay, setMatrixTuNgay] = useState('2026-10-12')
@@ -163,6 +162,20 @@ export default function AppointmentManagementPage() {
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [form, setForm] = useState(() => appointments[0] || buildEmptyAppointment())
+    const hasInitializedRef = useRef(false)
+
+    useEffect(() => {
+        if (!hasInitializedRef.current && appointments.length > 0) {
+            hasInitializedRef.current = true
+            setForm((prev) => {
+                const hasDraftInputs = prev.id || prev.hoTen || prev.dienThoai || prev.trieuChung || prev.ghiChu
+                if (hasDraftInputs) {
+                    return prev
+                }
+                return appointments[0]
+            })
+        }
+    }, [appointments])
 
     const filteredAppointments = useMemo(() => {
         return appointments.filter((a) => {
@@ -262,7 +275,6 @@ export default function AppointmentManagementPage() {
 
     return (
         <div className="space-y-4">
-            {/* Top Navigation Tabs across 4 tClinic Booking Modes */}
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl">
                     <button
@@ -316,10 +328,8 @@ export default function AppointmentManagementPage() {
                 </div>
             </div>
 
-            {/* TAB 1: LỊCH HẸN KHÁM LẺ & TELEMEDICINE */}
             {activeServiceTab === 'LICH_HEN' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    {/* Left Column (4 cols): Queue Table */}
                     <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-140px)]">
                         <div className="medpro-section-title">
                             <span className="inline-flex items-center gap-1.5">
@@ -329,7 +339,6 @@ export default function AppointmentManagementPage() {
                             <span className="text-xs font-semibold text-slate-400">Medpro Sync</span>
                         </div>
 
-                        {/* Search & Filter */}
                         <div className="grid grid-cols-12 gap-2 mb-3">
                             <div className="col-span-7 relative">
                                 <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -350,7 +359,7 @@ export default function AppointmentManagementPage() {
                                 >
                                     <option value="ALL">Tất cả</option>
                                     {appointmentStatuses.map((st) => (
-                                        <option key={st} value={st}>
+                                         <option key={st} value={st}>
                                             {st}
                                         </option>
                                     ))}
@@ -358,7 +367,6 @@ export default function AppointmentManagementPage() {
                             </div>
                         </div>
 
-                        {/* Appointments Queue Table */}
                         <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
                             <table className="medpro-table">
                                 <thead>
@@ -403,7 +411,6 @@ export default function AppointmentManagementPage() {
                         </div>
                     </div>
 
-                    {/* Right Column (8 cols): Appointment Details & Reception Confirmation */}
                     <div className="lg:col-span-8 medpro-card p-4 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
                             <div>
@@ -434,7 +441,6 @@ export default function AppointmentManagementPage() {
                             </div>
                         </div>
 
-                        {/* Patient info form */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
                                 <div className="flex items-center justify-between mb-1">
@@ -560,7 +566,6 @@ export default function AppointmentManagementPage() {
                             </div>
                         </div>
 
-                        {/* Confirmation Box */}
                         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
                             <div className="text-xs font-bold text-[#003553] uppercase flex items-center gap-1.5">
                                 <CheckCircle size={16} weight="fill" className="text-[#00B5F1]" />
@@ -595,7 +600,6 @@ export default function AppointmentManagementPage() {
                 </div>
             )}
 
-            {/* TAB 2: GÓI DỊCH VỤ (/goidichvu) */}
             {activeServiceTab === 'GOI_DICH_VU' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
@@ -660,7 +664,6 @@ export default function AppointmentManagementPage() {
                 </div>
             )}
 
-            {/* TAB 3: LIỆU TRÌNH ĐIỀU TRỊ (/lieutrinh) */}
             {activeServiceTab === 'LIEU_TRINH' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
@@ -743,10 +746,8 @@ export default function AppointmentManagementPage() {
                 </div>
             )}
 
-            {/* TAB 4: MA TRẬN LỊCH TRỰC BÁC SĨ & PHÂN BUỒNG (/shifts/schedule-matrix) */}
             {activeServiceTab === 'MA_TRAN_LICH_TRUC' && (
                 <div className="space-y-4">
-                    {/* Filter and Overview Banner */}
                     <div className="medpro-card p-4 bg-gradient-to-r from-sky-50 via-[#E8F4FD] to-indigo-50/60 border border-[#00B5F1]/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <span className="w-10 h-10 rounded-xl bg-[#003553] text-[#00B5F1] flex items-center justify-center shrink-0 shadow-xs">
@@ -793,7 +794,6 @@ export default function AppointmentManagementPage() {
                         </div>
                     </div>
 
-                    {/* Summary KPI Badges */}
                     {scheduleMatrix && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div className="medpro-card p-3 flex items-center gap-3">
@@ -835,7 +835,6 @@ export default function AppointmentManagementPage() {
                         </div>
                     )}
 
-                    {/* Schedule Matrix Grid */}
                     <div className="medpro-card p-4 overflow-x-auto">
                         {matrixLoading ? (
                             <div className="py-16 text-center text-slate-500 text-xs">

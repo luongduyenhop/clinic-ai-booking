@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -10,7 +11,8 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.models.medical import ChiDinh, DichVu, LuotKham
+from app.models.appointment import HangDoiKham, TrangThaiHangDoiEnum
+from app.models.medical import ChiDinh, DichVu, KetQuaCLS, LuotKham, PhieuKetQuaCLS
 from app.models.user import BacSi, BenhNhan, NguoiDung
 from app.schemas.subclinical import (
     PatientBrief,
@@ -19,14 +21,13 @@ from app.schemas.subclinical import (
     SubclinicalResultSubmitRequest,
     SubclinicalServiceBrief,
 )
-from app.services.cls_result_state import is_phieu_approved, latest_phieu
+from app.services.cls_result_state import PHIEU_DA_DUYET, is_phieu_approved, latest_phieu
 from app.services.cls_service_group import clinic_day_range, nhom_dich_vu_condition, nhom_dich_vu_of
 
 logger = logging.getLogger(__name__)
 
 
 class SubclinicalService:
-    """Nghiệp vụ Phân hệ Kỹ thuật viên Cận lâm sàng & Kết quả Xét nghiệm / CĐHA (Subclinical LIS/PACS)"""
 
     async def get_subclinical_queue(
         self,
@@ -37,7 +38,6 @@ class SubclinicalService:
         ngay: Optional[date] = None,
         tu_khoa: Optional[str] = None,
     ) -> SubclinicalQueueResponse:
-        """Lấy hàng đợi chỉ định cận lâm sàng trong ngày (giờ phòng khám), ca chỉ định sớm nhất lên trước"""
         day_start, day_end = clinic_day_range(ngay)
         stmt = (
             select(ChiDinh)
@@ -78,7 +78,6 @@ class SubclinicalService:
         elif trang_thai:
             stmt = stmt.where(ChiDinh.trang_thai == trang_thai)
         else:
-            # Mặc định chỉ lấy các ca đang chờ thực hiện hoặc đang tiến hành
             stmt = stmt.where(ChiDinh.trang_thai.in_(["CHO_THUC_HIEN", "da_thanh_toan", "da_chi_dinh", "dang_thuc_hien"]))
 
         orders = (await db.execute(stmt)).scalars().all()
@@ -150,7 +149,6 @@ class SubclinicalService:
         technician_user_id: int,
         db: AsyncSession,
     ) -> ChiDinh:
-        """Kỹ thuật viên tiếp nhận mẫu hoặc bắt đầu thực hiện ca cận lâm sàng"""
         stmt = (
             select(ChiDinh)
             .where(ChiDinh.id == order_id)
@@ -184,10 +182,14 @@ class SubclinicalService:
         technician_user_id: int,
         db: AsyncSession,
     ) -> ChiDinh:
-        """Nhập kết quả, trị số chi tiết và trả kết quả xét nghiệm / CĐHA"""
         stmt = (
             select(ChiDinh)
-            .options(selectinload(ChiDinh.dich_vu))
+            .options(
+                selectinload(ChiDinh.dich_vu),
+                selectinload(ChiDinh.ket_qua),
+                selectinload(ChiDinh.phieu_ket_qua),
+                selectinload(ChiDinh.luot_kham),
+            )
             .where(ChiDinh.id == order_id)
             .with_for_update()
         )
@@ -201,13 +203,109 @@ class SubclinicalService:
             raise ConflictException("Kết quả đã được duyệt, không thể chỉnh sửa!")
 
         now = datetime.now(timezone.utc)
+        tri_so = payload.tri_so_chi_tiet or {}
+        if not tri_so and payload.ket_qua_chi_tiet:
+            try:
+                parsed = json.loads(payload.ket_qua_chi_tiet)
+                if isinstance(parsed, dict):
+                    tri_so = parsed
+            except Exception:
+                pass
+
+        files = payload.file_dinh_kem_urls or []
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet
         order.ket_qua_phan_loai = payload.ket_qua_phan_loai or "BINH_THUONG"
-        order.tri_so_chi_tiet = payload.tri_so_chi_tiet or {}
-        order.file_dinh_kem_urls = payload.file_dinh_kem_urls or []
+        order.tri_so_chi_tiet = tri_so
+        order.file_dinh_kem_urls = files
+        if files and not order.tep_dinh_kem_url:
+            order.tep_dinh_kem_url = files[0]
         order.trang_thai = "da_co_ket_qua"
         order.thoi_gian_tra_ket_qua = now
         order.ky_thuat_vien_id = technician_user_id
+
+        kq = order.ket_qua
+        if kq is None:
+            stmt_kq = select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id)
+            kq = (await db.execute(stmt_kq)).scalar_one_or_none()
+        if kq is None:
+            kq = KetQuaCLS(chi_dinh_id=order.id)
+            db.add(kq)
+            order.ket_qua = kq
+        kq.nguoi_thuc_hien_id = technician_user_id
+        kq.ket_qua_chi_tiet = payload.ket_qua_chi_tiet
+        kq.tri_so_chi_tiet = tri_so
+        kq.file_dinh_kem_urls = files
+        kq.ket_qua_phan_loai = payload.ket_qua_phan_loai or "BINH_THUONG"
+        kq.thoi_gian_thuc_hien = order.thoi_gian_thuc_hien or now
+        kq.thoi_gian_duyet = now
+
+        phieu = await latest_phieu(order.id, db)
+        if phieu is None:
+            phieu = PhieuKetQuaCLS(chi_dinh_id=order.id, lan_thuc_hien=1)
+            db.add(phieu)
+            order.phieu_ket_qua = phieu
+        dv = order.dich_vu
+        nhom = nhom_dich_vu_of(dv.ma_nhom_byt, dv.ma_dich_vu) if dv else None
+        phieu.loai_ket_qua = nhom or "TDCN"
+        phieu.trang_thai = PHIEU_DA_DUYET
+        phieu.thoi_gian_tra_ket_qua = now
+        phieu.thoi_gian_duyet = now
+        phieu.ky_thuat_vien_id = technician_user_id
+        phieu.tep_dinh_kem_urls = files
+        if isinstance(tri_so, dict):
+            phieu.mo_ta_hinh_anh = tri_so.get("mo_ta")
+            phieu.ket_luan = tri_so.get("ket_luan") or payload.ket_qua_chi_tiet
+            phieu.de_nghi = tri_so.get("de_nghi")
+            phieu.ghi_chu = tri_so.get("ghi_chu")
+            phieu.thiet_bi_thuc_hien = tri_so.get("thiet_bi")
+
+        stmt_pending = select(ChiDinh).where(
+            ChiDinh.luot_kham_id == order.luot_kham_id,
+            ChiDinh.id != order.id,
+            ChiDinh.trang_thai != "da_huy",
+            ChiDinh.trang_thai != "da_co_ket_qua",
+        )
+        pending_order = (await db.execute(stmt_pending)).scalars().first()
+        if not pending_order and order.luot_kham_id:
+            lk = order.luot_kham or await db.get(LuotKham, order.luot_kham_id)
+            if lk:
+                ticket = None
+                if lk.hang_doi_kham_id:
+                    ticket = await db.get(HangDoiKham, lk.hang_doi_kham_id)
+                if not ticket and lk.lich_kham_id:
+                    stmt_t = (
+                        select(HangDoiKham)
+                        .where(
+                            HangDoiKham.lich_kham_id == lk.lich_kham_id,
+                            HangDoiKham.trang_thai.in_([
+                                TrangThaiHangDoiEnum.TAM_HOAN.value,
+                                TrangThaiHangDoiEnum.CHO_KHAM.value,
+                            ]),
+                        )
+                        .order_by(HangDoiKham.id.desc())
+                    )
+                    ticket = (await db.execute(stmt_t)).scalars().first()
+                if not ticket:
+                    stmt_t = (
+                        select(HangDoiKham)
+                        .where(
+                            HangDoiKham.benh_nhan_id == lk.benh_nhan_id,
+                            HangDoiKham.trang_thai.in_([
+                                TrangThaiHangDoiEnum.TAM_HOAN.value,
+                                TrangThaiHangDoiEnum.CHO_KHAM.value,
+                            ]),
+                        )
+                        .order_by(HangDoiKham.id.desc())
+                    )
+                    ticket = (await db.execute(stmt_t)).scalars().first()
+                if ticket and ticket.trang_thai in (
+                    TrangThaiHangDoiEnum.TAM_HOAN.value,
+                    TrangThaiHangDoiEnum.CHO_KHAM.value,
+                ):
+                    ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
+                    ticket.muc_do_uu_tien = 3
+                    ticket.thoi_gian_xep_hang_lai = now
+                    ticket.ghi_chu_dieu_phoi = "Đã có KQ Cận lâm sàng"
 
         await db.commit()
         await db.refresh(order)
@@ -220,7 +318,6 @@ class SubclinicalService:
         user_id: int,
         db: AsyncSession,
     ) -> ChiDinh:
-        """Hủy chỉ định cận lâm sàng (ví dụ khi bệnh nhân không đồng ý thực hiện)"""
         stmt = select(ChiDinh).where(ChiDinh.id == order_id).with_for_update()
         order = (await db.execute(stmt)).scalar_one_or_none()
         if not order:

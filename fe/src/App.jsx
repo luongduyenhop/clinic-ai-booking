@@ -18,7 +18,6 @@ import {
     DOCTOR_ROLES,
 } from './utils/constants/System'
 
-
 import HomePage from './pages/user/HomePage'
 import DoctorSection from './components/user/home/DoctorSection'
 import SpecialtySection from './components/user/home/SpecialtySection'
@@ -40,11 +39,9 @@ import PatientProfilePage from './pages/user/PatientProfilePage'
 import PatientMedicalRecordsPage from './pages/user/PatientMedicalRecordsPage'
 import PatientBillingPage from './pages/user/PatientBillingPage'
 
-
 import DashboardAdminPage from './pages/admin/DashboardAdminPage'
 import ReceptionRegistrationPage from './pages/admin/ReceptionRegistrationPage'
 import PatientManagementPage from './pages/admin/PatientManagementPage'
-import ClinicalExamPage from './pages/admin/ClinicalExamPage'
 import ParaclinicalPage from './pages/admin/ParaclinicalPage'
 import AppointmentManagementPage from './pages/admin/AppointmentManagementPage'
 import CashierManagementPage from './pages/admin/CashierManagementPage'
@@ -61,7 +58,6 @@ import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
 import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
 import ExamWorkstationPage from './pages/doctor/ExamWorkstationPage'
 import ParaclinicalWorkPage from './pages/doctor/ParaclinicalWorkPage'
-
 
 import ReceptionDashboardPage from './pages/reception/ReceptionDashboardPage'
 import AppointmentsPage from './pages/reception/AppointmentsPage'
@@ -91,6 +87,7 @@ function App() {
                         <Route path="appointments" element={<AppointmentsPage />} />
                         <Route path="check-in" element={<CheckInPage />} />
                         <Route path="queue" element={<QueueManagementPage />} />
+                        <Route path="cashier" element={<CashierManagementPage />} />
                         <Route path="patients" element={<PatientsPage />} />
                         <Route path="schedule" element={<ClinicSchedulePage />} />
                         <Route path="administration" element={<AdministrationPage />} />
@@ -105,7 +102,7 @@ function App() {
                     <Route path="/chuyen-khoa" element={<SpecialtySection />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
-                                        <Route path="/dat-lich" element={<BookingPage />} />
+                    <Route path="/dat-lich" element={<BookingPage />} />
                     <Route path="/dat-lich-kham" element={<BookingWizardPage />} />
                     <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
 
@@ -211,7 +208,7 @@ function App() {
                         <Route path="specialty-exam/:deptKey" element={<SpecialtyExamPage />} />
                         <Route path="paraclinical-work" element={<ParaclinicalWorkPage />} />
                         <Route path="paraclinical" element={<ParaclinicalPage />} />
-                        <Route path="cashier" element={<CashierManagementPage />} />
+                        <Route path="cashier" element={<Navigate to="/reception/cashier" replace />} />
                         <Route path="schedule" element={<ClinicSchedulePage />} />
                         <Route path="catalogs" element={<Navigate to="/staff/catalogs/chung" replace />} />
                         <Route path="catalogs/:loaiDanhMuc" element={<CatalogManagementPage />} />

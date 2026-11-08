@@ -60,7 +60,7 @@ export const SPECIALTY_PACKS = [
 export const SPECIALTY_EXAMS = [
     {
         key: 'noi-khoa',
-        aliases: ['noi', 'NOI_TONG_QUAT', 'NOI_KHOA', 'KHOA_NOI', 'TIM_MACH', 'HO_HAP', 'TIEU_HOA', 'THAN_KINH', 'CO_XUONG_KHOP'],
+        aliases: ['noi', 'NOI_TONG_QUAT', 'NOI_KHOA', 'KHOA_NOI', 'TIM_MACH', 'HO_HAP', 'TIEU_HOA', 'THAN_KINH', 'CO_XUONG_KHOP', 'Khoa Nội tổng quát', 'Nội tổng quát', 'Tim mạch', 'Tiêu hóa', 'Hô hấp', 'Thần kinh'],
         deptCode: 'NOI',
         label: 'Khoa Nội tổng quát',
         items: [
@@ -75,7 +75,7 @@ export const SPECIALTY_EXAMS = [
     },
     {
         key: 'ngoai-khoa',
-        aliases: ['ngoai', 'NGOAI_KHOA', 'KHOA_NGOAI'],
+        aliases: ['ngoai', 'NGOAI_KHOA', 'KHOA_NGOAI', 'Khoa Ngoại', 'Ngoại tổng hợp', 'Ngoại khoa'],
         deptCode: 'NGOAI',
         label: 'Khoa Ngoại',
         items: [
@@ -91,7 +91,7 @@ export const SPECIALTY_EXAMS = [
     },
     {
         key: 'mat',
-        aliases: ['MAT', 'KHOA_MAT', 'nhan-khoa', 'nhan_khoa'],
+        aliases: ['MAT', 'KHOA_MAT', 'nhan-khoa', 'nhan_khoa', 'Khoa Mắt', 'Nhãn khoa', 'Mắt'],
         deptCode: 'MAT',
         label: 'Khoa Mắt',
         items: [
@@ -106,7 +106,7 @@ export const SPECIALTY_EXAMS = [
     },
     {
         key: 'tai-mui-hong',
-        aliases: ['tmh', 'TMH', 'KHOA_TMH'],
+        aliases: ['tmh', 'TMH', 'KHOA_TMH', 'Khoa Tai Mũi Họng', 'Tai Mũi Họng', 'Tai - Mũi - Họng'],
         deptCode: 'TMH',
         label: 'Khoa Tai Mũi Họng',
         items: [
@@ -121,7 +121,7 @@ export const SPECIALTY_EXAMS = [
     },
     {
         key: 'rang-ham-mat',
-        aliases: ['rhm', 'RHM', 'KHOA_RANG', 'RANG_HAM_MAT'],
+        aliases: ['rhm', 'RHM', 'KHOA_RANG', 'RANG_HAM_MAT', 'Khoa Răng Hàm Mặt', 'Khoa Răng', 'Răng Hàm Mặt', 'Răng - Hàm - Mặt'],
         deptCode: 'RHM',
         label: 'Khoa Răng Hàm Mặt',
         items: [
@@ -143,7 +143,12 @@ export const findSpecialtyExam = (key) => {
     const normalized = String(key).trim().toLowerCase()
     return (
         SPECIALTY_EXAMS.find(
-            (s) => s.key === key || s.key === normalized || s.aliases?.some((a) => a.toLowerCase() === normalized)
+            (s) =>
+                s.key === key ||
+                s.key === normalized ||
+                s.label.toLowerCase() === normalized ||
+                s.deptCode.toLowerCase() === normalized ||
+                s.aliases?.some((a) => a.toLowerCase() === normalized)
         ) || SPECIALTY_EXAMS[0]
     )
 }

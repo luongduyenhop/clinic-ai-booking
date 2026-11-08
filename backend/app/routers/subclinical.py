@@ -5,9 +5,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_roles
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy import select
+from app.core.dependencies import get_current_user, require_roles, get_current_user_flexible, security
+from app.core.exceptions import ForbiddenException, NotFoundException
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan, VaiTroEnum
+from app.models.user import TaiKhoan, VaiTroEnum, BenhNhan
+from app.models.medical import ChiDinh, LuotKham
 from app.schemas.cls_approval import ClsApprovalResponse, ClsReportResponse, ReturnedClsResultsResponse
 from app.schemas.cls_imaging import (
     ClsFileListResponse,
@@ -239,9 +243,26 @@ async def list_subclinical_files(
 async def get_subclinical_file(
     order_id: int,
     file_id: str = Path(..., max_length=40),
-    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ):
+    current_user = await get_current_user_flexible(token=token, credentials=credentials, db=db)
+    if current_user.vai_tro in [VaiTroEnum.KY_THUAT_VIEN.value, VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value]:
+        pass
+    elif current_user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+        bn = (await db.execute(select(BenhNhan).where(BenhNhan.nguoi_dung_id == current_user.nguoi_dung_id))).scalar_one_or_none()
+        order = await db.get(ChiDinh, order_id)
+        if not order:
+            raise NotFoundException("Không tìm thấy ảnh kết quả")
+        if not bn:
+            raise ForbiddenException("Bạn không có quyền truy cập chức năng này")
+        lk = await db.get(LuotKham, order.luot_kham_id)
+        if not lk or lk.benh_nhan_id != bn.id:
+            raise ForbiddenException("Bạn không có quyền truy cập tệp kết quả này")
+    else:
+        raise ForbiddenException("Bạn không có quyền truy cập chức năng này")
+
     path, media_type = await cls_file_service.get_file(order_id, file_id, db)
     return FileResponse(
         path,

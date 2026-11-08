@@ -90,6 +90,7 @@ class OrderResponse(BaseModel):
     bac_si_chi_dinh_id: Optional[int] = None
     ket_qua_chi_tiet: Optional[str] = None
     tep_dinh_kem_url: Optional[str] = None
+    tep_dinh_kem_urls: List[str] = Field(default_factory=list)
     thoi_gian_tra_ket_qua: Optional[datetime] = None
     ket_qua_phan_loai: Optional[str] = "BINH_THUONG"
     created_at: Optional[datetime] = None

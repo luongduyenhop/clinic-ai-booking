@@ -109,7 +109,7 @@ export default function PatientDashboardPage() {
                 ))}
             </div>
 
-            {/* Thanh toán Viện phí Trực tuyến (VietQR - Lát cắt D) */}
+            {}
             <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-sky-50 via-teal-50 to-indigo-50 border border-sky-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
                 <div className="flex items-center gap-3.5">
                     <div className="w-11 h-11 rounded-2xl bg-[#003553] text-teal-300 flex items-center justify-center shrink-0 shadow-xs">
@@ -154,9 +154,9 @@ export default function PatientDashboardPage() {
                 )}
             </section>
 
-            {/* Tích hợp từ TheDuckHospital: Hồ sơ Người thân (ho_so_nguoi_than) & Tìm Mã Bệnh Nhân Bị Mất */}
+            {}
             <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                {/* Cột 1: Sổ sức khỏe gia đình / Hồ sơ người thân */}
+                {}
                 <section className="medpro-card p-5 flex flex-col justify-between">
                     <div>
                         <div className="flex items-center justify-between mb-3">
@@ -252,7 +252,7 @@ export default function PatientDashboardPage() {
                     </div>
                 </section>
 
-                {/* Cột 2: Tra cứu lại Mã hồ sơ bệnh nhân bị quên (Kế thừa từ TheDuckHospital FindPatientIdPage) */}
+                {}
                 <section className="medpro-card p-5 flex flex-col justify-between">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -360,4 +360,4 @@ function Recent({ title, empty, item, to, render }) {
     )
 }
 
-const formatDate = (value) => new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`))
+const formatDate = (value) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${String(value).slice(0, 10)}T00:00:00`)) : 'Chưa ghi nhận'

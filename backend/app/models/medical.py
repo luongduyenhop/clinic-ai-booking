@@ -472,8 +472,8 @@ class HoaDon(BaseModelWithTimestamp):
             "uq_hoa_don_luot_kham_hieu_luc",
             "luot_kham_id",
             unique=True,
-            postgresql_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
-            sqlite_where=text("luot_kham_id IS NOT NULL AND trang_thai IN ('chua_thu', 'da_thu')"),
+            postgresql_where=text("luot_kham_id IS NOT NULL AND trang_thai = 'chua_thu'"),
+            sqlite_where=text("luot_kham_id IS NOT NULL AND trang_thai = 'chua_thu'"),
         ),
     )
 

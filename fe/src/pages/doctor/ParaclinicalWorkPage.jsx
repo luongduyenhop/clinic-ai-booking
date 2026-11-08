@@ -21,10 +21,9 @@ const STATUS_FILTERS = [
     { key: 'da_co_ket_qua', label: 'Có kết quả' },
 ]
 
-// Xét nghiệm và CĐHA đi qua bước KTV "Duyệt & Trả kết quả"; TDCN/Nội soi vẫn trả thẳng như cũ
 const APPROVAL_GROUPS = ['XET_NGHIEM', 'CDHA']
 
-const REFRESH_MS = 30000
+const REFRESH_MS = 3000
 
 const todayIso = () => new Date().toLocaleDateString('en-CA')
 
@@ -58,28 +57,31 @@ export default function ParaclinicalWorkPage() {
     const [submitting, setSubmitting] = useState(false)
     const [starting, setStarting] = useState(false)
 
-    // Gõ xong mới tìm trên server (tên, SĐT, mã bệnh nhân)
     useEffect(() => {
         const timer = setTimeout(() => setTuKhoa(keyword.trim()), 350)
         return () => clearTimeout(timer)
     }, [keyword])
 
     const load = useCallback(
-        (silent = false) => dispatch(fetchClsWorklistAsync({ nhom: group, tuKhoa, ngay, silent })),
-        [dispatch, group, tuKhoa, ngay]
+        (silent = false) => dispatch(fetchClsWorklistAsync({ tuKhoa, ngay, silent })),
+        [dispatch, tuKhoa, ngay]
     )
 
     useEffect(() => {
         load()
     }, [load])
 
-    // Tự làm mới: định kỳ và ngay khi bác sĩ gửi chỉ định mới (cùng trình duyệt, khác tab)
     useEffect(() => {
         const timer = setInterval(() => load(true), REFRESH_MS)
-        const off = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_ORDERED, () => load(true))
+        const offOrder = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_ORDERED, () => load(true))
+        const offResult = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_RESULT_RETURNED, () => load(true))
+        const handleFocus = () => load(true)
+        window.addEventListener('focus', handleFocus)
         return () => {
             clearInterval(timer)
-            off()
+            offOrder()
+            offResult()
+            window.removeEventListener('focus', handleFocus)
         }
     }, [load])
 
@@ -89,8 +91,11 @@ export default function ParaclinicalWorkPage() {
         setSearchParams({ nhom: key })
     }
 
-    const visible = worklist.filter((o) => statusFilter === 'ALL' || o.trang_thai === statusFilter)
-    const selected = worklist.find((o) => o.id === selectedId) || visible.find((o) => o.trang_thai !== 'da_co_ket_qua') || visible[0]
+    const groupOrders = worklist.filter(
+        (o) => String(o.nhom_dich_vu || '').toUpperCase() === String(group || '').toUpperCase()
+    )
+    const visible = groupOrders.filter((o) => statusFilter === 'ALL' || clsDisplayStatus(o) === statusFilter)
+    const selected = visible.find((o) => o.id === selectedId) || visible.find((o) => clsDisplayStatus(o) !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {
         setStarting(true)
@@ -118,7 +123,6 @@ export default function ParaclinicalWorkPage() {
         }
     }
 
-    // Xét nghiệm: backend tự đánh giá chỉ số và lưu vào ket_qua_cls
     const handleLabSubmit = async (body) => {
         setSubmitting(true)
         try {
@@ -156,21 +160,39 @@ export default function ParaclinicalWorkPage() {
                     </p>
                 </div>
                 <div role="tablist" aria-label="Loại cận lâm sàng" className="flex flex-wrap gap-1 rounded-3xl bg-[#E8F4FD] p-1">
-                    {SERVICE_GROUPS.map((g) => (
-                        <button
-                            key={g.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={g.key === group}
-                            onClick={() => switchGroup(g.key)}
-                            className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition cursor-pointer ${
-                                g.key === group ? 'bg-[#003553] text-white' : 'text-[#003553] hover:bg-white'
-                            }`}
-                        >
-                            <ClinicIcon name={g.icon} size={16} />
-                            {g.label}
-                        </button>
-                    ))}
+                    {SERVICE_GROUPS.map((g) => {
+                        const count = worklist.filter((o) => {
+                            const match = String(o.nhom_dich_vu || '').toUpperCase() === String(g.key || '').toUpperCase()
+                            const pending = o.trang_thai === 'da_chi_dinh' || o.trang_thai === 'CHO_THUC_HIEN' || o.trang_thai === 'dang_thuc_hien'
+                            return match && pending
+                        }).length
+                        return (
+                            <button
+                                key={g.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={g.key === group}
+                                onClick={() => switchGroup(g.key)}
+                                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition cursor-pointer ${
+                                    g.key === group ? 'bg-[#003553] text-white' : 'text-[#003553] hover:bg-white'
+                                }`}
+                            >
+                                <ClinicIcon name={g.icon} size={16} />
+                                <span>{g.label}</span>
+                                {count > 0 && (
+                                    <span
+                                        className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 text-[11px] font-bold rounded-full ${
+                                            g.key === group
+                                                ? 'bg-rose-500 text-white'
+                                                : 'bg-rose-100 text-rose-700 border border-rose-300'
+                                        }`}
+                                    >
+                                        {count}
+                                    </span>
+                                )}
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 
@@ -197,7 +219,7 @@ export default function ParaclinicalWorkPage() {
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                         {STATUS_FILTERS.map((f) => {
-                            const n = f.key === 'ALL' ? worklist.length : worklist.filter((o) => clsDisplayStatus(o) === f.key).length
+                            const n = f.key === 'ALL' ? groupOrders.length : groupOrders.filter((o) => clsDisplayStatus(o) === f.key).length
                             return (
                                 <button
                                     key={f.key}

@@ -1,8 +1,4 @@
-/**
- * Central Clinical Event Bridge for Clinic-AI
- * Cầu nối phát và nhận sự kiện thời gian thực giữa các phân hệ:
- * Tiếp đón -> Bàn khám Bác sĩ -> Phòng Cận lâm sàng -> Quầy Thu ngân -> Cổng Bệnh nhân
- */
+
 
 export const CLINICAL_EVENTS = {
     PATIENT_CHECKED_IN: 'CLINIC_PATIENT_CHECKED_IN',
@@ -10,6 +6,9 @@ export const CLINICAL_EVENTS = {
     CLS_RESULT_RETURNED: 'CLINIC_CLS_RESULT_RETURNED',
     ENCOUNTER_COMPLETED: 'CLINIC_ENCOUNTER_COMPLETED',
     BILL_PAID: 'CLINIC_BILL_PAID',
+    APPOINTMENT_CREATED: 'CLINIC_APPOINTMENT_CREATED',
+    APPOINTMENT_UPDATED: 'CLINIC_APPOINTMENT_UPDATED',
+    REGISTRATION_CREATED: 'CLINIC_REGISTRATION_CREATED',
 }
 
 class ClinicalEventBridge {
@@ -60,7 +59,7 @@ class ClinicalEventBridge {
                         })
                     )
                 } catch {
-                    // Storage quota exceeded or disabled
+                    
                 }
             }
         }

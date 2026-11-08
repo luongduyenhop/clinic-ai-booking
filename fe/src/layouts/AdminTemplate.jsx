@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import AdminHeader from '../components/admin/AdminHeader'
 import { loadClinicDataAsync } from '../redux/actions/admin/adminAction'
+import { clinicalEventBridge, CLINICAL_EVENTS } from '../services/clinicalEventBridge'
 import { getNavigationConfig } from '../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
@@ -30,7 +31,33 @@ export default function AdminTemplate() {
     })
 
     useEffect(() => {
-        dispatch(loadClinicDataAsync())
+        const syncClinicData = () => {
+            dispatch(loadClinicDataAsync())
+        }
+
+        syncClinicData()
+        const timer = setInterval(syncClinicData, 3000)
+
+        const unsubCheckIn = clinicalEventBridge.on(CLINICAL_EVENTS.PATIENT_CHECKED_IN, syncClinicData)
+        const unsubApptCreated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_CREATED, syncClinicData)
+        const unsubApptUpdated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_UPDATED, syncClinicData)
+        const unsubRegCreated = clinicalEventBridge.on(CLINICAL_EVENTS.REGISTRATION_CREATED, syncClinicData)
+        const unsubEncounterCompleted = clinicalEventBridge.on(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, syncClinicData)
+        const unsubBillPaid = clinicalEventBridge.on(CLINICAL_EVENTS.BILL_PAID, syncClinicData)
+
+        const handleFocus = () => syncClinicData()
+        window.addEventListener('focus', handleFocus)
+
+        return () => {
+            clearInterval(timer)
+            unsubCheckIn()
+            unsubApptCreated()
+            unsubApptUpdated()
+            unsubRegCreated()
+            unsubEncounterCompleted()
+            unsubBillPaid()
+            window.removeEventListener('focus', handleFocus)
+        }
     }, [dispatch])
 
     const toggleGroup = (id) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { updateClinicCollectionAsync, suggestSpecialtyByAIAsync } from '../../redux/actions/admin/adminAction'
@@ -98,11 +98,30 @@ export default function ReceptionRegistrationPage() {
         ],
     })
 
-    // UI state
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
-    const [activeRightTab, setActiveRightTab] = useState('THONG_TIN') // THONG_TIN, KE_DICH_VU, LICH_SU
+    const [activeRightTab, setActiveRightTab] = useState('THONG_TIN')
     const [form, setForm] = useState(() => registrations[0] || buildEmptyRegistrationForm())
+    const hasInitializedRef = useRef(false)
+
+    useEffect(() => {
+        if (!hasInitializedRef.current && registrations.length > 0) {
+            hasInitializedRef.current = true
+            setForm((prev) => {
+                const hasDraftInputs =
+                    prev.id ||
+                    prev.hoTen ||
+                    prev.dienThoai ||
+                    prev.lyDoKham ||
+                    prev.bhyt ||
+                    (prev.vitals && (prev.vitals.mach || prev.vitals.huyetAp))
+                if (hasDraftInputs) {
+                    return prev
+                }
+                return registrations[0]
+            })
+        }
+    }, [registrations])
     const [aiSuggestion, setAiSuggestion] = useState(null)
     const [aiLoading, setAiLoading] = useState(false)
     const [showAppointmentModal, setShowAppointmentModal] = useState(false)
@@ -185,7 +204,6 @@ export default function ReceptionRegistrationPage() {
         }
     }
 
-    // Quick address shortcut fill
     const handleSelectAddressShortcut = (shortcutCode) => {
         const found = addressShortcuts.find((s) => s.code === shortcutCode)
         if (found) {
@@ -198,7 +216,6 @@ export default function ReceptionRegistrationPage() {
         }
     }
 
-    // Add service from dropdown
     const handleAddService = (serviceCode) => {
         const dv = dichVuList.find((d) => d.maDV === serviceCode)
         if (!dv) return
@@ -221,7 +238,6 @@ export default function ReceptionRegistrationPage() {
         AppToast.success(`Đã thêm chỉ định dịch vụ: ${dv.tenDV}`)
     }
 
-    // Add pre-packaged checkup
     const handleApplyPackage = (pkg) => {
         const packageServices = (pkg.services || []).map((s, idx) => ({
             id: `PKG-SRV-${Date.now().toString().slice(-4)}-${idx}`,
@@ -312,7 +328,6 @@ export default function ReceptionRegistrationPage() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-            {/* LEFT PANEL (4 cols): Danh sách tiếp đón / Đăng ký */}
             <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-88px)]">
                 <div className="medpro-section-title">
                     <span className="inline-flex items-center gap-1.5">
@@ -329,7 +344,6 @@ export default function ReceptionRegistrationPage() {
                     </button>
                 </div>
 
-                {/* Search & Filter Row */}
                 <div className="grid grid-cols-12 gap-2 mb-3">
                     <div className="col-span-7 relative">
                         <MagnifyingGlass
@@ -364,7 +378,6 @@ export default function ReceptionRegistrationPage() {
                     </div>
                 </div>
 
-                {/* Queue Table */}
                 <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
                     <table className="medpro-table">
                         <thead>
@@ -427,13 +440,10 @@ export default function ReceptionRegistrationPage() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL (8 cols): Thông tin chi tiết Đăng ký + Kê dịch vụ (F7) */}
             <div className="lg:col-span-8 medpro-card p-4 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
-                    {/* Top Action Toolbar with tClinic HIS hotkeys */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
                         <div className="flex items-center gap-2">
-                            {/* Tabs on Right Panel */}
                             <button
                                 type="button"
                                 onClick={() => setActiveRightTab('THONG_TIN')}
@@ -472,7 +482,6 @@ export default function ReceptionRegistrationPage() {
                             </button>
                         </div>
 
-                        {/* HIS Fast Action Buttons */}
                         <div className="flex flex-wrap items-center gap-2">
                             <button type="button" onClick={handleNewRegistration} className="medpro-btn-outline text-xs">
                                 <Plus size={14} weight="bold" className="text-[#00B5F1]" />
@@ -493,10 +502,8 @@ export default function ReceptionRegistrationPage() {
                         </div>
                     </div>
 
-                    {/* TAB 1: THÔNG TIN ĐĂNG KÝ (F2) */}
                     {activeRightTab === 'THONG_TIN' && (
                         <div className="space-y-4">
-                            {/* 1. Thông tin người đăng ký */}
                             <div>
                                 <div className="medpro-section-title">
                                     <span>1. THÔNG TIN NGƯỜI ĐĂNG KÝ</span>
@@ -625,7 +632,6 @@ export default function ReceptionRegistrationPage() {
                                         />
                                     </div>
 
-                                    {/* Gõ tắt địa chỉ (Tính năng thực tế trên tClinic) */}
                                     <div>
                                         <label className="medpro-label text-[#00B5F1] font-bold flex items-center gap-1">
                                             <MapPin size={13} weight="fill" />
@@ -657,7 +663,6 @@ export default function ReceptionRegistrationPage() {
                                 </div>
                             </div>
 
-                            {/* 2. Thông tin đăng ký & AI Gợi ý chuyên khoa */}
                             <div>
                                 <div className="medpro-section-title">
                                     <span>2. THÔNG TIN TIẾP ĐÓN & PHÒNG KHÁM</span>
@@ -771,7 +776,6 @@ export default function ReceptionRegistrationPage() {
                                 </div>
                             </div>
 
-                            {/* 3. Chỉ số cơ thể / Sinh hiệu (Vitals) */}
                             <div>
                                 <div className="medpro-section-title">
                                     <span className="flex items-center gap-1.5">
@@ -849,7 +853,6 @@ export default function ReceptionRegistrationPage() {
                         </div>
                     )}
 
-                    {/* TAB 2: KÊ DỊCH VỤ (F7) */}
                     {activeRightTab === 'KE_DICH_VU' && (
                         <div className="space-y-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -953,7 +956,6 @@ export default function ReceptionRegistrationPage() {
                         </div>
                     )}
 
-                    {/* TAB 3: LỊCH SỬ (F8) */}
                     {activeRightTab === 'LICH_SU' && (
                         <div className="space-y-4">
                             <div className="medpro-section-title">
@@ -977,7 +979,6 @@ export default function ReceptionRegistrationPage() {
                     )}
                 </div>
 
-                {/* Bottom Action Footer */}
                 <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs text-slate-500">
                         Chuyên khoa phân luồng: <strong className="text-[#003553]">{form.chuyenKhoa || defaults.defaultSpecialty}</strong> &bull; Bác sĩ: <strong>{form.bacSi}</strong>
@@ -1005,7 +1006,6 @@ export default function ReceptionRegistrationPage() {
                 </div>
             </div>
 
-            {/* Modal Chọn từ Lịch hẹn */}
             {showAppointmentModal && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="medpro-card max-w-4xl w-full p-5 space-y-4">
@@ -1066,7 +1066,6 @@ export default function ReceptionRegistrationPage() {
                 </div>
             )}
 
-            {/* Modal Kê Gói Dịch Vụ */}
             {showPackageModal && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="medpro-card max-w-3xl w-full p-5 space-y-4">

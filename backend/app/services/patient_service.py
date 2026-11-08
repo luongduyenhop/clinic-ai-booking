@@ -1,3 +1,4 @@
+import json
 from typing import List
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,11 +27,9 @@ from app.schemas.patient import (
 
 
 class PatientService:
-    """Tầng nghiệp vụ chuyên biệt phục vụ Cổng Khách hàng / Bệnh nhân (Patient Portal)"""
 
     @staticmethod
     def _lab_result_type(order: ChiDinh) -> str:
-        """Use recorded clinical metadata; attachment presence does not identify a service."""
         report_type = order.phieu_ket_qua.loai_ket_qua if order.phieu_ket_qua else None
         if report_type and report_type.strip():
             return report_type.strip().upper()
@@ -55,7 +54,6 @@ class PatientService:
             raise NotFoundException("Không tìm thấy hồ sơ bệnh nhân liên kết với tài khoản này!")
         return bn
 
-    # ── 1. Quản lý Hồ sơ cá nhân Bệnh nhân ──────────────────────────────
     async def get_patient_profile(self, user: TaiKhoan, db: AsyncSession) -> PatientProfileResponse:
         bn = await self._get_current_benh_nhan(user, db)
         nd = (await db.execute(select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id))).scalar_one_or_none()
@@ -110,7 +108,6 @@ class PatientService:
         await db.refresh(bn)
         return await self.get_patient_profile(user, db)
 
-    # ── 2. Quản lý Hồ sơ người thân (Gia đình) ──────────────────────────
     async def get_family_members(self, user: TaiKhoan, db: AsyncSession) -> List[FamilyMemberResponse]:
         bn = await self._get_current_benh_nhan(user, db)
         stmt = (
@@ -188,7 +185,6 @@ class PatientService:
         await db.commit()
         return {"deleted": True, "member_id": member_id}
 
-    # ── 3. Sổ khám bệnh điện tử cá nhân (EMR) ──────────────────────────
     async def get_patient_medical_records(
         self,
         user: TaiKhoan,
@@ -203,6 +199,8 @@ class PatientService:
                 selectinload(LuotKham.bac_si).selectinload(BacSi.chuyen_khoa),
                 selectinload(LuotKham.danh_sach_chan_doan),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.ket_qua),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
                 selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
             )
             .order_by(desc(LuotKham.thoi_gian_bat_dau))
@@ -215,7 +213,6 @@ class PatientService:
             bs_name = bs.nguoi_dung.ho_ten if bs and bs.nguoi_dung else "Bác sĩ phụ trách"
             dept_name = bs.chuyen_khoa.ten_chuyen_khoa if bs and bs.chuyen_khoa else "Đa khoa"
             
-            # Lấy chẩn đoán chính
             main_diag = "Chưa có chẩn đoán"
             icd_code = "N/A"
             for d in enc.danh_sach_chan_doan or []:
@@ -275,10 +272,10 @@ class PatientService:
                     "ten_dich_vu": order.dich_vu.ten_dich_vu if order.dich_vu else "Dịch vụ",
                     "trang_thai": order.trang_thai,
                     "ngay_tra": order.thoi_gian_tra_ket_qua.isoformat() if order.thoi_gian_tra_ket_qua else None,
-                    "ket_luan": order.ket_qua_chi_tiet,
-                    "chi_so": order.tri_so_chi_tiet or {},
-                    "tep_dinh_kem": list(order.file_dinh_kem_urls or []) + ([order.tep_dinh_kem_url] if order.tep_dinh_kem_url else []),
-                } for order in enc.danh_sach_chi_dinh or [] if order.trang_thai == "da_co_ket_qua"],
+                    "ket_luan": order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None),
+                    "chi_so": order.tri_so_chi_tiet or (order.ket_qua.tri_so_chi_tiet if order.ket_qua else {}) or {},
+                    "tep_dinh_kem": list(dict.fromkeys(list(order.file_dinh_kem_urls or []) + ([order.tep_dinh_kem_url] if order.tep_dinh_kem_url else []) + (order.phieu_ket_qua.tep_dinh_kem_urls if getattr(order, "phieu_ket_qua", None) and order.phieu_ket_qua.tep_dinh_kem_urls else []))),
+                } for order in enc.danh_sach_chi_dinh or [] if order.trang_thai in ("da_co_ket_qua", "da_duyet", "DA_DUYET")],
                 don_thuoc_chi_tiet=[{
                     "ma_don": rx.ma_don_thuoc or rx.ma_don_quoc_gia or str(rx.id),
                     "loi_dan": rx.loi_dan_uong_thuoc,
@@ -301,7 +298,6 @@ class PatientService:
     async def get_patient_prescriptions(
         self, user: TaiKhoan, db: AsyncSession, page: int = 1, page_size: int = 20
     ) -> tuple[List[PatientPrescriptionResponse], int]:
-        """Trả đơn thuốc của chính bệnh nhân đang đăng nhập, chống IDOR."""
         bn = await self._get_current_benh_nhan(user, db)
         filters = (LuotKham.benh_nhan_id == bn.id, DonThuoc.trang_thai != "SUPERSEDED")
         count_stmt = select(func.count()).select_from(DonThuoc).join(LuotKham, DonThuoc.luot_kham_id == LuotKham.id).where(*filters)
@@ -355,9 +351,8 @@ class PatientService:
     async def get_patient_lab_results(
         self, user: TaiKhoan, db: AsyncSession, page: int = 1, page_size: int = 20
     ) -> tuple[List[PatientLabResultResponse], int]:
-        """Trả kết quả CLS và URL file chất lượng gốc của chính bệnh nhân."""
         bn = await self._get_current_benh_nhan(user, db)
-        filters = (LuotKham.benh_nhan_id == bn.id, ChiDinh.trang_thai == "da_co_ket_qua")
+        filters = (LuotKham.benh_nhan_id == bn.id, ChiDinh.trang_thai.in_(["da_co_ket_qua", "da_duyet", "DA_DUYET"]))
         count_stmt = select(func.count()).select_from(ChiDinh).join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id).where(*filters)
         total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
@@ -378,15 +373,40 @@ class PatientService:
             detail_data = order.tri_so_chi_tiet or (order.ket_qua.tri_so_chi_tiet if order.ket_qua else {}) or {}
             details = []
             if isinstance(detail_data, dict):
-                for name, value in detail_data.items():
-                    if isinstance(value, dict):
-                        details.append(PatientLabResultDetailResponse(
-                            ten_chi_so=str(name),
-                            gia_tri=str(value.get("gia_tri", value.get("value", ""))),
-                            khoang_tham_chieu=value.get("khoang_tham_chieu", value.get("reference")),
-                        ))
-                    else:
-                        details.append(PatientLabResultDetailResponse(ten_chi_so=str(name), gia_tri=str(value)))
+                raw_items = detail_data.get("chi_tiet")
+                raw_chi_so = detail_data.get("chi_so")
+                if isinstance(raw_items, list):
+                    for item in raw_items:
+                        if isinstance(item, dict):
+                            val_str = f"{item.get('gia_tri', '')} {item.get('don_vi', '')}".strip()
+                            details.append(PatientLabResultDetailResponse(
+                                ten_chi_so=str(item.get("ten") or item.get("ma") or "Chỉ số"),
+                                gia_tri=val_str or str(item.get("gia_tri", "—")),
+                                khoang_tham_chieu=str(item.get("khoang_tham_chieu") or "") or None,
+                            ))
+                elif isinstance(raw_chi_so, dict):
+                    for name, value in raw_chi_so.items():
+                        if isinstance(value, dict):
+                            details.append(PatientLabResultDetailResponse(
+                                ten_chi_so=str(name),
+                                gia_tri=str(value.get("gia_tri", value.get("value", "—"))),
+                                khoang_tham_chieu=value.get("khoang_tham_chieu", value.get("reference")),
+                            ))
+                        elif value is not None:
+                            details.append(PatientLabResultDetailResponse(ten_chi_so=str(name), gia_tri=str(value)))
+                else:
+                    meta_keys = {"loai", "mo_ta", "ket_luan", "de_nghi", "thiet_bi", "duyet", "ma_mau", "gioi_tinh_ap_dung", "so_bat_thuong", "so_nguy_hiem", "ghi_chu"}
+                    for name, value in detail_data.items():
+                        if name in meta_keys:
+                            continue
+                        if isinstance(value, dict):
+                            details.append(PatientLabResultDetailResponse(
+                                ten_chi_so=str(name),
+                                gia_tri=str(value.get("gia_tri", value.get("value", "—"))),
+                                khoang_tham_chieu=value.get("khoang_tham_chieu", value.get("reference")),
+                            ))
+                        elif value is not None:
+                            details.append(PatientLabResultDetailResponse(ten_chi_so=str(name), gia_tri=str(value)))
 
             urls = list(order.file_dinh_kem_urls or [])
             if order.tep_dinh_kem_url:
@@ -406,6 +426,20 @@ class PatientService:
             service_name = service.ten_dich_vu if service else "Kết quả cận lâm sàng"
             result_text = order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None)
             result_time = order.thoi_gian_tra_ket_qua or (order.ket_qua.thoi_gian_duyet if order.ket_qua else None) or order.created_at
+            clean_conclusion = "Đã có kết quả"
+            if result_text:
+                trimmed = str(result_text).strip()
+                if trimmed.startswith("{") and trimmed.endswith("}"):
+                    try:
+                        parsed = json.loads(trimmed)
+                        if isinstance(parsed, dict):
+                            clean_conclusion = str(parsed.get("ket_luan") or parsed.get("ghi_chu") or ("Đã có kết quả xét nghiệm" if self._lab_result_type(order) == "XET_NGHIEM" else "Đã có kết quả"))
+                        else:
+                            clean_conclusion = trimmed
+                    except Exception:
+                        clean_conclusion = trimmed
+                else:
+                    clean_conclusion = trimmed
             results.append(PatientLabResultResponse(
                 id=order.id,
                 luot_kham_id=order.luot_kham_id,
@@ -414,14 +448,13 @@ class PatientService:
                 ngay_tra_ket_qua=result_time,
                 loai_ket_qua=self._lab_result_type(order),
                 trang_thai=order.trang_thai,
-                ket_luan=result_text or "Đã có kết quả",
+                ket_luan=clean_conclusion,
                 phan_loai=order.ket_qua_phan_loai or "BINH_THUONG",
                 chi_tiet=details,
                 tep_dinh_kem=attachments,
             ))
         return results, total
 
-    # ── 4. Khảo sát & Đánh giá dịch vụ sau khám ─────────────────────────
     async def create_service_feedback(
         self,
         payload: ServiceFeedbackCreateRequest,
@@ -437,7 +470,6 @@ class PatientService:
         if not enc:
             raise NotFoundException("Không tìm thấy lượt khám tương ứng của bạn để đánh giá!")
 
-        # Kiểm tra xem lượt khám đã được đánh giá chưa
         stmt_dup = select(DanhGiaDichVu).where(DanhGiaDichVu.luot_kham_id == payload.luot_kham_id)
         existing = (await db.execute(stmt_dup)).scalar_one_or_none()
         if existing:

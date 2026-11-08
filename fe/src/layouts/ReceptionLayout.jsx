@@ -1,13 +1,17 @@
+import { useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
 import { ConfigProvider } from 'antd'
 import ReceptionSidebar from '../components/reception/ReceptionSidebar'
 import ReceptionHeader from '../components/reception/ReceptionHeader'
+import { loadClinicDataAsync } from '../redux/actions/admin/adminAction'
 import { HouseLine } from '../components/common/ClinicIcon'
 
 const ROUTE_BREADCRUMBS = {
-    '/reception/dashboard': 'Tổng quan & Bàn làm việc Lễ tân',
+    '/reception/dashboard': 'Tổng quan & Bàn làm việc Lễ tân – Thu ngân',
     '/reception/check-in': 'Tiếp nhận bệnh nhân & Check-in',
     '/reception/queue': 'Quản lý Hàng đợi & Điều phối buồng khám',
+    '/reception/cashier': 'Thu ngân – Viện phí & Quyết toán VietQR',
     '/reception/appointments': 'Quản lý Lịch hẹn khám',
     '/reception/patients': 'Quản lý Hồ sơ Bệnh nhân',
     '/reception/schedule': 'Lịch trực Bác sĩ & Sức chứa buồng',
@@ -87,7 +91,12 @@ const medproTheme = {
 
 export default function ReceptionLayout() {
     const location = useLocation()
-    const currentBreadcrumb = ROUTE_BREADCRUMBS[location.pathname] || 'Cổng Lễ Tân Y Tế'
+    const dispatch = useDispatch()
+    const currentBreadcrumb = ROUTE_BREADCRUMBS[location.pathname] || 'Cổng Lễ Tân – Thu Ngân'
+
+    useEffect(() => {
+        dispatch(loadClinicDataAsync())
+    }, [dispatch])
 
     const currentHour = new Date().getHours()
     const shiftLabel = currentHour >= 12 ? 'Ca chiều (13:00 - 17:30)' : 'Ca sáng (07:30 - 12:00)'

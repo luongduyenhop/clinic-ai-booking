@@ -25,6 +25,7 @@ import {
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { clinicalService } from '../../services/doctor/ClinicalService'
+import { findSpecialtyExam } from '../../utils/constants/clinical'
 
 const SPECIALTY_META = {
     'noi-khoa': {
@@ -75,10 +76,25 @@ const SPECIALTY_META = {
 }
 
 export default function SpecialtyExamPage() {
-    const { deptKey = 'noi-khoa' } = useParams()
+    const { deptKey: urlDeptKey } = useParams()
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const { currentUser, role: authRole } = useSelector((state) => state.app.auth || {})
+
+    const isDoctor = ['BAC_SI', 'DOCTOR', 'ROLE_DOCTOR'].includes(String(authRole || currentUser?.role || '').toUpperCase())
+    const doctorDeptKey = useMemo(() => {
+        const matched = findSpecialtyExam(
+            currentUser?.chuyen_khoa_ma ||
+            currentUser?.chuyen_khoa ||
+            currentUser?.specialty ||
+            currentUser?.department ||
+            'NOI'
+        )
+        return matched?.key || 'noi-khoa'
+    }, [currentUser])
+
+    const deptKey = isDoctor ? doctorDeptKey : (urlDeptKey || 'noi-khoa')
 
     const registrations = clinicData?.registrations || []
     const doctors = clinicData?.staffList?.filter((s) => s.vaiTro?.includes('Bác sĩ')) || []
@@ -90,28 +106,9 @@ export default function SpecialtyExamPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [examSheetType, setExamSheetType] = useState('Phiếu khám chuyên khoa tiêu chuẩn')
-    const [selectedDoctor, setSelectedDoctor] = useState(doctors[0]?.hoTen || 'BS.CKII Nguyễn Minh Hoàng')
+    const [selectedDoctor, setSelectedDoctor] = useState(currentUser?.hoTen || currentUser?.name || doctors[0]?.hoTen || 'PGS.TS Phạm Đức Minh')
     const [recorderName, setRecorderName] = useState('Điều dưỡng Vũ Thị Mỹ Dung')
     const [recordDate, setRecordDate] = useState('2026-10-12')
-
-    const currentExam = useMemo(() => {
-        return registrations.find((r) => r.id === selectedRegId) || registrations[0] || null
-    }, [registrations, selectedRegId])
-
-    const currentIndex = useMemo(() => {
-        return registrations.findIndex((r) => r.id === currentExam?.id)
-    }, [registrations, currentExam?.id])
-    const hasPrev = currentIndex > 0
-    const hasNext = currentIndex >= 0 && currentIndex < registrations.length - 1
-
-    const [specialtyData, setSpecialtyData] = useState(() => currentExam?.specialtyExams || {})
-    const [activeTooth, setActiveTooth] = useState('16')
-
-    useEffect(() => {
-        if (currentExam) {
-            setSpecialtyData(currentExam.specialtyExams || {})
-        }
-    }, [currentExam?.id])
 
     const filteredRegistrations = useMemo(() => {
         return registrations.filter((r) => {
@@ -121,9 +118,30 @@ export default function SpecialtyExamPage() {
                 r.maKCB?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 r.dienThoai?.includes(searchQuery)
             const matchStatus = statusFilter === 'ALL' || r.trangThai === statusFilter
-            return matchSearch && matchStatus
+            const regSpecialty = findSpecialtyExam(r.chuyenKhoa || r.khoa || r.phongKham || 'NOI')?.key || 'noi-khoa'
+            const matchDept = !r.chuyenKhoa && !r.khoa ? true : regSpecialty === deptKey
+            return matchSearch && matchStatus && matchDept
         })
-    }, [registrations, searchQuery, statusFilter])
+    }, [registrations, searchQuery, statusFilter, deptKey])
+
+    const currentExam = useMemo(() => {
+        return filteredRegistrations.find((r) => r.id === selectedRegId) || filteredRegistrations[0] || registrations[0] || null
+    }, [filteredRegistrations, registrations, selectedRegId])
+
+    const currentIndex = useMemo(() => {
+        return filteredRegistrations.findIndex((r) => r.id === currentExam?.id)
+    }, [filteredRegistrations, currentExam?.id])
+    const hasPrev = currentIndex > 0
+    const hasNext = currentIndex >= 0 && currentIndex < filteredRegistrations.length - 1
+
+    const [specialtyData, setSpecialtyData] = useState(() => currentExam?.specialtyExams || {})
+    const [activeTooth, setActiveTooth] = useState('16')
+
+    useEffect(() => {
+        if (currentExam) {
+            setSpecialtyData(currentExam.specialtyExams || {})
+        }
+    }, [currentExam?.id])
 
     const toothCounts = useMemo(() => {
         const counts = { BT: 0, S: 0, M: 0, T: 0, B: 0, K: 0 }
@@ -189,7 +207,7 @@ export default function SpecialtyExamPage() {
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/admin/kham-benh')}
+                        onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/kham-benh')}
                         className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
                         title="Quay lại Bàn khám chung"
                     >
@@ -201,33 +219,39 @@ export default function SpecialtyExamPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-base font-extrabold text-[#003553] uppercase">{currentMeta.title}</h1>
-                            <span className="medpro-badge-cyan text-[11px] font-bold">Chuẩn tClinic</span>
+                            <span className="medpro-badge-cyan text-[11px] font-bold">Chuẩn Bộ Y tế</span>
                         </div>
                         <p className="text-xs text-slate-500">{currentMeta.desc}</p>
                     </div>
                 </div>
 
-                
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-                    {Object.entries(SPECIALTY_META).map(([key, meta]) => {
-                        const Icon = meta.icon
-                        const isActive = key === deptKey
-                        return (
-                            <Link
-                                key={key}
-                                to={`/admin/kham-chuyen-khoa/${key}`}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
-                                    isActive
-                                        ? 'bg-white text-[#00B5F1] shadow-2xs'
-                                        : 'text-slate-600 hover:text-[#00B5F1] hover:bg-white/60'
-                                }`}
-                            >
-                                <Icon size={14} weight={isActive ? 'fill' : 'regular'} />
-                                <span>{meta.title.replace('KHÁM ', '')}</span>
-                            </Link>
-                        )
-                    })}
-                </div>
+                {isDoctor ? (
+                    <div className="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3.5 py-2 rounded-xl text-xs font-bold text-[#003553]">
+                        <DeptIcon size={16} weight="duotone" className="text-[#00B5F1]" />
+                        <span>Chuyên khoa phụ trách: {currentMeta.title.replace('KHÁM ', 'KHOA ')}</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                        {Object.entries(SPECIALTY_META).map(([key, meta]) => {
+                            const Icon = meta.icon
+                            const isActive = key === deptKey
+                            return (
+                                <Link
+                                    key={key}
+                                    to={`/admin/kham-chuyen-khoa/${key}`}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                                        isActive
+                                            ? 'bg-white text-[#00B5F1] shadow-2xs'
+                                            : 'text-slate-600 hover:text-[#00B5F1] hover:bg-white/60'
+                                    }`}
+                                >
+                                    <Icon size={14} weight={isActive ? 'fill' : 'regular'} />
+                                    <span>{meta.title.replace('KHÁM ', '')}</span>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
 
             
@@ -326,19 +350,19 @@ export default function SpecialtyExamPage() {
                                 <button
                                     type="button"
                                     disabled={!hasPrev}
-                                    onClick={() => hasPrev && setSelectedRegId(registrations[currentIndex - 1]?.id)}
+                                    onClick={() => hasPrev && setSelectedRegId(filteredRegistrations[currentIndex - 1]?.id)}
                                     className="p-1 rounded hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
                                     title="Bệnh nhân trước"
                                 >
                                     <CaretLeft size={14} weight="bold" />
                                 </button>
                                 <span className="px-2 font-mono font-bold text-[#003553]">
-                                    {currentIndex + 1} / {registrations.length}
+                                    {filteredRegistrations.length > 0 ? currentIndex + 1 : 0} / {filteredRegistrations.length}
                                 </span>
                                 <button
                                     type="button"
                                     disabled={!hasNext}
-                                    onClick={() => hasNext && setSelectedRegId(registrations[currentIndex + 1]?.id)}
+                                    onClick={() => hasNext && setSelectedRegId(filteredRegistrations[currentIndex + 1]?.id)}
                                     className="p-1 rounded hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
                                     title="Bệnh nhân kế tiếp"
                                 >
@@ -359,7 +383,7 @@ export default function SpecialtyExamPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => navigate('/admin/can-lam-sang')}
+                                onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/can-lam-sang')}
                                 className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 <FileText size={14} weight="duotone" className="text-[#00B5F1]" />
@@ -367,7 +391,7 @@ export default function SpecialtyExamPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => navigate('/admin/kham-benh')}
+                                onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/kham-benh')}
                                 className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 <Pill size={14} weight="duotone" className="text-[#00B5F1]" />

@@ -138,10 +138,6 @@ class ClsWorkspaceBridgeService:
                 db.add(order)
             orders.append(order)
 
-        await db.commit()
-        for order in orders:
-            await db.refresh(order)
-
         stmt_active_t = select(HangDoiKham).where(
             HangDoiKham.benh_nhan_id == benh_nhan.id,
             HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
@@ -150,6 +146,10 @@ class ClsWorkspaceBridgeService:
         if active_t:
             active_t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
             active_t.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
+
+        await db.commit()
+        for order in orders:
+            await db.refresh(order)
 
         logger.info(
             f"🧪 [WORKSPACE ORDERS] workspace={payload.workspace_encounter_id} luot_kham={luot_kham.id} "

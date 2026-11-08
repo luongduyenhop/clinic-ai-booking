@@ -51,42 +51,24 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    if (normalizedRole === 'LE_TAN' || normalizedRole === 'RECEPTIONIST' || normalizedRole === 'RECEPTION_SUPERVISOR') {
+    if (normalizedRole === 'LE_TAN' || normalizedRole === 'RECEPTIONIST' || normalizedRole === 'RECEPTION_SUPERVISOR' || normalizedRole === 'THU_NGAN' || normalizedRole === 'CASHIER') {
         return [
             {
-                group: 'Tiếp đón & Hàng chờ',
+                group: 'Tiếp đón, Hàng chờ & Thu ngân',
                 items: [
-                    { to: '/staff/reception-dashboard', label: 'Tổng quan tiếp đón', icon: HouseLine },
-                    { to: '/staff/check-in', label: 'Tiếp đón & Check-in', icon: IdentificationCard, badge: 'Cốt lõi' },
-                    { to: '/staff/queue', label: 'Điều phối hàng chờ', icon: Clock },
-                    { to: '/staff/appointments', label: 'Quản lý lịch hẹn', icon: CalendarCheck },
+                    { to: '/reception/dashboard', label: 'Tổng quan tiếp đón', icon: HouseLine },
+                    { to: '/reception/check-in', label: 'Tiếp đón & Check-in', icon: IdentificationCard, badge: 'Cốt lõi' },
+                    { to: '/reception/queue', label: 'Điều phối hàng chờ', icon: Clock },
+                    { to: '/reception/cashier', label: 'Thu viện phí & Quyết toán', icon: Receipt, badge: 'VietQR' },
+                    { to: '/reception/appointments', label: 'Quản lý lịch hẹn', icon: CalendarCheck },
                 ],
             },
             {
                 group: 'Dữ liệu & Lịch trực',
                 items: [
-                    { to: '/staff/patients', label: 'Hồ sơ bệnh nhân', icon: Users },
-                    { to: '/staff/schedule', label: 'Lịch trực phòng khám', icon: CalendarPlus },
-                    { to: '/staff/reports', label: 'Báo cáo ca trực', icon: ChartBar },
-                ],
-            },
-        ]
-    }
-
-    if (normalizedRole === 'THU_NGAN' || normalizedRole === 'CASHIER') {
-        return [
-            {
-                group: 'Thu ngân & Viện phí',
-                items: [
-                    { to: '/staff/cashier', label: 'Thu viện phí & Quyết toán', icon: Receipt, badge: 'VietQR' },
-                    { to: '/staff/queue', label: 'Hàng chờ thanh toán', icon: Clock },
-                ],
-            },
-            {
-                group: 'Báo cáo tài chính',
-                items: [
-                    { to: '/staff/reports', label: 'Báo cáo doanh thu & Đóng ca', icon: ChartBar },
-                    { to: '/staff/appointments', label: 'Tra cứu lịch hẹn', icon: CalendarCheck },
+                    { to: '/reception/patients', label: 'Hồ sơ bệnh nhân', icon: Users },
+                    { to: '/reception/schedule', label: 'Lịch trực phòng khám', icon: CalendarPlus },
+                    { to: '/reception/reports', label: 'Báo cáo ca trực & Doanh thu', icon: ChartBar },
                 ],
             },
         ]

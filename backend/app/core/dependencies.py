@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -12,14 +12,8 @@ from app.models.user import TaiKhoan, VaiTroEnum
 security = HTTPBearer(auto_error=False)
 
 
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> TaiKhoan:
-    if not credentials or not credentials.credentials:
-        raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hợp lệ")
-    
-    token = credentials.credentials.strip().strip('"').strip("'")
+async def get_user_by_token(raw_token: str, db: AsyncSession) -> TaiKhoan:
+    token = raw_token.strip().strip('"').strip("'")
     while token.lower().startswith("bearer "):
         token = token[7:].strip().strip('"').strip("'")
 
@@ -42,23 +36,39 @@ async def get_current_user(
         raise UnauthorizedException("Người dùng tương ứng với Token không tồn tại trong hệ thống")
     
     ensure_account_active(user)
-        
     return user
+
+
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> TaiKhoan:
+    if not credentials or not credentials.credentials:
+        raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hợp lệ")
+    return await get_user_by_token(credentials.credentials, db)
+
+
+async def get_current_user_flexible(
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> TaiKhoan:
+    raw_token = (credentials.credentials if credentials and credentials.credentials else None) or token
+    if not raw_token:
+        raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hoặc tham số token hợp lệ")
+    return await get_user_by_token(raw_token, db)
 
 
 async def get_optional_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> Optional[TaiKhoan]:
-    """Như get_current_user nhưng cho phép khách vãng lai khi KHÔNG gửi token. Đã gửi token thì phải hợp lệ:
-    token hết hạn/sai trả 401 để client làm mới token, thay vì âm thầm coi là khách và mất liên kết hồ sơ bệnh nhân"""
     if not credentials or not credentials.credentials:
         return None
     return await get_current_user(credentials, db)
 
 
 def require_roles(allowed_roles: List[VaiTroEnum]):
-    """Kiểm tra quyền truy cập theo vai trò (Role-Based Access Control - RBAC)"""
     async def role_checker(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKhoan:
         if current_user.vai_tro not in [r.value for r in allowed_roles]:
             raise ForbiddenException(

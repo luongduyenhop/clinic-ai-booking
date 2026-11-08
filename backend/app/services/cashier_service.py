@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -69,9 +69,10 @@ def _patient_brief(luot_kham: LuotKham) -> PatientBrief:
 
 
 def _doctor_name(luot_kham: LuotKham) -> Optional[str]:
-    lich_kham = luot_kham.lich_kham
-    if lich_kham and lich_kham.bac_si and lich_kham.bac_si.nguoi_dung:
-        return lich_kham.bac_si.nguoi_dung.ho_ten
+    if luot_kham.lich_kham and luot_kham.lich_kham.bac_si and luot_kham.lich_kham.bac_si.nguoi_dung:
+        return luot_kham.lich_kham.bac_si.nguoi_dung.ho_ten
+    if luot_kham.bac_si and luot_kham.bac_si.nguoi_dung:
+        return luot_kham.bac_si.nguoi_dung.ho_ten
     return None
 
 
@@ -124,6 +125,7 @@ class CashierService:
             select(LuotKham)
             .options(
                 selectinload(LuotKham.lich_kham).selectinload(LichKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
                 selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
                 selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
@@ -143,16 +145,40 @@ class CashierService:
             raise NotFoundException(f"Không tìm thấy thông tin lượt khám ID {luot_kham_id}!")
         return luot_kham
 
-    async def _ensure_not_billed(self, luot_kham_id: int, db: AsyncSession) -> None:
-        stmt_exist = select(HoaDon).where(
-            HoaDon.luot_kham_id == luot_kham_id,
-            HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+    async def _inspect_billing_state(self, luot_kham_id: int, db: AsyncSession):
+        stmt_exist = (
+            select(HoaDon)
+            .options(selectinload(HoaDon.chi_tiet_hoa_don))
+            .where(
+                HoaDon.luot_kham_id == luot_kham_id,
+                HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+            )
         )
-        existing_bill = (await db.execute(stmt_exist)).scalars().first()
-        if existing_bill:
-            if existing_bill.trang_thai == "da_thu":
-                raise ConflictException("Lượt khám này đã được lập hóa đơn và thanh toán viện phí hoàn tất!")
-            raise ConflictException(f"Lượt khám này đã có hóa đơn chờ thu mã {existing_bill.ma_hoa_don}!")
+        existing_invoices = (await db.execute(stmt_exist)).scalars().all()
+        pending_bill = next((inv for inv in existing_invoices if inv.trang_thai == "chua_thu"), None)
+        has_cong_kham = any(
+            any(item.loai_muc == "cong_kham" for item in (inv.chi_tiet_hoa_don or []))
+            for inv in existing_invoices
+        )
+        billed_cd_ids = {
+            item.muc_tham_chieu_id
+            for inv in existing_invoices
+            for item in (inv.chi_tiet_hoa_don or [])
+            if item.loai_muc == "can_lam_sang" and item.muc_tham_chieu_id is not None
+        }
+        return pending_bill, has_cong_kham, billed_cd_ids
+
+    async def _ensure_not_billed(self, luot_kham: LuotKham, db: AsyncSession):
+        pending_bill, has_cong_kham, billed_cd_ids = await self._inspect_billing_state(luot_kham.id, db)
+        if pending_bill:
+            raise ConflictException(f"Lượt khám này đã có hóa đơn chờ thu mã {pending_bill.ma_hoa_don}!")
+        unbilled_cd = [
+            cd for cd in (luot_kham.danh_sach_chi_dinh or [])
+            if cd.trang_thai != "da_huy" and cd.id not in billed_cd_ids
+        ]
+        if has_cong_kham and not unbilled_cd:
+            raise ConflictException("Lượt khám này đã được lập hóa đơn và thanh toán viện phí hoàn tất!")
+        return has_cong_kham, billed_cd_ids, unbilled_cd
 
     async def preview_invoice_for_encounter(
         self,
@@ -160,8 +186,13 @@ class CashierService:
         db: AsyncSession,
     ) -> InvoicePreviewResponse:
         luot_kham = await self._load_encounter_for_billing(luot_kham_id, db, lock=False)
-        await self._ensure_not_billed(luot_kham.id, db)
-        estimate = await estimate_encounter(luot_kham, db)
+        has_cong_kham, billed_cd_ids, unbilled_cd = await self._ensure_not_billed(luot_kham, db)
+        estimate = await estimate_encounter(
+            luot_kham,
+            db,
+            excluded_chidinh_ids=billed_cd_ids,
+            include_cong_kham=(not has_cong_kham),
+        )
         return InvoicePreviewResponse(
             luot_kham_id=luot_kham.id,
             ma_kcb=luot_kham.ma_kcb or f"KCB-{luot_kham.id:06d}",
@@ -193,8 +224,13 @@ class CashierService:
     ) -> HoaDon:
         luot_kham = await self._load_encounter_for_billing(payload.luot_kham_id, db, lock=True)
         try:
-            await self._ensure_not_billed(luot_kham.id, db)
-            estimate = await estimate_encounter(luot_kham, db)
+            has_cong_kham, billed_cd_ids, unbilled_cd = await self._ensure_not_billed(luot_kham, db)
+            estimate = await estimate_encounter(
+                luot_kham,
+                db,
+                excluded_chidinh_ids=billed_cd_ids,
+                include_cong_kham=(not has_cong_kham),
+            )
         except Exception:
             await db.rollback()
             raise
@@ -358,7 +394,7 @@ class CashierService:
             .where(
                 ChiTietHoaDon.hoa_don_id == invoice.id,
                 ChiTietHoaDon.loai_muc == "can_lam_sang",
-                ChiDinh.trang_thai == "da_chi_dinh",
+                ChiDinh.trang_thai.in_(["da_chi_dinh", "CHO_THUC_HIEN"]),
             )
         )
         if invoice.luot_kham_id is not None:
@@ -446,7 +482,7 @@ class CashierService:
                 PendingBillItem(
                     id=inv.id,
                     ma_hoa_don=inv.ma_hoa_don,
-                    luot_kham_id=inv.luot_kham_id,
+                    luot_kham_id=inv.luot_kham_id or 0,
                     benh_nhan=PatientBrief(mabn=mabn, ho_ten=ho_ten, so_dien_thoai=sdt),
                     tong_tien=inv.tong_tien,
                     mien_giam=inv.mien_giam,
@@ -660,17 +696,49 @@ class CashierService:
         page_size: int = 50,
         db: AsyncSession = None,
     ) -> UnbilledEncountersListResponse:
-        billed_exists = (
+        pending_exists = (
             select(HoaDon.id)
-            .where(HoaDon.luot_kham_id == LuotKham.id, HoaDon.trang_thai != "da_huy")
+            .where(HoaDon.luot_kham_id == LuotKham.id, HoaDon.trang_thai == "chua_thu")
             .exists()
         )
+        billed_cd_exists = (
+            select(ChiTietHoaDon.id)
+            .join(HoaDon, ChiTietHoaDon.hoa_don_id == HoaDon.id)
+            .where(
+                ChiTietHoaDon.muc_tham_chieu_id == ChiDinh.id,
+                ChiTietHoaDon.loai_muc == "can_lam_sang",
+                HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+            )
+            .exists()
+        )
+        unbilled_cd_exists = (
+            select(ChiDinh.id)
+            .where(
+                ChiDinh.luot_kham_id == LuotKham.id,
+                ChiDinh.trang_thai != "da_huy",
+                ~billed_cd_exists,
+            )
+            .exists()
+        )
+        no_active_invoice = ~select(HoaDon.id).where(
+            HoaDon.luot_kham_id == LuotKham.id,
+            HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+        ).exists()
+
+        is_unbilled = and_(
+            ~pending_exists,
+            or_(
+                no_active_invoice,
+                unbilled_cd_exists,
+            ),
+        )
+
         filters = [
             or_(
                 LuotKham.lich_kham_id.is_(None),
                 LichKham.trang_thai.not_in(["da_huy", "tu_dong_huy", "no_show"]),
             ),
-            ~billed_exists,
+            is_unbilled,
         ]
         total = (
             await db.execute(
@@ -686,6 +754,7 @@ class CashierService:
             .outerjoin(LuotKham.lich_kham)
             .options(
                 selectinload(LuotKham.lich_kham).selectinload(LichKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
                 selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
                 selectinload(LuotKham.danh_sach_don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
@@ -700,15 +769,27 @@ class CashierService:
         resolver = ExamServiceResolver()
         items: List[UnbilledEncounterItem] = []
         for lk in encounters:
-            so_cd = len([cd for cd in (lk.danh_sach_chi_dinh or []) if cd.trang_thai != "da_huy"])
+            pending_bill, has_cong_kham, billed_cd_ids = await self._inspect_billing_state(lk.id, db)
+            unbilled_cds = [
+                cd for cd in (lk.danh_sach_chi_dinh or [])
+                if cd.trang_thai != "da_huy" and cd.id not in billed_cd_ids
+            ]
+            so_cd = len(unbilled_cds)
             active_rx = [rx for rx in (lk.danh_sach_don_thuoc or []) if rx.trang_thai != "SUPERSEDED"]
             so_thuoc = sum(len(rx.danh_sach_chi_tiet or []) for rx in active_rx)
 
             canh_bao_gia = None
             try:
-                tam_tinh = (await estimate_encounter(lk, db, resolver)).tong_tien
+                estimate = await estimate_encounter(
+                    lk,
+                    db,
+                    resolver,
+                    excluded_chidinh_ids=billed_cd_ids,
+                    include_cong_kham=(not has_cong_kham),
+                )
+                tam_tinh = estimate.tong_tien
             except UnprocessableEntityException as exc:
-                tam_tinh = sum_cls_fee(lk.danh_sach_chi_dinh)
+                tam_tinh = sum_cls_fee(lk.danh_sach_chi_dinh, excluded_ids=billed_cd_ids)
                 canh_bao_gia = exc.message
 
             items.append(

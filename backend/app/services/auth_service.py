@@ -1,20 +1,21 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, and_, or_
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, generate_otp
-from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException, ForbiddenException
-from app.core.config import settings
+from sqlalchemy.orm import selectinload
 from app.core.account_status import ensure_account_active
-from app.models.user import NguoiDung, TaiKhoan, BenhNhan, BacSi, VaiTroEnum
+from app.core.config import settings
+from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException, UnauthorizedException
+from app.core.security import create_access_token, create_refresh_token, generate_otp, hash_password, verify_password
+from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.auth import (
-    RegisterRequest, 
-    VerifyOtpRequest, 
-    LoginRequest, 
-    TokenResponse, 
-    UserProfileResponse, 
+    LoginRequest,
     RefreshTokenRequest,
-    UpdateUserProfileRequest
+    RegisterRequest,
+    TokenResponse,
+    UpdateUserProfileRequest,
+    UserProfileResponse,
+    VerifyOtpRequest,
 )
 from app.schemas.patient import PatientRegisterRequest
 from app.services.email_service import email_service
@@ -53,7 +54,7 @@ class AuthService:
             email=payload.email,
             so_dien_thoai=payload.so_dien_thoai,
             ngay_sinh=payload.ngay_sinh,
-            gioi_tinh=payload.gioi_tinh
+            gioi_tinh=payload.gioi_tinh,
         )
         db.add(nguoi_dung)
         await db.flush()
@@ -65,7 +66,7 @@ class AuthService:
             vai_tro=VaiTroEnum.BENH_NHAN.value,
             is_active=False,
             otp_code=otp_code,
-            otp_expired_at=otp_expired_at
+            otp_expired_at=otp_expired_at,
         )
         db.add(tai_khoan)
         await db.commit()
@@ -80,7 +81,7 @@ class AuthService:
             "email": payload.email,
             "message": "Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
             "expires_in_seconds": 300,
-            "debug_otp": otp_code if settings.DEBUG else None
+            "debug_otp": otp_code if settings.DEBUG else None,
         }
 
     async def register_patient(self, payload: PatientRegisterRequest, db: AsyncSession) -> TokenResponse:
@@ -187,7 +188,7 @@ class AuthService:
             ma_y_te = f"BN-{datetime.now().strftime('%Y%m')}-{tai_khoan.nguoi_dung_id:04d}"
             benh_nhan = BenhNhan(
                 nguoi_dung_id=tai_khoan.nguoi_dung_id,
-                ma_dinh_danh_y_te=ma_y_te
+                ma_dinh_danh_y_te=ma_y_te,
             )
             db.add(benh_nhan)
 
@@ -276,22 +277,41 @@ class AuthService:
         doctor_id = None
         phong_kham_id = None
         chuyen_khoa_id = None
+        chuyen_khoa_ma = None
+        ten_chuyen_khoa = None
+        ten_phong = None
         if tai_khoan.vai_tro == VaiTroEnum.BAC_SI.value or str(tai_khoan.vai_tro).lower() in ("bac_si", "doctor"):
-            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+            stmt_bs = (
+                select(BacSi)
+                .options(selectinload(BacSi.chuyen_khoa), selectinload(BacSi.phong_kham))
+                .where(BacSi.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+            )
             bs = (await db.execute(stmt_bs)).scalar_one_or_none()
             if bs:
                 doctor_id = bs.id
                 phong_kham_id = bs.phong_kham_id
                 chuyen_khoa_id = bs.chuyen_khoa_id
+                if bs.chuyen_khoa:
+                    chuyen_khoa_ma = bs.chuyen_khoa.ma_chuyen_khoa
+                    ten_chuyen_khoa = bs.chuyen_khoa.ten_chuyen_khoa
+                if bs.phong_kham:
+                    ten_phong = bs.phong_kham.ten_phong
 
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
         refresh_token = create_refresh_token()
-        
+
         tai_khoan.refresh_token = refresh_token
         tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
         await db.commit()
 
         mapped_role = map_vai_tro_to_role(tai_khoan.vai_tro)
+        resolved_dept = ten_chuyen_khoa or (
+            "Ban Giám Đốc / Nội Tổng Quát"
+            if mapped_role == "ADMIN"
+            else "Quầy Tiếp Đón & Viện Phí"
+            if mapped_role == "RECEPTIONIST"
+            else "Chuyên khoa Lâm sàng"
+        )
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -309,20 +329,26 @@ class AuthService:
                 "bac_si_id": doctor_id or tai_khoan.id,
                 "phong_kham_id": phong_kham_id,
                 "chuyen_khoa_id": chuyen_khoa_id,
+                "chuyen_khoa_ma": chuyen_khoa_ma,
+                "chuyen_khoa": ten_chuyen_khoa,
+                "specialty": ten_chuyen_khoa,
+                "room": ten_phong,
                 "fullName": full_name,
                 "shortName": full_name,
                 "email": tai_khoan.email,
                 "phone": nguoi_dung.so_dien_thoai if nguoi_dung else None,
                 "so_dien_thoai": nguoi_dung.so_dien_thoai if nguoi_dung else None,
                 "role": mapped_role,
-                "department": "Ban Giám Đốc / Nội Tổng Quát" if mapped_role == "ADMIN" else "Chuyên khoa Lâm sàng",
+                "vai_tro": tai_khoan.vai_tro,
+                "department": resolved_dept,
             },
         )
 
     async def logout_user(self, user: TaiKhoan, db: AsyncSession) -> None:
         await db.execute(
             update(TaiKhoan).where(TaiKhoan.id == user.id).values(
-                refresh_token_hash=None, refresh_token_expired_at=None,
+                refresh_token_hash=None,
+                refresh_token_expired_at=None,
             )
         )
         await db.commit()
@@ -355,14 +381,14 @@ class AuthService:
             nhom_mau=benh_nhan.nhom_mau if benh_nhan else None,
             tien_su_benh=benh_nhan.tien_su_benh if benh_nhan else None,
             di_ung_thuoc=benh_nhan.di_ung_thuoc if benh_nhan else None,
-            chuyen_khoa_id=chuyen_khoa_id
+            chuyen_khoa_id=chuyen_khoa_id,
         )
 
     async def update_user_profile(
         self,
         payload: UpdateUserProfileRequest,
         user: TaiKhoan,
-        db: AsyncSession
+        db: AsyncSession,
     ) -> UserProfileResponse:
         stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id).with_for_update()
         nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
@@ -371,7 +397,7 @@ class AuthService:
             stmt_phone = select(NguoiDung).where(
                 and_(
                     NguoiDung.so_dien_thoai == payload.so_dien_thoai,
-                    NguoiDung.id != user.nguoi_dung_id
+                    NguoiDung.id != user.nguoi_dung_id,
                 )
             )
             phone_exists = (await db.execute(stmt_phone)).scalar_one_or_none()
@@ -408,26 +434,26 @@ class AuthService:
     async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
         stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token).with_for_update()
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
-        
+
         if not tai_khoan:
             raise UnauthorizedException("Refresh token không hợp lệ hoặc tài khoản đã bị khóa")
 
         ensure_account_active(tai_khoan)
-            
+
         now_utc = datetime.now(timezone.utc)
         exp_dt = tai_khoan.refresh_token_expired_at
         if exp_dt is not None and exp_dt.tzinfo is None:
             exp_dt = exp_dt.replace(tzinfo=timezone.utc)
         if not exp_dt or now_utc > exp_dt:
             raise UnauthorizedException("Refresh token đã hết hạn, vui lòng đăng nhập lại")
-            
+
         access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
         new_refresh_token = create_refresh_token()
-        
+
         tai_khoan.refresh_token = new_refresh_token
         tai_khoan.refresh_token_expired_at = now_utc + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
         await db.commit()
-        
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=new_refresh_token,

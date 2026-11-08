@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime, timezone, timedelta
 from typing import List, Optional
-from sqlalchemy import func, select, or_
+from sqlalchemy import and_, func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -121,19 +121,56 @@ class AdminAnalyticsService:
         )
         est_rev = float((await db.execute(stmt_revenue)).scalar() or 0.0)
 
+        stmt_walkin_rev = (
+            select(func.sum(BacSi.gia_kham_mac_dinh))
+            .select_from(LuotKham)
+            .join(BacSi, LuotKham.bac_si_id == BacSi.id)
+            .where(
+                LuotKham.lich_kham_id.is_(None),
+                func.date(LuotKham.thoi_gian_bat_dau) == d,
+            )
+        )
+        walkin_rev = float((await db.execute(stmt_walkin_rev)).scalar() or 0.0)
+        est_rev = est_rev + walkin_rev
+
         stmt_paraclinical = (
             select(func.sum(ChiDinh.don_gia_tai_thoi_diem * ChiDinh.so_luong))
             .select_from(ChiDinh)
             .join(LuotKham, ChiDinh.luot_kham_id == LuotKham.id)
-            .join(LichKham, LuotKham.lich_kham_id == LichKham.id)
+            .outerjoin(LichKham, LuotKham.lich_kham_id == LichKham.id)
             .where(
-                LichKham.ngay_kham == d,
+                or_(
+                    LichKham.ngay_kham == d,
+                    and_(
+                        LichKham.id.is_(None),
+                        or_(
+                            func.date(LuotKham.thoi_gian_bat_dau) == d,
+                            func.date(ChiDinh.created_at) == d,
+                        ),
+                    ),
+                ),
+                or_(
+                    LichKham.id.is_(None),
+                    LichKham.trang_thai.notin_([TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value]),
+                ),
                 ChiDinh.trang_thai != "da_huy"
             )
         )
         paraclinical_rev = float((await db.execute(stmt_paraclinical)).scalar() or 0.0)
 
-        stmt_paid_hd = select(func.sum(HoaDon.thuc_thu)).where(HoaDon.trang_thai == "da_thu")
+        stmt_paid_hd = (
+            select(func.sum(HoaDon.thuc_thu))
+            .where(
+                HoaDon.trang_thai == "da_thu",
+                or_(
+                    func.date(HoaDon.ngay_thanh_toan) == d,
+                    and_(
+                        HoaDon.ngay_thanh_toan.is_(None),
+                        func.date(HoaDon.created_at) == d,
+                    ),
+                ),
+            )
+        )
         paid_hd_rev = float((await db.execute(stmt_paid_hd)).scalar() or 0.0)
         tong_doanh_thu = max(est_rev + paraclinical_rev, paid_hd_rev)
         ty_le_noshow = round((so_noshow / tong_apts * 100.0), 1) if tong_apts > 0 else 0.0

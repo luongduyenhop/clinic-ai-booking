@@ -1,10 +1,19 @@
+import { useSelector } from 'react-redux'
 import { VITAL_FIELDS, computeBmi, getBmiClassification } from './examHelpers'
 import SpecialtyExamSection from './SpecialtyExamSection'
 
 export default function StepClinical({ formik, encounter, locked }) {
+    const currentUser = useSelector((state) => state.app?.auth?.user)
     const { values, errors, handleChange, handleBlur } = formik
     const bmi = computeBmi(values.can_nang_kg, values.chieu_cao_cm)
     const bmiInfo = getBmiClassification(bmi)
+    const resolvedKhoa =
+        currentUser?.chuyen_khoa_ma ||
+        currentUser?.chuyen_khoa ||
+        currentUser?.specialty ||
+        currentUser?.department ||
+        encounter?.chuyen_khoa_kham ||
+        encounter?.ten_chuyen_khoa
 
     return (
         <div className="flex flex-col gap-5">
@@ -80,7 +89,7 @@ export default function StepClinical({ formik, encounter, locked }) {
                 </div>
             </section>
 
-            <SpecialtyExamSection formik={formik} defaultKhoa={encounter?.chuyen_khoa_kham} locked={locked} />
+            <SpecialtyExamSection formik={formik} defaultKhoa={resolvedKhoa} locked={locked} />
 
             <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label className="md:col-span-2">

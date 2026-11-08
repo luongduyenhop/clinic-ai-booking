@@ -46,7 +46,7 @@ function IndicatorTable({ params, values }) {
     )
 }
 
-// Chỉ số xét nghiệm đã được backend đánh giá (ket_qua_cls): cam = ngoài tham chiếu, đỏ = vượt ngưỡng nguy kịch
+
 function LabResultTable({ rows }) {
     const critical = rows.filter((r) => r.danh_gia === 'NGUY_HIEM')
     return (
@@ -108,7 +108,7 @@ function TextBlock({ label, text }) {
     )
 }
 
-// Hiển thị kết quả CLS theo 4 loại (dùng chung cho Bàn khám và trang Cận lâm sàng)
+
 export default function ResultView({ order }) {
     const [printOpen, setPrintOpen] = useState(false)
     if (!order) return null
@@ -159,13 +159,8 @@ export default function ResultView({ order }) {
             <TextBlock label="Đề nghị" text={detail.de_nghi} />
             <TextBlock label="Ghi chú" text={detail.ghi_chu} />
 
-            {/* Ảnh CĐHA lưu trên máy chủ cần token nên hiển thị qua gallery, không mở link trực tiếp */}
-            {order.tep_dinh_kem_urls?.length > 0 && <ClsImageGallery urls={order.tep_dinh_kem_urls} />}
-
-            {order.tep_dinh_kem_url && !order.tep_dinh_kem_urls?.length && (
-                <a href={order.tep_dinh_kem_url} target="_blank" rel="noreferrer" className="medpro-btn-outline">
-                    Xem tệp đính kèm
-                </a>
+            {((order.tep_dinh_kem_urls && order.tep_dinh_kem_urls.length > 0) || order.tep_dinh_kem_url) && (
+                <ClsImageGallery urls={order.tep_dinh_kem_urls?.length > 0 ? order.tep_dinh_kem_urls : [order.tep_dinh_kem_url]} />
             )}
         </div>
     )

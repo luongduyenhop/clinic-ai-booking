@@ -1,15 +1,14 @@
-import { SPECIALTY_EXAMS, findSpecialtyExam } from '../../../utils/constants/clinical'
+import { findSpecialtyExam } from '../../../utils/constants/clinical'
 
 const STATUS_OPTIONS = [
     { code: 'BT', label: 'Bình thường', on: 'bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500' },
     { code: 'BAT', label: 'Bất thường', on: 'bg-rose-50 text-rose-800 ring-2 ring-rose-500' },
 ]
 
-
 export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
     const { values, setFieldValue } = formik
-    const exam = values.kham_chuyen_khoa
-    const rawKhoa = exam.khoa || defaultKhoa
+    const exam = values.kham_chuyen_khoa || {}
+    const rawKhoa = defaultKhoa || exam.khoa
     const spec = findSpecialtyExam(rawKhoa)
     const khoa = spec.key
 
@@ -22,8 +21,6 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
             items: Object.fromEntries(spec.items.map((label) => [label, { status: 'BT', note: '' }])),
         })
 
-    const switchKhoa = (key) => setFieldValue('kham_chuyen_khoa', { khoa: key, items: {}, extras: {} })
-
     const done = spec.items.filter((label) => exam.items?.[label]?.status).length
 
     return (
@@ -31,22 +28,13 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
             <div className="medpro-section-title !mb-0 flex-wrap">
                 <span>Khám chuyên khoa</span>
                 <span className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-2 text-[12px] font-medium text-slate-600">
-                        Khoa
-                        <select
-                            className="medpro-input !w-auto !py-1"
-                            value={khoa}
-                            onChange={(e) => switchKhoa(e.target.value)}
-                            disabled={locked}
-                            aria-label="Chọn chuyên khoa khám"
-                        >
-                            {SPECIALTY_EXAMS.map((s) => (
-                                <option key={s.key} value={s.key}>
-                                    {s.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    <span
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#B8E6F7] bg-[#E8F4FD] px-3 py-1 text-[12px] font-bold text-[#003553]"
+                        aria-label="Chuyên khoa khám"
+                    >
+                        <span>Chuyên khoa:</span>
+                        <span>{spec.label}</span>
+                    </span>
                     {!locked && (
                         <button type="button" className="medpro-btn-outline !py-1" onClick={markAllNormal}>
                             Tất cả bình thường

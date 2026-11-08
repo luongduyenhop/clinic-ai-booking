@@ -1,5 +1,7 @@
 import { BaseServices } from '../BaseService'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
+import { AppToast } from '../../components/common/AppNotification'
+import { pickErrorMessage } from '../../utils/helpers/apiHelper'
 
 
 export const USE_MOCK = false
@@ -98,10 +100,27 @@ const ticketToQueueItem = (t) => {
 
 
 
-const findMirrorOrder = (serverOrderId) => {
-    for (const enc of Object.values(db.encounters)) {
-        const o = (enc.danh_sach_chi_dinh || []).find((x) => x.server_order_id === serverOrderId)
-        if (o) return { enc, order: o }
+const findMirrorOrder = (serverOrderId, luotKhamServerId, dichVuId) => {
+    if (serverOrderId === null || serverOrderId === undefined) {
+        if (!luotKhamServerId || !dichVuId) return null
+    }
+    for (const enc of Object.values(db.encounters || {})) {
+        const o = (enc.danh_sach_chi_dinh || []).find(
+            (x) =>
+                (serverOrderId !== null &&
+                    serverOrderId !== undefined &&
+                    (String(x.server_order_id) === String(serverOrderId) || Number(x.server_order_id) === Number(serverOrderId))) ||
+                (luotKhamServerId &&
+                    dichVuId &&
+                    String(enc.luot_kham_server_id) === String(luotKhamServerId) &&
+                    String(x.dich_vu_id) === String(dichVuId))
+        )
+        if (o) {
+            if (serverOrderId && !o.server_order_id) {
+                o.server_order_id = Number(serverOrderId)
+            }
+            return { enc, order: o }
+        }
     }
     return null
 }
@@ -190,7 +209,6 @@ export class ClinicalService extends BaseServices {
 
     constructor() {
         super()
-        this.hydrateFromPostgres()
     }
 
     hydrateFromPostgres = async (force = false) => {
@@ -253,8 +271,6 @@ export class ClinicalService extends BaseServices {
                     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
                 } catch {
                 }
-            } else {
-                await this.persistToPostgres()
             }
         } catch {
         }
@@ -301,15 +317,32 @@ export class ClinicalService extends BaseServices {
             )
             const result = res?.data?.data
             enc.luot_kham_server_id = result?.luot_kham_id
-            ;(result?.orders || []).forEach((so) => {
-                const o = pending.find((x) => x.dich_vu_id === so.dich_vu_id)
+            const returnedOrders = result?.orders || []
+            returnedOrders.forEach((so) => {
+                const o = pending.find(
+                    (x) =>
+                        !x.server_order_id &&
+                        (String(x.dich_vu_id) === String(so.dich_vu_id) || Number(x.dich_vu_id) === Number(so.dich_vu_id))
+                )
                 if (o) {
-                    o.server_order_id = so.id
+                    o.server_order_id = Number(so.id)
                     o.trang_thai = so.trang_thai
+                }
+                const inList = (enc.danh_sach_chi_dinh || []).find(
+                    (x) =>
+                        !x.server_order_id &&
+                        (String(x.dich_vu_id) === String(so.dich_vu_id) || Number(x.dich_vu_id) === Number(so.dich_vu_id))
+                )
+                if (inList) {
+                    inList.server_order_id = Number(so.id)
+                    inList.trang_thai = so.trang_thai
                 }
             })
         } catch (e) {
             console.warn('Sync CLS orders to /api/v1/subclinical/workspace-orders error:', e)
+            const errorMsg = pickErrorMessage(e, 'Không thể gửi chỉ định cận lâm sàng lên máy chủ')
+            AppToast.error(errorMsg)
+            throw new Error(errorMsg)
         }
     }
 
@@ -493,7 +526,12 @@ export class ClinicalService extends BaseServices {
             ticket.ghi_chu = 'Chờ kết quả Cận lâm sàng'
         }
 
-        await this.syncOrdersToServer(enc)
+        try {
+            await this.syncOrdersToServer(enc)
+        } catch (e) {
+            enc.danh_sach_chi_dinh = (enc.danh_sach_chi_dinh || []).filter((o) => Boolean(o.server_order_id))
+            throw e
+        }
         await this.persistToPostgres()
         try {
             clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_ORDERED, {
@@ -705,9 +743,16 @@ export class ClinicalService extends BaseServices {
 
     getClsWorklist = async ({ nhom, tuKhoa, ngay } = {}) => {
         await this.hydrateFromPostgres()
-        const params = new URLSearchParams({ nhom_dich_vu: nhom, trang_thai: 'tat_ca' })
-        if (tuKhoa?.trim()) params.set('tu_khoa', tuKhoa.trim())
-        if (ngay) params.set('ngay', ngay)
+        const params = new URLSearchParams({ trang_thai: 'tat_ca' })
+        if (nhom && nhom !== 'ALL') {
+            params.set('nhom_dich_vu', nhom)
+        }
+        if (tuKhoa?.trim()) {
+            params.set('tu_khoa', tuKhoa.trim())
+        }
+        if (ngay) {
+            params.set('ngay', ngay)
+        }
         const res = await this.get(`/api/v1/subclinical/queue?${params}`, { __skipGlobalLoading: true })
         const items = res?.data?.data?.items || []
         return { data: items.filter((it) => it.trang_thai !== 'da_huy').map(toWorklistItem) }
@@ -896,6 +941,23 @@ export class ClinicalService extends BaseServices {
                 ghi_chu: kq.ghi_chu,
             },
         }
+        if (!body.luu_nhap) {
+            await this.syncReturnedResultToWorkspace(orderId, {
+                trang_thai,
+                trang_thai_ket_qua: kq.trang_thai_ket_qua,
+                ket_qua_phan_loai: kq.ket_qua_phan_loai,
+                ket_qua_chi_tiet: result.ket_qua_chi_tiet,
+                thoi_gian_tra_ket_qua: new Date().toISOString(),
+            })
+        }
+        try {
+            clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
+                orderId,
+                order: result,
+            })
+        } catch (e) {
+            console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
+        }
         return { data: result }
     }
 
@@ -923,6 +985,8 @@ export class ClinicalService extends BaseServices {
         }
     }
 
+    _pendingReturnedItems = []
+
     _pollReturnedResultsOnce = async () => {
         let payload
         try {
@@ -936,26 +1000,51 @@ export class ClinicalService extends BaseServices {
             if (e?.response?.status === 403) this._returnedPollOff = true
             return []
         }
-        if (payload.server_time) this._returnedSince = payload.server_time
-        const isNew = (it) => {
-            const mirror = findMirrorOrder(it.chi_dinh_id)
-            return mirror && !sameInstant(mirror.order.thoi_gian_duyet, it.thoi_gian_duyet)
+
+        const incomingItems = payload.items || []
+        if (incomingItems.length === 0 && (!this._pendingReturnedItems || this._pendingReturnedItems.length === 0)) {
+            if (payload.server_time) this._returnedSince = payload.server_time
+            return []
         }
-        const fresh = (payload.items || []).filter(isNew)
-        if (fresh.length === 0) return []
 
         await this.reloadFromPostgres()
+
+        this._pendingReturnedItems = this._pendingReturnedItems || []
+        const pool = [...this._pendingReturnedItems]
+        incomingItems.forEach((it) => {
+            if (!pool.some((p) => String(p.chi_dinh_id) === String(it.chi_dinh_id))) {
+                pool.push(it)
+            }
+        })
+
         const changed = []
         let dirty = false
-        fresh.forEach((it) => {
-            const mirror = findMirrorOrder(it.chi_dinh_id)
-            if (!mirror) return
-            if (isNew(it)) {
+        const remaining = []
+
+        pool.forEach((it) => {
+            const mirror = findMirrorOrder(it.chi_dinh_id, it.luot_kham_id, it.dich_vu_id)
+            if (!mirror) {
+                remaining.push(it)
+                return
+            }
+            if (!sameInstant(mirror.order.thoi_gian_duyet, it.thoi_gian_duyet)) {
                 applyReturnedResult(mirror, toMirrorPatch(it))
                 dirty = true
+                changed.push({
+                    encounterId: mirror.enc.id,
+                    patientName: mirror.enc.benh_nhan?.ho_ten,
+                    order: structuredClone(mirror.order),
+                })
             }
-            changed.push({ encounterId: mirror.enc.id, patientName: mirror.enc.benh_nhan?.ho_ten, order: structuredClone(mirror.order) })
         })
+
+        this._pendingReturnedItems = remaining.slice(-50)
+        if (payload.server_time && remaining.length === 0) {
+            this._returnedSince = payload.server_time
+        } else if (payload.server_time && !this._returnedSince) {
+            this._returnedSince = payload.server_time
+        }
+
         if (dirty) await this.persistToPostgres()
         return changed
     }

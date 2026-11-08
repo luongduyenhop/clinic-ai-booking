@@ -9,16 +9,15 @@ import { AppToast } from '../../common/AppNotification'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import ClsResultPrintModal from './ClsResultPrintModal'
 
-// Duyệt & trả kết quả (xét nghiệm, CĐHA) và in phiếu: hiện dưới form nhập kết quả trên bàn KTV
 export default function ClsApprovalBar({ order }) {
     const dispatch = useDispatch()
-    const role = String(useSelector((state) => state.app.auth.role) || '').toUpperCase()
+    const role = String(useSelector((state) => state.app.auth.role) || localStorage.getItem('userRole') || '').toUpperCase()
     const canApprove = CLS_APPROVER_ROLES.includes(role)
     const [approving, setApproving] = useState(false)
     const [printOpen, setPrintOpen] = useState(false)
 
     const approved = (order.trang_thai === 'da_co_ket_qua' || order.trang_thai === 'da_duyet' || order.trang_thai === 'DA_DUYET') && Boolean(order.thoi_gian_duyet || order.trang_thai_ket_qua === 'DA_DUYET' || order.trang_thai === 'DA_DUYET' || order.trang_thai === 'da_duyet')
-    const ready = order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA'
+    const ready = (order.trang_thai === 'dang_thuc_hien' || order.trang_thai === 'cho_duyet' || order.trang_thai === 'CHO_DUYET') && (order.trang_thai_ket_qua === 'DA_CO_KET_QUA' || order.trang_thai_ket_qua === 'CHO_DUYET' || order.trang_thai === 'cho_duyet' || order.trang_thai === 'CHO_DUYET')
     if (!approved && !ready) return null
 
     const approve = async () => {
@@ -33,8 +32,7 @@ export default function ClsApprovalBar({ order }) {
         }
     }
 
-    // Bước 2: xác nhận lại trước khi khóa kết quả và gửi bác sĩ
-    const confirmApprove = () => {
+        const confirmApprove = () => {
         const cls = RESULT_CLASS[order.ket_qua_phan_loai]
         Modal.confirm({
             title: 'Duyệt & trả kết quả cho bác sĩ?',

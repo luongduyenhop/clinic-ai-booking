@@ -135,12 +135,21 @@ class ClsFileService:
         return ClsFileListResponse(chi_dinh_id=order.id, items=items, toi_da=MAX_FILES_PER_ORDER)
 
     async def get_file(self, order_id: int, file_id: str, db: AsyncSession) -> tuple[Path, str]:
-        """Trả về (đường dẫn trên đĩa, media type) của một ảnh thuộc đúng chỉ định này"""
         not_found = NotFoundException("Không tìm thấy ảnh kết quả")
         if not _FILE_ID_RE.fullmatch(file_id):
             raise not_found
-        order = await db.get(ChiDinh, order_id)
-        if not order or file_id not in self._file_ids(order):
+        stmt = select(ChiDinh).where(ChiDinh.id == order_id).options(selectinload(ChiDinh.phieu_ket_qua))
+        order = (await db.execute(stmt)).scalar_one_or_none()
+        if not order:
+            raise not_found
+        file_ids = self._file_ids(order)
+        if getattr(order, "phieu_ket_qua", None) and order.phieu_ket_qua.tep_dinh_kem_urls:
+            for u in order.phieu_ket_qua.tep_dinh_kem_urls:
+                raw = str(u).split("?")[0].strip()
+                m = _FILE_URL_RE.fullmatch(raw)
+                if m and int(m.group(1)) == order.id and m.group(2) not in file_ids:
+                    file_ids.append(m.group(2))
+        if file_id not in file_ids:
             raise not_found
         path = self._safe_path(order.id, file_id)
         if not path.is_file():
@@ -273,14 +282,18 @@ class ClsFileService:
         with open(path, "xb") as fh:
             fh.write(data)
 
-    @staticmethod
-    def _file_ids(order: ChiDinh) -> List[str]:
+    def _file_ids(self, order: ChiDinh) -> List[str]:
         """Ảnh do hệ thống quản lý của chính chỉ định này (bỏ qua URL ngoài từ luồng nhập kết quả cũ)"""
         ids = []
-        for url in order.file_dinh_kem_urls or []:
-            match = _FILE_URL_RE.fullmatch(str(url))
+        source_urls = list(order.file_dinh_kem_urls or [])
+        if order.tep_dinh_kem_url:
+            source_urls.append(order.tep_dinh_kem_url)
+        for url in source_urls:
+            raw = str(url).split("?")[0].strip()
+            match = _FILE_URL_RE.fullmatch(raw)
             if match and int(match.group(1)) == order.id:
-                ids.append(match.group(2))
+                if match.group(2) not in ids:
+                    ids.append(match.group(2))
         return ids
 
     @staticmethod

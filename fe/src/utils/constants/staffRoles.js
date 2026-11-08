@@ -1,9 +1,8 @@
-// Map API role aliases to display keys; this does not grant route or API access.
 const ROLE_KEYS = {
     ADMIN: 'ADMIN', ADMINISTRATOR: 'ADMIN', QUAN_TRI: 'ADMIN', QUAN_LY: 'ADMIN',
     BAC_SI: 'BAC_SI', DOCTOR: 'BAC_SI', BS: 'BAC_SI',
     LE_TAN: 'LE_TAN', RECEPTIONIST: 'LE_TAN', RECEPTION_SUPERVISOR: 'LE_TAN',
-    THU_NGAN: 'THU_NGAN', CASHIER: 'THU_NGAN',
+    THU_NGAN: 'LE_TAN', CASHIER: 'LE_TAN',
     KTV_CLS: 'KTV_CLS', TECHNICIAN: 'KTV_CLS', KY_THUAT_VIEN: 'KTV_CLS',
     KTV_XET_NGHIEM: 'KTV_XET_NGHIEM', LAB_TECH: 'KTV_XET_NGHIEM', 'ROLE-LAB-TECH': 'KTV_XET_NGHIEM',
     BENH_NHAN: 'BENH_NHAN', PATIENT: 'BENH_NHAN', CUSTOMER: 'BENH_NHAN', USER: 'BENH_NHAN',
@@ -21,12 +20,12 @@ export const ROLE_CONFIGS = {
         color: 'bg-sky-50 text-sky-700 border-sky-200', dotColor: 'bg-sky-500',
     },
     LE_TAN: {
-        label: 'Lễ tân', badge: 'Tiếp đón & Hàng chờ',
-        color: 'bg-amber-50 text-amber-700 border-amber-200', dotColor: 'bg-amber-500',
+        label: 'Lễ tân – Thu ngân', badge: 'Tiếp đón & Viện phí VietQR',
+        color: 'bg-teal-50 text-teal-700 border-teal-200', dotColor: 'bg-teal-500',
     },
     THU_NGAN: {
-        label: 'Thu ngân', badge: 'Viện phí & VietQR',
-        color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotColor: 'bg-emerald-500',
+        label: 'Lễ tân – Thu ngân', badge: 'Tiếp đón & Viện phí VietQR',
+        color: 'bg-teal-50 text-teal-700 border-teal-200', dotColor: 'bg-teal-500',
     },
     KTV_CLS: {
         label: 'Kỹ thuật viên CLS', badge: 'Xét nghiệm & CĐHA',

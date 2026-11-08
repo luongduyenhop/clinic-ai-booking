@@ -125,12 +125,13 @@ class ClinicalService:
 
     
     @staticmethod
-    def _build_hang_doi_query(today, doc_id: Optional[int] = None):
+    def _build_hang_doi_query(today, doc_id: Optional[int] = None, dept_id: Optional[int] = None):
         stmt = (
             select(HangDoiKham)
             .options(
                 selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
                 selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(HangDoiKham.bac_si).selectinload(BacSi.chuyen_khoa),
                 selectinload(HangDoiKham.lich_kham),
             )
             .where(
@@ -142,6 +143,8 @@ class ClinicalService:
         )
         if doc_id:
             stmt = stmt.where(HangDoiKham.bac_si_id == doc_id)
+        elif dept_id:
+            stmt = stmt.join(BacSi, HangDoiKham.bac_si_id == BacSi.id).where(BacSi.chuyen_khoa_id == dept_id)
         return stmt.order_by(HangDoiKham.muc_do_uu_tien.asc(), HangDoiKham.so_thu_tu_kham.asc())
 
     async def get_or_sync_workspace_state(
@@ -169,16 +172,38 @@ class ClinicalService:
         today = datetime.now(clinic_tz).date()
 
         target_doc_id = doctor_id
-        if target_doc_id is None and current_user and current_user.vai_tro == VaiTroEnum.BAC_SI.value:
-            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == current_user.nguoi_dung_id)
+        target_dept_id = None
+        default_dept_code = "KHOA_NOI"
+        default_dept_name = "Khoa Nội tổng quát"
+        if current_user and current_user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = (
+                select(BacSi)
+                .options(selectinload(BacSi.chuyen_khoa))
+                .where(BacSi.nguoi_dung_id == current_user.nguoi_dung_id)
+            )
             bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
             if bs_row:
                 target_doc_id = bs_row.id
+                target_dept_id = bs_row.chuyen_khoa_id
+                if bs_row.chuyen_khoa:
+                    default_dept_code = bs_row.chuyen_khoa.ma_chuyen_khoa or default_dept_code
+                    default_dept_name = bs_row.chuyen_khoa.ten_chuyen_khoa or default_dept_name
+        elif target_doc_id is not None:
+            stmt_bs = (
+                select(BacSi)
+                .options(selectinload(BacSi.chuyen_khoa))
+                .where(BacSi.id == target_doc_id)
+            )
+            bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs_row:
+                target_dept_id = bs_row.chuyen_khoa_id
+                if bs_row.chuyen_khoa:
+                    default_dept_code = bs_row.chuyen_khoa.ma_chuyen_khoa or default_dept_code
+                    default_dept_name = bs_row.chuyen_khoa.ten_chuyen_khoa or default_dept_name
 
-        active_tickets = (await db.execute(self._build_hang_doi_query(today, target_doc_id))).scalars().all()
-
-        if not active_tickets and target_doc_id:
-            active_tickets = (await db.execute(self._build_hang_doi_query(today))).scalars().all()
+        active_tickets = (await db.execute(self._build_hang_doi_query(today, target_doc_id, target_dept_id))).scalars().all()
+        if not active_tickets and target_dept_id is not None:
+            active_tickets = (await db.execute(self._build_hang_doi_query(today, None, target_dept_id))).scalars().all()
 
         queue = []
         invalid_reasons = {
@@ -253,6 +278,10 @@ class ClinicalService:
             if not ghi_chu_ticket:
                 ghi_chu_ticket = "Chờ khám" if status_ticket == "cho_kham" else ("Đang khám" if status_ticket == "dang_kham" else ("Chờ kết quả Cận lâm sàng" if status_ticket == "tam_hoan" else ""))
 
+            t_ck = t.bac_si.chuyen_khoa if t.bac_si and t.bac_si.chuyen_khoa else None
+            ticket_dept_code = t_ck.ma_chuyen_khoa if t_ck and t_ck.ma_chuyen_khoa else default_dept_code
+            ticket_dept_name = t_ck.ten_chuyen_khoa if t_ck and t_ck.ten_chuyen_khoa else default_dept_name
+
             new_q_item = {
                 "ticket_id": t.id,
                 "encounter_id": target_enc_id,
@@ -263,6 +292,9 @@ class ClinicalService:
                 "trang_thai": status_ticket,
                 "so_lan_goi": t.so_lan_goi or 0,
                 "ghi_chu": ghi_chu_ticket,
+                "chuyen_khoa_id": t.bac_si.chuyen_khoa_id if t.bac_si else target_dept_id,
+                "ma_chuyen_khoa": ticket_dept_code,
+                "ten_chuyen_khoa": ticket_dept_name,
                 "benh_nhan": {
                     "id": t.benh_nhan_id,
                     "ma": patient_code,
@@ -288,12 +320,13 @@ class ClinicalService:
                     "benh_nhan": new_q_item["benh_nhan"],
                     "ai_triage": {
                         "trieu_chung_nhap": ly_do,
-                        "ten_chuyen_khoa": "Khám chuyên khoa",
-                        "ma_chuyen_khoa": "CHUYEN_KHOA",
+                        "ten_chuyen_khoa": ticket_dept_name,
+                        "ma_chuyen_khoa": ticket_dept_code,
                         "do_tin_cay": 0.9,
                         "co_dau_hieu_cap_cuu": (t.muc_do_uu_tien == 1),
                     },
-                    "chuyen_khoa_kham": "CHUYEN_KHOA",
+                    "chuyen_khoa_kham": ticket_dept_code,
+                    "ten_chuyen_khoa": ticket_dept_name,
                     "kham_chuyen_khoa": None,
                     "thoi_gian_bat_dau": None,
                     "ly_do_vao_kham": ly_do,
@@ -315,6 +348,10 @@ class ClinicalService:
                     "don_thuoc": [],
                     "is_locked": False,
                 }
+            else:
+                if encounters[str_enc_id].get("chuyen_khoa_kham") in (None, "", "CHUYEN_KHOA"):
+                    encounters[str_enc_id]["chuyen_khoa_kham"] = ticket_dept_code
+                encounters[str_enc_id]["ten_chuyen_khoa"] = ticket_dept_name
 
         data["queue"] = queue
         data["encounters"] = encounters
@@ -368,6 +405,7 @@ class ClinicalService:
             .options(
                 selectinload(LuotKham.danh_sach_chan_doan),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
                 selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet)
             )
             .where(LuotKham.id == encounter_id)
@@ -421,6 +459,17 @@ class ClinicalService:
             created_at=dt.created_at
         )
 
+    @staticmethod
+    def _extract_order_attachments(order: ChiDinh) -> List[str]:
+        urls = []
+        if order.file_dinh_kem_urls:
+            urls.extend(order.file_dinh_kem_urls)
+        if order.tep_dinh_kem_url:
+            urls.append(order.tep_dinh_kem_url)
+        if getattr(order, "phieu_ket_qua", None) and order.phieu_ket_qua.tep_dinh_kem_urls:
+            urls.extend(order.phieu_ket_qua.tep_dinh_kem_urls)
+        return list(dict.fromkeys(str(u) for u in urls if u))
+
     def _to_encounter_response(self, lk: LuotKham) -> EncounterResponse:
         diagnoses = [
             DiagnosisResponse(
@@ -446,6 +495,7 @@ class ClinicalService:
                 bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
                 ket_qua_chi_tiet=order.ket_qua_chi_tiet,
                 tep_dinh_kem_url=order.tep_dinh_kem_url,
+                tep_dinh_kem_urls=self._extract_order_attachments(order),
                 thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua,
                 ket_qua_phan_loai=order.ket_qua_phan_loai or "BINH_THUONG",
                 created_at=order.created_at
@@ -741,6 +791,7 @@ class ClinicalService:
             don_gia_tai_thoi_diem=float(chi_dinh.don_gia_tai_thoi_diem),
             trang_thai=chi_dinh.trang_thai,
             bac_si_chi_dinh_id=chi_dinh.bac_si_chi_dinh_id,
+            tep_dinh_kem_urls=[],
             ket_qua_phan_loai=chi_dinh.ket_qua_phan_loai or "BINH_THUONG",
             created_at=chi_dinh.created_at
         )
@@ -802,6 +853,7 @@ class ClinicalService:
             bac_si_chi_dinh_id=chi_dinh.bac_si_chi_dinh_id,
             ket_qua_chi_tiet=chi_dinh.ket_qua_chi_tiet,
             tep_dinh_kem_url=chi_dinh.tep_dinh_kem_url,
+            tep_dinh_kem_urls=self._extract_order_attachments(chi_dinh),
             thoi_gian_tra_ket_qua=chi_dinh.thoi_gian_tra_ket_qua,
             ket_qua_phan_loai=chi_dinh.ket_qua_phan_loai or "BINH_THUONG",
             created_at=chi_dinh.created_at
@@ -832,6 +884,7 @@ class ClinicalService:
                 bac_si_chi_dinh_id=o.bac_si_chi_dinh_id,
                 ket_qua_chi_tiet=o.ket_qua_chi_tiet,
                 tep_dinh_kem_url=o.tep_dinh_kem_url,
+                tep_dinh_kem_urls=self._extract_order_attachments(o),
                 thoi_gian_tra_ket_qua=o.thoi_gian_tra_ket_qua,
                 ket_qua_phan_loai=o.ket_qua_phan_loai or "BINH_THUONG",
                 created_at=o.created_at

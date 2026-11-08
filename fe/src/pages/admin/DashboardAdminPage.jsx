@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
+import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
 import { mapDoctorPerformanceItems } from '../../utils/helpers/doctorPerformanceMapping'
 import { adminService } from '../../services/admin/AdminService'
@@ -93,7 +94,29 @@ export default function DashboardAdminPage() {
     const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
     useEffect(() => {
-        dispatch(getDashboardStatsAsync())
+        const refreshStats = () => {
+            dispatch(getDashboardStatsAsync())
+        }
+
+        refreshStats()
+        const timer = setInterval(refreshStats, 5000)
+
+        const unsubCheckIn = clinicalEventBridge.on(CLINICAL_EVENTS.PATIENT_CHECKED_IN, refreshStats)
+        const unsubApptCreated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_CREATED, refreshStats)
+        const unsubApptUpdated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_UPDATED, refreshStats)
+        const unsubRegCreated = clinicalEventBridge.on(CLINICAL_EVENTS.REGISTRATION_CREATED, refreshStats)
+        const unsubEncounter = clinicalEventBridge.on(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, refreshStats)
+        const unsubBill = clinicalEventBridge.on(CLINICAL_EVENTS.BILL_PAID, refreshStats)
+
+        return () => {
+            clearInterval(timer)
+            unsubCheckIn()
+            unsubApptCreated()
+            unsubApptUpdated()
+            unsubRegCreated()
+            unsubEncounter()
+            unsubBill()
+        }
     }, [dispatch])
 
     useEffect(() => {

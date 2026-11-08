@@ -1,5 +1,6 @@
 import { BaseServices } from '../BaseService'
 import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
+import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
 
 import { TOKEN, USER_ROLE, CLINIC_DATA_STORAGE_KEY } from '../../utils/constants/System'
 import { normalizeStaffRole } from '../../utils/constants/staffRoles'
@@ -162,10 +163,21 @@ export class AdminService extends BaseServices {
         }
     }
 
-    updateCollection = async ({ collectionKey, items, auditEntry }) => this.requestClinicData(
-        'put', `${managementPrefix()}/collections/${encodeURIComponent(collectionKey)}`,
-        { collectionKey, items, auditEntry },
-    )
+    updateCollection = async ({ collectionKey, items, auditEntry }) => {
+        const result = await this.requestClinicData(
+            'put', `${managementPrefix()}/collections/${encodeURIComponent(collectionKey)}`,
+            { collectionKey, items, auditEntry },
+        )
+        try {
+            if (collectionKey === 'appointments') {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.APPOINTMENT_UPDATED, { items })
+            } else if (collectionKey === 'registrations') {
+                clinicalEventBridge.emit(CLINICAL_EVENTS.REGISTRATION_CREATED, { items })
+            }
+        } catch {
+        }
+        return result
+    }
 
     updateCatalogSubCollection = async ({ subKey, items, auditEntry }) => this.requestClinicData(
         'put', `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`, { subKey, items, auditEntry },

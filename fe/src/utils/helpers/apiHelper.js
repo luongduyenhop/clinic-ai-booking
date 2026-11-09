@@ -43,12 +43,12 @@ export function unwrapPagedApi(res, fallbackPageSize = 20) {
             : []
 
     const rawMeta = envelope?.meta || rawData?.meta || {}
-    const page = Number(rawMeta.page) || 1
-    const pageSize = Number(rawMeta.page_size || rawMeta.pageSize) || fallbackPageSize
-    const totalItems = Number(rawMeta.total_items ?? rawMeta.totalItems ?? rawMeta.total ?? items.length)
-    const totalPages = Number(rawMeta.total_pages ?? rawMeta.totalPages) || (pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1)
-    const hasNext = Boolean(rawMeta.has_next ?? rawMeta.hasNext ?? page < totalPages)
-    const hasPrev = Boolean(rawMeta.has_prev ?? rawMeta.hasPrev ?? page > 1)
+    const page = Number(rawMeta.page ?? rawData?.page) || 1
+    const pageSize = Number(rawMeta.page_size ?? rawMeta.pageSize ?? rawData?.page_size ?? rawData?.pageSize) || fallbackPageSize
+    const totalItems = Number(rawMeta.total_items ?? rawMeta.totalItems ?? rawMeta.total ?? rawData?.total ?? rawData?.total_items ?? items.length)
+    const totalPages = Number(rawMeta.total_pages ?? rawMeta.totalPages ?? rawData?.total_pages ?? rawData?.totalPages) || (pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1)
+    const hasNext = Boolean(rawMeta.has_next ?? rawMeta.hasNext ?? rawData?.has_next ?? rawData?.hasNext ?? page < totalPages)
+    const hasPrev = Boolean(rawMeta.has_prev ?? rawMeta.hasPrev ?? rawData?.has_prev ?? rawData?.hasPrev ?? page > 1)
 
     const meta = {
         ...rawMeta,

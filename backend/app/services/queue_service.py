@@ -47,6 +47,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
     DanhSachCho,
     TrangThaiWaitlistEnum,
+    LyDoUuTienEnum,
 
 )
 
@@ -915,13 +916,23 @@ class QueueService:
                 max_wl = (await db.execute(stmt_max_wl)).scalar() or 0
                 next_wl = max_wl + 1
 
+                if payload.ly_do_uu_tien:
+                    ly_do_val = payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+                    wl_trieu_chung = f"[Ưu tiên: {ly_do_val}] {payload.ly_do_kham or 'Đăng ký chờ slot ca trực'}"
+                    wl_muc_do_uu_tien = 1
+                    wl_ghi_chu = f"Đã ghi danh vào Danh sách chờ vị trí #{next_wl} (Ưu tiên: {ly_do_val})"
+                else:
+                    wl_trieu_chung = payload.ly_do_kham or "Tiếp đón quầy: Đăng ký chờ slot do ca trực quá tải"
+                    wl_muc_do_uu_tien = 5
+                    wl_ghi_chu = f"Đã ghi danh vào Danh sách chờ vị trí #{next_wl}"
+
                 wl_entry = DanhSachCho(
                     benh_nhan_id=effective_benh_nhan_id,
                     bac_si_id=effective_doctor_id,
                     phong_kham_id=bs.phong_kham_id if bs else None,
                     ngay_mong_muon=today,
                     ca_mong_muon=effective_ca,
-                    trieu_chung=payload.ly_do_kham or "Tiếp đón quầy: Đăng ký chờ slot do ca trực quá tải",
+                    trieu_chung=wl_trieu_chung,
                     thu_tu_uu_tien=next_wl,
                     trang_thai=TrangThaiWaitlistEnum.DANG_CHO.value,
                 )
@@ -951,11 +962,11 @@ class QueueService:
                     so_thu_tu_kham=next_wl,
                     ma_so_thu_tu=f"WAIT-{next_wl:02d}",
                     loai_hang_doi="WAITLIST",
-                    muc_do_uu_tien=5,
+                    muc_do_uu_tien=wl_muc_do_uu_tien,
                     trang_thai="dang_cho_slot",
                     thoi_gian_check_in=now,
                     so_lan_goi=0,
-                    ghi_chu_dieu_phoi=f"Đã ghi danh vào Danh sách chờ vị trí #{next_wl}",
+                    ghi_chu_dieu_phoi=wl_ghi_chu,
                     is_waitlist=True,
                     waitlist_id=wl_entry.id,
                     thu_tu_waitlist=next_wl,
@@ -2747,6 +2758,10 @@ class QueueService:
 
                     ticket_id=t.id if t else None,
 
+                    ly_do_kham=a.ly_do_kham,
+
+                    trieu_chung_ban_dau=a.trieu_chung_ban_dau,
+
                 )
 
             )
@@ -3455,7 +3470,7 @@ class QueueService:
             raise NotFoundException(f"Không tìm thấy bản ghi danh sách chờ với ID {waitlist_id}!")
 
         today = clinic_now().date()
-        now = clinic_now()
+        now = datetime.now(timezone.utc)
 
         if entry.trang_thai in (TrangThaiWaitlistEnum.DA_NHAN_SLOT.value, "da_kham"):
             raise ConflictException("Lượt chờ này đã được tiếp nhận vào hàng đợi trước đó!")
@@ -3563,7 +3578,39 @@ class QueueService:
         db.add(lich_kham)
         await db.flush()
 
+        # Khôi phục diện ưu tiên y tế nếu có ghi nhận trong Waitlist
+        is_priority = False
+        priority_label = ""
+        tc_raw = entry.trieu_chung or ""
+        if "[Ưu tiên:" in tc_raw:
+            is_priority = True
+            try:
+                priority_label = tc_raw.split("[Ưu tiên:")[1].split("]")[0].strip()
+            except Exception:
+                priority_label = "Đặc biệt"
+        else:
+            for item in LyDoUuTienEnum:
+                if item.value in tc_raw.lower():
+                    is_priority = True
+                    priority_label = item.value
+                    break
+
+        ticket_priority = 1 if is_priority else 5
+        ticket_note = f"Tiếp nhận thành công từ Danh sách chờ (vị trí #{entry.thu_tu_uu_tien})"
+        if is_priority:
+            ticket_note = f"Ưu tiên ({priority_label}): {ticket_note}"
+
         room_id = bs.phong_kham_id if bs else None
+
+        # Bảo lưu thời gian người bệnh thực tế có mặt đăng ký tại quầy tiếp đón
+        entry_time = entry.created_at
+        if entry_time:
+            if entry_time.tzinfo is None:
+                entry_time = entry_time.replace(tzinfo=timezone.utc)
+            original_check_in = entry_time
+        else:
+            original_check_in = now
+
         ticket = HangDoiKham(
             lich_kham_id=lich_kham.id,
             benh_nhan_id=entry.benh_nhan_id,
@@ -3573,12 +3620,13 @@ class QueueService:
             ca_kham=ca_kham,
             so_thu_tu_kham=next_stt,
             loai_hang_doi=LoaiHangDoiEnum.VANG_LAI.value,
-            muc_do_uu_tien=5,
+            muc_do_uu_tien=ticket_priority,
             trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
-            thoi_gian_check_in=now,
+            thoi_gian_check_in=original_check_in,
+            thoi_gian_xep_hang_lai=now,
             so_lan_goi=0,
             nguoi_tiep_nhan_id=receptionist_user.id,
-            ghi_chu_dieu_phoi=f"Tiếp nhận thành công từ Danh sách chờ (vị trí #{entry.thu_tu_uu_tien})",
+            ghi_chu_dieu_phoi=ticket_note,
         )
         db.add(ticket)
 

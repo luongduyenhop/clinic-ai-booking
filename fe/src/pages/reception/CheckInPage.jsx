@@ -570,8 +570,8 @@ export default function CheckInPage() {
                 setPriorityReason('nguoi_gia')
                 setCheckInNotes('')
             } else {
-                if (!walkInDepartmentId) {
-                    message.error('Vui lòng chọn chuyên khoa tiếp nhận')
+                if (!walkInDepartmentId && !walkInDoctorId) {
+                    message.error('Vui lòng chọn chuyên khoa tiếp nhận hoặc bác sĩ tiếp nhận')
                     setIsSubmitting(false)
                     return
                 }
@@ -582,12 +582,16 @@ export default function CheckInPage() {
                         registerWalkInAsync({
                             payload: {
                                 patientId: selectedPatient.id,
-                                departmentId: walkInDepartmentId,
-                                doctorId: walkInDoctorId || undefined,
+                                fullName: selectedPatient.fullName,
+                                phone: selectedPatient.phone,
+                                gender: selectedPatient.gender,
+                                birthYear: selectedPatient.dob ? dayjs(selectedPatient.dob).year() : undefined,
+                                departmentId: walkInDepartmentId ? Number(walkInDepartmentId) : null,
+                                doctorId: walkInDoctorId ? Number(walkInDoctorId) : null,
                                 shift: currentShift,
                                 priority: priorityType,
                                 priorityReason: priorityType === 'PRIORITY' ? priorityReason : null,
-                                notes: checkInNotes,
+                                notes: (checkInNotes?.trim() || 'Khám bệnh vãng lai').slice(0, 255),
                                 dangKyWaitlistNeuHetCho: walkInAutoWaitlist,
                             },
                         })
@@ -602,6 +606,7 @@ export default function CheckInPage() {
                     setCreatedQueueEntry(result)
                     setIsReceiptOpen(true)
                     setSelectedPatient(null)
+                    setWalkInAutoWaitlist(false)
                 } catch (walkInErr) {
                     const errMsg = typeof walkInErr === 'string' ? walkInErr : (walkInErr?.message || '')
                     const isFull = /chỉ tiêu|tiếp nhận thêm|danh sách chờ|hết lượt|kín chỗ|quá tải|đạt giới hạn|waitlist|409|conflict/i.test(errMsg)
@@ -630,12 +635,16 @@ export default function CheckInPage() {
                                         registerWalkInAsync({
                                             payload: {
                                                 patientId: selectedPatient.id,
-                                                departmentId: walkInDepartmentId,
-                                                doctorId: walkInDoctorId || undefined,
+                                                fullName: selectedPatient.fullName,
+                                                phone: selectedPatient.phone,
+                                                gender: selectedPatient.gender,
+                                                birthYear: selectedPatient.dob ? dayjs(selectedPatient.dob).year() : undefined,
+                                                departmentId: walkInDepartmentId ? Number(walkInDepartmentId) : null,
+                                                doctorId: walkInDoctorId ? Number(walkInDoctorId) : null,
                                                 shift: currentShift,
                                                 priority: priorityType,
                                                 priorityReason: priorityType === 'PRIORITY' ? priorityReason : null,
-                                                notes: checkInNotes,
+                                                notes: (checkInNotes?.trim() || 'Khám bệnh vãng lai').slice(0, 255),
                                                 dangKyWaitlistNeuHetCho: true,
                                             },
                                         })
@@ -645,6 +654,7 @@ export default function CheckInPage() {
                                     setCreatedQueueEntry(waitlistRes)
                                     setIsReceiptOpen(true)
                                     setSelectedPatient(null)
+                                    setWalkInAutoWaitlist(false)
                                 } catch (wErr) {
                                     message.error(typeof wErr === 'string' ? wErr : (wErr?.message || 'Không thể ghi danh vào danh sách chờ'))
                                 } finally {
@@ -668,14 +678,14 @@ export default function CheckInPage() {
         const cleanName = quickWalkInForm.fullName?.trim() || ''
         const cleanPhone = quickWalkInForm.phone?.trim().replace(/\s+/g, '') || ''
 
-        if (!cleanName || cleanName.length < 2) {
-            message.error('Họ và tên bệnh nhân không được để trống (tối thiểu 2 ký tự)')
+        if (!cleanName || cleanName.length < 2 || cleanName.length > 150) {
+            message.error('Họ và tên bệnh nhân phải từ 2 đến 150 ký tự')
             return
         }
 
-        const phoneRegex = /^(03|05|07|08|09)\d{8}$/
+        const phoneRegex = /^[0-9]{10,11}$/
         if (!phoneRegex.test(cleanPhone)) {
-            message.error('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số (VD: 0912345678)')
+            message.error('Số điện thoại không hợp lệ! Vui lòng nhập từ 10 đến 11 chữ số (VD: 0912345678)')
             return
         }
 
@@ -688,11 +698,21 @@ export default function CheckInPage() {
             }
         }
 
+        const depId = quickWalkInForm.departmentId && !isNaN(quickWalkInForm.departmentId) ? Number(quickWalkInForm.departmentId) : null
+        const docId = quickWalkInForm.doctorId && !isNaN(quickWalkInForm.doctorId) ? Number(quickWalkInForm.doctorId) : null
+
+        if (!depId && !docId) {
+            message.error('Vui lòng chọn chuyên khoa khám hoặc bác sĩ tiếp nhận!')
+            return
+        }
+
         setIsSubmitting(true)
         try {
             const currentShift = dayjs().hour() >= 12 ? 'chieu' : 'sang'
             const specList = departments || []
-            const targetSpec = specList.find((s) => Number(s.id) === Number(quickWalkInForm.departmentId))
+            const targetSpec = specList.find((s) => Number(s.id) === depId)
+            const cleanReason = (quickWalkInForm.reason?.trim() || `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`).slice(0, 255)
+            const cleanPriorityReason = quickWalkInForm.priority === 'PRIORITY' ? (quickWalkInForm.priorityReason || 'nguoi_gia') : null
 
             try {
                 const result = await dispatch(
@@ -702,12 +722,12 @@ export default function CheckInPage() {
                             phone: cleanPhone,
                             gender: quickWalkInForm.gender || 'Nam',
                             birthYear: quickWalkInForm.birthYear ? Number(quickWalkInForm.birthYear) : null,
-                            departmentId: Number(quickWalkInForm.departmentId) || 1,
-                            doctorId: quickWalkInForm.doctorId || undefined,
+                            departmentId: depId,
+                            doctorId: docId || undefined,
                             shift: currentShift,
                             priority: quickWalkInForm.priority,
-                            priorityReason: quickWalkInForm.priorityReason || (quickWalkInForm.priority === 'PRIORITY' ? 'nguoi_gia' : null),
-                            notes: quickWalkInForm.reason?.trim() || `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`,
+                            priorityReason: cleanPriorityReason,
+                            notes: cleanReason,
                             dangKyWaitlistNeuHetCho: quickAutoWaitlist,
                         },
                     })
@@ -726,20 +746,18 @@ export default function CheckInPage() {
                     phone: '',
                     gender: 'Nam',
                     birthYear: '',
-                    departmentId: 1,
+                    departmentId: depId || (departments[0]?.id ?? 1),
                     doctorId: null,
                     priority: 'NORMAL',
                     priorityReason: 'nguoi_gia',
                     reason: 'Khám bệnh vãng lai',
                 })
+                setQuickAutoWaitlist(false)
                 setSearchKeyword('')
             } catch (quickErr) {
                 const errMsg = typeof quickErr === 'string' ? quickErr : (quickErr?.message || '')
                 const isFull = /chỉ tiêu|tiếp nhận thêm|danh sách chờ|hết lượt|kín chỗ|quá tải|đạt giới hạn|waitlist|409|conflict/i.test(errMsg)
                 if (isFull) {
-                    const currentShift = dayjs().hour() >= 12 ? 'chieu' : 'sang'
-                    const specList = departments || []
-                    const targetSpec = specList.find((s) => Number(s.id) === Number(quickWalkInForm.departmentId))
                     Modal.confirm({
                         title: 'Ca khám / Bác sĩ đã hết lượt tiếp nhận!',
                         icon: <ExclamationCircleOutlined className="text-amber-500" />,
@@ -767,12 +785,12 @@ export default function CheckInPage() {
                                             phone: cleanPhone,
                                             gender: quickWalkInForm.gender || 'Nam',
                                             birthYear: quickWalkInForm.birthYear ? Number(quickWalkInForm.birthYear) : null,
-                                            departmentId: Number(quickWalkInForm.departmentId) || 1,
-                                            doctorId: quickWalkInForm.doctorId || undefined,
+                                            departmentId: depId,
+                                            doctorId: docId || undefined,
                                             shift: currentShift,
                                             priority: quickWalkInForm.priority,
-                                            priorityReason: quickWalkInForm.priorityReason || (quickWalkInForm.priority === 'PRIORITY' ? 'nguoi_gia' : null),
-                                            notes: quickWalkInForm.reason?.trim() || `Tiếp nhận nhanh tại quầy - Chuyên khoa ${targetSpec?.name || 'Nội'}`,
+                                            priorityReason: cleanPriorityReason,
+                                            notes: cleanReason,
                                             dangKyWaitlistNeuHetCho: true,
                                         },
                                     })
@@ -786,12 +804,13 @@ export default function CheckInPage() {
                                     phone: '',
                                     gender: 'Nam',
                                     birthYear: '',
-                                    departmentId: 1,
+                                    departmentId: depId || (departments[0]?.id ?? 1),
                                     doctorId: null,
                                     priority: 'NORMAL',
                                     priorityReason: 'nguoi_gia',
                                     reason: 'Khám bệnh vãng lai',
                                 })
+                                setQuickAutoWaitlist(false)
                                 setSearchKeyword('')
                             } catch (wErr) {
                                 message.error(typeof wErr === 'string' ? wErr : (wErr?.message || 'Không thể ghi danh vào danh sách chờ'))
@@ -854,9 +873,6 @@ export default function CheckInPage() {
                     <div>
                         <div className="flex items-center gap-2.5">
                             <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E8F4FD] text-[#003553] border border-[#CBE9FA] font-mono">
-                                Đã tiếp nhận: {todayCheckInCount}/{maxDailyQuota} lượt
-                            </span>
                         </div>
                         <span className="text-xs text-slate-500">
                             Tra cứu SĐT, Họ tên, Mã lịch hẹn hoặc CCCD để tự động nạp hồ sơ và check-in ngay
@@ -1250,6 +1266,7 @@ export default function CheckInPage() {
                                     </label>
                                     <Input
                                         placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
+                                        maxLength={255}
                                         value={checkInNotes}
                                         onChange={(e) => setCheckInNotes(e.target.value)}
                                     />
@@ -1264,6 +1281,7 @@ export default function CheckInPage() {
                                 </label>
                                 <Input
                                     placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
+                                    maxLength={255}
                                     value={checkInNotes}
                                     onChange={(e) => setCheckInNotes(e.target.value)}
                                 />
@@ -1336,6 +1354,7 @@ export default function CheckInPage() {
                                 </label>
                                 <Input
                                     placeholder="Nhập đầy đủ họ và tên bệnh nhân..."
+                                    maxLength={150}
                                     value={quickWalkInForm.fullName}
                                     onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, fullName: e.target.value })}
                                 />
@@ -1347,8 +1366,8 @@ export default function CheckInPage() {
                                         Số điện thoại <span className="text-red-500">*</span>
                                     </label>
                                     <Input
-                                        placeholder="0912345678 (10 số)"
-                                        maxLength={10}
+                                        placeholder="0912345678 (10-11 số)"
+                                        maxLength={11}
                                         value={quickWalkInForm.phone}
                                         onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, phone: e.target.value.replace(/\D/g, '') })}
                                     />
@@ -1466,6 +1485,7 @@ export default function CheckInPage() {
                                         </label>
                                         <Input
                                             placeholder="Ví dụ: Ho khan, đau đầu, khám định kỳ..."
+                                            maxLength={255}
                                             value={quickWalkInForm.reason}
                                             onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, reason: e.target.value })}
                                         />
@@ -1480,6 +1500,7 @@ export default function CheckInPage() {
                                     </label>
                                     <Input
                                         placeholder="Ví dụ: Cấp cứu nhẹ, đau bụng dữ dội, người già đi một mình..."
+                                        maxLength={255}
                                         value={quickWalkInForm.reason}
                                         onChange={(e) => setQuickWalkInForm({ ...quickWalkInForm, reason: e.target.value })}
                                     />

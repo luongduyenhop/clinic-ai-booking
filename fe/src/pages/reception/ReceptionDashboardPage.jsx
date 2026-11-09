@@ -75,19 +75,31 @@ export default function ReceptionDashboardPage() {
             .filter((a) => a.status === APPOINTMENT_STATUS.BOOKED || a.status === APPOINTMENT_STATUS.CONFIRMED || a.status === 'da_xac_nhan')
             .slice(0, 5)
 
-    const longWaitingList = shiftSummary?.benh_nhan_cho_lau?.length > 0
-        ? shiftSummary.benh_nhan_cho_lau.map((item) => ({
+    const apiLongWaiting = (shiftSummary?.benh_nhan_cho_lau || [])
+        .map((item) => ({
             id: item.ticket_id,
             ticketNumber: item.ma_so_thu_tu,
             patientName: item.ten_benh_nhan,
-            waitTimeMinutes: item.thoi_gian_cho_phut,
+            waitTimeMinutes: Number(item.thoi_gian_cho_phut) || 0,
             roomName: item.ten_phong || item.ma_phong || 'Phòng khám',
             checkInTime: item.thoi_gian_check_in,
         }))
-        : queueEntries
-            .filter((q) => (q.status === QUEUE_STATUS.WAITING || q.status === 'cho_kham') && (q.waitTimeMinutes > 30 || q.isLongWait))
-            .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
-            .slice(0, 5)
+        .filter((q) => q.waitTimeMinutes > 30)
+
+    const fallbackLongWaiting = queueEntries
+        .filter((q) => (q.status === QUEUE_STATUS.WAITING || q.status === 'cho_kham') && Number(q.waitTimeMinutes || 0) > 30)
+        .map((q) => ({
+            id: q.id,
+            ticketNumber: q.ticketNumber || q.ma_so_thu_tu,
+            patientName: q.patientName || q.ten_benh_nhan,
+            waitTimeMinutes: Number(q.waitTimeMinutes || 0),
+            roomName: q.roomName || q.phong_kham || 'Phòng khám',
+            checkInTime: q.checkInTime || q.thoi_gian_check_in,
+        }))
+
+    const longWaitingList = (apiLongWaiting.length > 0 ? apiLongWaiting : fallbackLongWaiting)
+        .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
+        .slice(0, 5)
 
     const activeIncidents = doctorAbsences.slice(0, 4)
 

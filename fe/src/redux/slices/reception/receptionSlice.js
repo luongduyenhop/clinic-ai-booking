@@ -320,7 +320,7 @@ const receptionSlice = createSlice({
             })
             .addCase(registerWalkInAsync.fulfilled, (state, action) => {
                 state.loading = false
-                if (action.payload) {
+                if (action.payload && !action.payload.is_waitlist) {
                     state.queueEntries.unshift(action.payload)
                 }
             })

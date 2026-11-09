@@ -69,6 +69,10 @@ export function normalizeTicket(ticket, defaultPatient = null) {
         thoi_gian_goi_kham: ticket.thoi_gian_goi_kham || null,
         thoi_gian_bat_dau: ticket.thoi_gian_bat_dau || null,
         thoi_gian_ket_thuc: ticket.thoi_gian_ket_thuc || null,
+        is_waitlist: Boolean(ticket.is_waitlist),
+        waitlist_id: ticket.waitlist_id ?? null,
+        thu_tu_waitlist: ticket.thu_tu_waitlist ?? null,
+        thong_bao_waitlist: ticket.thong_bao_waitlist ?? null,
         stages: [],
         logs: [],
     }
@@ -294,14 +298,16 @@ export const registerWalkInAsync = createAsyncThunk(
                 benh_nhan_id: payload.patientId ? (Number(payload.patientId) || payload.patientId) : undefined,
                 ho_ten: payload.fullName || payload.ho_ten || undefined,
                 so_dien_thoai: payload.phone || payload.so_dien_thoai || undefined,
-                gioi_tinh: payload.gender || payload.gioi_tinh || undefined,
+                gioi_tinh: payload.gender || payload.gioi_tinh || 'Khác',
                 nam_sinh: payload.birthYear ? Number(payload.birthYear) : (payload.dob ? new Date(payload.dob).getFullYear() : undefined),
                 bac_si_id: payload.doctorId && !isNaN(payload.doctorId) ? Number(payload.doctorId) : null,
                 chuyen_khoa_id: payload.departmentId && !isNaN(payload.departmentId) ? Number(payload.departmentId) : null,
                 ca_kham: payload.shift || 'sang',
-                ly_do_kham: payload.notes || payload.reason || 'Khám bệnh vãng lai',
-                ghi_chu: payload.notes || payload.reason,
-                ly_do_uu_tien: payload.priorityReason || (payload.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : (payload.priority === 'PRIORITY' ? 'nguoi_gia' : null)),
+                ly_do_kham: payload.reason || payload.notes || 'Khám bệnh vãng lai',
+                ghi_chu: payload.notes || payload.reason || null,
+                ly_do_uu_tien: payload.priority === 'PRIORITY'
+                    ? (payload.priorityReason || 'nguoi_gia')
+                    : (payload.priority === 'EMERGENCY' ? 'cap_cuu_nhe' : null),
                 dang_ky_waitlist_neu_het_cho: Boolean(payload.dangKyWaitlistNeuHetCho || payload.dang_ky_waitlist_neu_het_cho),
             })
             const data = unwrapApi(res)
@@ -309,15 +315,21 @@ export const registerWalkInAsync = createAsyncThunk(
                 fullName: payload.fullName || payload.ho_ten,
                 phone: payload.phone || payload.so_dien_thoai,
             })
-            if (ticket.is_waitlist) {
+            if (ticket?.is_waitlist) {
                 dispatch(fetchReceptionWaitlistAsync())
             } else {
                 try {
                     clinicalEventBridge.emit(CLINICAL_EVENTS.PATIENT_CHECKED_IN, { queueEntry: ticket })
                 } catch {
                 }
-                }
-            return ticket
+                dispatch(fetchReceptionDataAsync())
+                dispatch(fetchShiftDashboardAsync({ queryDate: dayjs().format('YYYY-MM-DD') }))
+            }
+            return {
+                ...ticket,
+                ...data,
+                queueEntry: ticket,
+            }
         } catch (e) {
             return rejectWithValue(pickErrorMessage(e, 'Tiếp nhận bệnh nhân vãng lai thất bại'))
         }

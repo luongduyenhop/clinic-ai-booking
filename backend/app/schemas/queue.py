@@ -489,6 +489,10 @@ class ReceptionAppointmentItem(BaseModel):
 
     ticket_id: Optional[int] = None
 
+    ly_do_kham: Optional[str] = None
+
+    trieu_chung_ban_dau: Optional[str] = None
+
 
 
 

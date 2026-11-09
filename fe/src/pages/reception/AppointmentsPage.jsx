@@ -59,6 +59,7 @@ export default function AppointmentsPage() {
 
     const [viewMode, setViewMode] = useState('TABLE')
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
     const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
     const [selectedShift, setSelectedShift] = useState('')
     const [selectedDep, setSelectedDep] = useState('')
@@ -87,6 +88,14 @@ export default function AppointmentsPage() {
     const [quickSearchResults, setQuickSearchResults] = useState([])
     const [isQuickSearching, setIsQuickSearching] = useState(false)
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery.trim())
+            setPage(1)
+        }, 350)
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
     const loadAppointments = useCallback(() => {
         dispatch(
             fetchAppointmentsAsync({
@@ -95,12 +104,12 @@ export default function AppointmentsPage() {
                 specialtyId: selectedDep || undefined,
                 doctorId: selectedDoctor || undefined,
                 status: selectedStatus || undefined,
-                search: searchQuery.trim() || undefined,
+                search: debouncedSearch || undefined,
                 page,
                 pageSize,
             })
         )
-    }, [dispatch, selectedDate, selectedShift, selectedDep, selectedDoctor, selectedStatus, searchQuery, page, pageSize])
+    }, [dispatch, selectedDate, selectedShift, selectedDep, selectedDoctor, selectedStatus, debouncedSearch, page, pageSize])
 
     useEffect(() => {
         dispatch(fetchReceptionDataAsync())
@@ -112,6 +121,7 @@ export default function AppointmentsPage() {
 
     const handleClearFilters = () => {
         setSearchQuery('')
+        setDebouncedSearch('')
         setSelectedDate(dayjs().format('YYYY-MM-DD'))
         setSelectedShift('')
         setSelectedDep('')
@@ -243,12 +253,22 @@ export default function AppointmentsPage() {
             title: 'Mã lịch hẹn',
             dataIndex: 'appointmentCode',
             key: 'appointmentCode',
-            width: 175,
+            width: 185,
             render: (code, record) => {
                 const displayCode = code || record.ma_lich_kham || `APT-${record.id}`
+                const isWalkIn = String(displayCode).toUpperCase().includes('WLK') || record.loai_hang_doi === 'vang_lai' || record.isWalkIn
                 return (
-                    <div>
+                    <div className="space-y-1">
                         <span className="font-mono font-bold text-sky-700 block text-xs">{displayCode}</span>
+                        {isWalkIn ? (
+                            <Tag color="orange" className="text-[10.5px] font-semibold m-0 leading-tight">
+                                Vãng lai
+                            </Tag>
+                        ) : (
+                            <Tag color="blue" className="text-[10.5px] font-semibold m-0 leading-tight">
+                                Đặt trước
+                            </Tag>
+                        )}
                     </div>
                 )
             },
@@ -494,8 +514,8 @@ export default function AppointmentsPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onPressEnter={() => {
+                                setDebouncedSearch(searchQuery.trim())
                                 setPage(1)
-                                loadAppointments()
                             }}
                             allowClear
                         />

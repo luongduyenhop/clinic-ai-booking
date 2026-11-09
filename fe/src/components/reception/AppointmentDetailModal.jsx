@@ -141,6 +141,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
     const appDate = rawAppDate ? (dayjs(rawAppDate).isValid() ? dayjs(rawAppDate).format('DD/MM/YYYY') : rawAppDate) : dayjs().format('DD/MM/YYYY')
     const appTime = appointment.gio_kham || appointment.timeSlot || '08:30'
 
+    const appCode = String(appointment.ma_lich_kham || appointment.appointmentCode || `APT-${appointment.id}` || '').toUpperCase()
+    const isWalkIn = appCode.includes('WLK') || appointment.loai_hang_doi === 'vang_lai' || appointment.isWalkIn
+
     const rawSt = String(appointment.trang_thai_lich || appointment.trang_thai || appointment.status || '').toLowerCase()
     const statusConfig = APPOINTMENT_STATUS_LABELS[rawSt] || APPOINTMENT_STATUS_LABELS[rawSt.toUpperCase()] || { label: appointment.status || 'Chờ khám', color: 'default' }
 
@@ -570,7 +573,15 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                         {patientDob ? dayjs(patientDob).format('DD/MM/YYYY') : 'Chưa cập nhật'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Đối tượng khám">
-                        <span className="font-semibold text-slate-700">Khám theo lịch hẹn đặt trước</span>
+                        {isWalkIn ? (
+                            <Tag color="orange" className="font-semibold text-xs m-0">
+                                ⚡ Khám vãng lai (Tiếp nhận tại quầy)
+                            </Tag>
+                        ) : (
+                            <Tag color="blue" className="font-semibold text-xs m-0">
+                                📅 Khám theo lịch hẹn đặt trước (Online Booking)
+                            </Tag>
+                        )}
                     </Descriptions.Item>
                 </Descriptions>
 
@@ -595,9 +606,14 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             <Tag color="purple">Hàng đợi: {appointment.trang_thai_hang_doi}</Tag>
                         </Descriptions.Item>
                     )}
-                    <Descriptions.Item label="Lý do khám / Triệu chứng" span={2}>
-                        {appointment.ly_do_kham || appointment.notes || 'Không có ghi chú'}
+                    <Descriptions.Item label="Lý do đến khám" span={appointment.trieu_chung_ban_dau ? 1 : 2}>
+                        <span className="text-slate-800">{appointment.ly_do_kham || appointment.notes || 'Không có ghi chú'}</span>
                     </Descriptions.Item>
+                    {appointment.trieu_chung_ban_dau && (
+                        <Descriptions.Item label="Triệu chứng ban đầu" span={1}>
+                            <span className="text-slate-800">{appointment.trieu_chung_ban_dau}</span>
+                        </Descriptions.Item>
+                    )}
                     {(appointment.cancelReason || appointment.ly_do_huy) && (
                         <Descriptions.Item label="Lý do hủy" span={2}>
                             <span className="text-red-600 font-semibold">

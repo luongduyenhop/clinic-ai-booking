@@ -5,7 +5,6 @@ import { formatDate } from '../../../utils/helpers/formatDate'
 import ResultView from '../clinical/ResultView'
 import { ClinicIcon } from '../../common/ClinicIcon'
 
-// Số chỉ số xét nghiệm bất thường do backend đánh giá (chỉ có ở kết quả nhập theo bộ chỉ số mẫu)
 const abnormalCount = (o) => (o.ket_qua_chi_tiet?.chi_tiet || []).filter((r) => r.danh_gia !== 'BINH_THUONG').length
 
 export default function ClsResultRail({ encounter }) {

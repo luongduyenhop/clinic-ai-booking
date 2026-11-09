@@ -7,6 +7,7 @@ import {
     Bell,
     ArrowsOut,
     ArrowsIn,
+    Globe,
     CaretDown,
     SignOut,
     MagnifyingGlass,
@@ -45,6 +46,13 @@ export default function ReceptionHeader() {
     const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
+    const [currentLang, setCurrentLang] = useState('VIE')
+
+    const toggleLanguage = () => {
+        const nextLang = currentLang === 'VIE' ? 'ENG' : 'VIE'
+        setCurrentLang(nextLang)
+        AppToast.info(`Đã chuyển ngôn ngữ sang: ${nextLang === 'VIE' ? 'Tiếng Việt' : 'English'}`)
+    }
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearchOpen, setIsSearchOpen] = useState(false)
 
@@ -252,6 +260,16 @@ export default function ReceptionHeader() {
                     title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình (F11)'}
                 >
                     {isFullscreen ? <ArrowsIn size={15} weight="bold" /> : <ArrowsOut size={15} weight="bold" />}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={toggleLanguage}
+                    className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-200 hover:border-[#00B5F1] text-[11px] font-black text-[#003553] hover:text-[#00B5F1] transition cursor-pointer"
+                    title="Chuyển đổi ngôn ngữ"
+                >
+                    <Globe size={13} weight="bold" className="text-[#00B5F1]" />
+                    <span>{currentLang}</span>
                 </button>
 
                 <div className="relative pl-1 border-l border-slate-200 shrink-0">

@@ -12,6 +12,7 @@ import BookingSuccess from '../../components/user/booking/BookingSuccess'
 import { useMedicalCatalog } from '../../services/user/MedicalCatalogService'
 import { createPatientBookingAsync, fetchAvailableSlotsAsync } from '../../redux/actions/user/bookingAction'
 import { clearLatestBooking } from '../../redux/slices/user/userSlice'
+import { ShieldCheck } from '../../components/common/ClinicIcon'
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams()
@@ -66,68 +67,130 @@ export default function BookingPage() {
     const canContinueToSlots = Boolean(booking.specialtyId && booking.doctorId)
     const canContinueToPatient = Boolean(booking.appointmentDate && booking.timeSlot && validSlot)
 
-    if (latestBooking) return <BookingSuccess
-        booking={latestBooking}
-        specialties={specialties}
-        doctors={doctors}
-        onBookAnother={() => {
-            setBooking({ specialtyId: '', doctorId: '', appointmentDate: '', timeSlot: '' })
-            setStep(1)
-            formik.resetForm()
-            dispatch(clearLatestBooking())
-        }}
-    />
+    if (latestBooking) return (
+        <section className="bg-[#F7FBFE] py-10 sm:py-16 px-4 min-h-[calc(100vh-72px)]">
+            <BookingSuccess
+                booking={latestBooking}
+                specialties={specialties}
+                doctors={doctors}
+                onBookAnother={() => {
+                    setBooking({ specialtyId: '', doctorId: '', appointmentDate: '', timeSlot: '' })
+                    setStep(1)
+                    formik.resetForm()
+                    dispatch(clearLatestBooking())
+                }}
+            />
+        </section>
+    )
+
+    if (catalogLoading) return <p className="public-container py-12 text-slate-500">Đang tải bác sĩ và chuyên khoa từ phòng khám...</p>
+    if (catalogError) return <p role="alert" className="public-container py-12 text-rose-600">{catalogError}</p>
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-            <BookingStepper currentStep={step} />
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                    {step === 1 && <>
-                        <SpecialtyDoctorStep
-                            values={booking}
-                            onChange={updateBooking}
-                            specialties={specialties}
-                            doctors={doctors}
-                            loading={catalogLoading}
-                            error={catalogError}
-                        />
-                        <div className="flex justify-end border-t border-slate-100 pt-5">
-                            <button type="button" className="medpro-btn-primary" disabled={!canContinueToSlots || catalogLoading} onClick={() => setStep(2)}>
-                                Tiếp tục chọn ngày giờ →
-                            </button>
+        <section className="bg-[#F7FBFE] py-8 sm:py-12 min-h-[calc(100vh-72px)]">
+            <div className="public-container">
+                <div className="max-w-2xl">
+                    <span className="text-xs font-extrabold uppercase tracking-[.14em] text-[#008EC2]">Đặt lịch trực tuyến</span>
+                    <h1 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold text-[#003553]">Đặt lịch khám trong 3 bước</h1>
+                    <p className="mt-2 text-sm text-slate-500">Chọn lịch phù hợp và nhận mã hẹn ngay sau khi hoàn tất.</p>
+                    {aiRecommendation && (
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-800">
+                            <span>Đã áp dụng kết quả gợi ý AI: <strong>{aiRecommendation.specialtyName}</strong></span>
                         </div>
-                    </>}
-                    {step === 2 && <>
-                        <DateSlotStep
-                            appointmentDate={booking.appointmentDate}
-                            timeSlot={booking.timeSlot}
-                            slots={availableSlots}
-                            loading={slotsLoading}
-                            error={bookingError}
-                            onDateChange={(appointmentDate) => updateBooking({ appointmentDate, timeSlot: '' })}
-                            onSlotChange={(timeSlot) => updateBooking({ timeSlot })}
-                        />
-                        <div className="flex justify-between border-t border-slate-100 pt-5">
-                            <button type="button" className="medpro-btn-outline" onClick={() => setStep(1)}>← Quay lại</button>
-                            <button type="button" className="medpro-btn-primary" disabled={!canContinueToPatient} onClick={() => setStep(3)}>
-                                Tiếp tục xác nhận →
-                            </button>
-                        </div>
-                    </>}
-                    {step === 3 && <PatientInfoStep
-                        formik={formik}
-                        user={user}
-                        isAuthenticated={isAuthenticated}
-                        loading={loading}
-                        error={bookingError}
-                        onBack={() => setStep(2)}
-                    />}
+                    )}
                 </div>
-                <div className="space-y-4">
-                    <BookingSummary booking={booking} specialties={specialties} doctors={doctors} />
+
+                <div className="mt-7 grid lg:grid-cols-[1fr_310px] gap-6 items-start">
+                    <main className="medpro-card p-5 sm:p-7">
+                        <BookingStepper currentStep={step} />
+                        <div className="my-7 border-t border-slate-100" />
+
+                        {step === 1 && (
+                            <>
+                                <SpecialtyDoctorStep
+                                    values={booking}
+                                    onChange={updateBooking}
+                                    specialties={specialties}
+                                    doctors={doctors}
+                                    loading={catalogLoading}
+                                    error={catalogError}
+                                />
+                                <div className="flex justify-end border-t border-slate-100 pt-5">
+                                    <button
+                                        type="button"
+                                        className="medpro-btn-primary"
+                                        disabled={!canContinueToSlots || catalogLoading}
+                                        onClick={() => setStep(2)}
+                                    >
+                                        Tiếp tục chọn ngày giờ →
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {step === 2 && (
+                            <>
+                                <DateSlotStep
+                                    appointmentDate={booking.appointmentDate}
+                                    timeSlot={booking.timeSlot}
+                                    slots={availableSlots}
+                                    loading={slotsLoading}
+                                    error={bookingError}
+                                    onDateChange={(appointmentDate) => updateBooking({ appointmentDate, timeSlot: '' })}
+                                    onSlotChange={(timeSlot) => updateBooking({ timeSlot })}
+                                />
+                                {bookingError && (
+                                    <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                                        {bookingError}
+                                        <button
+                                            type="button"
+                                            className="ml-3 font-bold underline cursor-pointer"
+                                            onClick={() => {
+                                                updateBooking({ timeSlot: '' })
+                                                dispatch(fetchAvailableSlotsAsync({ doctorId: booking.doctorId, appointmentDate: booking.appointmentDate }))
+                                            }}
+                                        >
+                                            Tải lại khung giờ
+                                        </button>
+                                    </p>
+                                )}
+                                <div className="flex justify-between border-t border-slate-100 pt-5">
+                                    <button type="button" className="medpro-btn-outline" onClick={() => setStep(1)}>
+                                        ← Quay lại
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="medpro-btn-primary"
+                                        disabled={!canContinueToPatient}
+                                        onClick={() => setStep(3)}
+                                    >
+                                        Tiếp tục xác nhận →
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {step === 3 && (
+                            <PatientInfoStep
+                                formik={formik}
+                                user={user}
+                                isAuthenticated={isAuthenticated}
+                                loading={loading}
+                                error={bookingError}
+                                onBack={() => setStep(2)}
+                            />
+                        )}
+                    </main>
+
+                    <div className="space-y-4">
+                        <BookingSummary booking={booking} specialties={specialties} doctors={doctors} />
+                        <div className="mt-4 flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-5 text-emerald-800">
+                            <ShieldCheck size={18} weight="fill" className="shrink-0" />
+                            Thông tin người khám được dùng để xác nhận và phục vụ lịch hẹn.
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
     )
 }

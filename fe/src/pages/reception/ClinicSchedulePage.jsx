@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Tag, Select, DatePicker, Button, Progress, Tabs, Table, Empty } from 'antd'
+import { Tag, Select, DatePicker, Button, Alert, Progress, Tabs, Table, Empty } from 'antd'
 import {
     UserOutlined,
+    SwapOutlined,
     MedicineBoxOutlined,
     ReloadOutlined,
     CalendarOutlined,
@@ -10,6 +11,7 @@ import {
     CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import {
     fetchReceptionDataAsync,
     fetchShiftDashboardAsync,
@@ -36,6 +38,7 @@ const ROOM_TYPE_LABELS = {
 }
 
 export default function ClinicSchedulePage() {
+    const navigate = useNavigate()
     const dispatch = useDispatch()
     const {
         roster = [],
@@ -317,7 +320,31 @@ export default function ClinicSchedulePage() {
                                 options={departmentOptions}
                             />
                         </div>
-                    </div>
+                    </div>                    {doctorAbsences.length > 0 && (
+                        <div className="space-y-3">
+                            {doctorAbsences.map((inc) => (
+                                <Alert
+                                    key={inc.bac_si_id}
+                                    message={`Bác sĩ ${inc.ten_bac_si} nghỉ đột xuất (Khoa ${inc.ten_chuyen_khoa || 'Chuyên khoa'})`}
+                                    description={`Có ${inc.so_benh_nhan_bi_anh_huong || 0} bệnh nhân trong ca trực cần được điều chuyển sang bác sĩ khác cùng chuyên khoa.`}
+                                    type="error"
+                                    showIcon
+                                    action={
+                                        <Button
+                                            size="small"
+                                            danger
+                                            icon={<SwapOutlined />}
+                                            onClick={() => navigate('/reception/tasks')}
+                                        >
+                                            Điều chuyển bệnh nhân
+                                        </Button>
+                                    }
+                                />
+                            ))}
+                        </div>
+                    )}
+
+
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">

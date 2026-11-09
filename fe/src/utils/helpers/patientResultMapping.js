@@ -6,6 +6,7 @@ const resultLabels = {
     TDCN: 'Thăm dò chức năng',
     NOI_SOI: 'Nội soi',
     THU_THUAT: 'Thủ thuật',
+    CHUA_PHAN_LOAI: 'Chưa phân loại',
 }
 
 const INDICATOR_DICTIONARY = {

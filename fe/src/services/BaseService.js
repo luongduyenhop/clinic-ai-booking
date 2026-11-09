@@ -19,8 +19,6 @@ function isPublicAuthPath(url) {
         u.includes('auth/refresh')
     )
 }
-
-// ── Store Injection để tránh Circular Dependency & Dynamic Import overhead ───
 let appStore = null
 
 export const injectStore = (store) => {
@@ -50,8 +48,6 @@ function dispatchHydrateTokens(payload) {
         appStore.dispatch({ type: 'auth/hydrateTokens', payload })
     }
 }
-
-// ── Request Interceptor (Hoàn toàn đồng bộ, không block luồng bằng await) ────
 http.interceptors.request.use((config) => {
     if (config.__authRevision != null && config.__authRevision !== getAuthSessionRevision()) {
         throw new axios.CanceledError('Phiên đăng nhập đã thay đổi')
@@ -70,8 +66,6 @@ http.interceptors.request.use((config) => {
     }
     return config
 })
-
-// ── Queue & Mutex cho Refresh Token ──────────────────────────────────────────
 let isRefreshing = false
 let failedQueue = []
 let pendingAuthRefresh = null
@@ -84,8 +78,6 @@ function processQueue(error, token) {
     })
     failedQueue = []
 }
-
-// ── Response Interceptor ─────────────────────────────────────────────────────
 http.interceptors.response.use(
     (response) => {
         if (response?.config?.__globalLoadingCountered) {
@@ -97,14 +89,9 @@ http.interceptors.response.use(
         const originalRequest = error.config
         const status = error.response?.status
         const shouldStopLoading = Boolean(originalRequest?.__globalLoadingCountered)
-        
-        // // ── Xử lý Global Api Error ──
-        // Gọi nền định kỳ (__skipGlobalError) tự xử lý lỗi, không bật toast mỗi lần hỏi
         if (status && status >= 400 && status !== 401 && !originalRequest?.__skipGlobalError) {
             const body = error.response?.data
             const msg = body?.Message || body?.message || error.message || 'Lỗi không xác định từ máy chủ'
-            
-            // Thay vì show popup to đùng, ta hiển thị dạng Toast
             AppToast.error(msg)
         }
 

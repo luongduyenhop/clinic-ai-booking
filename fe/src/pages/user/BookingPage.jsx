@@ -28,6 +28,7 @@ export default function BookingPage() {
     const requestedSlot = searchParams.get('slot')
     const [step, setStep] = useState(1)
     const [booking, setBooking] = useState({ specialtyId: '', doctorId: '', appointmentDate: '', timeSlot: '' })
+    const [slotConflict, setSlotConflict] = useState(null)
 
     useEffect(() => {
         if (catalogLoading || catalogError) return
@@ -61,6 +62,12 @@ export default function BookingPage() {
             if (slotsLoading || bookingError || !availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)) { setStep(2); return }
             const result = await dispatch(createPatientBookingAsync({ ...booking, patient, aiRecommendation }))
             if (createPatientBookingAsync.fulfilled.match(result)) window.scrollTo({ top: 0, behavior: 'smooth' })
+            else if (result.payload?.status === 409) {
+                setSlotConflict({ date: booking.appointmentDate, timeSlot: booking.timeSlot })
+                updateBooking({ timeSlot: '' })
+                setStep(2)
+                dispatch(fetchAvailableSlotsAsync({ doctorId: booking.doctorId, appointmentDate: booking.appointmentDate }))
+            }
         },
     })
 
@@ -146,7 +153,11 @@ export default function BookingPage() {
                                     slots={availableSlots}
                                     loading={slotsLoading}
                                     error={bookingError}
-                                    onDateChange={(appointmentDate) => updateBooking({ appointmentDate, timeSlot: '' })}
+                                    slotConflict={slotConflict}
+                                    onDateChange={(appointmentDate) => {
+                                        if (appointmentDate !== slotConflict?.date) setSlotConflict(null)
+                                        updateBooking({ appointmentDate, timeSlot: '' })
+                                    }}
                                     onSlotChange={(timeSlot) => updateBooking({ timeSlot })}
                                 />
                                 {bookingError && (

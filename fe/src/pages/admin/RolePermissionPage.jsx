@@ -3,6 +3,7 @@ import { useLocation, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import DoctorLeaveManagementTab from '../../components/admin/DoctorLeaveManagementTab'
+import DoctorScheduleManagementTab from '../../components/admin/DoctorScheduleManagementTab'
 import { AppToast } from '../../components/common/AppNotification'
 import { PERMISSION_MODULES_23, getMasterOptions, getFormDefaults, getPermissionModuleLabel } from '../../utils/helpers/clinicConfigHelpers'
 import {
@@ -19,6 +20,7 @@ import {
     Warning,
     XCircle,
     CalendarCheck,
+    CalendarPlus,
 } from '../../components/common/ClinicIcon'
 
 const getNextStaffCode = (list) => {
@@ -38,7 +40,8 @@ export default function RolePermissionPage() {
     const dispatch = useDispatch()
     const searchParams = new URLSearchParams(location.search)
     const isLeaveMode = searchParams.get('tab') === 'nghi-phep' || location.pathname.includes('nghi-phep')
-    const isStaffMode = !isLeaveMode && (location.pathname.includes('nhan-vien') || searchParams.get('tab') === 'nhan-vien')
+    const isScheduleMode = searchParams.get('tab') === 'phan-lich' || location.pathname.includes('phan-lich')
+    const isStaffMode = !isLeaveMode && !isScheduleMode && (location.pathname.includes('nhan-vien') || searchParams.get('tab') === 'nhan-vien')
 
     const { clinicData } = useSelector((state) => state.app.admin)
     const roles = clinicData?.roles || []
@@ -180,12 +183,12 @@ export default function RolePermissionPage() {
                     <Link
                         to="/admin/phan-quyen"
                         className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
-                            !isStaffMode && !isLeaveMode
+                            !isStaffMode && !isLeaveMode && !isScheduleMode
                                 ? "bg-[#00B5F1] text-white shadow-xs"
                                 : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
                         }`}
                     >
-                        <ShieldCheck size={15} weight={!isStaffMode && !isLeaveMode ? "fill" : "duotone"} />
+                        <ShieldCheck size={15} weight={!isStaffMode && !isLeaveMode && !isScheduleMode ? "fill" : "duotone"} />
                         <span>1. Phân quyền Vai trò (Ma trận 23 Quyền hạn)</span>
                     </Link>
                     <Link
@@ -200,6 +203,17 @@ export default function RolePermissionPage() {
                         <span>2. Quản trị Nhân sự &amp; Chứng chỉ Hành nghề</span>
                     </Link>
                     <Link
+                        to="/admin/nhan-vien?tab=phan-lich"
+                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                            isScheduleMode
+                                ? "bg-[#00B5F1] text-white shadow-xs"
+                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                        }`}
+                    >
+                        <CalendarPlus size={15} weight={isScheduleMode ? "fill" : "duotone"} />
+                        <span>3. Phân lịch trực &amp; Ma trận Ca khám</span>
+                    </Link>
+                    <Link
                         to="/admin/nhan-vien?tab=nghi-phep"
                         className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
                             isLeaveMode
@@ -208,17 +222,21 @@ export default function RolePermissionPage() {
                         }`}
                     >
                         <CalendarCheck size={15} weight={isLeaveMode ? "fill" : "duotone"} />
-                        <span>3. Phê duyệt Nghỉ phép &amp; Điều phối Ca trực</span>
+                        <span>4. Phê duyệt Nghỉ phép &amp; Điều phối Ca trực</span>
                     </Link>
                 </div>
                 <span className="text-xs text-slate-500">
-                    {isLeaveMode
+                    {isScheduleMode
+                        ? "Phân ca làm việc bác sĩ theo tuần, tính toán công suất slot trực tuyến & tại quầy và điều phối buồng khám"
+                        : isLeaveMode
                         ? "Phê duyệt đơn nghỉ phép bác sĩ, tự động khóa lịch trực và điều chuyển lịch khám bị ảnh hưởng"
                         : "Quản trị vai trò, ma trận phân quyền và kiểm soát điều kiện hành nghề bác sĩ"}
                 </span>
             </div>
 
-            {isLeaveMode ? (
+            {isScheduleMode ? (
+                <DoctorScheduleManagementTab />
+            ) : isLeaveMode ? (
                 <DoctorLeaveManagementTab />
             ) : !isStaffMode ? (
                 

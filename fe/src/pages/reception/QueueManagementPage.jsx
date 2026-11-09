@@ -24,6 +24,7 @@ import {
     SwapOutlined,
     PlayCircleOutlined,
     CloseCircleOutlined,
+    AlertOutlined,
     HistoryOutlined,
     SoundOutlined,
     AudioMutedOutlined,
@@ -56,6 +57,7 @@ import { receptionService } from '../../services/reception/receptionService'
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
+import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import { QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
 import { audioAnnouncer } from '../../utils/audioAnnouncer'
@@ -121,6 +123,7 @@ export default function QueueManagementPage() {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
     const [isAudioEnabled, setIsAudioEnabled] = useState(() => audioAnnouncer.isEnabled())
     const [patientDrawerId, setPatientDrawerId] = useState(null)
+    const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [receiptEntry, setReceiptEntry] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -1210,6 +1213,15 @@ export default function QueueManagementPage() {
                 <div className="flex items-center gap-2">
                     <Button
                         size="middle"
+                        danger
+                        icon={<AlertOutlined />}
+                        onClick={() => setIsEmergencyModalOpen(true)}
+                        className="font-bold text-xs rounded-full"
+                    >
+                        Bàn giao cấp cứu
+                    </Button>
+                    <Button
+                        size="middle"
                         icon={<SyncOutlined spin={isRefreshing} />}
                         onClick={handleRefreshQueue}
                         className="medpro-btn-outline font-bold text-xs !h-8 !px-3"
@@ -1663,6 +1675,11 @@ export default function QueueManagementPage() {
                 patientId={patientDrawerId}
                 open={Boolean(patientDrawerId)}
                 onClose={() => setPatientDrawerId(null)}
+            />
+
+            <EmergencyHandoverModal
+                open={isEmergencyModalOpen}
+                onClose={() => setIsEmergencyModalOpen(false)}
             />
 
             <CheckInReceiptModal

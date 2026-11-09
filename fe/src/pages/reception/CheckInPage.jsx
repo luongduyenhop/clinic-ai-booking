@@ -28,6 +28,7 @@ import {
 } from '../../redux/actions/reception/receptionAction'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
+import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
 import { receptionService } from '../../services/reception/receptionService'
 import { unwrapApi } from '../../utils/helpers/apiHelper'
@@ -174,6 +175,7 @@ export default function CheckInPage() {
 
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
+    const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [createdQueueEntry, setCreatedQueueEntry] = useState(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -1524,6 +1526,12 @@ export default function CheckInPage() {
                 open={isReceiptOpen}
                 onClose={() => setIsReceiptOpen(false)}
                 queueEntry={createdQueueEntry}
+            />
+
+            <EmergencyHandoverModal
+                open={isEmergencyModalOpen}
+                onClose={() => setIsEmergencyModalOpen(false)}
+                defaultPatientId={selectedPatient?.id}
             />
         </div>
     )

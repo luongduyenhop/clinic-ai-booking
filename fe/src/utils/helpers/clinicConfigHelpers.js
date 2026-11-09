@@ -112,6 +112,12 @@ export const DEFAULT_NAVIGATION_CONFIG = {
                     desc: 'Thiết lập quyền truy cập chi tiết cho từng vai trò',
                 },
                 {
+                    label: 'Phân lịch trực & Ma trận Ca khám',
+                    path: '/admin/nhan-vien?tab=phan-lich',
+                    icon: 'CalendarPlus',
+                    desc: 'Phân ca làm việc, điều phối buồng khám và quản lý slot khám thời gian thực',
+                },
+                {
                     label: 'Duyệt đơn nghỉ phép Bác sĩ',
                     path: '/admin/nhan-vien?tab=nghi-phep',
                     icon: 'CalendarCheck',
@@ -212,6 +218,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
                     icon: 'ShieldCheck',
                     children: [
                         { label: 'Nhân sự, Bác sĩ & CCHN', path: '/admin/nhan-vien' },
+                        { label: 'Phân lịch trực & Ma trận Ca', path: '/admin/nhan-vien?tab=phan-lich' },
                         { label: 'Ma trận Phân quyền RBAC', path: '/admin/phan-quyen' },
                         { label: 'Duyệt nghỉ phép Bác sĩ', path: '/admin/nhan-vien?tab=nghi-phep' },
                     ],

@@ -921,6 +921,7 @@ export default function ExamWorkstationPage() {
                                         encounter={encounter}
                                         locked={isReadOnly}
                                         onRateAi={handleRateAi}
+                                        doctorSpecialty={resolvedSpecialty?.key || ''}
                                         pickedOrders={pickedOrders}
                                         services={services}
                                         onSendPickedOrders={() => handleCreateOrders(pickedOrders)}

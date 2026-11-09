@@ -6,9 +6,9 @@ const source = await readFile(new URL('../src/utils/constants/System.js', import
 const code = source.replaceAll('import.meta.env', '({})')
 const { getRoleDefaultPath } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
 
-test('cashier login opens the staff cashier portal instead of the admin shell', () => {
+test('cashier and reception share the unified reception dashboard portal', () => {
     for (const role of ['CASHIER', 'THU_NGAN', 'cashier', 'thu_ngan']) {
-        assert.equal(getRoleDefaultPath(role), '/staff/cashier')
+        assert.equal(getRoleDefaultPath(role), '/reception/dashboard')
     }
 })
 

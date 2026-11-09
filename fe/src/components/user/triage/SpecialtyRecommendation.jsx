@@ -3,6 +3,9 @@ import { ArrowRight, Info, Robot, Stethoscope } from '../../common/ClinicIcon'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
 
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().replace(/\bkhoa\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const displayReason = (reason) => String(reason || '')
+    .replace(/\[(?:Định tuyến theo từ khóa|Độ tin cậy cao):\s*\d+%\]\s*/gi, '')
+    .replace(/Độ tin cậy chuyên khoa cao nhất là \d+% hoặc mô tả chưa có đủ 2 dấu hiệu đặc hiệu\.\s*/gi, 'Mô tả triệu chứng chưa có đủ dấu hiệu đặc hiệu. ')
 
 export default function SpecialtyRecommendation({ result, symptoms, onRestart }) {
     const { specialties, doctors, loading: catalogLoading, error: catalogError } = useMedicalCatalog()
@@ -49,7 +52,7 @@ export default function SpecialtyRecommendation({ result, symptoms, onRestart })
                                 <div className="flex-1">
                                     <p className="text-xs font-semibold text-[#008EC2]">Gợi ý {index + 1}</p>
                                     <h2 className="font-bold text-[#003553]">{recommendation.specialtyName}</h2>
-                                    <p className="text-xs text-slate-600">{recommendation.reason}</p>
+                                    <p className="text-xs text-slate-600">{displayReason(recommendation.reason)}</p>
                                 </div>
                                 <Link to={target} state={getRecommendationState(recommendation)} className="medpro-btn-primary min-h-11">
                                     Đặt lịch theo khoa <ArrowRight size={15} />

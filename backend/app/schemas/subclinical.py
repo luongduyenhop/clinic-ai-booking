@@ -88,6 +88,11 @@ class SubclinicalResultSubmitRequest(BaseModel):
     ket_qua_phan_loai: Optional[str] = Field("BINH_THUONG", description="BINH_THUONG, BAT_THUONG, NGUY_HIEM")
     tri_so_chi_tiet: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Bộ trị số cận lâm sàng có tham chiếu")
     file_dinh_kem_urls: Optional[List[str]] = Field(default_factory=list, description="Danh sách URL hình ảnh/file đính kèm")
+    thiet_bi_thuc_hien: Optional[str] = None
+    mo_ta: Optional[str] = None
+    ket_luan: Optional[str] = None
+    ghi_chu: Optional[str] = None
+    de_nghi: Optional[str] = None
 
 
 class SubclinicalDetailResponse(BaseModel):

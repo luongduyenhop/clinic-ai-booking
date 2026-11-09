@@ -183,13 +183,15 @@ export class AdminService extends BaseServices {
         'put', `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`, { subKey, items, auditEntry },
     )
 
-    getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, chuyenKhoaId } = {}) => {
+    getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, doctorId, chuyenKhoaId, phongKhamId } = {}) => {
         try {
             const params = new URLSearchParams()
             if (tuNgay) params.append('tu_ngay', tuNgay)
             if (denNgay) params.append('den_ngay', denNgay)
-            if (bacSiId) params.append('bac_si_id', bacSiId)
+            const resolvedDoc = doctorId || bacSiId
+            if (resolvedDoc) params.append('doctor_id', resolvedDoc)
             if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            if (phongKhamId) params.append('phong_kham_id', phongKhamId)
             const res = await this.get(`/api/v1/admin/shifts/schedule-matrix?${params.toString()}`, {
                 __skipGlobalLoading: true,
                 __skipRefresh: true,
@@ -199,6 +201,89 @@ export class AdminService extends BaseServices {
             console.warn('Fallback schedule-matrix:', error)
             return null
         }
+    }
+
+    getDoctorsAdmin = async () => {
+        try {
+            const res = await this.get('/api/v1/admin/doctors', {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    getRoomsAdmin = async ({ loaiPhong, chuyenKhoaId, isActive } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (loaiPhong) params.append('loai_phong', loaiPhong)
+            if (chuyenKhoaId) params.append('chuyen_khoa_id', chuyenKhoaId)
+            if (isActive !== undefined && isActive !== null) params.append('is_active', isActive)
+            const query = params.toString() ? '?' + params.toString() : ''
+            const res = await this.get('/api/v1/admin/rooms' + query, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    getShiftsAdmin = async ({ queryDate, doctorId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (queryDate) params.append('query_date', queryDate)
+            if (doctorId) params.append('doctor_id', doctorId)
+            const query = params.toString() ? '?' + params.toString() : ''
+            const res = await this.get('/api/v1/admin/shifts' + query, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    createShiftAdmin = async (payload) => {
+        const res = await this.post('/api/v1/admin/shifts', payload)
+        return res.data?.data || res.data
+    }
+
+    toggleLockShiftAdmin = async (shiftId, payload) => {
+        const res = await this.put(`/api/v1/admin/shifts/${shiftId}/lock`, payload)
+        return res.data?.data || res.data
+    }
+
+    getRosterTemplatesAdmin = async (doctorId) => {
+        try {
+            const query = doctorId ? `?doctor_id=${doctorId}` : ''
+            const res = await this.get('/api/v1/admin/rosters' + query, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    createRosterTemplateAdmin = async (payload) => {
+        const res = await this.post('/api/v1/admin/rosters', payload)
+        return res.data?.data || res.data
+    }
+
+    deleteRosterTemplateAdmin = async (rosterId) => {
+        const res = await this.delete(`/api/v1/admin/rosters/${rosterId}`)
+        return res.data?.data || res.data
+    }
+
+    generateShiftsFromRosterAdmin = async (payload) => {
+        const res = await this.post('/api/v1/admin/rosters/generate-shifts', payload)
+        return res.data?.data || res.data
     }
 
 

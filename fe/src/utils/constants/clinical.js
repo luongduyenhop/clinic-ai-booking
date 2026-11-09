@@ -36,8 +36,22 @@ export const ORDER_STATUS = {
 }
 
 
-export const clsDisplayStatus = (order) =>
-    order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA' ? 'cho_duyet' : order.trang_thai
+export const isOrderNotStarted = (order) => {
+    const s = String(order?.trang_thai || '').toUpperCase()
+    return s === 'CHO_THUC_HIEN' || s === 'DA_THIET_LAP' || s === 'DA_CHI_DINH' || s === 'DA_THANH_TOAN'
+}
+
+export const clsDisplayStatus = (order) => {
+    if (!order) return 'da_chi_dinh'
+    if (order.trang_thai === 'dang_thuc_hien' && order.trang_thai_ket_qua === 'DA_CO_KET_QUA') {
+        return 'cho_duyet'
+    }
+    const raw = String(order.trang_thai || '').toLowerCase()
+    if (raw === 'cho_thuc_hien' || raw === 'da_thanh_toan' || raw === 'da_chi_dinh') {
+        return 'da_chi_dinh'
+    }
+    return raw || 'da_chi_dinh'
+}
 
 export const RESULT_CLASS = {
     BINH_THUONG: { label: 'Bình thường', badge: 'medpro-badge-success' },
@@ -254,7 +268,7 @@ export const FUNCTIONAL_TEMPLATES = {
         },
     },
 }
-
+FUNCTIONAL_TEMPLATES.DV010 = FUNCTIONAL_TEMPLATES.DV_ECG
 
 export const IMAGING_PRESETS = {
     DV_SA_BUNG: {
@@ -283,7 +297,60 @@ export const IMAGING_PRESETS = {
             ket_luan: 'Chưa phát hiện bất thường trên siêu âm tim.',
         },
     },
+    DV_SA_GIAP: {
+        'Tuyến giáp bình thường': {
+            mo_ta: 'Hai thùy và eo tuyến giáp kích thước trong giới hạn bình thường, nhu mô đều, không thấy khối khu trú, hạch cổ hai bên không sưng.',
+            ket_luan: 'TIRADS 1 - Tuyến giáp bình thường.',
+        },
+        'Nhân tuyến giáp 2 thùy TIRADS 2': {
+            mo_ta: 'Nang keo tuyến giáp dạng bọt biển, kích thước nhỏ 3-5mm rải rác hai thùy, bờ rõ, không vi vôi hóa.',
+            ket_luan: 'TIRADS 2 - Nhân lành tính tuyến giáp hai thùy.',
+        },
+    },
+    DV_SA_VU: {
+        'Tuyến vú bình thường': {
+            mo_ta: 'Mô tuyến vú hai bên phân bố đều, không thấy tổn thương khu trú, không giãn ống tuyến, hạch nách hai bên bình thường.',
+            ket_luan: 'BI-RADS 1 - Hình ảnh siêu âm tuyến vú hai bên bình thường.',
+        },
+    },
+    DV_SA_MACH_CHI: {
+        'Doppler mạch máu bình thường': {
+            mo_ta: 'Lòng mạch thông thoáng, thành mạch mềm mại, phổ Doppler màu và phổ xung dòng chảy trong giới hạn bình thường, không có huyết khối.',
+            ket_luan: 'Chưa thấy bất thường trên siêu âm Doppler mạch máu chi.',
+        },
+    },
+    DV_XQ_XOANG: {
+        'Xoang hàm trán bình thường': {
+            mo_ta: 'Các xoang hàm, xoang trán hai bên sáng đều, niêm mạc không dày, không có mức dịch - khí, vách ngăn mũi thẳng.',
+            ket_luan: 'Chưa thấy hình ảnh viêm xoang trên phim X-quang Blondeau - Hirtz.',
+        },
+    },
+    DV_XQ_COT_SONG: {
+        'Cột sống thắt lưng bình thường': {
+            mo_ta: 'Đường cong sinh lý cột sống thắt lưng được bảo tồn. Thân các đốt sống đều, khe gian đốt bình thường, không trượt đốt sống.',
+            ket_luan: 'Chưa thấy bất thường cột sống thắt lưng trên X-quang.',
+        },
+        'Thoái hóa cột sống thắt lưng': {
+            mo_ta: 'Gai xương thoái hóa nhẹ bờ trước và bên các thân đốt L3-L5. Hẹp nhẹ khe đĩa đệm L4-L5.',
+            ket_luan: 'Thoái hóa cột sống thắt lưng.',
+        },
+    },
+    DV_XQ_KHOP_GOI: {
+        'Khớp gối bình thường': {
+            mo_ta: 'Khe khớp gối hai bên đều, không hẹp, gai xương không rõ, diện khớp nhẵn, không tràn dịch bao khớp.',
+            ket_luan: 'Hình ảnh khớp gối hai bên trong giới hạn bình thường.',
+        },
+    },
+    DV_XQ_RANG_PANO: {
+        'Panorama răng bình thường': {
+            mo_ta: 'Cung răng trên và dưới đều, không thấy tổn thương sâu ngà tủy lan rộng, xương ổ răng và mào xương bình thường.',
+            ket_luan: 'Phim Panorama toàn cảnh hàm răng chưa thấy bất thường.',
+        },
+    },
 }
+IMAGING_PRESETS.DV005 = IMAGING_PRESETS.DV_SA_BUNG
+IMAGING_PRESETS.DV006 = IMAGING_PRESETS.DV_SA_TIM
+IMAGING_PRESETS.DV008 = IMAGING_PRESETS.DV_XQ_NGUC
 
 
 export const ENDOSCOPY_TEMPLATES = {
@@ -324,6 +391,7 @@ export const ENDOSCOPY_TEMPLATES = {
         },
     },
 }
+ENDOSCOPY_TEMPLATES.DV009 = ENDOSCOPY_TEMPLATES.DV_NS_TMH
 
 
 export const DRUG_ALLERGY_GROUPS = [

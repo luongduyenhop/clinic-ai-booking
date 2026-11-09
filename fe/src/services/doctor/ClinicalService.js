@@ -741,7 +741,7 @@ export class ClinicalService extends BaseServices {
         return delay(result, 100)
     }
 
-    getClsWorklist = async ({ nhom, tuKhoa, ngay } = {}) => {
+    getClsWorklist = async ({ nhom, tuKhoa, ngay, tatCaNgay } = {}) => {
         await this.hydrateFromPostgres()
         const params = new URLSearchParams({ trang_thai: 'tat_ca' })
         if (nhom && nhom !== 'ALL') {
@@ -750,7 +750,9 @@ export class ClinicalService extends BaseServices {
         if (tuKhoa?.trim()) {
             params.set('tu_khoa', tuKhoa.trim())
         }
-        if (ngay) {
+        if (tatCaNgay) {
+            params.set('tat_ca_ngay', 'true')
+        } else if (ngay) {
             params.set('ngay', ngay)
         }
         const res = await this.get(`/api/v1/subclinical/queue?${params}`, { __skipGlobalLoading: true })

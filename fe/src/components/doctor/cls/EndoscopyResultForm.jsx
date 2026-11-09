@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
-import { ENDOSCOPY_TEMPLATES } from '../../../utils/constants/clinical'
+import { ENDOSCOPY_TEMPLATES, isOrderNotStarted } from '../../../utils/constants/clinical'
 import { uploadFileAsync } from '../../../redux/actions/doctor/clinicalAction'
 import { mergeImagesToGrid } from '../../../utils/helpers/mergeImages'
 import { AppToast } from '../../common/AppNotification'
@@ -14,13 +14,14 @@ const CLASS_OPTIONS = [
     { value: 'BAT_THUONG', label: 'Bất thường' },
 ]
 
-// Form kết quả Nội soi: mô tả theo vị trí giải phẫu + ghép tối đa 4 khung hình thành 1 ảnh
 export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
     const dispatch = useDispatch()
-    const tpl = ENDOSCOPY_TEMPLATES[order.ma_dich_vu] || { sites: [], presets: {} }
+    const tpl = ENDOSCOPY_TEMPLATES[order.ma_dich_vu] || (order.ten_dich_vu?.toLowerCase()?.includes('tai mũi họng') ? ENDOSCOPY_TEMPLATES.DV_NS_TMH : { sites: [], presets: {} })
     const detail = order.ket_qua_chi_tiet || {}
     const [frames, setFrames] = useState([])
     const [merging, setMerging] = useState(false)
+    const notStarted = isOrderNotStarted(order)
+    const locked = notStarted || order.trang_thai === 'da_co_ket_qua'
 
     const previews = useMemo(() => frames.map((f) => URL.createObjectURL(f)), [frames])
     useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
@@ -88,7 +89,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
     return (
         <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
             <PerformerFields serviceName={order.ten_dich_vu} />
-            <PresetChips label="Chèn mẫu kết quả:" presets={tpl.presets} onPick={pickPreset} />
+            <PresetChips label="Chèn mẫu kết quả:" presets={tpl.presets} onPick={pickPreset} disabled={locked} />
 
             <div className="flex flex-wrap gap-5">
                 <div className="flex min-w-0 flex-[999_1_360px] flex-col gap-4">
@@ -100,6 +101,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                                 <textarea
                                     rows={3}
                                     className="medpro-input"
+                                    disabled={locked}
                                     value={values.vi_tri[site]}
                                     onChange={(e) => setFieldValue('vi_tri', { ...values.vi_tri, [site]: e.target.value })}
                                 />
@@ -108,19 +110,19 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                     </div>
                     <label>
                         <span className="medpro-label">Kết luận</span>
-                        <textarea name="ket_luan" rows={2} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
+                        <textarea name="ket_luan" rows={2} disabled={locked} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
                         {touched.ket_luan && errors.ket_luan && <p className="mt-1 text-[12px] text-rose-600">{errors.ket_luan}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Đề nghị</span>
-                        <input name="de_nghi" className="medpro-input" value={values.de_nghi} onChange={handleChange} />
+                        <input name="de_nghi" disabled={locked} className="medpro-input" value={values.de_nghi} onChange={handleChange} />
                     </label>
                     <fieldset>
                         <legend className="medpro-label">Phân loại kết quả</legend>
                         <div className="flex flex-wrap gap-4">
                             {CLASS_OPTIONS.map((o) => (
                                 <label key={o.value} className="flex items-center gap-2 text-[13px] cursor-pointer">
-                                    <input type="radio" name="phan_loai" value={o.value} checked={values.phan_loai === o.value} onChange={handleChange} />
+                                    <input type="radio" name="phan_loai" value={o.value} disabled={locked} checked={values.phan_loai === o.value} onChange={handleChange} />
                                     {o.label}
                                 </label>
                             ))}
@@ -138,6 +140,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                                     <button
                                         type="button"
                                         aria-label={`Bỏ khung hình ${i + 1}`}
+                                        disabled={locked}
                                         onClick={() => setFrames((prev) => prev.filter((_, idx) => idx !== i))}
                                         className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-slate-700 cursor-pointer"
                                     >
@@ -151,9 +154,9 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                             )
                         )}
                     </div>
-                    <label className={`medpro-btn-outline ${frames.length >= 4 ? 'pointer-events-none opacity-50' : ''}`}>
+                    <label className={`medpro-btn-outline ${locked || frames.length >= 4 ? 'pointer-events-none opacity-50' : ''}`}>
                         Chọn ảnh để ghép
-                        <input type="file" accept="image/*" multiple className="sr-only" onChange={addFrames} />
+                        <input type="file" accept="image/*" multiple className="sr-only" disabled={locked} onChange={addFrames} />
                     </label>
                     <span className="text-[11px] text-slate-500">
                         Chọn tối đa 4 khung hình theo thứ tự vị trí. Hệ thống tự ghép thành 1 ảnh khi lưu.
@@ -165,6 +168,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
             <ResultFormFooter
                 submitting={submitting || merging}
                 alreadyReturned={order.trang_thai === 'da_co_ket_qua'}
+                disabled={notStarted}
                 onDraft={() => submit(false)}
                 onSubmit={() => submit(true)}
             />

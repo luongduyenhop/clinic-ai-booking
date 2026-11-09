@@ -36,9 +36,7 @@ from app.services.subclinical_service import subclinical_service
 
 router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghiệm / CĐHA (LIS & PACS)"])
 
-# Bàn làm việc CLS: kỹ thuật viên thực hiện, bác sĩ theo dõi/hủy chỉ định của mình, admin giám sát
 CLS_WORKBENCH_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN]
-# Ký duyệt & trả kết quả do kỹ thuật viên phòng CLS thực hiện (admin giám sát), không phải bác sĩ chỉ định
 CLS_APPROVER_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.ADMIN]
 
 
@@ -56,6 +54,7 @@ async def get_subclinical_queue(
         None, pattern=f"^({'|'.join(CLS_GROUPS)})$", description="Nhóm dịch vụ: XET_NGHIEM, CDHA, TDCN, NOI_SOI"
     ),
     ngay: Optional[date] = Query(None, description="Ngày chỉ định (YYYY-MM-DD), mặc định hôm nay theo giờ phòng khám"),
+    tat_ca_ngay: bool = Query(False, description="Xem tất cả các ngày (ca chờ thực hiện & gần đây)"),
     tu_khoa: Optional[str] = Query(None, max_length=100, description="Tìm theo tên, số điện thoại hoặc mã bệnh nhân"),
     current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
     db: AsyncSession = Depends(get_db)
@@ -66,6 +65,7 @@ async def get_subclinical_queue(
         db=db,
         nhom_dich_vu=nhom_dich_vu,
         ngay=ngay,
+        tat_ca_ngay=tat_ca_ngay,
         tu_khoa=tu_khoa,
     )
     return ResponseEnvelope.success_response(
@@ -200,7 +200,6 @@ async def submit_lab_result(
     return ResponseEnvelope.success_response(data=result, message=message)
 
 
-# ── Ảnh kết quả & phiếu kết quả Chẩn đoán hình ảnh ─────────────────────────
 @router.post(
     "/orders/{order_id}/files",
     response_model=ResponseEnvelope[ClsFileResponse],
@@ -318,7 +317,6 @@ async def save_imaging_result(
     )
 
 
-# ── Ký duyệt & trả kết quả, phiếu in, kết quả mới cho bàn khám ─────────────
 @router.post(
     "/orders/{order_id}/approve",
     response_model=ResponseEnvelope[ClsApprovalResponse],

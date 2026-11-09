@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync } from '../../redux/actions/doctor/clinicalAction'
-import { SERVICE_GROUPS, ORDER_STATUS, clsDisplayStatus } from '../../utils/constants/clinical'
+import { SERVICE_GROUPS, ORDER_STATUS, clsDisplayStatus, isOrderNotStarted } from '../../utils/constants/clinical'
 import { formatDateTime } from '../../utils/helpers/formatDate'
 import { AppToast } from '../../components/common/AppNotification'
 import { ClinicIcon } from '../../components/common/ClinicIcon'
@@ -21,7 +21,7 @@ const STATUS_FILTERS = [
     { key: 'da_co_ket_qua', label: 'Có kết quả' },
 ]
 
-const APPROVAL_GROUPS = ['XET_NGHIEM', 'CDHA']
+const APPROVAL_GROUPS = ['XET_NGHIEM', 'CDHA', 'TDCN', 'NOI_SOI']
 
 const REFRESH_MS = 3000
 
@@ -52,6 +52,7 @@ export default function ParaclinicalWorkPage() {
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [keyword, setKeyword] = useState('')
     const [tuKhoa, setTuKhoa] = useState('')
+    const [tatCaNgay, setTatCaNgay] = useState(true)
     const [ngay, setNgay] = useState(todayIso)
     const [selectedId, setSelectedId] = useState(null)
     const [submitting, setSubmitting] = useState(false)
@@ -63,8 +64,8 @@ export default function ParaclinicalWorkPage() {
     }, [keyword])
 
     const load = useCallback(
-        (silent = false) => dispatch(fetchClsWorklistAsync({ tuKhoa, ngay, silent })),
-        [dispatch, tuKhoa, ngay]
+        (silent = false) => dispatch(fetchClsWorklistAsync({ tuKhoa, ngay: tatCaNgay ? null : ngay, tatCaNgay, silent })),
+        [dispatch, tuKhoa, ngay, tatCaNgay]
     )
 
     useEffect(() => {
@@ -206,17 +207,42 @@ export default function ParaclinicalWorkPage() {
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                     />
-                    <label className="flex items-center gap-2 text-[12px] text-slate-500">
-                        Ngày chỉ định
-                        <input
-                            type="date"
-                            className="medpro-input flex-1"
-                            aria-label="Ngày chỉ định"
-                            value={ngay}
-                            max={todayIso()}
-                            onChange={(e) => setNgay(e.target.value || todayIso())}
-                        />
-                    </label>
+                    <div className="flex items-center justify-between gap-2 text-[12px]">
+                        <span className="font-semibold text-slate-600">Phạm vi ngày</span>
+                        <div className="flex rounded-lg bg-slate-100 p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => setTatCaNgay(true)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                                    tatCaNgay ? 'bg-white text-[#003553] shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Tất cả ngày
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTatCaNgay(false)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                                    !tatCaNgay ? 'bg-white text-[#003553] shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Theo ngày
+                            </button>
+                        </div>
+                    </div>
+                    {!tatCaNgay && (
+                        <label className="flex items-center gap-2 text-[12px] text-slate-500">
+                            Ngày chỉ định
+                            <input
+                                type="date"
+                                className="medpro-input flex-1"
+                                aria-label="Ngày chỉ định"
+                                value={ngay}
+                                max={todayIso()}
+                                onChange={(e) => setNgay(e.target.value || todayIso())}
+                            />
+                        </label>
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                         {STATUS_FILTERS.map((f) => {
                             const n = f.key === 'ALL' ? groupOrders.length : groupOrders.filter((o) => clsDisplayStatus(o) === f.key).length
@@ -302,7 +328,7 @@ export default function ParaclinicalWorkPage() {
                                         <ClinicIcon name="Warning" size={13} weight="bold" /> {selected.benh_nhan.di_ung_thuoc}
                                     </span>
                                 )}
-                                {(selected.trang_thai === 'da_chi_dinh' || selected.trang_thai === 'CHO_THUC_HIEN') && (
+                                {isOrderNotStarted(selected) && (
                                     <button type="button" className="medpro-btn-amber" onClick={handleStart} disabled={starting}>
                                         {starting ? 'Đang tiếp nhận…' : 'Tiếp nhận & bắt đầu'}
                                     </button>

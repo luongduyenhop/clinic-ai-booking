@@ -51,7 +51,7 @@ const userSlice = createSlice({
             .addCase(fetchAvailableSlotsAsync.rejected, (state, action) => { state.slotsLoading = false; state.bookingError = action.payload || 'Không thể tải khung giờ' })
             .addCase(createPatientBookingAsync.pending, (state) => { state.loading = true; state.bookingError = null })
             .addCase(createPatientBookingAsync.fulfilled, (state, action) => { state.loading = false; state.latestBooking = action.payload; state.appointments.unshift(action.payload) })
-            .addCase(createPatientBookingAsync.rejected, (state, action) => { state.loading = false; state.bookingError = action.payload || 'Đặt lịch không thành công' })
+            .addCase(createPatientBookingAsync.rejected, (state, action) => { state.loading = false; state.bookingError = action.payload?.message || action.payload || 'Đặt lịch không thành công' })
             .addCase(analyzeSymptomsAsync.pending, (state) => { state.triageLoading = true; state.triageError = null; state.triageResult = null })
             .addCase(analyzeSymptomsAsync.fulfilled, (state, action) => { state.triageLoading = false; state.triageResult = action.payload })
             .addCase(analyzeSymptomsAsync.rejected, (state, action) => { state.triageLoading = false; state.triageError = action.payload || 'Không thể phân tích triệu chứng' })

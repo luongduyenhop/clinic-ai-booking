@@ -6,5 +6,10 @@ export const fetchAvailableSlotsAsync = createAsyncThunk('user/fetchAvailableSlo
 })
 
 export const createPatientBookingAsync = createAsyncThunk('user/createPatientBooking', async (payload, { rejectWithValue }) => {
-    try { return await bookingService.createBooking(payload) } catch (error) { return rejectWithValue(error.message) }
+    try { return await bookingService.createBooking(payload) } catch (error) {
+        return rejectWithValue({
+            message: error.response?.data?.message || error.response?.data?.Message || error.message || 'Đặt lịch không thành công',
+            status: error.response?.status,
+        })
+    }
 })

@@ -3,15 +3,28 @@ import { ArrowRight, Info, Robot, Stethoscope } from '../../common/ClinicIcon'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
 
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().replace(/\bkhoa\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const displayReason = (reason) => String(reason || '')
+    .replace(/\[(?:Định tuyến theo từ khóa|Độ tin cậy cao):\s*\d+%\]\s*/gi, '')
+    .replace(/Độ tin cậy chuyên khoa cao nhất là \d+% hoặc mô tả chưa có đủ 2 dấu hiệu đặc hiệu\.\s*/gi, 'Mô tả triệu chứng chưa có đủ dấu hiệu đặc hiệu. ')
 
 export default function SpecialtyRecommendation({ result, symptoms, onRestart }) {
-    const { specialties } = useMedicalCatalog()
+    const { specialties, doctors, loading: catalogLoading, error: catalogError } = useMedicalCatalog()
+
+    const getRecommendationState = (recommendation) => ({
+        aiRecommendation: {
+            analysisId: result.analysisId,
+            symptoms,
+            specialtyName: recommendation.specialtyName,
+            confidence: result.confidence,
+            reason: recommendation.reason,
+        },
+    })
+
     return (
         <section className="max-w-3xl mx-auto medpro-card p-6 sm:p-9">
             <div className="text-center">
                 <Robot size={34} className="text-[#00A9E3] mx-auto" />
                 <h1 className="mt-5 font-display text-2xl font-extrabold text-[#003553]">Gợi ý chuyên khoa phù hợp</h1>
-                <p className="mt-2 text-sm">Độ tin cậy: <strong>{result.confidence}%</strong></p>
             </div>
             {result.needsHumanSupport && (
                 <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 flex items-center gap-2">
@@ -21,34 +34,65 @@ export default function SpecialtyRecommendation({ result, symptoms, onRestart })
             <div className="mt-6 grid gap-4">
                 {result.recommendations.map((recommendation, index) => {
                     const name = normalize(recommendation.specialtyName)
-                    const match = specialties.find((item) => {
+                    const match = specialties.find((item) => item.id === String(recommendation.specialtyId)) || specialties.find((item) => {
                         const value = normalize(item.name)
                         return value === name || value.includes(name) || name.includes(value)
                     })
                     const target = match ? `/dat-lich?specialty=${match.id}` : '/dat-lich'
+                    const suggestedDoctors = (recommendation.doctors || [])
+                        .map((suggestion) => {
+                            const doctor = doctors.find((item) => item.id === String(suggestion.id) && item.specialtyId === match?.id)
+                            return doctor ? { ...doctor, ...suggestion } : null
+                        })
+                        .filter(Boolean)
                     return (
-                        <article key={index} className="rounded-2xl border border-[#B8E5FA] bg-[#F7FCFF] p-5 sm:flex items-center gap-5">
-                            <Stethoscope size={25} className="text-[#00A9E3]" />
-                            <div className="flex-1">
-                                <p className="text-xs font-semibold text-[#008EC2]">Gợi ý {index + 1}</p>
-                                <h2 className="font-bold text-[#003553]">{recommendation.specialtyName}</h2>
-                                <p className="text-xs text-slate-600">{recommendation.reason}</p>
+                        <article key={`${recommendation.specialtyId}-${index}`} className="rounded-2xl border border-[#B8E5FA] bg-[#F7FCFF] p-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <Stethoscope size={25} className="text-[#00A9E3]" />
+                                <div className="flex-1">
+                                    <p className="text-xs font-semibold text-[#008EC2]">Gợi ý {index + 1}</p>
+                                    <h2 className="font-bold text-[#003553]">{recommendation.specialtyName}</h2>
+                                    <p className="text-xs text-slate-600">{displayReason(recommendation.reason)}</p>
+                                </div>
+                                <Link to={target} state={getRecommendationState(recommendation)} className="medpro-btn-primary min-h-11">
+                                    Đặt lịch theo khoa <ArrowRight size={15} />
+                                </Link>
                             </div>
-                            <Link
-                                to={target}
-                                state={{
-                                    aiRecommendation: {
-                                        analysisId: result.analysisId,
-                                        symptoms,
-                                        specialtyName: recommendation.specialtyName,
-                                        confidence: result.confidence,
-                                        reason: recommendation.reason,
-                                    },
-                                }}
-                                className="medpro-btn-primary min-h-11"
-                            >
-                                Đặt lịch <ArrowRight size={15} />
-                            </Link>
+
+                            <div className="mt-5 border-t border-[#D9EEF8] pt-4">
+                                <h3 className="text-sm font-bold text-[#003553]">Bác sĩ có giờ trống sớm nhất</h3>
+                                {catalogLoading ? (
+                                    <p role="status" className="mt-3 text-xs text-slate-500">Đang tải danh sách bác sĩ...</p>
+                                ) : catalogError ? (
+                                    <p role="alert" className="mt-3 text-xs text-rose-600">Không tải được danh sách bác sĩ: {catalogError}</p>
+                                ) : suggestedDoctors.length ? (
+                                    <ul className="mt-3 grid max-w-2xl gap-3">
+                                        {suggestedDoctors.map((doctor) => (
+                                            <li key={doctor.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E8F4FD] text-xs font-bold text-[#008EC2]" aria-hidden="true">
+                                                    {doctor.initials}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-semibold text-[#003553]">{doctor.name}</p>
+                                                    <p className="text-xs text-slate-500">{doctor.degree || doctor.experience || recommendation.specialtyName}</p>
+                                                    <p className="mt-1 text-xs font-medium text-emerald-700">
+                                                        Trống gần nhất: {doctor.nextAvailableDate ? new Date(`${doctor.nextAvailableDate}T00:00:00`).toLocaleDateString('vi-VN') : 'Chưa có ngày'} lúc {doctor.nextAvailableTime || '--:--'}
+                                                    </p>
+                                                </div>
+                                                <Link
+                                                    to={`/dat-lich?${new URLSearchParams({ specialty: match.id, doctor: doctor.id, date: doctor.nextAvailableDate, slot: doctor.nextAvailableTime })}`}
+                                                    state={getRecommendationState(recommendation)}
+                                                    className="shrink-0 text-xs font-bold text-[#008EC2] hover:underline"
+                                                >
+                                                    Chọn giờ này
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="mt-3 text-xs text-slate-500">Hiện chưa tìm thấy bác sĩ có slot trống trong 30 ngày tới.</p>
+                                )}
+                            </div>
                         </article>
                     )
                 })}

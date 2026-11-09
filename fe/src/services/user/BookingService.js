@@ -38,7 +38,7 @@ class BookingService {
             trieu_chung_ban_dau: payload.aiRecommendation?.symptoms || payload.patient?.reason || '',
             phan_tich_ai_id: payload.aiRecommendation?.analysisId || null,
         }
-        const res = await http.post('/api/v1/appointments', body)
+        const res = await http.post('/api/v1/appointments', body, { __skipGlobalError: true })
         const record = res?.data?.data
         if (!record?.id || !record?.ma_lich_kham) throw new Error('Backend chưa xác nhận lịch hẹn. Vui lòng thử lại.')
         return {

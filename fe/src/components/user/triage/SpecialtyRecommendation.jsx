@@ -22,7 +22,6 @@ export default function SpecialtyRecommendation({ result, symptoms, onRestart })
             <div className="text-center">
                 <Robot size={34} className="text-[#00A9E3] mx-auto" />
                 <h1 className="mt-5 font-display text-2xl font-extrabold text-[#003553]">Gợi ý chuyên khoa phù hợp</h1>
-                <p className="mt-2 text-sm">Độ tin cậy: <strong>{result.confidence}%</strong></p>
             </div>
             {result.needsHumanSupport && (
                 <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 flex items-center gap-2">

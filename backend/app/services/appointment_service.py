@@ -288,6 +288,74 @@ class AppointmentService:
             slots=generated_slots
         )
 
+    async def get_nearest_available_slots(
+        self,
+        doctor_ids: List[int],
+        db: AsyncSession,
+        days_ahead: int = 30,
+    ) -> dict[int, Tuple[date, str]]:
+        """Return each doctor's first bookable date/time using the same slot rules as booking.
+
+        Reads shifts and occupied appointments in batches so AI triage does not issue one
+        database round trip per doctor/day.
+        """
+        doctor_ids = list(dict.fromkeys(doctor_ids))
+        if not doctor_ids:
+            return {}
+
+        today = clinic_now().date()
+        last_day = today + timedelta(days=max(days_ahead, 0))
+        shifts_stmt = select(
+            LichLamViec.bac_si_id,
+            LichLamViec.ngay_lam_viec,
+            LichLamViec.gio_bat_dau,
+            LichLamViec.gio_ket_thuc,
+        ).where(
+            and_(
+                LichLamViec.bac_si_id.in_(doctor_ids),
+                LichLamViec.ngay_lam_viec.between(today, last_day),
+                LichLamViec.is_active.is_(True),
+            )
+        ).order_by(LichLamViec.ngay_lam_viec, LichLamViec.gio_bat_dau)
+        shifts_by_doctor_day: dict[tuple[int, date], list[tuple[time, time]]] = {}
+        for doctor_id, work_date, start_time, end_time in (await db.execute(shifts_stmt)).all():
+            shifts_by_doctor_day.setdefault((doctor_id, work_date), []).append((start_time, end_time))
+
+        appointments_stmt = select(
+            LichKham.bac_si_id,
+            LichKham.ngay_kham,
+            LichKham.gio_kham,
+            LichKham.thoi_luong_phut,
+        ).where(
+            and_(
+                LichKham.bac_si_id.in_(doctor_ids),
+                LichKham.ngay_kham.between(today, last_day),
+                LichKham.trang_thai.in_(OCCUPYING_SLOT_STATUSES),
+                LichKham.gio_kham.is_not(None),
+            )
+        )
+        booked_by_doctor_day: dict[tuple[int, date], list[tuple[datetime, datetime]]] = {}
+        for doctor_id, appointment_date, start_time, duration in (await db.execute(appointments_stmt)).all():
+            start = datetime.combine(appointment_date, start_time)
+            booked_by_doctor_day.setdefault((doctor_id, appointment_date), []).append(
+                (start, start + timedelta(minutes=duration))
+            )
+
+        nearest: dict[int, Tuple[date, str]] = {}
+        for (doctor_id, work_date), shifts in sorted(shifts_by_doctor_day.items(), key=lambda item: (item[0][1], item[0][0])):
+            if doctor_id in nearest:
+                continue
+            slots = build_day_slots(
+                work_date,
+                shifts,
+                booked_by_doctor_day.get((doctor_id, work_date), []),
+                clinic_now(),
+            )
+            first_available = next((slot for slot in slots if slot.status == "available"), None)
+            if first_available:
+                nearest[doctor_id] = (work_date, first_available.time_str)
+        return nearest
+
     async def create_booking(
         self,
         payload: AppointmentCreateRequest,

@@ -1,6 +1,15 @@
+from datetime import date
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
-from app.schemas.appointment import DoctorBriefResponse
+
+
+class AISuggestedDoctorResponse(BaseModel):
+    id: int
+    ho_ten: str
+    chuyen_khoa: str
+    hoc_vi: Optional[str] = None
+    ngay_kham_gan_nhat: date = Field(..., description="Ngày còn slot khám gần nhất")
+    gio_kham_gan_nhat: str = Field(..., description="Giờ còn slot khám gần nhất, định dạng HH:MM")
 
 
 class TriageContext(BaseModel):
@@ -39,7 +48,7 @@ class SpecialtySuggestion(BaseModel):
     do_tin_cay: float = Field(..., description="Độ tin cậy từ mô hình AI (0.0 - 1.0)")
     muc_do_tin_cay: Optional[str] = Field(None, description="Mức độ tin cậy: 'cao' (>=75%), 'trung_binh' (đạt ngưỡng định tuyến), 'thap' (dưới ngưỡng, chuyển Nội tổng quát)")
     ly_do_de_xuat: str = Field(..., description="Giải thích căn cứ y khoa tóm tắt")
-    danh_sach_bac_si: List[DoctorBriefResponse] = []
+    danh_sach_bac_si: List[AISuggestedDoctorResponse] = Field(default_factory=list)
 
 
 class DiseasePrediction(BaseModel):

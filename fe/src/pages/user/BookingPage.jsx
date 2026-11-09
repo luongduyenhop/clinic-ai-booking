@@ -24,6 +24,8 @@ export default function BookingPage() {
     const { availableSlots, slotsLoading, loading, bookingError, latestBooking } = useSelector((state) => state.user.user)
     const requestedSpecialty = searchParams.get('specialty')
     const requestedDoctor = searchParams.get('doctor')
+    const requestedDate = searchParams.get('date')
+    const requestedSlot = searchParams.get('slot')
     const [step, setStep] = useState(1)
     const [booking, setBooking] = useState({ specialtyId: '', doctorId: '', appointmentDate: '', timeSlot: '' })
 
@@ -31,8 +33,16 @@ export default function BookingPage() {
         if (catalogLoading || catalogError) return
         const specialty = specialties.find((item) => item.id === requestedSpecialty)
         const doctor = doctors.find((item) => item.id === requestedDoctor && item.specialtyId === specialty?.id)
-        setBooking((prev) => ({ ...prev, specialtyId: specialty?.id || '', doctorId: doctor?.id || '' }))
-    }, [catalogLoading, catalogError, specialties, doctors, requestedSpecialty, requestedDoctor])
+        const hasSuggestedSlot = Boolean(doctor && requestedDate && requestedSlot)
+        setBooking((prev) => ({
+            ...prev,
+            specialtyId: specialty?.id || '',
+            doctorId: doctor?.id || '',
+            appointmentDate: hasSuggestedSlot ? requestedDate : '',
+            timeSlot: hasSuggestedSlot ? requestedSlot : '',
+        }))
+        if (hasSuggestedSlot) setStep(2)
+    }, [catalogLoading, catalogError, specialties, doctors, requestedSpecialty, requestedDoctor, requestedDate, requestedSlot])
 
     useEffect(() => () => { dispatch(clearLatestBooking()) }, [dispatch])
     useEffect(() => {
@@ -43,7 +53,7 @@ export default function BookingPage() {
         enableReinitialize: true,
         initialValues: { reason: '', accepted: false },
         validationSchema: Yup.object({
-            reason: Yup.string().max(500, 'Nội dung tối đa 500 ký tự').required('Vui lòng mô tả ngắn lý do khám'),
+            reason: Yup.string().max(500, 'Nội dung tối đa 500 ký tự'),
             accepted: Yup.boolean().oneOf([true], 'Bạn cần đồng ý với chính sách bảo mật'),
         }),
         onSubmit: async (patient) => {

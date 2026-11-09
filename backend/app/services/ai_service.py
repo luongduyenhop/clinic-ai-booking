@@ -15,7 +15,9 @@ from app.schemas.ai import (
     SymptomTriageResponse, 
     SpecialtySuggestion
 )
-from app.schemas.appointment import DoctorBriefResponse
+from app.schemas.ai import AISuggestedDoctorResponse
+from app.services.appointment_service import appointment_service
+from app.services.medical_service import medical_service
 from app.ml.triage_model import (
     AITriageModelError,
     MODEL_VERSION,
@@ -380,20 +382,28 @@ class AIService:
         if ck:
             ck_id = ck.id
             display_name = ck.ten_chuyen_khoa
-            stmt_bs = (
-                select(BacSi, NguoiDung)
-                .join(NguoiDung, BacSi.nguoi_dung_id == NguoiDung.id)
-                .where(BacSi.chuyen_khoa_id == ck.id)
-                .limit(3)
+            stmt_bs = medical_service._visible_doctors(BacSi, NguoiDung, ChuyenKhoa).where(
+                BacSi.chuyen_khoa_id == ck.id
             )
             bs_list = (await db.execute(stmt_bs)).all()
-            for bac_si, nguoi_dung in bs_list:
+            nearest_slots = await appointment_service.get_nearest_available_slots(
+                [bac_si.id for bac_si, _, _ in bs_list], db
+            )
+            bookable_doctors = [
+                (bac_si, nguoi_dung, nearest_slots[bac_si.id])
+                for bac_si, nguoi_dung, _ in bs_list
+                if bac_si.id in nearest_slots
+            ]
+            bookable_doctors.sort(key=lambda item: (item[2][0], item[2][1], item[0].id))
+            for bac_si, nguoi_dung, (available_date, available_time) in bookable_doctors[:1]:
                 doctor_briefs.append(
-                    DoctorBriefResponse(
+                    AISuggestedDoctorResponse(
                         id=bac_si.id,
                         ho_ten=nguoi_dung.ho_ten,
                         chuyen_khoa=display_name,
-                        hoc_vi=bac_si.hoc_vi
+                        hoc_vi=bac_si.hoc_vi,
+                        ngay_kham_gan_nhat=available_date,
+                        gio_kham_gan_nhat=available_time,
                     )
                 )
 

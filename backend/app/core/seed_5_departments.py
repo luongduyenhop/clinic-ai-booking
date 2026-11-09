@@ -47,10 +47,20 @@ DEPARTMENTS_DATA = [
 ROOMS_DATA = [
     {"ma": "P101", "ten": "Phòng Khám Nội Tổng Quát 1", "dept_ma": "KHOA_NOI", "tang": "Tầng 1", "loai": "kham_benh"},
     {"ma": "P102", "ten": "Phòng Khám Nội Tổng Quát 2", "dept_ma": "KHOA_NOI", "tang": "Tầng 1", "loai": "kham_benh"},
+    {"ma": "P103", "ten": "Phòng Khám Nội Tổng Quát 3", "dept_ma": "KHOA_NOI", "tang": "Tầng 1", "loai": "kham_benh"},
+    {"ma": "P104", "ten": "Phòng Khám Nội Tổng Quát 4", "dept_ma": "KHOA_NOI", "tang": "Tầng 1", "loai": "kham_benh"},
     {"ma": "P201", "ten": "Phòng Khám Ngoại & Tiểu Phẫu", "dept_ma": "KHOA_NGOAI", "tang": "Tầng 2", "loai": "kham_benh"},
+    {"ma": "P211", "ten": "Phòng Khám Ngoại Tổng Quát 2", "dept_ma": "KHOA_NGOAI", "tang": "Tầng 2", "loai": "kham_benh"},
+    {"ma": "P212", "ten": "Phòng Khám Ngoại Tổng Quát 3", "dept_ma": "KHOA_NGOAI", "tang": "Tầng 2", "loai": "kham_benh"},
     {"ma": "P202", "ten": "Phòng Khám Tai Mũi Họng & Nội Soi", "dept_ma": "KHOA_TMH", "tang": "Tầng 2", "loai": "kham_benh"},
+    {"ma": "P221", "ten": "Phòng Khám Tai Mũi Họng 2", "dept_ma": "KHOA_TMH", "tang": "Tầng 2", "loai": "kham_benh"},
+    {"ma": "P222", "ten": "Phòng Khám Tai Mũi Họng 3", "dept_ma": "KHOA_TMH", "tang": "Tầng 2", "loai": "kham_benh"},
     {"ma": "P301", "ten": "Phòng Khám Răng & Nha Khoa", "dept_ma": "KHOA_RANG", "tang": "Tầng 3", "loai": "kham_benh"},
+    {"ma": "P311", "ten": "Phòng Khám Răng Hàm Mặt 2", "dept_ma": "KHOA_RANG", "tang": "Tầng 3", "loai": "kham_benh"},
+    {"ma": "P312", "ten": "Phòng Khám Răng Hàm Mặt 3", "dept_ma": "KHOA_RANG", "tang": "Tầng 3", "loai": "kham_benh"},
     {"ma": "P302", "ten": "Phòng Khám Mắt & Đo Khúc Xạ", "dept_ma": "KHOA_MAT", "tang": "Tầng 3", "loai": "kham_benh"},
+    {"ma": "P321", "ten": "Phòng Khám Mắt 2", "dept_ma": "KHOA_MAT", "tang": "Tầng 3", "loai": "kham_benh"},
+    {"ma": "P322", "ten": "Phòng Khám Mắt 3", "dept_ma": "KHOA_MAT", "tang": "Tầng 3", "loai": "kham_benh"},
     {"ma": "LAB01", "ten": "Phòng Xét Nghiệm Trung Tâm", "dept_ma": None, "tang": "Tầng 1", "loai": "xet_nghiem"},
     {"ma": "CDHA01", "ten": "Phòng Chẩn Đoán Hình Ảnh (X-Quang / Siêu Âm)", "dept_ma": None, "tang": "Tầng 1", "loai": "chan_doan_hinh_anh"},
 ]
@@ -121,6 +131,56 @@ DOCTORS_DATA = [
         "kinh_nghiem": 12,
         "mo_ta": "Chuyên khoa Mắt, khám và điều trị tật khúc xạ học đường, bệnh lý kết mạc và đáy mắt",
         "gia_kham": 180000.0,
+    },
+    {
+        "ho_ten": "BS. CKI Nguyễn Thu Hà", "email": "ha.noi@clinic.test", "sdt": "0988000111",
+        "hoc_vi": "BS.CKI", "dept_ma": "KHOA_NOI", "room_ma": "P103", "kinh_nghiem": 11,
+        "mo_ta": "Khám Nội tổng quát, hô hấp và tư vấn kiểm soát bệnh mạn tính", "gia_kham": 190000.0,
+    },
+    {
+        "ho_ten": "ThS. BS Trần Minh Khoa", "email": "khoa.noi@clinic.test", "sdt": "0988000112",
+        "hoc_vi": "ThS.BS", "dept_ma": "KHOA_NOI", "room_ma": "P104", "kinh_nghiem": 9,
+        "mo_ta": "Khám Nội khoa, tiêu hóa và tư vấn sức khỏe định kỳ", "gia_kham": 180000.0,
+    },
+    {
+        "ho_ten": "BS. CKI Lê Quốc Bảo", "email": "bao.ngoai@clinic.test", "sdt": "0988000113",
+        "hoc_vi": "BS.CKI", "dept_ma": "KHOA_NGOAI", "room_ma": "P211", "kinh_nghiem": 12,
+        "mo_ta": "Khám Ngoại khoa, xử lý vết thương và tiểu phẫu", "gia_kham": 210000.0,
+    },
+    {
+        "ho_ten": "ThS. BS Phạm Anh Tuấn", "email": "tuan.ngoai@clinic.test", "sdt": "0988000114",
+        "hoc_vi": "ThS.BS", "dept_ma": "KHOA_NGOAI", "room_ma": "P212", "kinh_nghiem": 8,
+        "mo_ta": "Ngoại tổng quát, tư vấn và chăm sóc sau tiểu phẫu", "gia_kham": 190000.0,
+    },
+    {
+        "ho_ten": "BS. CKI Vũ Thanh Tâm", "email": "tam.tmh@clinic.test", "sdt": "0988000115",
+        "hoc_vi": "BS.CKI", "dept_ma": "KHOA_TMH", "room_ma": "P221", "kinh_nghiem": 13,
+        "mo_ta": "Khám Tai Mũi Họng và nội soi chẩn đoán", "gia_kham": 210000.0,
+    },
+    {
+        "ho_ten": "ThS. BS Nguyễn Hải Yến", "email": "yen.tmh@clinic.test", "sdt": "0988000116",
+        "hoc_vi": "ThS.BS", "dept_ma": "KHOA_TMH", "room_ma": "P222", "kinh_nghiem": 7,
+        "mo_ta": "Điều trị bệnh lý mũi xoang, họng và tai giữa", "gia_kham": 190000.0,
+    },
+    {
+        "ho_ten": "BS. CKI Nguyễn Hoài Nam", "email": "nam.rang@clinic.test", "sdt": "0988000117",
+        "hoc_vi": "BS.CKI", "dept_ma": "KHOA_RANG", "room_ma": "P311", "kinh_nghiem": 10,
+        "mo_ta": "Nha khoa tổng quát, điều trị tủy và phục hình răng", "gia_kham": 190000.0,
+    },
+    {
+        "ho_ten": "ThS. BS Đỗ Ngọc Anh", "email": "anh.rang@clinic.test", "sdt": "0988000118",
+        "hoc_vi": "ThS.BS", "dept_ma": "KHOA_RANG", "room_ma": "P312", "kinh_nghiem": 6,
+        "mo_ta": "Khám răng miệng, nha chu và chăm sóc răng trẻ em", "gia_kham": 170000.0,
+    },
+    {
+        "ho_ten": "BS. CKI Trần Thu Hương", "email": "huong.mat@clinic.test", "sdt": "0988000119",
+        "hoc_vi": "BS.CKI", "dept_ma": "KHOA_MAT", "room_ma": "P321", "kinh_nghiem": 12,
+        "mo_ta": "Khám thị lực, tật khúc xạ và bệnh lý võng mạc", "gia_kham": 190000.0,
+    },
+    {
+        "ho_ten": "ThS. BS Phan Đức Thành", "email": "thanh.mat@clinic.test", "sdt": "0988000120",
+        "hoc_vi": "ThS.BS", "dept_ma": "KHOA_MAT", "room_ma": "P322", "kinh_nghiem": 8,
+        "mo_ta": "Khám và điều trị bệnh lý kết mạc, giác mạc và khúc xạ", "gia_kham": 180000.0,
     },
 ]
 

@@ -41,7 +41,18 @@ class AiTriageService {
             analysisId: data.phan_tich_ai_id,
             symptoms: combinedText,
             needsHumanSupport: Boolean(data.default_assigned || data.needs_more_information || confidence < 40),
-            recommendations: suggestions.map((item) => ({ specialtyId: specialtyId(item.ten_chuyen_khoa), specialtyName: item.ten_chuyen_khoa, reason: item.ly_do_de_xuat })),
+            recommendations: suggestions.map((item) => ({
+                specialtyId: item.chuyen_khoa_id == null ? specialtyId(item.ten_chuyen_khoa) : String(item.chuyen_khoa_id),
+                specialtyName: item.ten_chuyen_khoa,
+                reason: item.ly_do_de_xuat,
+                doctors: (item.danh_sach_bac_si || []).map((doctor) => ({
+                    id: String(doctor.id),
+                    name: doctor.ho_ten,
+                    degree: doctor.hoc_vi || '',
+                    nextAvailableDate: doctor.ngay_kham_gan_nhat || '',
+                    nextAvailableTime: doctor.gio_kham_gan_nhat || '',
+                })),
+            })),
             source: 'BACKEND_API',
         }
     }

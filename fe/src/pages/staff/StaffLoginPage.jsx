@@ -98,6 +98,17 @@ const STAFF_ACCOUNTS = [
     },
 ]
 
+const clearStaleSessionStorage = () => {
+    try {
+        localStorage.removeItem('CLINIC_AI_DOCTOR_WORKSPACE_V1')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('role')
+        localStorage.removeItem('portal_auth')
+    } catch {
+    }
+}
+
 export default function StaffLoginPage() {
     const navigate = useNavigate()
     const location = useLocation()
@@ -125,10 +136,7 @@ export default function StaffLoginPage() {
                 userProfile = staffConfig.profile
             }
 
-            try {
-                localStorage.removeItem('CLINIC_AI_DOCTOR_WORKSPACE_V1')
-            } catch {
-            }
+            clearStaleSessionStorage()
 
             dispatch(
                 setAuth({
@@ -162,10 +170,7 @@ export default function StaffLoginPage() {
                 const role = rawRole === 'THU_NGAN' || rawRole === 'CASHIER' ? 'LE_TAN' : rawRole
                 const user = data.user || { email: values.email, fullName: values.email, role }
 
-                try {
-                    localStorage.removeItem('CLINIC_AI_DOCTOR_WORKSPACE_V1')
-                } catch {
-                }
+                clearStaleSessionStorage()
 
                 dispatch(
                     setAuth({

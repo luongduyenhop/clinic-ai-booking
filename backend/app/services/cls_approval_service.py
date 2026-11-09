@@ -367,11 +367,11 @@ class ClsApprovalService:
             nguoi_duyet=approver,
             thoi_gian_duyet=kq.thoi_gian_duyet,
             ket_qua_phan_loai=order.ket_qua_phan_loai,
-            ket_luan=phieu.ket_luan or detail.get("ket_luan"),
+            ket_luan=phieu.ket_luan or detail.get("ket_luan") or (order.ket_qua_chi_tiet if order.ket_qua_chi_tiet and not order.ket_qua_chi_tiet.strip().startswith("{") else None),
             ghi_chu=phieu.ghi_chu or detail.get("ghi_chu"),
-            mo_ta_hinh_anh=phieu.mo_ta_hinh_anh,
-            de_nghi=phieu.de_nghi,
-            tep_dinh_kem_urls=list(order.file_dinh_kem_urls or []),
+            mo_ta_hinh_anh=phieu.mo_ta_hinh_anh or detail.get("mo_ta"),
+            de_nghi=phieu.de_nghi or detail.get("de_nghi"),
+            tep_dinh_kem_urls=list(order.file_dinh_kem_urls or ([order.tep_dinh_kem_url] if order.tep_dinh_kem_url else [])),
         )
         if report.loai_phieu == LOAI_PHIEU_XET_NGHIEM:
             entered = detail.get("chi_so") or {}

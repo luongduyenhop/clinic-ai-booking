@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
-import { IMAGING_PRESETS } from '../../../utils/constants/clinical'
+import { IMAGING_PRESETS, isOrderNotStarted } from '../../../utils/constants/clinical'
 import { clinicalService } from '../../../services/doctor/ClinicalService'
 import { PresetChips, ResultFormFooter, PerformerFields } from './ResultFormParts'
 import ClsImageUploader from './ClsImageUploader'
@@ -12,22 +12,28 @@ const CLASS_OPTIONS = [
     { value: 'NGUY_KICH', label: 'Nguy kịch' },
 ]
 
-// Dịch vụ thêm sau seed (mã khác DV_SA_BUNG / DV_XQ_NGUC...) vẫn có mẫu mô tả theo tên dịch vụ
 const presetsFor = (order) => {
     if (IMAGING_PRESETS[order.ma_dich_vu]) return IMAGING_PRESETS[order.ma_dich_vu]
     const name = (order.ten_dich_vu || '').toLowerCase()
     if (name.includes('siêu âm') && name.includes('bụng')) return IMAGING_PRESETS.DV_SA_BUNG
     if (name.includes('siêu âm') && name.includes('tim')) return IMAGING_PRESETS.DV_SA_TIM
+    if (name.includes('siêu âm') && name.includes('giáp')) return IMAGING_PRESETS.DV_SA_GIAP
+    if (name.includes('siêu âm') && name.includes('vú')) return IMAGING_PRESETS.DV_SA_VU
+    if (name.includes('mạch máu') || name.includes('doppler')) return IMAGING_PRESETS.DV_SA_MACH_CHI
     if (/x[\s-]?quang/.test(name) && /(ngực|phổi)/.test(name)) return IMAGING_PRESETS.DV_XQ_NGUC
+    if (/x[\s-]?quang/.test(name) && name.includes('xoang')) return IMAGING_PRESETS.DV_XQ_XOANG
+    if (/x[\s-]?quang/.test(name) && (name.includes('cột sống') || name.includes('thắt lưng'))) return IMAGING_PRESETS.DV_XQ_COT_SONG
+    if (/x[\s-]?quang/.test(name) && name.includes('khớp gối')) return IMAGING_PRESETS.DV_XQ_KHOP_GOI
+    if (/x[\s-]?quang/.test(name) && (name.includes('răng') || name.includes('pano'))) return IMAGING_PRESETS.DV_XQ_RANG_PANO
     return {}
 }
 
-// Form kết quả Chẩn đoán hình ảnh: Mô tả / Kết luận / Đề nghị + nhiều ảnh JPG/PNG lưu trên máy chủ
 export default function ImagingResultForm({ order, submitting, onSubmit }) {
     const presets = presetsFor(order)
     const detail = order.ket_qua_chi_tiet || {}
     const [images, setImages] = useState([])
     const [approved, setApproved] = useState(false)
+    const notStarted = isOrderNotStarted(order)
 
     const formik = useFormik({
         initialValues: {
@@ -49,7 +55,6 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
         formikRef.current = formik
     })
 
-    // Phiếu kết quả (kể cả bản nháp) và ảnh đã tải lên được đọc lại từ máy chủ, nên tải lại trang vẫn còn
     useEffect(() => {
         let cancelled = false
         clinicalService
@@ -76,8 +81,7 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
     }, [order.id])
 
     const pickPreset = (name) => setValues({ ...values, mo_ta: presets[name].mo_ta, ket_luan: presets[name].ket_luan })
-    // Đã duyệt & trả (da_co_ket_qua) thì khóa toàn bộ form; đã hoàn tất (chờ duyệt) thì vẫn sửa được
-    const locked = approved || order.trang_thai === 'da_co_ket_qua'
+    const locked = approved || order.trang_thai === 'da_co_ket_qua' || notStarted
     const completed = order.trang_thai_ket_qua === 'DA_CO_KET_QUA'
 
     const submit = async (final) => {
@@ -136,16 +140,17 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
                         orderId={order.id}
                         urls={images}
                         onChange={setImages}
-                        disabled={order.trang_thai === 'da_chi_dinh' || locked}
+                        disabled={locked}
                         disabledHint={approved ? 'Kết quả đã duyệt, không thay đổi ảnh' : 'Bấm “Tiếp nhận & bắt đầu” để tải ảnh lên'}
                     />
                 </div>
             </div>
 
-            {!locked && (
+            {(!locked || notStarted) && (
                 <ResultFormFooter
                     submitting={submitting}
                     needsApproval
+                    disabled={notStarted}
                     alreadyReturned={completed}
                     onDraft={() => submit(false)}
                     onSubmit={() => submit(true)}

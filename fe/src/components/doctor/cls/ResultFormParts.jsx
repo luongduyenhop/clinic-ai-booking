@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { uploadFileAsync } from '../../../redux/actions/doctor/clinicalAction'
 import { AppToast } from '../../common/AppNotification'
 import { ClinicIcon } from '../../common/ClinicIcon'
@@ -7,7 +7,6 @@ import { RESULT_CLASS } from '../../../utils/constants/clinical'
 
 const MAX_SIZE = 10 * 1024 * 1024
 
-// Ô đính kèm 1 tệp (ảnh hoặc PDF)
 export function FileAttachField({ label, value, onChange, accept = 'image/*,application/pdf', disabled }) {
     const dispatch = useDispatch()
     const [uploading, setUploading] = useState(false)
@@ -90,22 +89,23 @@ export function ClassificationBar({ value, abnormalCount }) {
     )
 }
 
-// needsApproval: nhóm XN/CĐHA — nút chính chỉ "Hoàn tất kết quả", KTV duyệt & trả ở bước sau
-export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturned, needsApproval = false }) {
+export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturned, needsApproval = false, disabled = false }) {
     const submitLabel = needsApproval ? 'Hoàn tất kết quả' : 'Trả kết quả'
     return (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
             <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
-                {needsApproval
+                {disabled
+                    ? 'Vui lòng bấm “Tiếp nhận & bắt đầu” ở góc trên trước khi lưu hoặc hoàn tất kết quả.'
+                    : needsApproval
                     ? 'Sau khi hoàn tất, bấm “Duyệt & Trả kết quả” để kết quả hiện trên Bàn khám của bác sĩ chỉ định.'
                     : 'Khi trả, kết quả hiện ngay ở cột “Kết quả CLS” trên Bàn khám và bệnh nhân được xếp bậc 3 để quay lại kết luận.'}
             </span>
             {!(needsApproval && alreadyReturned) && (
-                <button type="button" className="medpro-btn-outline" disabled={submitting} onClick={onDraft}>
+                <button type="button" className="medpro-btn-outline" disabled={disabled || submitting} onClick={onDraft}>
                     Lưu nháp
                 </button>
             )}
-            <button type="button" className="medpro-btn-primary" disabled={submitting} onClick={onSubmit}>
+            <button type="button" className="medpro-btn-primary" disabled={disabled || submitting} onClick={onSubmit}>
                 {submitting ? 'Đang gửi…' : alreadyReturned ? 'Cập nhật kết quả' : submitLabel}
                 <ClinicIcon name="ArrowRight" size={16} weight="bold" />
             </button>
@@ -114,6 +114,8 @@ export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturne
 }
 
 export function PerformerFields({ serviceName }) {
+    const currentUser = useSelector((state) => state.app.auth.user)
+    const performerName = currentUser?.fullName || currentUser?.shortName || currentUser?.hoTen || currentUser?.name || 'Kỹ thuật viên phòng CLS'
     const [performedAt] = useState(() => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date()))
     return (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -123,7 +125,7 @@ export function PerformerFields({ serviceName }) {
             </label>
             <label>
                 <span className="medpro-label">Người thực hiện</span>
-                <input className="medpro-input" value="Bác sĩ đang đăng nhập" readOnly />
+                <input className="medpro-input" value={performerName} readOnly />
             </label>
             <label>
                 <span className="medpro-label">Thời gian</span>

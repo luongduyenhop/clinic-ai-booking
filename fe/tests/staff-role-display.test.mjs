@@ -6,8 +6,8 @@ test('all six API roles display their own label rather than falling back to admi
     for (const [apiRole, databaseRole, label] of [
         ['ADMIN', 'admin', 'Quản trị viên'],
         ['DOCTOR', 'bac_si', 'Bác sĩ'],
-        ['RECEPTIONIST', 'le_tan', 'Lễ tân'],
-        ['CASHIER', 'thu_ngan', 'Thu ngân'],
+        ['RECEPTIONIST', 'le_tan', 'Lễ tân – Thu ngân'],
+        ['CASHIER', 'thu_ngan', 'Lễ tân – Thu ngân'],
         ['TECHNICIAN', 'ky_thuat_vien', 'Kỹ thuật viên CLS'],
         ['PATIENT', 'benh_nhan', 'Bệnh nhân'],
     ]) {

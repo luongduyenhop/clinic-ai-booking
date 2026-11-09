@@ -2,8 +2,7 @@ import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { createServer } from 'vite'
 
-// Load the actual service/slice with Vite's normal JSX and extension resolution.
-const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' })
 after(() => server.close())
 const storage = new Map()
 globalThis.localStorage = {

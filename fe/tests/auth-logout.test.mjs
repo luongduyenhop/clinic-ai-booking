@@ -10,13 +10,21 @@ globalThis.localStorage = {
     setItem: (key, value) => storage.set(key, String(value)),
     removeItem: (key) => storage.delete(key),
 }
-const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' })
 const { default: reducer, setAuth, logout } = await server.ssrLoadModule('/src/redux/slices/authSlice.js')
 const { logoutUserAsync } = await server.ssrLoadModule('/src/redux/actions/user/authAction.js')
 const { http, injectStore } = await server.ssrLoadModule('/src/services/BaseService.js')
 const { AppToast } = await server.ssrLoadModule('/src/components/common/AppNotification.jsx')
+const ssrAxiosModule = await server.ssrLoadModule('axios')
+const ssrAxios = ssrAxiosModule.default || ssrAxiosModule
+
+const setAxiosAdapter = (adapter) => {
+    axios.defaults.adapter = adapter
+    if (ssrAxios?.defaults) ssrAxios.defaults.adapter = adapter
+}
+
 const defaultAdapter = axios.defaults.adapter
-after(async () => { axios.defaults.adapter = defaultAdapter; await server.close() })
+after(async () => { setAxiosAdapter(defaultAdapter); await server.close() })
 
 let store
 let warnings
@@ -75,10 +83,10 @@ test('a network failure clears the device session and warns that server revocati
 test('expired access is refreshed once and logout then revokes using the new access token', async () => {
     let logouts = 0
     let refreshes = 0
-    axios.defaults.adapter = async (config) => {
+    setAxiosAdapter(async (config) => {
         refreshes += 1
         return response(config, newTokens)
-    }
+    })
     http.defaults.adapter = async (config) => {
         logouts += 1
         if (logouts === 1) return unauthorized(config)
@@ -98,7 +106,7 @@ test('logout waits for an in-flight refresh and revokes the resulting session', 
     const refresh = deferred()
     let logouts = 0
     let privateCalls = 0
-    axios.defaults.adapter = async (config) => { started.resolve(); return response(config, await refresh.promise) }
+    setAxiosAdapter(async (config) => { started.resolve(); return response(config, await refresh.promise) })
     http.defaults.adapter = async (config) => {
         if (config.url === '/private') {
             privateCalls += 1
@@ -123,7 +131,7 @@ test('logout waits for an in-flight refresh and revokes the resulting session', 
 test('a refresh completing after local logout cannot restore tokens', async () => {
     const started = deferred()
     const refresh = deferred()
-    axios.defaults.adapter = async (config) => { started.resolve(); return response(config, await refresh.promise) }
+    setAxiosAdapter(async (config) => { started.resolve(); return response(config, await refresh.promise) })
     http.defaults.adapter = async (config) => unauthorized(config)
     const request = http.get('/private', { __skipGlobalError: true })
     const rejected = assert.rejects(request, /Phiên đăng nhập đã thay đổi/)
@@ -137,7 +145,7 @@ test('a refresh completing after local logout cannot restore tokens', async () =
 test('a stale refresh response cannot log out a newly signed-in user', async () => {
     const started = deferred()
     const refresh = deferred()
-    axios.defaults.adapter = async (config) => { started.resolve(); return response(config, await refresh.promise) }
+    setAxiosAdapter(async (config) => { started.resolve(); return response(config, await refresh.promise) })
     http.defaults.adapter = async (config) => unauthorized(config)
     const request = http.get('/private', { __skipGlobalError: true })
     const rejected = assert.rejects(request, /Phiên đăng nhập đã thay đổi/)
@@ -152,7 +160,7 @@ test('a stale refresh response cannot log out a newly signed-in user', async () 
 test('a stale refresh network error cannot clear a newly signed-in account', async () => {
     const started = deferred()
     const refresh = deferred()
-    axios.defaults.adapter = async () => { started.resolve(); await refresh.promise; throw new Error('refresh offline') }
+    setAxiosAdapter(async () => { started.resolve(); await refresh.promise; throw new Error('refresh offline') })
     http.defaults.adapter = async (config) => unauthorized(config)
     const request = http.get('/private', { __skipGlobalError: true })
     const rejected = assert.rejects(request, /refresh offline/)

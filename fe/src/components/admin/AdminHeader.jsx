@@ -14,6 +14,7 @@ import {
     Bell,
     ArrowsOut,
     ArrowsIn,
+    Globe,
 } from '../common/ClinicIcon'
 
 const SPECIALIZED_PORTALS = [
@@ -63,6 +64,13 @@ export default function AdminHeader() {
     const [isNotifOpen, setIsNotifOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
+    const [currentLang, setCurrentLang] = useState('VIE')
+
+    const toggleLanguage = () => {
+        const nextLang = currentLang === 'VIE' ? 'ENG' : 'VIE'
+        setCurrentLang(nextLang)
+        AppToast.info(`Đã chuyển ngôn ngữ sang: ${nextLang === 'VIE' ? 'Tiếng Việt' : 'English'}`)
+    }
     const [notifications, setNotifications] = useState(systemNotifications)
 
     const headerRef = useRef(null)
@@ -412,6 +420,16 @@ export default function AdminHeader() {
                     title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình (Fullscreen)'}
                 >
                     {isFullscreen ? <ArrowsIn size={16} weight="bold" /> : <ArrowsOut size={16} weight="bold" />}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={toggleLanguage}
+                    className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 hover:border-[#00B5F1] text-[11px] font-black text-[#003553] hover:text-[#00B5F1] transition cursor-pointer"
+                    title="Chuyển đổi ngôn ngữ giao diện"
+                >
+                    <Globe size={13} weight="bold" className="text-[#00B5F1]" />
+                    <span>{currentLang}</span>
                 </button>
 
                 <div className="relative pl-1.5 border-l border-slate-200 shrink-0">

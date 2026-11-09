@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useSelector } from 'react-redux'
 import { adminService } from '../../services/admin/AdminService'
 import { AppToast } from '../common/AppNotification'
@@ -1208,7 +1208,7 @@ export default function DoctorScheduleManagementTab() {
                                 </tr>
                                 <tr className="border-b border-slate-200">
                                     {daysOfWeek.map((day) => (
-                                        <div key={day.isoDate} style={{ display: 'contents' }}>
+                                        <Fragment key={day.isoDate}>
                                             <th
                                                 className={`sticky top-[35px] z-30 p-1 text-center text-[11px] font-bold border-l border-slate-200 ${
                                                     day.isWeekend ? 'bg-slate-200 text-slate-800' : 'bg-slate-100/90 text-slate-600'
@@ -1223,7 +1223,7 @@ export default function DoctorScheduleManagementTab() {
                                             >
                                                 C
                                             </th>
-                                        </div>
+                                        </Fragment>
                                     ))}
                                 </tr>
                             </thead>
@@ -1306,7 +1306,7 @@ export default function DoctorScheduleManagementTab() {
                                                     const conflictChieu = conflictsMap.get(keyChieu)
 
                                                     return (
-                                                        <div key={day.isoDate} style={{ display: 'contents' }}>
+                                                        <Fragment key={day.isoDate}>
                                                             <td
                                                                 className={`p-1 border-l border-slate-100 align-middle text-center ${
                                                                     day.isWeekend ? 'bg-slate-100/60' : day.isToday ? 'bg-sky-50/20' : ''
@@ -1408,7 +1408,7 @@ export default function DoctorScheduleManagementTab() {
                                                                     </div>
                                                                 )}
                                                             </td>
-                                                        </div>
+                                                        </Fragment>
                                                     )
                                                 })}
                                             </tr>
@@ -1427,7 +1427,7 @@ export default function DoctorScheduleManagementTab() {
                                         const isAfternoonShort = col.afternoonCount < col.afternoonTarget
 
                                         return (
-                                            <div key={col.date} style={{ display: 'contents' }}>
+                                            <Fragment key={col.date}>
                                                 <td
                                                     className={`sticky bottom-0 z-30 p-1.5 border-l border-slate-200 text-center align-middle transition ${
                                                         isMorningShort
@@ -1463,7 +1463,7 @@ export default function DoctorScheduleManagementTab() {
                                                         {isAfternoonShort ? 'Thiếu' : '✓ Đủ'}
                                                     </div>
                                                 </td>
-                                            </div>
+                                            </Fragment>
                                         )
                                     })}
                                 </tr>

@@ -1,528 +1,363 @@
 import { useState, useMemo } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useLocation } from 'react-router-dom'
-import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
-import { AppToast } from '../../components/common/AppNotification'
-import { getMasterOptions } from '../../utils/helpers/clinicConfigHelpers'
+import { Link } from 'react-router-dom'
 import {
-    StatusBadge,
-    EmptyState,
     Microscope,
-    FirstAidKit,
-    FloppyDisk,
-    CheckCircle,
-    Printer,
-    UploadSimple,
-    Trash,
+    Scan,
+    Heartbeat,
+    Eye,
     MagnifyingGlass,
-    Funnel,
+    ArrowRight,
+    CheckCircle,
+    WarningCircle,
+    Sparkle,
 } from '../../components/common/ClinicIcon'
+import {
+    FUNCTIONAL_TEMPLATES,
+    IMAGING_PRESETS,
+    ENDOSCOPY_TEMPLATES,
+} from '../../utils/constants/clinical'
+
+const LAB_REFERENCE_CATALOG = [
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Huyết học & Đông máu',
+        code: 'DV_XN_MAU',
+        serviceName: 'Tổng phân tích tế bào máu ngoại vi (24 thông số)',
+        indicators: [
+            { code: 'WBC', name: 'Số lượng bạch cầu', unit: 'G/L', normal: '4.0 – 10.0', critical: '< 2.0 hoặc > 30.0' },
+            { code: 'NEU%', name: 'Tỷ lệ bạch cầu trung tính', unit: '%', normal: '40 – 75', critical: '—' },
+            { code: 'LYM%', name: 'Tỷ lệ bạch cầu lympho', unit: '%', normal: '20 – 40', critical: '—' },
+            { code: 'RBC', name: 'Số lượng hồng cầu', unit: 'T/L', normal: 'Nam: 4.2 – 5.4 | Nữ: 3.8 – 5.0', critical: '—' },
+            { code: 'HGB', name: 'Nồng độ huyết sắc tố', unit: 'g/L', normal: 'Nam: 130 – 170 | Nữ: 120 – 150', critical: '< 70 hoặc > 200' },
+            { code: 'HCT', name: 'Thể tích khối hồng cầu (Hematocrit)', unit: 'L/L', normal: 'Nam: 0.40 – 0.50 | Nữ: 0.36 – 0.46', critical: '< 0.20 hoặc > 0.60' },
+            { code: 'PLT', name: 'Số lượng tiểu cầu', unit: 'G/L', normal: '150 – 400', critical: '< 50 hoặc > 1000' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Sinh hóa máu & Chuyển hóa đường',
+        code: 'DV_XN_GLUCOSE',
+        serviceName: 'Định lượng Glucose máu lúc đói',
+        indicators: [
+            { code: 'GLU', name: 'Glucose máu', unit: 'mmol/L', normal: '3.9 – 6.4', critical: '< 2.2 hoặc > 25.0' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Sinh hóa máu & Đái tháo đường',
+        code: 'DV_XN_HBA1C',
+        serviceName: 'Định lượng HbA1c máu (Kiểm soát đường huyết 3 tháng)',
+        indicators: [
+            { code: 'HBA1C', name: 'HbA1c máu', unit: '%', normal: '4.0 – 6.0', critical: '> 12.0' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Sinh hóa máu & Chức năng Gan',
+        code: 'DV_XN_MEN_GAN',
+        serviceName: 'Đo hoạt độ Men gan (AST, ALT, GGT)',
+        indicators: [
+            { code: 'AST', name: 'AST (GOT)', unit: 'U/L', normal: 'dưới 37', critical: '> 1000' },
+            { code: 'ALT', name: 'ALT (GPT)', unit: 'U/L', normal: 'dưới 40', critical: '> 1000' },
+            { code: 'GGT', name: 'GGT', unit: 'U/L', normal: 'Nam: 11 – 50 | Nữ: 7 – 32', critical: '> 500' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Sinh hóa máu & Chức năng Thận',
+        code: 'DV_XN_THAN',
+        serviceName: 'Định lượng Ure & Creatinin máu',
+        indicators: [
+            { code: 'URE', name: 'Ure máu', unit: 'mmol/L', normal: '2.5 – 7.5', critical: '> 30.0' },
+            { code: 'CREA', name: 'Creatinin máu', unit: 'µmol/L', normal: 'Nam: 62 – 120 | Nữ: 53 – 100', critical: '> 500' },
+            { code: 'EGFR', name: 'Mức lọc cầu thận ước tính (eGFR)', unit: 'mL/min/1.73m²', normal: 'trên 60', critical: '< 15' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Sinh hóa máu & Bộ mỡ Lipid',
+        code: 'DV_XN_MO_MAU',
+        serviceName: 'Định lượng Bộ mỡ máu (Lipid panel)',
+        indicators: [
+            { code: 'CHOL', name: 'Cholesterol toàn phần', unit: 'mmol/L', normal: 'dưới 5.2', critical: '> 10.0' },
+            { code: 'TG', name: 'Triglycerid', unit: 'mmol/L', normal: 'dưới 1.7', critical: '> 5.6' },
+            { code: 'HDL', name: 'HDL-Cholesterol (tốt)', unit: 'mmol/L', normal: 'trên 1.0', critical: '—' },
+            { code: 'LDL', name: 'LDL-Cholesterol (xấu)', unit: 'mmol/L', normal: 'dưới 3.4', critical: '> 4.9' },
+        ],
+    },
+    {
+        group: 'XET_NGHIEM',
+        categoryName: 'Phân tích Nước tiểu 10 thông số',
+        code: 'DV_XN_NUOC_TIEU',
+        serviceName: 'Tổng phân tích nước tiểu bằng máy tự động',
+        indicators: [
+            { code: 'pH', name: 'Độ pH nước tiểu', unit: '', normal: '5.0 – 7.5', critical: '—' },
+            { code: 'SG', name: 'Tỷ trọng (SG)', unit: '', normal: '1.005 – 1.030', critical: '—' },
+            { code: 'GLU', name: 'Glucose niệu', unit: 'mmol/L', normal: 'Âm tính (dưới 0.8)', critical: '—' },
+            { code: 'PRO', name: 'Protein niệu', unit: 'g/L', normal: 'Âm tính (dưới 0.15)', critical: '—' },
+            { code: 'LEU', name: 'Bạch cầu niệu (Leukocytes)', unit: 'TB/µL', normal: 'Âm tính (dưới 25)', critical: '—' },
+            { code: 'NIT', name: 'Nitrit niệu', unit: '', normal: 'Âm tính', critical: '—' },
+        ],
+    },
+]
 
 export default function ParaclinicalPage() {
-    const dispatch = useDispatch()
-    const location = useLocation()
-    const isPtTtMode = location.pathname.includes('pt-tt')
+    const [selectedGroup, setSelectedGroup] = useState('ALL')
+    const [searchTerm, setSearchTerm] = useState('')
 
-    const { clinicData } = useSelector((state) => state.app.admin)
-    const tasks = clinicData?.paraclinicalTasks || []
-    const staffList = clinicData?.staffList || []
-    const templates = clinicData?.templates || []
-
-    const masterOptions = getMasterOptions(clinicData)
-    const paraclinicalStatuses = masterOptions.paraclinicalStatuses || ['Chờ thực hiện', 'Đang thực hiện', 'Đã có kết quả']
-
-    const clsTemplates = useMemo(
-        () => templates.filter((t) => t.loaiMau === 'mau-ket-qua-cls'),
-        [templates]
-    )
-
-    const queryFilter = new URLSearchParams(location.search).get('filter')
-    const [searchText, setSearchText] = useState('')
-    const [statusFilter, setStatusFilter] = useState('ALL')
-    const [activeSubTab, setActiveSubTab] = useState('KET_QUA_CLS')
-    const [form, setForm] = useState(() => tasks[0] || {})
-    const [newImageName, setNewImageName] = useState('')
-    const [newImageNote, setNewImageNote] = useState('')
-
-    const filteredTasks = useMemo(() => {
-        return tasks.filter((t) => {
-            const matchText =
-                !searchText ||
-                t.hoTen?.toLowerCase().includes(searchText.toLowerCase()) ||
-                t.maKCB?.includes(searchText) ||
-                t.tenDV?.toLowerCase().includes(searchText.toLowerCase())
-            const matchStatus = statusFilter === 'ALL' || t.trangThai === statusFilter
-
-            let matchType = true
-            if (queryFilter) {
-                const lower = (t.tenDV || '').toLowerCase()
-                if (queryFilter === 'XET_NGHIEM' || queryFilter === 'BENH_PHAM') {
-                    matchType = lower.includes('xét nghiệm') || lower.includes('huyết học') || lower.includes('sinh hóa') || lower.includes('máu')
-                } else if (queryFilter === 'SIEU_AM') {
-                    matchType = lower.includes('siêu âm')
-                } else if (queryFilter === 'X_QUANG') {
-                    matchType = lower.includes('xquang') || lower.includes('x-quang')
-                } else if (queryFilter === 'NOI_SOI') {
-                    matchType = lower.includes('nội soi')
-                } else if (queryFilter === 'DIEN_TIM') {
-                    matchType = lower.includes('điện tim') || lower.includes('ecg')
-                }
-            }
-
-            return matchText && matchStatus && matchType
+    const filteredCatalog = useMemo(() => {
+        return LAB_REFERENCE_CATALOG.filter((item) => {
+            const matchGroup = selectedGroup === 'ALL' || item.group === selectedGroup
+            const matchSearch =
+                !searchTerm.trim() ||
+                item.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.indicators.some((ind) => ind.name.toLowerCase().includes(searchTerm.toLowerCase()) || ind.code.toLowerCase().includes(searchTerm.toLowerCase()))
+            return matchGroup && matchSearch
         })
-    }, [tasks, searchText, statusFilter, queryFilter])
-
-    const handleApplyResultTemplate = (templateId) => {
-        const tpl = clsTemplates.find((t) => t.id === templateId)
-        if (!tpl) return
-        setForm({
-            ...form,
-            mauKetQua: tpl.id,
-            moTa: tpl.noiDung,
-            ketLuan: tpl.tenMau.replace('Mẫu kết quả ', ''),
-        })
-        AppToast.success(`Đã áp dụng mẫu kết quả: ${tpl.tenMau}`)
-    }
-
-    const handleAddImage = () => {
-        const imgName = newImageName.trim() || `DICOM_${form.maDV || 'CLS'}_${Date.now().toString().slice(-4)}.jpg`
-        const newImg = {
-            id: `IMG-${Date.now().toString().slice(-4)}`,
-            tenAnh: imgName,
-            ghiChu: newImageNote || 'Hình ảnh kết quả Chẩn đoán hình ảnh kỹ thuật số',
-            thoiGian: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        }
-        setForm({
-            ...form,
-            hinhAnh: [...(form.hinhAnh || []), newImg],
-        })
-        setNewImageName('')
-        setNewImageNote('')
-        AppToast.success(`Đã tải lên hình ảnh: ${imgName}`)
-    }
-
-    const handleSaveClsResult = async (markCompleted = false) => {
-        const doctor = staffList.find((s) => s.hoTen === form.bacSiThucHien)
-        if (markCompleted && doctor && doctor.trangThaiCCHN === 'EXPIRED') {
-            AppToast.error(
-                `CHẶN TRẢ KẾT QUẢ: Bác sĩ ${doctor.hoTen} có Chứng chỉ hành nghề (${doctor.soCCHN}) đã hết hạn ngày ${doctor.ngayHetHanCCHN}. Vui lòng chọn bác sĩ đủ điều kiện!`
-            )
-            return
-        }
-
-        const updatedRecord = {
-            ...form,
-            trangThai: markCompleted ? 'Đã có kết quả' : form.trangThai,
-            ngayThucHien: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        }
-        setForm(updatedRecord)
-
-        const updatedList = tasks.map((t) => (t.id === updatedRecord.id ? updatedRecord : t))
-        await dispatch(
-            updateClinicCollectionAsync({
-                collectionKey: 'paraclinicalTasks',
-                items: updatedList,
-                auditEntry: {
-                    hanhDong: markCompleted ? 'COMPLETE_PARACLINICAL_RESULT' : 'UPDATE_PARACLINICAL_DRAFT',
-                    doiTuong: `${updatedRecord.tenDV} - BN ${updatedRecord.hoTen}`,
-                    mucDich: 'Thực hiện & trả kết quả Cận lâm sàng / PT-TT',
-                },
-            })
-        )
-        const registrations = clinicData?.registrations || []
-        const hasMatchingReg = registrations.some((r) => r.maKCB === updatedRecord.maKCB)
-        if (hasMatchingReg) {
-            const updatedRegistrations = registrations.map((r) => {
-                if (r.maKCB === updatedRecord.maKCB) {
-                    const updatedServices = (r.services || []).map((s) => {
-                        if (s.maDV === updatedRecord.maDV) {
-                            return {
-                                ...s,
-                                trangThaiCLS: markCompleted ? 'Đã có kết quả' : s.trangThaiCLS,
-                                ketQuaCLS: updatedRecord.ketLuan,
-                                moTaCLS: updatedRecord.moTa,
-                                hinhAnhCLS: updatedRecord.hinhAnh,
-                            }
-                        }
-                        return s
-                    })
-                    return { ...r, services: updatedServices }
-                }
-                return r
-            })
-            await dispatch(
-                updateClinicCollectionAsync({
-                    collectionKey: 'registrations',
-                    items: updatedRegistrations,
-                })
-            )
-        }
-
-        AppToast.success(markCompleted ? 'Đã hoàn thành và trả kết quả Cận lâm sàng về Bệnh án!' : 'Đã lưu kết quả Cận lâm sàng!')
-    }
+    }, [selectedGroup, searchTerm])
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-            
-            <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-88px)]">
-                <div className="medpro-section-title">
-                    <span className="inline-flex items-center gap-1.5">
-                        {isPtTtMode ? (
-                            <FirstAidKit size={16} weight="duotone" className="text-[#00B5F1]" />
-                        ) : (
-                            <Microscope size={16} weight="duotone" className="text-[#00B5F1]" />
-                        )}
-                        <span>{isPtTtMode ? 'DANH SÁCH PHẪU THUẬT - THỦ THUẬT' : 'DANH SÁCH CẬN LÂM SÀNG'}</span>
-                    </span>
-                    <StatusBadge status={`${filteredTasks.length} ca`} compact />
-                </div>
-
-                <div className="grid grid-cols-12 gap-2 mb-3">
-                    <div className="col-span-7 relative">
-                        <MagnifyingGlass
-                            size={14}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                        />
-                        <input
-                            type="text"
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value)}
-                            placeholder="Tìm tên BN, Mã KCB, Dịch vụ..."
-                            className="medpro-input !pl-8"
-                        />
-                    </div>
-                    <div className="col-span-5 relative">
-                        <Funnel
-                            size={13}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                        />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="medpro-input !pl-7"
-                        >
-                            <option value="ALL">Tất cả trạng thái</option>
-                            {paraclinicalStatuses.map((st) => (
-                                <option key={st} value={st}>
-                                    {st}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
-                    <table className="medpro-table">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Mã KCB</th>
-                                <th>Họ tên BN</th>
-                                <th>Dịch vụ</th>
-                                <th className="text-center">TT</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTasks.map((t, idx) => (
-                                <tr
-                                    key={t.id}
-                                    onClick={() => setForm({ ...t })}
-                                    className={`cursor-pointer ${
-                                        form.id === t.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
-                                    }`}
-                                >
-                                    <td className="tabular-nums text-center font-bold">{idx + 1}</td>
-                                    <td className="font-mono text-[11px] font-bold text-[#00B5F1]">{t.maKCB}</td>
-                                    <td className="font-semibold text-[#12263F]">{t.hoTen}</td>
-                                    <td className="text-xs">{t.tenDV}</td>
-                                    <td className="text-center">
-                                        <StatusBadge status={t.trangThai} showText={false} />
-                                    </td>
-                                </tr>
-                            ))}
-                            {filteredTasks.length === 0 && (
-                                <tr>
-                                    <td colSpan={5}>
-                                        <EmptyState
-                                            icon="Microscope"
-                                            title="Không có chỉ định Cận lâm sàng phù hợp"
-                                        />
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            
-            <div className="lg:col-span-8 medpro-card p-4 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
-                    <div>
-                        <h2 className="font-display text-base font-extrabold text-[#003553] uppercase">
-                            {isPtTtMode
-                                ? 'THỰC HIỆN PHẪU THUẬT - THỦ THUẬT & VLTL'
-                                : 'THỰC HIỆN CẬN LÂM SÀNG — X-QUANG, SIÊU ÂM, NỘI SOI'}
-                        </h2>
-                        <p className="text-xs text-slate-500">
-                            Bệnh nhân: <strong className="text-[#003553]">{form.hoTen}</strong> ({form.maBN}) • Dịch vụ:{' '}
-                            <strong className="text-[#00B5F1]">{form.tenDV}</strong>
+        <div className="space-y-6 pb-12">
+            <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-[#003553] via-[#004B75] to-[#0088BA] p-6 text-white shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1.5">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#8FE2FF] border border-white/15">
+                            <Microscope size={15} weight="duotone" />
+                            <span>LIS & PACS Kỹ Thuật Số</span>
+                        </div>
+                        <h1 className="text-2xl font-extrabold tracking-tight font-display">
+                            Danh Mục Kỹ Thuật & Khoảng Tham Chiếu Cận Lâm Sàng
+                        </h1>
+                        <p className="text-xs text-sky-100 max-w-2xl leading-relaxed">
+                            Quy chuẩn kỹ thuật xét nghiệm, thăm dò chức năng và chẩn đoán hình ảnh. Kỹ thuật viên truy cập Bàn làm việc để tiếp nhận mẫu, nhập kết quả và ký số duyệt trả.
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <Link
+                        to="/staff/paraclinical-work"
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#00B5F1] px-5 py-3 text-xs font-extrabold text-[#002840] shadow-md transition hover:bg-[#009EDB] shrink-0"
+                    >
+                        <span>Đến Bàn làm việc CLS</span>
+                        <ArrowRight size={16} weight="bold" />
+                    </Link>
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    {[
+                        { key: 'ALL', label: 'Tất cả danh mục' },
+                        { key: 'XET_NGHIEM', label: 'Xét nghiệm (LIS)' },
+                        { key: 'TDCN', label: 'Thăm dò chức năng' },
+                        { key: 'CDHA', label: 'Chẩn đoán hình ảnh' },
+                        { key: 'NOI_SOI', label: 'Nội soi' },
+                    ].map((tab) => (
                         <button
+                            key={tab.key}
                             type="button"
-                            onClick={() => handleSaveClsResult(false)}
-                            className="medpro-btn-outline text-xs"
+                            onClick={() => setSelectedGroup(tab.key)}
+                            className={`rounded-xl px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
+                                selectedGroup === tab.key
+                                    ? 'bg-[#003553] text-white shadow-xs'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
                         >
-                            <FloppyDisk size={15} weight="duotone" className="text-[#00B5F1]" />
-                            <span>Lưu kết quả</span>
+                            {tab.label}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => handleSaveClsResult(true)}
-                            className="medpro-btn-primary text-xs"
-                        >
-                            <CheckCircle size={15} weight="fill" />
-                            <span>Trả kết quả & Hoàn thành</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => AppToast.success(`Đang in Phiếu trả kết quả ${form.tenDV} kèm ảnh...`)}
-                            className="medpro-btn-amber text-xs font-bold"
-                        >
-                            <Printer size={15} weight="bold" />
-                            <span>In phiếu kết quả</span>
-                        </button>
+                    ))}
+                </div>
+
+                <div className="relative min-w-[260px]">
+                    <MagnifyingGlass size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Tìm chỉ số, mã hoặc tên kỹ thuật…"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-10 pl-9 pr-3.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#00B5F1] focus:outline-none transition shadow-2xs"
+                    />
+                </div>
+            </div>
+
+            {(selectedGroup === 'ALL' || selectedGroup === 'XET_NGHIEM') && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <Microscope size={18} weight="duotone" className="text-[#0088BA]" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
+                            Bộ Chỉ Số Xét Nghiệm Chuẩn Hóa ({filteredCatalog.length} kỹ thuật)
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredCatalog.map((service) => (
+                            <div key={service.code} className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                                <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5 flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="font-mono text-xs font-bold text-[#007EA8] bg-sky-50 px-2.5 py-1 rounded-md border border-sky-100">
+                                            {service.code}
+                                        </span>
+                                        <h3 className="text-sm font-bold text-[#003553]">{service.serviceName}</h3>
+                                    </div>
+                                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                        {service.categoryName}
+                                    </span>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-100/50 text-slate-600 border-b border-slate-200">
+                                                <th className="p-3 font-bold w-24">Mã</th>
+                                                <th className="p-3 font-bold">Tên chỉ số xét nghiệm</th>
+                                                <th className="p-3 font-bold text-center w-24">Đơn vị</th>
+                                                <th className="p-3 font-bold text-center">Khoảng tham chiếu chuẩn</th>
+                                                <th className="p-3 font-bold text-center w-36">Ngưỡng báo động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {service.indicators.map((ind) => (
+                                                <tr key={ind.code} className="hover:bg-sky-50/30 transition">
+                                                    <td className="p-3 font-mono font-bold text-[#003553]">{ind.code}</td>
+                                                    <td className="p-3 font-semibold text-slate-800">{ind.name}</td>
+                                                    <td className="p-3 text-center text-slate-600 font-mono">{ind.unit || '—'}</td>
+                                                    <td className="p-3 text-center font-bold text-emerald-800 bg-emerald-50/30">{ind.normal}</td>
+                                                    <td className="p-3 text-center">
+                                                        {ind.critical !== '—' ? (
+                                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                                                                <WarningCircle size={12} weight="bold" />
+                                                                {ind.critical}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400">—</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
+            )}
 
-                
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                    <button
-                        type="button"
-                        onClick={() => setActiveSubTab('KET_QUA_CLS')}
-                        className={`px-4 py-1.5 rounded-full text-xs font-bold cursor-pointer ${
-                            activeSubTab === 'KET_QUA_CLS'
-                                ? 'bg-[#00B5F1] text-white'
-                                : 'bg-[#F0F7FC] text-[#003553]'
-                        }`}
-                    >
-                        1. Kết quả Cận lâm sàng & Hình ảnh ({form.hinhAnh?.length || 0} ảnh)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveSubTab('VAT_TU_TIEU_HAO')}
-                        className={`px-4 py-1.5 rounded-full text-xs font-bold cursor-pointer ${
-                            activeSubTab === 'VAT_TU_TIEU_HAO'
-                                ? 'bg-[#00B5F1] text-white'
-                                : 'bg-[#F0F7FC] text-[#003553]'
-                        }`}
-                    >
-                        2. Định mức Thuốc & Vật tư tiêu hao ca CLS
-                    </button>
-                </div>
+            {(selectedGroup === 'ALL' || selectedGroup === 'TDCN') && (
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2">
+                        <Heartbeat size={18} weight="duotone" className="text-rose-500" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
+                            Thăm Dò Chức Năng (Điện tim ECG, Hô hấp ký, Điện não)
+                        </h2>
+                    </div>
 
-                {activeSubTab === 'KET_QUA_CLS' ? (
-                    <div className="space-y-4">
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                            <div>
-                                <label className="medpro-label">Phòng thực hiện</label>
-                                <input type="text" value={form.phongTH || ''} readOnly className="medpro-input font-semibold" />
-                            </div>
-                            <div>
-                                <label className="medpro-label">Bác sĩ thực hiện (Kiểm tra CCHN)</label>
-                                <select
-                                    value={form.bacSiThucHien || ''}
-                                    onChange={(e) => setForm({ ...form, bacSiThucHien: e.target.value })}
-                                    className="medpro-input font-semibold"
-                                >
-                                    {staffList.map((s) => (
-                                        <option key={s.id} value={s.hoTen}>
-                                            {s.hoTen}{s.trangThaiCCHN === 'EXPIRED' ? ' (Hết hạn CCHN)' : s.trangThaiCCHN === 'EXPIRING_SOON' ? ' (Sắp hết hạn CCHN)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="medpro-label">Chọn Mẫu kết quả CLS chuẩn</label>
-                                <select
-                                    value={form.mauKetQua || ''}
-                                    onChange={(e) => handleApplyResultTemplate(e.target.value)}
-                                    className="medpro-input font-bold text-[#00B5F1]"
-                                >
-                                    <option value="">-- Chọn mẫu mô tả nhanh --</option>
-                                    {clsTemplates.map((tpl) => (
-                                        <option key={tpl.id} value={tpl.id}>
-                                            {tpl.tenMau}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="medpro-label">Trạng thái thực hiện</label>
-                                <select
-                                    value={form.trangThai || paraclinicalStatuses[0]}
-                                    onChange={(e) => setForm({ ...form, trangThai: e.target.value })}
-                                    className="medpro-input font-bold"
-                                >
-                                    {paraclinicalStatuses.map((st) => (
-                                        <option key={st} value={st}>
-                                            {st}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                            <div className="lg:col-span-7 space-y-3">
-                                <div>
-                                    <label className="medpro-label">Mô tả chi tiết hình ảnh / Kết quả cận lâm sàng</label>
-                                    <textarea
-                                        rows={6}
-                                        value={form.moTa || ''}
-                                        onChange={(e) => setForm({ ...form, moTa: e.target.value })}
-                                        className="medpro-input font-sans leading-relaxed"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="medpro-label">Kết luận Cận lâm sàng *</label>
-                                    <input
-                                        type="text"
-                                        value={form.ketLuan || ''}
-                                        onChange={(e) => setForm({ ...form, ketLuan: e.target.value })}
-                                        className="medpro-input font-bold text-[#003553]"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="medpro-label">Lời khuyên / Đề nghị chuyên môn</label>
-                                    <input
-                                        type="text"
-                                        value={form.deNghi || ''}
-                                        onChange={(e) => setForm({ ...form, deNghi: e.target.value })}
-                                        className="medpro-input"
-                                    />
-                                </div>
-                            </div>
-
-                            
-                            <div className="lg:col-span-5 p-3.5 rounded-xl bg-[#F8FBFE] border border-[#CBE9FA] space-y-3">
-                                <div className="text-xs font-bold text-[#003553] uppercase flex items-center justify-between">
-                                    <span>DANH SÁCH HÌNH ẢNH KẾT QUẢ (X-QUANG / SIÊU ÂM)</span>
-                                    <StatusBadge status={`${form.hinhAnh?.length || 0} tệp`} compact />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.entries(FUNCTIONAL_TEMPLATES).filter(([k]) => k !== 'DV010').map(([k, tpl]) => (
+                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                                    <div className="font-bold text-sm text-[#003553] flex items-center gap-2">
+                                        <span className="font-mono text-xs text-[#0088BA] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
+                                        <span>{k === 'DV_ECG' ? 'Điện tâm đồ (ECG) 12 chuyển đạo' : k === 'DV_HO_HAP_KY' ? 'Đo chức năng hô hấp' : k === 'DV_EEG' ? 'Điện não đồ (EEG)' : 'Đo thính lực'}</span>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        {tpl.params?.length || 0} thông số
+                                    </span>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <input
-                                        type="text"
-                                        value={newImageName}
-                                        onChange={(e) => setNewImageName(e.target.value)}
-                                        placeholder="Tên file ảnh (VD: XQuang_NgucThang.jpg)..."
-                                        className="medpro-input"
-                                    />
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={newImageNote}
-                                            onChange={(e) => setNewImageNote(e.target.value)}
-                                            placeholder="Ghi chú hình ảnh..."
-                                            className="medpro-input"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={handleAddImage}
-                                            className="medpro-btn-primary text-xs shrink-0"
-                                        >
-                                            <UploadSimple size={14} weight="bold" />
-                                            <span>Tải ảnh lên</span>
-                                        </button>
+                                <div className="space-y-1.5 text-xs">
+                                    <span className="font-semibold text-slate-500">Mẫu nhận định lâm sàng:</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Object.keys(tpl.presets || {}).map((presetKey) => (
+                                            <span key={presetKey} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium">
+                                                ✓ {presetKey}
+                                            </span>
+                                        ))}
                                     </div>
                                 </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
-                                <div className="space-y-2 max-h-52 overflow-y-auto">
-                                    {(form.hinhAnh || []).map((img, i) => (
-                                        <div
-                                            key={img.id}
-                                            className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between gap-2 text-xs"
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="w-10 h-10 rounded-lg bg-[#003553] text-[#00B5F1] flex items-center justify-center font-mono text-[10px] font-bold">
-                                                    DICOM
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-[#12263F]">
-                                                        {i + 1}. {img.tenAnh}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-500">{img.ghiChu}</div>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setForm({
-                                                        ...form,
-                                                        hinhAnh: form.hinhAnh.filter((x) => x.id !== img.id),
-                                                    })
-                                                }
-                                                className="text-rose-600 hover:text-rose-700 cursor-pointer"
-                                                title="Xóa ảnh"
-                                            >
-                                                <Trash size={15} weight="bold" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {(!form.hinhAnh || form.hinhAnh.length === 0) && (
-                                        <EmptyState
-                                            icon="UploadSimple"
-                                            title="Chưa có ảnh kết quả"
-                                            description="Nhấn 'Tải ảnh lên' để đính kèm phim X-Quang hoặc ảnh Siêu âm."
-                                        />
-                                    )}
+            {(selectedGroup === 'ALL' || selectedGroup === 'CDHA') && (
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2">
+                        <Scan size={18} weight="duotone" className="text-sky-500" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
+                            Chẩn Đoán Hình Ảnh (X-quang KTS & Siêu âm màu)
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(IMAGING_PRESETS).filter(([k]) => !['DV005', 'DV006', 'DV008'].includes(k)).map(([k, presets]) => (
+                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+                                <div className="border-b border-slate-100 pb-2">
+                                    <span className="font-mono text-[11px] font-bold text-[#007EA8] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
+                                    <h4 className="font-bold text-sm text-[#003553] mt-1">
+                                        {k === 'DV_SA_BUNG' ? 'Siêu âm ổ bụng tổng quát'
+                                            : k === 'DV_XQ_NGUC' ? 'X-quang tim phổi thẳng'
+                                            : k === 'DV_SA_TIM' ? 'Siêu âm tim màu Doppler'
+                                            : k === 'DV_SA_GIAP' ? 'Siêu âm tuyến giáp'
+                                            : k === 'DV_SA_VU' ? 'Siêu âm tuyến vú 2 bên'
+                                            : k === 'DV_SA_MACH_CHI' ? 'Siêu âm Doppler mạch chi'
+                                            : k === 'DV_XQ_XOANG' ? 'X-quang xoang (Blondeau - Hirtz)'
+                                            : k === 'DV_XQ_COT_SONG' ? 'X-quang cột sống thắt lưng'
+                                            : k === 'DV_XQ_KHOP_GOI' ? 'X-quang khớp gối'
+                                            : 'Chụp Panorama toàn cảnh hàm răng'}
+                                    </h4>
+                                </div>
+                                <div className="space-y-1 text-xs">
+                                    <span className="font-semibold text-slate-500">Mẫu mô tả có sẵn:</span>
+                                    <div className="flex flex-wrap gap-1">
+                                        {Object.keys(presets).map((pKey) => (
+                                            <span key={pKey} className="text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-700">
+                                                {pKey}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
-                ) : (
-                    <div className="space-y-3">
-                        <div className="p-3.5 rounded-xl bg-[#E8F4FD] text-xs text-[#003553]">
-                            Định mức vật tư tiêu hao áp dụng tự động theo <strong>Mẫu định mức tiêu hao</strong> cho dịch vụ{' '}
-                            <strong>{form.tenDV}</strong>:
-                        </div>
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tên vật tư / Thuốc tiêu hao</th>
-                                    <th>ĐVT</th>
-                                    <th>Số lượng định mức</th>
-                                    <th>Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td className="font-semibold">Phim X-Quang kỹ thuật số khô 35x43cm / Gel siêu âm dẫn truyền</td>
-                                    <td>Tờ / Lượt</td>
-                                    <td className="font-bold">01</td>
-                                    <td>Trừ kho vật tư phòng Cận lâm sàng</td>
-                                </tr>
-                                <tr>
-                                    <td>2</td>
-                                    <td className="font-semibold">Găng tay y tế tiệt trùng + Bao đựng kết quả</td>
-                                    <td>Bộ</td>
-                                    <td className="font-bold">01</td>
-                                    <td>Định mức chuẩn</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                </div>
+            )}
+
+            {(selectedGroup === 'ALL' || selectedGroup === 'NOI_SOI') && (
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2">
+                        <Eye size={18} weight="duotone" className="text-amber-500" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
+                            Nội Soi Tiêu Hóa & Tai Mũi Họng (NBI Kỹ Thuật Số)
+                        </h2>
                     </div>
-                )}
-            </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.entries(ENDOSCOPY_TEMPLATES).filter(([k]) => k !== 'DV009').map(([k, tpl]) => (
+                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+                                <div className="border-b border-slate-100 pb-2">
+                                    <span className="font-mono text-[11px] font-bold text-[#007EA8] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
+                                    <h4 className="font-bold text-sm text-[#003553] mt-1">
+                                        {k === 'DV_NS_TMH' ? 'Nội soi Tai Mũi Họng ống mềm' : 'Nội soi Thực quản – Dạ dày – Tá tràng'}
+                                    </h4>
+                                </div>
+                                <div className="text-xs space-y-1">
+                                    <span className="font-semibold text-slate-500">Vị trí giải phẫu khảo sát:</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {tpl.sites.map((s) => (
+                                            <span key={s} className="px-2 py-0.5 rounded bg-sky-50 text-[#003553] font-semibold text-[11px] border border-sky-100">
+                                                {s}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

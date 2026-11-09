@@ -74,34 +74,27 @@ export const getStaffMenuForRole = (role) => {
         ]
     }
 
-    if (normalizedRole === 'KTV_XET_NGHIEM' || normalizedRole === 'LAB_TECH' || normalizedRole === 'ROLE-LAB-TECH') {
+    if (
+        normalizedRole === 'KTV_XET_NGHIEM' ||
+        normalizedRole === 'LAB_TECH' ||
+        normalizedRole === 'ROLE-LAB-TECH' ||
+        normalizedRole === 'KTV_CLS' ||
+        normalizedRole === 'TECHNICIAN'
+    ) {
         return [
             {
-                group: 'Phòng Xét Nghiệm (LIS)',
+                group: 'Phân hệ Kỹ thuật viên (LIS & PACS)',
                 items: [
-                    { to: '/staff/paraclinical-work?nhom=XET_NGHIEM', label: 'Bàn xét nghiệm LIS', icon: Microscope, badge: 'Chính' },
-                    { to: '/staff/queue', label: 'Hàng chờ lấy mẫu bệnh phẩm', icon: Clock },
-                    { to: '/staff/paraclinical', label: 'Chỉ số tham chiếu & Kỹ thuật', icon: ClipboardText },
+                    { to: '/staff/paraclinical-work', label: 'Bàn làm việc CLS & Ký duyệt', icon: Microscope, badge: 'Chính' },
+                    { to: '/staff/paraclinical', label: 'Khoảng tham chiếu & Danh mục kỹ thuật', icon: ClipboardText },
                 ],
             },
             {
-                group: 'Báo cáo & Đối soát mẫu',
+                group: 'Bệnh nhân & Báo cáo ca trực',
                 items: [
+                    { to: '/staff/appointments', label: 'Danh sách bệnh nhân hẹn', icon: CalendarCheck },
+                    { to: '/staff/patients', label: 'Đối soát hồ sơ bệnh nhân', icon: Users },
                     { to: '/staff/reports', label: 'Thống kê xét nghiệm ca trực', icon: ChartBar },
-                    { to: '/staff/patients', label: 'Đối soát thông tin bệnh nhân', icon: Users },
-                ],
-            },
-        ]
-    }
-
-    if (normalizedRole === 'KTV_CLS' || normalizedRole === 'TECHNICIAN') {
-        return [
-            {
-                group: 'Nghiệp vụ cận lâm sàng',
-                items: [
-                    { to: '/staff/paraclinical-work', label: 'Bàn làm việc CLS & Kết quả', icon: Microscope, badge: 'Chính' },
-                    { to: '/staff/paraclinical', label: 'Danh mục chỉ định & Dịch vụ', icon: ClipboardText },
-                    { to: '/staff/queue', label: 'Hàng chờ thực hiện CLS', icon: Clock },
                 ],
             },
         ]

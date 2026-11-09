@@ -3,7 +3,7 @@ import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,9 +36,9 @@ class SubclinicalService:
         db: AsyncSession = None,
         nhom_dich_vu: Optional[str] = None,
         ngay: Optional[date] = None,
+        tat_ca_ngay: bool = False,
         tu_khoa: Optional[str] = None,
     ) -> SubclinicalQueueResponse:
-        day_start, day_end = clinic_day_range(ngay)
         stmt = (
             select(ChiDinh)
             .options(
@@ -47,9 +47,18 @@ class SubclinicalService:
                 selectinload(ChiDinh.luot_kham).selectinload(LuotKham.bac_si).selectinload(BacSi.nguoi_dung),
                 selectinload(ChiDinh.phieu_ket_qua),
             )
-            .where(ChiDinh.created_at >= day_start, ChiDinh.created_at < day_end)
-            .order_by(ChiDinh.created_at.asc(), ChiDinh.id.asc())
         )
+        if not tat_ca_ngay:
+            day_start, day_end = clinic_day_range(ngay)
+            stmt = stmt.where(ChiDinh.created_at >= day_start, ChiDinh.created_at < day_end).order_by(
+                ChiDinh.created_at.asc(), ChiDinh.id.asc()
+            )
+        else:
+            pending_order = case(
+                (ChiDinh.trang_thai.in_(["CHO_THUC_HIEN", "da_thanh_toan", "da_chi_dinh", "dang_thuc_hien"]), 0),
+                else_=1,
+            )
+            stmt = stmt.order_by(pending_order.asc(), ChiDinh.created_at.desc(), ChiDinh.id.desc()).limit(200)
 
         if phong_thuc_hien_id is not None:
             stmt = stmt.where(

@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Optional
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +27,20 @@ from app.schemas.patient import (
 
 
 class PatientService:
+
+    @staticmethod
+    def _clean_conclusion(raw_text: Optional[str], default_msg: str = "Đã có kết quả") -> str:
+        if not raw_text:
+            return default_msg
+        trimmed = str(raw_text).strip()
+        if trimmed.startswith("{") and trimmed.endswith("}"):
+            try:
+                parsed = json.loads(trimmed)
+                if isinstance(parsed, dict):
+                    return str(parsed.get("ket_luan") or parsed.get("ghi_chu") or default_msg)
+            except Exception:
+                pass
+        return trimmed
 
     @staticmethod
     def _lab_result_type(order: ChiDinh) -> str:
@@ -272,7 +286,7 @@ class PatientService:
                     "ten_dich_vu": order.dich_vu.ten_dich_vu if order.dich_vu else "Dịch vụ",
                     "trang_thai": order.trang_thai,
                     "ngay_tra": order.thoi_gian_tra_ket_qua.isoformat() if order.thoi_gian_tra_ket_qua else None,
-                    "ket_luan": order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None),
+                    "ket_luan": self._clean_conclusion(order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None)),
                     "chi_so": order.tri_so_chi_tiet or (order.ket_qua.tri_so_chi_tiet if order.ket_qua else {}) or {},
                     "tep_dinh_kem": list(dict.fromkeys(list(order.file_dinh_kem_urls or []) + ([order.tep_dinh_kem_url] if order.tep_dinh_kem_url else []) + (order.phieu_ket_qua.tep_dinh_kem_urls if getattr(order, "phieu_ket_qua", None) and order.phieu_ket_qua.tep_dinh_kem_urls else []))),
                 } for order in enc.danh_sach_chi_dinh or [] if order.trang_thai in ("da_co_ket_qua", "da_duyet", "DA_DUYET")],
@@ -426,20 +440,10 @@ class PatientService:
             service_name = service.ten_dich_vu if service else "Kết quả cận lâm sàng"
             result_text = order.ket_qua_chi_tiet or (order.ket_qua.ket_qua_chi_tiet if order.ket_qua else None)
             result_time = order.thoi_gian_tra_ket_qua or (order.ket_qua.thoi_gian_duyet if order.ket_qua else None) or order.created_at
-            clean_conclusion = "Đã có kết quả"
-            if result_text:
-                trimmed = str(result_text).strip()
-                if trimmed.startswith("{") and trimmed.endswith("}"):
-                    try:
-                        parsed = json.loads(trimmed)
-                        if isinstance(parsed, dict):
-                            clean_conclusion = str(parsed.get("ket_luan") or parsed.get("ghi_chu") or ("Đã có kết quả xét nghiệm" if self._lab_result_type(order) == "XET_NGHIEM" else "Đã có kết quả"))
-                        else:
-                            clean_conclusion = trimmed
-                    except Exception:
-                        clean_conclusion = trimmed
-                else:
-                    clean_conclusion = trimmed
+            clean_conclusion = self._clean_conclusion(
+                result_text,
+                "Đã có kết quả xét nghiệm" if self._lab_result_type(order) == "XET_NGHIEM" else "Đã có kết quả",
+            )
             results.append(PatientLabResultResponse(
                 id=order.id,
                 luot_kham_id=order.luot_kham_id,

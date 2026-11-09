@@ -12,6 +12,7 @@ import {
     LAB_DANH_GIA,
     LAB_HUONG_ARROW,
     evaluateLabValue,
+    isOrderNotStarted,
 } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { LoadingBlock, ErrorBlock } from '../clinical/StateBlocks'
@@ -19,7 +20,6 @@ import { FileAttachField, PresetChips, ClassificationBar, ResultFormFooter, Perf
 
 const GIOI_TINH_LABEL = { NAM: 'nam', NU: 'nữ' }
 
-// Phân loại tổng hợp như backend: có chỉ số nguy hiểm -> NGUY_KICH, có chỉ số thấp/cao -> BAT_THUONG
 const classify = (evals) => {
     if (evals.some((e) => e?.danh_gia === 'NGUY_HIEM')) return 'NGUY_KICH'
     if (evals.some((e) => e && e.danh_gia && e.danh_gia !== 'BINH_THUONG')) return 'BAT_THUONG'
@@ -28,7 +28,6 @@ const classify = (evals) => {
 
 const criticalLimit = (c, huong) => (huong === 'THAP' ? `< ${c.nguy_kich_thap}` : `> ${c.nguy_kich_cao}`)
 
-// Form nhập chỉ số xét nghiệm máu: bộ chỉ số mẫu lấy từ backend, tô cam/đỏ ngay khi gõ, backend đánh giá lại khi nộp
 function LabIndicatorForm({ order, submitting, onSubmitLab }) {
     const dispatch = useDispatch()
     const [template, setTemplate] = useState(null)
@@ -65,8 +64,7 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
     if (loadError) return <ErrorBlock message={loadError} onRetry={retry} />
     if (!template) return <LoadingBlock />
 
-    const notStarted = order.trang_thai === 'da_chi_dinh'
-    // da_co_ket_qua = KTV đã duyệt & trả: khóa sửa. Đã hoàn tất (chờ duyệt) thì vẫn cập nhật được, không quay về nháp
+    const notStarted = isOrderNotStarted(order)
     const approved = order.trang_thai === 'da_co_ket_qua'
     const completed = (order.trang_thai_ket_qua || template.ket_qua?.trang_thai_ket_qua) === 'DA_CO_KET_QUA'
     const locked = notStarted || approved
@@ -243,11 +241,14 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
     )
 }
 
-// Form nhập thông số thăm dò chức năng (TDCN) theo mẫu ở FE
 function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
-    const params = FUNCTIONAL_TEMPLATES[order.ma_dich_vu]?.params || []
-    const presets = FUNCTIONAL_TEMPLATES[order.ma_dich_vu]?.presets
+    const tpl = FUNCTIONAL_TEMPLATES[order.ma_dich_vu] || (String(order.ten_dich_vu || '').toLowerCase().includes('điện tâm đồ') ? FUNCTIONAL_TEMPLATES.DV_ECG : null)
+    const params = tpl?.params || []
+    const presets = tpl?.presets
     const detail = order.ket_qua_chi_tiet || {}
+    const notStarted = isOrderNotStarted(order)
+    const approved = order.trang_thai === 'da_co_ket_qua'
+    const locked = notStarted || approved
 
     const formik = useFormik({
         initialValues: {
@@ -316,6 +317,7 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
                                 <td>
                                     <input
                                         aria-label={p.name}
+                                        disabled={locked}
                                         className={`medpro-input font-bold ${flags[i] ? '!border-rose-500 text-rose-700' : ''}`}
                                         value={values.values[p.code]}
                                         onChange={(e) => setFieldValue(`values.${p.code}`, e.target.value)}
@@ -337,29 +339,30 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
 
             <div className="flex flex-wrap gap-5">
                 <div className="flex min-w-0 flex-[999_1_360px] flex-col gap-4">
-                    <PresetChips label="Chèn mẫu kết luận:" presets={presets} onPick={(name) => setFieldValue('ket_luan', presets[name])} />
+                    <PresetChips label="Chèn mẫu kết luận:" presets={presets} disabled={locked} onPick={(name) => setFieldValue('ket_luan', presets[name])} />
                     <label>
                         <span className="medpro-label">Kết luận</span>
-                        <textarea name="ket_luan" rows={3} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
+                        <textarea name="ket_luan" rows={3} disabled={locked} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
                         {errors.ket_luan && formik.touched.ket_luan && <p className="mt-1 text-[12px] text-rose-600">{errors.ket_luan}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Đề nghị</span>
-                        <input name="de_nghi" className="medpro-input" value={values.de_nghi} onChange={handleChange} />
+                        <input name="de_nghi" disabled={locked} className="medpro-input" value={values.de_nghi} onChange={handleChange} />
                     </label>
                     <label>
                         <span className="medpro-label">Ghi chú</span>
-                        <textarea name="ghi_chu" rows={2} className="medpro-input" placeholder="Ví dụ: mẫu hơi đục, đã ly tâm lại" value={values.ghi_chu} onChange={handleChange} />
+                        <textarea name="ghi_chu" rows={2} disabled={locked} className="medpro-input" placeholder="Ví dụ: mẫu hơi đục, đã ly tâm lại" value={values.ghi_chu} onChange={handleChange} />
                     </label>
                 </div>
                 <div className="flex-[1_1_240px]">
-                    <FileAttachField label="Bản ghi đo (1 tệp)" value={values.tep} onChange={(v) => setFieldValue('tep', v)} />
+                    <FileAttachField label="Bản ghi đo (1 tệp)" disabled={locked} value={values.tep} onChange={(v) => setFieldValue('tep', v)} />
                 </div>
             </div>
 
             <ResultFormFooter
                 submitting={submitting}
                 alreadyReturned={order.trang_thai === 'da_co_ket_qua'}
+                disabled={notStarted}
                 onDraft={() => submit(false)}
                 onSubmit={() => submit(true)}
             />
@@ -367,7 +370,6 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
     )
 }
 
-// Form nhập kết quả dạng bảng chỉ số — Xét nghiệm (loai=XET_NGHIEM, API thật) và Thăm dò chức năng (loai=TDCN)
 export default function IndicatorResultForm({ order, loai, submitting, onSubmit, onSubmitLab }) {
     if (loai === 'XET_NGHIEM') return <LabIndicatorForm order={order} submitting={submitting} onSubmitLab={onSubmitLab} />
     return <FunctionalIndicatorForm order={order} submitting={submitting} onSubmit={onSubmit} />

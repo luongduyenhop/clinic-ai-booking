@@ -176,6 +176,18 @@ export const DEFAULT_NAVIGATION_CONFIG = {
                     icon: 'ChartBar',
                     path: '/admin/bao-cao',
                 },
+                {
+                    id: 'cashier-vietqr',
+                    title: 'Thu Ngân & VietQR',
+                    icon: 'Receipt',
+                    path: '/admin/thu-ngan-vietqr',
+                },
+                {
+                    id: 'pharmacy-fefo',
+                    title: 'Kho Dược & Xuất FEFO',
+                    icon: 'Pill',
+                    path: '/admin/kho-duoc-fefo',
+                },
             ],
         },
         {

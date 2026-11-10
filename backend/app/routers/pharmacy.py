@@ -1,10 +1,12 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import require_roles
 from app.core.response import ResponseEnvelope
+from app.models.production_models import UserProduction
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.production_pharmacy import (
     DrugBatchCreateRequest,
@@ -14,7 +16,13 @@ from app.schemas.production_pharmacy import (
 from app.services.production_pharmacy_service import production_pharmacy_service
 
 router = APIRouter(prefix="/pharmacy", tags=["8. Kho Dược & Cấp Phát Thuốc (Pharmacy & FEFO)"])
-pharmacy_staff_guard = require_roles([VaiTroEnum.THU_NGAN, VaiTroEnum.ADMIN, VaiTroEnum.BAC_SI])
+pharmacy_staff_guard = require_roles([
+    VaiTroEnum.THU_NGAN,
+    VaiTroEnum.ADMIN,
+    VaiTroEnum.BAC_SI,
+    VaiTroEnum.KY_THUAT_VIEN,
+    VaiTroEnum.LE_TAN,
+])
 
 
 @router.post(
@@ -73,9 +81,11 @@ async def dispense_prescription(
     current_user: TaiKhoan = Depends(pharmacy_staff_guard),
     db: AsyncSession = Depends(get_db),
 ):
+    stmt = select(UserProduction.id).where(UserProduction.email == current_user.email)
+    user_prod_id = (await db.execute(stmt)).scalar_one_or_none()
     result = await production_pharmacy_service.dispense_prescription(
         prescription_id=prescription_id,
-        user_id=current_user.id,
+        user_id=user_prod_id or current_user.id,
         db=db,
     )
     return ResponseEnvelope.success_response(

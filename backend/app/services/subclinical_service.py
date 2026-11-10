@@ -8,21 +8,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
+    BadRequestException,
     ConflictException,
+    ForbiddenException,
     NotFoundException,
+    UnprocessableEntityException,
 )
 from app.models.appointment import HangDoiKham, TrangThaiHangDoiEnum
 from app.models.medical import ChiDinh, DichVu, KetQuaCLS, LuotKham, PhieuKetQuaCLS
-from app.models.user import BacSi, BenhNhan, NguoiDung
+from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
+from app.models.production_models import (
+    ParaclinicalOrderProduction,
+    ParaclinicalResultProduction,
+    ServiceProduction,
+    UserProduction,
+    EncounterProduction,
+)
 from app.schemas.subclinical import (
     PatientBrief,
     SubclinicalQueueItem,
     SubclinicalQueueResponse,
     SubclinicalResultSubmitRequest,
     SubclinicalServiceBrief,
+    BarcodeGenerateResponse,
+    ParaclinicalResultInput,
+    ParaclinicalResultSubmitRequest as ProdResultSubmitRequest,
+    ParaclinicalOrderResultResponse,
+    ParaclinicalVerifyResponse,
+    WorkspaceOrdersRequest,
+    WorkspaceOrdersResponse,
+    WorkspaceOrderItem,
+    WorkspacePatientIn,
 )
 from app.services.cls_result_state import PHIEU_DA_DUYET, is_phieu_approved, latest_phieu
 from app.services.cls_service_group import clinic_day_range, nhom_dich_vu_condition, nhom_dich_vu_of
+from app.services.clinical_service import clinical_service
+from app.services.credential_service import credential_service
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +361,255 @@ class SubclinicalService:
         await db.commit()
         await db.refresh(order)
         return order
+
+    async def create_orders_from_workspace(
+        self, payload: WorkspaceOrdersRequest, user: TaiKhoan, db: AsyncSession
+    ) -> WorkspaceOrdersResponse:
+        bac_si = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            bac_si = await clinical_service._get_doctor_from_user(user, db)
+        elif user.vai_tro == VaiTroEnum.ADMIN.value:
+            stmt_admin_doc = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bac_si = (await db.execute(stmt_admin_doc)).scalar_one_or_none()
+            if not bac_si:
+                stmt_fallback = select(BacSi).where(BacSi.is_active.is_(True)).order_by(BacSi.id.asc())
+                bac_si = (await db.execute(stmt_fallback)).scalars().first()
+                if not bac_si:
+                    raise NotFoundException("Hệ thống chưa có hồ sơ Bác sĩ nào đang hoạt động!")
+        else:
+            raise ForbiddenException("Chức năng chỉ định cận lâm sàng chỉ dành cho Bác sĩ hoặc Quản trị viên!")
+
+        dich_vu_ids = list(dict.fromkeys(payload.dich_vu_ids))
+        services = (await db.execute(select(DichVu).where(DichVu.id.in_(dich_vu_ids)))).scalars().all()
+        services_by_id = {dv.id: dv for dv in services}
+        for dv_id in dich_vu_ids:
+            dv = services_by_id.get(dv_id)
+            if not dv or not dv.is_active:
+                raise NotFoundException(f"Dịch vụ cận lâm sàng ID {dv_id} không tồn tại hoặc đã tạm dừng cung cấp!")
+            if user.vai_tro == VaiTroEnum.BAC_SI.value:
+                await credential_service.check_doctor_scope_of_practice(db, bac_si.id, dv.id)
+
+        ma = (payload.benh_nhan.ma or "").strip() or f"WS-BN-{payload.workspace_encounter_id}"
+        stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.ma_dinh_danh_y_te == ma)
+        benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+        if not benh_nhan:
+            nguoi_dung = NguoiDung(
+                ho_ten=payload.benh_nhan.ho_ten.strip(),
+                so_dien_thoai=payload.benh_nhan.so_dien_thoai,
+                gioi_tinh=payload.benh_nhan.gioi_tinh or "Khác",
+                ngay_sinh=date(date.today().year - payload.benh_nhan.tuoi, 1, 1) if payload.benh_nhan.tuoi else None,
+            )
+            db.add(nguoi_dung)
+            await db.flush()
+            benh_nhan = BenhNhan(
+                nguoi_dung_id=nguoi_dung.id,
+                ma_dinh_danh_y_te=ma,
+                di_ung_thuoc=payload.benh_nhan.di_ung_thuoc or "Không",
+            )
+            db.add(benh_nhan)
+            await db.flush()
+
+        ma_kcb = f"WS-{payload.workspace_encounter_id}-{benh_nhan.id}"
+        stmt_lk = select(LuotKham).where(LuotKham.ma_kcb == ma_kcb).with_for_update()
+        luot_kham = (await db.execute(stmt_lk)).scalar_one_or_none()
+        if luot_kham is None:
+            if user.vai_tro == VaiTroEnum.BAC_SI.value:
+                await credential_service.check_doctor_license_valid(db, bac_si.id)
+            luot_kham = LuotKham(
+                ma_kcb=ma_kcb,
+                bac_si_id=bac_si.id,
+                benh_nhan_id=benh_nhan.id,
+                thoi_gian_bat_dau=datetime.now(timezone.utc),
+                ly_do_vao_kham=payload.ly_do_vao_kham,
+                chan_doan_so_bo=payload.chan_doan_so_bo,
+                is_locked=False,
+            )
+            db.add(luot_kham)
+            await db.flush()
+        elif luot_kham.is_locked:
+            raise ConflictException("Hồ sơ bệnh án đã bị khóa, không thể kê thêm chỉ định dịch vụ!")
+
+        stmt_orders = select(ChiDinh).where(
+            ChiDinh.luot_kham_id == luot_kham.id,
+            ChiDinh.dich_vu_id.in_(dich_vu_ids),
+            ChiDinh.trang_thai != "da_huy",
+        )
+        active_by_service = {o.dich_vu_id: o for o in (await db.execute(stmt_orders)).scalars().all()}
+
+        orders: List[ChiDinh] = []
+        for dv_id in dich_vu_ids:
+            order = active_by_service.get(dv_id)
+            if order is None:
+                dv = services_by_id[dv_id]
+                order = ChiDinh(
+                    luot_kham_id=luot_kham.id,
+                    dich_vu_id=dv.id,
+                    so_luong=1,
+                    don_gia_tai_thoi_diem=dv.don_gia,
+                    trang_thai="da_chi_dinh",
+                    bac_si_chi_dinh_id=bac_si.id,
+                    phong_thuc_hien_id=dv.phong_thuc_hien_id,
+                )
+                db.add(order)
+            orders.append(order)
+
+        stmt_active_t = select(HangDoiKham).where(
+            HangDoiKham.benh_nhan_id == benh_nhan.id,
+            HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
+        )
+        active_t = (await db.execute(stmt_active_t)).scalars().first()
+        if active_t:
+            active_t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+            active_t.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
+
+        await db.commit()
+        for order in orders:
+            await db.refresh(order)
+
+        return WorkspaceOrdersResponse(
+            luot_kham_id=luot_kham.id,
+            orders=[
+                WorkspaceOrderItem(
+                    id=o.id,
+                    dich_vu_id=o.dich_vu_id,
+                    ma_dich_vu=services_by_id[o.dich_vu_id].ma_dich_vu,
+                    nhom_dich_vu=nhom_dich_vu_of(
+                        services_by_id[o.dich_vu_id].ma_nhom_byt, services_by_id[o.dich_vu_id].ma_dich_vu
+                    ),
+                    trang_thai=o.trang_thai,
+                )
+                for o in orders
+            ],
+        )
+
+    async def generate_specimen_barcode(
+        self, order_id: int, user: TaiKhoan, db: AsyncSession
+    ) -> BarcodeGenerateResponse:
+        prod_order = await db.get(ParaclinicalOrderProduction, order_id)
+        legacy_order = await db.get(ChiDinh, order_id)
+
+        if not prod_order and not legacy_order:
+            raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng với ID {order_id}")
+
+        current_status = prod_order.status if prod_order else (legacy_order.trang_thai if legacy_order else "")
+        if current_status in ("COMPLETED_VERIFIED", "da_duyet", "CANCELLED", "da_huy"):
+            raise ConflictException(f"Không thể tạo barcode cho chỉ định ở trạng thái '{current_status}'")
+
+        barcode = f"BC-LAB-{datetime.now().strftime('%Y%m%d')}-{order_id:06d}"
+
+        if prod_order:
+            prod_order.barcode_id = barcode
+            prod_order.status = "SAMPLE_COLLECTED"
+
+        if legacy_order:
+            legacy_order.trang_thai = "dang_thuc_hien"
+
+        await db.commit()
+
+        return BarcodeGenerateResponse(
+            order_id=order_id,
+            barcode_id=barcode,
+            status="SAMPLE_COLLECTED",
+        )
+
+    async def submit_paraclinical_results(
+        self, order_id: int, payload: ProdResultSubmitRequest, user: TaiKhoan, db: AsyncSession
+    ) -> ParaclinicalOrderResultResponse:
+        prod_order = await db.get(ParaclinicalOrderProduction, order_id)
+        legacy_order = await db.get(ChiDinh, order_id)
+
+        if not prod_order and not legacy_order:
+            raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng với ID {order_id}")
+
+        current_status = prod_order.status if prod_order else (legacy_order.trang_thai if legacy_order else "")
+        if current_status in ("COMPLETED_VERIFIED", "da_duyet"):
+            raise ConflictException("Kết quả xét nghiệm đã được duyệt, không thể ghi đè (Invariant CLS-1)")
+
+        has_panic = False
+        barcode_id = prod_order.barcode_id if prod_order else f"BC-LAB-{datetime.now().strftime('%Y%m%d')}-{order_id:06d}"
+
+        for item in payload.results:
+            is_abnormal = False
+            is_panic = False
+
+            if item.numeric_value is not None:
+                val = float(item.numeric_value)
+                code_upper = item.parameter_code.upper()
+                if "K+" in code_upper or "KALI" in code_upper:
+                    if val > 6.5 or val < 2.5:
+                        is_panic = True
+                        has_panic = True
+                elif "GLU" in code_upper:
+                    if val < 2.8 or val > 25.0:
+                        is_panic = True
+                        has_panic = True
+
+                if item.reference_high is not None and val > float(item.reference_high):
+                    is_abnormal = True
+                elif item.reference_low is not None and val < float(item.reference_low):
+                    is_abnormal = True
+
+            res_record = ParaclinicalResultProduction(
+                order_id=order_id,
+                parameter_code=item.parameter_code,
+                parameter_name=item.parameter_name,
+                measured_value=item.measured_value,
+                numeric_value=Decimal(str(item.numeric_value)) if item.numeric_value is not None else None,
+                measurement_unit=item.measurement_unit,
+                reference_low=Decimal(str(item.reference_low)) if item.reference_low is not None else None,
+                reference_high=Decimal(str(item.reference_high)) if item.reference_high is not None else None,
+                is_abnormal=is_abnormal,
+                is_panic_value=is_panic,
+                conclusion=item.conclusion,
+                performed_by=user.id,
+            )
+            db.add(res_record)
+
+        if prod_order:
+            prod_order.status = "RESULT_ENTERED"
+
+        if legacy_order:
+            legacy_order.trang_thai = "da_co_ket_qua"
+            legacy_order.ket_qua_chi_tiet = f"Kết quả {len(payload.results)} chỉ số. " + (payload.technician_notes or "")
+
+        await db.commit()
+
+        return ParaclinicalOrderResultResponse(
+            order_id=order_id,
+            status="RESULT_ENTERED",
+            barcode_id=barcode_id,
+            has_panic_value=has_panic,
+            results_count=len(payload.results),
+        )
+
+    async def verify_paraclinical_order(
+        self, order_id: int, user: TaiKhoan, db: AsyncSession
+    ) -> ParaclinicalVerifyResponse:
+        prod_order = await db.get(ParaclinicalOrderProduction, order_id)
+        legacy_order = await db.get(ChiDinh, order_id)
+
+        if not prod_order and not legacy_order:
+            raise NotFoundException(f"Không tìm thấy chỉ định cận lâm sàng với ID {order_id}")
+
+        now = datetime.now(timezone.utc)
+        if prod_order:
+            if prod_order.status not in ("RESULT_ENTERED", "PROCESSING", "ORDERED", "SAMPLE_COLLECTED"):
+                raise ConflictException(f"Chỉ định ở trạng thái '{prod_order.status}' không thể duyệt!")
+            prod_order.status = "COMPLETED_VERIFIED"
+            prod_order.updated_at = now
+
+        if legacy_order:
+            legacy_order.trang_thai = "da_co_ket_qua"
+
+        await db.commit()
+
+        return ParaclinicalVerifyResponse(
+            order_id=order_id,
+            status="COMPLETED_VERIFIED",
+            verified_by=user.id,
+            verified_at=now,
+        )
+
 
 
 subclinical_service = SubclinicalService()

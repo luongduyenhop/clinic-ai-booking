@@ -63,7 +63,14 @@ Session 2026-11-10
 12. Tích hợp đơn thuốc điện tử: Trước mắt thiết kế kiến trúc, adapter/interface, cấu hình, giám sát trạng thái, nhật ký, xử lý lỗi và retry/idempotency ở mức có thể kiểm chứng. Chỉ kết nối API thật sau khi xác minh tài liệu chính thức, cơ chế xác thực và môi trường sandbox/production. Trước thời điểm đó chỉ dùng mock hoặc dữ liệu giả lập; không tự suy diễn endpoint/schema chính thức.
 13. Audit Log retention: Thời gian lưu trữ phải cấu hình được. Chưa ấn định số năm cho đến khi đối chiếu quy định pháp luật áp dụng. Không cho người dùng thông thường sửa/xóa log; cần xác định chính sách archive/backup và xử lý khi ghi audit thất bại.
 14. Role quản trị cao nhất: ADMIN là Role quản trị cao nhất hiện tại; không sử dụng SUPER_ADMIN. Không cấp hoặc thu hồi Role ADMIN qua giao diện/API nghiệp vụ thông thường của Admin Portal. Khởi tạo và thay đổi quyền ADMIN phải qua quy trình kỹ thuật backend/bootstrap có kiểm soát, có audit và bảo vệ không để mất Admin cuối cùng.
-15. Phạm vi CorporateHealthPage.jsx trong Admin Portal: Admin chỉ được quản trị danh mục gói khám sức khỏe doanh nghiệp, hợp đồng khám đoàn, cấu hình dịch vụ và bảng giá liên quan, và xem báo cáo tổng hợp hoạt động khám đoàn khi được cấp quyền. Admin không được tiếp nhận người đến khám, thực hiện quy trình khám lâm sàng, lập hồ sơ bệnh án đoàn, nhập kết quả xét nghiệm hoặc thực hiện bất kỳ nghiệp vụ khám sức khỏe tuyến đầu nào trong Admin Portal. TreatmentCoursePage.jsx cần được audit code thực tế trước khi xác định trang này thuộc Admin Portal hay phải chuyển sang workspace nghiệp vụ khác; không tự quyết định chuyển workspace khi chưa có kết quả audit.
+15. Phạm vi Khám đoàn (CorporateHealthPage.jsx) và Liệu trình điều trị (TreatmentCoursePage.jsx):
+    - CorporateHealthPage.jsx: Admin chỉ quản trị danh mục gói khám sức khỏe doanh nghiệp, hợp đồng khám đoàn, cấu hình dịch vụ và bảng giá liên quan, và xem báo cáo tổng hợp hoạt động khám đoàn khi được cấp quyền; tuyệt đối không thực hiện tiếp nhận, khám lâm sàng, lập hồ sơ bệnh án hay nhập kết quả xét nghiệm đoàn.
+    - TreatmentCoursePage.jsx (Quyết định Phương án A ngày 2026-11-10): Kết quả audit mã nguồn xác nhận trang hiện tại chứa các thao tác lâm sàng và tài chính tuyến đầu (chỉ định phác đồ, điểm danh ca tập, theo dõi bệnh án từng buổi và in biên lai viện phí). Phê duyệt Phương án A: tách hoàn toàn TreatmentCoursePage.jsx khỏi Admin Portal. Các route /admin/lieu-trinh và /admin/lieutrinh phải bị loại bỏ trong giai đoạn implementation. Các nghiệp vụ được phân định rõ ràng về đúng workspace:
+      + Bác sĩ (Doctor Workspace): Chỉ định liệu trình, theo dõi và đánh giá đáp ứng lâm sàng.
+      + Kỹ thuật viên / Điều dưỡng (Staff/PHCN Workspace): Lịch thực hiện và điểm danh / check-in buổi trị liệu.
+      + Thu ngân (Cashier Workspace): Thu tiền và quản lý biên lai viện phí.
+      + Quản trị viên (Admin Portal): Chỉ quản lý danh mục bài tập PHCN chuẩn, danh mục gói liệu trình mẫu (nếu được duyệt tích hợp vào Catalog) và xem báo cáo thống kê tổng hợp ẩn danh. Tuyệt đối không cho phép Admin xem danh sách bệnh nhân điều trị cá nhân, hồ sơ từng buổi, đánh giá lâm sàng hoặc thao tác check-in.
+      + Tuyệt đối không chuyển nguyên trạng toàn bộ component TreatmentCoursePage.jsx hiện tại sang Staff Workspace vì component đang trộn lẫn nhiều vai trò và quyền hạn khác nhau; việc phân tách thành màn hình/component độc lập sẽ được thực hiện tại workspace tương ứng.
 4. User Scenarios & Testing
 US-01 – Dashboard, BI & Audit Management (Priority: P1)
 Là quản trị viên được cấp quyền giám sát, tôi muốn xem dashboard và báo cáo tổng hợp về hoạt động phòng khám, đồng thời tra cứu Audit Trail, để theo dõi tình hình vận hành và phát hiện các hành vi bất thường.
@@ -155,7 +162,7 @@ Acceptance Scenarios:
 - FR-005: Hệ thống MUST kiểm kê toàn bộ mục menu và route Admin hiện có, bao gồm các mục trong clinicSeed.json, App.jsx và các cấu hình liên quan.
 - FR-006: Mỗi mục được audit MUST được phân loại: Giữ, Hợp nhất, Sửa, Xóa, Chuyển sang workspace khác hoặc Hoãn; kèm lý do và tác động.
 - FR-007: Chỉ route thuộc phạm vi Admin và đã được duyệt mới được hiển thị trong Admin navigation.
-- FR-008: Route thuộc workspace tiếp đón, khám bệnh, CLS, thu ngân hoặc liệu trình MUST NOT được đưa vào Admin như chức năng thao tác tuyến đầu.
+- FR-008: Route thuộc workspace tiếp đón, khám bệnh, CLS, thu ngân hoặc liệu trình điều trị MUST NOT được đưa vào Admin như chức năng thao tác tuyến đầu. Các route /admin/lieu-trinh và /admin/lieutrinh MUST bị loại bỏ khỏi Admin Portal trong giai đoạn implementation; component TreatmentCoursePage.jsx không thuộc quyền sở hữu của phân hệ Admin.
 - FR-009: Việc xóa route/component MUST có kiểm tra dependency, kiểm tra workspace dùng chung và regression tests trước khi merge.
 - FR-010: Các màn hình Admin sử dụng tab qua query parameter MUST đồng bộ hai chiều giữa URL và UI state khi chức năng đó được giữ lại.
 5.3 Role-Based & Fine-Grained Authorization
@@ -327,17 +334,25 @@ Các tiêu chí nghiệm thu phải đo được và gắn với phạm vi Admin
 | **OQ-3: Audit Retention & Fail Policy** | Chính sách retention cụ thể và cơ chế xử lý khi ghi audit lỗi (fail-safe) | Chờ xác nhận | Nghị định 102/2025/NĐ-CP (nhật ký hệ thống thông tin y tế); Nghị định 13/2023/NĐ-CP (bảo vệ dữ liệu cá nhân); Luật Khám bệnh, chữa bệnh 2023 (thời hạn lưu trữ bệnh án) | Chờ xác minh | Xác định điều khoản cụ thể điều chỉnh thời hạn lưu trữ log cho phòng khám tư nhân; không ấn định số năm lưu trữ và không áp dụng fail-closed đồng loạt khi chưa đánh giá rủi ro từng loại thao tác; chính sách được chủ dự án phê duyệt. |
 | **OQ-4: TClinic & Multi-source Legal Mapping** | Bảng đối chiếu nghiệp vụ tham chiếu TClinic với các văn bản pháp lý chuyên ngành y tế | Chờ xác nhận | Thông tư 32/2023/TT-BYT (quy chuẩn danh mục kỹ thuật, biểu mẫu); Luật Khám bệnh, chữa bệnh 2023 (điều kiện CCHN, phạm vi hành nghề); các quy định y tế hiện hành khác | Chờ xác minh | Không kết luận một văn bản bao quát toàn bộ yêu cầu pháp lý; lập bảng đối chiếu cụ thể từng trường danh mục (buồng khám, chuyên khoa, CCHN, dịch vụ) viện dẫn điều khoản văn bản áp dụng; được chủ dự án phê duyệt. |
 | **OQ-5: Scheduling Rules** | Scheduling Rules Document (quy tắc ca, thời gian nghỉ, xung đột phòng/bác sĩ) | Chờ xác nhận | Quy chế phân ca trực và Bộ luật Lao động (thời giờ làm việc, thời giờ nghỉ ngơi) | Chờ xác nhận | Xác định đầy đủ các loại xung đột và quy tắc nghiệp vụ điều phối lịch bằng văn bản; có test suite xác minh độc lập. |
+10.4 Nợ kỹ thuật (Technical Debt) ghi nhận từ Audit mã nguồn Treatment Course & BFF
+Ghi nhận các phát hiện kỹ thuật tồn tại trong mã nguồn hiện hữu để theo dõi và xử lý đúng lộ trình, không tự ý sửa đổi ngoài phạm vi Admin Portal:
+1. Kê đơn liệu trình: Nút "Kê đơn liệu trình mới" tại TreatmentCoursePage.jsx chỉ là toast mock (`AppToast.info`), chưa có form chỉ định phác đồ hay liên kết với y lệnh của Bác sĩ.
+2. In biên lai viện phí: Nút "In biên lai" tại TreatmentCoursePage.jsx chỉ là toast mock (`AppToast.success`), chưa kết nối với module thanh toán / biên lai của Thu ngân.
+3. Check-in điểm danh qua BFF: Thao tác điểm danh buổi tập đang cập nhật ghi đè toàn bộ collection `treatmentCourses` qua action Redux `updateClinicCollectionAsync` đẩy lên bảng `he_thong_trang_thai_bff` thay vì gọi API quan hệ chuyên biệt.
+4. Logic gán mặc định tại Backend: `bff_admin_service.py` (dòng 1353-1355) đang tự động gán bệnh nhân đầu tiên (`first_bn`) và bác sĩ đầu tiên (`first_bs`) cho mọi bản ghi liệu trình được đồng bộ từ BFF vào PostgreSQL (`LieuTrinhDieuTri`), tiềm ẩn rủi ro sai lệch dữ liệu người bệnh.
+5. Chia sẻ route chưa phân quyền (/staff/treatment-courses): Route này hiện dùng chung component monolithic TreatmentCoursePage.jsx mà chưa có cơ chế phân tách quyền hạn theo vai trò (Bác sĩ vs KTV vs Thu ngân).
+
 11. Work Packages – đề xuất phân rã, chưa phải cam kết triển khai
 Không phân công gói công việc theo cách khiến Admin phải sở hữu workspace của các vai trò nghiệp vụ.
 1. WP-01 – Admin Foundation, Navigation & Data Audit: kiểm kê menu/route, xác định nguồn dữ liệu, migration strategy, dashboard foundation.
 2. WP-02 – Medical Catalog & Configuration: danh mục y tế, bảng giá, thuốc, ICD-10, biểu mẫu.
 3. WP-03 – Staff, RBAC & Scheduling Administration: tài khoản, nhân sự, Role/Permission, cấu hình lịch làm việc.
 4. WP-04 – Reports, Audit & Operational Data Access: dashboard, báo cáo, Audit Trail, data-access matrix.
-5. WP-05 – E-Prescription Integration Administration: cấu hình, giám sát, trạng thái đồng bộ và xử lý lỗi tích hợp.
+5. WP-05 – E-Prescription Integration Administration: cấu hình, giám sát, trạng thái đồng bộ và xử lý lỗi tích hợp; chuẩn hóa trang Khám sức khỏe đoàn (phạm vi quản trị danh mục/hợp đồng); loại bỏ các route /admin/lieu-trinh và /admin/lieutrinh khỏi Admin Portal.
 Các workspace tiếp đón, khám, CLS và thu ngân được kiểm thử hồi quy để bảo đảm không bị ảnh hưởng bởi thay đổi Admin; chúng không trở thành gói chức năng Admin.
 12. Definition of Ready for Planning
 Chỉ chuyển sang /speckit-plan khi các điều kiện dưới đây được đáp ứng. Các mục còn [ ] là việc chưa hoàn tất, không được tự động đánh dấu hoàn thành:
-- [ ] Phạm vi Admin thuần quản trị được thống nhất trong toàn bộ tài liệu (đã làm rõ phạm vi CorporateHealthPage.jsx; giữ [ ] chờ audit code thực tế TreatmentCoursePage.jsx).
+- [x] Phạm vi Admin thuần quản trị được thống nhất trong toàn bộ tài liệu (đã làm rõ phạm vi CorporateHealthPage.jsx; đã audit mã nguồn TreatmentCoursePage.jsx và phê duyệt Phương án A tách hoàn toàn khỏi Admin Portal, loại bỏ các route /admin/lieu-trinh và /admin/lieutrinh).
 - [ ] Sáu User Stories và Acceptance Scenarios được review, không còn nghiệp vụ tuyến đầu gán cho Admin (giữ [ ] chờ chủ dự án review và phê duyệt chính thức).
 - [ ] Data-access matrix chi tiết cho từng trường dữ liệu bệnh nhân, permission, mục đích và audit được hoàn tất (đã chuẩn hóa ma trận chi tiết tại §5.4; giữ [ ] chờ chủ dự án phê duyệt các mục Chờ xác nhận).
 - [x] Ma trận Role/Permission và quy tắc ưu tiên grant/revoke được xác nhận ở mức nghiệp vụ: Explicit Deny > Explicit Allow > Role Grant > Default Deny; ADMIN là Role cao nhất, không cấp qua UI.

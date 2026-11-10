@@ -118,10 +118,10 @@
 
 ---
 
-## Phase 7: Gói 5 (WP-05) — Giám sát Đơn thuốc & Khám sức khỏe đoàn (Thành viên 5)
+## Phase 7: Gói 5 (WP-05) — Giám sát Đơn thuốc, Khám đoàn & Tách Liệu trình (Thành viên 5)
 
-**Mục tiêu**: Giám sát hàng đợi đồng bộ đơn thuốc quốc gia, khôi phục trang Khám đoàn và chuẩn hóa gói liệu trình.
-**Trách nhiệm tệp**: `admin_integration.py`, `CorporateHealthPage.jsx`, `TreatmentCoursePage.jsx`
+**Mục tiêu**: Giám sát hàng đợi đồng bộ đơn thuốc quốc gia, chuẩn hóa trang Khám đoàn (quản lý hợp đồng/danh mục gói) và loại bỏ route Liệu trình khỏi Admin Portal theo Phương án A.
+**Trách nhiệm tệp**: `admin_integration.py`, `CorporateHealthPage.jsx`, `App.jsx`, `AdminTemplate.jsx`
 
 ### Kiểm thử cho Gói 5
 - [ ] T038 [P] [WP05] Viết test `clinic-ai/backend/tests/test_admin_integration.py` kiểm tra API trạng thái đồng bộ đơn thuốc quốc gia
@@ -131,7 +131,7 @@
 - [ ] T040 [WP05] Xây dựng API giám sát hàng đợi và trạng thái đơn thuốc quốc gia trong `clinic-ai/backend/app/routers/admin/admin_integration.py`
 - [ ] T041 [WP05] Kết nối lại route `/admin/kham-doan` và `/admin/dang-ky-doan` trỏ đến `clinic-ai/fe/src/pages/admin/CorporateHealthPage.jsx`
 - [ ] T042 [WP05] Hoàn thiện giao diện quản trị khám sức khỏe đoàn trong `CorporateHealthPage.jsx`
-- [ ] T043 [WP05] Chuẩn hóa đồng bộ tab điều hướng trong `clinic-ai/fe/src/pages/admin/TreatmentCoursePage.jsx`
+- [ ] T043 [WP05] Loại bỏ các route `/admin/lieu-trinh` và `/admin/lieutrinh` trong `App.jsx` và `AdminTemplate.jsx`; tách `TreatmentCoursePage.jsx` khỏi Admin Portal theo Phương án A
 
 **Checkpoint Gói 5**: Đơn thuốc quốc gia được giám sát chặt chẽ, khám đoàn được kết nối hoàn chỉnh.
 

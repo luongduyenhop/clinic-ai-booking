@@ -24,6 +24,12 @@ from app.schemas.clinical import (
     AmendmentCreateRequest,
     AmendmentResponse,
     AmendmentApproveRequest,
+    Icd10SearchItem,
+    VitalsCreateRequest,
+    VitalsResponse,
+    SealAndSignResponse,
+    AllergyCheckRequest,
+    AllergyCheckResponse,
 )
 from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 from app.schemas.compliance import (
@@ -714,3 +720,74 @@ async def save_clinical_workspace_state(
             code=500,
             message="Lỗi hệ thống khi đồng bộ dữ liệu lâm sàng. Vui lòng liên hệ quản trị viên.",
         )
+
+
+@router.get(
+    "/icd10/search",
+    response_model=ResponseEnvelope[List[Icd10SearchItem]],
+    status_code=status.HTTP_200_OK,
+)
+async def search_icd10_endpoint(
+    q: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(get_db),
+    current_user: TaiKhoan = Depends(get_current_user),
+):
+    results = await clinical_service.search_icd10(q, db)
+    return ResponseEnvelope.success_response(
+        data=results,
+        message=f"Tìm thấy {len(results)} kết quả phù hợp"
+    )
+
+
+@router.post(
+    "/encounters/{encounter_id}/vitals",
+    response_model=ResponseEnvelope[VitalsResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def record_encounter_vitals_endpoint(
+    encounter_id: int,
+    payload: VitalsCreateRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await clinical_service.record_encounter_vitals(encounter_id, payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Ghi nhận chỉ số sinh hiệu thành công",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.post(
+    "/allergy-check",
+    response_model=ResponseEnvelope[AllergyCheckResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def check_allergy_endpoint(
+    payload: AllergyCheckRequest,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await clinical_service.check_drug_allergy_conflict(payload.patient_id, payload.active_ingredient, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Kiểm tra tiền sử dị ứng thành công"
+    )
+
+
+@router.post(
+    "/encounters/{encounter_id}/seal-and-sign",
+    response_model=ResponseEnvelope[SealAndSignResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def seal_and_sign_encounter_endpoint(
+    encounter_id: int,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await clinical_service.seal_and_sign_encounter(encounter_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Ký số và đóng niêm phong hồ sơ bệnh án thành công (Invariant EMR-1)"
+    )
+

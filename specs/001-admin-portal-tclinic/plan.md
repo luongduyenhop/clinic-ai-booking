@@ -109,7 +109,7 @@ clinic-ai/
 | **WP-02** | **Thành viên 2** (Danh mục Y tế) | `admin_catalog.py`, `CatalogManagementPage.jsx`, `TemplateManagementPage.jsx`, `ServicePackagesPage.jsx` | - Chuyển đổi dữ liệu dịch vụ, bảng giá, phòng khám từ JSON sang PostgreSQL.<br>- Kiểm tra tính bất biến của bảng giá.<br>- Hợp nhất biểu mẫu in ấn. |
 | **WP-03** | **Thành viên 3** (Nhân sự & RBAC) | `admin_staff.py`, `RolePermissionPage.jsx`, `SettingClinicPage.jsx` | - CRUD bác sĩ và quản trị CCHN.<br>- Chặn phân ca trực khi CCHN hết hạn/đình chỉ.<br>- Kiểm tra xung đột buồng khám và trùng giờ ca trực.<br>- Kiểm soát phân quyền ở cấp độ API (403 Forbidden). |
 | **WP-04** | **Thành viên 4** (Kiểm toán & Data Seed) | `admin_audit.py`, `ComplianceAndAuditPage.jsx`, `scripts/seed_admin_demo.py` | - Xây dựng script seed dữ liệu mẫu với 6 rào chắn an toàn.<br>- Hiển thị và lọc nhật ký kiểm toán y tế append-only.<br>- Bảo đảm chỉ Admin có quyền mới xem được log. |
-| **WP-05** | **Thành viên 5** (Tích hợp & Khám đoàn) | `admin_integration.py`, `CorporateHealthPage.jsx`, `TreatmentCoursePage.jsx` | - Giám sát trạng thái hàng đợi đồng bộ đơn thuốc quốc gia.<br>- Khôi phục và hoàn thiện trang Khám sức khỏe đoàn.<br>- Hợp nhất quản trị gói liệu trình qua `?tab=`. |
+| **WP-05** | **Thành viên 5** (Tích hợp & Khám đoàn) | `admin_integration.py`, `CorporateHealthPage.jsx` | - Giám sát trạng thái hàng đợi đồng bộ đơn thuốc quốc gia.<br>- Khôi phục và chuẩn hóa trang Khám sức khỏe đoàn (quản lý hợp đồng/danh mục gói).<br>- Loại bỏ các route `/admin/lieu-trinh` và `/admin/lieutrinh` khỏi Admin Portal theo Phương án A. |
 
 ---
 

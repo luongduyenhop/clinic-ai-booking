@@ -92,17 +92,25 @@ class CredentialService:
 
         # Kiểm tra ngày hết hạn thực tế
         if bac_si.ngay_het_han:
-            today = date.today()
-            exp_date = bac_si.ngay_het_han.date() if isinstance(bac_si.ngay_het_han, datetime) else bac_si.ngay_het_han
+            now = datetime.now(timezone.utc)
+            if isinstance(bac_si.ngay_het_han, datetime):
+                exp_dt = bac_si.ngay_het_han
+                if exp_dt.tzinfo is None:
+                    exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                is_expired = exp_dt < now
+                exp_str = exp_dt.strftime("%Y-%m-%d")
+            else:
+                is_expired = bac_si.ngay_het_han < now.date()
+                exp_str = bac_si.ngay_het_han.strftime("%Y-%m-%d")
 
-            if exp_date < today:
+            if is_expired:
                 # Tự động cập nhật trạng thái EXPIRED
                 bac_si.trang_thai_giay_phep = TrangThaiGiayPhep.EXPIRED.value
                 db.add(bac_si)
                 await db.commit()
                 await db.refresh(bac_si)
                 raise DoctorLicenseInvalidException(
-                    f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_date.strftime('%Y-%m-%d')}!"
+                    f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_str}!"
                 )
 
         if not bac_si.is_active:
@@ -348,6 +356,7 @@ class CredentialService:
         for doc in doctors:
             exp_date = doc.ngay_het_han.date() if isinstance(doc.ngay_het_han, datetime) else doc.ngay_het_han
             days_left = (exp_date - now.date()).days
+
             ho_ten = doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS #{doc.id}"
             ck_ten = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Chưa gán"
 

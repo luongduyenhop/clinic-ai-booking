@@ -53,7 +53,7 @@
 - [ ] T014 [WP01] Triển khai API `/api/admin/bi/dashboard-stats` và `/api/admin/bi/export-excel` trong `clinic-ai/backend/app/routers/admin/admin_bi.py`
 - [ ] T015 [WP01] Cập nhật `clinic-ai/fe/src/pages/admin/DashboardAdminPage.jsx` xử lý Empty State (hiển thị số 0 rõ ràng, không sập khi DB rỗng)
 - [ ] T016 [WP01] Kết nối lại route `/admin/huong-dan` và `/admin/hoi-dap` trỏ đến `clinic-ai/fe/src/pages/admin/GuideAndQaManagementPage.jsx` trong `clinic-ai/fe/src/App.jsx`
-- [ ] T017 [WP01] Thực hiện 6 bước Audit và tinh gọn sidebar menu trong `clinic-ai/fe/src/services/admin/seed/clinicSeed.json` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`
+- [ ] T017 [WP01] Thực hiện 6 bước Audit và tinh gọn sidebar menu trong `clinic-ai/fe/src/services/admin/seed/clinicSeed.json` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`; phân loại chi tiết 6 menu thuộc nhóm `courses`: loại bỏ 3 menu lâm sàng/thao tác tuyến đầu (`Liệu trình`, `Hóa đơn`, `Lịch liệu trình`); đánh giá khả năng chuyển giao `Danh mục bài tập` và `Danh mục liệu trình mẫu` sang phạm vi WP-02 (`CatalogManagementPage.jsx`) và `Báo cáo liệu trình` tổng hợp ẩn danh sang WP-01 (`DashboardAdminPage.jsx`); không xóa máy móc các danh mục/báo cáo hợp lệ; các mục chưa đủ dữ liệu giữ trạng thái Chờ xác nhận/audit, không tự ý tạo route hay API mới
 
 **Checkpoint Gói 1**: Dashboard BI chạy chuẩn với dữ liệu PostgreSQL thật, route chết được khôi phục, menu gọn gàng.
 
@@ -61,7 +61,7 @@
 
 ## Phase 4: Gói 2 (WP-02) — Danh mục Y tế, Bảng giá & Mẫu in TT32 (Thành viên 2)
 
-**Mục tiêu**: Di trú dữ liệu danh mục y tế từ JSON sang PostgreSQL, bảo đảm tính bất biến của bảng giá và hợp nhất biểu mẫu in.
+**Mục tiêu**: Di trú dữ liệu danh mục y tế từ JSON sang PostgreSQL, bảo đảm tính bất biến của bảng giá, hợp nhất biểu mẫu in và đánh giá tiếp nhận danh mục bài tập / gói liệu trình mẫu vào phạm vi `CatalogManagementPage.jsx` hiện tại (không tạo module danh mục mới ngoài phạm vi).
 **Trách nhiệm tệp**: `admin_catalog.py`, `CatalogManagementPage.jsx`, `TemplateManagementPage.jsx`, `ServicePackagesPage.jsx`
 
 ### Kiểm thử cho Gói 2
@@ -71,7 +71,7 @@
 ### Thực thi Gói 2
 - [ ] T020 [WP02] Xây dựng các endpoint CRUD Khoa, Buồng khám, Dịch vụ, Thuốc, ICD-10 trong `clinic-ai/backend/app/routers/admin/admin_catalog.py`
 - [ ] T021 [WP02] Triển khai cơ chế cập nhật giá dịch vụ tạo bản ghi mới và giữ nguyên lịch sử giá trong `clinic-ai/backend/app/services/admin_service.py`
-- [ ] T022 [WP02] Cập nhật `clinic-ai/fe/src/pages/admin/CatalogManagementPage.jsx` chuyển từ gọi kho JSON sang gọi trực tiếp API quan hệ PostgreSQL
+- [ ] T022 [WP02] Cập nhật `clinic-ai/fe/src/pages/admin/CatalogManagementPage.jsx` chuyển từ gọi kho JSON sang gọi trực tiếp API quan hệ PostgreSQL; đánh giá tiếp nhận danh mục bài tập và gói liệu trình mẫu trong phạm vi catalog hiện tại nếu được duyệt chuyển giao
 - [ ] T023 [WP02] Hợp nhất giao diện quản lý biểu mẫu in ấn TT32 trong `clinic-ai/fe/src/pages/admin/TemplateManagementPage.jsx`
 - [ ] T024 [WP02] Đồng bộ query parameter `?tab=` hai chiều cho component trong `clinic-ai/fe/src/pages/admin/ServicePackagesPage.jsx`
 
@@ -120,7 +120,7 @@
 
 ## Phase 7: Gói 5 (WP-05) — Giám sát Đơn thuốc, Khám đoàn & Tách Liệu trình (Thành viên 5)
 
-**Mục tiêu**: Giám sát hàng đợi đồng bộ đơn thuốc quốc gia, chuẩn hóa trang Khám đoàn (quản lý hợp đồng/danh mục gói) và loại bỏ route Liệu trình khỏi Admin Portal theo Phương án A.
+**Mục tiêu**: Giám sát hàng đợi đồng bộ đơn thuốc quốc gia, chuẩn hóa trang Khám đoàn (`CorporateHealthPage.jsx` chỉ quản lý danh mục gói/hợp đồng khám doanh nghiệp) và loại bỏ route `/admin/lieu-trinh`, `/admin/lieutrinh` khỏi Admin Portal theo Phương án A; bảo đảm Admin không truy cập component lâm sàng; không xây dựng workspace/API lâm sàng trong gói này.
 **Trách nhiệm tệp**: `admin_integration.py`, `CorporateHealthPage.jsx`, `App.jsx`, `AdminTemplate.jsx`
 
 ### Kiểm thử cho Gói 5
@@ -131,7 +131,7 @@
 - [ ] T040 [WP05] Xây dựng API giám sát hàng đợi và trạng thái đơn thuốc quốc gia trong `clinic-ai/backend/app/routers/admin/admin_integration.py`
 - [ ] T041 [WP05] Kết nối lại route `/admin/kham-doan` và `/admin/dang-ky-doan` trỏ đến `clinic-ai/fe/src/pages/admin/CorporateHealthPage.jsx`
 - [ ] T042 [WP05] Hoàn thiện giao diện quản trị khám sức khỏe đoàn trong `CorporateHealthPage.jsx`
-- [ ] T043 [WP05] Loại bỏ các route `/admin/lieu-trinh` và `/admin/lieutrinh` trong `App.jsx` và `AdminTemplate.jsx`; tách `TreatmentCoursePage.jsx` khỏi Admin Portal theo Phương án A
+- [ ] T043 [WP05] Loại bỏ các route `/admin/lieu-trinh` và `/admin/lieutrinh` trong `clinic-ai/fe/src/App.jsx` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`; loại bỏ các menu không thuộc Admin và bảo đảm Admin không thể truy cập component lâm sàng qua route khác; giới hạn nghiêm ngặt trong phạm vi dọn dẹp Admin, tuyệt đối không mở rộng xây dựng workspace/API mới cho Doctor/Staff/Cashier (việc phân rã TreatmentCoursePage.jsx cho các vai trò khác là backlog riêng ngoài WP-05)
 
 **Checkpoint Gói 5**: Đơn thuốc quốc gia được giám sát chặt chẽ, khám đoàn được kết nối hoàn chỉnh.
 

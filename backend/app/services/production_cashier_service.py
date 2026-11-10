@@ -125,7 +125,7 @@ class ProductionCashierService:
             select(PrescriptionProduction)
             .where(
                 PrescriptionProduction.encounter_id == encounter_id,
-                PrescriptionProduction.status != "CANCELLED",
+                PrescriptionProduction.status.in_(["PRESCRIBED", "DISPENSED"]),
             )
         )
         prescriptions = (await db.execute(presc_stmt)).scalars().all()

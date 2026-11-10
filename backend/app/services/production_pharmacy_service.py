@@ -112,6 +112,9 @@ class ProductionPharmacyService:
         if presc.status == "CANCELLED":
             raise ConflictException("Đơn thuốc này đã bị hủy bỏ, không thể xuất kho")
 
+        if presc.status == "SYNCED_PORTAL":
+            raise ConflictException("Đơn thuốc này đã được liên thông Cổng Quốc gia để mua ngoài, không xuất kho tại phòng khám")
+
         items_stmt = (
             select(PrescriptionItemProduction)
             .options(selectinload(PrescriptionItemProduction.drug))

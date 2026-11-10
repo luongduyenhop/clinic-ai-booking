@@ -1,6 +1,9 @@
+import asyncio
+import json
 from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -52,6 +55,10 @@ from app.schemas.reception import (
     ReceptionPatientUpdateRequest,
     ReceptionPatientResponse,
     ReceptionPatientSearchItem,
+    CccdQrParseRequest,
+    CccdQrParsedResponse,
+    EncounterCreateRequest,
+    EncounterResponse,
 )
 from app.services.reception_service import reception_service
 
@@ -751,5 +758,82 @@ async def close_reception_shift(
         data=result,
         message=f"Đóng ca trực {result.ca_kham_dong} thành công! Đã chuyển {result.so_ve_chuyen_ca_chieu} vé sang ca chiều, đóng {result.so_ve_dong} vé tồn và chốt {result.so_lich_chot_no_show} lịch No-show."
     )
+
+
+@router.post(
+    "/parse-cccd-qr",
+    response_model=ResponseEnvelope[CccdQrParsedResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def parse_cccd_qr_endpoint(
+    payload: CccdQrParseRequest,
+    current_user: TaiKhoan = Depends(require_reception_staff),
+):
+    result = reception_service.parse_vietnam_cccd_qr(payload.qr_string)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Bóc tách thông tin QR CCCD thành công"
+    )
+
+
+@router.post(
+    "/register-patient",
+    response_model=ResponseEnvelope[ReceptionPatientResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def register_patient_endpoint(
+    payload: ReceptionPatientCreateRequest,
+    current_user: TaiKhoan = Depends(require_reception_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await reception_service.create_patient(payload, db)
+    return ResponseEnvelope.success_response(
+        data=data,
+        message=f"Đăng ký hồ sơ bệnh nhân {data.ho_ten} thành công!",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.post(
+    "/create-encounter",
+    response_model=ResponseEnvelope[EncounterResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_encounter_endpoint(
+    payload: EncounterCreateRequest,
+    current_user: TaiKhoan = Depends(require_reception_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await reception_service.create_encounter(payload, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Tiếp đón và tạo lượt khám thành công! Số thứ tự #{result.queue_number}.",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.get(
+    "/queue/stream",
+)
+async def queue_stream_endpoint(
+    clinic_room_number: Optional[str] = Query(None),
+    current_user: TaiKhoan = Depends(require_queue_view),
+    db: AsyncSession = Depends(get_db),
+):
+    async def event_generator():
+        for _ in range(3):
+            data = {
+                "timestamp": str(date.today()),
+                "clinic_room_number": clinic_room_number or "ALL",
+                "status": "STREAMING",
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
+
 
 

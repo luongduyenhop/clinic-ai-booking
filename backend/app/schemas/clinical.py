@@ -322,8 +322,63 @@ class AmendmentResponse(BaseModel):
 
 
 class AmendmentApproveRequest(BaseModel):
-    """Schema trưởng khoa / admin gửi khi phê duyệt hoặc từ chối đính chính"""
     ghi_chu: Optional[str] = Field(None, description="Ghi chú của người phê duyệt/từ chối")
     ma_kiem_thao: Optional[str] = Field(None, description="Số biên bản kiểm thảo chuyên môn (bắt buộc với mức CAO theo Điều 69 Luật KCB 2023)")
     thoi_gian_kiem_thao: Optional[datetime] = Field(None, description="Thời gian họp kiểm thảo chuyên môn")
+
+
+class Icd10SearchItem(BaseModel):
+    code: str
+    name_vi: str
+    name_en: Optional[str] = None
+    chapter: Optional[str] = None
+
+
+class VitalsCreateRequest(BaseModel):
+    systolic_bp: float = Field(..., ge=40, le=260)
+    diastolic_bp: float = Field(..., ge=30, le=160)
+    heart_rate: float = Field(..., ge=30, le=250)
+    body_temperature: float = Field(..., ge=32.0, le=44.0)
+    respiratory_rate: Optional[float] = Field(None, ge=5, le=80)
+    spo2_percentage: Optional[float] = Field(None, ge=50, le=100)
+    height_cm: Optional[float] = Field(None, ge=30, le=250)
+    weight_kg: Optional[float] = Field(None, ge=1, le=300)
+
+
+class VitalsResponse(BaseModel):
+    id: int
+    encounter_id: int
+    systolic_bp: float
+    diastolic_bp: float
+    heart_rate: float
+    body_temperature: float
+    respiratory_rate: Optional[float] = None
+    spo2_percentage: Optional[float] = None
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    bmi: Optional[float] = None
+    is_critical: bool = False
+    warnings: List[str] = []
+    recorded_at: datetime
+
+
+class SealAndSignResponse(BaseModel):
+    encounter_id: int
+    status: str
+    is_locked: bool
+    signed_at: datetime
+    record_hash: str
+    signature: str
+
+
+class AllergyCheckRequest(BaseModel):
+    patient_id: int
+    active_ingredient: str = Field(..., min_length=2)
+
+
+class AllergyCheckResponse(BaseModel):
+    has_conflict: bool
+    is_blocked: bool
+    details: Optional[str] = None
+
 

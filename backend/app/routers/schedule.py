@@ -3,9 +3,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import require_module_permission
 from app.models.user import TaiKhoan, VaiTroEnum
-from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.schemas.admin import (
     DoctorLeaveCreateRequest,
@@ -18,16 +17,8 @@ from app.services.schedule_service import schedule_service
 router = APIRouter(prefix="/schedules", tags=["Schedules & Leaves"])
 
 
-def _require_admin_or_reception(current_user: TaiKhoan = Depends(get_current_user)):
-    if current_user.vai_tro not in (VaiTroEnum.ADMIN.value, VaiTroEnum.LE_TAN.value):
-        raise ForbiddenException("Chỉ Quản trị viên hoặc Lễ tân mới có quyền thực hiện chức năng này!")
-    return current_user
-
-
-def _require_admin(current_user: TaiKhoan = Depends(get_current_user)):
-    if current_user.vai_tro != VaiTroEnum.ADMIN.value:
-        raise ForbiddenException("Chỉ Quản trị viên mới có quyền phê duyệt đơn nghỉ phép!")
-    return current_user
+_require_admin_or_reception = require_module_permission("SHIFT_SCHEDULING")
+_require_admin = require_module_permission("SHIFT_SCHEDULING")
 
 
 @router.get(
@@ -38,7 +29,7 @@ def _require_admin(current_user: TaiKhoan = Depends(get_current_user)):
 async def get_leaves(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
     trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin_or_reception),
     db: AsyncSession = Depends(get_db)
 ):
     data = await schedule_service.get_leaves(db, doctor_id, trang_thai)
@@ -53,7 +44,7 @@ async def get_leaves(
 )
 async def create_leave(
     payload: DoctorLeaveCreateRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin_or_reception),
     db: AsyncSession = Depends(get_db)
 ):
     data = await schedule_service.create_leave(payload, db)

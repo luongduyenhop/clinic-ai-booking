@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_module_permission
 from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
@@ -27,11 +27,8 @@ from app.services.credential_service import credential_service
 router = APIRouter(prefix="/compliance", tags=["Compliance & Credentialing (INT-05)"])
 
 
-def _require_admin(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKhoan:
-    """Yêu cầu quyền Quản trị viên cho các tác vụ kiểm toán & cấp phép"""
-    if current_user.vai_tro != VaiTroEnum.ADMIN.value:
-        raise ForbiddenException("Chức năng quản lý tuân thủ pháp lý chỉ dành riêng cho Quản trị viên!")
-    return current_user
+_require_admin = require_module_permission("COMPLIANCE_AUDIT")
+_require_compliance_view = require_module_permission("COMPLIANCE_AUDIT")
 
 
 # ==============================================================================
@@ -45,7 +42,7 @@ def _require_admin(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKho
 )
 async def get_doctor_license(
     doctor_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     result = await credential_service.get_doctor_license(db, doctor_id)
@@ -98,7 +95,7 @@ async def update_doctor_license_status(
 )
 async def get_doctor_license_history(
     doctor_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     result = await credential_service.get_doctor_license_history(db, doctor_id)
@@ -118,7 +115,7 @@ async def get_doctor_license_history(
     summary="Báo cáo cảnh báo giấy phép sắp hết hạn 90, 60, 30 ngày (INT-05)"
 )
 async def get_license_expiry_alerts(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     result = await credential_service.get_license_expiry_alerts(db)
@@ -159,7 +156,7 @@ async def create_facility_license(
 async def list_facility_licenses(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     result = await credential_service.list_facility_licenses(db, skip=skip, limit=limit)
@@ -176,7 +173,7 @@ async def list_facility_licenses(
 )
 async def get_facility_license(
     license_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     result = await credential_service.get_facility_license(db, license_id)
@@ -262,7 +259,7 @@ async def get_patient_audit_trail(
     patient_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     if current_user.vai_tro not in (VaiTroEnum.ADMIN.value, VaiTroEnum.BAC_SI.value):
@@ -284,7 +281,7 @@ async def get_patient_audit_trail(
     summary="Bảng điều khiển giám sát tuân thủ pháp lý y tế (Compliance Dashboard - Admin only)"
 )
 async def get_compliance_dashboard(
-    current_user: TaiKhoan = Depends(_require_admin),
+    current_user: TaiKhoan = Depends(_require_compliance_view),
     db: AsyncSession = Depends(get_db)
 ):
     dashboard = await compliance_dashboard_service.get_compliance_dashboard(db)

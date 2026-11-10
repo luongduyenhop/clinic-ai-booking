@@ -1,6 +1,86 @@
 from datetime import date, time, datetime
 from typing import List, Literal, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+class StaffAdminCreateRequest(BaseModel):
+    """Hồ sơ nhân viên không phải bác sĩ; tài khoản đăng nhập được quản lý riêng."""
+    ma_nhan_vien: str = Field(..., min_length=2, max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
+    ho_ten: str = Field(..., min_length=2, max_length=150)
+    email: Optional[EmailStr] = None
+    so_dien_thoai: Optional[str] = Field(None, pattern=r"^[0-9]{10,11}$")
+    chuc_danh: str = Field(..., min_length=2, max_length=50)
+    loai_nhan_vien: Literal["LE_TAN", "THU_NGAN", "KY_THUAT_VIEN"]
+
+    @field_validator("ma_nhan_vien", "ho_ten", "chuc_danh", mode="before")
+    @classmethod
+    def trim_required_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email", "so_dien_thoai", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class StaffAdminUpdateRequest(BaseModel):
+    ho_ten: Optional[str] = Field(None, min_length=2, max_length=150)
+    email: Optional[EmailStr] = None
+    so_dien_thoai: Optional[str] = Field(None, pattern=r"^[0-9]{10,11}$")
+    chuc_danh: Optional[str] = Field(None, min_length=2, max_length=50)
+    loai_nhan_vien: Optional[Literal["LE_TAN", "THU_NGAN", "KY_THUAT_VIEN"]] = None
+    is_active: Optional[bool] = None
+
+    @field_validator("ho_ten", "chuc_danh", mode="before")
+    @classmethod
+    def trim_optional_required_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email", "so_dien_thoai", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class StaffAdminResponse(BaseModel):
+    id: int
+    ma_nhan_vien: str
+    ho_ten: str
+    email: Optional[str] = None
+    so_dien_thoai: Optional[str] = None
+    chuc_danh: Optional[str] = None
+    loai_nhan_vien: str
+    is_active: bool
+    account_id: Optional[int] = None
+    account_active: Optional[bool] = None
+    account_role: Optional[str] = None
+
+
+class StaffAccountCreateRequest(BaseModel):
+    password: str = Field(..., min_length=8, max_length=72)
+
+
+class AccountPasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=8, max_length=72)
+
+
+class AccountStatusUpdateRequest(BaseModel):
+    is_active: bool
+
+
+class RolePermissionUpdateRequest(BaseModel):
+    permission_codes: List[str]
+
+
+class RolePermissionAdminResponse(BaseModel):
+    ma_vai_tro: str
+    ten_vai_tro: str
+    mo_ta: Optional[str] = None
+    permission_codes: List[str] = []
 
 
 class DoctorAdminCreateRequest(BaseModel):
@@ -13,6 +93,10 @@ class DoctorAdminCreateRequest(BaseModel):
     phong_kham_id: Optional[int] = Field(None, description="Buồng khám làm việc chính (cố định)")
     hoc_vi: str = Field("BS", description="Học vị: BS, ThS.BS, BSCKI, BSCKII, PGS.TS, GS.TS")
     chung_chi_hanh_nghe: str = Field(..., description="Số chứng chỉ hành nghề y khoa")
+    ngay_cap: Optional[date] = None
+    ngay_het_han: Optional[date] = None
+    pham_vi_chuyen_mon: List[str] = []
+    trang_thai_giay_phep: Literal["ACTIVE", "EXPIRING_SOON", "EXPIRED", "SUSPENDED"] = "ACTIVE"
     nam_kinh_nghiem: int = Field(0, ge=0, description="Số năm kinh nghiệm hành nghề")
     gia_kham_mac_dinh: float = Field(200000.0, ge=0, description="Giá khám mặc định (VNĐ)")
     mo_ta_chuyen_sau: Optional[str] = Field(None, description="Mô tả chuyên môn sâu")
@@ -29,6 +113,11 @@ class DoctorAdminUpdateRequest(BaseModel):
     gia_kham_mac_dinh: Optional[float] = Field(None, ge=0)
     mo_ta_chuyen_sau: Optional[str] = None
     is_active: Optional[bool] = Field(None, description="Trạng thái nhận lịch hẹn (Bahmni Provider Availability)")
+    chung_chi_hanh_nghe: Optional[str] = Field(None, min_length=2, max_length=100)
+    ngay_cap: Optional[date] = None
+    ngay_het_han: Optional[date] = None
+    pham_vi_chuyen_mon: Optional[List[str]] = None
+    trang_thai_giay_phep: Optional[Literal["ACTIVE", "EXPIRING_SOON", "EXPIRED", "SUSPENDED"]] = None
 
 
 class DoctorAdminResponse(BaseModel):
@@ -45,6 +134,13 @@ class DoctorAdminResponse(BaseModel):
     phong_kham: Optional[str] = None
     hoc_vi: str
     chung_chi_hanh_nghe: str
+    ngay_cap: Optional[date] = None
+    ngay_het_han: Optional[date] = None
+    pham_vi_chuyen_mon: List[str] = []
+    trang_thai_giay_phep: str = "ACTIVE"
+    account_id: Optional[int] = None
+    account_active: Optional[bool] = None
+    account_role: Optional[str] = None
     nam_kinh_nghiem: int
     gia_kham_mac_dinh: float
     is_active: bool

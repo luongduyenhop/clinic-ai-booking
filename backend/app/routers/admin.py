@@ -1,13 +1,14 @@
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_permission
 from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan, VaiTroEnum
+from app.models.user import Quyen, TaiKhoan, VaiTro, VaiTroEnum, VaiTroQuyen
 from app.schemas.admin import (
     DoctorAdminCreateRequest,
     DoctorAdminUpdateRequest,
@@ -57,6 +58,14 @@ from app.schemas.admin import (
     DoctorPerformanceResponse,
     RoomWorkloadResponse,
     TopMedicinesResponse,
+    StaffAdminCreateRequest,
+    StaffAdminUpdateRequest,
+    StaffAdminResponse,
+    StaffAccountCreateRequest,
+    AccountPasswordResetRequest,
+    AccountStatusUpdateRequest,
+    RolePermissionAdminResponse,
+    RolePermissionUpdateRequest,
 )
 from app.schemas.clinical import AmendmentResponse
 from app.services.admin_service import admin_service
@@ -64,11 +73,137 @@ from app.services.admin_service import admin_service
 router = APIRouter(prefix="/admin", tags=["7. Quản Trị Phòng Khám & Phân Ca (Admin Portal)"])
 
 
-def _require_admin(current_user: TaiKhoan = Depends(get_current_user)):
+async def _require_admin(
+    request: Request,
+    current_user: TaiKhoan = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enforce the persisted RBAC matrix for Admin API routes; Admin is the superuser."""
+    if current_user.vai_tro == VaiTroEnum.ADMIN.value:
+        return current_user
 
-    if current_user.vai_tro != VaiTroEnum.ADMIN.value:
-        raise ForbiddenException("Chức năng quản trị chỉ dành riêng cho Quản trị viên (Admin)!")
+    path = request.url.path
+    # Only an administrator may inspect or change role definitions themselves.
+    if path.startswith("/api/v1/admin/rbac/"):
+        raise ForbiddenException("Chỉ Admin được quản lý ma trận phân quyền.")
+
+    from app.services.admin_rbac_service import admin_rbac_service
+    await admin_rbac_service._ensure_catalog(db)
+
+    if any(segment in path for segment in ("/staff", "/doctors", "/accounts")):
+        module = "ROLE_RBAC"
+    elif any(segment in path for segment in ("/rooms", "/departments", "/services")):
+        module = "CATALOG_MANAGEMENT"
+    elif any(segment in path for segment in ("/shifts", "/roster", "/leaves", "/timesheet")):
+        module = "SHIFT_SCHEDULING"
+    elif "/patients" in path:
+        module = "PATIENT_MGT"
+    elif any(segment in path for segment in ("/concepts", "/red-flags", "/ai-accuracy")):
+        module = "AI_TRIAGE_CONFIG"
+    elif any(segment in path for segment in ("/analytics", "/dashboard", "/amendments", "/reports")):
+        module = "ANALYTICS_REPORTS"
+    else:
+        # Configuration and legacy BFF endpoints require explicit system-admin rights.
+        module = "SYS_ADMIN"
+
+    endpoint_name = getattr(request.scope.get("endpoint"), "__name__", "")
+    action = "export" if "export" in endpoint_name else {
+        "GET": "view", "POST": "create", "PUT": "update", "PATCH": "update", "DELETE": "delete"
+    }.get(request.method.upper(), "view")
+    permission_code = f"{module}.{action}"
+    permission_stmt = (
+        select(Quyen.id)
+        .join(VaiTroQuyen, VaiTroQuyen.quyen_id == Quyen.id)
+        .join(VaiTro, VaiTro.id == VaiTroQuyen.vai_tro_id)
+        .where(VaiTro.ma_vai_tro == current_user.vai_tro, VaiTro.is_active.is_(True))
+        .where(Quyen.ma_quyen == permission_code)
+    )
+    if (await db.execute(permission_stmt)).scalar_one_or_none() is None:
+        raise ForbiddenException(f"Vai trò hiện tại chưa được cấp quyền {permission_code}.")
     return current_user
+
+
+@router.get("/rbac/roles", response_model=ResponseEnvelope[List[RolePermissionAdminResponse]], summary="Danh sách vai trò và quyền được lưu trong PostgreSQL")
+async def get_rbac_roles(
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.list_roles(db)
+    return ResponseEnvelope.success_response(data=data, message="Lấy ma trận vai trò/quyền từ CSDL thành công")
+
+
+@router.put("/rbac/roles/{role_code}/permissions", response_model=ResponseEnvelope[RolePermissionAdminResponse], summary="Lưu ma trận quyền vai trò vào PostgreSQL")
+async def update_rbac_role_permissions(
+    role_code: str,
+    payload: RolePermissionUpdateRequest,
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.update_role_permissions(role_code, payload.permission_codes, db)
+    return ResponseEnvelope.success_response(data=data, message="Đã lưu quyền cho vai trò")
+
+
+@router.get("/staff", response_model=ResponseEnvelope[List[StaffAdminResponse]], summary="Danh sách hồ sơ nhân viên không phải bác sĩ")
+async def get_staff(
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.list_staff(db)
+    return ResponseEnvelope.success_response(data=data, message="Lấy danh sách nhân viên thành công")
+
+
+@router.post("/staff", response_model=ResponseEnvelope[StaffAdminResponse], status_code=status.HTTP_201_CREATED)
+async def create_staff(
+    payload: StaffAdminCreateRequest,
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.create")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.create_staff(payload, db)
+    return ResponseEnvelope.success_response(data=data, message="Tạo hồ sơ nhân viên thành công", code=status.HTTP_201_CREATED)
+
+
+@router.patch("/staff/{employee_id}", response_model=ResponseEnvelope[StaffAdminResponse])
+async def update_staff(
+    employee_id: int,
+    payload: StaffAdminUpdateRequest,
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.update_staff(employee_id, payload, db)
+    return ResponseEnvelope.success_response(data=data, message="Cập nhật hồ sơ nhân viên thành công")
+
+
+@router.post("/staff/{employee_id}/account", response_model=ResponseEnvelope[StaffAdminResponse], status_code=status.HTTP_201_CREATED)
+async def create_staff_account(
+    employee_id: int,
+    payload: StaffAccountCreateRequest,
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.create")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.create_staff_account(employee_id, payload.password, db)
+    return ResponseEnvelope.success_response(data=data, message="Đã tạo tài khoản đăng nhập cho nhân viên", code=status.HTTP_201_CREATED)
+
+
+@router.patch("/accounts/{account_id}/status", response_model=ResponseEnvelope[None])
+async def update_account_status(
+    account_id: int,
+    payload: AccountStatusUpdateRequest,
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    await admin_service.update_account_status(account_id, payload.is_active, db)
+    return ResponseEnvelope.success_response(data=None, message="Đã cập nhật trạng thái tài khoản; phiên đăng nhập cũ đã bị thu hồi nếu tài khoản bị khóa")
+
+
+@router.post("/accounts/{account_id}/reset-password", response_model=ResponseEnvelope[None])
+async def reset_account_password(
+    account_id: int,
+    payload: AccountPasswordResetRequest,
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.update")),
+    db: AsyncSession = Depends(get_db),
+):
+    await admin_service.reset_account_password(account_id, payload.new_password, db)
+    return ResponseEnvelope.success_response(data=None, message="Đã đặt lại mật khẩu và thu hồi refresh token hiện tại")
 
 
 @router.get(
@@ -77,7 +212,7 @@ def _require_admin(current_user: TaiKhoan = Depends(get_current_user)):
     summary="Xem danh sách toàn bộ bác sĩ kèm trạng thái nhận lịch hẹn (Bahmni Provider Availability)"
 )
 async def get_doctors(
-    current_user: TaiKhoan = Depends(_require_admin),
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.view")),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_doctors_admin(db)
@@ -92,7 +227,7 @@ async def get_doctors(
 )
 async def create_doctor(
     payload: DoctorAdminCreateRequest,
-    current_user: TaiKhoan = Depends(_require_admin),
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.create")),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.create_doctor_admin(payload, db)
@@ -111,7 +246,7 @@ async def create_doctor(
 async def update_doctor(
     doctor_id: int,
     payload: DoctorAdminUpdateRequest,
-    current_user: TaiKhoan = Depends(_require_admin),
+    current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.update")),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.update_doctor_admin(doctor_id, payload, db)
@@ -127,7 +262,7 @@ async def get_rooms(
     loai_phong: Optional[str] = Query(None, description="Lọc theo loại phòng (kham_benh, xet_nghiem, chan_doan_hinh_anh)"),
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo mã chuyên khoa"),
     is_active: Optional[bool] = Query(None, description="Lọc theo trạng thái hoạt động"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_rooms_admin(db, loai_phong=loai_phong, chuyen_khoa_id=chuyen_khoa_id, is_active=is_active)
@@ -161,7 +296,7 @@ async def create_room(
 async def get_shifts(
     query_date: Optional[date] = Query(None, description="Ngày lọc ca trực (YYYY-MM-DD)"),
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_shifts(query_date, doctor_id, db)
@@ -198,7 +333,7 @@ async def get_doctor_schedule_matrix(
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
     phong_kham_id: Optional[int] = Query(None, description="Lọc theo buồng khám"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_doctor_schedule_matrix(
@@ -298,7 +433,7 @@ async def postpone_and_cancel_unassigned(
     summary="Xem danh mục dịch vụ cận lâm sàng & khám niêm yết"
 )
 async def get_services(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_services_admin(db)
@@ -391,7 +526,7 @@ async def get_admin_amendments(
     summary="Xem toàn bộ danh mục chuyên khoa kèm số bác sĩ và buồng khám (Admin Portal)"
 )
 async def get_departments(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_departments_admin(db)
@@ -442,7 +577,7 @@ async def update_department(
 )
 async def get_roster_templates(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_roster_templates_admin(db, doctor_id)
@@ -522,7 +657,7 @@ async def generate_shifts_from_roster(
 async def get_leaves(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ"),
     trang_thai: Optional[str] = Query(None, description="Lọc theo trạng thái (CHO_DUYET, DA_DUYET, TU_CHOI)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_leaves_admin(db, doctor_id, trang_thai)
@@ -537,7 +672,7 @@ async def get_leaves(
 )
 async def create_leave(
     payload: DoctorLeaveCreateRequest,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.create_leave_admin(payload, db)
@@ -586,7 +721,7 @@ async def get_leave_affected_bookings(
 async def get_concepts(
     loai_khai_niem: Optional[str] = Query(None, description="Lọc theo loại: trieu_chung, benh_icd10, dich_vu"),
     chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_concepts_admin(db, loai_khai_niem, chuyen_khoa_id)
@@ -647,7 +782,7 @@ async def delete_concept(
     summary="Danh sách quy tắc từ khóa cảnh báo cấp cứu (Red Flags Rules - BYT)"
 )
 async def get_red_flags(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_red_flags_admin(db)
@@ -708,7 +843,7 @@ async def delete_red_flag(
     summary="Báo cáo độ chính xác phân luồng AI đối soát chẩn đoán thực tế của bác sĩ"
 )
 async def get_ai_accuracy(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_ai_accuracy_report(db)
@@ -723,7 +858,7 @@ async def get_ai_accuracy(
 async def get_analytics_report(
     tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
     den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_analytics_report_admin(db, tu_ngay, den_ngay)
@@ -739,7 +874,7 @@ async def get_top_diseases(
     tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
     den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
     limit: int = Query(10, ge=1, le=50, description="Số lượng bệnh trả về"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_top_icd10_diseases(db, tu_ngay, den_ngay, limit)
@@ -755,7 +890,7 @@ async def get_top_services(
     tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
     den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
     limit: int = Query(10, ge=1, le=50, description="Số lượng dịch vụ trả về"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_top_services_analytics(db, tu_ngay, den_ngay, limit)
@@ -786,7 +921,7 @@ async def get_doctor_performance(
 async def get_room_workload(
     tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
     den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_room_workload_analytics(db, tu_ngay, den_ngay)
@@ -802,7 +937,7 @@ async def get_top_medicines(
     tu_ngay: Optional[date] = Query(None, description="Từ ngày (YYYY-MM-DD)"),
     den_ngay: Optional[date] = Query(None, description="Đến ngày (YYYY-MM-DD)"),
     limit: int = Query(10, ge=1, le=50, description="Số lượng thuốc trả về"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_top_medicines_analytics(db, tu_ngay, den_ngay, limit)
@@ -818,7 +953,7 @@ async def get_patients(
     search: Optional[str] = Query(None, description="Tìm theo tên, SĐT, CCCD hoặc Mã bệnh nhân"),
     page: int = Query(1, ge=1, description="Trang số"),
     page_size: int = Query(20, ge=1, le=100, description="Kích thước trang"),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_patients_admin(db, search, page, page_size)
@@ -832,7 +967,7 @@ async def get_patients(
 )
 async def get_patient_detail(
     patient_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     data = await admin_service.get_patient_detail_admin(patient_id, db)

@@ -204,15 +204,61 @@ export class AdminService extends BaseServices {
     }
 
     getDoctorsAdmin = async () => {
-        try {
-            const res = await this.get('/api/v1/admin/doctors', {
-                __skipGlobalLoading: true,
-                __skipRefresh: true,
-            })
-            return res.data?.data || res.data || []
-        } catch {
-            return []
-        }
+        const res = await this.get('/api/v1/admin/doctors', {
+            __skipGlobalLoading: true,
+            __skipRefresh: true,
+        })
+        return res.data?.data || res.data || []
+    }
+
+    createDoctorAdmin = async (payload) => {
+        const res = await this.post('/api/v1/admin/doctors', payload)
+        return res.data?.data || res.data
+    }
+
+    updateDoctorAdmin = async (doctorId, payload) => {
+        const res = await this.put(`/api/v1/admin/doctors/${doctorId}`, payload)
+        return res.data?.data || res.data
+    }
+
+    updateAccountStatusAdmin = async (accountId, is_active) => {
+        const res = await this.patch(`/api/v1/admin/accounts/${accountId}/status`, { is_active })
+        return res.data?.data || res.data
+    }
+
+    resetAccountPasswordAdmin = async (accountId, new_password) => {
+        const res = await this.post(`/api/v1/admin/accounts/${accountId}/reset-password`, { new_password })
+        return res.data?.data || res.data
+    }
+
+    createStaffAccountAdmin = async (staffId, password) => {
+        const res = await this.post(`/api/v1/admin/staff/${staffId}/account`, { password })
+        return res.data?.data || res.data
+    }
+
+    getRBACRolesAdmin = async () => {
+        const res = await this.get('/api/v1/admin/rbac/roles', { __skipGlobalLoading: true, __skipRefresh: true })
+        return res.data?.data || res.data || []
+    }
+
+    updateRBACRolePermissionsAdmin = async (roleCode, permission_codes) => {
+        const res = await this.put(`/api/v1/admin/rbac/roles/${encodeURIComponent(roleCode)}/permissions`, { permission_codes })
+        return res.data?.data || res.data
+    }
+
+    getStaffAdmin = async () => {
+        const res = await this.get('/api/v1/admin/staff', { __skipGlobalLoading: true, __skipRefresh: true })
+        return res.data?.data || res.data || []
+    }
+
+    createStaffAdmin = async (payload) => {
+        const res = await this.post('/api/v1/admin/staff', payload)
+        return res.data?.data || res.data
+    }
+
+    updateStaffAdmin = async (staffId, payload) => {
+        const res = await this.patch(`/api/v1/admin/staff/${staffId}`, payload)
+        return res.data?.data || res.data
     }
 
     getRoomsAdmin = async ({ loaiPhong, chuyenKhoaId, isActive } = {}) => {

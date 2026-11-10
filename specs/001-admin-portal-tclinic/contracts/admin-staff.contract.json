@@ -1,0 +1,72 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Staff & RBAC Scheduling API Contract",
+    "version": "1.0.0",
+    "description": "API contract for Doctors, Practicing Certificates, Shift Scheduling and Role Permissions"
+  },
+  "paths": {
+    "/api/admin/staff/doctors": {
+      "get": {
+        "summary": "List doctors with practicing certificate status",
+        "parameters": [
+          { "name": "department_id", "in": "query", "schema": { "type": "integer" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of doctors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "ho_ten": { "type": "string" },
+                      "ma_bac_si": { "type": "string" },
+                      "so_cchn": { "type": "string" },
+                      "ngay_het_han_cchn": { "type": "string", "format": "date" },
+                      "trang_thai_cchn": { "type": "string" },
+                      "chuyen_khoa_ten": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/staff/shifts": {
+      "post": {
+        "summary": "Assign a doctor to a clinic room shift with collision detection",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bac_si_id": { "type": "integer" },
+                  "phong_kham_id": { "type": "integer" },
+                  "ngay_truc": { "type": "string", "format": "date" },
+                  "ca_truc": { "type": "string", "enum": ["MORNING", "AFTERNOON", "EVENING"] },
+                  "gio_bat_dau": { "type": "string" },
+                  "gio_ket_thuc": { "type": "string" }
+                },
+                "required": ["bac_si_id", "phong_kham_id", "ngay_truc", "ca_truc", "gio_bat_dau", "gio_ket_thuc"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Shift created successfully" },
+          "400": { "description": "Doctor practicing certificate is expired or suspended" },
+          "409": { "description": "Shift collision: doctor or room is already booked for this time window" }
+        }
+      }
+    }
+  }
+}

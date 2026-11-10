@@ -1,0 +1,78 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin National Integration & Audit API Contracts",
+    "version": "1.0.0",
+    "description": "API contract for E-Prescription Gateway Integration Monitoring and Healthcare Access Audit Trail"
+  },
+  "paths": {
+    "/api/admin/integration/e-prescriptions/status": {
+      "get": {
+        "summary": "Get national e-prescription sync status and queue metrics",
+        "responses": {
+          "200": {
+            "description": "Sync queue status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_synced": { "type": "integer" },
+                    "pending_retry": { "type": "integer" },
+                    "failed_count": { "type": "integer" },
+                    "last_sync_time": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit/access-logs": {
+      "get": {
+        "summary": "Query append-only healthcare data access audit logs",
+        "parameters": [
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" } },
+          { "name": "action", "in": "query", "schema": { "type": "string" } },
+          { "name": "start_time", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "end_time", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": { "type": "integer" },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "nguoi_dung_id": { "type": "integer" },
+                          "vai_tro": { "type": "string" },
+                          "benh_nhan_id": { "type": "integer" },
+                          "hanh_dong": { "type": "string" },
+                          "loai_tai_nguyen": { "type": "string" },
+                          "tai_nguyen_id": { "type": "integer" },
+                          "client_ip": { "type": "string" },
+                          "thoi_gian_tao": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

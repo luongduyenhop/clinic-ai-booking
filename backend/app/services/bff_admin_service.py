@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import HangDoiKham, LichKham
-from app.models.bff_store import HeThongTrangThaiBff
 from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
 from app.models.content import BaiVietTinTuc, MauBieuYTe
 from app.models.medical import (
@@ -178,19 +177,18 @@ class BffAdminService:
     async def get_bootstrap_data(self, db: AsyncSession) -> dict:
         data = self._load_clean_seed()
 
-        stmt = select(HeThongTrangThaiBff)
-        rows = (await db.execute(stmt)).scalars().all()
-        existing_keys = set()
-        for row in rows:
-            existing_keys.add(row.collection_key)
-            if row.collection_key in ("inventoryBatches", "navigationConfig"):
+        if not hasattr(self, "_bff_collections"):
+            self._bff_collections = {}
+        existing_keys = set(self._bff_collections.keys())
+        for key, val in self._bff_collections.items():
+            if key in ("inventoryBatches", "navigationConfig"):
                 continue
-            if row.collection_key == "catalogs" and isinstance(row.data_json, dict):
+            if key == "catalogs" and isinstance(val, dict):
                 merged_catalogs = copy.deepcopy(data.get("catalogs", {}))
-                merged_catalogs.update(row.data_json)
+                merged_catalogs.update(val)
                 data["catalogs"] = merged_catalogs
             else:
-                data[row.collection_key] = row.data_json
+                data[key] = val
 
         data["inventoryBatches"] = []
         if len(existing_keys) < 5:
@@ -872,18 +870,9 @@ class BffAdminService:
         value: Any,
         user_id: Optional[int] = None,
     ) -> None:
-        stmt = select(HeThongTrangThaiBff).where(HeThongTrangThaiBff.collection_key == key)
-        record = (await db.execute(stmt)).scalar_one_or_none()
-        if record:
-            record.data_json = value
-            record.updated_by_id = user_id
-        else:
-            record = HeThongTrangThaiBff(
-                collection_key=key,
-                data_json=value,
-                updated_by_id=user_id,
-            )
-            db.add(record)
+        if not hasattr(self, "_bff_collections"):
+            self._bff_collections = {}
+        self._bff_collections[key] = value
 
     async def _append_audit_entry(
         self,
@@ -1505,8 +1494,8 @@ class BffAdminService:
         return current_data
 
     async def reset_demo_data(self, db: AsyncSession) -> dict:
-        await db.execute(delete(HeThongTrangThaiBff))
-        await db.commit()
+        if hasattr(self, "_bff_collections"):
+            self._bff_collections.clear()
         self._initial_relational_synced = False
         return await self.get_bootstrap_data(db)
 

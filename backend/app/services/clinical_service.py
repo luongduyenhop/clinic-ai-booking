@@ -12,7 +12,6 @@ from app.core.config import settings
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
 from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum, PhanTichAI, PhanTichAIGoiY, DanhGiaAI
-from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     LuotKham,
     ChanDoan,
@@ -153,19 +152,9 @@ class ClinicalService:
         current_user: Optional[TaiKhoan] = None,
         doctor_id: Optional[int] = None,
     ) -> Optional[dict]:
-        stmt = select(HeThongTrangThaiBff).where(
-            HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
-        )
-        row = (await db.execute(stmt)).scalar_one_or_none()
-        if not row:
-            row = HeThongTrangThaiBff(
-                collection_key="doctor_clinical_workspace",
-                data_json={"encounters": {}, "queue": [], "extraOrders": [], "nextId": 9500},
-            )
-            db.add(row)
-            await db.flush()
-
-        data = row.data_json if isinstance(row.data_json, dict) else {}
+        if not hasattr(self, "_workspace_state_cache"):
+            self._workspace_state_cache = {}
+        data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
         encounters = data.get("encounters") or {}
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
@@ -212,7 +201,7 @@ class ClinicalService:
             "khám theo chỉ định tiếp đón", "kham theo chi dinh tiep don"
         }
         for t in active_tickets:
-            target_enc_id = t.lich_kham_id or (5000 + t.id)
+            target_enc_id = t.lich_kham_id or t.id
             bn_user = t.benh_nhan.nguoi_dung if t.benh_nhan and t.benh_nhan.nguoi_dung else None
             ho_ten = bn_user.ho_ten if bn_user else "Bệnh nhân Tiếp đón"
             gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
@@ -1668,29 +1657,17 @@ class ClinicalService:
         user_id = current_user.id if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
 
         try:
-            stmt = select(HeThongTrangThaiBff).where(
-                HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
-            )
-            row = (await db.execute(stmt)).scalar_one_or_none()
-            if row:
-                old_data = row.data_json if isinstance(row.data_json, dict) else {}
-                old_queue = old_data.get("queue") or []
-                client_queue = payload.get("queue") or []
-                merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
-                for cq in client_queue:
-                    if isinstance(cq, dict) and "ticket_id" in cq:
-                        merged_queue_map[cq["ticket_id"]] = cq
-                payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
-                row.data_json = payload
-                row.updated_by_id = user_id
-            else:
-                db.add(
-                    HeThongTrangThaiBff(
-                        collection_key="doctor_clinical_workspace",
-                        data_json=payload,
-                        updated_by_id=user_id,
-                    )
-                )
+            if not hasattr(self, "_workspace_state_cache"):
+                self._workspace_state_cache = {}
+            old_data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
+            old_queue = old_data.get("queue") or []
+            client_queue = payload.get("queue") or []
+            merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
+            for cq in client_queue:
+                if isinstance(cq, dict) and "ticket_id" in cq:
+                    merged_queue_map[cq["ticket_id"]] = cq
+            payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
+            self._workspace_state_cache["doctor_clinical_workspace"] = payload
 
             client_queue = payload.get("queue") or []
             if isinstance(client_queue, list):

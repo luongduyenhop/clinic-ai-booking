@@ -121,37 +121,6 @@ class ProductionCashierService:
                 )
                 total_service_amount += price
 
-        presc_stmt = (
-            select(PrescriptionProduction)
-            .where(
-                PrescriptionProduction.encounter_id == encounter_id,
-                PrescriptionProduction.status.in_(["PRESCRIBED", "DISPENSED"]),
-            )
-        )
-        prescriptions = (await db.execute(presc_stmt)).scalars().all()
-        for presc in prescriptions:
-            presc_items_stmt = (
-                select(PrescriptionItemProduction)
-                .options(selectinload(PrescriptionItemProduction.drug))
-                .where(PrescriptionItemProduction.prescription_id == presc.id)
-            )
-            presc_items = (await db.execute(presc_items_stmt)).scalars().all()
-            for p_item in presc_items:
-                if p_item.drug:
-                    unit_p = Decimal(str(p_item.drug.unit_selling_price))
-                    total_p = unit_p * Decimal(p_item.quantity_prescribed)
-                    items.append(
-                        FeeSheetItem(
-                            item_type="MEDICATION",
-                            item_reference_id=p_item.id,
-                            item_name=p_item.drug.brand_name,
-                            quantity=p_item.quantity_prescribed,
-                            unit_price=unit_p,
-                            total_price=total_p,
-                        )
-                    )
-                    total_medication_amount += total_p
-
         if discount_amount < 0:
             raise BadRequestException("Số tiền miễn giảm không thể nhỏ hơn 0")
 
@@ -341,6 +310,9 @@ class ProductionCashierService:
 
         if invoice.status == "CANCELLED":
             raise ConflictException("Hóa đơn này đã bị hủy, không thể đối soát thanh toán")
+
+        if invoice.status == "PAID":
+            raise ConflictException("Hóa đơn này đã được thanh toán")
 
         if payload.amount < invoice.final_amount:
             raise BadRequestException(

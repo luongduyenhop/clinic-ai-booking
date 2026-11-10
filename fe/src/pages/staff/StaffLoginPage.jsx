@@ -14,7 +14,6 @@ import {
     IdentificationCard,
     Microscope,
     Receipt,
-    Pill,
 } from '../../components/common/ClinicIcon'
 
 const STAFF_ACCOUNTS = [
@@ -116,25 +115,6 @@ const STAFF_ACCOUNTS = [
         color: 'from-amber-600 to-yellow-700',
         badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
         icon: Receipt,
-    },
-    {
-        roleKey: 'PHARMACIST',
-        role: 'ADMIN',
-        label: 'Dược sĩ – Quầy thuốc FEFO',
-        desc: 'Trần Văn Tuấn · Quản lý lô hạn dùng & xuất kho FEFO khóa chống đua',
-        creds: { email: 'duocsi@clinic.com', mat_khau: 'Pharmacist@2026' },
-        profile: {
-            id: 'USER_PHARMACIST_01',
-            fullName: 'Dược Sĩ Trần Văn Tuấn',
-            shortName: 'Dược Sĩ Tuấn',
-            role: 'ADMIN',
-            email: 'duocsi@clinic.com',
-            department: 'Quầy Dược & Kho Ngoại Trú',
-        },
-        defaultPath: '/admin/kho-duoc-fefo',
-        color: 'from-emerald-600 to-green-800',
-        badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        icon: Pill,
     },
 ]
 

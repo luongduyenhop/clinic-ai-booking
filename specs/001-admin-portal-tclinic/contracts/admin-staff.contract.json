@@ -64,7 +64,7 @@
         "responses": {
           "201": { "description": "Shift created successfully" },
           "400": { "description": "Doctor practicing certificate is expired or suspended" },
-          "409": { "description": "Shift collision: doctor or room is already booked for this time window" }
+          "409": { "description": "Shift collision detected (applies when configured as hard-block conflict under scheduling policy; soft warnings or conditional save subject to OQ-5 approval)" }
         }
       }
     }

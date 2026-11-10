@@ -13,7 +13,6 @@ from app.core.exceptions import (
     NotFoundException,
 )
 from app.models.production_models import (
-    DrugBatchProduction,
     DrugProduction,
     EncounterProduction,
     InvoiceItemProduction,
@@ -30,12 +29,10 @@ from app.schemas.production_billing import (
     BankWebhookPayload,
     ProdInvoiceCreateRequest,
 )
-from app.schemas.production_pharmacy import DrugBatchCreateRequest
 from app.services.production_cashier_service import (
     _calculate_emvco_crc16,
     production_cashier_service,
 )
-from app.services.production_pharmacy_service import production_pharmacy_service
 
 
 async def _setup_test_context(db_session, suffix="1"):
@@ -70,6 +67,43 @@ async def _setup_test_context(db_session, suffix="1"):
     return user, patient, encounter
 
 
+async def _get_or_create_service(db, code, name, category, price, department):
+    stmt = select(ServiceProduction).where(ServiceProduction.service_code == code)
+    svc = (await db.execute(stmt)).scalar_one_or_none()
+    if not svc:
+        svc = ServiceProduction(
+            service_code=code,
+            service_name=name,
+            category=category,
+            unit_price=price,
+            department=department,
+            is_active=True,
+        )
+        db.add(svc)
+        await db.flush()
+    return svc
+
+
+async def _get_or_create_drug(db, code, brand, generic, form, strength, route, unit, price):
+    stmt = select(DrugProduction).where(DrugProduction.drug_code == code)
+    drug = (await db.execute(stmt)).scalar_one_or_none()
+    if not drug:
+        drug = DrugProduction(
+            drug_code=code,
+            brand_name=brand,
+            generic_name=generic,
+            dosage_form=form,
+            strength=strength,
+            route_of_administration=route,
+            unit_of_measure=unit,
+            unit_selling_price=price,
+            is_active=True,
+        )
+        db.add(drug)
+        await db.flush()
+    return drug
+
+
 def test_emvco_crc16_calculation():
     sample_payload = "00020101021238560010A00000072701240006970422011009012345670208QRIBFTTA530370454061500005802VN62140810TT-HD-10016304"
     crc = _calculate_emvco_crc16(sample_payload)
@@ -81,34 +115,32 @@ def test_emvco_crc16_calculation():
 async def test_fee_sheet_calculation_accuracy(db_session):
     user, patient, encounter = await _setup_test_context(db_session, "fee01")
 
-    service1 = ServiceProduction(
-        service_code="CLS-XRAY-01",
-        service_name="Chụp X-Quang Ngực Thẳng",
-        category="IMAGING",
-        unit_price=Decimal("200000.00"),
-        department="KHOA_CDHA",
-        is_active=True,
+    service1 = await _get_or_create_service(
+        db_session,
+        "CLS-XRAY-01",
+        "Chụp X-Quang Ngực Thẳng",
+        "IMAGING",
+        Decimal("200000.00"),
+        "KHOA_CDHA",
     )
-    service2 = ServiceProduction(
-        service_code="CLS-BLOOD-01",
-        service_name="Tổng phân tích tế bào máu",
-        category="LABORATORY",
-        unit_price=Decimal("120000.00"),
-        department="KHOA_XN",
-        is_active=True,
+    service2 = await _get_or_create_service(
+        db_session,
+        "CLS-BLOOD-01",
+        "Tổng phân tích tế bào máu",
+        "LABORATORY",
+        Decimal("120000.00"),
+        "KHOA_XN",
     )
-    db_session.add_all([service1, service2])
-    await db_session.flush()
 
     order1 = ParaclinicalOrderProduction(
-        order_code="ORD-CLS-001",
+        order_code=f"ORD-CLS-{encounter.id}-001",
         encounter_id=encounter.id,
         service_id=service1.id,
         ordered_by=user.id,
         status="ORDERED",
     )
     order2 = ParaclinicalOrderProduction(
-        order_code="ORD-CLS-002",
+        order_code=f"ORD-CLS-{encounter.id}-002",
         encounter_id=encounter.id,
         service_id=service2.id,
         ordered_by=user.id,
@@ -117,33 +149,31 @@ async def test_fee_sheet_calculation_accuracy(db_session):
     db_session.add_all([order1, order2])
     await db_session.flush()
 
-    drug1 = DrugProduction(
-        drug_code="DRUG-PARA-01",
-        brand_name="Panadol Extra",
-        generic_name="Paracetamol",
-        dosage_form="Viên nén",
-        strength="500mg",
-        route_of_administration="Uống",
-        unit_of_measure="Viên",
-        unit_selling_price=Decimal("5000.00"),
-        is_active=True,
+    drug1 = await _get_or_create_drug(
+        db_session,
+        "DRUG-PARA-01",
+        "Panadol Extra",
+        "Paracetamol",
+        "Viên nén",
+        "500mg",
+        "Uống",
+        "Viên",
+        Decimal("5000.00"),
     )
-    drug2 = DrugProduction(
-        drug_code="DRUG-AUG-01",
-        brand_name="Augmentin",
-        generic_name="Amoxicillin/Clavulanate",
-        dosage_form="Viên bao phim",
-        strength="1000mg",
-        route_of_administration="Uống",
-        unit_of_measure="Viên",
-        unit_selling_price=Decimal("20000.00"),
-        is_active=True,
+    drug2 = await _get_or_create_drug(
+        db_session,
+        "DRUG-AUG-01",
+        "Augmentin",
+        "Amoxicillin/Clavulanate",
+        "Viên bao phim",
+        "1000mg",
+        "Uống",
+        "Viên",
+        Decimal("20000.00"),
     )
-    db_session.add_all([drug1, drug2])
-    await db_session.flush()
 
     prescription = PrescriptionProduction(
-        prescription_code="DT-202611-0001",
+        prescription_code=f"DT-{encounter.id}-0001",
         encounter_id=encounter.id,
         doctor_id=user.id,
         status="PRESCRIBED",
@@ -176,14 +206,14 @@ async def test_fee_sheet_calculation_accuracy(db_session):
     )
 
     expected_service = Decimal("150000.00") + Decimal("200000.00") + Decimal("120000.00")
-    expected_med = (Decimal("10") * Decimal("5000.00")) + (Decimal("5") * Decimal("20000.00"))
-    expected_final = expected_service + expected_med - discount
+    expected_med = Decimal("0.00")
+    expected_final = expected_service - discount
 
     assert fee_sheet.total_service_amount == expected_service
     assert fee_sheet.total_medication_amount == expected_med
     assert fee_sheet.discount_amount == discount
     assert fee_sheet.final_amount == expected_final
-    assert len(fee_sheet.items) == 5
+    assert len(fee_sheet.items) == 3
 
     invoice = await production_cashier_service.create_invoice(
         encounter_id=encounter.id,
@@ -405,207 +435,3 @@ async def test_payment_webhook_idempotency_guard(db_session):
     assert second_res.ok is True
     assert second_res.is_idempotent is True
     assert second_res.transaction_code == txn_code
-
-
-@pytest.mark.asyncio
-async def test_drug_inventory_fefo_dispensing_order(db_session):
-    user, patient, encounter = await _setup_test_context(db_session, "fefo01")
-
-    drug = DrugProduction(
-        drug_code="DRUG-FEFO-01",
-        brand_name="Ciprofloxacin",
-        generic_name="Ciprofloxacin 500mg",
-        dosage_form="Viên nén",
-        strength="500mg",
-        route_of_administration="Uống",
-        unit_of_measure="Viên",
-        unit_selling_price=Decimal("15000.00"),
-        is_active=True,
-    )
-    db_session.add(drug)
-    await db_session.flush()
-
-    today = date.today()
-    batch_near = DrugBatchProduction(
-        drug_id=drug.id,
-        batch_number="L01-EXP30D",
-        expiry_date=today + timedelta(days=30),
-        physical_stock=10,
-        held_stock=0,
-        import_price=Decimal("10000.00"),
-    )
-    batch_mid = DrugBatchProduction(
-        drug_id=drug.id,
-        batch_number="L02-EXP90D",
-        expiry_date=today + timedelta(days=90),
-        physical_stock=20,
-        held_stock=0,
-        import_price=Decimal("10000.00"),
-    )
-    batch_far = DrugBatchProduction(
-        drug_id=drug.id,
-        batch_number="L03-EXP180D",
-        expiry_date=today + timedelta(days=180),
-        physical_stock=30,
-        held_stock=0,
-        import_price=Decimal("10000.00"),
-    )
-    db_session.add_all([batch_near, batch_mid, batch_far])
-    await db_session.commit()
-
-    fefo_list = await production_pharmacy_service.list_drug_batches(
-        drug_id=drug.id,
-        db=db_session,
-    )
-    assert len(fefo_list) == 3
-    assert fefo_list[0].batch_number == "L01-EXP30D"
-    assert fefo_list[1].batch_number == "L02-EXP90D"
-    assert fefo_list[2].batch_number == "L03-EXP180D"
-
-    prescription = PrescriptionProduction(
-        prescription_code="DT-FEFO-TEST",
-        encounter_id=encounter.id,
-        doctor_id=user.id,
-        status="PRESCRIBED",
-    )
-    db_session.add(prescription)
-    await db_session.flush()
-
-    p_item = PrescriptionItemProduction(
-        prescription_id=prescription.id,
-        drug_id=drug.id,
-        quantity_prescribed=15,
-        usage_instructions="Uống 1 viên x 2 lần/ngày",
-        treatment_days=7,
-    )
-    db_session.add(p_item)
-    await db_session.commit()
-
-    dispense_res = await production_pharmacy_service.dispense_prescription(
-        prescription_id=prescription.id,
-        user_id=user.id,
-        db=db_session,
-    )
-
-    assert dispense_res.status == "DISPENSED"
-    item_report = dispense_res.items[0]
-    assert item_report.quantity_prescribed == 15
-    assert len(item_report.allocations) == 2
-
-    assert item_report.allocations[0].batch_number == "L01-EXP30D"
-    assert item_report.allocations[0].allocated_quantity == 10
-    assert item_report.allocations[0].remaining_stock == 0
-
-    assert item_report.allocations[1].batch_number == "L02-EXP90D"
-    assert item_report.allocations[1].allocated_quantity == 5
-    assert item_report.allocations[1].remaining_stock == 15
-
-    await db_session.refresh(batch_near)
-    await db_session.refresh(batch_mid)
-    await db_session.refresh(batch_far)
-
-    assert batch_near.physical_stock == 0
-    assert batch_mid.physical_stock == 15
-    assert batch_far.physical_stock == 30
-
-    with pytest.raises(ConflictException):
-        await production_pharmacy_service.dispense_prescription(
-            prescription_id=prescription.id,
-            user_id=user.id,
-            db=db_session,
-        )
-
-
-@pytest.mark.asyncio
-async def test_drug_inventory_fefo_out_of_stock_guard(db_session):
-    user, patient, encounter = await _setup_test_context(db_session, "fefo02")
-
-    drug = DrugProduction(
-        drug_code="DRUG-FEFO-02",
-        brand_name="Azithromycin",
-        generic_name="Azithromycin 500mg",
-        dosage_form="Viên nén",
-        strength="500mg",
-        route_of_administration="Uống",
-        unit_of_measure="Viên",
-        unit_selling_price=Decimal("25000.00"),
-        is_active=True,
-    )
-    db_session.add(drug)
-    await db_session.flush()
-
-    batch = DrugBatchProduction(
-        drug_id=drug.id,
-        batch_number="L01-AZI",
-        expiry_date=date.today() + timedelta(days=60),
-        physical_stock=5,
-        held_stock=0,
-        import_price=Decimal("18000.00"),
-    )
-    db_session.add(batch)
-    await db_session.commit()
-
-    prescription = PrescriptionProduction(
-        prescription_code="DT-FEFO-OOS",
-        encounter_id=encounter.id,
-        doctor_id=user.id,
-        status="PRESCRIBED",
-    )
-    db_session.add(prescription)
-    await db_session.flush()
-
-    p_item = PrescriptionItemProduction(
-        prescription_id=prescription.id,
-        drug_id=drug.id,
-        quantity_prescribed=10,
-        usage_instructions="Uống 1 viên/ngày",
-        treatment_days=10,
-    )
-    db_session.add(p_item)
-    await db_session.commit()
-
-    with pytest.raises(ConflictException) as exc_info:
-        await production_pharmacy_service.dispense_prescription(
-            prescription_id=prescription.id,
-            user_id=user.id,
-            db=db_session,
-        )
-
-    assert "Không đủ tồn kho" in str(exc_info.value)
-    await db_session.refresh(batch)
-    assert batch.physical_stock == 5
-
-
-@pytest.mark.asyncio
-async def test_drug_batch_expiry_date_validation(db_session):
-    user, patient, encounter = await _setup_test_context(db_session, "fefo03")
-
-    drug = DrugProduction(
-        drug_code="DRUG-FEFO-03",
-        brand_name="Berberin",
-        generic_name="Berberin",
-        dosage_form="Viên nang",
-        strength="100mg",
-        route_of_administration="Uống",
-        unit_of_measure="Viên",
-        unit_selling_price=Decimal("1000.00"),
-        is_active=True,
-    )
-    db_session.add(drug)
-    await db_session.commit()
-
-    expired_request = DrugBatchCreateRequest(
-        drug_id=drug.id,
-        batch_number="EXPIRED-BATCH",
-        expiry_date=date.today() - timedelta(days=1),
-        physical_stock=100,
-        import_price=Decimal("800.00"),
-    )
-
-    with pytest.raises(BadRequestException) as exc_info:
-        await production_pharmacy_service.import_drug_batch(
-            payload=expired_request,
-            db=db_session,
-        )
-
-    assert "Hạn dùng" in str(exc_info.value)

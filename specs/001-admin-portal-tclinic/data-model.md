@@ -135,10 +135,13 @@ erDiagram
 ## 2. Business Invariants & State Transitions
 
 ### 2.1 Trạng thái Chứng chỉ Hành nghề Bác sĩ (`trang_thai_cchn`)
-- **Trạng thái hợp lệ**: `ACTIVE` (Hiệu lực), `EXPIRING_SOON` (Sắp hết hạn trong ≤30 ngày), `EXPIRED` (Hết hạn), `SUSPENDED` (Đình chỉ), `REVOKED` (Thu hồi).
-- **Invariants**:
-  - Khi `trang_thai_cchn in ['EXPIRED', 'SUSPENDED', 'REVOKED']`, hệ thống MUST từ chối lưu ca trực mới cho bác sĩ đó.
-  - Phân ca trực phát hiện trùng phòng khám hoặc trùng bác sĩ trong cùng khung giờ sẽ trả về mã lỗi HTTP 409 Conflict.
+- **Phân loại trạng thái**:
+  - `ACTIVE` (Hiệu lực), `EXPIRED` (Hết hạn), `SUSPENDED` (Đình chỉ): Nguyên tắc nghiệp vụ đã phê duyệt theo US-03 AC-6 và FR-034; ranh giới pháp lý chi tiết đang chờ xác minh tại OQ-4 (Luật Khám bệnh, chữa bệnh 2023, TT 32/2023/TT-BYT).
+  - `REVOKED` (Thu hồi): **Đề xuất kỹ thuật chưa phê duyệt (Unapproved Technical Proposal)**; không phải invariant hay kịch bản chấp nhận đã được PO duyệt; chờ PO và thẩm định pháp lý tại OQ-4 xem xét.
+  - `EXPIRING_SOON` (Sắp hết hạn trong ≤30 ngày): **Đề xuất kỹ thuật minh họa cho cảnh báo điều phối**, chờ PO ban hành quy chế phân ca tại OQ-5.
+- **Invariants & Ràng buộc điều phối**:
+  - Khi CCHN thuộc diện cần kiểm soát theo nguyên tắc đã duyệt (`EXPIRED`, `SUSPENDED`), hệ thống MUST từ chối phân công ca trực chuyên môn theo quy định pháp lý (US-03 AC-6, FR-034).
+  - Hệ thống MUST kiểm tra và phát hiện xung đột buồng khám hoặc bác sĩ trong cùng khung giờ theo yêu cầu đã duyệt (FR-035). Mã lỗi HTTP 409 Conflict là chi tiết triển khai API; chính sách xử lý cụ thể (chặn cứng vs cảnh báo mềm) đang chờ PO phê duyệt tại OQ-5.
 
 ### 2.2 Bảng giá Dịch vụ & Tính Bất biến
 - **Invariants**:

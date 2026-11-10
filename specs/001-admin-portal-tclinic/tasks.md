@@ -86,12 +86,12 @@
 
 ### Kiểm thử cho Gói 3
 - [ ] T025 [P] [WP03] Viết test `clinic-ai/backend/tests/test_admin_staff.py` kiểm tra chặn phân ca trực cho bác sĩ có CCHN hết hạn hoặc bị đình chỉ
-- [ ] T026 [P] [WP03] Viết test kiểm tra phát hiện xung đột xếp trùng buồng khám hoặc trùng giờ trực trả về HTTP 409
+- [ ] T026 [P] [WP03] Viết test kiểm tra phát hiện xung đột xếp trùng buồng khám hoặc trùng giờ trực (kiểm tra thuật toán phát hiện va chạm thời gian; kiểm tra trả về cảnh báo hoặc mã HTTP 409 đối với trường hợp được cấu hình chặn cứng theo ranh giới OQ-5)
 - [ ] T027 [P] [WP03] Viết test gọi API admin bằng tài khoản không có quyền trả về HTTP 403 Forbidden
 
 ### Thực thi Gói 3
 - [ ] T028 [WP03] Xây dựng CRUD Bác sĩ, Nhân sự và kiểm tra trạng thái CCHN trong `clinic-ai/backend/app/routers/admin/admin_staff.py`
-- [ ] T029 [WP03] Triển khai logic kiểm tra xung đột buồng khám và thời gian ca trực trong `admin_staff.py`
+- [ ] T029 [WP03] Triển khai logic kiểm tra và phát hiện xung đột buồng khám, thời gian ca trực trong `admin_staff.py` (hỗ trợ phát hiện va chạm thời gian; cơ chế từ chối lưu HTTP 409 vs cho phép lưu kèm cảnh báo tuân thủ ranh giới chính sách OQ-5)
 - [ ] T030 [WP03] Tích hợp middleware kiểm tra quyền hạn chi tiết (Fine-grained Permissions) tại các endpoint admin
 - [ ] T031 [WP03] Cập nhật giao diện quản trị phân quyền ma trận vai trò trong `clinic-ai/fe/src/pages/admin/RolePermissionPage.jsx`
 - [ ] T032 [WP03] Hoàn thiện cấu hình thông số phòng khám và ca trực trong `clinic-ai/fe/src/pages/admin/SettingClinicPage.jsx`
@@ -120,20 +120,20 @@
 
 ## Phase 7: Gói 5 (WP-05) — Giám sát Đơn thuốc, Khám đoàn & Tách Liệu trình (Thành viên 5)
 
-**Mục tiêu**: Giám sát hàng đợi đồng bộ đơn thuốc quốc gia, chuẩn hóa trang Khám đoàn (`CorporateHealthPage.jsx` chỉ quản lý danh mục gói/hợp đồng khám doanh nghiệp) và loại bỏ route `/admin/lieu-trinh`, `/admin/lieutrinh` khỏi Admin Portal theo Phương án A; bảo đảm Admin không truy cập component lâm sàng; không xây dựng workspace/API lâm sàng trong gói này.
+**Mục tiêu**: Tách biệt rõ ràng thành 2 PR độc lập: PR-06A (Backend Mock FSM Đơn thuốc quốc gia) và PR-06B (Frontend Khám đoàn & Dọn dẹp route Liệu trình theo Option A); bảo đảm Admin không truy cập component lâm sàng; tuyệt đối không mở rộng xây dựng workspace/API lâm sàng trong gói này.
 **Trách nhiệm tệp**: `admin_integration.py`, `CorporateHealthPage.jsx`, `App.jsx`, `AdminTemplate.jsx`
 
-### Kiểm thử cho Gói 5
-- [ ] T038 [P] [WP05] Viết test `clinic-ai/backend/tests/test_admin_integration.py` kiểm tra API trạng thái đồng bộ đơn thuốc quốc gia
-- [ ] T039 [P] [WP05] Bổ sung test kiểm tra route `/admin/kham-doan` trong `clinic-ai/fe/tests/prRegressionGuard.test.mjs`
+### PR-06A: WP-05 E-Prescription Mock FSM Integration (Backend)
+- [ ] T038 [P] [WP05] Viết unit test `clinic-ai/backend/tests/test_admin_integration.py` kiểm tra Mock Adapter, FSM (`PENDING_SYNC` -> `SYNCING` -> `SYNCED`) và cơ chế chống gửi trùng `correlation_id` (chỉ test nội bộ mock; không gọi external API thật)
+- [ ] T040 [WP05] Xây dựng API giám sát hàng đợi và trạng thái đơn thuốc quốc gia trong `clinic-ai/backend/app/routers/admin/admin_integration.py` sử dụng Mock Adapter nội bộ
 
-### Thực thi Gói 5
-- [ ] T040 [WP05] Xây dựng API giám sát hàng đợi và trạng thái đơn thuốc quốc gia trong `clinic-ai/backend/app/routers/admin/admin_integration.py`
-- [ ] T041 [WP05] Kết nối lại route `/admin/kham-doan` và `/admin/dang-ky-doan` trỏ đến `clinic-ai/fe/src/pages/admin/CorporateHealthPage.jsx`
-- [ ] T042 [WP05] Hoàn thiện giao diện quản trị khám sức khỏe đoàn trong `CorporateHealthPage.jsx`
+### PR-06B: WP-05 Corporate Health & Treatment Course Decoupling (Frontend & Routes)
+- [ ] T039 [P] [WP05] Bổ sung test kiểm tra route `/admin/kham-doan` trong `clinic-ai/fe/tests/prRegressionGuard.test.mjs`
+- [ ] T041 [WP05] Kết nối lại route `/admin/kham-doan` và `/admin/dang-ky-doan` trỏ đến `clinic-ai/fe/src/pages/admin/CorporateHealthPage.jsx` trong `clinic-ai/fe/src/App.jsx`
+- [ ] T042 [WP05] Hoàn thiện giao diện quản trị khám sức khỏe đoàn trong `CorporateHealthPage.jsx` (chỉ quản lý hợp đồng/gói khám, không thao tác khám lâm sàng)
 - [ ] T043 [WP05] Loại bỏ các route `/admin/lieu-trinh` và `/admin/lieutrinh` trong `clinic-ai/fe/src/App.jsx` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`; loại bỏ các menu không thuộc Admin và bảo đảm Admin không thể truy cập component lâm sàng qua route khác; giới hạn nghiêm ngặt trong phạm vi dọn dẹp Admin, tuyệt đối không mở rộng xây dựng workspace/API mới cho Doctor/Staff/Cashier (việc phân rã TreatmentCoursePage.jsx cho các vai trò khác là backlog riêng ngoài WP-05)
 
-**Checkpoint Gói 5**: Đơn thuốc quốc gia được giám sát chặt chẽ, khám đoàn được kết nối hoàn chỉnh.
+**Checkpoint Gói 5**: Đơn thuốc quốc gia được giám sát nội bộ qua Mock FSM an toàn (PR-06A), khám đoàn được kết nối và route lâm sàng được tách rời khỏi Admin Portal (PR-06B).
 
 ---
 
@@ -158,11 +158,13 @@ flowchart TD
     Foundation --> WP02["Phase 4: WP-02 Danh mục Y tế (TV2)"]
     Foundation --> WP03["Phase 5: WP-03 Nhân sự & RBAC (TV3)"]
     WP01 --> WP04["Phase 6: WP-04 Audit & Seed (TV4)"]
-    WP02 --> WP05["Phase 7: WP-05 Tích hợp & Khám đoàn (TV5)"]
+    WP02 --> WP05A["Phase 7A: PR-06A Đơn thuốc Mock FSM (TV5)"]
+    WP02 --> WP05B["Phase 7B: PR-06B Khám đoàn & Tách Liệu trình (TV5)"]
     WP03 --> WP04
-    WP03 --> WP05
+    WP03 --> WP05A
     WP04 --> Polish["Phase 8: Polish & Kiểm thử chéo (T044-T048)"]
-    WP05 --> Polish
+    WP05A --> Polish
+    WP05B --> Polish
 ```
 
 - **Quy tắc làm việc song song**: Sau khi Phase 1 và Phase 2 hoàn thành, cả 5 thành viên có thể mở 5 branch tính năng riêng (`feature/admin-wp01` đến `feature/admin-wp05`) và tiến hành code độc lập mà không lo chạm file của nhau nhờ kiến trúc router module hóa và CODEOWNERS.

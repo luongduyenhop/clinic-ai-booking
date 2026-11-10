@@ -298,7 +298,8 @@ class ReceptionService:
         max_q = (await db.execute(stmt_max_q)).scalar_one()
         next_queue_num = max_q + 1
 
-        encounter_code = f"ENC-{datetime.now().strftime('%Y%m%d')}-{payload.clinic_room_number}-{next_queue_num:03d}"
+        room_suffix = payload.clinic_room_number.replace("-", "")[-4:]
+        encounter_code = f"ENC-{datetime.now().strftime('%y%m%d')}-{room_suffix}-{next_queue_num:03d}"[:20]
 
         encounter = EncounterProduction(
             encounter_code=encounter_code,

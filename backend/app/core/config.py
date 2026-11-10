@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
     CLINIC_PHONE: str = "1900 6868"
+    PAYMENT_WEBHOOK_SECRET: str = "clinic_ai_default_payment_webhook_secret_key_32bytes"
 
     @field_validator("SECRET_KEY")
     @classmethod

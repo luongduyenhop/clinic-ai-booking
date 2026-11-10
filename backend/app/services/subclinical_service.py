@@ -3,7 +3,7 @@ import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import case, select
+from sqlalchemy import case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -528,6 +528,18 @@ class SubclinicalService:
         has_panic = False
         barcode_id = prod_order.barcode_id if prod_order else f"BC-LAB-{datetime.now().strftime('%Y%m%d')}-{order_id:06d}"
 
+        performed_by_id = user.id
+        user_prod_stmt = select(UserProduction.id).where(
+            or_(
+                UserProduction.id == user.id,
+                UserProduction.email == getattr(user, "email", None),
+                UserProduction.username == getattr(user, "email", None),
+            )
+        )
+        found_prod_user_id = (await db.execute(user_prod_stmt)).scalar_one_or_none()
+        if found_prod_user_id:
+            performed_by_id = found_prod_user_id
+
         for item in payload.results:
             is_abnormal = False
             is_panic = False
@@ -561,7 +573,7 @@ class SubclinicalService:
                 is_abnormal=is_abnormal,
                 is_panic_value=is_panic,
                 conclusion=item.conclusion,
-                performed_by=user.id,
+                performed_by=performed_by_id,
             )
             db.add(res_record)
 
@@ -603,10 +615,22 @@ class SubclinicalService:
 
         await db.commit()
 
+        verified_by_id = user.id
+        user_prod_stmt = select(UserProduction.id).where(
+            or_(
+                UserProduction.id == user.id,
+                UserProduction.email == getattr(user, "email", None),
+                UserProduction.username == getattr(user, "email", None),
+            )
+        )
+        found_prod_user_id = (await db.execute(user_prod_stmt)).scalar_one_or_none()
+        if found_prod_user_id:
+            verified_by_id = found_prod_user_id
+
         return ParaclinicalVerifyResponse(
             order_id=order_id,
             status="COMPLETED_VERIFIED",
-            verified_by=user.id,
+            verified_by=verified_by_id,
             verified_at=now,
         )
 

@@ -174,7 +174,7 @@ async def test_phi_audit_logs_created_on_clinical_encounter_access(api_client, d
         username="doctor_audit_test",
         hashed_password=hash_password("SecureDoctor123!"),
         full_name="BS. Kiểm Toán PHI",
-        email="doc_phi@clinic.com",
+        email="doc_phi_audit_unique@clinic.com",
         role="DOCTOR",
         license_id="CCHN-TEST-999",
         is_active=True,
@@ -187,7 +187,7 @@ async def test_phi_audit_logs_created_on_clinical_encounter_access(api_client, d
         full_name="Bệnh Nhân PHI",
         date_of_birth=date(1995, 5, 10),
         gender="MALE",
-        phone_number="0988776655",
+        phone_number="0988998877",
         address="Hà Nội",
     )
     db_session.add(patient)
@@ -205,9 +205,18 @@ async def test_phi_audit_logs_created_on_clinical_encounter_access(api_client, d
     db_session.add(encounter)
     await db_session.flush()
 
+    nguoi_dung = NguoiDung(
+        ho_ten="BS. Kiểm Toán PHI",
+        email="doc_phi_audit_unique@clinic.com",
+        so_dien_thoai="0988998877",
+        gioi_tinh="Nam",
+    )
+    db_session.add(nguoi_dung)
+    await db_session.flush()
+
     tai_khoan = TaiKhoan(
-        nguoi_dung_id=doctor_user.id,
-        email="doc_phi@clinic.com",
+        nguoi_dung_id=nguoi_dung.id,
+        email="doc_phi_audit_unique@clinic.com",
         mat_khau_hash=doctor_user.hashed_password,
         vai_tro=VaiTroEnum.BAC_SI.value,
         is_active=True,

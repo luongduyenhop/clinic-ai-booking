@@ -1,5 +1,6 @@
+from decimal import Decimal
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -21,7 +22,16 @@ from app.schemas.cashier import (
     RefundInvoiceRequest,
     RefundInvoiceResponse,
 )
+from app.schemas.production_billing import (
+    BankWebhookPayload,
+    BankWebhookResponse,
+    FeeSheetSummary,
+    ProdInvoiceCreateRequest,
+    ProdInvoiceResponse,
+    VietQrGenerateResponse,
+)
 from app.services.cashier_service import cashier_service
+from app.services.production_cashier_service import production_cashier_service
 
 router = APIRouter(prefix="/cashier", tags=["7. Thu Ngân & Quản Lý Viện Phí (Cashier & Billing)"])
 cashier_role_guard = require_roles([VaiTroEnum.THU_NGAN, VaiTroEnum.ADMIN, VaiTroEnum.LE_TAN])
@@ -320,4 +330,91 @@ async def refund_invoice(
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Hoàn tiền thành công {result.so_tien_hoan:,.0f}đ cho hóa đơn {result.ma_hoa_don}"
+    )
+
+
+@router.get(
+    "/encounters/{encounter_id}/fee-sheet",
+    response_model=ResponseEnvelope[FeeSheetSummary],
+    summary="Bảng kê viện phí tự động từ ca khám"
+)
+async def get_encounter_fee_sheet(
+    encounter_id: int,
+    discount_amount: Decimal = Query(Decimal("0.00"), ge=0, description="Số tiền miễn giảm"),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await production_cashier_service.calculate_fee_sheet(
+        encounter_id=encounter_id,
+        discount_amount=discount_amount,
+        db=db,
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Tổng hợp bảng kê viện phí tự động thành công"
+    )
+
+
+@router.post(
+    "/encounters/{encounter_id}/create-invoice",
+    response_model=ResponseEnvelope[ProdInvoiceResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Khởi tạo hóa đơn viện phí từ bảng kê ca khám"
+)
+async def create_invoice_from_encounter(
+    encounter_id: int,
+    payload: ProdInvoiceCreateRequest,
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db),
+):
+    invoice = await production_cashier_service.create_invoice(
+        encounter_id=encounter_id,
+        discount_amount=payload.discount_amount,
+        cashier_id=current_user.id,
+        db=db,
+    )
+    return ResponseEnvelope.success_response(
+        data=invoice,
+        message=f"Lập hóa đơn {invoice.invoice_code} thành công"
+    )
+
+
+@router.post(
+    "/invoices/{invoice_id}/generate-vietqr",
+    response_model=ResponseEnvelope[VietQrGenerateResponse],
+    summary="Sinh mã VietQR động chuẩn Napas 247 cho hóa đơn"
+)
+async def generate_invoice_vietqr(
+    invoice_id: int,
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await production_cashier_service.generate_vietqr(invoice_id=invoice_id, db=db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Sinh mã VietQR động cho hóa đơn #{invoice_id} thành công"
+    )
+
+
+@router.post(
+    "/payments/webhook",
+    response_model=ResponseEnvelope[BankWebhookResponse],
+    summary="Tiếp nhận Webhook ngân hàng đối soát thanh toán VietQR Napas 247"
+)
+async def process_cashier_bank_webhook(
+    request: Request,
+    payload: BankWebhookPayload,
+    x_signature: Optional[str] = Header(None, alias="X-Signature"),
+    db: AsyncSession = Depends(get_db),
+):
+    raw_body = await request.body()
+    result = await production_cashier_service.process_bank_webhook(
+        payload=payload,
+        raw_body=raw_body,
+        header_signature=x_signature,
+        db=db,
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đối soát thanh toán Webhook thành công"
     )

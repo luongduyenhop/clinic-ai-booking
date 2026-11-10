@@ -2454,6 +2454,18 @@ class ClinicalService:
             is_critical = True
             warnings.append("Rối loạn nhịp tim đe dọa tính mạng")
 
+        recorded_by_id = user.id
+        user_prod_stmt = select(UserProduction.id).where(
+            or_(
+                UserProduction.id == user.id,
+                UserProduction.email == getattr(user, "email", None),
+                UserProduction.username == getattr(user, "email", None),
+            )
+        )
+        found_prod_user_id = (await db.execute(user_prod_stmt)).scalar_one_or_none()
+        if found_prod_user_id:
+            recorded_by_id = found_prod_user_id
+
         vital = ClinicalVitalProduction(
             encounter_id=encounter_id,
             systolic_bp=Decimal(str(payload.systolic_bp)),
@@ -2465,7 +2477,7 @@ class ClinicalService:
             height_cm=Decimal(str(payload.height_cm)) if payload.height_cm is not None else None,
             weight_kg=Decimal(str(payload.weight_kg)) if payload.weight_kg is not None else None,
             bmi=Decimal(str(calculated_bmi)) if calculated_bmi is not None else None,
-            recorded_by=user.id,
+            recorded_by=recorded_by_id,
             recorded_at=datetime.now(timezone.utc),
         )
         db.add(vital)

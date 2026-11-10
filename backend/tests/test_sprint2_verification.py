@@ -13,6 +13,7 @@ from app.models.production_models import (
     DiagnosisICD10Production,
     ParaclinicalOrderProduction,
     ServiceProduction,
+    UserProduction,
 )
 from app.schemas.reception import CccdQrParseRequest, ReceptionPatientCreateRequest, EncounterCreateRequest
 from app.schemas.clinical import VitalsCreateRequest, AllergyCheckRequest
@@ -63,11 +64,67 @@ async def test_patient_registration_prevents_duplicate_cccd(db_session):
     assert "CCCD" in str(exc_info.value)
 
 
+async def _setup_baseline(db_session, suffix="s2"):
+    email = f"{suffix}@clinic.local"
+    doctor_user = UserProduction(
+        username=f"dr_{suffix}",
+        hashed_password="hash",
+        full_name=f"Bac Si {suffix}",
+        email=email,
+        role="DOCTOR",
+    )
+    patient = PatientProduction(
+        patient_code=f"BN-{suffix}",
+        full_name=f"Benh Nhan {suffix}",
+        date_of_birth=date(1990, 1, 1),
+        gender="MALE",
+        phone_number=f"0933{suffix[:6].ljust(6, '0')}",
+        address="Hanoi",
+    )
+    db_session.add_all([doctor_user, patient])
+    await db_session.flush()
+
+    nguoi_dung = NguoiDung(
+        ho_ten=doctor_user.full_name,
+        email=email,
+        so_dien_thoai=f"0944{suffix[:6].ljust(6, '0')}",
+        gioi_tinh="Nam",
+    )
+    db_session.add(nguoi_dung)
+    await db_session.flush()
+
+    tai_khoan = TaiKhoan(
+        nguoi_dung_id=nguoi_dung.id,
+        email=nguoi_dung.email,
+        mat_khau_hash="hash",
+        vai_tro=VaiTroEnum.BAC_SI.value,
+        is_active=True,
+    )
+    db_session.add(tai_khoan)
+    await db_session.flush()
+
+    encounter = EncounterProduction(
+        encounter_code=f"ENC-{suffix}",
+        patient_id=patient.id,
+        doctor_id=doctor_user.id,
+        queue_number=1,
+        clinic_room_number="PK-101",
+        status="IN_CONSULTATION",
+        chief_complaint="Kham tong quat",
+    )
+    db_session.add(encounter)
+    await db_session.flush()
+
+    return doctor_user, patient, encounter, tai_khoan
+
+
 @pytest.mark.asyncio
 async def test_encounter_creation_generates_sequential_queue_number_today(db_session):
+    doctor_user, patient, _, _ = await _setup_baseline(db_session, "queue01")
+
     enc_req1 = EncounterCreateRequest(
-        patient_id=1,
-        doctor_id=1,
+        patient_id=patient.id,
+        doctor_id=doctor_user.id,
         clinic_room_number="PK-NOI-101",
         chief_complaint="Dau dau chong mat",
     )
@@ -76,8 +133,8 @@ async def test_encounter_creation_generates_sequential_queue_number_today(db_ses
     assert res1.status == "WAITING_FOR_EXAMINATION"
 
     enc_req2 = EncounterCreateRequest(
-        patient_id=1,
-        doctor_id=1,
+        patient_id=patient.id,
+        doctor_id=doctor_user.id,
         clinic_room_number="PK-NOI-101",
         chief_complaint="Sot cao kem ho",
     )
@@ -98,27 +155,7 @@ async def test_icd10_unaccented_vietnamese_search(db_session):
 
 @pytest.mark.asyncio
 async def test_vitals_recording_bmi_and_critical_hypertension_flag(db_session):
-    test_user = TaiKhoan(
-        id=99,
-        nguoi_dung_id=1,
-        email="dr_test@clinic.vn",
-        mat_khau_hash="hash",
-        vai_tro=VaiTroEnum.BAC_SI.value,
-        is_active=True,
-    )
-
-    enc = EncounterProduction(
-        encounter_code="ENC-TEST-VITALS",
-        patient_id=1,
-        doctor_id=1,
-        queue_number=99,
-        clinic_room_number="PK-102",
-        status="IN_CONSULTATION",
-        chief_complaint="Tham kham dinh ky",
-    )
-    db_session.add(enc)
-    await db_session.commit()
-    await db_session.refresh(enc)
+    _, _, enc, test_user = await _setup_baseline(db_session, "vitals01")
 
     vitals_req = VitalsCreateRequest(
         systolic_bp=195.0,
@@ -171,27 +208,19 @@ async def test_drug_allergy_conflict_guard(db_session):
 
 @pytest.mark.asyncio
 async def test_emr_seal_and_sign_immutability_guard(db_session):
-    doctor_user = TaiKhoan(
-        id=77,
-        nguoi_dung_id=1,
-        email="dr_seal@clinic.vn",
-        mat_khau_hash="hash",
-        vai_tro=VaiTroEnum.BAC_SI.value,
-        is_active=True,
-    )
+    _, _, enc, doctor_user = await _setup_baseline(db_session, "seal01")
 
-    enc = EncounterProduction(
-        encounter_code="ENC-SEAL-TEST",
-        patient_id=1,
-        doctor_id=doctor_user.id,
-        queue_number=5,
-        clinic_room_number="PK-105",
-        status="IN_CONSULTATION",
-        chief_complaint="Kham tong quat",
-    )
-    db_session.add(enc)
-    await db_session.commit()
-    await db_session.refresh(enc)
+    icd10_obj = (await db_session.execute(select(DiagnosisICD10Production).where(DiagnosisICD10Production.code == "I10"))).scalar_one_or_none()
+    if not icd10_obj:
+        db_session.add(
+            DiagnosisICD10Production(
+                code="I10",
+                chapter_code="IX",
+                name_vi="Bệnh tăng huyết áp vô căn",
+                is_active=True,
+            )
+        )
+        await db_session.flush()
 
     diag = EncounterDiagnosisProduction(
         encounter_id=enc.id,
@@ -220,14 +249,7 @@ async def test_emr_seal_and_sign_immutability_guard(db_session):
 
 @pytest.mark.asyncio
 async def test_paraclinical_6_step_state_machine(db_session):
-    lab_user = TaiKhoan(
-        id=55,
-        nguoi_dung_id=1,
-        email="tech_lab@clinic.vn",
-        mat_khau_hash="hash",
-        vai_tro=VaiTroEnum.KY_THUAT_VIEN.value,
-        is_active=True,
-    )
+    doctor_user, _, enc, lab_user = await _setup_baseline(db_session, "lab01")
 
     service = ServiceProduction(
         service_code="LAB-ELECTROLYTE-01",
@@ -242,9 +264,9 @@ async def test_paraclinical_6_step_state_machine(db_session):
 
     order = ParaclinicalOrderProduction(
         order_code="CLS-ORD-001",
-        encounter_id=1,
+        encounter_id=enc.id,
         service_id=service.id,
-        ordered_by=1,
+        ordered_by=doctor_user.id,
         status="PAID",
     )
     db_session.add(order)
@@ -276,7 +298,7 @@ async def test_paraclinical_6_step_state_machine(db_session):
 
     verify_res = await subclinical_service.verify_paraclinical_order(order.id, lab_user, db_session)
     assert verify_res.status == "COMPLETED_VERIFIED"
-    assert verify_res.verified_by == lab_user.id
+    assert verify_res.verified_by == doctor_user.id
 
 
 def test_national_prescription_code_format_14_characters():

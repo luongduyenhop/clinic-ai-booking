@@ -50,6 +50,8 @@ import CatalogManagementPage from './pages/admin/CatalogManagementPage'
 import RolePermissionPage from './pages/admin/RolePermissionPage'
 import TemplateManagementPage from './pages/admin/TemplateManagementPage'
 import ComplianceAndAuditPage from './pages/admin/ComplianceAndAuditPage'
+import CashierBillingAuditDashboard from './pages/admin/CashierBillingAuditDashboard'
+import PharmacyInventoryDashboard from './pages/admin/PharmacyInventoryDashboard'
 import ServicePackagesPage from './pages/admin/ServicePackagesPage'
 import TreatmentCoursePage from './pages/admin/TreatmentCoursePage'
 import SettingClinicPage from './pages/admin/SettingClinicPage'
@@ -88,6 +90,8 @@ function App() {
                         <Route path="check-in" element={<CheckInPage />} />
                         <Route path="queue" element={<QueueManagementPage />} />
                         <Route path="cashier" element={<CashierManagementPage />} />
+                        <Route path="billing-audit" element={<CashierBillingAuditDashboard />} />
+                        <Route path="pharmacy" element={<PharmacyInventoryDashboard />} />
                         <Route path="patients" element={<PatientsPage />} />
                         <Route path="schedule" element={<ClinicSchedulePage />} />
                         <Route path="administration" element={<AdministrationPage />} />
@@ -143,6 +147,8 @@ function App() {
                         <Route path="lich-hen" element={<AppointmentManagementPage />} />
 
                         <Route path="thu-chi" element={<CashierManagementPage />} />
+                        <Route path="thu-ngan-vietqr" element={<CashierBillingAuditDashboard />} />
+                        <Route path="kho-duoc-fefo" element={<PharmacyInventoryDashboard />} />
 
                         <Route path="tin-tuc" element={<NewsManagementPage />} />
                         <Route path="danh-muc-tin-tuc" element={<NewsManagementPage />} />

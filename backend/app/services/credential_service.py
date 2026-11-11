@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 from fastapi import status
@@ -92,12 +92,9 @@ class CredentialService:
 
         # Kiểm tra ngày hết hạn thực tế
         if bac_si.ngay_het_han:
-            now = datetime.now(timezone.utc)
-            exp_date = bac_si.ngay_het_han
-            if exp_date.tzinfo is None:
-                exp_date = exp_date.replace(tzinfo=timezone.utc)
-
-            if exp_date < now:
+            now_date = datetime.now(timezone.utc).date()
+            exp_val = bac_si.ngay_het_han.date() if isinstance(bac_si.ngay_het_han, datetime) else bac_si.ngay_het_han
+            if exp_val < now_date:
                 # Tự động cập nhật trạng thái EXPIRED
                 bac_si.trang_thai_giay_phep = TrangThaiGiayPhep.EXPIRED.value
                 db.add(bac_si)
@@ -348,11 +345,8 @@ class CredentialService:
 
         modified = False
         for doc in doctors:
-            exp_date = doc.ngay_het_han
-            if exp_date.tzinfo is None:
-                exp_date = exp_date.replace(tzinfo=timezone.utc)
-
-            days_left = (exp_date.date() - now.date()).days
+            exp_val = doc.ngay_het_han.date() if isinstance(doc.ngay_het_han, datetime) else doc.ngay_het_han
+            days_left = (exp_val - now.date()).days
             ho_ten = doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS #{doc.id}"
             ck_ten = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Chưa gán"
 
@@ -496,11 +490,9 @@ class CredentialService:
 
         days_left = None
         if bac_si.ngay_het_han:
-            now = datetime.now(timezone.utc)
-            exp = bac_si.ngay_het_han
-            if exp.tzinfo is None:
-                exp = exp.replace(tzinfo=timezone.utc)
-            days_left = (exp.date() - now.date()).days
+            now_date = datetime.now(timezone.utc).date()
+            exp_val = bac_si.ngay_het_han.date() if isinstance(bac_si.ngay_het_han, datetime) else bac_si.ngay_het_han
+            days_left = (exp_val - now_date).days
 
         scope = bac_si.pham_vi_chuyen_mon
         if not isinstance(scope, list):

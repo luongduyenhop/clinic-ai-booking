@@ -274,12 +274,22 @@ export default function ComplianceAndAuditPage() {
     }
 
     const filteredLogs = auditLogs.filter((l) => {
+        const query = searchAudit.trim().toLowerCase()
+        const actionLabel = (ACTION_LABEL_MAP[l.hanhDong] || ACTION_LABEL_MAP[l.action] || '').toLowerCase()
+        const roleLabel = (ROLE_LABEL_MAP[l.vaiTro] || ROLE_LABEL_MAP[l.role] || '').toLowerCase()
         const matchSearch =
-            !searchAudit ||
-            l.nguoiDung?.toLowerCase().includes(searchAudit.toLowerCase()) ||
-            l.hanhDong?.toLowerCase().includes(searchAudit.toLowerCase()) ||
-            l.doiTuong?.toLowerCase().includes(searchAudit.toLowerCase())
-        const matchRole = roleFilter === 'ALL' || l.vaiTro === roleFilter
+            !query ||
+            (l.id && l.id.toLowerCase().includes(query)) ||
+            (l.nguoiDung && l.nguoiDung.toLowerCase().includes(query)) ||
+            (l.actor && l.actor.toLowerCase().includes(query)) ||
+            (l.hanhDong && l.hanhDong.toLowerCase().includes(query)) ||
+            actionLabel.includes(query) ||
+            roleLabel.includes(query) ||
+            (l.doiTuong && l.doiTuong.toLowerCase().includes(query)) ||
+            (l.mucDich && l.mucDich.toLowerCase().includes(query)) ||
+            (l.description && l.description.toLowerCase().includes(query))
+        const actualRole = l.vaiTro || l.role || ''
+        const matchRole = roleFilter === 'ALL' || actualRole === roleFilter
         return matchSearch && matchRole
     })
 

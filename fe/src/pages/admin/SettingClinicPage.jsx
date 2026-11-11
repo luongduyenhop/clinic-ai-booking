@@ -64,6 +64,30 @@ export default function SettingClinicPage() {
         tuDongKhoaSoSauGio: settings.heThong?.tuDongKhoaSoSauGio || '23:00 (Sau 1 ngày)',
     })
 
+    useEffect(() => {
+        if (clinicData?.clinicSettings) {
+            const s = clinicData.clinicSettings
+            setForm((prev) => ({
+                ...prev,
+                tenPhongKham: s.tenPhongKham || prev.tenPhongKham,
+                maCoSoKCB: s.maCoSoKCB || prev.maCoSoKCB,
+                giayPhepHoatDong: s.giayPhepHoatDong || prev.giayPhepHoatDong,
+                dienThoai: s.dienThoai || prev.dienThoai,
+                email: s.email || prev.email,
+                diaChi: s.diaChi || prev.diaChi,
+                donThuocQuocGiaUrl: s.congLienThong?.donThuocQuocGiaUrl || prev.donThuocQuocGiaUrl,
+                maLienThongCoSo: s.congLienThong?.maLienThongCoSo || prev.maLienThongCoSo,
+                duocQuocGiaUrl: s.congLienThong?.duocQuocGiaUrl || prev.duocQuocGiaUrl,
+                maCoSoDuoc: s.congLienThong?.maCoSoDuoc || prev.maCoSoDuoc,
+                chuKySo: s.congLienThong?.chuKySo || prev.chuKySo,
+                hoaDonDienTu: s.congLienThong?.hoaDonDienTu || prev.hoaDonDienTu,
+                batBuocICD10: s.heThong?.batBuocICD10 ?? prev.batBuocICD10,
+                thuTienTruocCLS: s.heThong?.thuTienTruocCLS ?? prev.thuTienTruocCLS,
+                tuDongKhoaSoSauGio: s.heThong?.tuDongKhoaSoSauGio || prev.tuDongKhoaSoSauGio,
+            }))
+        }
+    }, [clinicData?.clinicSettings])
+
     const handlePingGateway = () => {
         setIsPinging(true)
         setPingResult(null)

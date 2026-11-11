@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.user import Quyen, VaiTro, VaiTroQuyen, VaiTroEnum
-from app.models.bff_store import HeThongTrangThaiBff
 from app.schemas.admin import RolePermissionAdminResponse
 
 ROLE_LABELS = {
@@ -18,9 +17,6 @@ ROLE_LABELS = {
 MODULES = ["SYS_ADMIN", "PATIENT_MGT", "APPOINTMENT", "RECEPTION", "CLINICAL_EXAM", "PHYSICAL_ROOM", "PRESCRIPTION", "CASHIER_BILLING", "PARACLINICAL_ORDER", "LAB_TESTING", "DIAGNOSTIC_IMAGING", "FUNCTIONAL_TESTING", "SHIFT_SCHEDULING", "CATALOG_MANAGEMENT", "ROLE_RBAC", "SERVICE_PACKAGES", "TREATMENT_COURSES", "CORPORATE_HEALTH", "PRINT_TEMPLATES", "COMPLIANCE_AUDIT", "AI_TRIAGE_CONFIG", "PORTAL_CONTENT", "ANALYTICS_REPORTS"]
 ACTIONS = ["view", "create", "update", "delete", "export"]
 
-# First-install defaults mirror the existing role boundaries in the API. These
-# are seeded only for roles with no assignments, so an administrator's later
-# edits are never overwritten by subsequent requests.
 DEFAULT_ROLE_MODULES = {
     VaiTroEnum.BAC_SI.value: {
         "CLINICAL_EXAM": {"view", "create", "update"},
@@ -59,12 +55,6 @@ DEFAULT_ROLE_MODULES = {
 class AdminRBACService:
     async def _ensure_catalog(self, db: AsyncSession) -> None:
         changed = False
-        defaults_marker = (await db.execute(
-            select(HeThongTrangThaiBff).where(
-                HeThongTrangThaiBff.collection_key == "adminRbacDefaultsInitialized"
-            )
-        )).scalar_one_or_none()
-        initialize_role_defaults = defaults_marker is None
         roles = (await db.execute(select(VaiTro))).scalars().all()
         roles_by_code = {role.ma_vai_tro: role for role in roles}
         for code, (name, description) in ROLE_LABELS.items():
@@ -84,31 +74,28 @@ class AdminRBACService:
                     perms_by_code[code] = perm
                     changed = True
         await db.flush()
-        # The admin role is deliberately the only role initialized with all permissions.
         admin_role = roles_by_code[VaiTroEnum.ADMIN.value]
         existing = set((await db.execute(select(VaiTroQuyen.quyen_id).where(VaiTroQuyen.vai_tro_id == admin_role.id))).scalars().all())
         for perm in perms_by_code.values():
             if perm.id not in existing:
                 db.add(VaiTroQuyen(vai_tro_id=admin_role.id, quyen_id=perm.id))
                 changed = True
-        if initialize_role_defaults:
-            for role_code, module_defaults in DEFAULT_ROLE_MODULES.items():
-                role = roles_by_code[role_code]
-                role_permissions = set((await db.execute(
-                    select(VaiTroQuyen.quyen_id).where(VaiTroQuyen.vai_tro_id == role.id)
-                )).scalars().all())
-                if role_permissions:
-                    continue
-                for module, actions in module_defaults.items():
-                    for action in actions:
-                        permission = perms_by_code[f"{module}.{action}"]
+        for role_code, module_defaults in DEFAULT_ROLE_MODULES.items():
+            role = roles_by_code.get(role_code)
+            if not role:
+                continue
+            role_permissions = set((await db.execute(
+                select(VaiTroQuyen.quyen_id).where(VaiTroQuyen.vai_tro_id == role.id)
+            )).scalars().all())
+            if role_permissions:
+                continue
+            for module, actions in module_defaults.items():
+                for action in actions:
+                    perm_key = f"{module}.{action}"
+                    if perm_key in perms_by_code:
+                        permission = perms_by_code[perm_key]
                         db.add(VaiTroQuyen(vai_tro_id=role.id, quyen_id=permission.id))
                         changed = True
-            db.add(HeThongTrangThaiBff(
-                collection_key="adminRbacDefaultsInitialized",
-                data_json={"initialized": True},
-            ))
-            changed = True
         if changed:
             await db.commit()
         else:

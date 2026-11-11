@@ -11,6 +11,7 @@ import {
     fetchShiftDashboardAsync,
     fetchDoctorAbsencesAsync,
 } from '../../redux/actions/reception/receptionAction'
+import { isIncidentResolved } from '../../redux/slices/reception/receptionSlice'
 import {
     ClipboardText,
     CalendarCheck,
@@ -37,6 +38,7 @@ export default function ReceptionDashboardPage() {
         shiftSummary,
         roomStatus = [],
         doctorAbsences = [],
+        resolvedIncidentKeys = [],
         auditLogs = [],
         patients = [],
         rooms = [],
@@ -101,7 +103,8 @@ export default function ReceptionDashboardPage() {
         .sort((a, b) => b.waitTimeMinutes - a.waitTimeMinutes)
         .slice(0, 5)
 
-    const activeIncidents = doctorAbsences.slice(0, 4)
+    const unresolvedIncidents = doctorAbsences.filter((inc) => !isIncidentResolved(inc, resolvedIncidentKeys))
+    const activeIncidents = unresolvedIncidents.slice(0, 4)
 
     const recentLogs = shiftSummary?.hoat_dong_gan_day?.length > 0
         ? shiftSummary.hoat_dong_gan_day.map((item) => ({
@@ -191,7 +194,7 @@ export default function ReceptionDashboardPage() {
                         <WarningCircle size={24} weight="fill" className="text-rose-600 shrink-0" />
                         <div>
                             <div className="text-sm font-bold text-rose-900">Cảnh báo sự cố ca trực: Bác sĩ vắng mặt đột xuất</div>
-                            <div className="text-xs text-rose-700">Đang có {activeIncidents.length} bác sĩ nghỉ đột xuất cần điều chuyển bệnh nhân sang buồng khám khác.</div>
+                            <div className="text-xs text-rose-700">Đang có {unresolvedIncidents.length} bác sĩ nghỉ đột xuất cần điều chuyển bệnh nhân sang buồng khám khác.</div>
                         </div>
                     </div>
                     <button
@@ -498,7 +501,7 @@ export default function ReceptionDashboardPage() {
                             <WarningCircle size={16} weight="duotone" className="text-rose-500" />
                             <span>SỰ CỐ CẦN XỬ LÝ</span>
                             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800">
-                                {activeIncidents.length} sự cố
+                                {unresolvedIncidents.length} sự cố
                             </span>
                         </div>
                         <Link to="/reception/tasks" className="text-[11px] font-bold text-rose-600 hover:underline inline-flex items-center gap-0.5">

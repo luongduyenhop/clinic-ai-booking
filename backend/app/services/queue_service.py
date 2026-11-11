@@ -4,7 +4,7 @@ import uuid
 
 from datetime import date, datetime, time, timezone, timedelta
 
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Union, Any, Tuple
 
 from sqlalchemy import func, select, or_, and_
 
@@ -148,13 +148,35 @@ class QueueService:
 
 
     def _determine_shift(self, t: time) -> str:
-
-
         if t < time(12, 30):
-
             return CaLamViecEnum.SANG.value
-
         return CaLamViecEnum.CHIEU.value
+
+    async def _resolve_doctor_shift_room(
+        self,
+        doctor_id: Optional[int],
+        target_date: date,
+        ca_kham: str,
+        fallback_room_id: Optional[int],
+        db: AsyncSession,
+    ) -> Tuple[Optional[int], Optional[int]]:
+        """Lấy (lich_lam_viec_id, phong_kham_id) từ ca trực đang mở của bác sĩ; fallback phòng mặc định."""
+        if not doctor_id:
+            return None, fallback_room_id
+        stmt = (
+            select(LichLamViec)
+            .where(
+                LichLamViec.bac_si_id == doctor_id,
+                LichLamViec.ngay_lam_viec == target_date,
+                LichLamViec.ca_lam_viec == ca_kham,
+                LichLamViec.is_active.is_(True),
+            )
+            .order_by(LichLamViec.id.desc())
+        )
+        shift = (await db.execute(stmt)).scalars().first()
+        if shift:
+            return shift.id, shift.phong_kham_id or fallback_room_id
+        return None, fallback_room_id
 
 
 
@@ -691,11 +713,20 @@ class QueueService:
 
 
 
-        room_id_cin = lich.bac_si.phong_kham_id if (lich.bac_si and lich.bac_si.phong_kham_id) else None
+        fallback_room_cin = lich.bac_si.phong_kham_id if (lich.bac_si and lich.bac_si.phong_kham_id) else None
+        shift_id_cin, room_id_cin = await self._resolve_doctor_shift_room(
+            lich.bac_si_id,
+            lich.ngay_kham,
+            ca_kham,
+            fallback_room_cin,
+            db,
+        )
 
         ticket = HangDoiKham(
 
             lich_kham_id=lich.id,
+
+            lich_lam_viec_id=shift_id_cin,
 
             benh_nhan_id=lich.benh_nhan_id,
 
@@ -1023,9 +1054,17 @@ class QueueService:
         db.add(lich_tai_cho)
         await db.flush()
 
-        room_id_walkin = bs.phong_kham_id if bs else None
+        fallback_room_walkin = bs.phong_kham_id if bs else None
+        shift_id_walkin, room_id_walkin = await self._resolve_doctor_shift_room(
+            effective_doctor_id,
+            today,
+            effective_ca,
+            fallback_room_walkin,
+            db,
+        )
         ticket = HangDoiKham(
             lich_kham_id=lich_tai_cho.id,
+            lich_lam_viec_id=shift_id_walkin,
             benh_nhan_id=effective_benh_nhan_id,
             bac_si_id=effective_doctor_id,
             phong_kham_id=room_id_walkin,
@@ -1491,43 +1530,26 @@ class QueueService:
 
 
         stmt_tickets = (
-
             select(HangDoiKham)
-
             .options(
-
                 selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
-
                 selectinload(HangDoiKham.bac_si).selectinload(BacSi.nguoi_dung),
-
                 selectinload(HangDoiKham.bac_si).selectinload(BacSi.chuyen_khoa),
-
                 selectinload(HangDoiKham.bac_si).selectinload(BacSi.phong_kham),
-
                 selectinload(HangDoiKham.phong_kham),
-
                 selectinload(HangDoiKham.lich_kham),
-
             )
-
             .where(
-
                 HangDoiKham.bac_si_id == doctor_id,
-
                 HangDoiKham.ngay_kham == target_date,
-
             )
-
-            .order_by(
-
-                HangDoiKham.muc_do_uu_tien.asc(),
-
-                func.coalesce(HangDoiKham.thoi_gian_xep_hang_lai, HangDoiKham.thoi_gian_check_in).asc(),
-
-                HangDoiKham.so_thu_tu_kham.asc()
-
-            )
-
+        )
+        if ca_kham:
+            stmt_tickets = stmt_tickets.where(HangDoiKham.ca_kham == ca_kham)
+        stmt_tickets = stmt_tickets.order_by(
+            HangDoiKham.muc_do_uu_tien.asc(),
+            func.coalesce(HangDoiKham.thoi_gian_xep_hang_lai, HangDoiKham.thoi_gian_check_in).asc(),
+            HangDoiKham.so_thu_tu_kham.asc()
         )
 
         all_tickets = (await db.execute(stmt_tickets)).scalars().all()
@@ -2484,27 +2506,24 @@ class QueueService:
 
 
             seen_ticket_ids = set()
-
             b_tickets = []
-
             if bac_si_id and bac_si_id in doc_tickets:
-
                 for t in doc_tickets[bac_si_id]:
-
                     if t.id not in seen_ticket_ids:
-
                         seen_ticket_ids.add(t.id)
-
                         b_tickets.append(t)
-
             if r.id in room_tickets:
-
                 for t in room_tickets[r.id]:
-
+                    # Không đếm nhầm vé đã gắn bác sĩ khác vào buồng này (tránh đếm trùng sang 2 phòng)
+                    if t.bac_si_id and bac_si_id and t.bac_si_id != bac_si_id:
+                        continue
+                    if t.bac_si_id and any(
+                        other_rm_id != r.id and other_ros.bac_si_id == t.bac_si_id
+                        for other_rm_id, other_ros in room_roster_map.items()
+                    ):
+                        continue
                     if t.id not in seen_ticket_ids:
-
                         seen_ticket_ids.add(t.id)
-
                         b_tickets.append(t)
 
 
@@ -2984,65 +3003,83 @@ class QueueService:
 
 
     async def get_roster_template_resources(
-
         self,
-
         thu_trong_tuan: Optional[int],
-
-        db: AsyncSession
-
+        db: AsyncSession,
+        query_date: Optional[date] = None,
+        ca_kham: Optional[str] = None,
+        chuyen_khoa_id: Optional[int] = None,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
     ) -> List[RosterTemplateItem]:
-
-
         stmt = (
-
-            select(LichDinhKyBacSi)
-
+            select(LichLamViec)
             .options(
-
-                selectinload(LichDinhKyBacSi.bac_si).selectinload(BacSi.nguoi_dung),
-
-                selectinload(LichDinhKyBacSi.phong_kham),
-
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.phong_kham),
+                selectinload(LichLamViec.phong_kham),
             )
-
-            .order_by(LichDinhKyBacSi.thu_trong_tuan, LichDinhKyBacSi.ca_lam_viec)
-
+            .order_by(
+                LichLamViec.ngay_lam_viec.asc(),
+                LichLamViec.ca_lam_viec.asc(),
+                LichLamViec.id.asc(),
+            )
         )
 
-        if thu_trong_tuan:
+        if query_date:
+            stmt = stmt.where(LichLamViec.ngay_lam_viec == query_date)
+        else:
+            if tu_ngay:
+                stmt = stmt.where(LichLamViec.ngay_lam_viec >= tu_ngay)
+            if den_ngay:
+                stmt = stmt.where(LichLamViec.ngay_lam_viec <= den_ngay)
 
-            stmt = stmt.where(LichDinhKyBacSi.thu_trong_tuan == thu_trong_tuan)
+        if ca_kham:
+            stmt = stmt.where(LichLamViec.ca_lam_viec == ca_kham)
 
-        templates = (await db.execute(stmt)).scalars().all()
+        if chuyen_khoa_id:
+            stmt = stmt.where(LichLamViec.bac_si.has(BacSi.chuyen_khoa_id == chuyen_khoa_id))
 
-        return [
+        shifts = (await db.execute(stmt)).scalars().all()
 
-            RosterTemplateItem(
+        results: List[RosterTemplateItem] = []
+        for s in shifts:
+            day_of_week = s.ngay_lam_viec.isoweekday() + 1 if s.ngay_lam_viec else 2
+            if thu_trong_tuan and day_of_week != thu_trong_tuan:
+                continue
 
-                id=tmpl.id,
-
-                bac_si_id=tmpl.bac_si_id,
-
-                ten_bac_si=tmpl.bac_si.nguoi_dung.ho_ten if tmpl.bac_si and tmpl.bac_si.nguoi_dung else "N/A",
-
-                thu_trong_tuan=tmpl.thu_trong_tuan,
-
-                ca_lam_viec=tmpl.ca_lam_viec,
-
-                gio_bat_dau=tmpl.gio_bat_dau.strftime("%H:%M") if tmpl.gio_bat_dau else "",
-
-                gio_ket_thuc=tmpl.gio_ket_thuc.strftime("%H:%M") if tmpl.gio_ket_thuc else "",
-
-                phong_kham=tmpl.phong_kham.ten_phong if tmpl.phong_kham else None,
-
-                is_active=tmpl.is_active,
-
+            phong_obj = s.phong_kham or (s.bac_si.phong_kham if s.bac_si else None)
+            phong_display = (
+                f"{phong_obj.ten_phong} ({phong_obj.ma_phong})"
+                if phong_obj and phong_obj.ma_phong
+                else (phong_obj.ten_phong if phong_obj else None)
             )
+            ck_obj = s.bac_si.chuyen_khoa if s.bac_si else None
 
-            for tmpl in templates
-
-        ]
+            results.append(
+                RosterTemplateItem(
+                    id=s.id,
+                    bac_si_id=s.bac_si_id,
+                    ten_bac_si=s.bac_si.nguoi_dung.ho_ten if s.bac_si and s.bac_si.nguoi_dung else "N/A",
+                    chuyen_khoa_id=s.bac_si.chuyen_khoa_id if s.bac_si else None,
+                    ten_chuyen_khoa=ck_obj.ten_chuyen_khoa if ck_obj else None,
+                    ngay_lam_viec=s.ngay_lam_viec,
+                    thu_trong_tuan=day_of_week,
+                    ca_lam_viec=s.ca_lam_viec,
+                    gio_bat_dau=s.gio_bat_dau.strftime("%H:%M") if s.gio_bat_dau else "",
+                    gio_ket_thuc=s.gio_ket_thuc.strftime("%H:%M") if s.gio_ket_thuc else "",
+                    phong_kham_id=phong_obj.id if phong_obj else None,
+                    ma_phong=phong_obj.ma_phong if phong_obj else None,
+                    phong_kham=phong_display,
+                    gioi_han_ca_kham=s.gioi_han_ca_kham,
+                    han_muc_dat_truoc=s.han_muc_dat_truoc,
+                    han_muc_vang_lai=s.han_muc_vang_lai,
+                    ghi_chu_nghi=s.ghi_chu_nghi,
+                    is_active=s.is_active,
+                )
+            )
+        return results
 
 
 
@@ -3600,7 +3637,14 @@ class QueueService:
         if is_priority:
             ticket_note = f"Ưu tiên ({priority_label}): {ticket_note}"
 
-        room_id = bs.phong_kham_id if bs else None
+        fallback_room_wl = bs.phong_kham_id if bs else None
+        shift_id_wl, room_id = await self._resolve_doctor_shift_room(
+            effective_doctor_id,
+            today,
+            ca_kham,
+            fallback_room_wl,
+            db,
+        )
 
         # Bảo lưu thời gian người bệnh thực tế có mặt đăng ký tại quầy tiếp đón
         entry_time = entry.created_at
@@ -3613,6 +3657,7 @@ class QueueService:
 
         ticket = HangDoiKham(
             lich_kham_id=lich_kham.id,
+            lich_lam_viec_id=shift_id_wl,
             benh_nhan_id=entry.benh_nhan_id,
             bac_si_id=effective_doctor_id,
             phong_kham_id=room_id,

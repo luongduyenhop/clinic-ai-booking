@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import {
     Table,
@@ -15,6 +15,8 @@ import {
     SyncOutlined,
     WarningOutlined,
     UnorderedListOutlined,
+    CheckCircleOutlined,
+    RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import IncidentDetailDrawer from '../../components/reception/IncidentDetailDrawer'
@@ -23,19 +25,43 @@ import {
     rebalanceQueueAsync,
     fetchReceptionDataAsync,
 } from '../../redux/actions/reception/receptionAction'
+import {
+    getIncidentKey,
+    getStrandedPatientCount,
+    isIncidentResolved,
+    markIncidentResolved,
+    unmarkIncidentResolved,
+} from '../../redux/slices/reception/receptionSlice'
 
 export default function TasksPage() {
     const dispatch = useDispatch()
     const {
         doctorAbsences = [],
+        resolvedIncidentKeys = [],
         loading = false,
     } = useSelector((state) => state.reception)
 
     const [incidentDate, setIncidentDate] = useState(() => dayjs().format('YYYY-MM-DD'))
+    const [statusFilter, setStatusFilter] = useState('ALL')
     const [selectedIncident, setSelectedIncident] = useState(null)
     const [drawerIncident, setDrawerIncident] = useState(null)
     const [selectedTargetDoctor, setSelectedTargetDoctor] = useState(null)
     const [isRebalancing, setIsRebalancing] = useState(false)
+
+    const pendingAbsences = useMemo(
+        () => doctorAbsences.filter((inc) => !isIncidentResolved(inc, resolvedIncidentKeys)),
+        [doctorAbsences, resolvedIncidentKeys]
+    )
+
+    const resolvedAbsencesCount = doctorAbsences.length - pendingAbsences.length
+
+    const filteredAbsences = useMemo(() => {
+        if (statusFilter === 'PENDING') return pendingAbsences
+        if (statusFilter === 'RESOLVED') {
+            return doctorAbsences.filter((inc) => isIncidentResolved(inc, resolvedIncidentKeys))
+        }
+        return doctorAbsences
+    }, [doctorAbsences, pendingAbsences, resolvedIncidentKeys, statusFilter])
 
     useEffect(() => {
         dispatch(fetchReceptionDataAsync())
@@ -74,16 +100,35 @@ export default function TasksPage() {
         }
     }
 
+    const handleMarkResolved = (record) => {
+        const key = getIncidentKey(record)
+        dispatch(markIncidentResolved(key))
+        message.success(`Đã đánh dấu hoàn thành xử lý sự cố của BS ${record.ten_bac_si}.`)
+    }
+
+    const handleReopenIncident = (record) => {
+        const key = getIncidentKey(record)
+        dispatch(unmarkIncidentResolved(key))
+        message.info(`Đã mở lại theo dõi sự cố của BS ${record.ten_bac_si}.`)
+    }
+
     const incidentColumns = [
         {
             title: 'Mức độ',
             key: 'severity',
-            width: 110,
-            render: () => (
-                <Tag color="error" className="font-bold text-xs">
-                    Khẩn cấp
-                </Tag>
-            ),
+            width: 130,
+            render: (_, record) => {
+                const resolved = isIncidentResolved(record, resolvedIncidentKeys)
+                return resolved ? (
+                    <Tag color="success" icon={<CheckCircleOutlined />} className="font-bold text-xs">
+                        Đã giải quyết
+                    </Tag>
+                ) : (
+                    <Tag color="error" className="font-bold text-xs">
+                        Khẩn cấp
+                    </Tag>
+                )
+            },
         },
         {
             title: 'Bác sĩ & Nội dung sự cố',
@@ -129,32 +174,58 @@ export default function TasksPage() {
         {
             title: 'Thao tác',
             key: 'actions',
-            width: 280,
+            width: 340,
             align: 'right',
-            render: (_, record) => (
-                <div className="flex items-center justify-end gap-2">
-                    <Button
-                        size="small"
-                        icon={<UnorderedListOutlined />}
-                        onClick={() => setDrawerIncident(record)}
-                        className="medpro-btn-outline text-xs font-semibold"
-                    >
-                        📋 Chi tiết & Xử lý lẻ
-                    </Button>
-                    <Button
-                        size="small"
-                        type="primary"
-                        icon={<SwapOutlined />}
-                        className="medpro-btn-primary text-xs font-bold"
-                        onClick={() => {
-                            setSelectedIncident(record)
-                            setSelectedTargetDoctor(null)
-                        }}
-                    >
-                        ⚡ Chuyển nhanh
-                    </Button>
-                </div>
-            ),
+            render: (_, record) => {
+                const strandedCount = getStrandedPatientCount(record)
+                const resolved = isIncidentResolved(record, resolvedIncidentKeys)
+
+                return (
+                    <div className="flex items-center justify-end gap-2">
+                        <Button
+                            size="small"
+                            icon={<UnorderedListOutlined />}
+                            onClick={() => setDrawerIncident(record)}
+                            className="medpro-btn-outline text-xs font-semibold"
+                        >
+                            📋 Chi tiết & Xử lý lẻ
+                        </Button>
+                        {resolved ? (
+                            <Button
+                                size="small"
+                                icon={<RollbackOutlined />}
+                                onClick={() => handleReopenIncident(record)}
+                                className="text-xs font-semibold"
+                            >
+                                Mở lại
+                            </Button>
+                        ) : strandedCount === 0 ? (
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<CheckCircleOutlined />}
+                                onClick={() => handleMarkResolved(record)}
+                                className="!bg-emerald-600 hover:!bg-emerald-700 !border-emerald-600 text-xs font-bold"
+                            >
+                                Hoàn thành
+                            </Button>
+                        ) : (
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<SwapOutlined />}
+                                className="medpro-btn-primary text-xs font-bold"
+                                onClick={() => {
+                                    setSelectedIncident(record)
+                                    setSelectedTargetDoctor(null)
+                                }}
+                            >
+                                ⚡ Chuyển nhanh
+                            </Button>
+                        )}
+                    </div>
+                )
+            },
         },
     ]
 
@@ -184,26 +255,52 @@ export default function TasksPage() {
             </div>
 
             <div className="space-y-4">
-                <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
-                    <span className="text-slate-400">Ngày rà soát sự cố:</span>
-                    <DatePicker
-                        format="DD/MM/YYYY"
-                        value={dayjs(incidentDate)}
-                        onChange={(d) => setIncidentDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
-                    />
+                <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                        <span className="text-slate-400">Ngày rà soát sự cố:</span>
+                        <DatePicker
+                            format="DD/MM/YYYY"
+                            value={dayjs(incidentDate)}
+                            onChange={(d) => setIncidentDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+                        />
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                        {[
+                            { key: 'ALL', label: `Tất cả (${doctorAbsences.length})` },
+                            { key: 'PENDING', label: `Cần xử lý (${pendingAbsences.length})` },
+                            { key: 'RESOLVED', label: `Đã giải quyết (${resolvedAbsencesCount})` },
+                        ].map((tab) => (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setStatusFilter(tab.key)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    statusFilter === tab.key
+                                        ? 'bg-[#00263C] text-white shadow-2xs'
+                                        : 'text-slate-600 hover:text-[#00263C]'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                {doctorAbsences.length === 0 ? (
+                {pendingAbsences.length === 0 ? (
                     <Alert
-                        message="Không có sự cố đột xuất"
-                        description="Tất cả bác sĩ trong các chuyên khoa đang hoạt động đúng ca trực. Không có bệnh nhân nào bị gián đoạn hàng đợi."
+                        message="Không có sự cố tồn đọng cần xử lý"
+                        description={
+                            resolvedAbsencesCount > 0
+                                ? `Tất cả ${resolvedAbsencesCount} sự cố trong ngày đã được giải quyết. Thông báo cảnh báo ở Dashboard và Lịch trực đã được ẩn.`
+                                : 'Tất cả bác sĩ trong các chuyên khoa đang hoạt động đúng ca trực. Không có bệnh nhân nào bị gián đoạn hàng đợi.'
+                        }
                         type="success"
                         showIcon
                     />
                 ) : (
                     <Alert
-                        message={`Phát hiện ${doctorAbsences.length} bác sĩ nghỉ đột xuất cần điều chuyển`}
-                        description="Vui lòng thực hiện điều chuyển bệnh nhân sang các bác sĩ thay thế trong cùng chuyên khoa để tránh ùn ứ hàng đợi."
+                        message={`Phát hiện ${pendingAbsences.length} bác sĩ nghỉ đột xuất cần điều chuyển`}
+                        description="Vui lòng thực hiện điều chuyển bệnh nhân sang các bác sĩ thay thế trong cùng chuyên khoa hoặc bấm Hoàn thành khi không còn bệnh nhân bị kẹt."
                         type="warning"
                         showIcon
                     />
@@ -212,13 +309,13 @@ export default function TasksPage() {
                 <div className="medpro-card overflow-hidden">
                     <Table
                         columns={incidentColumns}
-                        dataSource={doctorAbsences}
+                        dataSource={filteredAbsences}
                         rowKey={(r) => r.nghi_phep_id || r.id || r.bac_si_id}
                         loading={loading}
                         pagination={{ pageSize: 10 }}
                         size="middle"
                         scroll={{ x: 700 }}
-                        locale={{ emptyText: 'Không có sự cố nào cần xử lý' }}
+                        locale={{ emptyText: 'Không có sự cố nào phù hợp bộ lọc' }}
                     />
                 </div>
             </div>

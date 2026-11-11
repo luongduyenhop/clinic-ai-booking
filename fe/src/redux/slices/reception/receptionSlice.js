@@ -1,4 +1,35 @@
 import { createSlice } from '@reduxjs/toolkit'
+
+const RESOLVED_INCIDENTS_STORAGE_KEY = 'clinic_reception_resolved_incidents'
+
+const loadResolvedIncidents = () => {
+    try {
+        const raw = localStorage.getItem(RESOLVED_INCIDENTS_STORAGE_KEY)
+        const parsed = raw ? JSON.parse(raw) : []
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return []
+    }
+}
+
+const saveResolvedIncidents = (keys) => {
+    try {
+        localStorage.setItem(RESOLVED_INCIDENTS_STORAGE_KEY, JSON.stringify(keys))
+    } catch {
+        // Ignore storage quota errors
+    }
+}
+
+export const getIncidentKey = (inc) => {
+    if (inc?.nghi_phep_id) return `np_${inc.nghi_phep_id}`
+    return `bs_${inc?.bac_si_id || 'unknown'}_${inc?.tu_ngay || ''}_${inc?.ca_lam_viec || ''}`
+}
+
+export const getStrandedPatientCount = (inc) =>
+    Number(inc?.so_benh_nhan_cho ?? inc?.so_benh_nhan_bi_anh_huong ?? 0)
+
+export const isIncidentResolved = (inc, resolvedKeys = []) =>
+    getStrandedPatientCount(inc) === 0 && Array.isArray(resolvedKeys) && resolvedKeys.includes(getIncidentKey(inc))
 import {
     fetchReceptionDataAsync,
     resetReceptionDataAsync,
@@ -93,6 +124,7 @@ const initialState = {
     shiftAuditLoading: false,
     closeShiftSubmitting: false,
     invoices: [],
+    resolvedIncidentKeys: loadResolvedIncidents(),
     activeRole: 'RECEPTIONIST',
     loading: false,
     queueLoading: false,
@@ -115,6 +147,18 @@ const receptionSlice = createSlice({
         },
         clearSelectedPatientDetail: (state) => {
             state.selectedPatientDetail = null
+        },
+        markIncidentResolved: (state, action) => {
+            const key = action.payload
+            if (key && !state.resolvedIncidentKeys.includes(key)) {
+                state.resolvedIncidentKeys.push(key)
+                saveResolvedIncidents(state.resolvedIncidentKeys)
+            }
+        },
+        unmarkIncidentResolved: (state, action) => {
+            const key = action.payload
+            state.resolvedIncidentKeys = state.resolvedIncidentKeys.filter((item) => item !== key)
+            saveResolvedIncidents(state.resolvedIncidentKeys)
         },
     },
     extraReducers: (builder) => {
@@ -479,5 +523,12 @@ const receptionSlice = createSlice({
     },
 })
 
-export const { setActiveRoleLocally, clearReceptionError, setQueueEntries, clearSelectedPatientDetail } = receptionSlice.actions
+export const {
+    setActiveRoleLocally,
+    clearReceptionError,
+    setQueueEntries,
+    clearSelectedPatientDetail,
+    markIncidentResolved,
+    unmarkIncidentResolved,
+} = receptionSlice.actions
 export default receptionSlice.reducer

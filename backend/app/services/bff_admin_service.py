@@ -1008,7 +1008,6 @@ class BffAdminService:
 
         if collection_key == "staffList":
             first_ck = (await db.execute(select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc()))).scalars().first()
-            first_pk = (await db.execute(select(PhongKham).order_by(PhongKham.id.asc()))).scalars().first()
             for s in items:
                 cchn = str(s.get("soCCHN") or s.get("maNV") or s.get("id") or "").strip()
                 if not cchn:
@@ -1024,6 +1023,10 @@ class BffAdminService:
                     if existing_bs.nguoi_dung:
                         existing_bs.nguoi_dung.ho_ten = ho_ten
                 else:
+                    matched_pk_id = None
+                    raw_pk_id = s.get("phongKhamId") or s.get("phong_kham_id")
+                    if raw_pk_id is not None and str(raw_pk_id).strip().isdigit():
+                        matched_pk_id = (await db.execute(select(PhongKham.id).where(PhongKham.id == int(str(raw_pk_id).strip())))).scalar_one_or_none()
                     nd = NguoiDung(ho_ten=ho_ten)
                     db.add(nd)
                     await db.flush()
@@ -1031,7 +1034,7 @@ class BffAdminService:
                         BacSi(
                             nguoi_dung_id=nd.id,
                             chuyen_khoa_id=first_ck.id if first_ck else None,
-                            phong_kham_id=first_pk.id if first_pk else None,
+                            phong_kham_id=matched_pk_id,
                             hoc_vi="BS.CKI",
                             chung_chi_hanh_nghe=cchn[:50],
                             ngay_cap=_parse_date_safe(s.get("ngayCapCCHN"), date(2020, 1, 15)),

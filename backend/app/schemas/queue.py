@@ -575,13 +575,19 @@ class RoomResourceItem(BaseModel):
 
 class RosterTemplateItem(BaseModel):
 
-    """Khuôn mẫu phân ca trực định kỳ (FC-15)"""
+    """Lịch làm việc của bác sĩ / Khuôn mẫu phân ca trực (FC-15)"""
 
     id: int
 
     bac_si_id: int
 
     ten_bac_si: str
+
+    chuyen_khoa_id: Optional[int] = None
+
+    ten_chuyen_khoa: Optional[str] = None
+
+    ngay_lam_viec: Optional[date] = None
 
     thu_trong_tuan: int
 
@@ -591,7 +597,19 @@ class RosterTemplateItem(BaseModel):
 
     gio_ket_thuc: str
 
+    phong_kham_id: Optional[int] = None
+
+    ma_phong: Optional[str] = None
+
     phong_kham: Optional[str] = None
+
+    gioi_han_ca_kham: Optional[int] = None
+
+    han_muc_dat_truoc: Optional[int] = None
+
+    han_muc_vang_lai: Optional[int] = None
+
+    ghi_chu_nghi: Optional[str] = None
 
     is_active: bool
 

@@ -92,19 +92,18 @@ class CredentialService:
 
         # Kiểm tra ngày hết hạn thực tế
         if bac_si.ngay_het_han:
-            now = datetime.now(timezone.utc)
+            today = datetime.now(timezone.utc).date()
             exp_date = bac_si.ngay_het_han
-            if exp_date.tzinfo is None:
-                exp_date = exp_date.replace(tzinfo=timezone.utc)
+            exp_date_val = exp_date.date() if isinstance(exp_date, datetime) else exp_date
 
-            if exp_date < now:
+            if exp_date_val < today:
                 # Tự động cập nhật trạng thái EXPIRED
                 bac_si.trang_thai_giay_phep = TrangThaiGiayPhep.EXPIRED.value
                 db.add(bac_si)
                 await db.commit()
                 await db.refresh(bac_si)
                 raise DoctorLicenseInvalidException(
-                    f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_date.strftime('%Y-%m-%d')}!"
+                    f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_date_val.strftime('%Y-%m-%d')}!"
                 )
 
         if not bac_si.is_active:
@@ -349,10 +348,9 @@ class CredentialService:
         modified = False
         for doc in doctors:
             exp_date = doc.ngay_het_han
-            if exp_date.tzinfo is None:
-                exp_date = exp_date.replace(tzinfo=timezone.utc)
+            exp_date_val = exp_date.date() if isinstance(exp_date, datetime) else exp_date
 
-            days_left = (exp_date.date() - now.date()).days
+            days_left = (exp_date_val - now.date()).days
             ho_ten = doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS #{doc.id}"
             ck_ten = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Chưa gán"
 
@@ -496,11 +494,9 @@ class CredentialService:
 
         days_left = None
         if bac_si.ngay_het_han:
-            now = datetime.now(timezone.utc)
             exp = bac_si.ngay_het_han
-            if exp.tzinfo is None:
-                exp = exp.replace(tzinfo=timezone.utc)
-            days_left = (exp.date() - now.date()).days
+            exp_date_val = exp.date() if isinstance(exp, datetime) else exp
+            days_left = (exp_date_val - now.date()).days
 
         scope = bac_si.pham_vi_chuyen_mon
         if not isinstance(scope, list):

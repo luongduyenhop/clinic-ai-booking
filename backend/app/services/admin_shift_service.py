@@ -742,6 +742,94 @@ class AdminShiftService:
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu!")
 
+        # 1. Chế độ sao chép từ tuần nguồn (Kế thừa tuần trước / Sao chép tuần sau)
+        if payload.template_type in ("COPY_PREVIOUS_WEEK", "INHERIT_WEEK") and payload.nguon_tu_ngay:
+            src_start = payload.nguon_tu_ngay
+            src_end = payload.nguon_den_ngay or (src_start + timedelta(days=6))
+            stmt_src = select(LichLamViec).where(
+                LichLamViec.ngay_lam_viec >= src_start,
+                LichLamViec.ngay_lam_viec <= src_end,
+                LichLamViec.is_active.is_(True)
+            )
+            if payload.bac_si_ids:
+                stmt_src = stmt_src.where(LichLamViec.bac_si_id.in_(payload.bac_si_ids))
+            source_shifts = (await db.execute(stmt_src)).scalars().all()
+
+            if not source_shifts:
+                return RosterBatchGenerateResponse(
+                    tu_ngay=payload.tu_ngay,
+                    den_ngay=payload.den_ngay,
+                    tong_so_ngay=(payload.den_ngay - payload.tu_ngay).days + 1,
+                    so_ca_tao_thanh_cong=0,
+                    so_ca_bo_qua_da_ton_tai=0,
+                    so_ca_xung_dot_phong=0,
+                    chi_tiet=[f"Không tìm thấy ca trực nguồn nào trong khoảng từ {src_start} đến {src_end}!"]
+                )
+
+            so_tao = 0
+            so_da_co = 0
+            so_trung_phong = 0
+            details = []
+
+            for s in source_shifts:
+                delta_days = (s.ngay_lam_viec - src_start).days
+                target_date = payload.tu_ngay + timedelta(days=delta_days)
+                if target_date > payload.den_ngay:
+                    continue
+
+                shift_exist = (await db.execute(
+                    select(LichLamViec).where(
+                        LichLamViec.bac_si_id == s.bac_si_id,
+                        LichLamViec.ngay_lam_viec == target_date,
+                        LichLamViec.ca_lam_viec == s.ca_lam_viec
+                    )
+                )).scalar_one_or_none()
+                if shift_exist:
+                    so_da_co += 1
+                    continue
+
+                if s.phong_kham_id:
+                    room_conflict = (await db.execute(
+                        select(LichLamViec).where(
+                            LichLamViec.phong_kham_id == s.phong_kham_id,
+                            LichLamViec.ngay_lam_viec == target_date,
+                            LichLamViec.ca_lam_viec == s.ca_lam_viec,
+                            LichLamViec.is_active.is_(True)
+                        )
+                    )).scalar_one_or_none()
+                    if room_conflict:
+                        so_trung_phong += 1
+                        details.append(f"Bỏ qua ca ngày {target_date} của BS ID {s.bac_si_id}: Buồng khám ID {s.phong_kham_id} đã có bác sĩ khác trực")
+                        continue
+
+                new_shift = LichLamViec(
+                    bac_si_id=s.bac_si_id,
+                    ngay_lam_viec=target_date,
+                    ca_lam_viec=s.ca_lam_viec,
+                    gio_bat_dau=s.gio_bat_dau,
+                    gio_ket_thuc=s.gio_ket_thuc,
+                    gioi_han_ca_kham=s.gioi_han_ca_kham,
+                    phong_kham_id=s.phong_kham_id,
+                    han_muc_dat_truoc=s.han_muc_dat_truoc,
+                    han_muc_vang_lai=s.han_muc_vang_lai,
+                    is_active=True
+                )
+                db.add(new_shift)
+                so_tao += 1
+
+            await db.commit()
+            details.append(f"Đã sao chép/kế thừa thành công {so_tao} ca trực từ tuần nguồn sang tuần đích, bỏ qua {so_da_co} ca đã có, tránh {so_trung_phong} xung đột buồng khám.")
+            return RosterBatchGenerateResponse(
+                tu_ngay=payload.tu_ngay,
+                den_ngay=payload.den_ngay,
+                tong_so_ngay=(payload.den_ngay - payload.tu_ngay).days + 1,
+                so_ca_tao_thanh_cong=so_tao,
+                so_ca_bo_qua_da_ton_tai=so_da_co,
+                so_ca_xung_dot_phong=so_trung_phong,
+                chi_tiet=details
+            )
+
+        # 2. Chế độ phát sinh theo khuôn mẫu định kỳ tuần (Bahmni Provider Roster)
         stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active.is_(True))
         if payload.bac_si_ids:
             stmt = stmt.where(LichDinhKyBacSi.bac_si_id.in_(payload.bac_si_ids))
@@ -826,6 +914,40 @@ class AdminShiftService:
 
 
 
+    async def _count_leave_impacts(
+        self,
+        db: AsyncSession,
+        bac_si_id: int,
+        tu_ngay: date,
+        den_ngay: date,
+        ca_lam_viec: Optional[str] = None,
+    ) -> tuple[int, int]:
+        """Đếm số ca làm việc và số lịch khám thực tế trong CSDL bị ảnh hưởng bởi đợt nghỉ"""
+        shift_stmt = select(func.count(LichLamViec.id)).where(
+            LichLamViec.bac_si_id == bac_si_id,
+            LichLamViec.ngay_lam_viec >= tu_ngay,
+            LichLamViec.ngay_lam_viec <= den_ngay,
+        )
+        if ca_lam_viec:
+            shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == ca_lam_viec)
+        shift_cnt = (await db.execute(shift_stmt)).scalar() or 0
+
+        apt_stmt = select(func.count(LichKham.id)).where(
+            LichKham.bac_si_id == bac_si_id,
+            LichKham.ngay_kham >= tu_ngay,
+            LichKham.ngay_kham <= den_ngay,
+            LichKham.trang_thai.in_([
+                TrangThaiLichEnum.CHO_XAC_NHAN.value,
+                TrangThaiLichEnum.DA_XAC_NHAN.value,
+                TrangThaiLichEnum.DA_TIEP_NHAN.value,
+                TrangThaiLichEnum.DANG_KHAM.value,
+            ]),
+        )
+        if ca_lam_viec:
+            apt_stmt = apt_stmt.where(LichKham.ca_kham == ca_lam_viec)
+        apt_cnt = (await db.execute(apt_stmt)).scalar() or 0
+        return shift_cnt, apt_cnt
+
     async def get_leaves_admin(
         self,
         db: AsyncSession,
@@ -848,6 +970,9 @@ class AdminShiftService:
         rows = (await db.execute(stmt)).scalars().all()
         results = []
         for r in rows:
+            so_ca, so_lich = await self._count_leave_impacts(
+                db, r.bac_si_id, r.tu_ngay, r.den_ngay, r.ca_lam_viec
+            )
             results.append(DoctorLeaveResponse(
                 id=r.id,
                 bac_si_id=r.bac_si_id,
@@ -860,8 +985,8 @@ class AdminShiftService:
                 ly_do=r.ly_do,
                 trang_thai=r.trang_thai,
                 ghi_chu_duyet=r.ghi_chu_duyet,
-                so_ca_anh_huong=r.so_ca_anh_huong,
-                so_lich_anh_huong=r.so_lich_anh_huong,
+                so_ca_anh_huong=so_ca,
+                so_lich_anh_huong=so_lich,
                 created_at=r.created_at
             ))
         return results
@@ -883,16 +1008,9 @@ class AdminShiftService:
             shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == payload.ca_lam_viec)
         shift_ids = (await db.execute(shift_stmt)).scalars().all()
 
-        apt_cnt = 0
-        if shift_ids:
-            apt_cnt = (await db.execute(
-                select(func.count(LichKham.id)).where(
-                    LichKham.bac_si_id == payload.bac_si_id,
-                    LichKham.ngay_kham >= payload.tu_ngay,
-                    LichKham.ngay_kham <= payload.den_ngay,
-                    LichKham.trang_thai.in_([TrangThaiLichEnum.CHO_XAC_NHAN.value, TrangThaiLichEnum.DA_XAC_NHAN.value, TrangThaiLichEnum.DA_TIEP_NHAN.value])
-                )
-            )).scalar() or 0
+        so_ca, apt_cnt = await self._count_leave_impacts(
+            db, payload.bac_si_id, payload.tu_ngay, payload.den_ngay, payload.ca_lam_viec
+        )
 
         leave = NghiPhepBacSi(
             bac_si_id=payload.bac_si_id,
@@ -902,7 +1020,7 @@ class AdminShiftService:
             ca_lam_viec=payload.ca_lam_viec,
             ly_do=payload.ly_do,
             trang_thai=TrangThaiNghiPhepEnum.CHO_DUYET.value if payload.loai_nghi == "NGHI_PHEP" else TrangThaiNghiPhepEnum.DA_DUYET.value,
-            so_ca_anh_huong=len(shift_ids),
+            so_ca_anh_huong=so_ca,
             so_lich_anh_huong=apt_cnt
         )
         db.add(leave)
@@ -962,7 +1080,8 @@ class AdminShiftService:
         stmt = (
             select(LichKham)
             .options(
-                selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung)
+                selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(LichKham.chuyen_khoa),
             )
             .where(
                 LichKham.bac_si_id == leave.bac_si_id,
@@ -971,11 +1090,15 @@ class AdminShiftService:
                 LichKham.trang_thai.in_([
                     TrangThaiLichEnum.CHO_XAC_NHAN.value,
                     TrangThaiLichEnum.DA_XAC_NHAN.value,
-                    TrangThaiLichEnum.DA_TIEP_NHAN.value
+                    TrangThaiLichEnum.DA_TIEP_NHAN.value,
+                    TrangThaiLichEnum.DANG_KHAM.value,
                 ])
             )
             .order_by(LichKham.ngay_kham.asc(), LichKham.gio_kham.asc())
         )
+        if leave.ca_lam_viec:
+            stmt = stmt.where(LichKham.ca_kham == leave.ca_lam_viec)
+
         rows = (await db.execute(stmt)).scalars().all()
         results = []
         for r in rows:
@@ -986,9 +1109,68 @@ class AdminShiftService:
                 so_dien_thoai=r.benh_nhan.nguoi_dung.so_dien_thoai if r.benh_nhan and r.benh_nhan.nguoi_dung else None,
                 ngay_kham=r.ngay_kham,
                 gio_kham=r.gio_kham,
+                chuyen_khoa=r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else None,
                 trang_thai=r.trang_thai
             ))
         return results
+
+    async def cancel_leave_admin(
+        self,
+        leave_id: int,
+        admin_user: TaiKhoan,
+        db: AsyncSession
+    ) -> DoctorLeaveResponse:
+        leave = await db.get(NghiPhepBacSi, leave_id)
+        if not leave:
+            raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
+
+        if leave.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value:
+            stmt = select(LichLamViec).where(
+                LichLamViec.bac_si_id == leave.bac_si_id,
+                LichLamViec.ngay_lam_viec >= leave.tu_ngay,
+                LichLamViec.ngay_lam_viec <= leave.den_ngay,
+                LichLamViec.is_active.is_(False)
+            )
+            if leave.ca_lam_viec:
+                stmt = stmt.where(LichLamViec.ca_lam_viec == leave.ca_lam_viec)
+            shifts = (await db.execute(stmt)).scalars().all()
+            for s in shifts:
+                s.is_active = True
+                s.ghi_chu_nghi = None
+
+        leave.trang_thai = TrangThaiNghiPhepEnum.DA_HUY.value
+        admin_email = getattr(admin_user, "email", "Admin")
+        leave.ghi_chu_duyet = f"Đơn nghỉ phép đã bị hủy bởi quản trị viên ({admin_email})"
+        await db.commit()
+        await db.refresh(leave)
+        leaves = await self.get_leaves_admin(db, doctor_id=leave.bac_si_id)
+        return [lv for lv in leaves if lv.id == leave.id][0]
+
+    async def delete_leave_admin(
+        self,
+        leave_id: int,
+        db: AsyncSession
+    ) -> None:
+        leave = await db.get(NghiPhepBacSi, leave_id)
+        if not leave:
+            raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
+
+        if leave.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value:
+            stmt = select(LichLamViec).where(
+                LichLamViec.bac_si_id == leave.bac_si_id,
+                LichLamViec.ngay_lam_viec >= leave.tu_ngay,
+                LichLamViec.ngay_lam_viec <= leave.den_ngay,
+                LichLamViec.is_active.is_(False)
+            )
+            if leave.ca_lam_viec:
+                stmt = stmt.where(LichLamViec.ca_lam_viec == leave.ca_lam_viec)
+            shifts = (await db.execute(stmt)).scalars().all()
+            for s in shifts:
+                s.is_active = True
+                s.ghi_chu_nghi = None
+
+        await db.delete(leave)
+        await db.commit()
 
     async def get_doctor_schedule_matrix(
         self,

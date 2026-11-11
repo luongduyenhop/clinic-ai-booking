@@ -578,6 +578,36 @@ async def get_leave_affected_bookings(
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bệnh nhân bị ảnh hưởng thành công")
 
 
+@router.post(
+    "/leaves/{leave_id}/cancel",
+    response_model=ResponseEnvelope[DoctorLeaveResponse],
+    summary="Admin hủy đơn nghỉ phép của bác sĩ và mở lại các ca trực liên quan"
+)
+async def cancel_leave(
+    leave_id: int,
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.services.admin_shift_service import admin_shift_service
+    data = await admin_shift_service.cancel_leave_admin(leave_id, current_user, db)
+    return ResponseEnvelope.success_response(data=data, message="Đã hủy đơn nghỉ phép và mở lại ca trực liên quan!")
+
+
+@router.delete(
+    "/leaves/{leave_id}",
+    response_model=ResponseEnvelope[None],
+    summary="Admin xóa đơn nghỉ phép"
+)
+async def delete_leave(
+    leave_id: int,
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.services.admin_shift_service import admin_shift_service
+    await admin_shift_service.delete_leave_admin(leave_id, db)
+    return ResponseEnvelope.success_response(data=None, message="Đã xóa đơn nghỉ phép thành công!")
+
+
 @router.get(
     "/ai/concepts",
     response_model=ResponseEnvelope[List[ConceptAdminResponse]],

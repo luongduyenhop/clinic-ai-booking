@@ -80,6 +80,7 @@ class TrangThaiNghiPhepEnum(str, Enum):
     CHO_DUYET = "CHO_DUYET"
     DA_DUYET = "DA_DUYET"
     TU_CHOI = "TU_CHOI"
+    DA_HUY = "DA_HUY"
     DA_XU_LY = "DA_XU_LY"
 
 

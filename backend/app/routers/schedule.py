@@ -92,3 +92,31 @@ async def get_leave_affected_bookings(
 ):
     data = await schedule_service.get_leave_affected_bookings(leave_id, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách lịch hẹn bị ảnh hưởng thành công")
+
+
+@router.post(
+    "/leaves/{leave_id}/cancel",
+    response_model=ResponseEnvelope[DoctorLeaveResponse],
+    summary="Hủy đơn nghỉ phép bác sĩ và mở lại các ca trực"
+)
+async def cancel_leave(
+    leave_id: int,
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    data = await schedule_service.cancel_leave(leave_id, current_user, db)
+    return ResponseEnvelope.success_response(data=data, message="Đã hủy đơn nghỉ phép và mở lại ca trực liên quan!")
+
+
+@router.delete(
+    "/leaves/{leave_id}",
+    response_model=ResponseEnvelope[None],
+    summary="Xóa đơn nghỉ phép bác sĩ"
+)
+async def delete_leave(
+    leave_id: int,
+    current_user: TaiKhoan = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    await schedule_service.delete_leave(leave_id, db)
+    return ResponseEnvelope.success_response(data=None, message="Đã xóa đơn nghỉ phép thành công!")

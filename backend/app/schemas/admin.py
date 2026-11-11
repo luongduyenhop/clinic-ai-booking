@@ -334,6 +334,10 @@ class RosterBatchGenerateRequest(BaseModel):
     tu_ngay: date = Field(..., description="Từ ngày (YYYY-MM-DD)")
     den_ngay: date = Field(..., description="Đến ngày (YYYY-MM-DD)")
     bac_si_ids: Optional[List[int]] = Field(None, description="Danh sách ID bác sĩ áp dụng (bỏ trống = tất cả bác sĩ đang hoạt động)")
+    template_type: Optional[str] = Field("WEEKLY_TEMPLATE", description="Loại phát sinh: 'WEEKLY_TEMPLATE', 'COPY_PREVIOUS_WEEK', 'INHERIT_WEEK'")
+    nguon_tu_ngay: Optional[date] = Field(None, description="Ngày bắt đầu của tuần nguồn cần sao chép")
+    nguon_den_ngay: Optional[date] = Field(None, description="Ngày kết thúc của tuần nguồn cần sao chép")
+    ghi_de_lich_cu: Optional[bool] = Field(False, description="Ghi đè ca cũ nếu trùng")
 
 
 class RosterBatchGenerateResponse(BaseModel):
@@ -393,6 +397,7 @@ class AffectedBookingItem(BaseModel):
     so_dien_thoai: Optional[str] = None
     ngay_kham: date
     gio_kham: time
+    chuyen_khoa: Optional[str] = None
     trang_thai: str
 
 

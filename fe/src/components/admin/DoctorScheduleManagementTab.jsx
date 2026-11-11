@@ -21,7 +21,6 @@ import {
     Funnel,
     CaretLeft,
     CaretRight,
-    Sparkle,
     EmptyState,
     Buildings,
     ListChecks,
@@ -138,6 +137,7 @@ export default function DoctorScheduleManagementTab() {
 
     const [searchDoctor, setSearchDoctor] = useState('')
     const [selectedDepartment, setSelectedDepartment] = useState('ALL')
+    const [departments, setDepartments] = useState([])
     const [selectedRoomFilter, setSelectedRoomFilter] = useState('ALL')
     const [selectedTitleFilter, setSelectedTitleFilter] = useState('ALL')
     const [showConflictOnly, setShowConflictOnly] = useState(false)
@@ -145,7 +145,6 @@ export default function DoctorScheduleManagementTab() {
 
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [showDetailModal, setShowDetailModal] = useState(false)
-    const [showBatchModal, setShowBatchModal] = useState(false)
     const [showCopyModal, setShowCopyModal] = useState(false)
     const [showInheritModal, setShowInheritModal] = useState(false)
     const [showQuickFillModal, setShowQuickFillModal] = useState(false)
@@ -171,13 +170,6 @@ export default function DoctorScheduleManagementTab() {
         ghi_chu_nghi: '',
     })
 
-    const [batchRosterForm, setBatchRosterForm] = useState({
-        template_type: 'HCSN',
-        ap_dung_tu_ngay: '',
-        ap_dung_den_ngay: '',
-        ghi_de_lich_cu: false,
-    })
-
     const daysOfWeek = useMemo(() => {
         return Array.from({ length: 7 }, (_, i) => {
             const date = addDays(currentMonday, i)
@@ -195,21 +187,33 @@ export default function DoctorScheduleManagementTab() {
 
     const fetchInitialResources = async () => {
         try {
-            const [fetchedDocs, fetchedRooms, fetchedLeaves] = await Promise.all([
+            const [fetchedDocs, fetchedRooms, fetchedLeaves, fetchedDepts] = await Promise.all([
                 adminService.getDoctorsAdmin(),
                 adminService.getRoomsAdmin({ isActive: true }),
                 adminService.getDoctorLeaves({ trangThai: 'DA_DUYET' }).catch(() => null),
+                adminService.getDepartmentsAdmin().catch(() => []),
             ])
 
+            if (Array.isArray(fetchedDepts) && fetchedDepts.length > 0) {
+                setDepartments(fetchedDepts)
+            }
+
             if (Array.isArray(fetchedDocs) && fetchedDocs.length > 0) {
-                setDoctors(fetchedDocs)
+                const mappedDocs = fetchedDocs.map((d) => ({
+                    ...d,
+                    chuyen_khoa: d.ten_chuyen_khoa || d.chuyen_khoa || 'Khoa Nội tổng quát',
+                    chuyen_khoa_id: d.chuyen_khoa_id || d.chuyenKhoaId,
+                    cchn_so: d.chung_chi_hanh_nghe || d.cchn_so || 'CCHN-BYT',
+                    cchn_trang_thai: d.trang_thai_giay_phep || 'ACTIVE',
+                }))
+                setDoctors(mappedDocs)
             } else {
                 const mappedDocs = staffList
                     .filter((s) => s.hoTen?.includes('BS') || s.vaiTro?.toLowerCase().includes('bác sĩ') || s.vaiTro?.toLowerCase().includes('chuyên môn'))
                     .map((s, idx) => ({
                         id: s.id || idx + 1,
                         ho_ten: s.hoTen || s.ten || 'Bác sĩ',
-                        chuyen_khoa: s.chuyenKhoa || 'Đa khoa',
+                        chuyen_khoa: s.chuyenKhoa || 'Khoa Nội tổng quát',
                         chuyen_khoa_id: s.chuyenKhoaId || (idx % 3) + 1,
                         cchn_so: s.cchn || s.cchnSo || 'CCHN-BYT',
                         cchn_trang_thai: s.trangThaiCCHN || 'ACTIVE',
@@ -232,7 +236,7 @@ export default function DoctorScheduleManagementTab() {
                 setRooms(mappedRooms)
             }
 
-            if (Array.isArray(fetchedLeaves) && fetchedLeaves.length > 0) {
+            if (Array.isArray(fetchedLeaves)) {
                 setDoctorLeaves(fetchedLeaves)
             } else if (fetchedLeaves?.data && Array.isArray(fetchedLeaves.data)) {
                 setDoctorLeaves(fetchedLeaves.data)
@@ -242,13 +246,40 @@ export default function DoctorScheduleManagementTab() {
         }
     }
 
+    const [roomDateShiftsFromApi, setRoomDateShiftsFromApi] = useState([])
+
     const fetchMatrix = async () => {
         setLoading(true)
         try {
-            const data = await adminService.getDoctorScheduleMatrix({
+            const params = {
                 tuNgay,
                 denNgay,
-            })
+            }
+            if (selectedDepartment && selectedDepartment !== 'ALL') {
+                const deptObj = departments.find(
+                    (k) => (k.ten_chuyen_khoa || k.tenKhoa || k.name) === selectedDepartment
+                ) || khoaPhongList.find(
+                    (k) => (k.tenKhoa || k.tenPhong) === selectedDepartment
+                )
+                if (deptObj?.id) {
+                    params.chuyenKhoaId = deptObj.id
+                } else {
+                    const docDept = doctors.find((d) => d.chuyen_khoa === selectedDepartment)
+                    if (docDept?.chuyen_khoa_id) params.chuyenKhoaId = docDept.chuyen_khoa_id
+                }
+            }
+            if (selectedRoomFilter && selectedRoomFilter !== 'ALL') {
+                params.phongKhamId = selectedRoomFilter
+            }
+            if (searchDoctor.trim()) {
+                const matchedDoc = doctors.find((d) =>
+                    d.ho_ten?.toLowerCase().includes(searchDoctor.trim().toLowerCase())
+                )
+                if (matchedDoc) {
+                    params.doctorId = matchedDoc.id
+                }
+            }
+            const data = await adminService.getDoctorScheduleMatrix(params)
             setMatrixRawData(data)
         } catch {
             AppToast.error('Không thể tải ma trận phân ca trực!')
@@ -263,7 +294,20 @@ export default function DoctorScheduleManagementTab() {
 
     useEffect(() => {
         fetchMatrix()
-    }, [tuNgay, denNgay])
+    }, [tuNgay, denNgay, selectedDepartment, selectedRoomFilter])
+
+    useEffect(() => {
+        if (activeView === 'ROOM_VIEW' && selectedRoomDate) {
+            adminService.getShiftsAdmin({ queryDate: selectedRoomDate })
+                .then((res) => {
+                    const list = res?.data || res
+                    if (Array.isArray(list)) {
+                        setRoomDateShiftsFromApi(list)
+                    }
+                })
+                .catch(() => {})
+        }
+    }, [activeView, selectedRoomDate])
 
     const handlePreviousWeek = () => {
         setCurrentMonday(addDays(currentMonday, -7))
@@ -291,11 +335,22 @@ export default function DoctorScheduleManagementTab() {
 
     const departmentsList = useMemo(() => {
         const set = new Set()
-        doctors.forEach((d) => {
-            if (d.chuyen_khoa) set.add(d.chuyen_khoa)
+        departments.forEach((dept) => {
+            const name = dept.ten_chuyen_khoa || dept.tenKhoa || dept.name
+            if (name) set.add(name)
         })
+        doctors.forEach((d) => {
+            const name = d.chuyen_khoa || d.ten_chuyen_khoa
+            if (name && name !== 'Đa khoa') set.add(name)
+        })
+        if (set.size === 0) {
+            khoaPhongList.forEach((k) => {
+                const name = k.tenKhoa || k.chuyenKhoa || k.tenPhong
+                if (name) set.add(name)
+            })
+        }
         return Array.from(set)
-    }, [doctors])
+    }, [departments, doctors, khoaPhongList])
 
     const titlesList = ['ALL', 'PGS', 'TS', 'ThS', 'CKII', 'CKI', 'BS']
 
@@ -348,20 +403,27 @@ export default function DoctorScheduleManagementTab() {
                     id: cell.ca_id,
                     bac_si_id: cell.bac_si_id,
                     ten_bac_si: cell.ten_bac_si,
+                    hoc_vi: cell.hoc_vi,
                     chuyen_khoa: cell.chuyen_khoa,
+                    chuyen_khoa_id: cell.chuyen_khoa_id,
                     ngay: shiftDate,
                     ca: shiftCa,
                     phong_kham_id: cell.phong_kham_id,
                     ten_phong_kham: fullRoomName,
                     short_room_code: cleanRoomCode,
+                    gio_bat_dau: cell.gio_bat_dau,
+                    gio_ket_thuc: cell.gio_ket_thuc,
+                    trang_thai_ca: cell.trang_thai_ca || (cell.is_active ? 'DANG_HOAT_DONG' : 'DA_KHOA'),
+                    is_conflict: Boolean(cell.is_conflict),
+                    is_full: Boolean(cell.is_full),
                     so_cho_online: cell.han_muc_dat_truoc || 0,
                     so_cho_quay: cell.han_muc_vang_lai || 0,
                     so_cho_tong: (cell.han_muc_dat_truoc || 0) + (cell.han_muc_vang_lai || 0),
                     da_dat_online: cell.so_luong_da_dat || 0,
                     da_dat_quay: cell.so_luong_vang_lai || 0,
-                    con_trong_online: cell.slot_online_con_trong || 0,
-                    con_trong_quay: cell.slot_vang_lai_con_trong || 0,
-                    is_active: cell.trang_thai_ca === 'DANG_HOAT_DONG',
+                    con_trong_online: cell.slot_online_con_trong ?? Math.max(0, (cell.han_muc_dat_truoc || 0) - (cell.so_luong_da_dat || 0)),
+                    con_trong_quay: cell.slot_vang_lai_con_trong ?? Math.max(0, (cell.han_muc_vang_lai || 0) - (cell.so_luong_vang_lai || 0)),
+                    is_active: cell.trang_thai_ca === 'DANG_HOAT_DONG' || cell.is_active === true,
                     ghi_chu_nghi: cell.ly_do_nghi,
                     patients: cell.danh_sach_benh_nhan || [],
                 })
@@ -513,30 +575,85 @@ export default function DoctorScheduleManagementTab() {
         })
     }, [daysOfWeek, shiftsList])
 
+    const selectedDeptId = useMemo(() => {
+        if (!selectedDepartment || selectedDepartment === 'ALL') return null
+        const d = departments.find(
+            (dept) => (dept.ten_chuyen_khoa || dept.tenKhoa || dept.name) === selectedDepartment
+        )
+        if (d?.id) return d.id
+        const docWithDept = doctors.find(
+            (doc) => (doc.chuyen_khoa || doc.ten_chuyen_khoa) === selectedDepartment
+        )
+        return docWithDept?.chuyen_khoa_id || null
+    }, [selectedDepartment, departments, doctors])
+
+    const filteredRoomsForFilterBar = useMemo(() => {
+        return rooms.filter((r) => {
+            // Chỉ lấy các buồng khám bệnh lâm sàng
+            if (r.loai_phong && r.loai_phong !== 'kham_benh') return false
+            if (!selectedDepartment || selectedDepartment === 'ALL') return true
+            // Nếu phòng không có chuyên khoa (phòng chung / dùng chung) -> hiện ở mọi khoa
+            if (!r.chuyen_khoa_id) return true
+            // Phòng thuộc chuyên khoa được chọn
+            if (selectedDeptId && r.chuyen_khoa_id === selectedDeptId) return true
+            if (r.ten_chuyen_khoa === selectedDepartment || r.chuyen_khoa === selectedDepartment) return true
+            return false
+        })
+    }, [rooms, selectedDepartment, selectedDeptId])
+
     const roomOptions = useMemo(() => {
-        if (rooms.length > 0) {
-            return rooms.map((r) => ({
+        if (filteredRoomsForFilterBar.length > 0) {
+            return filteredRoomsForFilterBar.map((r) => ({
                 id: r.id,
-                label: `${resolvePhysicalRoomCode(r, r.ten_phong || r.tenPhong, 'PK')} - ${r.ten_phong || r.tenPhong}`,
+                label: `${resolvePhysicalRoomCode(r, r.ten_phong || r.tenPhong, 'PK')} - ${r.ten_phong || r.tenPhong}${!r.chuyen_khoa_id ? ' (Phòng chung)' : ''}`,
+                chuyen_khoa_id: r.chuyen_khoa_id,
             }))
         }
-        const list = []
-        const seen = new Set()
-        shiftsList.forEach((s) => {
-            if (s.phong_kham_id && !seen.has(s.phong_kham_id)) {
-                seen.add(s.phong_kham_id)
-                list.push({
-                    id: s.phong_kham_id,
-                    label: `${s.short_room_code} - ${s.ten_phong_kham}`,
-                })
-            }
-        })
-        return list
-    }, [rooms, shiftsList])
+        return []
+    }, [filteredRoomsForFilterBar])
+
+    const modalRoomOptions = useMemo(() => {
+        const selectedDoc = doctors.find((d) => String(d.id) === String(createShiftForm.bac_si_id))
+        const docDeptId = selectedDoc?.chuyen_khoa_id
+
+        return rooms
+            .filter((r) => {
+                // CHỈ CHO PHÉP BUỒNG KHÁM BỆNH LÂM SÀNG
+                if (r.loai_phong && r.loai_phong !== 'kham_benh') return false
+                // Nếu chưa chọn bác sĩ, cho phép tất cả buồng khám bệnh lâm sàng
+                if (!docDeptId) return true
+                // Buồng chung (không gắn chuyên khoa) HOẶC buồng cùng chuyên khoa của bác sĩ
+                return !r.chuyen_khoa_id || r.chuyen_khoa_id === docDeptId
+            })
+            .map((r) => ({
+                id: r.id,
+                label: `${resolvePhysicalRoomCode(r, r.ten_phong || r.tenPhong, 'PK')} - ${r.ten_phong || r.tenPhong}${!r.chuyen_khoa_id ? ' (Phòng chung)' : ''}`,
+            }))
+    }, [rooms, doctors, createShiftForm.bac_si_id])
 
     const shiftsForSelectedRoomDate = useMemo(() => {
+        if (roomDateShiftsFromApi && roomDateShiftsFromApi.length > 0) {
+            return roomDateShiftsFromApi.map((s) => ({
+                id: s.id,
+                bac_si_id: s.bac_si_id,
+                ten_bac_si: s.ten_bac_si,
+                chuyen_khoa: s.chuyen_khoa,
+                ngay: s.ngay_lam_viec,
+                ca: s.ca_lam_viec,
+                phong_kham_id: s.phong_kham_id,
+                ten_phong_kham: s.ten_phong || s.phong_kham || 'Buồng khám',
+                short_room_code: s.ma_phong || resolvePhysicalRoomCode(null, s.ten_phong || s.phong_kham, 'PK'),
+                so_cho_online: s.han_muc_dat_truoc || 0,
+                so_cho_quay: s.han_muc_vang_lai || 0,
+                so_cho_tong: s.gioi_han_ca_kham || ((s.han_muc_dat_truoc || 0) + (s.han_muc_vang_lai || 0)),
+                da_dat_online: s.so_luong_da_dat || 0,
+                da_dat_quay: 0,
+                is_active: s.is_active,
+                ghi_chu_nghi: s.ghi_chu_nghi,
+            }))
+        }
         return shiftsList.filter((s) => s.ngay === selectedRoomDate && s.is_active)
-    }, [shiftsList, selectedRoomDate])
+    }, [roomDateShiftsFromApi, shiftsList, selectedRoomDate])
 
     const roomMatrixForDate = useMemo(() => {
         return rooms.map((room) => {
@@ -560,22 +677,28 @@ export default function DoctorScheduleManagementTab() {
         const leaveKeyAll = `${doctor.id}_${isoDate}_all`
         const activeLeave = doctorLeavesMap.get(leaveKey) || doctorLeavesMap.get(leaveKeyAll)
 
-        if (activeLeave) {
+        const key = `${doctor.id}_${isoDate}_${ca}`
+        const existingShift = shiftsByDoctorAndSlot.get(key)
+
+        if (activeLeave || existingShift?.trang_thai_ca === 'NGHI_PHEP' || existingShift?.trang_thai_ca === 'NGHI_DOT_XUAT') {
             setSelectedLeaveForDetail({
-                ...activeLeave,
-                ngay: isoDate,
-                ca,
+                id: activeLeave?.id || existingShift?.id || 'LEAVE',
+                bac_si_id: doctor.id,
                 ten_bac_si: doctor.ho_ten,
                 chuyen_khoa: doctor.chuyen_khoa,
+                ngay: isoDate,
+                ca,
+                tu_ngay: activeLeave?.tu_ngay || isoDate,
+                den_ngay: activeLeave?.den_ngay || isoDate,
+                loai_nghi: activeLeave?.loai_nghi || existingShift?.trang_thai_ca || 'NGHI_PHEP',
+                ly_do: activeLeave?.ly_do || existingShift?.ghi_chu_nghi || 'Nghỉ phép theo kế hoạch',
+                trang_thai: activeLeave?.trang_thai || 'DA_DUYET',
             })
             setShowLeaveInfoModal(true)
             return
         }
 
-        const key = `${doctor.id}_${isoDate}_${ca}`
-        const existingShift = shiftsByDoctorAndSlot.get(key)
-
-        if (existingShift) {
+        if (existingShift && existingShift.trang_thai_ca !== 'CHUA_PHAN_CA') {
             setSelectedShiftForDetail(existingShift)
             setShowDetailModal(true)
         } else {
@@ -606,22 +729,31 @@ export default function DoctorScheduleManagementTab() {
         }
 
         setActionLoading(true)
+        const onlineQ = Number(createShiftForm.so_cho_online) || 0
+        const counterQ = Number(createShiftForm.so_cho_quay) || 0
+        const isMorning = createShiftForm.ca === 'sang'
+
+        const payload = {
+            bac_si_id: Number(createShiftForm.bac_si_id),
+            phong_kham_id: createShiftForm.phong_kham_id ? Number(createShiftForm.phong_kham_id) : null,
+            ngay_lam_viec: createShiftForm.ngay,
+            ca_lam_viec: createShiftForm.ca,
+            gio_bat_dau: isMorning ? '07:30:00' : '13:30:00',
+            gio_ket_thuc: isMorning ? '11:30:00' : '17:00:00',
+            gioi_han_ca_kham: onlineQ + counterQ || 12,
+            han_muc_dat_truoc: onlineQ,
+            han_muc_vang_lai: counterQ,
+            ghi_chu: createShiftForm.ghi_chu_nghi || 'Phân ca định kỳ',
+        }
+
         try {
-            await adminService.createShiftAdmin({
-                bac_si_id: Number(createShiftForm.bac_si_id),
-                phong_kham_id: Number(createShiftForm.phong_kham_id),
-                ngay: createShiftForm.ngay,
-                ca_lam_viec: createShiftForm.ca,
-                han_muc_dat_truoc: Number(createShiftForm.so_cho_online),
-                han_muc_vang_lai: Number(createShiftForm.so_cho_quay),
-                trang_thai_ca: createShiftForm.is_active ? 'DANG_HOAT_DONG' : 'TAM_KHOA',
-                ly_do_nghi: createShiftForm.ghi_chu_nghi || null,
-            })
-            AppToast.success('Phân ca trực thành công!')
+            await adminService.createShiftAdmin(payload)
+            AppToast.success('Phân ca làm việc cho bác sĩ thành công!')
             setShowCreateModal(false)
             fetchMatrix()
-        } catch {
-            AppToast.error('Lỗi khi phân ca trực khám!')
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi phân ca trực khám!'
+            AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
         }
@@ -638,28 +770,9 @@ export default function DoctorScheduleManagementTab() {
             AppToast.success(selectedShiftForDetail.is_active ? 'Đã tạm khóa ca trực!' : 'Đã mở lại ca trực!')
             setShowDetailModal(false)
             fetchMatrix()
-        } catch {
-            AppToast.error('Không thể cập nhật trạng thái ca trực!')
-        } finally {
-            setActionLoading(false)
-        }
-    }
-
-    const handleBatchRosterSubmit = async (e) => {
-        e.preventDefault()
-        setActionLoading(true)
-        try {
-            await adminService.batchGenerateRosterAdmin({
-                template_type: batchRosterForm.template_type,
-                ap_dung_tu_ngay: batchRosterForm.ap_dung_tu_ngay || tuNgay,
-                ap_dung_den_ngay: batchRosterForm.ap_dung_den_ngay || denNgay,
-                ghi_de_lich_cu: batchRosterForm.ghi_de_lich_cu,
-            })
-            AppToast.success('Đã tự động khởi tạo lịch trực theo mẫu thành công!')
-            setShowBatchModal(false)
-            fetchMatrix()
-        } catch {
-            AppToast.error('Không thể phát sinh lịch tự động!')
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Không thể cập nhật trạng thái ca trực!'
+            AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
         }
@@ -670,19 +783,22 @@ export default function DoctorScheduleManagementTab() {
         const nextMonday = addDays(currentMonday, 7)
         const nextSunday = addDays(nextMonday, 6)
         try {
-            await adminService.batchGenerateRosterAdmin({
+            const res = await adminService.generateShiftsFromRosterAdmin({
                 template_type: 'COPY_PREVIOUS_WEEK',
-                ap_dung_tu_ngay: formatDateToIso(nextMonday),
-                ap_dung_den_ngay: formatDateToIso(nextSunday),
                 nguon_tu_ngay: tuNgay,
                 nguon_den_ngay: denNgay,
-                ghi_de_lich_cu: true,
+                tu_ngay: formatDateToIso(nextMonday),
+                den_ngay: formatDateToIso(nextSunday),
+                bac_si_ids: null,
             })
-            AppToast.success(`Đã sao chép lịch sang tuần ${formatDateToIso(nextMonday)} thành công!`)
+            const data = res?.data || res
+            const soTao = data?.so_ca_tao_thanh_cong ?? 0
+            AppToast.success(`Đã sao chép lịch sang tuần ${formatDateToIso(nextMonday)} thành công! Đã tạo ${soTao} ca.`)
             setShowCopyModal(false)
             setCurrentMonday(nextMonday)
-        } catch {
-            AppToast.error('Không thể sao chép lịch sang tuần sau!')
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Không thể sao chép lịch sang tuần sau!'
+            AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
         }
@@ -693,19 +809,22 @@ export default function DoctorScheduleManagementTab() {
         const prevMonday = addDays(currentMonday, -7)
         const prevSunday = addDays(prevMonday, 6)
         try {
-            await adminService.batchGenerateRosterAdmin({
-                template_type: 'INHERIT_WEEK',
-                ap_dung_tu_ngay: tuNgay,
-                ap_dung_den_ngay: denNgay,
+            const res = await adminService.generateShiftsFromRosterAdmin({
+                template_type: 'COPY_PREVIOUS_WEEK',
                 nguon_tu_ngay: formatDateToIso(prevMonday),
                 nguon_den_ngay: formatDateToIso(prevSunday),
-                ghi_de_lich_cu: true,
+                tu_ngay: tuNgay,
+                den_ngay: denNgay,
+                bac_si_ids: null,
             })
-            AppToast.success('Đã kế thừa thành công toàn bộ lịch từ tuần trước!')
+            const data = res?.data || res
+            const soTao = data?.so_ca_tao_thanh_cong ?? 0
+            AppToast.success(`Kế thừa lịch thành công! Đã tạo ${soTao} ca trực cho tuần hiện tại.`)
             setShowInheritModal(false)
             fetchMatrix()
-        } catch {
-            AppToast.error('Không thể kế thừa lịch từ tuần trước!')
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Không thể kế thừa lịch từ tuần trước!'
+            AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
         }
@@ -747,15 +866,21 @@ export default function DoctorScheduleManagementTab() {
             const promises = []
             targetDays.forEach((day) => {
                 caTypes.forEach((ca) => {
+                    const isMorning = ca === 'sang'
+                    const onlineQ = Number(quickFillOnlineQuota) || 6
+                    const counterQ = Number(quickFillCounterQuota) || 2
                     promises.push(
                         adminService.createShiftAdmin({
                             bac_si_id: Number(quickFillDoctor.id),
                             phong_kham_id: Number(quickFillRoomId),
-                            ngay: day.isoDate,
+                            ngay_lam_viec: day.isoDate,
                             ca_lam_viec: ca,
-                            han_muc_dat_truoc: Number(quickFillOnlineQuota),
-                            han_muc_vang_lai: Number(quickFillCounterQuota),
-                            trang_thai_ca: 'DANG_HOAT_DONG',
+                            gio_bat_dau: isMorning ? '07:30:00' : '13:30:00',
+                            gio_ket_thuc: isMorning ? '11:30:00' : '17:00:00',
+                            gioi_han_ca_kham: onlineQ + counterQ,
+                            han_muc_dat_truoc: onlineQ,
+                            han_muc_vang_lai: counterQ,
+                            ghi_chu: 'Phân ca tuần định kỳ',
                         })
                     )
                 })
@@ -765,8 +890,9 @@ export default function DoctorScheduleManagementTab() {
             AppToast.success(`Đã điền nhanh lịch cả tuần cho ${quickFillDoctor.ho_ten}!`)
             setShowQuickFillModal(false)
             fetchMatrix()
-        } catch {
-            AppToast.error('Lỗi khi điền nhanh lịch tuần!')
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi điền nhanh lịch tuần!'
+            AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
         }
@@ -892,22 +1018,6 @@ export default function DoctorScheduleManagementTab() {
                                 >
                                     <Copy size={14} />
                                     <span>Sao chép tuần sau</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setBatchRosterForm({
-                                            template_type: 'HCSN',
-                                            ap_dung_tu_ngay: tuNgay,
-                                            ap_dung_den_ngay: denNgay,
-                                            ghi_de_lich_cu: false,
-                                        })
-                                        setShowBatchModal(true)
-                                    }}
-                                    className="medpro-btn-secondary !py-2 !px-3 text-xs flex items-center gap-1.5"
-                                >
-                                    <Sparkle size={14} />
-                                    <span>Phát sinh mẫu</span>
                                 </button>
                             </>
                         )}
@@ -1305,6 +1415,18 @@ export default function DoctorScheduleManagementTab() {
                                                     const conflictSang = conflictsMap.get(keySang)
                                                     const conflictChieu = conflictsMap.get(keyChieu)
 
+                                                    const isSangLeave = Boolean(leaveSang) || shiftSang?.trang_thai_ca === 'NGHI_PHEP' || shiftSang?.trang_thai_ca === 'NGHI_DOT_XUAT'
+                                                    const isSangEmergency = leaveSang?.loai_nghi === 'NGHI_DOT_XUAT' || shiftSang?.trang_thai_ca === 'NGHI_DOT_XUAT'
+                                                    const sangReason = shiftSang?.ghi_chu_nghi || leaveSang?.ly_do || 'Nghỉ phép theo kế hoạch'
+                                                    const hasSangShift = Boolean(shiftSang) && shiftSang.trang_thai_ca !== 'CHUA_PHAN_CA' && !isSangLeave
+                                                    const isSangConflict = Boolean(conflictSang || shiftSang?.is_conflict)
+
+                                                    const isChieuLeave = Boolean(leaveChieu) || shiftChieu?.trang_thai_ca === 'NGHI_PHEP' || shiftChieu?.trang_thai_ca === 'NGHI_DOT_XUAT'
+                                                    const isChieuEmergency = leaveChieu?.loai_nghi === 'NGHI_DOT_XUAT' || shiftChieu?.trang_thai_ca === 'NGHI_DOT_XUAT'
+                                                    const chieuReason = shiftChieu?.ghi_chu_nghi || leaveChieu?.ly_do || 'Nghỉ phép theo kế hoạch'
+                                                    const hasChieuShift = Boolean(shiftChieu) && shiftChieu.trang_thai_ca !== 'CHUA_PHAN_CA' && !isChieuLeave
+                                                    const isChieuConflict = Boolean(conflictChieu || shiftChieu?.is_conflict)
+
                                                     return (
                                                         <Fragment key={day.isoDate}>
                                                             <td
@@ -1312,20 +1434,24 @@ export default function DoctorScheduleManagementTab() {
                                                                     day.isWeekend ? 'bg-slate-100/60' : day.isToday ? 'bg-sky-50/20' : ''
                                                                 }`}
                                                             >
-                                                                {leaveSang ? (
+                                                                {isSangLeave ? (
                                                                     <div
                                                                         onClick={() => handleCellClick(doc, day.isoDate, 'sang')}
-                                                                        className="h-[46px] rounded-lg border border-slate-200 bg-slate-100/90 text-slate-500 p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs hover:bg-slate-200/80"
-                                                                        title={`Bác sĩ nghỉ phép: ${leaveSang.ly_do} (Từ ${leaveSang.tu_ngay} đến ${leaveSang.den_ngay})`}
+                                                                        className={`h-[46px] rounded-lg border p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs ${
+                                                                            isSangEmergency
+                                                                                ? 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                                                                                : 'border-slate-200 bg-slate-100/90 text-slate-500 hover:bg-slate-200/80'
+                                                                        }`}
+                                                                        title={`Bác sĩ ${isSangEmergency ? 'nghỉ đột xuất' : 'nghỉ phép'}: ${sangReason}`}
                                                                     >
-                                                                        <span className="font-bold text-[11px] text-slate-600">Nghỉ phép</span>
-                                                                        <span className="text-[9px] text-slate-400">Đã duyệt</span>
+                                                                        <span className="font-bold text-[11px]">{isSangEmergency ? 'Nghỉ đột xuất' : 'Nghỉ phép'}</span>
+                                                                        <span className="text-[9px] opacity-80">{isSangEmergency ? 'Khẩn cấp ⚠️' : 'Đã duyệt'}</span>
                                                                     </div>
-                                                                ) : shiftSang ? (
+                                                                ) : hasSangShift ? (
                                                                     <div
                                                                         onClick={() => handleCellClick(doc, day.isoDate, 'sang')}
                                                                         className={`h-[46px] rounded-lg border p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs relative ${
-                                                                            conflictSang
+                                                                            isSangConflict
                                                                                 ? 'border-2 border-rose-500 bg-rose-50 hover:bg-rose-100 text-rose-900 ring-2 ring-rose-400/50'
                                                                                 : shiftSang.is_active
                                                                                 ? 'border-amber-300/80 bg-amber-50 hover:bg-amber-100/70 text-amber-900'
@@ -1333,7 +1459,7 @@ export default function DoctorScheduleManagementTab() {
                                                                         }`}
                                                                         title={`${shiftSang.short_room_code} - ${shiftSang.ten_phong_kham} • Sáng (07:30 - 11:30) • Tổng: ${shiftSang.so_cho_tong} slot (Onl: ${shiftSang.so_cho_online} | Quầy: ${shiftSang.so_cho_quay}) • Click xem chi tiết`}
                                                                     >
-                                                                        {conflictSang && (
+                                                                        {isSangConflict && (
                                                                             <span className="absolute -top-1 -right-1 text-xs">⚠️</span>
                                                                         )}
                                                                         <span className="font-black text-xs tracking-tight">
@@ -1363,20 +1489,24 @@ export default function DoctorScheduleManagementTab() {
                                                                     day.isWeekend ? 'bg-slate-100/60' : day.isToday ? 'bg-sky-50/20' : ''
                                                                 }`}
                                                             >
-                                                                {leaveChieu ? (
+                                                                {isChieuLeave ? (
                                                                     <div
                                                                         onClick={() => handleCellClick(doc, day.isoDate, 'chieu')}
-                                                                        className="h-[46px] rounded-lg border border-slate-200 bg-slate-100/90 text-slate-500 p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs hover:bg-slate-200/80"
-                                                                        title={`Bác sĩ nghỉ phép: ${leaveChieu.ly_do} (Từ ${leaveChieu.tu_ngay} đến ${leaveChieu.den_ngay})`}
+                                                                        className={`h-[46px] rounded-lg border p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs ${
+                                                                            isChieuEmergency
+                                                                                ? 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                                                                                : 'border-slate-200 bg-slate-100/90 text-slate-500 hover:bg-slate-200/80'
+                                                                        }`}
+                                                                        title={`Bác sĩ ${isChieuEmergency ? 'nghỉ đột xuất' : 'nghỉ phép'}: ${chieuReason}`}
                                                                     >
-                                                                        <span className="font-bold text-[11px] text-slate-600">Nghỉ phép</span>
-                                                                        <span className="text-[9px] text-slate-400">Đã duyệt</span>
+                                                                        <span className="font-bold text-[11px]">{isChieuEmergency ? 'Nghỉ đột xuất' : 'Nghỉ phép'}</span>
+                                                                        <span className="text-[9px] opacity-80">{isChieuEmergency ? 'Khẩn cấp ⚠️' : 'Đã duyệt'}</span>
                                                                     </div>
-                                                                ) : shiftChieu ? (
+                                                                ) : hasChieuShift ? (
                                                                     <div
                                                                         onClick={() => handleCellClick(doc, day.isoDate, 'chieu')}
                                                                         className={`h-[46px] rounded-lg border p-1 flex flex-col items-center justify-center cursor-pointer transition shadow-2xs relative ${
-                                                                            conflictChieu
+                                                                            isChieuConflict
                                                                                 ? 'border-2 border-rose-500 bg-rose-50 hover:bg-rose-100 text-rose-900 ring-2 ring-rose-400/50'
                                                                                 : shiftChieu.is_active
                                                                                 ? 'border-sky-300/80 bg-sky-50 hover:bg-sky-100/70 text-sky-900'
@@ -1384,7 +1514,7 @@ export default function DoctorScheduleManagementTab() {
                                                                         }`}
                                                                         title={`${shiftChieu.short_room_code} - ${shiftChieu.ten_phong_kham} • Chiều (13:30 - 17:00) • Tổng: ${shiftChieu.so_cho_tong} slot (Onl: ${shiftChieu.so_cho_online} | Quầy: ${shiftChieu.so_cho_quay}) • Click xem chi tiết`}
                                                                     >
-                                                                        {conflictChieu && (
+                                                                        {isChieuConflict && (
                                                                             <span className="absolute -top-1 -right-1 text-xs">⚠️</span>
                                                                         )}
                                                                         <span className="font-black text-xs tracking-tight">
@@ -1721,7 +1851,7 @@ export default function DoctorScheduleManagementTab() {
                                     required
                                 >
                                     <option value="">-- Chọn buồng khám --</option>
-                                    {roomOptions.map((r) => (
+                                    {modalRoomOptions.map((r) => (
                                         <option key={r.id} value={r.id}>{r.label}</option>
                                     ))}
                                 </select>
@@ -1853,6 +1983,29 @@ export default function DoctorScheduleManagementTab() {
                                     </div>
                                 </div>
                             </div>
+
+                            {selectedShiftForDetail.patients && selectedShiftForDetail.patients.length > 0 ? (
+                                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
+                                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>Bệnh nhân đã đặt ({selectedShiftForDetail.patients.length}):</span>
+                                        <span className="text-[10px] text-[#009EDB] font-semibold">Theo thời gian thực</span>
+                                    </div>
+                                    <div className="max-h-36 overflow-y-auto space-y-1.5 divide-y divide-slate-100 pr-1">
+                                        {selectedShiftForDetail.patients.map((p, idx) => (
+                                            <div key={p.lich_kham_id || idx} className="pt-1.5 flex items-center justify-between text-xs">
+                                                <div>
+                                                    <span className="font-bold text-[#00263C]">{p.ten_benh_nhan}</span>
+                                                    <span className="text-[11px] text-slate-500 ml-1.5">({p.so_dien_thoai})</span>
+                                                    <div className="text-[10px] text-slate-400 font-mono">{p.ma_lich_kham} • Giờ khám: {p.gio_kham || '--:--'}</div>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.loai_kham === 'dat_truoc' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'}`}>
+                                                    {p.loai_kham === 'dat_truoc' ? 'Online' : 'Vãng lai'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
 
                             {userCanEdit && (
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-100">
@@ -1988,9 +2141,13 @@ export default function DoctorScheduleManagementTab() {
                                     required
                                 >
                                     <option value="">-- Chọn buồng khám --</option>
-                                    {roomOptions.map((r) => (
-                                        <option key={r.id} value={r.id}>{r.label}</option>
-                                    ))}
+                                    {rooms
+                                        .filter((r) => (!r.loai_phong || r.loai_phong === 'kham_benh') && (!r.chuyen_khoa_id || !quickFillDoctor?.chuyen_khoa_id || r.chuyen_khoa_id === quickFillDoctor.chuyen_khoa_id))
+                                        .map((r) => (
+                                            <option key={r.id} value={r.id}>
+                                                {resolvePhysicalRoomCode(r, r.ten_phong || r.tenPhong, 'PK')} - {r.ten_phong || r.tenPhong}{!r.chuyen_khoa_id ? ' (Phòng chung)' : ''}
+                                            </option>
+                                        ))}
                                 </select>
                             </div>
 
@@ -2099,91 +2256,6 @@ export default function DoctorScheduleManagementTab() {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {showBatchModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-sky-100 text-[#009EDB] flex items-center justify-center font-bold">
-                                    <Sparkle size={16} />
-                                </div>
-                                <h3 className="font-black text-[#00263C] text-sm">Phát Sinh Lịch Trực Theo Mẫu</h3>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowBatchModal(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-                            >
-                                <XCircle size={20} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleBatchRosterSubmit} className="space-y-3.5 mt-4 text-xs">
-                            <div>
-                                <label className="block font-bold text-slate-700 mb-1">Mẫu phân ca *</label>
-                                <select
-                                    value={batchRosterForm.template_type}
-                                    onChange={(e) => setBatchRosterForm({ ...batchRosterForm, template_type: e.target.value })}
-                                    className="medpro-select w-full"
-                                >
-                                    <option value="HCSN">Mẫu Hành chính chuẩn (T2-T6 full ca, cuối tuần trực xoay vòng)</option>
-                                    <option value="ROTATION">Mẫu Luân phiên ca (Sáng / Chiều xen kẽ theo chuyên khoa)</option>
-                                    <option value="WEEKEND_SPECIAL">Mẫu Chuyên khoa trọng điểm</option>
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Áp dụng từ ngày</label>
-                                    <input
-                                        type="date"
-                                        value={batchRosterForm.ap_dung_tu_ngay}
-                                        onChange={(e) => setBatchRosterForm({ ...batchRosterForm, ap_dung_tu_ngay: e.target.value })}
-                                        className="medpro-input w-full"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Đến ngày</label>
-                                    <input
-                                        type="date"
-                                        value={batchRosterForm.ap_dung_den_ngay}
-                                        onChange={(e) => setBatchRosterForm({ ...batchRosterForm, ap_dung_den_ngay: e.target.value })}
-                                        className="medpro-input w-full"
-                                    />
-                                </div>
-                            </div>
-
-                            <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 pt-1">
-                                <input
-                                    type="checkbox"
-                                    checked={batchRosterForm.ghi_de_lich_cu}
-                                    onChange={(e) => setBatchRosterForm({ ...batchRosterForm, ghi_de_lich_cu: e.target.checked })}
-                                    className="rounded text-[#009EDB]"
-                                />
-                                <span>Ghi đè lên các ca trực đã có sẵn</span>
-                            </label>
-
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowBatchModal(false)}
-                                    className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition cursor-pointer"
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={actionLoading}
-                                    className="medpro-btn-primary !py-2 !px-4 text-xs font-bold"
-                                >
-                                    {actionLoading ? 'Đang tạo...' : 'Tạo lịch tự động'}
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

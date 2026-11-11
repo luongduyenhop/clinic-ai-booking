@@ -499,7 +499,7 @@ export default function ClinicSchedulePage() {
                         if (activeAbsences.length === 0) return null
                         return (
                             <div className="space-y-3">
-                                {activeAbsences.map((inc) => (
+                                {doctorAbsences.map((inc) => (
                                     <Alert
                                         key={inc.nghi_phep_id || inc.bac_si_id}
                                         message={`Bác sĩ ${inc.ten_bac_si} nghỉ đột xuất (Khoa ${inc.ten_chuyen_khoa || 'Chuyên khoa'})`}

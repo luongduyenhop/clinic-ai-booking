@@ -1037,6 +1037,8 @@ class BffCatalogUpdatePayload(BaseModel):
     subKey: Optional[str] = None
     items: Any = None
     auditEntry: Optional[dict] = None
+    deletedItem: Optional[dict] = None
+    deletedItemKey: Optional[str] = None
 
 
 @router.get(
@@ -1098,6 +1100,8 @@ async def update_admin_catalog_subcollection(
         items=payload.items,
         audit_entry=payload.auditEntry,
         user_id=user_id,
+        deleted_item=payload.deletedItem,
+        deleted_item_key=payload.deletedItemKey,
     )
     return ResponseEnvelope.success_response(
         data=data,

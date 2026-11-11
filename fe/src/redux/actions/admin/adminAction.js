@@ -44,7 +44,8 @@ export const updateCatalogSubCollectionAsync = createAsyncThunk(
             const response = await adminService.updateCatalogSubCollection(payload)
             return response.data
         } catch (error) {
-            return rejectWithValue(error.message)
+            const msg = error.response?.data?.message || error.response?.data?.detail || error.message
+            return rejectWithValue(msg)
         }
     }
 )

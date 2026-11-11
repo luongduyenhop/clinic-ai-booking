@@ -179,8 +179,8 @@ export class AdminService extends BaseServices {
         return result
     }
 
-    updateCatalogSubCollection = async ({ subKey, items, auditEntry }) => this.requestClinicData(
-        'put', `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`, { subKey, items, auditEntry },
+    updateCatalogSubCollection = async ({ subKey, items, auditEntry, deletedItem, deletedItemKey }) => this.requestClinicData(
+        'put', `/api/v1/admin/catalogs/${encodeURIComponent(subKey)}`, { subKey, items, auditEntry, deletedItem, deletedItemKey },
     )
 
     getDoctorScheduleMatrix = async ({ tuNgay, denNgay, bacSiId, doctorId, chuyenKhoaId, phongKhamId } = {}) => {
@@ -200,6 +200,27 @@ export class AdminService extends BaseServices {
         } catch (error) {
             console.warn('Fallback schedule-matrix:', error)
             return null
+        }
+    }
+
+    getDepartmentsAdmin = async () => {
+        try {
+            const res = await this.get('/api/v1/admin/departments', {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            const list = res.data?.data || res.data
+            if (Array.isArray(list) && list.length > 0) return list
+        } catch {
+        }
+        try {
+            const res = await this.get('/api/v1/medical/specialties', {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
         }
     }
 

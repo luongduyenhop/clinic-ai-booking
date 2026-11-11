@@ -15,6 +15,7 @@ import {
     Card,
     Empty,
     Spin,
+    Tooltip,
 } from 'antd'
 import {
     SearchOutlined,
@@ -465,28 +466,34 @@ export default function AppointmentsPage() {
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            icon={<SearchOutlined className="text-sky-600" />}
-                            onClick={() => setIsQuickSearchOpen(true)}
-                            className="medpro-btn-outline !h-8 !px-3 text-xs font-bold"
-                        >
-                            Tra cứu nhanh tại quầy
-                        </Button>
-                        <Button
-                            icon={<ThunderboltOutlined className="text-amber-500" />}
-                            onClick={handleProcessUnconfirmed}
-                            loading={isProcessingUnconfirmed}
-                            className="medpro-btn-amber !h-8 !px-3 text-xs font-bold"
-                        >
-                            Quét hủy chưa xác nhận & Đôn Waitlist
-                        </Button>
-                        <Button
-                            icon={<SyncOutlined spin={loading} />}
-                            onClick={loadAppointments}
-                            className="medpro-btn-outline !h-8 !px-3 text-xs"
-                        >
-                            Làm mới
-                        </Button>
+                        <Tooltip title="Tra cứu nhanh tại quầy">
+                            <Button
+                                shape="circle"
+                                icon={<SearchOutlined className="text-sky-600" />}
+                                onClick={() => setIsQuickSearchOpen(true)}
+                                className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                                aria-label="Tra cứu nhanh tại quầy"
+                            />
+                        </Tooltip>
+                        <Tooltip title="Quét hủy chưa xác nhận & Đôn Waitlist">
+                            <Button
+                                shape="circle"
+                                icon={<ThunderboltOutlined className="text-amber-500" />}
+                                onClick={handleProcessUnconfirmed}
+                                loading={isProcessingUnconfirmed}
+                                className="medpro-btn-amber !w-8 !h-8 !p-0 flex items-center justify-center"
+                                aria-label="Quét hủy chưa xác nhận & Đôn Waitlist"
+                            />
+                        </Tooltip>
+                        <Tooltip title="Làm mới">
+                            <Button
+                                shape="circle"
+                                icon={<SyncOutlined spin={loading} />}
+                                onClick={loadAppointments}
+                                className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                                aria-label="Làm mới"
+                            />
+                        </Tooltip>
                         <Segmented
                             value={viewMode}
                             onChange={setViewMode}

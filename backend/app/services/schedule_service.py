@@ -43,5 +43,20 @@ class ScheduleService:
     ) -> List[AffectedBookingItem]:
         return await admin_shift_service.get_leave_affected_bookings(leave_id, db)
 
+    async def cancel_leave(
+        self,
+        leave_id: int,
+        admin_user: TaiKhoan,
+        db: AsyncSession
+    ) -> DoctorLeaveResponse:
+        return await admin_shift_service.cancel_leave_admin(leave_id, admin_user, db)
+
+    async def delete_leave(
+        self,
+        leave_id: int,
+        db: AsyncSession
+    ) -> None:
+        return await admin_shift_service.delete_leave_admin(leave_id, db)
+
 
 schedule_service = ScheduleService()

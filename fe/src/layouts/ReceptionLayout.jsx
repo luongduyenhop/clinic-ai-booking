@@ -124,10 +124,6 @@ export default function ReceptionLayout() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                 <span className="font-medium text-slate-600">{shiftLabel}</span>
                             </span>
-                            <span>•</span>
-                            <span className="font-mono text-slate-500 font-semibold">
-                                Phím tắt: F2 Tiếp nhận | F4 Hàng đợi | F5 Làm mới | F9 Đóng ca
-                            </span>
                         </div>
                     </div>
 

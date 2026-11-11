@@ -18,137 +18,8 @@ import {
     Stethoscope,
     Users,
     DownloadSimple,
+    Trash,
 } from '../common/ClinicIcon'
-
-const DEMO_INITIAL_LEAVES = [
-    {
-        id: 1,
-        bac_si_id: 1,
-        ten_bac_si: 'BS.CKII Nguyễn Minh Hoàng',
-        chuyen_khoa: 'Khoa Nội tổng quát',
-        loai_nghi: 'NGHI_PHEP',
-        tu_ngay: '2026-11-06',
-        den_ngay: '2026-11-08',
-        ca_lam_viec: 'all',
-        ly_do: 'Tham gia Hội thảo Tim Mạch can thiệp toàn quốc tại Đà Nẵng',
-        so_ca_anh_huong: 4,
-        so_lich_anh_huong: 3,
-        trang_thai: 'CHO_DUYET',
-    },
-    {
-        id: 2,
-        bac_si_id: 2,
-        ten_bac_si: 'ThS.BS Trần Quốc Tuấn',
-        chuyen_khoa: 'Khoa Ngoại',
-        loai_nghi: 'NGHI_DOT_XUAT',
-        tu_ngay: '2026-11-05',
-        den_ngay: '2026-11-05',
-        ca_lam_viec: 'chieu',
-        ly_do: 'Việc gia đình đột xuất',
-        so_ca_anh_huong: 1,
-        so_lich_anh_huong: 1,
-        trang_thai: 'CHO_DUYET',
-    },
-    {
-        id: 3,
-        bac_si_id: 3,
-        ten_bac_si: 'BS.CKI Lê Thu Trang',
-        chuyen_khoa: 'Khoa Nhi',
-        loai_nghi: 'NGHI_PHEP',
-        tu_ngay: '2026-11-01',
-        den_ngay: '2026-11-03',
-        ca_lam_viec: 'all',
-        ly_do: 'Nghỉ phép thường niên kế hoạch',
-        so_ca_anh_huong: 6,
-        so_lich_anh_huong: 8,
-        trang_thai: 'DA_DUYET',
-        ghi_chu_duyet: 'Ban Giám đốc đã phê duyệt, hệ thống đã khóa ca trực tự động',
-    },
-    {
-        id: 4,
-        bac_si_id: 4,
-        ten_bac_si: 'BS.CKI Phạm Quang Huy',
-        chuyen_khoa: 'Khoa Mắt',
-        loai_nghi: 'NGHI_PHEP',
-        tu_ngay: '2026-10-25',
-        den_ngay: '2026-10-26',
-        ca_lam_viec: 'sang',
-        ly_do: 'Khám sức khỏe định kỳ cá nhân',
-        so_ca_anh_huong: 2,
-        so_lich_anh_huong: 0,
-        trang_thai: 'TU_CHOI',
-        ly_do_tu_choi: 'Trùng ca phẫu thuật mắt đã lên lịch, khoa chưa bố trí được nhân sự thay thế',
-    },
-]
-
-const DEMO_AFFECTED_BOOKINGS_MAP = {
-    1: [
-        {
-            ma_lich_hen: 'LK-20261106-BS0101',
-            ho_ten: 'Nguyen Van Muon',
-            so_dien_thoai: '0912345678',
-            thoi_gian_kham: '2026-11-06 08:30',
-            chuyen_khoa: 'Khoa Nội tổng quát',
-            trang_thai: 'Đã xác nhận',
-        },
-        {
-            ma_lich_hen: 'LK-20261106-BS0102',
-            ho_ten: 'Tran Thi Vang Lai',
-            so_dien_thoai: '0989789876',
-            thoi_gian_kham: '2026-11-06 14:00',
-            chuyen_khoa: 'Khoa Nội tổng quát',
-            trang_thai: 'Đã xác nhận',
-        },
-        {
-            ma_lich_hen: 'LK-20261107-BS0103',
-            ho_ten: 'Pham Van Tra CLS',
-            so_dien_thoai: '0989876789',
-            thoi_gian_kham: '2026-11-07 09:00',
-            chuyen_khoa: 'Khoa Nội tổng quát',
-            trang_thai: 'Đã xác nhận',
-        },
-    ],
-    2: [
-        {
-            ma_lich_hen: 'LK-20261105-BS0201',
-            ho_ten: 'Hoang Thi Dung Hen',
-            so_dien_thoai: '0989877554',
-            thoi_gian_kham: '2026-11-05 14:00',
-            chuyen_khoa: 'Khoa Ngoại',
-            trang_thai: 'Đã xác nhận',
-        },
-    ],
-    3: [
-        {
-            ma_lich_hen: 'LK-20261102-BS0301',
-            ho_ten: 'Bệnh nhân Ưu Tiên Test',
-            so_dien_thoai: '0988776655',
-            thoi_gian_kham: '2026-11-02 09:30',
-            chuyen_khoa: 'Khoa Nhi',
-            trang_thai: 'Đã dời lịch',
-        },
-    ],
-}
-
-const getStoredLeaves = () => {
-    try {
-        const raw = localStorage.getItem('clinic_doctor_leaves')
-        if (raw) {
-            const parsed = JSON.parse(raw)
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed
-        }
-        localStorage.setItem('clinic_doctor_leaves', JSON.stringify(DEMO_INITIAL_LEAVES))
-        return DEMO_INITIAL_LEAVES
-    } catch {
-        return DEMO_INITIAL_LEAVES
-    }
-}
-
-const saveStoredLeaves = (list) => {
-    try {
-        localStorage.setItem('clinic_doctor_leaves', JSON.stringify(list))
-    } catch {}
-}
 
 export default function DoctorLeaveManagementTab() {
     const { clinicData } = useSelector((state) => state.app.admin)
@@ -160,8 +31,26 @@ export default function DoctorLeaveManagementTab() {
         settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
     ].filter(Boolean).join(' | ')
     const staffList = clinicData?.staffList || []
+    const [apiDoctors, setApiDoctors] = useState([])
+
+    useEffect(() => {
+        adminService.getDoctorsAdmin().then((docs) => {
+            if (Array.isArray(docs) && docs.length > 0) {
+                setApiDoctors(docs)
+            }
+        }).catch(() => {})
+    }, [])
 
     const doctorOptions = useMemo(() => {
+        if (apiDoctors.length > 0) {
+            return apiDoctors.map((d) => ({
+                id: d.id,
+                numericId: d.id,
+                hoTen: d.ho_ten,
+                chuyenKhoa: d.ten_chuyen_khoa || d.chuyen_khoa || 'Khoa Nội tổng quát',
+                maNV: d.ma_phong_kham || `BS0${d.id}`,
+            }))
+        }
         return staffList
             .filter((s) => {
                 const role = String(s.vaiTro || '').toLowerCase()
@@ -172,9 +61,10 @@ export default function DoctorLeaveManagementTab() {
                 const num = parseInt(String(s.id || s.maNV || '').replace(/\D/g, ''), 10) || 1
                 return { ...s, numericId: num }
             })
-    }, [staffList])
+    }, [apiDoctors, staffList])
 
     const [leaves, setLeaves] = useState([])
+    const [allLeaves, setAllLeaves] = useState([])
     const [loading, setLoading] = useState(false)
     const [filterDoctorId, setFilterDoctorId] = useState('')
     const [filterTrangThai, setFilterTrangThai] = useState('all')
@@ -203,36 +93,29 @@ export default function DoctorLeaveManagementTab() {
 
     const [actionLoadingId, setActionLoadingId] = useState(null)
 
+    useEffect(() => {
+        try {
+            localStorage.removeItem('clinic_doctor_leaves')
+        } catch {}
+    }, [])
+
     const loadLeaves = async () => {
         setLoading(true)
         try {
             const params = {}
             if (filterDoctorId) params.doctorId = Number(filterDoctorId)
             if (filterTrangThai !== 'all') params.trangThai = filterTrangThai
-            const data = await adminService.getDoctorLeaves(params)
-            if (Array.isArray(data) && data.length > 0) {
-                setLeaves(data)
-            } else {
-                const stored = getStoredLeaves()
-                let result = stored
-                if (filterDoctorId) {
-                    result = result.filter((l) => Number(l.bac_si_id) === Number(filterDoctorId))
-                }
-                if (filterTrangThai !== 'all') {
-                    result = result.filter((l) => l.trang_thai === filterTrangThai)
-                }
-                setLeaves(result)
-            }
-        } catch {
-            const stored = getStoredLeaves()
-            let result = stored
-            if (filterDoctorId) {
-                result = result.filter((l) => Number(l.bac_si_id) === Number(filterDoctorId))
-            }
-            if (filterTrangThai !== 'all') {
-                result = result.filter((l) => l.trang_thai === filterTrangThai)
-            }
-            setLeaves(result)
+            const hasFilter = Boolean(filterDoctorId) || filterTrangThai !== 'all'
+            const [filteredData, allData] = await Promise.all([
+                adminService.getDoctorLeaves(params),
+                hasFilter ? adminService.getDoctorLeaves({}) : Promise.resolve(null),
+            ])
+            const safeFiltered = Array.isArray(filteredData) ? filteredData : []
+            setLeaves(safeFiltered)
+            setAllLeaves(Array.isArray(allData) ? allData : safeFiltered)
+        } catch (err) {
+            AppToast.error(err.response?.data?.message || 'Không thể tải danh sách đơn nghỉ phép từ CSDL!')
+            setLeaves([])
         } finally {
             setLoading(false)
         }
@@ -243,12 +126,13 @@ export default function DoctorLeaveManagementTab() {
     }, [filterDoctorId, filterTrangThai])
 
     const kpiStats = useMemo(() => {
-        const total = leaves.length
-        const pending = leaves.filter((l) => l.trang_thai === 'CHO_DUYET').length
-        const approved = leaves.filter((l) => l.trang_thai === 'DA_DUYET').length
-        const rejected = leaves.filter((l) => l.trang_thai === 'TU_CHOI').length
+        const source = allLeaves
+        const total = source.length
+        const pending = source.filter((l) => l.trang_thai === 'CHO_DUYET').length
+        const approved = source.filter((l) => l.trang_thai === 'DA_DUYET').length
+        const rejected = source.filter((l) => l.trang_thai === 'TU_CHOI').length
         return { total, pending, approved, rejected }
-    }, [leaves])
+    }, [allLeaves])
 
     const filteredLeaves = useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
@@ -257,14 +141,21 @@ export default function DoctorLeaveManagementTab() {
             const docName = String(l.ten_bac_si || '').toLowerCase()
             const reason = String(l.ly_do || '').toLowerCase()
             const code = String(l.id || '').toLowerCase()
-            return docName.includes(q) || reason.includes(q) || code.includes(q)
+            const formattedCode = `#np-${String(l.id).padStart(4, '0')}`
+            return docName.includes(q) || reason.includes(q) || code.includes(q) || formattedCode.includes(q)
         })
     }, [leaves, searchQuery])
 
     const handleExportLeavesExcel = () => {
         const headers = ['Mã đơn', 'Bác sĩ', 'Chuyên khoa', 'Loại nghỉ', 'Từ ngày', 'Đến ngày', 'Ca làm việc', 'Lý do', 'Số ca ảnh hưởng', 'Số lịch hẹn', 'Trạng thái']
         const rows = (filteredLeaves || []).map((l) => {
-            const statusLabel = l.trang_thai === 'DA_DUYET' ? 'Đã duyệt' : l.trang_thai === 'TU_CHOI' ? 'Từ chối' : 'Chờ duyệt'
+            const statusLabel = l.trang_thai === 'DA_DUYET'
+                ? 'Đã duyệt'
+                : l.trang_thai === 'TU_CHOI'
+                ? 'Từ chối'
+                : l.trang_thai === 'DA_HUY'
+                ? 'Đã hủy'
+                : 'Chờ duyệt'
             const shiftLabel = l.ca_lam_viec === 'sang' ? 'Sáng' : l.ca_lam_viec === 'chieu' ? 'Chiều' : 'Cả ngày'
             const typeLabel = l.loai_nghi === 'NGHI_PHEP' ? 'Nghỉ phép năm' : l.loai_nghi === 'NGHI_DOT_XUAT' ? 'Nghỉ đột xuất' : l.loai_nghi === 'NGHI_OM' ? 'Nghỉ ốm' : 'Công tác'
             return [
@@ -351,7 +242,7 @@ export default function DoctorLeaveManagementTab() {
 
         setCreateSubmitting(true)
         try {
-            const docId = parseInt(String(createForm.bac_si_id).replace(/\D/g, ''), 10) || 1
+            const docId = parseInt(String(createForm.bac_si_id).replace(/\D/g, ''), 10)
             const payload = {
                 bac_si_id: docId,
                 loai_nghi: createForm.loai_nghi,
@@ -360,36 +251,13 @@ export default function DoctorLeaveManagementTab() {
                 ca_lam_viec: createForm.ca_lam_viec === 'all' ? null : createForm.ca_lam_viec,
                 ly_do: createForm.ly_do.trim(),
             }
-            let res = null
-            try {
-                res = await adminService.createDoctorLeave(payload)
-            } catch {}
-
-            const selectedDoc = doctorOptions.find((d) => Number(d.id || d.maNV?.replace(/\D/g, '') || 1) === Number(createForm.bac_si_id))
-            const newItem = res || {
-                id: Date.now().toString().slice(-4),
-                bac_si_id: Number(createForm.bac_si_id),
-                ten_bac_si: selectedDoc ? selectedDoc.hoTen : 'Bác sĩ #' + createForm.bac_si_id,
-                chuyen_khoa: selectedDoc ? (selectedDoc.phamViChuyenMon || selectedDoc.khoa || 'Khoa Nội tổng quát') : 'Khoa Nội tổng quát',
-                loai_nghi: createForm.loai_nghi,
-                tu_ngay: createForm.tu_ngay,
-                den_ngay: createForm.den_ngay,
-                ca_lam_viec: createForm.ca_lam_viec === 'all' ? null : createForm.ca_lam_viec,
-                ly_do: createForm.ly_do.trim(),
-                so_ca_anh_huong: 2,
-                so_lich_anh_huong: 3,
-                trang_thai: 'CHO_DUYET',
-            }
-
-            const current = getStoredLeaves()
-            const updated = [newItem, ...current]
-            saveStoredLeaves(updated)
-
+            await adminService.createDoctorLeave(payload)
             AppToast.success('Tạo đơn nghỉ phép thành công!')
             setIsCreateModalOpen(false)
             loadLeaves()
-        } catch {
-            AppToast.error('Đã xảy ra lỗi khi tạo đơn nghỉ phép!')
+        } catch (err) {
+            const errorMsg = err.response?.data?.message || err.response?.data?.detail || err.message || 'Đã xảy ra lỗi khi tạo đơn nghỉ phép!'
+            AppToast.error(errorMsg)
         } finally {
             setCreateSubmitting(false)
         }
@@ -401,18 +269,14 @@ export default function DoctorLeaveManagementTab() {
 
         setActionLoadingId(leave.id)
         try {
-            const res = await adminService.approveDoctorLeave(leave.id, {
+            await adminService.approveDoctorLeave(leave.id, {
                 hanh_dong: 'DA_DUYET',
                 ghi_chu: 'Quản trị viên phê duyệt nghỉ phép',
             })
-            if (res) {
-                AppToast.success('Đã duyệt đơn nghỉ phép và tự động khóa ca trực liên quan!')
-                loadLeaves()
-            } else {
-                AppToast.error('Không thể duyệt đơn. Vui lòng thử lại!')
-            }
-        } catch {
-            AppToast.error('Lỗi khi phê duyệt đơn nghỉ phép!')
+            AppToast.success('Đã duyệt đơn nghỉ phép và tự động khóa ca trực liên quan!')
+            loadLeaves()
+        } catch (err) {
+            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi phê duyệt đơn nghỉ phép!')
         } finally {
             setActionLoadingId(null)
         }
@@ -433,30 +297,45 @@ export default function DoctorLeaveManagementTab() {
 
         setRejectSubmitting(true)
         try {
-            try {
-                await adminService.approveDoctorLeave(selectedLeaveForReject.id, {
-                    hanh_dong: 'TU_CHOI',
-                    ly_do_tu_choi: rejectReason.trim(),
-                    ghi_chu: rejectReason.trim(),
-                })
-            } catch {}
-
-            const current = getStoredLeaves()
-            const updated = current.map((l) => {
-                if (String(l.id) === String(selectedLeaveForReject.id)) {
-                    return { ...l, trang_thai: 'TU_CHOI', ly_do_tu_choi: rejectReason.trim() }
-                }
-                return l
+            await adminService.approveDoctorLeave(selectedLeaveForReject.id, {
+                hanh_dong: 'TU_CHOI',
+                ghi_chu: rejectReason.trim(),
             })
-            saveStoredLeaves(updated)
-
             AppToast.success('Đã từ chối đơn nghỉ phép!')
             setIsRejectModalOpen(false)
             loadLeaves()
-        } catch {
-            AppToast.error('Lỗi khi từ chối đơn!')
+        } catch (err) {
+            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi từ chối đơn!')
         } finally {
             setRejectSubmitting(false)
+        }
+    }
+
+    const handleCancelLeave = async (leave) => {
+        if (!window.confirm(`Xác nhận hủy đơn nghỉ phép của Bác sĩ ${leave.ten_bac_si || '#' + leave.bac_si_id}? Hệ thống sẽ mở lại các ca trực đã khóa liên quan.`)) return
+        setActionLoadingId(leave.id)
+        try {
+            await adminService.cancelDoctorLeave(leave.id)
+            AppToast.success('Đã hủy đơn nghỉ phép và mở lại ca trực thành công!')
+            loadLeaves()
+        } catch (err) {
+            AppToast.error(err.response?.data?.message || 'Không thể hủy đơn nghỉ phép!')
+        } finally {
+            setActionLoadingId(null)
+        }
+    }
+
+    const handleDeleteLeave = async (leave) => {
+        if (!window.confirm(`Xác nhận xóa hoàn toàn đơn nghỉ phép của Bác sĩ ${leave.ten_bac_si || '#' + leave.bac_si_id}?`)) return
+        setActionLoadingId(leave.id)
+        try {
+            await adminService.deleteDoctorLeave(leave.id)
+            AppToast.success('Đã xóa đơn nghỉ phép thành công!')
+            loadLeaves()
+        } catch (err) {
+            AppToast.error(err.response?.data?.message || 'Không thể xóa đơn nghỉ phép!')
+        } finally {
+            setActionLoadingId(null)
         }
     }
 
@@ -466,32 +345,10 @@ export default function DoctorLeaveManagementTab() {
         setAffectedLoading(true)
         try {
             const data = await adminService.getLeaveAffectedBookings(leave.id)
-            if (Array.isArray(data) && data.length > 0) {
-                setAffectedBookings(data)
-            } else {
-                const fallback = DEMO_AFFECTED_BOOKINGS_MAP[leave.id] || [
-                    {
-                        ma_lich_hen: 'LK-20261106-BS0101',
-                        ho_ten: 'Nguyen Van Muon',
-                        so_dien_thoai: '0912345678',
-                        thoi_gian_kham: (leave.tu_ngay || '2026-11-06') + ' 08:30',
-                        chuyen_khoa: leave.chuyen_khoa || 'Khoa Nội tổng quát',
-                        trang_thai: 'Đã xác nhận',
-                    },
-                    {
-                        ma_lich_hen: 'LK-20261106-BS0102',
-                        ho_ten: 'Tran Thi Vang Lai',
-                        so_dien_thoai: '0989789876',
-                        thoi_gian_kham: (leave.tu_ngay || '2026-11-06') + ' 14:00',
-                        chuyen_khoa: leave.chuyen_khoa || 'Khoa Nội tổng quát',
-                        trang_thai: 'Đã xác nhận',
-                    },
-                ]
-                setAffectedBookings(fallback)
-            }
+            setAffectedBookings(Array.isArray(data) ? data : [])
         } catch {
-            const fallback = DEMO_AFFECTED_BOOKINGS_MAP[leave.id] || []
-            setAffectedBookings(fallback)
+            setAffectedBookings([])
+            AppToast.error('Không thể tải danh sách lịch khám bị ảnh hưởng!')
         } finally {
             setAffectedLoading(false)
         }
@@ -519,6 +376,14 @@ export default function DoctorLeaveManagementTab() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                     <XCircle size={12} weight="bold" />
                     Từ chối
+                </span>
+            )
+        }
+        if (status === 'DA_HUY') {
+            return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                    <XCircle size={12} weight="bold" />
+                    Đã hủy
                 </span>
             )
         }
@@ -667,6 +532,7 @@ export default function DoctorLeaveManagementTab() {
                             { key: 'CHO_DUYET', label: 'Chờ duyệt' },
                             { key: 'DA_DUYET', label: 'Đã duyệt' },
                             { key: 'TU_CHOI', label: 'Từ chối' },
+                            { key: 'DA_HUY', label: 'Đã hủy' },
                         ].map((tab) => (
                             <button
                                 key={tab.key}
@@ -746,14 +612,19 @@ export default function DoctorLeaveManagementTab() {
                                                 <p className="line-clamp-2 text-slate-600" title={leave.ly_do}>
                                                     {leave.ly_do}
                                                 </p>
-                                                {leave.ghi_chu_duyet && (
+                                                {leave.ghi_chu_duyet && leave.trang_thai === 'DA_DUYET' && (
                                                     <div className="text-[10.5px] text-emerald-600 mt-0.5 italic">
                                                         Duyệt: {leave.ghi_chu_duyet}
                                                     </div>
                                                 )}
-                                                {leave.ly_do_tu_choi && (
+                                                {(leave.ly_do_tu_choi || (leave.ghi_chu_duyet && leave.trang_thai === 'TU_CHOI')) && (
                                                     <div className="text-[10.5px] text-rose-600 mt-0.5 italic">
-                                                        Từ chối: {leave.ly_do_tu_choi}
+                                                        Từ chối: {leave.ly_do_tu_choi || leave.ghi_chu_duyet}
+                                                    </div>
+                                                )}
+                                                {leave.ghi_chu_duyet && leave.trang_thai === 'DA_HUY' && (
+                                                    <div className="text-[10.5px] text-slate-500 mt-0.5 italic">
+                                                        {leave.ghi_chu_duyet}
                                                     </div>
                                                 )}
                                             </td>
@@ -781,7 +652,7 @@ export default function DoctorLeaveManagementTab() {
                                                     title="Kiểm tra các lịch hẹn bị ảnh hưởng"
                                                 >
                                                     <Eye size={13} />
-                                                    <span>Xem lịch ({leave.so_lich_anh_huong || 0})</span>
+                                                    <span>Xem lịch</span>
                                                 </button>
 
                                                 {leave.trang_thai === 'CHO_DUYET' && (
@@ -808,6 +679,29 @@ export default function DoctorLeaveManagementTab() {
                                                         </button>
                                                     </>
                                                 )}
+
+                                                {leave.trang_thai === 'DA_DUYET' && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={actionLoadingId === leave.id}
+                                                        onClick={() => handleCancelLeave(leave)}
+                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 font-medium transition text-[11px]"
+                                                        title="Hủy đơn nghỉ phép và mở lại ca trực"
+                                                    >
+                                                        <XCircle size={13} />
+                                                        <span>Hủy</span>
+                                                    </button>
+                                                )}
+
+                                                <button
+                                                    type="button"
+                                                    disabled={actionLoadingId === leave.id}
+                                                    onClick={() => handleDeleteLeave(leave)}
+                                                    className="inline-flex items-center gap-1 p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                                    title="Xóa đơn nghỉ"
+                                                >
+                                                    <Trash size={14} />
+                                                </button>
                                             </td>
                                         </tr>
                                     )

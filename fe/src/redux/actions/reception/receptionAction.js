@@ -705,15 +705,20 @@ export const fetchRosterAsync = createAsyncThunk(
 
 export const fetchRosterTemplateAsync = createAsyncThunk(
     'reception/fetchRosterTemplate',
-    async ({ thuTrongTuan } = {}, { rejectWithValue }) => {
+    async ({ thuTrongTuan, queryDate, caKham, chuyenKhoaId, tuNgay, denNgay } = {}, { rejectWithValue }) => {
         try {
             const res = await receptionService.getRosterTemplate({
                 thu_trong_tuan: thuTrongTuan || undefined,
+                query_date: queryDate || undefined,
+                ca_kham: caKham || undefined,
+                chuyen_khoa_id: chuyenKhoaId || undefined,
+                tu_ngay: tuNgay || undefined,
+                den_ngay: denNgay || undefined,
             })
             const data = unwrapApi(res)
             return Array.isArray(data) ? data : []
         } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Không thể tải khuôn mẫu ca trực định kỳ'))
+            return rejectWithValue(pickErrorMessage(e, 'Không thể tải lịch làm việc của bác sĩ'))
         }
     }
 )

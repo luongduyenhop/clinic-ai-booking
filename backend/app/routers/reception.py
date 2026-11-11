@@ -456,17 +456,30 @@ async def get_rooms_resources(
 @router.get(
     "/resources/roster-template",
     response_model=ResponseEnvelope[List[RosterTemplateItem]],
-    summary="Tra cứu khuôn mẫu phân ca trực định kỳ theo tuần (FC-15)"
+    summary="Tra cứu bảng lịch làm việc của bác sĩ (lọc theo khoa, ngày, ca) (FC-15)"
 )
 async def get_roster_template_resources(
+    query_date: Optional[date] = Query(None, description="Lọc theo ngày làm việc (YYYY-MM-DD)"),
+    ca_kham: Optional[str] = Query(None, description="Lọc theo ca làm việc: sang hoặc chieu"),
+    chuyen_khoa_id: Optional[int] = Query(None, description="Lọc theo chuyên khoa"),
+    tu_ngay: Optional[date] = Query(None, description="Lọc từ ngày (YYYY-MM-DD)"),
+    den_ngay: Optional[date] = Query(None, description="Lọc đến ngày (YYYY-MM-DD)"),
     thu_trong_tuan: Optional[int] = Query(None, ge=2, le=8, description="Lọc theo thứ trong tuần (2: Thứ 2, 8: CN)"),
     current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    result = await queue_service.get_roster_template_resources(thu_trong_tuan, db)
+    result = await queue_service.get_roster_template_resources(
+        thu_trong_tuan=thu_trong_tuan,
+        db=db,
+        query_date=query_date,
+        ca_kham=ca_kham,
+        chuyen_khoa_id=chuyen_khoa_id,
+        tu_ngay=tu_ngay,
+        den_ngay=den_ngay,
+    )
     return ResponseEnvelope.success_response(
         data=result,
-        message=f"Lấy khung mẫu ca trực định kỳ thành công ({len(result)} mục)"
+        message=f"Lấy lịch làm việc của bác sĩ thành công ({len(result)} ca)"
     )
 
 

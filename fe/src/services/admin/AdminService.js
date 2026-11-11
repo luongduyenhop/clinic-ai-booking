@@ -322,6 +322,11 @@ export class AdminService extends BaseServices {
         return res.data?.data || res.data
     }
 
+    updateRosterTemplateAdmin = async (rosterId, payload) => {
+        const res = await this.put(`/api/v1/admin/rosters/${rosterId}`, payload)
+        return res.data?.data || res.data
+    }
+
     deleteRosterTemplateAdmin = async (rosterId) => {
         const res = await this.delete(`/api/v1/admin/rosters/${rosterId}`)
         return res.data?.data || res.data
@@ -329,6 +334,65 @@ export class AdminService extends BaseServices {
 
     generateShiftsFromRosterAdmin = async (payload) => {
         const res = await this.post('/api/v1/admin/rosters/generate-shifts', payload)
+        return res.data?.data || res.data
+    }
+
+    batchGenerateRosterAdmin = async (payload) => {
+        const body = {
+            tu_ngay: payload.ap_dung_tu_ngay || payload.tu_ngay,
+            den_ngay: payload.ap_dung_den_ngay || payload.den_ngay,
+            template_type: payload.template_type || 'WEEKLY_TEMPLATE',
+            nguon_tu_ngay: payload.nguon_tu_ngay,
+            nguon_den_ngay: payload.nguon_den_ngay,
+            ghi_de_lich_cu: payload.ghi_de_lich_cu ?? false,
+            bac_si_ids: payload.bac_si_ids,
+        }
+        return this.generateShiftsFromRosterAdmin(body)
+    }
+
+    getDepartmentsAdmin = async () => {
+        try {
+            const res = await this.get('/api/v1/admin/departments', {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    exportShiftReportAdmin = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
+        try {
+            const params = new URLSearchParams()
+            if (tuNgay) params.append('tu_ngay', tuNgay)
+            if (denNgay) params.append('den_ngay', denNgay)
+            if (chuyenKhoaId && chuyenKhoaId !== 'ALL') params.append('chuyen_khoa_id', chuyenKhoaId)
+            const query = params.toString() ? '?' + params.toString() : ''
+            const res = await this.get('/api/v1/admin/shifts/export-report' + query, {
+                responseType: 'blob',
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data
+        } catch (error) {
+            console.warn('Lỗi khi xuất báo cáo phân ca từ server:', error)
+            throw error
+        }
+    }
+
+    emergencyLeaveShiftAdmin = async (shiftId, payload) => {
+        const res = await this.post(`/api/v1/admin/shifts/${shiftId}/emergency-leave`, payload)
+        return res.data?.data || res.data
+    }
+
+    reassignShiftAdmin = async (shiftId, payload) => {
+        const res = await this.post(`/api/v1/admin/shifts/${shiftId}/reassign`, payload)
+        return res.data?.data || res.data
+    }
+
+    postponeAndCancelShiftAdmin = async (shiftId, payload = {}) => {
+        const res = await this.post(`/api/v1/admin/shifts/${shiftId}/postpone-and-cancel`, payload)
         return res.data?.data || res.data
     }
 
@@ -433,30 +497,22 @@ export class AdminService extends BaseServices {
     }
 
     getDoctorLeaves = async ({ doctorId, trangThai } = {}) => {
+        const params = new URLSearchParams()
+        if (doctorId) params.append('doctor_id', doctorId)
+        if (trangThai) params.append('trang_thai', trangThai)
+        const query = params.toString() ? '?' + params.toString() : ''
         try {
-            const params = new URLSearchParams()
-            if (doctorId) params.append('doctor_id', doctorId)
-            if (trangThai) params.append('trang_thai', trangThai)
-            const query = params.toString() ? '?' + params.toString() : ''
             const res = await this.get('/api/v1/admin/leaves' + query, {
                 __skipGlobalLoading: true,
                 __skipRefresh: true,
             })
             return res.data?.data || res.data || []
         } catch {
-            try {
-                const params = new URLSearchParams()
-                if (doctorId) params.append('doctor_id', doctorId)
-                if (trangThai) params.append('trang_thai', trangThai)
-                const query = params.toString() ? '?' + params.toString() : ''
-                const res = await this.get('/api/v1/schedules/leaves' + query, {
-                    __skipGlobalLoading: true,
-                    __skipRefresh: true,
-                })
-                return res.data?.data || res.data || []
-            } catch {
-                return []
-            }
+            const res = await this.get('/api/v1/schedules/leaves' + query, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
         }
     }
 
@@ -497,6 +553,26 @@ export class AdminService extends BaseServices {
             } catch {
                 return []
             }
+        }
+    }
+
+    cancelDoctorLeave = async (leaveId) => {
+        try {
+            const res = await this.post('/api/v1/admin/leaves/' + leaveId + '/cancel')
+            return res.data?.data || res.data
+        } catch {
+            const res = await this.post('/api/v1/schedules/leaves/' + leaveId + '/cancel')
+            return res.data?.data || res.data
+        }
+    }
+
+    deleteDoctorLeave = async (leaveId) => {
+        try {
+            const res = await this.delete('/api/v1/admin/leaves/' + leaveId)
+            return res.data?.data || res.data
+        } catch {
+            const res = await this.delete('/api/v1/schedules/leaves/' + leaveId)
+            return res.data?.data || res.data
         }
     }
 }

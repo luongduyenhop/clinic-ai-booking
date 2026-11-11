@@ -32,6 +32,7 @@ from app.schemas.incident import (
     CancelIncidentTicketsResponse,
 )
 from app.services.load_balancing_service import load_balancing_service
+from app.services.queue_service import queue_service
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class IncidentService:
                 )
                 rec_doc_id = ticket_doc.id
                 rec_doc_name = ticket_doc.nguoi_dung.ho_ten if ticket_doc.nguoi_dung else f"BS {rec_doc_id}"
-                rec_phong_kham_id = ticket_doc.phong_kham_id
+                fallback_room_id = ticket_doc.phong_kham_id
             else:
                 rec_doc_id = await load_balancing_service.assign_optimal_doctor(
                     chuyen_khoa_id=absent_bs.chuyen_khoa_id,
@@ -309,7 +310,15 @@ class IncidentService:
                 )
                 rec_bs = (await db.execute(select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == rec_doc_id))).scalar_one()
                 rec_doc_name = rec_bs.nguoi_dung.ho_ten if rec_bs.nguoi_dung else f"BS {rec_doc_id}"
-                rec_phong_kham_id = rec_bs.phong_kham_id
+                fallback_room_id = rec_bs.phong_kham_id
+
+            rec_shift_id, rec_phong_kham_id = await queue_service._resolve_doctor_shift_room(
+                rec_doc_id,
+                target_date,
+                old_ticket.ca_kham,
+                fallback_room_id,
+                db,
+            )
 
             stmt_max = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
                 HangDoiKham.bac_si_id == rec_doc_id,
@@ -320,6 +329,8 @@ class IncidentService:
             new_stt = max_stt + 1
 
             old_ticket.bac_si_id = rec_doc_id
+            if rec_shift_id:
+                old_ticket.lich_lam_viec_id = rec_shift_id
             if rec_phong_kham_id:
                 old_ticket.phong_kham_id = rec_phong_kham_id
             old_ticket.so_thu_tu_kham = new_stt

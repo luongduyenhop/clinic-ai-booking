@@ -1,10 +1,10 @@
 import { toast } from 'react-toastify'
 
 export const AppToast = {
-    success: (msg) => toast.success(msg),
-    error: (msg) => toast.error(msg),
-    info: (msg) => toast.info(msg),
-    warning: (msg) => toast.warning(msg),
+    success: (msg, opts = {}) => toast.success(msg, { toastId: typeof msg === 'string' ? msg : undefined, ...opts }),
+    error: (msg, opts = {}) => toast.error(msg, { toastId: typeof msg === 'string' ? msg : undefined, ...opts }),
+    info: (msg, opts = {}) => toast.info(msg, { toastId: typeof msg === 'string' ? msg : undefined, ...opts }),
+    warning: (msg, opts = {}) => toast.warning(msg, { toastId: typeof msg === 'string' ? msg : undefined, ...opts }),
 }
 
 export default AppToast

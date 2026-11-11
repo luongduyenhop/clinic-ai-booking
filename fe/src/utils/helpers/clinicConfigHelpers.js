@@ -55,6 +55,12 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             dropdownTitle: 'QUẢN TRỊ DANH MỤC NỀN TẢNG (MASTER DATA)',
             submenu: [
                 {
+                    label: 'Danh mục Chuyên khoa',
+                    path: '/admin/danh-muc/chuyen-khoa',
+                    icon: 'FirstAid',
+                    desc: 'Cấu hình danh sách chuyên khoa lâm sàng & vị trí khu vực',
+                },
+                {
                     label: 'Khoa phòng & Buồng khám',
                     path: '/admin/danh-muc/khoa-phong',
                     icon: 'Buildings',
@@ -187,6 +193,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
                     title: 'Danh mục Nền tảng',
                     icon: 'Folders',
                     children: [
+                        { label: 'Danh mục Chuyên khoa', path: '/admin/danh-muc/chuyen-khoa' },
                         { label: 'Khoa phòng & Buồng khám', path: '/admin/danh-muc/khoa-phong' },
                         { label: 'Dịch vụ & Giá niêm yết', path: '/admin/danh-muc/dich-vu' },
                         { label: 'Thuốc kê đơn (BYT)', path: '/admin/danh-muc/thuoc-vat-tu' },
@@ -343,11 +350,40 @@ export const INITIAL_CLINIC_DATA = {
 }
 
 export function getNavigationConfig(clinicData) {
-    const nav = clinicData?.navigationConfig
-    if (nav && Array.isArray(nav.sidebarSections) && nav.sidebarSections.length >= 4) {
-        return nav
+    const rawNav = clinicData?.navigationConfig
+    const nav =
+        rawNav && Array.isArray(rawNav.sidebarSections) && rawNav.sidebarSections.length >= 4
+            ? rawNav
+            : DEFAULT_NAVIGATION_CONFIG
+
+    // Đảm bảo "Danh mục Chuyên khoa" luôn luôn có mặt trong sidebarSections (Danh mục Nền tảng)
+    const enrichedSections = (nav.sidebarSections || []).map((section) => {
+        if (section.id === 'pillar-catalogs' || (section.title && section.title.includes('DANH MỤC Y TẾ'))) {
+            const enrichedMenus = (section.menus || []).map((menu) => {
+                if (menu.id === 'catalogs' || (menu.title && menu.title.includes('Danh mục Nền tảng'))) {
+                    const children = menu.children || []
+                    const hasChuyenKhoa = children.some((c) => c.path === '/admin/danh-muc/chuyen-khoa')
+                    if (!hasChuyenKhoa) {
+                        return {
+                            ...menu,
+                            children: [
+                                { label: 'Danh mục Chuyên khoa', path: '/admin/danh-muc/chuyen-khoa' },
+                                ...children,
+                            ],
+                        }
+                    }
+                }
+                return menu
+            })
+            return { ...section, menus: enrichedMenus }
+        }
+        return section
+    })
+
+    return {
+        ...nav,
+        sidebarSections: enrichedSections,
     }
-    return DEFAULT_NAVIGATION_CONFIG
 }
 
 export function getMasterOptions(clinicData) {

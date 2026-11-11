@@ -100,6 +100,7 @@ export default function AdminTemplate() {
     const getBreadcrumbTitle = () => {
         const p = location.pathname
         if (p === '/admin') return 'Trung tâm Điều hành & Thống kê BI'
+        if (p.includes('/danh-muc/chuyen-khoa')) return 'Quản trị Danh mục Chuyên khoa lâm sàng'
         if (p.includes('/danh-muc/khoa-phong')) return 'Quản trị Danh mục Khoa phòng & Buồng khám'
         if (p.includes('/danh-muc/dich-vu')) return 'Quản trị Danh mục Dịch vụ Kỹ thuật & Giá niêm yết'
         if (p.includes('/danh-muc/thuoc-vat-tu')) return 'Quản trị Danh mục Thuốc kê đơn (BYT)'

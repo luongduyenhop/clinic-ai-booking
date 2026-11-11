@@ -548,11 +548,19 @@ export default function AppointmentManagementPage() {
                                     onChange={(e) => setForm({ ...form, bacSi: e.target.value })}
                                     className="medpro-input"
                                 >
-                                    {staffList.filter((s) => s.vaiTro.includes('Bác sĩ')).map((doc) => (
-                                        <option key={doc.id} value={doc.hoTen}>
-                                            {doc.hoTen}
-                                        </option>
-                                    ))}
+                                    {staffList
+                                        .filter((s) => {
+                                            if (!s.vaiTro || !s.vaiTro.includes('Bác sĩ')) return false
+                                            if (!form.chuyenKhoa) return true
+                                            const normDoc = (s.chuyenKhoa || '').toLowerCase()
+                                            const normDept = (form.chuyenKhoa || '').toLowerCase().replace(/khoa\s*/g, '')
+                                            return normDoc.includes(normDept) || normDept.includes(normDoc)
+                                        })
+                                        .map((doc) => (
+                                            <option key={doc.id} value={doc.hoTen}>
+                                                {doc.hoTen}
+                                            </option>
+                                        ))}
                                 </select>
                             </div>
 

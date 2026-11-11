@@ -21,7 +21,7 @@ export default function RolePermissionPage() {
     const location = useLocation()
     const searchParams = new URLSearchParams(location.search)
     const isLeaveMode = searchParams.get('tab') === 'nghi-phep' || location.pathname.includes('nghi-phep')
-    const isScheduleMode = searchParams.get('tab') === 'phan-lich' || location.pathname.includes('phan-lich')
+    const isScheduleMode = searchParams.get('tab') === 'phan-lich' || location.pathname.includes('phan-lich') || location.pathname.includes('lich-lam-viec')
     const isStaffMode = !isLeaveMode && !isScheduleMode && (location.pathname.includes('nhan-vien') || searchParams.get('tab') === 'nhan-vien')
 
     const [roles, setRoles] = useState([])

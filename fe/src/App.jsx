@@ -156,6 +156,8 @@ function App() {
                         <Route path="phan-quyen" element={<RolePermissionPage />} />
                         <Route path="nhan-vien" element={<RolePermissionPage />} />
                         <Route path="nghi-phep" element={<RolePermissionPage />} />
+                        <Route path="phan-lich" element={<RolePermissionPage />} />
+                        <Route path="lich-lam-viec" element={<RolePermissionPage />} />
 
                         <Route path="quan-ly-mau" element={<Navigate to="/admin/quan-ly-mau/mau-in" replace />} />
                         <Route path="quan-ly-mau/:loaiMau" element={<TemplateManagementPage />} />

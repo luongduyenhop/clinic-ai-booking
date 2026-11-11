@@ -494,6 +494,7 @@ class CredentialService:
 
         days_left = None
         if bac_si.ngay_het_han:
+            now = datetime.now(timezone.utc)
             exp = bac_si.ngay_het_han
             exp_date_val = exp.date() if isinstance(exp, datetime) else exp
             days_left = (exp_date_val - now.date()).days

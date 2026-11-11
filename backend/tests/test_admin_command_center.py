@@ -33,7 +33,7 @@ async def test_get_dashboard_stats_multi_tier_structure(api_client: AsyncClient,
 
 
 @pytest.mark.asyncio
-async def test_admin_bff_two_way_relational_sync(api_client: AsyncClient, booking):
+async def test_admin_bff_staff_list_is_projected_from_relational_records(api_client: AsyncClient, booking):
     headers = booking.tokens["admin"]
     res_boot = await api_client.get("/api/v1/admin/bootstrap", headers=headers)
     assert res_boot.status_code == 200
@@ -44,27 +44,18 @@ async def test_admin_bff_two_way_relational_sync(api_client: AsyncClient, bookin
     assert isinstance(boot_data.get("catalogs", {}).get("khoaPhong"), list)
     assert isinstance(boot_data.get("catalogs", {}).get("dichVu"), list)
 
-    new_cchn = f"CCHN-SYNC-{booking.suffix}"
-    updated_staff = list(boot_data["staffList"]) + [
-        {
-            "id": f"NV-{booking.suffix}",
-            "maNV": f"NV{booking.suffix[:4]}",
-            "hoTen": f"BS.CKI Sync Test {booking.suffix}",
-            "soCCHN": new_cchn,
-            "ngayCapCCHN": "2022-01-15",
-            "ngayHetHanCCHN": "2029-01-15",
-            "trangThaiCCHN": "ACTIVE",
-            "trangThai": True,
-        }
-    ]
+    # Staff data is managed through the relational staff/doctor APIs. The
+    # legacy BFF collection endpoint must not create doctors from mock rows.
     res_put = await api_client.put(
         "/api/v1/admin/collections/staffList",
-        json={"collectionKey": "staffList", "items": updated_staff},
+        json={"collectionKey": "staffList", "items": boot_data["staffList"]},
         headers=headers,
     )
-    assert res_put.status_code == 200
-    after_staff = res_put.json()["data"]["staffList"]
-    assert any(s.get("soCCHN") == new_cchn for s in after_staff)
+    assert res_put.status_code == 400
+
+    after_boot = await api_client.get("/api/v1/admin/bootstrap", headers=headers)
+    assert after_boot.status_code == 200
+    assert after_boot.json()["data"]["staffList"] == boot_data["staffList"]
 
 
 @pytest.mark.asyncio

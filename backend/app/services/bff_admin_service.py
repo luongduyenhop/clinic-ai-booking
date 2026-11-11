@@ -27,7 +27,8 @@ from app.models.specialized import (
     GoiDichVu,
     LieuTrinhDieuTri,
 )
-from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham
+from app.core.exceptions import BadRequestException
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, NhanVien, PhongKham
 
 SEED_FILE_PATH = (
     Path(__file__).resolve().parents[3]
@@ -154,7 +155,9 @@ class BffAdminService:
             "guideCategories": seed.get("guideCategories", []),
             "guides": seed.get("guides", []),
             "qaList": seed.get("qaList", []),
-            "staffList": seed.get("staffList", []),
+            # Employee and doctor screens use relational records through dedicated
+            # endpoints. Never seed the old demo staff collection into bootstrap.
+            "staffList": [],
             "roles": roles,
             "templates": seed.get("templates", []),
             "complianceObligations": seed.get("complianceObligations", []),
@@ -196,7 +199,7 @@ class BffAdminService:
 
         data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
         data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []))
-        data["staffList"] = await self._project_relational_staff(db, data.get("staffList", []))
+        data["staffList"] = await self._project_relational_staff(db)
         data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}))
         data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []))
         data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []))
@@ -377,73 +380,48 @@ class BffAdminService:
         return result
 
 
-    async def _project_relational_staff(self, db: AsyncSession, base_staff: list) -> list:
-        stmt = (
-            select(BacSi)
-            .options(
-                selectinload(BacSi.nguoi_dung),
-                selectinload(BacSi.chuyen_khoa),
-                selectinload(BacSi.phong_kham),
+    async def _project_relational_staff(self, db: AsyncSession) -> list:
+        employees = (
+            await db.execute(
+                select(NhanVien)
+                .join(NhanVien.nguoi_dung)
+                .options(
+                    selectinload(NhanVien.nguoi_dung).selectinload(NguoiDung.tai_khoan),
+                    selectinload(NhanVien.bac_si).selectinload(BacSi.chuyen_khoa),
+                    selectinload(NhanVien.bac_si).selectinload(BacSi.phong_kham),
+                )
+                .where(NguoiDung.is_deleted.is_(False))
+                .order_by(NhanVien.id.asc())
             )
-            .order_by(BacSi.id.asc())
-        )
-        db_doctors = (await db.execute(stmt)).scalars().all()
-        if not db_doctors:
-            return base_staff
-
-        merged_map = {}
-        for s in base_staff or []:
-            code = str(s.get("maNV") or s.get("id") or "").strip()
-            cchn = str(s.get("soCCHN") or "").strip()
-            name = str(s.get("hoTen") or "").strip().lower()
-            if code:
-                merged_map[code] = s
-            if cchn:
-                merged_map[cchn] = s
-            if name:
-                merged_map[name] = s
-
+        ).scalars().all()
         result = []
-        seen_keys = set()
-        for bs in db_doctors:
-            u = bs.nguoi_dung
-            cchn = str(bs.chung_chi_hanh_nghe or f"CCHN-{bs.id:04d}").strip()
-            full_name = f"{bs.hoc_vi + ' ' if bs.hoc_vi and bs.hoc_vi not in (u.ho_ten or '') else ''}{u.ho_ten if u else f'Bác sĩ #{bs.id}'}".strip()
-            raw_name = (u.ho_ten or "").strip().lower()
-            existing = merged_map.get(cchn) or merged_map.get(full_name.lower()) or merged_map.get(raw_name)
-            code = str(existing.get("maNV") if existing and existing.get("maNV") else f"NV{bs.id:03d}").strip()
-            room_name = bs.phong_kham.ten_phong if bs.phong_kham else (existing.get("khoaPhong") if existing else "Phòng số 1 (Phòng khám Nội)")
-            spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs.chuyen_khoa else (existing.get("chuyenKhoa") if existing else "Nội tổng quát")
-            item = {
-                "id": existing.get("id") if existing and existing.get("id") else f"NV-{bs.id:03d}",
-                "maNV": code,
-                "hoTen": existing.get("hoTen") if existing and existing.get("hoTen") else full_name,
-                "taiKhoan": (u.email if u and u.email else None) or (existing.get("taiKhoan") if existing else f"bs{bs.id}@clinic.com"),
-                "dienThoai": (u.so_dien_thoai if u and u.so_dien_thoai else None) or (existing.get("dienThoai") if existing else f"0901000{bs.id:03d}"),
-                "vaiTro": existing.get("vaiTro") if existing and existing.get("vaiTro") else "Bác sĩ khám bệnh",
-                "khoaPhong": room_name,
-                "chuyenKhoa": spec_name,
-                "soCCHN": cchn,
-                "ngayCapCCHN": bs.ngay_cap.isoformat() if bs.ngay_cap else (existing.get("ngayCapCCHN") if existing else "2020-01-15"),
-                "ngayHetHanCCHN": bs.ngay_het_han.isoformat() if bs.ngay_het_han else (existing.get("ngayHetHanCCHN") if existing else "2028-01-15"),
-                "trangThaiCCHN": bs.trang_thai_giay_phep or (existing.get("trangThaiCCHN") if existing else "ACTIVE"),
-                "trangThai": bool(bs.is_active) if bs.is_active is not None else True,
+        for employee in employees:
+            person = employee.nguoi_dung
+            doctor = employee.bac_si
+            role_labels = {
+                "BAC_SI": "Bác sĩ khám bệnh",
+                "LE_TAN": "Lễ tân",
+                "THU_NGAN": "Thu ngân",
+                "KY_THUAT_VIEN": "Kỹ thuật viên",
             }
-            if existing:
-                for k, v in existing.items():
-                    if k not in item:
-                        item[k] = v
-            result.append(item)
-            seen_keys.update({code.lower(), cchn.lower(), full_name.lower(), raw_name})
-
-        for s in base_staff or []:
-            code = str(s.get("maNV") or s.get("id") or "").strip().lower()
-            cchn = str(s.get("soCCHN") or "").strip().lower()
-            name = str(s.get("hoTen") or "").strip().lower()
-            if code not in seen_keys and (not cchn or cchn not in seen_keys) and (not name or name not in seen_keys):
-                result.append(s)
-                seen_keys.update({code, cchn, name})
-
+            result.append({
+                "id": f"NV-{employee.id}",
+                "maNV": employee.ma_nhan_vien,
+                "hoTen": person.ho_ten,
+                "taiKhoan": person.tai_khoan.email if person.tai_khoan else person.email,
+                "dienThoai": person.so_dien_thoai,
+                "vaiTro": role_labels.get(employee.loai_nhan_vien, employee.loai_nhan_vien),
+                "khoaPhong": doctor.phong_kham.ten_phong if doctor and doctor.phong_kham else None,
+                "chuyenKhoa": doctor.chuyen_khoa.ten_chuyen_khoa if doctor and doctor.chuyen_khoa else None,
+                "soCCHN": doctor.chung_chi_hanh_nghe if doctor else None,
+                "ngayCapCCHN": doctor.ngay_cap.isoformat() if doctor and doctor.ngay_cap else None,
+                "ngayHetHanCCHN": doctor.ngay_het_han.isoformat() if doctor and doctor.ngay_het_han else None,
+                "trangThaiCCHN": doctor.trang_thai_giay_phep if doctor else None,
+                "trangThai": bool(employee.is_active and (doctor.is_active if doctor else True)),
+                "accountId": person.tai_khoan.id if person.tai_khoan else None,
+                "accountActive": person.tai_khoan.is_active if person.tai_khoan else None,
+                "accountRole": person.tai_khoan.vai_tro if person.tai_khoan else None,
+            })
         return result
 
     async def _project_relational_catalogs(self, db: AsyncSession, base_catalogs: dict) -> dict:
@@ -823,7 +801,6 @@ class BffAdminService:
             "newsArticles",
             "catalogs",
             "qaList",
-            "staffList",
             "roles",
             "templates",
             "auditLogs",
@@ -840,7 +817,6 @@ class BffAdminService:
         for key in [
             "patients",
             "appointments",
-            "staffList",
             "registrations",
             "paraclinicalTasks",
             "templates",
@@ -996,39 +972,7 @@ class BffAdminService:
             return
 
         if collection_key == "staffList":
-            first_ck = (await db.execute(select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc()))).scalars().first()
-            first_pk = (await db.execute(select(PhongKham).order_by(PhongKham.id.asc()))).scalars().first()
-            for s in items:
-                cchn = str(s.get("soCCHN") or s.get("maNV") or s.get("id") or "").strip()
-                if not cchn:
-                    continue
-                stmt_bs = select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.chung_chi_hanh_nghe == cchn[:50])
-                existing_bs = (await db.execute(stmt_bs)).scalar_one_or_none()
-                ho_ten = str(s.get("hoTen") or "Bác sĩ Chuyên khoa").strip()[:150]
-                if existing_bs:
-                    existing_bs.trang_thai_giay_phep = str(s.get("trangThaiCCHN") or existing_bs.trang_thai_giay_phep or "ACTIVE")[:30]
-                    existing_bs.ngay_cap = _parse_date_safe(s.get("ngayCapCCHN"), existing_bs.ngay_cap)
-                    existing_bs.ngay_het_han = _parse_date_safe(s.get("ngayHetHanCCHN"), existing_bs.ngay_het_han)
-                    existing_bs.is_active = bool(s.get("trangThai", True))
-                    if existing_bs.nguoi_dung:
-                        existing_bs.nguoi_dung.ho_ten = ho_ten
-                else:
-                    nd = NguoiDung(ho_ten=ho_ten)
-                    db.add(nd)
-                    await db.flush()
-                    db.add(
-                        BacSi(
-                            nguoi_dung_id=nd.id,
-                            chuyen_khoa_id=first_ck.id if first_ck else None,
-                            phong_kham_id=first_pk.id if first_pk else None,
-                            hoc_vi="BS.CKI",
-                            chung_chi_hanh_nghe=cchn[:50],
-                            ngay_cap=_parse_date_safe(s.get("ngayCapCCHN"), date(2020, 1, 15)),
-                            ngay_het_han=_parse_date_safe(s.get("ngayHetHanCCHN"), date(2028, 1, 15)),
-                            trang_thai_giay_phep=str(s.get("trangThaiCCHN") or "ACTIVE")[:30],
-                            is_active=bool(s.get("trangThai", True)),
-                        )
-                    )
+            raise BadRequestException("staffList không còn được lưu qua dữ liệu BFF. Hãy dùng API hồ sơ nhân sự và bác sĩ chuyên dụng.")
 
         elif collection_key == "patients":
             for p in items:
@@ -1454,6 +1398,8 @@ class BffAdminService:
     ) -> dict:
         if collection_key == "inventoryBatches":
             items = []
+        if collection_key == "staffList":
+            raise BadRequestException("staffList không còn được lưu qua dữ liệu BFF. Hãy dùng API hồ sơ nhân sự và bác sĩ chuyên dụng.")
 
         await self._upsert_bff_key(db, collection_key, items, user_id=user_id)
         await self._sync_relational_tables(db, collection_key, items)

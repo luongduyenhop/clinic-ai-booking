@@ -119,15 +119,6 @@ export const detectIcdChapter = (code) => {
 
 export default function CatalogManagementPage() {
 
-    const fileInputRef = useRef(null)
-
-    const handleImportFile = (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        AppToast.success(`Đã nạp file dữ liệu: ${file.name} (${Math.round(file.size / 1024)} KB) thành công!`)
-        e.target.value = ''
-    }
-
     const { loaiDanhMuc = 'chung' } = useParams()
     const dispatch = useDispatch()
     const location = useLocation()
@@ -155,78 +146,51 @@ export default function CatalogManagementPage() {
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState(generalSubTabs[0]?.key || 'goTat')
     const [searchText, setSearchText] = useState('')
-
-    const [isExportModalOpen, setIsExportModalOpen] = useState(false)
     const [exportLoading, setExportLoading] = useState(false)
-    const [exportedServices, setExportedServices] = useState([])
 
-    const handleOpenExportModal = async () => {
-        setIsExportModalOpen(true)
+    const handleExportServicesToExcel = async () => {
         setExportLoading(true)
         try {
             const res = await adminService.exportServicesCatalog()
-            if (res && res.danh_sach_dich_vu) {
-                setExportedServices(res.danh_sach_dich_vu)
-            } else {
-                const currentServices = catalogs.dichVu || []
-                const localExport = currentServices.map((s, idx) => ({
-                    id: s.id || idx + 1,
-                    ma_dich_vu: s.maDV || `DV0${idx + 1}`,
-                    ten_dich_vu: s.tenDV || s.ten || '',
-                    nhom_dich_vu: s.nhomDV || 'Khám bệnh',
-                    don_vi_tinh: s.dvt || 'Lần',
-                    don_gia: Number(s.donGia) || 150000,
-                    vat_percent: s.vat_percent !== undefined ? s.vat_percent : 0,
-                    don_gia_sau_vat: Math.round((Number(s.donGia) || 150000) * (1 + (s.vat_percent || 0) / 100)),
-                    thoi_gian_thuc_hien: s.thoi_gian_thuc_hien || 15,
-                    trang_thai: s.trangThai !== false,
-                    so_luong_da_lam: 12 + idx * 5,
-                    doanh_thu_tich_luy: (Number(s.donGia) || 150000) * (12 + idx * 5),
-                }))
-                setExportedServices(localExport)
-            }
+            const servicesData = res?.danh_sach_dich_vu || catalogs.dichVu || []
+            const headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Thuế VAT (%)', 'Đơn giá sau VAT (VNĐ)', 'Thời gian TH (phút)', 'Số lượt đã làm', 'Doanh thu tích lũy (VNĐ)', 'Trạng thái']
+            const rows = servicesData.map((s, idx) => [
+                s.ma_dich_vu || s.maDV || `DV0${idx + 1}`,
+                s.ten_dich_vu || s.tenDV || s.ten || '',
+                s.nhom_dich_vu || s.nhomDV || 'Khám bệnh',
+                s.don_vi_tinh || s.dvt || 'Lần',
+                Number(s.don_gia || s.donGia) || 150000,
+                Number(s.vat_percent !== undefined ? s.vat_percent : 0),
+                Number(s.don_gia_sau_vat || (Number(s.donGia || s.don_gia || 150000) * (1 + (s.vat_percent || 0) / 100))),
+                Number(s.thoi_gian_thuc_hien) || 15,
+                Number(s.so_luong_da_lam || 0),
+                Number(s.doanh_thu_tich_luy || 0),
+                s.trang_thai !== false && s.trangThai !== false ? 'Đang áp dụng' : 'Tạm ngưng',
+            ])
+            const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
+            const configuredClinicAddress = [
+                settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+                settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
+                settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
+            ].filter(Boolean).join(' | ')
+
+            exportToExcel({
+                filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                sheetName: 'Bảng Giá Dịch Vụ',
+                title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
+                subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
+                clinicName: configuredClinicName,
+                clinicAddress: configuredClinicAddress,
+                headers,
+                rows,
+                signOff: true,
+            })
+            AppToast.success('Đã xuất thành công Bảng giá Dịch vụ Kỹ thuật Chuẩn y tế (Excel)!')
         } catch {
             AppToast.error('Không thể kết nối danh mục kỹ thuật y tế!')
         } finally {
             setExportLoading(false)
         }
-    }
-
-    const handleDownloadServicesCsv = () => {
-        if (!exportedServices.length) return
-        const headers = ['Mã DV', 'Tên dịch vụ kỹ thuật', 'Nhóm dịch vụ', 'Đơn vị tính', 'Đơn giá niêm yết (VNĐ)', 'Thuế VAT (%)', 'Đơn giá sau VAT (VNĐ)', 'Thời gian TH (phút)', 'Số lượt đã làm', 'Doanh thu tích lũy (VNĐ)', 'Trạng thái']
-        const rows = exportedServices.map((s) => [
-            s.ma_dich_vu || s.maDV || '',
-            s.ten_dich_vu || s.tenDV || s.ten || '',
-            s.nhom_dich_vu || s.nhomDV || '',
-            s.don_vi_tinh || s.dvt || 'Lần',
-            Number(s.don_gia) || 0,
-            Number(s.vat_percent) || 0,
-            Number(s.don_gia_sau_vat) || 0,
-            Number(s.thoi_gian_thuc_hien) || 15,
-            Number(s.so_luong_da_lam) || 0,
-            Number(s.doanh_thu_tich_luy) || 0,
-            s.trang_thai ? 'Đang áp dụng' : 'Tạm ngưng',
-        ])
-        const configuredClinicName = (settings.tenPhongKham || settings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
-        const configuredClinicAddress = [
-            settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-            settings.dienThoai ? `Hotline: ${settings.dienThoai}` : 'Hotline: 1900 2115',
-            settings.giayPhepHoatDong ? `GPHĐ: ${settings.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
-        ].filter(Boolean).join(' | ')
-
-        exportToExcel({
-            filename: `Bang_gia_dich_vu_ky_thuat_chuan_y_te_${new Date().toISOString().slice(0, 10)}.xlsx`,
-            sheetName: 'Bảng Giá Dịch Vụ',
-            title: 'BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA',
-            subtitle: `Ban hành theo quy định Bộ Y Tế • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Số lượng: ${rows.length} dịch vụ`,
-            clinicName: configuredClinicName,
-            clinicAddress: configuredClinicAddress,
-            headers,
-            rows,
-            signOff: true,
-        })
-        AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (Excel)!')
     }
 
     const getCatalogSubKeyByRoute = (routeKey, generalTab) => {
@@ -256,12 +220,24 @@ export default function CatalogManagementPage() {
 
     const [form, setForm] = useState(() => listData[0] || {})
     const [departmentsList, setDepartmentsList] = useState([])
+    const [doctorsList, setDoctorsList] = useState([])
+    const [roomsList, setRoomsList] = useState([])
     const [dvtScopeFilter, setDvtScopeFilter] = useState('ALL')
     const staffList = clinicData?.staffList || []
 
     const doctorsForDepartment = useMemo(() => {
-        // 1. Chỉ lấy những nhân sự chuyên môn bác sĩ (loại trừ Lễ tân, Thu ngân, Hành chính, Điều dưỡng...)
-        const onlyDoctors = staffList.filter((s) => {
+        const rawDoctorSources = [
+            ...doctorsList.map((d) => ({
+                id: d.id,
+                hoTen: d.ho_ten || d.hoTen,
+                vaiTro: 'Bác sĩ khám bệnh',
+                chuyenKhoa: d.ten_chuyen_khoa || d.chuyenKhoa || '',
+                is_active: d.is_active,
+            })),
+            ...staffList,
+        ]
+
+        const onlyDoctors = rawDoctorSources.filter((s) => {
             const role = String(s.vaiTro || s.role || '').toLowerCase()
             const name = String(s.hoTen || '').toLowerCase()
             const isNonDoctor =
@@ -284,7 +260,6 @@ export default function CatalogManagementPage() {
             )
         })
 
-        // 2. Chuẩn hóa tên và khử trùng lặp
         const uniqueDoctorsMap = new Map()
         for (const doc of onlyDoctors) {
             const rawName = (doc.hoTen || doc.name || '').trim()
@@ -297,12 +272,10 @@ export default function CatalogManagementPage() {
         }
         const cleanedDoctors = Array.from(uniqueDoctorsMap.values())
 
-        // 3. NẾU CHƯA CHỌN CHUYÊN KHOA -> KHÔNG XỔ BÁC SĨ RA!
         if (!form.chuyenKhoa || !String(form.chuyenKhoa).trim()) {
             return []
         }
 
-        // 4. Lọc chặt chẽ theo chuyên khoa đã chọn
         const norm = (str) =>
             String(str || '')
                 .normalize('NFD')
@@ -314,8 +287,8 @@ export default function CatalogManagementPage() {
 
         const selectedDept = norm(form.chuyenKhoa)
 
-        const matched = cleanedDoctors.filter((doc) => {
-            const docDept = norm(doc.chuyenKhoa)
+        return cleanedDoctors.filter((doc) => {
+            const docDept = norm(doc.chuyenKhoa || doc.ten_chuyen_khoa)
             if (!docDept) return false
             return (
                 docDept.includes(selectedDept) ||
@@ -332,12 +305,8 @@ export default function CatalogManagementPage() {
                 (selectedDept.includes('chan doan hinh anh') && (docDept.includes('hinh anh') || docDept.includes('x-quang') || docDept.includes('sieu am')))
             )
         })
+    }, [staffList, doctorsList, form.chuyenKhoa])
 
-        // TUYỆT ĐỐI KHÔNG FALLBACK RA allDoctors!
-        return matched
-    }, [staffList, form.chuyenKhoa])
-
-    // Bác sĩ đang được gán cho buồng khám nếu có trong danh sách chuyên khoa
     const matchedDoctorInList = useMemo(() => {
         if (!form.bacSiPhuTrach) return null
         const targetKey = normDocKey(form.bacSiPhuTrach)
@@ -348,13 +317,12 @@ export default function CatalogManagementPage() {
         })
     }, [form.bacSiPhuTrach, doctorsForDepartment])
 
-    // Danh sách chuyên khoa ĐANG HOẠT ĐỘNG (chỉ hiển thị các khoa có is_active !== false và trangThai !== false)
     const activeSpecialtyList = useMemo(() => {
         const source =
-            catalogs.chuyenKhoa && catalogs.chuyenKhoa.length > 0
-                ? catalogs.chuyenKhoa
-                : departmentsList && departmentsList.length > 0
+            departmentsList && departmentsList.length > 0
                 ? departmentsList
+                : catalogs.chuyenKhoa && catalogs.chuyenKhoa.length > 0
+                ? catalogs.chuyenKhoa
                 : (masterOptions.specialties || [
                       'Khoa Nội tổng quát',
                       'Khoa Ngoại',
@@ -369,7 +337,15 @@ export default function CatalogManagementPage() {
         })
     }, [catalogs.chuyenKhoa, departmentsList, masterOptions.specialties])
 
-    // Danh sách Đơn vị tính (DVT) đồng bộ tự động từ catalogs.donViTinh cho Thuốc và Dịch vụ
+    const availableRooms = useMemo(() => {
+        const source = roomsList.length > 0 ? roomsList : catalogs.khoaPhong || []
+        return source.map((r) => ({
+            id: r.id,
+            maPhong: r.ma_phong || r.maPhong || r.ma || '',
+            tenPhong: r.ten_phong || r.tenPhong || r.ten || '',
+        }))
+    }, [roomsList, catalogs.khoaPhong])
+
     const donViTinhList = catalogs.donViTinh || []
 
     const medicineUnitOptions = useMemo(() => {
@@ -407,6 +383,16 @@ export default function CatalogManagementPage() {
         adminService.getDepartmentsAdmin().then((list) => {
             if (isMounted && Array.isArray(list) && list.length > 0) {
                 setDepartmentsList(list)
+            }
+        })
+        adminService.getDoctorsAdmin().then((list) => {
+            if (isMounted && Array.isArray(list) && list.length > 0) {
+                setDoctorsList(list)
+            }
+        })
+        adminService.getRoomsAdmin().then((list) => {
+            if (isMounted && Array.isArray(list) && list.length > 0) {
+                setRoomsList(list)
             }
         })
         return () => {
@@ -689,7 +675,6 @@ export default function CatalogManagementPage() {
                 return [...prev, { ...sanitizedForm, ten_chuyen_khoa: sanitizedForm.tenChuyenKhoa }]
             })
         }
-        // Dọn sạch form sau khi lưu sẵn sàng cho bản ghi tiếp theo (không hiện toast pop-up làm phiền)
         handleNewItem(updated)
     }
 
@@ -935,21 +920,12 @@ export default function CatalogManagementPage() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="medpro-btn-outline !py-1 !px-3 text-xs"
-                    >
-                        <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
-                        <span>Import Excel</span>
-                    </button>
-                    <button
-                        type="button"
                         onClick={handleExportCatalog}
                         className="medpro-btn-outline !py-1 !px-3 text-xs"
                     >
                         <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
                         <span>Xuất Excel</span>
                     </button>
-                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.json" className="hidden" onChange={handleImportFile} />
                 </div>
             </div>
 
@@ -1005,11 +981,12 @@ export default function CatalogManagementPage() {
                     </div>
                     <button
                         type="button"
-                        onClick={handleOpenExportModal}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#00B5F1] hover:bg-[#009cd1] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        onClick={handleExportServicesToExcel}
+                        disabled={exportLoading}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#00B5F1] hover:bg-[#009cd1] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                         <DownloadSimple size={14} weight="bold" />
-                        <span>Xuất Bảng giá Dịch vụ Chuẩn y tế (Excel/CSV)</span>
+                        <span>{exportLoading ? 'Đang xuất dữ liệu…' : 'Xuất Bảng giá Dịch vụ Chuẩn y tế (Excel)'}</span>
                     </button>
                 </div>
             )}
@@ -1726,13 +1703,22 @@ export default function CatalogManagementPage() {
                                 />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="medpro-label">Phòng thực hiện mặc định</label>
-                                <input
-                                    type="text"
+                                <label className="medpro-label">Buồng / Phòng thực hiện kỹ thuật</label>
+                                <select
                                     value={form.phongTH || ''}
                                     onChange={(e) => setForm({ ...form, phongTH: e.target.value })}
-                                    className="medpro-input"
-                                />
+                                    className="medpro-input bg-white font-medium"
+                                >
+                                    <option value="">-- Chọn buồng thực hiện kỹ thuật --</option>
+                                    {availableRooms.map((rm) => (
+                                        <option key={rm.maPhong || rm.id} value={`${rm.maPhong} - ${rm.tenPhong}`}>
+                                            {rm.maPhong} - {rm.tenPhong}
+                                        </option>
+                                    ))}
+                                    {form.phongTH && !availableRooms.some((rm) => `${rm.maPhong} - ${rm.tenPhong}` === form.phongTH) && (
+                                        <option value={form.phongTH}>{form.phongTH}</option>
+                                    )}
+                                </select>
                             </div>
                         </div>
                     )}
@@ -1840,120 +1826,6 @@ export default function CatalogManagementPage() {
 
                 </div>
             </div>
-
-            
-            {isExportModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-[#F8FAFC]">
-                            <div className="flex items-center gap-3">
-                                <span className="w-9 h-9 rounded-xl bg-[#003553] text-[#00B5F1] flex items-center justify-center">
-                                    <DownloadSimple size={20} weight="bold" />
-                                </span>
-                                <div>
-                                    <h3 className="font-display font-extrabold text-sm text-[#003553]">
-                                        BẢNG GIÁ DỊCH VỤ KỸ THUẬT & CẬN LÂM SÀNG CHUẨN HÓA
-                                    </h3>
-                                    <p className="text-xs text-slate-500">
-                                        Dữ liệu xuất tự động từ API Backend `/api/v1/admin/services/export` chuẩn hóa theo Thông tư Bộ Y Tế
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleDownloadServicesCsv}
-                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                                >
-                                    <DownloadSimple size={14} weight="bold" />
-                                    <span>Tải file Excel danh mục</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsExportModalOpen(false)}
-                                    className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer font-bold"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-4 overflow-y-auto flex-1">
-                            {exportLoading ? (
-                                <div className="py-12 text-center text-slate-500 text-xs">
-                                    Đang tổng hợp danh mục kỹ thuật và doanh thu tích lũy...
-                                </div>
-                            ) : (
-                                <table className="medpro-table text-xs">
-                                    <thead>
-                                        <tr>
-                                            <th>Mã DV</th>
-                                            <th>Tên dịch vụ kỹ thuật</th>
-                                            <th>Nhóm</th>
-                                            <th>Đơn vị tính</th>
-                                            <th className="text-right">Đơn giá niêm yết</th>
-                                            <th className="text-center">Thuế VAT</th>
-                                            <th className="text-right">Giá sau VAT</th>
-                                            <th className="text-center">Thời gian (phút)</th>
-                                            <th className="text-center">Số lượt làm</th>
-                                            <th className="text-right">Doanh thu</th>
-                                            <th className="text-center">Trạng thái</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {exportedServices.map((s, idx) => (
-                                            <tr key={s.id || idx}>
-                                                <td className="font-mono font-bold text-[#003553]">{s.ma_dich_vu}</td>
-                                                <td className="font-bold text-[#12263F]">{s.ten_dich_vu}</td>
-                                                <td className="text-slate-500">{s.nhom_dich_vu || 'Khám bệnh'}</td>
-                                                <td>
-                                                    <span className="px-2 py-0.5 rounded-md bg-sky-50 text-[#00B5F1] font-bold border border-sky-100">
-                                                        {s.don_vi_tinh || 'Lần'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-right font-mono font-bold text-slate-700">
-                                                    {Number(s.don_gia).toLocaleString('vi-VN')} đ
-                                                </td>
-                                                <td className="text-center font-bold text-slate-600">
-                                                    {s.vat_percent || 0}%
-                                                </td>
-                                                <td className="text-right font-mono font-extrabold text-[#003553]">
-                                                    {Number(s.don_gia_sau_vat || s.don_gia).toLocaleString('vi-VN')} đ
-                                                </td>
-                                                <td className="text-center font-semibold text-slate-600">
-                                                    {s.thoi_gian_thuc_hien || 15}p
-                                                </td>
-                                                <td className="text-center font-bold text-indigo-600">
-                                                    {s.so_luong_da_lam || 0}
-                                                </td>
-                                                <td className="text-right font-mono font-extrabold text-emerald-600">
-                                                    {Number(s.doanh_thu_tich_luy || 0).toLocaleString('vi-VN')} đ
-                                                </td>
-                                                <td className="text-center">
-                                                    <StatusBadge status={s.trang_thai ? 'Áp dụng' : 'Tạm ngưng'} compact />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-
-                        <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50 text-xs">
-                            <span className="text-slate-500">
-                                Tổng số dịch vụ: <strong>{exportedServices.length}</strong> &bull; Tổng doanh thu tích lũy: <strong className="text-emerald-600">{exportedServices.reduce((acc, cur) => acc + (Number(cur.doanh_thu_tich_luy) || 0), 0).toLocaleString('vi-VN')} đ</strong>
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => setIsExportModalOpen(false)}
-                                className="medpro-btn-outline text-xs !py-1"
-                            >
-                                Đóng
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

@@ -1,3 +1,4 @@
+from datetime import date
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, func
@@ -190,7 +191,8 @@ async def test_legacy_departments_are_deactivated(db_session):
 async def test_legacy_shifts_backfill_missing_room(db_session):
     await seed_database(db_session)
 
-    stmt_shift = select(LichLamViec).limit(1)
+    today = date.today()
+    stmt_shift = select(LichLamViec).where(LichLamViec.ngay_lam_viec == today).limit(1)
     shift = (await db_session.execute(stmt_shift)).scalar_one()
     doctor_id = shift.bac_si_id
 
@@ -218,12 +220,17 @@ async def test_production_environment_prevents_default_insecure_admin(db_session
         settings.DEBUG = False
         settings.INITIAL_ADMIN_PASSWORD = None
 
-        await seed_database(db_session)
-
         stmt_admin = select(TaiKhoan).where(
             TaiKhoan.email == "admin@clinic.com",
             TaiKhoan.vai_tro == VaiTroEnum.ADMIN.value,
         )
+        existing_admin = (await db_session.execute(stmt_admin)).scalar_one_or_none()
+        if existing_admin:
+            await db_session.delete(existing_admin)
+            await db_session.flush()
+
+        await seed_database(db_session)
+
         admin_account = (await db_session.execute(stmt_admin)).scalar_one_or_none()
         assert admin_account is None
     finally:

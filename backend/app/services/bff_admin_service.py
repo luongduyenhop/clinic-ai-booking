@@ -927,7 +927,12 @@ class BffAdminService:
             if not lines:
                 lines = [{"id": f"VI-{hd.id}-1", "tenKhoan": hd.ghi_chu or "Thu tiền viện phí", "soTien": amount_int, "ghiChu": "Tại quầy"}]
             pay_method_raw = str(hd.phuong_thuc_thanh_toan or "").lower()
-            hinh_thuc = "Chuyển khoản (VietQR)" if "chuyen" in pay_method_raw or "qr" in pay_method_raw else "Tiền mặt"
+            if any(k in pay_method_raw for k in ["chuyen", "chuyển", "qr", "bank", "vietqr", "transfer"]):
+                hinh_thuc = "Chuyển khoản (VietQR)"
+            elif any(k in pay_method_raw for k in ["pos", "the", "thẻ", "card"]):
+                hinh_thuc = "Thẻ POS"
+            else:
+                hinh_thuc = "Tiền mặt"
             voucher_id = ex.get("id") if ex and ex.get("id") else short_code
             voucher_code = ex.get("maPhieu") if ex and ex.get("maPhieu") else short_code
             item = {

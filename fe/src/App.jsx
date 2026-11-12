@@ -161,6 +161,8 @@ function App() {
 
                         <Route path="quan-ly-mau" element={<Navigate to="/admin/quan-ly-mau/mau-in" replace />} />
                         <Route path="quan-ly-mau/:loaiMau" element={<TemplateManagementPage />} />
+                        <Route path="bieu-mau" element={<Navigate to="/admin/quan-ly-mau/mau-in" replace />} />
+                        <Route path="bieu-mau/:loaiMau" element={<TemplateManagementPage />} />
 
                         <Route path="tuan-thu" element={<ComplianceAndAuditPage />} />
                         <Route path="lich-su-hoat-dong" element={<ComplianceAndAuditPage />} />

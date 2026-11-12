@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
@@ -76,6 +76,12 @@ export default function TemplateManagementPage() {
                 trangThai: true,
             }
     )
+
+    useEffect(() => {
+        if (filteredTemplates.length > 0 && (!form.id || !filteredTemplates.some((t) => t.id === form.id))) {
+            setForm(filteredTemplates[0])
+        }
+    }, [loaiMau, filteredTemplates])
 
     const handleSwitchType = (typeKey) => {
         const listForType = templates.filter((t) => t.loaiMau === typeKey)

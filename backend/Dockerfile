@@ -49,10 +49,11 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 # Sao chép mã nguồn ứng dụng và phân quyền cho appuser
 COPY --chown=appuser:appgroup . /app
+RUN install -d -o appuser -g appgroup -m 0700 /var/lib/clinic /var/lib/clinic/cls
 
 USER appuser
 
 EXPOSE 8000
 
 # Chạy FastAPI application với Uvicorn server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

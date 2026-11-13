@@ -49,6 +49,7 @@ function generateDoseText(sang, trua, chieu, toi, dvt = 'viên') {
 }
 
 export default function StepPrescription({ formik, encounter, locked, onOpenRxModal }) {
+    const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
     const dispatch = useDispatch()
     const { values, setFieldValue, handleChange } = formik
     const rows = values.danh_sach_thuoc || []
@@ -384,7 +385,9 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <span className="text-[10px] bg-blue-200/60 px-1 rounded font-mono">F8</span>
                             </button>
                         )}
-                        {!isSigned ? (
+                        {demoMode ? (
+                            <span className="text-xs text-slate-600">Bản demo lưu đơn thuốc nháp.</span>
+                        ) : !isSigned ? (
                             <button
                                 type="button"
                                 disabled={rows.length === 0 || signingLoading || isReadOnly}

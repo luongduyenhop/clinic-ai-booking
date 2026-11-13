@@ -7,7 +7,7 @@ Alembic có thể so sánh schema thật với schema trong code (autogenerate).
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -37,7 +37,7 @@ target_metadata = Base.metadata
 from app.core.config import settings        # noqa: E402
 
 # Sử dụng async_database_url (postgresql+asyncpg) vì env.py dùng async_engine_from_config
-config.set_main_option("sqlalchemy.url", settings.async_database_url)
+config.set_main_option("sqlalchemy.url", settings.async_database_url.replace("%", "%%"))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -69,6 +69,9 @@ def do_run_migrations(connection: Connection) -> None:
         compare_type=True,
     )
     with context.begin_transaction():
+        # Alembic 1.13 defaults to VARCHAR(32), which is shorter than some existing revisions.
+        connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(128) PRIMARY KEY)"))
+        connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)"))
         context.run_migrations()
 
 
@@ -87,7 +90,11 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Entry point cho migration online - được gọi bởi lệnh `alembic upgrade head`."""
-    asyncio.run(run_async_migrations())
+    connection = config.attributes.get("connection")
+    if connection is None:
+        asyncio.run(run_async_migrations())
+    else:
+        do_run_migrations(connection)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

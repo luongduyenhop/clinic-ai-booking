@@ -1,88 +1,105 @@
+x-backend: &backend
+  image: ${COMPOSE_PROJECT_NAME:-clinic-demo}-backend:demo
+  build: ./backend
+  security_opt:
+    - no-new-privileges:true
+  logging: &logging
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-backend-env: &backend-env
+  ENVIRONMENT: demo
+  DEBUG: "false"
+  ENABLE_DEMO_SEED: "true"
+  ENABLE_OUTBOUND_NOTIFICATIONS: "false"
+  POSTGRES_SERVER: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-clinic_demo}
+  POSTGRES_USER: ${POSTGRES_USER:-clinic_demo}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.demo}
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env.demo}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:?Set PAYMENT_WEBHOOK_SECRET in .env.demo}
+  CLS_UPLOAD_DIR: /var/lib/clinic/cls
+
 services:
-  # ==============================================================================
-  # 1. Database Tier: PostgreSQL 15 (OpenMRS Concept Dictionary & BCE Entity Schema)
-  # ==============================================================================
   db:
     image: postgres:15-alpine
-    container_name: clinic_postgres
     restart: unless-stopped
+    logging: *logging
     environment:
-      POSTGRES_USER: clinic_user
-      POSTGRES_PASSWORD: clinic_password
-      POSTGRES_DB: clinic_db
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_demo}
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.demo}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clinic_user -d clinic_db"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
-      - clinic_network
+      - data
 
-  # ==============================================================================
-  # 2. Application Tier: FastAPI Backend (Multi-stage Build: builder -> runner)
-  # ==============================================================================
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: clinic_backend
-    restart: unless-stopped
+  bootstrap:
+    <<: *backend
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://clinic_user:clinic_password@db:5432/clinic_db
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=5432
-      - DEBUG=True
-      - SECRET_KEY=super_secret_clinic_jwt_key_project_1_change_in_production_2026
-      - ACCESS_TOKEN_EXPIRE_MINUTES=120
-      - REFRESH_TOKEN_EXPIRE_DAYS=7
-    ports:
-      - "8000:8000"
+      <<: *backend-env
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env.demo}
+    command:
+      - /bin/sh
+      - -ec
+      - python -m scripts.run_migrations && python -m scripts.seed_demo
+    networks:
+      - data
+
+  backend:
+    <<: *backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    environment: *backend-env
     volumes:
-      - ./backend:/app
+      - cls_uploads:/var/lib/clinic
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 6
       start_period: 15s
     networks:
-      - clinic_network
+      - app
+      - data
 
-  # ==============================================================================
-  # 3. Presentation Tier: Next.js Frontend (Multi-stage Build: deps -> builder -> runner)
-  # ==============================================================================
   frontend:
     build:
       context: ./fe
-      dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
-        - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
-    container_name: clinic_frontend
+        VITE_DEMO_MODE: "true"
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${DEMO_PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
     networks:
-      - clinic_network
+      - app
 
 volumes:
   postgres_data:
-    driver: local
+  cls_uploads:
 
 networks:
-  clinic_network:
-    driver: bridge
+  app:
+  data:
+    internal: true

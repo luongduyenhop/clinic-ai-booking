@@ -16,8 +16,10 @@ class EmailService:
         expires_minutes: int = 5
     ) -> None:
         """Gửi mã OTP xác thực đăng ký tài khoản tới email người dùng."""
+        if not settings.ENABLE_OUTBOUND_NOTIFICATIONS:
+            return
         if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-            logger.warning("⚠️ [SMTP] Cấu hình SMTP chưa đầy đủ. Bỏ qua gửi email thực tế (OTP log ở console).")
+            logger.warning("Cấu hình SMTP chưa đầy đủ.")
             return
 
         message = EmailMessage()
@@ -50,10 +52,10 @@ Trân trọng,
                 password=settings.SMTP_PASSWORD,
                 start_tls=settings.SMTP_TLS
             )
-            logger.info(f"✉️ [SMTP SENT] Đã gửi mã OTP thành công tới: {recipient_email}")
-        except Exception as exc:
-            logger.error(f"❌ [SMTP ERROR] Lỗi khi gửi email OTP tới {recipient_email}: {exc}")
-            raise exc
+            logger.info("Đã gửi email OTP.")
+        except Exception:
+            logger.error("Gửi email OTP qua SMTP thất bại.")
+            raise
 
 
 email_service = EmailService()

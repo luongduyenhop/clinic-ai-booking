@@ -1,14 +1,13 @@
-import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
+from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.clinical import (
     EncounterCreateRequest,
     EncounterCompleteRequest,
@@ -49,6 +48,24 @@ from app.services.prescription_fsm_service import prescription_fsm_service
 from app.services.queue_service import queue_service
 
 router = APIRouter(prefix="/clinical", tags=["5. Khám Lâm Sàng & Bệnh Án Điện Tử (Package D)"])
+clinical_staff = require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])
+
+
+def require_live_clinical_integration() -> None:
+    if settings.is_demo:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Ký số và liên thông đơn thuốc chưa khả dụng trong bản demo.")
+
+
+class WorkspaceTicketUpdate(BaseModel):
+    ticket_id: int = Field(gt=0)
+    trang_thai: str = Field(max_length=30)
+    ghi_chu: str | None = Field(None, max_length=2000)
+    so_lan_goi: int | None = Field(None, ge=0, le=1000)
+
+
+class WorkspaceStateUpdate(BaseModel):
+    queue: list[WorkspaceTicketUpdate] = Field(default_factory=list, max_length=1000)
+    encounters: dict[str, dict] = Field(default_factory=dict, max_length=1000)
 
 
 @router.post(
@@ -277,6 +294,7 @@ async def get_prescription_by_id(
     db: AsyncSession = Depends(get_db)
 ):
     rx = await prescription_fsm_service.get_prescription_or_404(db, prescription_id)
+    await clinical_service.get_authorized_encounter(rx.luot_kham_id, current_user, db)
     result = clinical_service._to_prescription_response(rx)
     return ResponseEnvelope.success_response(
         data=result,
@@ -335,6 +353,8 @@ async def sign_prescription(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    require_live_clinical_integration()
+    await clinical_service.assert_prescription_edit_access(prescription_id, current_user, db)
     rx = await prescription_fsm_service.sign_prescription_db(
         db=db,
         prescription_id=prescription_id,
@@ -358,6 +378,8 @@ async def issue_prescription(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    require_live_clinical_integration()
+    await clinical_service.assert_prescription_edit_access(prescription_id, current_user, db)
     rx = await prescription_fsm_service.issue_prescription_db(db, prescription_id, current_user)
     return ResponseEnvelope.success_response(
         data=clinical_service._to_prescription_response(rx),
@@ -377,6 +399,8 @@ async def submit_gateway(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    require_live_clinical_integration()
+    await clinical_service.assert_prescription_edit_access(prescription_id, current_user, db)
     key = idempotency_key_header or (payload.idempotency_key if payload else None)
     facility_code = payload.facility_code if payload else None
     practitioner_code = payload.practitioner_code if payload else None
@@ -406,6 +430,8 @@ async def retry_gateway(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    require_live_clinical_integration()
+    await clinical_service.assert_prescription_edit_access(prescription_id, current_user, db)
     key = idempotency_key_header or (payload.idempotency_key if payload else None)
     result = await national_gateway_service.retry_gateway(
         db=db,
@@ -665,9 +691,6 @@ async def copy_old_prescription(
     )
 
 
-from app.core.dependencies import get_optional_current_user
-
-
 @router.get(
     "/workspace-state",
     response_model=ResponseEnvelope[Optional[dict]],
@@ -675,7 +698,7 @@ from app.core.dependencies import get_optional_current_user
 )
 async def get_clinical_workspace_state(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ (tùy chọn)"),
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    current_user: TaiKhoan = Depends(clinical_staff),
     db: AsyncSession = Depends(get_db),
 ):
     data = await clinical_service.get_or_sync_workspace_state(
@@ -695,31 +718,16 @@ async def get_clinical_workspace_state(
     summary="Lưu bền vững trạng thái Bàn khám, Sinh hiệu, Khám chuyên khoa vào PostgreSQL"
 )
 async def save_clinical_workspace_state(
-    payload: dict,
-    current_user: Optional[TaiKhoan] = Depends(get_optional_current_user),
+    payload: WorkspaceStateUpdate,
+    current_user: TaiKhoan = Depends(clinical_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    try:
-        user = (
-            current_user
-            if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int)
-            else None
-        )
-        result = await clinical_service.sync_workspace_to_postgres(
-            db=db,
-            payload=payload,
-            current_user=user,
-        )
-        return ResponseEnvelope.success_response(
-            data=result,
-            message="Đã lưu dữ liệu lâm sàng và cận lâm sàng vào PostgreSQL thành công!",
-        )
-    except Exception as e:
-        logger.error(f"Error syncing clinical workspace state: {e}", exc_info=True)
-        return ResponseEnvelope.error_response(
-            code=500,
-            message="Lỗi hệ thống khi đồng bộ dữ liệu lâm sàng. Vui lòng liên hệ quản trị viên.",
-        )
+    result = await clinical_service.sync_workspace_to_postgres(
+        db=db,
+        payload=payload.model_dump(),
+        current_user=current_user,
+    )
+    return ResponseEnvelope.success_response(data=result, message="Đã lưu dữ liệu bàn khám.")
 
 
 @router.get(
@@ -785,6 +793,7 @@ async def seal_and_sign_encounter_endpoint(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    require_live_clinical_integration()
     result = await clinical_service.seal_and_sign_encounter(encounter_id, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,

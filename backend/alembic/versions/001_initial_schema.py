@@ -102,7 +102,7 @@ def upgrade() -> None:
         sa.Column("nguoi_dung_id", sa.Integer(), sa.ForeignKey("nguoi_dung.id", ondelete="CASCADE"), nullable=False, unique=True),
         sa.Column("email", sa.String(150), nullable=False, unique=True),
         sa.Column("mat_khau_hash", sa.String(255), nullable=False),
-        sa.Column("vai_tro", sa.Enum("benh_nhan", "bac_si", "admin", name="vai_tro_enum"), nullable=False),
+        sa.Column("vai_tro", vai_tro_enum, nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("otp_code", sa.String(6), nullable=True),
         sa.Column("otp_expires_at", sa.DateTime(timezone=True), nullable=True),
@@ -151,7 +151,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("bac_si_id", sa.Integer(), sa.ForeignKey("bac_si.id", ondelete="CASCADE"), nullable=False),
         sa.Column("ngay_lam_viec", sa.Date(), nullable=False),
-        sa.Column("ca_lam_viec", sa.Enum("sang", "chieu", name="ca_lam_viec_enum"), nullable=False),
+        sa.Column("ca_lam_viec", ca_lam_viec_enum, nullable=False),
         sa.Column("gio_bat_dau", sa.Time(), nullable=False),
         sa.Column("gio_ket_thuc", sa.Time(), nullable=False),
         sa.Column("gioi_han_ca_kham", sa.Integer(), server_default="8", nullable=False),
@@ -173,11 +173,7 @@ def upgrade() -> None:
         sa.Column("so_thu_tu", sa.Integer(), nullable=True),
         sa.Column("ly_do_kham", sa.Text(), nullable=True),
         sa.Column("trieu_chung_ban_dau", sa.Text(), nullable=True),
-        sa.Column("trang_thai", sa.Enum(
-            "cho_xac_nhan", "da_xac_nhan", "da_tiep_nhan",
-            "dang_kham", "da_kham", "da_huy", "tu_dong_huy", "no_show",
-            name="trang_thai_lich_enum"
-        ), server_default="cho_xac_nhan", nullable=False),
+        sa.Column("trang_thai", trang_thai_lich_enum, server_default="cho_xac_nhan", nullable=False),
         sa.Column("thoi_luong_phut", sa.Integer(), server_default="30", nullable=False),
         sa.Column("is_reconfirmed_24h", sa.Boolean(), server_default="false", nullable=False),
         sa.Column("thoi_diem_dat", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),
@@ -261,7 +257,7 @@ def upgrade() -> None:
         sa.Column("khai_niem_id", sa.Integer(), sa.ForeignKey("khai_niem.id"), nullable=True),
         sa.Column("ma_icd10", sa.String(10), nullable=False),
         sa.Column("ten_benh_chan_doan", sa.String(200), nullable=False),
-        sa.Column("loai_chan_doan", sa.Enum("chinh", "phu", name="loai_chan_doan_enum"), server_default="chinh", nullable=False),
+        sa.Column("loai_chan_doan", loai_chan_doan_enum, server_default="chinh", nullable=False),
         sa.Column("ghi_chu", sa.Text(), nullable=True),
     )
 
@@ -317,11 +313,8 @@ def upgrade() -> None:
         sa.Column("benh_nhan_id", sa.Integer(), sa.ForeignKey("benh_nhan.id", ondelete="CASCADE"), nullable=False),
         sa.Column("bac_si_id", sa.Integer(), sa.ForeignKey("bac_si.id"), nullable=False),
         sa.Column("ngay_mong_muon", sa.Date(), nullable=False),
-        sa.Column("ca_lam_viec", sa.Enum("sang", "chieu", name="ca_lam_viec_enum"), nullable=True),
-        sa.Column("trang_thai", sa.Enum(
-            "dang_cho", "da_thong_bao", "da_nhan_slot", "da_bo_qua", "da_huy",
-            name="trang_thai_waitlist_enum"
-        ), server_default="dang_cho", nullable=False),
+        sa.Column("ca_lam_viec", ca_lam_viec_enum, nullable=True),
+        sa.Column("trang_thai", trang_thai_waitlist_enum, server_default="dang_cho", nullable=False),
         sa.Column("slot_duoc_giu", sa.DateTime(timezone=True), nullable=True),
         sa.Column("han_xac_nhan", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("NOW()"), nullable=False),

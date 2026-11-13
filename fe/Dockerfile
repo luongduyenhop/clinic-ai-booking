@@ -1,7 +1,7 @@
 # ==============================================================================
 # STAGE 1: Builder - Biên dịch production bundle React + Vite
 # ==============================================================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -13,9 +13,10 @@ RUN npm ci
 COPY . .
 
 # Cấu hình biến môi trường build-time
-# VITE_API_URL="" kích hoạt tương đối qua Nginx reverse-proxy (không dính CORS)
+# URL tương đối giúp trình duyệt gửi API qua cùng tên miền với giao diện.
+ARG VITE_DEMO_MODE=false
 ENV VITE_API_URL="" \
-    VITE_USE_MOCK="false" \
+    VITE_DEMO_MODE=${VITE_DEMO_MODE} \
     NODE_ENV=production
 
 RUN npm run build
@@ -23,10 +24,7 @@ RUN npm run build
 # ==============================================================================
 # STAGE 2: Runner - Nginx Web Server siêu nhẹ phục vụ Static Files & Reverse Proxy
 # ==============================================================================
-FROM nginx:1.27-alpine AS runner
-
-# Xóa trang mặc định của Nginx
-RUN rm -rf /usr/share/nginx/html/*
+FROM nginxinc/nginx-unprivileged:stable-alpine AS runner
 
 # Sao chép cấu hình Nginx tối ưu cho SPA và reverse proxy API
 COPY nginx.conf /etc/nginx/conf.d/default.conf

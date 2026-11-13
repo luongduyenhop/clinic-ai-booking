@@ -59,7 +59,7 @@ export default function PatientDashboardPage() {
         if (found.length) {
             AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin!`)
         } else {
-            AppToast.warning('Không tìm thấy mã hồ sơ nào khớp với SĐT / CCCD vừa nhập.')
+            AppToast.warning('Thông tin vừa nhập chưa khớp với hồ sơ của bạn.')
         }
     }
 
@@ -262,14 +262,13 @@ export default function PatientDashboardPage() {
                             </h2>
                         </div>
                         <p className="text-xs text-slate-500 mb-3">
-                            Nhập Số điện thoại, CCCD hoặc Họ tên để tra cứu nhanh Mã định danh Bệnh nhân (BN-xxxxx) phục
-                            vụ đặt khám và tra cứu kết quả.
+                            Nhập đầy đủ số điện thoại, CCCD hoặc họ tên trên hồ sơ của bạn để xem mã bệnh nhân.
                         </p>
 
                         <form onSubmit={handleFindLostCode} className="flex gap-2 mb-3">
                             <input
                                 type="text"
-                                placeholder="Nhập SĐT (VD: 0901234567) hoặc CCCD / Họ tên..."
+                                placeholder="Số điện thoại, CCCD hoặc họ tên đầy đủ"
                                 value={lookupQuery}
                                 onChange={(e) => setLookupQuery(e.target.value)}
                                 className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-[#008EC2]"
@@ -290,9 +289,6 @@ export default function PatientDashboardPage() {
                                         >
                                             <div>
                                                 <div className="font-bold text-slate-900">{r.ho_ten}</div>
-                                                <div className="text-slate-500">
-                                                    SĐT: {r.so_dien_thoai} · Ngày sinh: {r.ngay_sinh}
-                                                </div>
                                             </div>
                                             <span className="px-3 py-1 rounded-lg bg-emerald-700 text-white font-mono font-bold">
                                                 {r.ma_ho_so}

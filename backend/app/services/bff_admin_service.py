@@ -8,7 +8,10 @@ from sqlalchemy import delete, select, update, or_, and_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
+from app.core.config import settings
 from app.core.exceptions import ConflictException
 from app.models.appointment import HangDoiKham, LichKham, LichLamViec
 from app.models.bff_store import HeThongTrangThaiBff
@@ -291,11 +294,18 @@ class BffAdminService:
 
     async def get_bootstrap_data(self, db: AsyncSession) -> dict:
         data = self._load_clean_seed()
+        if settings.is_hosted:
+            data["authSeed"] = {}
+            for key in (
+                "patients", "appointments", "registrations", "paraclinicalTasks",
+                "vouchers", "servicePackageRegistrations", "treatmentCourses", "corporateCheckups",
+                "auditLogs", "cashierClosings", "nationalDrugSync", "nationalEhrSync", "systemNotifications",
+            ):
+                data[key] = []
 
-        if not hasattr(self, "_bff_collections"):
-            self._bff_collections = {}
-        existing_keys = set(self._bff_collections.keys())
-        for key, val in self._bff_collections.items():
+        rows = (await db.execute(select(HeThongTrangThaiBff))).scalars()
+        for row in rows:
+            key, val = row.collection_key, row.data_json
             if key in ("inventoryBatches", "navigationConfig"):
                 continue
             if key == "catalogs" and isinstance(val, dict):
@@ -306,9 +316,6 @@ class BffAdminService:
                 data[key] = val
 
         data["inventoryBatches"] = []
-        if len(existing_keys) < 5:
-            await self.sync_all_collections_to_relational(db, data, existing_keys)
-
         data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
         data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []))
         data["staffList"] = await self._project_relational_staff(db)
@@ -1225,9 +1232,18 @@ class BffAdminService:
         value: Any,
         user_id: Optional[int] = None,
     ) -> None:
-        if not hasattr(self, "_bff_collections"):
-            self._bff_collections = {}
-        self._bff_collections[key] = value
+        insert = sqlite_insert if db.bind.dialect.name == "sqlite" else pg_insert
+        stmt = insert(HeThongTrangThaiBff).values(
+            collection_key=key, data_json=value, updated_by_id=user_id,
+        )
+        await db.execute(stmt.on_conflict_do_update(
+            index_elements=[HeThongTrangThaiBff.collection_key],
+            set_={
+                "data_json": stmt.excluded.data_json,
+                "updated_by_id": stmt.excluded.updated_by_id,
+                "updated_at": func.now(),
+            },
+        ))
 
     async def _append_audit_entry(
         self,
@@ -2313,9 +2329,10 @@ class BffAdminService:
         return refreshed_data
 
     async def reset_demo_data(self, db: AsyncSession) -> dict:
-        if hasattr(self, "_bff_collections"):
-            self._bff_collections.clear()
+        data = self._load_clean_seed()
+        await db.execute(delete(HeThongTrangThaiBff))
         self._initial_relational_synced = False
+        await self.sync_all_collections_to_relational(db, data, set())
         return await self.get_bootstrap_data(db)
 
 

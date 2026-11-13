@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.exceptions import ForbiddenException
 from app.core.rate_limit import limiter
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan
@@ -19,11 +21,16 @@ from app.services.auth_service import auth_service
 
 router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package A)"])
 
+def _allow_public_registration():
+    if settings.is_demo:
+        raise ForbiddenException("Bản demo sử dụng tài khoản được cấp sẵn.")
+
 
 @router.post(
     "/register",
     response_model=ResponseEnvelope[dict],
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_allow_public_registration)],
     summary="Đăng ký tài khoản người bệnh mới và gửi mã OTP (UC-A01)",
 )
 @limiter.limit("20/minute")
@@ -40,6 +47,7 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
     "/register-patient",
     response_model=ResponseEnvelope[TokenResponse],
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_allow_public_registration)],
     summary="Đăng ký tài khoản Bệnh nhân nhanh cho Cổng Bệnh nhân (UC-PAT-01)",
 )
 @limiter.limit("20/minute")
@@ -56,6 +64,7 @@ async def register_patient(request: Request, payload: PatientRegisterRequest, db
     "/verify-otp",
     response_model=ResponseEnvelope[TokenResponse],
     summary="Xác thực OTP kích hoạt tài khoản và nhận JWT Token (UC-A01)",
+    dependencies=[Depends(_allow_public_registration)],
 )
 @limiter.limit("20/minute")
 async def verify_otp(request: Request, payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):

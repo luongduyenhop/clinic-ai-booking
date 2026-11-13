@@ -3,8 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import require_roles
+from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.production_billing import (
@@ -20,6 +22,10 @@ from app.services.production_cashier_service import production_cashier_service
 billing_router = APIRouter(prefix="/billing", tags=["7.1 Cổng Viện Phí & VietQR (Billing Gateway)"])
 payments_router = APIRouter(prefix="/payments", tags=["7.2 Cổng Thanh Toán & Webhook (Payment Gateway)"])
 cashier_role_guard = require_roles([VaiTroEnum.THU_NGAN, VaiTroEnum.ADMIN, VaiTroEnum.LE_TAN])
+
+def require_bank_integration():
+    if settings.is_hosted:
+        raise ForbiddenException("Tích hợp thanh toán ngân hàng chưa được bật trên bản triển khai này.")
 
 
 @billing_router.get(
@@ -71,6 +77,7 @@ async def create_billing_invoice(
 @billing_router.post(
     "/invoices/{invoice_id}/generate-vietqr",
     response_model=ResponseEnvelope[VietQrGenerateResponse],
+    dependencies=[Depends(require_bank_integration)],
     summary="Sinh mã VietQR động chuẩn Napas 247 cho hóa đơn"
 )
 async def generate_billing_vietqr(
@@ -88,6 +95,7 @@ async def generate_billing_vietqr(
 @payments_router.post(
     "/webhook",
     response_model=ResponseEnvelope[BankWebhookResponse],
+    dependencies=[Depends(require_bank_integration)],
     summary="Tiếp nhận Webhook ngân hàng đối soát thanh toán"
 )
 async def process_payment_webhook(

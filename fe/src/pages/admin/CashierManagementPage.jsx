@@ -71,7 +71,8 @@ export default function CashierManagementPage() {
 
     const masterOptions = getMasterOptions(clinicData)
     const defaults = getFormDefaults(clinicData)
-    const paymentMethods = masterOptions.paymentMethods || [
+    const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
+    const paymentMethods = demoMode ? [{ value: 'Tiền mặt', label: 'Tiền mặt thử nghiệm' }] : masterOptions.paymentMethods || [
         { value: 'Tiền mặt', label: 'Tiền mặt' },
         { value: 'Chuyển khoản', label: 'Chuyển khoản (VietQR)' },
         { value: 'Thẻ POS', label: 'Thẻ POS' },
@@ -145,7 +146,7 @@ export default function CashierManagementPage() {
                     items: autoItems,
                     tongTien: Number(preview.thuc_thu_du_kien ?? preview.tong_tien ?? preview.tong_tam_tinh ?? 0),
                     daThu: false,
-                    hinhThuc: 'Chuyển khoản'
+                    hinhThuc: demoMode ? 'Tiền mặt' : 'Chuyển khoản'
                 })
                 if (preview.canh_bao_gia) {
                     AppToast.warning(preview.canh_bao_gia)
@@ -735,7 +736,7 @@ export default function CashierManagementPage() {
                                             <td className="text-center">
                                                 <div className="flex items-center justify-center gap-1">
                                                     <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={false} />
-                                                    <button
+                                                    {!demoMode && <button
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
@@ -745,7 +746,7 @@ export default function CashierManagementPage() {
                                                         title="Mã VietQR"
                                                     >
                                                         <QrCode size={13} weight="bold" />
-                                                    </button>
+                                                    </button>}
                                                 </div>
                                             </td>
                                         </tr>
@@ -799,7 +800,7 @@ export default function CashierManagementPage() {
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu phiếu</span>
                                 </button>
-                                <button
+                                {!demoMode && <button
                                     type="button"
                                     onClick={() => handleOpenQr(form)}
                                     className="medpro-btn-outline text-xs font-bold border-teal-500 text-teal-700 hover:bg-teal-50 flex items-center gap-1.5 cursor-pointer"
@@ -807,7 +808,7 @@ export default function CashierManagementPage() {
                                 >
                                     <QrCode size={15} weight="bold" />
                                     <span>Mã VietQR</span>
-                                </button>
+                                </button>}
                                 <button
                                     type="button"
                                     onClick={() => setIsReceiptModalOpen(true)}
@@ -1032,7 +1033,7 @@ export default function CashierManagementPage() {
                 </div>
             )}
 
-            <VietQrModal
+            {!demoMode && <VietQrModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
@@ -1090,7 +1091,7 @@ export default function CashierManagementPage() {
                     )
                     await fetchLiveCashierData()
                 }}
-            />
+            />}
 
             <ReceiptModal
                 isOpen={isReceiptModalOpen}

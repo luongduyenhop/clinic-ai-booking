@@ -114,7 +114,7 @@ async def test_full_prescription_lifecycle_and_rules(api_client, booking):
         headers=token_bn_b
     )
     assert res_other_patient.status_code == 403
-    assert "không có quyền xem đơn thuốc" in res_other_patient.json()["message"]
+    assert "không có quyền truy cập lượt khám" in res_other_patient.json()["message"]
 
     # RULE 7: Khóa bệnh án
     await api_client.post(

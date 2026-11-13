@@ -354,10 +354,19 @@ async def test_chi_dinh_tu_ban_kham_workspace_ghi_vao_chi_dinh_va_ktv_thay(api_c
 @pytest.mark.asyncio
 async def test_workspace_state_khong_ghi_lai_chi_dinh_da_co_tren_server(api_client, booking, db_session):
     xn, _, _ = await _tao_dich_vu_cls(db_session, booking.suffix)
+    # workspace-state chỉ nhận lượt khám có thật (ID lạ -> 404), nên dùng lượt khám thật của bác sĩ
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, datetime.now(timezone.utc))
+    res_enc = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Khám workspace"},
+        headers=booking.tokens["bs_x"],
+    )
+    assert res_enc.status_code in (200, 201), res_enc.text
+    enc_id = res_enc.json()["data"]["id"]
     payload = {
         "encounters": {
-            "6001": {
-                "id": 6001,
+            str(enc_id): {
+                "id": enc_id,
                 "danh_sach_chi_dinh": [
                     {"id": 9501, "dich_vu_id": xn.id, "ma_dich_vu": xn.ma_dich_vu, "trang_thai": "da_chi_dinh", "server_order_id": 123}
                 ],

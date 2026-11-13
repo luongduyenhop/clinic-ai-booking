@@ -1,6 +1,6 @@
 import pytest
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.models.user import TaiKhoan, VaiTroEnum
 from scripts.seed_admin_demo import (
     validate_environment,
@@ -30,6 +30,8 @@ def test_environment_guard_allows_safe_environments():
 
 @pytest.mark.asyncio
 async def test_seed_admin_demo_idempotency_and_preservation():
+    # Engine dùng chung của app giữ kết nối từ event loop của test trước -> giải phóng trước khi dùng.
+    await engine.dispose()
     first_run = await seed_admin_demo(mode="append", env="test")
     assert first_run["mode"] == "append"
     assert first_run["environment"] == "test"
@@ -47,3 +49,4 @@ async def test_seed_admin_demo_idempotency_and_preservation():
         for account in admin_accounts:
             assert account.vai_tro == VaiTroEnum.ADMIN.value
             assert account.is_active is True
+    await engine.dispose()

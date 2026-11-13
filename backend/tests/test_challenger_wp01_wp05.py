@@ -255,6 +255,9 @@ async def test_wp03_shift_blocks_invalid_doctor_license(api_client: AsyncClient,
 @pytest.mark.asyncio
 async def test_wp04_seed_admin_demo_reset_preserves_admin():
     await engine.dispose()
+    # Điều kiện tiên quyết: tài khoản admin hệ thống đã tồn tại (seed append tạo nếu thiếu),
+    # không phụ thuộc thứ tự chạy với test_seed_admin_demo.
+    await seed_admin_demo(mode="append", env="development")
     async with AsyncSessionLocal() as session:
         stmt = select(TaiKhoan).where(TaiKhoan.email == "admin@clinic.com")
         admin_before = (await session.execute(stmt)).scalar_one_or_none()

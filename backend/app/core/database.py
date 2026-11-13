@@ -14,8 +14,9 @@ def _resolve_active_database_url() -> tuple[str, bool]:
     if url.startswith("sqlite"):
         return url, True
     try:
-        host = settings.POSTGRES_SERVER
-        port = settings.POSTGRES_PORT
+        parsed = make_url(url)
+        host = parsed.host or settings.POSTGRES_SERVER
+        port = parsed.port or settings.POSTGRES_PORT
         with socket.create_connection((host, int(port)), timeout=2.0):
             return url, False
     except OSError:

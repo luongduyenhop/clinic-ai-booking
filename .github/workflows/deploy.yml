@@ -34,27 +34,25 @@ jobs:
       - name: Setup SSH Connection
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          printf "%s\n" "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Transfer Build & Code to VPS
         env:
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
-          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST || '3.27.138.183' }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER || 'ubuntu' }}
         run: |
-          scp fe-dist.tar.gz $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/
-          scp -r backend/app $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa fe-dist.tar.gz $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -r backend/app $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/
 
       - name: Update Containers and Verify Service Health
         env:
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
-          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST || '3.27.138.183' }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER || 'ubuntu' }}
         run: |
-          ssh $SSH_USER@$SSH_HOST "cd /home/ubuntu/clinic-ai && \
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "cd /home/ubuntu/clinic-ai && \
             mkdir -p fe/dist && \
             tar -xzf fe-dist.tar.gz -C fe/dist/ && \
             docker cp backend/app clinic-demo-backend-1:/app/ && \

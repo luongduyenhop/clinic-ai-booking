@@ -187,7 +187,7 @@ async def test_admin_staff_doctor_leaves_crud(api_client, booking):
     resp_list = await api_client.get(f"/api/v1/admin/staff/doctor-leaves?doctor_id={booking.bs_x.id}", headers=headers)
     assert resp_list.status_code == 200
     leaves = resp_list.json()["data"]
-    assert any(l["id"] == leave_id for l in leaves)
+    assert any(item["id"] == leave_id for item in leaves)
 
     approve_payload = {
         "hanh_dong": "DA_DUYET",

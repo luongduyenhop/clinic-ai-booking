@@ -248,10 +248,8 @@ async def seed_one_week_realistic():
         general_lab = lab_services[0] if lab_services else services_list[0]
         general_xray = lab_services[1] if len(lab_services) > 1 else general_lab
         primary_doc = doctor_entities[0]
-        admin_person = people[VaiTroEnum.ADMIN]
         cashier_person = people[VaiTroEnum.THU_NGAN]
         tech_person = people[VaiTroEnum.KY_THUAT_VIEN]
-        letan_person = people[VaiTroEnum.LE_TAN]
         appointment_counter = 100
         invoice_counter = 100
         encounter_counter = 100

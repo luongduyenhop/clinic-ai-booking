@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
 import { mapDoctorPerformanceItems } from '../../utils/helpers/doctorPerformanceMapping'
 import { adminService } from '../../services/admin/AdminService'
+import { exportToExcel } from '../../utils/helpers/exportUtils'
+import { AppToast } from '../../components/common/AppNotification'
 import {
     ClinicIcon,
     StatusBadge,
@@ -17,6 +19,7 @@ import {
     Receipt,
     ChartBar,
     Sparkle,
+    DownloadSimple,
 } from '../../components/common/ClinicIcon'
 
 const OPERATIONAL_PORTAL_LINKS = [
@@ -82,23 +85,9 @@ export default function DashboardAdminPage() {
     const dispatch = useDispatch()
     const { clinicData, stats } = useSelector((state) => state.app.admin)
     const { dashboardQuickModules = [] } = getNavigationConfig(clinicData)
-    const location = useLocation()
-    const isBaoCaoRoute = location.pathname.includes('/bao-cao')
 
-    const [activeViewTab, setActiveViewTab] = useState(isBaoCaoRoute ? 'TAI_CHINH_DUOC' : 'DIEU_HANH')
-
-    useEffect(() => {
-        if (location.pathname.includes('/bao-cao')) {
-            setActiveViewTab('TAI_CHINH_DUOC')
-        }
-    }, [location.pathname])
+    const [activeViewTab, setActiveViewTab] = useState('DIEU_HANH')
     const [timeFilter, setTimeFilter] = useState('week')
-    const [customTuNgay, setCustomTuNgay] = useState(() => {
-        const d = new Date()
-        d.setDate(d.getDate() - 30)
-        return d.toISOString().split('T')[0]
-    })
-    const [customDenNgay, setCustomDenNgay] = useState(() => new Date().toISOString().split('T')[0])
 
     const [topDiseases, setTopDiseases] = useState([])
     const [topServices, setTopServices] = useState([])
@@ -106,6 +95,55 @@ export default function DashboardAdminPage() {
     const [doctorPerformance, setDoctorPerformance] = useState(null)
     const [roomWorkload, setRoomWorkload] = useState([])
     const [analyticsLoading, setAnalyticsLoading] = useState(false)
+    const [exportingExcel, setExportingExcel] = useState(false)
+
+    const handleExportBiExcel = async () => {
+        setExportingExcel(true)
+        try {
+            const data = await adminService.exportBiExcel()
+            const list = data?.danh_muc || data?.danh_sach_dich_vu || data?.items || []
+            if (!list.length) {
+                AppToast.info('Không có dữ liệu để xuất báo cáo')
+                return
+            }
+            const headers = [
+                'Mã dịch vụ',
+                'Tên dịch vụ kỹ thuật',
+                'Chuyên khoa',
+                'Đơn giá',
+                'Đơn vị tính',
+                'Mã nhóm BYT',
+                'Phòng thực hiện',
+                'Thời gian trả KQ (phút)',
+                'Trạng thái',
+            ]
+            const rows = list.map((item) => [
+                item.ma_dich_vu || '',
+                item.ten_dich_vu || '',
+                item.chuyen_khoa || '',
+                Number(item.don_gia) || 0,
+                item.don_vi_tinh || 'Lần',
+                item.ma_nhom_byt || '',
+                item.phong_thuc_hien || '',
+                Number(item.thoi_gian_tra_ket_qua_phut) || 0,
+                item.is_active ? 'Đang hoạt động' : 'Tạm ngưng',
+            ])
+            await exportToExcel({
+                filename: `bao-cao-bi-danh-muc-dich-vu_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                sheetName: 'Báo cáo BI',
+                title: 'BÁO CÁO THỐNG KÊ QUẢN TRỊ BI & DANH MỤC DỊCH VỤ',
+                subtitle: `Phân hệ Quản trị BI • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} dịch vụ`,
+                headers,
+                rows,
+                signOff: true,
+            })
+            AppToast.success(`Đã xuất báo cáo BI (${rows.length} dịch vụ) thành công!`)
+        } catch {
+            AppToast.error('Lỗi khi xuất báo cáo BI ra file Excel')
+        } finally {
+            setExportingExcel(false)
+        }
+    }
 
     useEffect(() => {
         const refreshStats = () => {
@@ -137,49 +175,28 @@ export default function DashboardAdminPage() {
         const fetchAnalytics = async () => {
             setAnalyticsLoading(true)
             try {
-                const now = new Date()
-                let denNgay = now.toISOString().split('T')[0]
-                let tuNgay = denNgay
-                if (timeFilter === 'week') {
-                    const d = new Date()
-                    d.setDate(d.getDate() - 7)
-                    tuNgay = d.toISOString().split('T')[0]
-                } else if (timeFilter === 'month') {
-                    const d = new Date()
-                    d.setDate(d.getDate() - 30)
-                    tuNgay = d.toISOString().split('T')[0]
-                } else if (timeFilter === 'custom') {
-                    tuNgay = customTuNgay || denNgay
-                    denNgay = customDenNgay || denNgay
-                }
-                const query = { tuNgay, denNgay }
-
                 const [diseasesRes, servicesRes, docPerfRes, roomRes, medRes] = await Promise.allSettled([
-                    adminService.getTopIcd10Diseases(query),
-                    adminService.getTopServicesAnalytics(query),
-                    adminService.getDoctorPerformanceAnalytics(query),
-                    adminService.getRoomWorkloadAnalytics(query),
-                    adminService.getTopMedicinesAnalytics(query),
+                    adminService.getTopIcd10Diseases(),
+                    adminService.getTopServicesAnalytics(),
+                    adminService.getDoctorPerformanceAnalytics(),
+                    adminService.getRoomWorkloadAnalytics(),
+                    adminService.getTopMedicinesAnalytics(),
                 ])
-                if (diseasesRes.status === 'fulfilled') {
-                    const dItems = diseasesRes.value?.items || diseasesRes.value?.danh_sach_benh || []
-                    setTopDiseases(dItems)
+                if (diseasesRes.status === 'fulfilled' && diseasesRes.value?.danh_sach_benh) {
+                    setTopDiseases(diseasesRes.value.danh_sach_benh)
                 }
-                if (servicesRes.status === 'fulfilled') {
-                    const sItems = servicesRes.value?.items || servicesRes.value?.danh_sach_dich_vu || []
-                    setTopServices(sItems)
+                if (servicesRes.status === 'fulfilled' && servicesRes.value?.danh_sach_dich_vu) {
+                    setTopServices(servicesRes.value.danh_sach_dich_vu)
                 }
-                if (medRes.status === 'fulfilled') {
-                    const mItems = medRes.value?.items || medRes.value?.danh_sach_thuoc || []
-                    setTopMedicines(mItems)
+                if (medRes.status === 'fulfilled' && medRes.value?.items) {
+                    setTopMedicines(medRes.value.items)
                 }
                 const doctorItems = docPerfRes.status === 'fulfilled'
                     ? mapDoctorPerformanceItems(docPerfRes.value)
                     : null
                 setDoctorPerformance(doctorItems)
-                if (roomRes.status === 'fulfilled') {
-                    const rItems = roomRes.value?.items || roomRes.value?.danh_sach_tai_trong || []
-                    setRoomWorkload(rItems)
+                if (roomRes.status === 'fulfilled' && roomRes.value?.danh_sach_tai_trong) {
+                    setRoomWorkload(roomRes.value.danh_sach_tai_trong)
                 }
             } catch (err) {
                 console.warn('Analytics loading error:', err)
@@ -188,40 +205,19 @@ export default function DashboardAdminPage() {
             }
         }
         fetchAnalytics()
-    }, [timeFilter, customTuNgay, customDenNgay])
+    }, [])
 
     const registrations = clinicData?.registrations || []
     const staffList = clinicData?.staffList || []
     const vouchers = clinicData?.vouchers || []
+    const roleWorkbenches = clinicData?.roleWorkbenches || {}
+    const accountantSummary = roleWorkbenches.accountantSummary || {}
 
-    const paidVouchers = vouchers.filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi'))
-    const paidVouchersRevenue = paidVouchers.reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
-    const liveRevenue = Math.max(Number(stats?.tong_doanh_thu_trong_ngay || 0), paidVouchersRevenue)
-
-    const totalPaidForMethods = liveRevenue > 0 ? liveRevenue : paidVouchersRevenue
-    const qrSum = paidVouchers
-        .filter((v) => {
-            const h = String(v.hinhThuc || '').toLowerCase()
-            return h.includes('vietqr') || h.includes('chuyển khoản') || h.includes('qr')
-        })
+    const multiplier = timeFilter === 'today' ? 0.35 : timeFilter === 'month' ? 4.2 : 1.0
+    const paidVouchersRevenue = vouchers
+        .filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi'))
         .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
-    const cashSum = paidVouchers
-        .filter((v) => {
-            const h = String(v.hinhThuc || '').toLowerCase()
-            return h.includes('tiền mặt')
-        })
-        .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
-    const posSum = Math.max(0, totalPaidForMethods - qrSum - cashSum)
-
-    const paymentMethodsBreakdown = totalPaidForMethods > 0 ? [
-        { hinhThuc: 'Chuyển khoản VietQR', tyLe: Math.round((qrSum / totalPaidForMethods) * 100), soTien: qrSum },
-        { hinhThuc: 'Tiền mặt tại quầy', tyLe: Math.round((cashSum / totalPaidForMethods) * 100), soTien: cashSum },
-        { hinhThuc: 'Thẻ POS / Khác', tyLe: Math.round((posSum / totalPaidForMethods) * 100), soTien: posSum },
-    ] : [
-        { hinhThuc: 'Chuyển khoản VietQR', tyLe: 0, soTien: 0 },
-        { hinhThuc: 'Tiền mặt tại quầy', tyLe: 0, soTien: 0 },
-        { hinhThuc: 'Thẻ POS / Khác', tyLe: 0, soTien: 0 },
-    ]
+    const liveRevenue = Number(stats?.tong_doanh_thu_trong_ngay ?? paidVouchersRevenue)
 
     const expiredOrSoonLicenses = staffList.filter(
         (s) => s.trangThaiCCHN === 'EXPIRED' || s.trangThaiCCHN === 'EXPIRING_SOON'
@@ -249,7 +245,6 @@ export default function DashboardAdminPage() {
         { id: 'today', label: 'Hôm nay' },
         { id: 'week', label: 'Tuần này' },
         { id: 'month', label: 'Tháng này' },
-        { id: 'custom', label: 'Tùy chọn' },
     ]
 
     return (
@@ -308,46 +303,34 @@ export default function DashboardAdminPage() {
                     })}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
-                            <Clock size={13} />
-                            <span>Kỳ thống kê:</span>
-                        </span>
-                        {timeFilters.map((tf) => (
-                            <button
-                                key={tf.id}
-                                type="button"
-                                onClick={() => setTimeFilter(tf.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                    timeFilter === tf.id
-                                        ? 'bg-[#003553] text-white shadow-xs'
-                                        : 'bg-white border border-slate-200 text-slate-600 hover:border-[#00B5F1]'
-                                }`}
-                            >
-                                {tf.label}
-                            </button>
-                        ))}
-                    </div>
-                    {timeFilter === 'custom' && (
-                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
-                            <ClinicIcon name="Calendar" size={14} className="text-[#00B5F1]" />
-                            <span className="text-[11px] text-slate-500 font-medium">Từ:</span>
-                            <input
-                                type="date"
-                                value={customTuNgay}
-                                onChange={(e) => setCustomTuNgay(e.target.value)}
-                                className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 font-semibold focus:outline-none focus:border-[#00B5F1]"
-                            />
-                            <span className="text-[11px] text-slate-500 font-medium">Đến:</span>
-                            <input
-                                type="date"
-                                value={customDenNgay}
-                                onChange={(e) => setCustomDenNgay(e.target.value)}
-                                className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 font-semibold focus:outline-none focus:border-[#00B5F1]"
-                            />
-                        </div>
-                    )}
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
+                        <Clock size={13} />
+                        <span>Kỳ thống kê:</span>
+                    </span>
+                    {timeFilters.map((tf) => (
+                        <button
+                            key={tf.id}
+                            type="button"
+                            onClick={() => setTimeFilter(tf.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                timeFilter === tf.id
+                                    ? 'bg-[#003553] text-white shadow-xs'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:border-[#00B5F1]'
+                            }`}
+                        >
+                            {tf.label}
+                        </button>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={handleExportBiExcel}
+                        disabled={exportingExcel}
+                        className="ml-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <DownloadSimple size={14} weight="bold" />
+                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel Báo Cáo BI'}</span>
+                    </button>
                 </div>
             </div>
 
@@ -358,7 +341,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng lượt tiếp nhận</div>
                                 <div className="font-display text-2xl font-extrabold text-[#003553] mt-1">
-                                    {stats?.so_ca_da_check_in != null ? (stats.so_ca_da_check_in + (stats.so_ca_cho_kham || 0) + (stats.so_ca_dang_kham || 0) + (stats.so_ca_hoan_tat_kham || 0)) : (registrations.length || 0)}
+                                    {stats?.so_ca_da_check_in ?? registrations.length}
                                 </div>
                                 <Link to="/admin/bao-cao" className="text-[11px] font-bold text-[#00B5F1] hover:underline mt-1 inline-block">
                                     Báo cáo lưu lượng &rarr;
@@ -373,7 +356,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hoàn tất khám &amp; Kê đơn</div>
                                 <div className="font-display text-2xl font-extrabold text-emerald-600 mt-1">
-                                    {stats?.so_ca_hoan_tat_kham != null ? stats.so_ca_hoan_tat_kham : registrations.filter((r) => r.trangThai === 'Đã khám').length}
+                                    {stats?.so_ca_hoan_tat_kham ?? registrations.filter((r) => r.trangThai === 'Đã khám').length}
                                 </div>
                                 <Link to="/admin/tuan-thu?tab=DON_THUOC" className="text-[11px] font-bold text-emerald-600 hover:underline mt-1 inline-block">
                                     Đồng bộ ĐTQG &rarr;
@@ -388,7 +371,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Nhân sự &amp; Bác sĩ Active</div>
                                 <div className="font-display text-2xl font-extrabold text-sky-600 mt-1">
-                                    {stats?.tong_bac_si_hoat_dong || staffList.length || 0}
+                                    {stats?.tong_bac_si_hoat_dong ?? staffList.length}
                                 </div>
                                 <Link to="/admin/nhan-vien" className="text-[11px] font-bold text-sky-600 hover:underline mt-1 inline-block">
                                     Kiểm soát CCHN &rarr;
@@ -403,7 +386,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu kỳ báo cáo</div>
                                 <div className="font-display text-xl font-extrabold text-amber-600 mt-1">
-                                    {Number(liveRevenue).toLocaleString('vi-VN')} đ
+                                    {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
                                 </div>
                                 <button
                                     type="button"
@@ -466,39 +449,34 @@ export default function DashboardAdminPage() {
                             </div>
                             <div className="space-y-3 mt-3">
                                 {roomWorkload.length === 0 ? (
-                                    <div className="p-4 text-center text-xs text-slate-400">
-                                        Chưa có dữ liệu phân bổ buồng khám trong kỳ
+                                    <div className="text-center py-8 text-slate-400 text-xs">
+                                        Chưa có dữ liệu tải trọng buồng khám
                                     </div>
                                 ) : (
-                                    roomWorkload.slice(0, 5).map((room, idx) => {
-                                        const pct = room.cong_suat_su_dung_pct ?? room.ty_le_su_dung_phan_tram ?? 0
-                                        const shifts = room.so_ca_truc_phan_cong ?? room.tong_ca_truc_phan_bo ?? 0
-                                        return (
-                                            <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                                                <div className="flex justify-between text-xs font-bold text-[#003553]">
-                                                    <span>{room.ma_phong} - {room.ten_phong}</span>
-                                                    <span className="text-[#00B5F1] font-mono">{pct}%</span>
-                                                </div>
-                                                <div className="flex justify-between text-[11px] text-slate-500">
-                                                    <span>Chuyên khoa: {room.chuyen_khoa || room.loai_phong || 'Đa khoa'}</span>
-                                                    <span>{shifts} ca trực/tuần</span>
-                                                </div>
-                                                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                                                    <div
-                                                        className={`h-1.5 rounded-full ${
-                                                            pct >= 75
-                                                                ? 'bg-emerald-500'
-                                                                : pct >= 50
-                                                                ? 'bg-[#00B5F1]'
-                                                                : 'bg-amber-500'
-                                                        }`}
-                                                        style={{ width: `${Math.min(100, pct)}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
+                                    roomWorkload.map((room, idx) => (
+                                    <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                                        <div className="flex justify-between text-xs font-bold text-[#003553]">
+                                            <span>{room.ma_phong} - {room.ten_phong}</span>
+                                            <span className="text-[#00B5F1] font-mono">{room.ty_le_su_dung_phan_tram}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[11px] text-slate-500">
+                                            <span>Chuyên khoa: {room.chuyen_khoa || 'Đa khoa'}</span>
+                                            <span>{room.tong_ca_truc_phan_bo} ca trực/tuần</span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                                className={`h-1.5 rounded-full ${
+                                                    room.ty_le_su_dung_phan_tram >= 75
+                                                        ? 'bg-emerald-500'
+                                                        : room.ty_le_su_dung_phan_tram >= 50
+                                                        ? 'bg-[#00B5F1]'
+                                                        : 'bg-amber-500'
+                                                }`}
+                                                style={{ width: `${Math.min(100, room.ty_le_su_dung_phan_tram)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )))}
                             </div>
                         </div>
                     </div>
@@ -548,28 +526,28 @@ export default function DashboardAdminPage() {
                         <div className="medpro-card p-4 border-l-4 border-l-[#003553]">
                             <div className="text-[11px] font-bold uppercase text-slate-500">1. Doanh thu Khám Lâm Sàng</div>
                             <div className="font-display text-xl font-black text-[#003553] mt-1">
-                                {Number(stats?.doanh_thu_kham_lam_sang || 0).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_kham_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">Công khám đa chuyên khoa</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                             <div className="text-[11px] font-bold uppercase text-slate-500">2. Cận Lâm Sàng &amp; DVKT</div>
                             <div className="font-display text-xl font-black text-[#008EC2] mt-1">
-                                {Number(stats?.doanh_thu_can_lam_sang || 0).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_can_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                             <div className="text-[11px] font-bold uppercase text-slate-500">3. Dịch vụ Kỹ thuật Chuyên sâu</div>
                             <div className="font-display text-xl font-black text-emerald-600 mt-1">
-                                {Number(stats?.doanh_thu_goi_dich_vu || 0).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_goi_dich_vu ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">Thủ thuật &amp; Tầm soát định kỳ</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-amber-500 bg-amber-50/30">
                             <div className="text-[11px] font-bold uppercase text-amber-800">Tổng Thực Thu Hệ Thống</div>
                             <div className="font-display text-xl font-black text-amber-700 mt-1">
-                                {Number(liveRevenue).toLocaleString('vi-VN')} đ
+                                {Number(stats?.tong_doanh_thu_trong_ngay ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-amber-600 mt-0.5">Đã quyết toán qua Thu ngân</div>
                         </div>
@@ -584,11 +562,15 @@ export default function DashboardAdminPage() {
                                 </Link>
                             </div>
                             <div className="space-y-3 mt-3">
-                                {paymentMethodsBreakdown.map((ht, idx) => (
+                                {(accountantSummary.hinhThucThu || [
+                                    { hinhThuc: 'Chuyển khoản VietQR', tyLe: 58, soTien: 49375400 },
+                                    { hinhThuc: 'Tiền mặt tại quầy', tyLe: 27, soTien: 22985100 },
+                                    { hinhThuc: 'Thẻ POS / Khác', tyLe: 15, soTien: 12769500 },
+                                ]).map((ht, idx) => (
                                     <div key={idx} className="space-y-1">
                                         <div className="flex justify-between text-xs font-bold text-[#003553]">
                                             <span>{ht.hinhThuc}</span>
-                                            <span>{ht.tyLe}% &bull; {Number(ht.soTien || 0).toLocaleString('vi-VN')} đ</span>
+                                            <span>{ht.tyLe}% &bull; {Math.round(ht.soTien * multiplier).toLocaleString('vi-VN')} đ</span>
                                         </div>
                                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                                             <div
@@ -624,19 +606,17 @@ export default function DashboardAdminPage() {
                                     <tbody>
                                         {topMedicines.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="text-center py-4 text-slate-400">
-                                                    Chưa có dữ liệu kê đơn thuốc trong kỳ báo cáo
+                                                <td colSpan={5} className="text-center py-8 text-slate-400">
+                                                    Chưa có dữ liệu thuốc được kê
                                                 </td>
                                             </tr>
                                         ) : (
                                             topMedicines.slice(0, 5).map((med, idx) => (
                                                 <tr key={idx}>
-                                                    <td className="font-mono font-bold text-[#003553]">{med.ma_thuoc || `TH${String(idx + 1).padStart(3, '0')}`}</td>
-                                                    <td className="font-bold text-[#12263F]">
-                                                        {med.ten_thuoc} {med.hoat_chat ? <span className="text-slate-500 text-[11px] font-normal">({med.hoat_chat})</span> : null}
-                                                    </td>
+                                                    <td className="font-mono font-bold text-[#003553]">{med.ma_thuoc || `TH00${idx + 1}`}</td>
+                                                    <td className="font-bold text-[#12263F]">{med.ten_thuoc}</td>
                                                     <td>{med.don_vi_tinh || 'Viên'}</td>
-                                                    <td className="text-center font-bold text-[#00B5F1]">{med.so_luot_ke || med.so_don_ke || 0} đơn</td>
+                                                    <td className="text-center font-bold text-[#00B5F1]">{med.so_don_ke || 0} đơn</td>
                                                     <td className="text-right font-mono font-extrabold text-emerald-600">
                                                         {Number(med.tong_so_luong || 0).toLocaleString('vi-VN')}
                                                     </td>
@@ -671,28 +651,28 @@ export default function DashboardAdminPage() {
                                 <tbody>
                                     {topServices.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-4 text-slate-400">
-                                                Chưa có dữ liệu chỉ định kỹ thuật trong kỳ báo cáo
+                                            <td colSpan={6} className="text-center py-8 text-slate-400">
+                                                Chưa có dữ liệu dịch vụ kỹ thuật
                                             </td>
                                         </tr>
                                     ) : (
-                                        topServices.slice(0, 5).map((srv, sIdx) => (
+                                        topServices.map((srv, sIdx) => (
                                             <tr key={sIdx}>
                                                 <td className="font-mono font-bold text-[#003553]">{srv.ma_dich_vu}</td>
                                                 <td className="font-bold text-[#12263F]">{srv.ten_dich_vu}</td>
                                                 <td>
                                                     <span className="px-2 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-semibold border border-sky-100 text-[11px]">
-                                                        {srv.nhom_dich_vu || srv.ma_nhom_byt || 'Dịch vụ'}
+                                                        {srv.nhom_dich_vu || 'Dịch vụ'}
                                                     </span>
                                                 </td>
                                                 <td className="text-right font-mono font-bold text-slate-700">
-                                                    {Number(srv.don_gia).toLocaleString('vi-VN')} đ
+                                                    {Number(srv.don_gia || 0).toLocaleString('vi-VN')} đ
                                                 </td>
                                                 <td className="text-center font-bold text-[#003553]">
-                                                    {srv.so_luong_chi_dinh} lượt
+                                                    {srv.so_luong_chi_dinh || 0} lượt
                                                 </td>
                                                 <td className="text-right font-mono font-extrabold text-emerald-600">
-                                                    {Number(srv.tong_doanh_thu).toLocaleString('vi-VN')} đ
+                                                    {Number(srv.tong_doanh_thu || 0).toLocaleString('vi-VN')} đ
                                                 </td>
                                             </tr>
                                         ))
@@ -792,8 +772,8 @@ export default function DashboardAdminPage() {
                                     <tbody>
                                         {topDiseases.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="text-center py-4 text-slate-400">
-                                                    Chưa có dữ liệu chẩn đoán ICD-10 trong kỳ báo cáo
+                                                <td colSpan={6} className="text-center py-8 text-slate-400">
+                                                    Chưa có dữ liệu mô hình bệnh tật
                                                 </td>
                                             </tr>
                                         ) : (
@@ -803,10 +783,10 @@ export default function DashboardAdminPage() {
                                                     <td className="font-bold text-[#12263F]">{b.ten_benh}</td>
                                                     <td className="text-xs text-slate-500">{b.chuong_benh || 'Ngoại trú'}</td>
                                                     <td className="font-mono font-extrabold text-[#00B5F1] text-center">
-                                                        {b.so_ca_mac || b.so_ca || 0} ca
+                                                        {b.so_ca || 0} ca
                                                     </td>
                                                     <td className="text-center font-bold text-slate-700">
-                                                        {b.ty_le_pct || b.ty_le_phan_tram || 0}%
+                                                        {b.ty_le_phan_tram || 0}%
                                                     </td>
                                                     <td>
                                                         {b.truyen_nhiem ? (

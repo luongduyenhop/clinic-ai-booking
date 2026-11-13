@@ -1,0 +1,112 @@
+x-backend: &backend
+  image: ${COMPOSE_PROJECT_NAME:-clinic-demo}-backend:demo
+  build: ./backend
+  security_opt:
+    - no-new-privileges:true
+  logging: &logging
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-backend-env: &backend-env
+  ENVIRONMENT: demo
+  DEBUG: "false"
+  ENABLE_DEMO_SEED: "true"
+  ENABLE_OUTBOUND_NOTIFICATIONS: "false"
+  POSTGRES_SERVER: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-clinic_demo}
+  POSTGRES_USER: ${POSTGRES_USER:-clinic_demo}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  SECRET_KEY: ${SECRET_KEY}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+  CLS_UPLOAD_DIR: /var/lib/clinic/cls
+  CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-wnxp3aok}
+  CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-655712832393479}
+  CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-oD5z1slSBMh-Mknq6G35TA8Qcrk}
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_demo}
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: postgres -c shared_buffers=64MB -c work_mem=4MB -c max_connections=50 -c maintenance_work_mem=16MB
+    mem_limit: 256m
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - data
+
+  bootstrap:
+    <<: *backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *backend-env
+      DEMO_PASSWORD: ${DEMO_PASSWORD}
+    command:
+      - /bin/sh
+      - -ec
+      - python -m scripts.run_migrations && python -m scripts.seed_demo
+    mem_limit: 450m
+    networks:
+      - data
+
+  backend:
+    <<: *backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    environment: *backend-env
+    mem_limit: 450m
+    volumes:
+      - cls_uploads:/var/lib/clinic
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - app
+      - data
+
+  frontend:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile.vps
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    networks:
+      - app
+
+volumes:
+  postgres_data:
+  cls_uploads:
+
+networks:
+  app:
+  data:
+    internal: true

@@ -1,7 +1,5 @@
-"""Apply the repository migrations once, with a PostgreSQL deployment lock."""
 import asyncio
 from pathlib import Path
-
 from alembic import command
 from alembic.config import Config
 from alembic.migration import MigrationContext
@@ -10,20 +8,13 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
-
 from app.core.config import settings
-
-
 DEPLOYMENT_LOCK = 8241082026018
 DEMO_SCHEMA_COMMENT = "clinic-ai-dedicated-demo"
-
-
 def require_demo_database(connection: Connection) -> None:
     marker = connection.scalar(text("SELECT obj_description(to_regclass('alembic_version'), 'pg_class')"))
     if marker != DEMO_SCHEMA_COMMENT:
         raise RuntimeError("This PostgreSQL database was not initialized as a dedicated demo database")
-
-
 def upgrade(connection: Connection) -> str:
     backend_dir = Path(__file__).resolve().parents[1]
     config = Config(str(backend_dir / "alembic.ini"))
@@ -32,7 +23,6 @@ def upgrade(connection: Connection) -> str:
     head = ScriptDirectory.from_config(config).get_current_head()
     if head is None:
         raise RuntimeError("No repository migration head was found")
-
     migration = MigrationContext.configure(connection)
     if migration.get_current_revision() is None:
         inspector = inspect(connection)
@@ -45,14 +35,10 @@ def upgrade(connection: Connection) -> str:
             raise RuntimeError("Cannot bootstrap a nonempty database without an Alembic revision")
         if not settings.is_demo:
             raise RuntimeError("Empty-database initialization is available only in demo mode")
-
-        # Early historical revisions assume tables created by older application startups.
-        # The demo starts from the current model schema and stamps it in the same transaction.
-        import app.models  # noqa: F401
-        import app.models.content  # noqa: F401
+        import app.models              
+        import app.models.content              
         from app.core.database import Base
-        from app.models.bff_store import HeThongTrangThaiBff  # noqa: F401
-
+        from app.models.bff_store import HeThongTrangThaiBff              
         Base.metadata.create_all(connection)
         command.stamp(config, head)
         connection.execute(text("COMMENT ON TABLE alembic_version IS 'clinic-ai-dedicated-demo'"))
@@ -60,17 +46,13 @@ def upgrade(connection: Connection) -> str:
         if settings.is_demo:
             require_demo_database(connection)
         command.upgrade(config, "head")
-
     if migration.get_current_revision() != head:
         raise RuntimeError("Database revision does not match the repository head")
     return head
-
-
 async def run_migrations() -> str:
     database_url = make_url(settings.async_database_url)
     if database_url.drivername != "postgresql+asyncpg":
         raise RuntimeError("Deployment migrations require a PostgreSQL asyncpg connection")
-
     engine = create_async_engine(database_url, poolclass=NullPool)
     try:
         async with engine.begin() as connection:
@@ -79,7 +61,5 @@ async def run_migrations() -> str:
             return await connection.run_sync(upgrade)
     finally:
         await engine.dispose()
-
-
 if __name__ == "__main__":
     print(f"Database migrated to {asyncio.run(run_migrations())}")

@@ -168,3 +168,26 @@ class InvoicePreviewResponse(BaseModel):
 class UnbilledEncountersListResponse(BaseModel):
     items: List[UnbilledEncounterItem]
     total: int
+
+
+class SepayWebhookPayload(BaseModel):
+    id: Optional[int] = None
+    gateway: Optional[str] = None
+    transactionDate: Optional[str] = None
+    accountNumber: Optional[str] = None
+    code: Optional[str] = None
+    content: Optional[str] = None
+    transferType: Optional[str] = None
+    transferAmount: Optional[Decimal] = None
+    accumulated: Optional[Decimal] = None
+    subAccount: Optional[str] = None
+    referenceCode: Optional[str] = None
+    description: Optional[str] = None
+
+
+class SepayWebhookResponse(BaseModel):
+    success: bool
+    message: str
+    invoice_id: Optional[int] = None
+    ma_hoa_don: Optional[str] = None
+    amount_paid: Optional[Decimal] = None

@@ -3,7 +3,6 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_permission
@@ -70,27 +69,19 @@ from app.schemas.admin import (
 )
 from app.schemas.clinical import AmendmentResponse
 from app.services.admin_service import admin_service
-
 router = APIRouter(prefix="/admin", tags=["7. Quản Trị Phòng Khám & Phân Ca (Admin Portal)"])
-
-
 async def _require_admin(
     request: Request,
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Enforce the persisted RBAC matrix for Admin API routes; Admin is the superuser."""
     if current_user.vai_tro == VaiTroEnum.ADMIN.value:
         return current_user
-
     path = request.url.path
-    # Only an administrator may inspect or change role definitions themselves.
     if path.startswith("/api/v1/admin/rbac/"):
         raise ForbiddenException("Chỉ Admin được quản lý ma trận phân quyền.")
-
     from app.services.admin_rbac_service import admin_rbac_service
     await admin_rbac_service._ensure_catalog(db)
-
     if any(segment in path for segment in ("/staff", "/doctors", "/accounts")):
         module = "ROLE_RBAC"
     elif any(segment in path for segment in ("/rooms", "/departments", "/services")):
@@ -104,9 +95,7 @@ async def _require_admin(
     elif any(segment in path for segment in ("/analytics", "/dashboard", "/amendments", "/reports")):
         module = "ANALYTICS_REPORTS"
     else:
-        # Configuration and legacy BFF endpoints require explicit system-admin rights.
         module = "SYS_ADMIN"
-
     endpoint_name = getattr(request.scope.get("endpoint"), "__name__", "")
     action = "export" if "export" in endpoint_name else {
         "GET": "view", "POST": "create", "PUT": "update", "PATCH": "update", "DELETE": "delete"
@@ -122,8 +111,6 @@ async def _require_admin(
     if (await db.execute(permission_stmt)).scalar_one_or_none() is None:
         raise ForbiddenException(f"Vai trò hiện tại chưa được cấp quyền {permission_code}.")
     return current_user
-
-
 @router.get("/rbac/roles", response_model=ResponseEnvelope[List[RolePermissionAdminResponse]], summary="Danh sách vai trò và quyền được lưu trong PostgreSQL")
 async def get_rbac_roles(
     current_user: TaiKhoan = Depends(_require_admin),
@@ -131,8 +118,6 @@ async def get_rbac_roles(
 ):
     data = await admin_service.list_roles(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy ma trận vai trò/quyền từ CSDL thành công")
-
-
 @router.put("/rbac/roles/{role_code}/permissions", response_model=ResponseEnvelope[RolePermissionAdminResponse], summary="Lưu ma trận quyền vai trò vào PostgreSQL")
 async def update_rbac_role_permissions(
     role_code: str,
@@ -142,8 +127,6 @@ async def update_rbac_role_permissions(
 ):
     data = await admin_service.update_role_permissions(role_code, payload.permission_codes, db)
     return ResponseEnvelope.success_response(data=data, message="Đã lưu quyền cho vai trò")
-
-
 @router.get("/staff", response_model=ResponseEnvelope[List[StaffAdminResponse]], summary="Danh sách hồ sơ nhân viên không phải bác sĩ")
 async def get_staff(
     current_user: TaiKhoan = Depends(require_permission("ROLE_RBAC.view")),
@@ -151,8 +134,6 @@ async def get_staff(
 ):
     data = await admin_service.list_staff(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách nhân viên thành công")
-
-
 @router.post("/staff", response_model=ResponseEnvelope[StaffAdminResponse], status_code=status.HTTP_201_CREATED)
 async def create_staff(
     payload: StaffAdminCreateRequest,
@@ -161,8 +142,6 @@ async def create_staff(
 ):
     data = await admin_service.create_staff(payload, db)
     return ResponseEnvelope.success_response(data=data, message="Tạo hồ sơ nhân viên thành công", code=status.HTTP_201_CREATED)
-
-
 @router.patch("/staff/{employee_id}", response_model=ResponseEnvelope[StaffAdminResponse])
 async def update_staff(
     employee_id: int,
@@ -172,8 +151,6 @@ async def update_staff(
 ):
     data = await admin_service.update_staff(employee_id, payload, db)
     return ResponseEnvelope.success_response(data=data, message="Cập nhật hồ sơ nhân viên thành công")
-
-
 @router.post("/staff/{employee_id}/account", response_model=ResponseEnvelope[StaffAdminResponse], status_code=status.HTTP_201_CREATED)
 async def create_staff_account(
     employee_id: int,
@@ -183,8 +160,6 @@ async def create_staff_account(
 ):
     data = await admin_service.create_staff_account(employee_id, payload.password, db)
     return ResponseEnvelope.success_response(data=data, message="Đã tạo tài khoản đăng nhập cho nhân viên", code=status.HTTP_201_CREATED)
-
-
 @router.patch("/accounts/{account_id}/status", response_model=ResponseEnvelope[None])
 async def update_account_status(
     account_id: int,
@@ -194,8 +169,6 @@ async def update_account_status(
 ):
     await admin_service.update_account_status(account_id, payload.is_active, db)
     return ResponseEnvelope.success_response(data=None, message="Đã cập nhật trạng thái tài khoản; phiên đăng nhập cũ đã bị thu hồi nếu tài khoản bị khóa")
-
-
 @router.post("/accounts/{account_id}/reset-password", response_model=ResponseEnvelope[None])
 async def reset_account_password(
     account_id: int,
@@ -205,8 +178,6 @@ async def reset_account_password(
 ):
     await admin_service.reset_account_password(account_id, payload.new_password, db)
     return ResponseEnvelope.success_response(data=None, message="Đã đặt lại mật khẩu và thu hồi refresh token hiện tại")
-
-
 @router.get(
     "/doctors",
     response_model=ResponseEnvelope[List[DoctorAdminResponse]],
@@ -218,8 +189,6 @@ async def get_doctors(
 ):
     data = await admin_service.get_doctors_admin(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bác sĩ thành công")
-
-
 @router.post(
     "/doctors",
     response_model=ResponseEnvelope[DoctorAdminResponse],
@@ -237,8 +206,6 @@ async def create_doctor(
         message=f"Tạo mới bác sĩ {data.ho_ten} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/doctors/{doctor_id}",
     response_model=ResponseEnvelope[DoctorAdminResponse],
@@ -252,8 +219,6 @@ async def update_doctor(
 ):
     data = await admin_service.update_doctor_admin(doctor_id, payload, db)
     return ResponseEnvelope.success_response(data=data, message="Cập nhật bác sĩ thành công")
-
-
 @router.get(
     "/rooms",
     response_model=ResponseEnvelope[List[RoomResponse]],
@@ -268,8 +233,6 @@ async def get_rooms(
 ):
     data = await admin_service.get_rooms_admin(db, loai_phong=loai_phong, chuyen_khoa_id=chuyen_khoa_id, is_active=is_active)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách buồng khám thành công")
-
-
 @router.post(
     "/rooms",
     response_model=ResponseEnvelope[RoomResponse],
@@ -287,8 +250,6 @@ async def create_room(
         message=f"Tạo mới buồng khám {data.ma_phong} - {data.ten_phong} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.get(
     "/shifts",
     response_model=ResponseEnvelope[List[ShiftResponse]],
@@ -302,8 +263,6 @@ async def get_shifts(
 ):
     data = await admin_service.get_shifts(query_date, doctor_id, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách ca làm việc thành công")
-
-
 @router.post(
     "/shifts",
     response_model=ResponseEnvelope[ShiftResponse],
@@ -321,8 +280,6 @@ async def create_shift(
         message="Phân ca làm việc cho bác sĩ thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.get(
     "/shifts/schedule-matrix",
     response_model=ResponseEnvelope[DoctorScheduleMatrixResponse],
@@ -341,8 +298,6 @@ async def get_doctor_schedule_matrix(
         db, tu_ngay, den_ngay, chuyen_khoa_id, doctor_id, phong_kham_id
     )
     return ResponseEnvelope.success_response(data=data, message="Lấy ma trận phân ca trực thành công")
-
-
 @router.get(
     "/shifts/export-report",
     response_model=ResponseEnvelope[DoctorTimesheetReportResponse],
@@ -357,8 +312,6 @@ async def export_shift_timesheet_report(
 ):
     data = await admin_service.export_timesheet_report(db, tu_ngay, den_ngay, chuyen_khoa_id)
     return ResponseEnvelope.success_response(data=data, message="Xuất báo cáo chấm công phân ca thành công")
-
-
 @router.put(
     "/shifts/{shift_id}/lock",
     response_model=ResponseEnvelope[ShiftResponse],
@@ -373,8 +326,6 @@ async def toggle_lock_shift(
     data = await admin_service.toggle_lock_shift(shift_id, payload, db)
     msg = "Đã mở lại ca trực" if data.is_active else f"Đã khóa ca trực: {data.ghi_chu_nghi}"
     return ResponseEnvelope.success_response(data=data, message=msg)
-
-
 @router.post(
     "/shifts/{shift_id}/emergency-leave",
     response_model=ResponseEnvelope[EmergencyLeaveSummaryResponse],
@@ -391,8 +342,6 @@ async def declare_emergency_leave(
         data=data,
         message="Khai báo bác sĩ nghỉ đột xuất thành công! Vui lòng điều phối hàng đợi hoặc tạm hoãn lịch."
     )
-
-
 @router.post(
     "/shifts/{shift_id}/reassign",
     response_model=ResponseEnvelope[ReassignQueueResponse],
@@ -409,8 +358,6 @@ async def reassign_queue_to_replacement(
         data=data,
         message=f"Đã điều phối hàng đợi thành công sang Bác sĩ {data.ten_bac_si_thay_the}!"
     )
-
-
 @router.post(
     "/shifts/{shift_id}/postpone-and-cancel",
     response_model=ResponseEnvelope[PostponeAndCancelResponse],
@@ -426,8 +373,6 @@ async def postpone_and_cancel_unassigned(
         data=data,
         message="Đã tạm hoãn hàng đợi và hủy lịch hẹn an toàn!"
     )
-
-
 @router.get(
     "/services",
     response_model=ResponseEnvelope[List[ServiceItemAdminResponse]],
@@ -439,8 +384,6 @@ async def get_services(
 ):
     data = await admin_service.get_services_admin(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh mục dịch vụ thành công")
-
-
 @router.get(
     "/services/export",
     response_model=ResponseEnvelope[ServiceExportResponse],
@@ -454,8 +397,6 @@ async def export_services_catalog(
 ):
     data = await admin_service.export_services_catalog(db, chuyen_khoa_id, ma_nhom_byt)
     return ResponseEnvelope.success_response(data=data, message="Xuất danh mục bảng giá dịch vụ thành công")
-
-
 @router.post(
     "/services",
     response_model=ResponseEnvelope[ServiceItemAdminResponse],
@@ -473,8 +414,6 @@ async def create_service(
         message=f"Thêm dịch vụ {data.ten_dich_vu} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/services/{service_id}",
     response_model=ResponseEnvelope[ServiceItemAdminResponse],
@@ -491,8 +430,6 @@ async def update_service(
         data=data,
         message=f"Cập nhật dịch vụ {data.ten_dich_vu} thành công!"
     )
-
-
 @router.get(
     "/dashboard-stats",
     response_model=ResponseEnvelope[AdminDashboardStatsResponse],
@@ -505,8 +442,6 @@ async def get_dashboard_stats(
 ):
     data = await admin_service.get_dashboard_stats(query_date, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu thống kê vận hành thành công")
-
-
 @router.get(
     "/amendments",
     response_model=ResponseEnvelope[List[AmendmentResponse]],
@@ -519,8 +454,6 @@ async def get_admin_amendments(
 ):
     data = await admin_service.get_amendments_admin(db, trang_thai)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách biên bản đính chính thành công")
-
-
 @router.get(
     "/departments",
     response_model=ResponseEnvelope[List[DepartmentAdminResponse]],
@@ -532,8 +465,6 @@ async def get_departments(
 ):
     data = await admin_service.get_departments_admin(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh mục chuyên khoa thành công")
-
-
 @router.post(
     "/departments",
     response_model=ResponseEnvelope[DepartmentAdminResponse],
@@ -551,8 +482,6 @@ async def create_department(
         message=f"Tạo mới chuyên khoa {data.ten_chuyen_khoa} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/departments/{department_id}",
     response_model=ResponseEnvelope[DepartmentAdminResponse],
@@ -569,8 +498,6 @@ async def update_department(
         data=data,
         message=f"Cập nhật chuyên khoa {data.ten_chuyen_khoa} thành công!"
     )
-
-
 @router.get(
     "/rosters",
     response_model=ResponseEnvelope[List[RosterTemplateResponse]],
@@ -583,8 +510,6 @@ async def get_roster_templates(
 ):
     data = await admin_service.get_roster_templates_admin(db, doctor_id)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách mẫu ca trực tuần thành công")
-
-
 @router.post(
     "/rosters",
     response_model=ResponseEnvelope[RosterTemplateResponse],
@@ -602,8 +527,6 @@ async def create_roster_template(
         message=f"Tạo mẫu ca trực {data.ten_thu_tieng_viet} cho BS {data.ten_bac_si} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/rosters/{roster_id}",
     response_model=ResponseEnvelope[RosterTemplateResponse],
@@ -617,8 +540,6 @@ async def update_roster_template(
 ):
     data = await admin_service.update_roster_template_admin(roster_id, payload, db)
     return ResponseEnvelope.success_response(data=data, message="Cập nhật mẫu ca trực thành công")
-
-
 @router.delete(
     "/rosters/{roster_id}",
     response_model=ResponseEnvelope[None],
@@ -631,8 +552,6 @@ async def delete_roster_template(
 ):
     await admin_service.delete_roster_template_admin(roster_id, db)
     return ResponseEnvelope.success_response(data=None, message="Xóa mẫu ca trực thành công")
-
-
 @router.post(
     "/rosters/generate-shifts",
     response_model=ResponseEnvelope[RosterBatchGenerateResponse],
@@ -648,8 +567,6 @@ async def generate_shifts_from_roster(
         data=data,
         message=f"Phát sinh ca trực tự động hoàn tất! Đã tạo {data.so_ca_tao_thanh_cong} ca."
     )
-
-
 @router.get(
     "/leaves",
     response_model=ResponseEnvelope[List[DoctorLeaveResponse]],
@@ -663,8 +580,6 @@ async def get_leaves(
 ):
     data = await admin_service.get_leaves_admin(db, doctor_id, trang_thai)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách nghỉ phép thành công")
-
-
 @router.post(
     "/leaves",
     response_model=ResponseEnvelope[DoctorLeaveResponse],
@@ -682,8 +597,6 @@ async def create_leave(
         message="Đăng ký nghỉ phép thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.post(
     "/leaves/{leave_id}/approve",
     response_model=ResponseEnvelope[DoctorLeaveResponse],
@@ -698,8 +611,6 @@ async def approve_leave(
     data = await admin_service.approve_leave_admin(leave_id, payload, current_user, db)
     msg = "Đã duyệt đơn nghỉ phép và khóa ca trực liên quan!" if payload.hanh_dong == "DA_DUYET" else "Đã từ chối đơn nghỉ phép."
     return ResponseEnvelope.success_response(data=data, message=msg)
-
-
 @router.get(
     "/leaves/{leave_id}/affected-bookings",
     response_model=ResponseEnvelope[List[AffectedBookingItem]],
@@ -712,8 +623,6 @@ async def get_leave_affected_bookings(
 ):
     data = await admin_service.get_leave_affected_bookings(leave_id, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bệnh nhân bị ảnh hưởng thành công")
-
-
 @router.post(
     "/leaves/{leave_id}/cancel",
     response_model=ResponseEnvelope[DoctorLeaveResponse],
@@ -727,8 +636,6 @@ async def cancel_leave(
     from app.services.admin_shift_service import admin_shift_service
     data = await admin_shift_service.cancel_leave_admin(leave_id, current_user, db)
     return ResponseEnvelope.success_response(data=data, message="Đã hủy đơn nghỉ phép và mở lại ca trực liên quan!")
-
-
 @router.delete(
     "/leaves/{leave_id}",
     response_model=ResponseEnvelope[None],
@@ -742,8 +649,6 @@ async def delete_leave(
     from app.services.admin_shift_service import admin_shift_service
     await admin_shift_service.delete_leave_admin(leave_id, db)
     return ResponseEnvelope.success_response(data=None, message="Đã xóa đơn nghỉ phép thành công!")
-
-
 @router.get(
     "/ai/concepts",
     response_model=ResponseEnvelope[List[ConceptAdminResponse]],
@@ -757,8 +662,6 @@ async def get_concepts(
 ):
     data = await admin_service.get_concepts_admin(db, loai_khai_niem, chuyen_khoa_id)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách khái niệm y khoa thành công")
-
-
 @router.post(
     "/ai/concepts",
     response_model=ResponseEnvelope[ConceptAdminResponse],
@@ -776,8 +679,6 @@ async def create_concept(
         message=f"Thêm khái niệm {data.ten_khai_niem} thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/ai/concepts/{concept_id}",
     response_model=ResponseEnvelope[ConceptAdminResponse],
@@ -791,8 +692,6 @@ async def update_concept(
 ):
     data = await admin_service.update_concept_admin(concept_id, payload, db)
     return ResponseEnvelope.success_response(data=data, message=f"Cập nhật khái niệm {data.ten_khai_niem} thành công!")
-
-
 @router.delete(
     "/ai/concepts/{concept_id}",
     response_model=ResponseEnvelope[None],
@@ -805,8 +704,6 @@ async def delete_concept(
 ):
     await admin_service.delete_concept_admin(concept_id, db)
     return ResponseEnvelope.success_response(data=None, message="Xóa khái niệm thành công")
-
-
 @router.get(
     "/ai/red-flags",
     response_model=ResponseEnvelope[List[RedFlagAdminResponse]],
@@ -818,8 +715,6 @@ async def get_red_flags(
 ):
     data = await admin_service.get_red_flags_admin(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách từ khóa cấp cứu thành công")
-
-
 @router.post(
     "/ai/red-flags",
     response_model=ResponseEnvelope[RedFlagAdminResponse],
@@ -837,8 +732,6 @@ async def create_red_flag(
         message=f"Thêm từ khóa cấp cứu '{data.tu_khoa}' thành công!",
         code=status.HTTP_201_CREATED
     )
-
-
 @router.put(
     "/ai/red-flags/{rule_id}",
     response_model=ResponseEnvelope[RedFlagAdminResponse],
@@ -852,8 +745,6 @@ async def update_red_flag(
 ):
     data = await admin_service.update_red_flag_admin(rule_id, payload, db)
     return ResponseEnvelope.success_response(data=data, message="Cập nhật quy tắc cấp cứu thành công")
-
-
 @router.delete(
     "/ai/red-flags/{rule_id}",
     response_model=ResponseEnvelope[None],
@@ -866,8 +757,6 @@ async def delete_red_flag(
 ):
     await admin_service.delete_red_flag_admin(rule_id, db)
     return ResponseEnvelope.success_response(data=None, message="Xóa quy tắc cấp cứu thành công")
-
-
 @router.get(
     "/ai/accuracy",
     response_model=ResponseEnvelope[AIAccuracyReportResponse],
@@ -879,8 +768,6 @@ async def get_ai_accuracy(
 ):
     data = await admin_service.get_ai_accuracy_report(db)
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu độ chính xác AI thành công")
-
-
 @router.get(
     "/reports/analytics",
     response_model=ResponseEnvelope[AdminAnalyticsReportResponse],
@@ -894,8 +781,6 @@ async def get_analytics_report(
 ):
     data = await admin_service.get_analytics_report_admin(db, tu_ngay, den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy báo cáo phân tích thống kê thành công")
-
-
 @router.get(
     "/analytics/top-diseases",
     response_model=ResponseEnvelope[TopDiseasesResponse],
@@ -910,8 +795,6 @@ async def get_top_diseases(
 ):
     data = await admin_service.get_top_icd10_diseases(db, tu_ngay, den_ngay, limit)
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top bệnh ICD-10 thành công")
-
-
 @router.get(
     "/analytics/top-services",
     response_model=ResponseEnvelope[TopServicesResponse],
@@ -926,8 +809,6 @@ async def get_top_services(
 ):
     data = await admin_service.get_top_services_analytics(db, tu_ngay, den_ngay, limit)
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top dịch vụ kỹ thuật thành công")
-
-
 @router.get(
     "/analytics/doctor-performance",
     response_model=ResponseEnvelope[DoctorPerformanceResponse],
@@ -942,8 +823,6 @@ async def get_doctor_performance(
 ):
     data = await admin_service.get_doctor_performance_analytics(db, tu_ngay, den_ngay, chuyen_khoa_id)
     return ResponseEnvelope.success_response(data=data, message="Lấy báo cáo hiệu suất bác sĩ thành công")
-
-
 @router.get(
     "/analytics/room-workload",
     response_model=ResponseEnvelope[RoomWorkloadResponse],
@@ -957,8 +836,6 @@ async def get_room_workload(
 ):
     data = await admin_service.get_room_workload_analytics(db, tu_ngay, den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê phụ tải buồng khám thành công")
-
-
 @router.get(
     "/analytics/top-medicines",
     response_model=ResponseEnvelope[TopMedicinesResponse],
@@ -973,8 +850,6 @@ async def get_top_medicines(
 ):
     data = await admin_service.get_top_medicines_analytics(db, tu_ngay, den_ngay, limit)
     return ResponseEnvelope.success_response(data=data, message="Lấy thống kê Top thuốc kê đơn thành công")
-
-
 @router.get(
     "/patients",
     response_model=ResponseEnvelope[List[PatientAdminItemResponse]],
@@ -989,8 +864,6 @@ async def get_patients(
 ):
     data = await admin_service.get_patients_admin(db, search, page, page_size)
     return ResponseEnvelope.success_response(data=data, message="Lấy danh sách bệnh nhân thành công")
-
-
 @router.get(
     "/patients/{patient_id}",
     response_model=ResponseEnvelope[PatientAdminDetailResponse],
@@ -1003,8 +876,6 @@ async def get_patient_detail(
 ):
     data = await admin_service.get_patient_detail_admin(patient_id, db)
     return ResponseEnvelope.success_response(data=data, message="Lấy chi tiết hồ sơ bệnh nhân thành công")
-
-
 @router.put(
     "/patients/{patient_id}/status",
     response_model=ResponseEnvelope[PatientAdminDetailResponse],
@@ -1021,27 +892,19 @@ async def update_patient_status(
         data=data,
         message=f"Cập nhật hồ sơ bệnh nhân {data.ho_ten} thành công!"
     )
-
-
 from typing import Any
 from pydantic import BaseModel
 from app.services.bff_admin_service import bff_admin_service
-
-
 class BffCollectionUpdatePayload(BaseModel):
     collectionKey: Optional[str] = None
     items: Any = None
     auditEntry: Optional[dict] = None
-
-
 class BffCatalogUpdatePayload(BaseModel):
     subKey: Optional[str] = None
     items: Any = None
     auditEntry: Optional[dict] = None
     deletedItem: Optional[dict] = None
     deletedItemKey: Optional[str] = None
-
-
 @router.get(
     "/bootstrap",
     response_model=ResponseEnvelope[dict],
@@ -1056,8 +919,6 @@ async def get_admin_bootstrap(
         data=data,
         message="Đồng bộ dữ liệu hệ thống từ PostgreSQL thành công!",
     )
-
-
 @router.put(
     "/collections/{collection_key}",
     response_model=ResponseEnvelope[dict],
@@ -1081,8 +942,6 @@ async def update_admin_collection(
         data=data,
         message=f"Đã lưu dữ liệu phân hệ '{collection_key}' vào PostgreSQL thành công!",
     )
-
-
 @router.put(
     "/catalogs/{sub_key}",
     response_model=ResponseEnvelope[dict],
@@ -1108,8 +967,6 @@ async def update_admin_catalog_subcollection(
         data=data,
         message=f"Đã cập nhật danh mục '{sub_key}' vào PostgreSQL thành công!",
     )
-
-
 @router.post(
     "/reset-demo",
     response_model=ResponseEnvelope[dict],

@@ -1,10 +1,9 @@
 import logging
 from datetime import date, time
 from typing import Dict, List, Optional
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.core.exceptions import (
     BadRequestException,
     ConflictException,
@@ -47,12 +46,8 @@ from app.schemas.admin import (
     DoctorTimesheetReportItem,
     DoctorTimesheetReportResponse,
 )
-
 logger = logging.getLogger(__name__)
-
-
 class AdminShiftService:
-
     async def _resolve_doctor_id(self, db: AsyncSession, doctor_id: Optional[int]) -> Optional[int]:
         if not doctor_id:
             return None
@@ -60,11 +55,9 @@ class AdminShiftService:
         direct_id = (await db.execute(stmt_direct)).scalar_one_or_none()
         if direct_id is not None:
             return direct_id
-
         stmt_nd = select(BacSi.id).where(BacSi.nguoi_dung_id == doctor_id)
         resolved_id = (await db.execute(stmt_nd)).scalar_one_or_none()
         return resolved_id or doctor_id
-
     async def get_shifts(
         self, query_date: Optional[date], doctor_id: Optional[int], db: AsyncSession
     ) -> List[ShiftResponse]:
@@ -81,10 +74,8 @@ class AdminShiftService:
         if doctor_id:
             resolved_doc_id = await self._resolve_doctor_id(db, doctor_id)
             stmt = stmt.where(LichLamViec.bac_si_id == resolved_doc_id)
-
         stmt = stmt.order_by(LichLamViec.ngay_lam_viec, LichLamViec.ca_lam_viec)
         shifts = (await db.execute(stmt)).scalars().all()
-
         res = []
         for s in shifts:
             stmt_booked = select(func.count(LichKham.id)).where(
@@ -95,7 +86,6 @@ class AdminShiftService:
                 LichKham.gio_kham < s.gio_ket_thuc,
             )
             booked_count = (await db.execute(stmt_booked)).scalar() or 0
-
             phong_display = ""
             ma_phong = None
             ten_phong = None
@@ -107,7 +97,6 @@ class AdminShiftService:
                 tang_phong = s.phong_kham.tang
             elif s.bac_si and s.bac_si.chuyen_khoa:
                 phong_display = s.bac_si.chuyen_khoa.vi_tri_phong or ""
-
             res.append(
                 ShiftResponse(
                     id=s.id,
@@ -132,7 +121,6 @@ class AdminShiftService:
                 )
             )
         return res
-
     async def create_shift(self, payload: ShiftCreateRequest, db: AsyncSession) -> ShiftResponse:
         stmt_bs = (
             select(BacSi)
@@ -145,20 +133,32 @@ class AdminShiftService:
         doc = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ với ID {payload.bac_si_id}!")
-
+        if not (doc.chung_chi_hanh_nghe or getattr(doc, "so_cchn", None)):
+            raise BadRequestException(f"Bác sĩ {doc.nguoi_dung.ho_ten} chưa có Chứng chỉ hành nghề (CCHN) hợp lệ!")
         from app.services.credential_service import credential_service
         await credential_service.check_doctor_license_valid(db, payload.bac_si_id)
-
+        if payload.ca_lam_viec == CaLamViecEnum.SANG.value:
+            s_time = payload.gio_bat_dau or time(7, 30)
+            e_time = payload.gio_ket_thuc or time(11, 30)
+        else:
+            s_time = payload.gio_bat_dau or time(13, 30)
+            e_time = payload.gio_ket_thuc or time(17, 0)
         stmt_dup = select(LichLamViec).where(
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
-            LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+            LichLamViec.is_active.is_(True),
+            or_(
+                LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+                and_(
+                    LichLamViec.gio_bat_dau < e_time,
+                    LichLamViec.gio_ket_thuc > s_time,
+                ),
+            ),
         )
         if (await db.execute(stmt_dup)).scalar_one_or_none():
             raise ConflictException(
                 f"Bác sĩ {doc.nguoi_dung.ho_ten} đã được phân ca {payload.ca_lam_viec} vào ngày {payload.ngay_lam_viec}!"
             )
-
         target_room_id = payload.phong_kham_id or doc.phong_kham_id
         room = None
         if target_room_id:
@@ -172,7 +172,6 @@ class AdminShiftService:
                 raise NotFoundException(f"Không tìm thấy buồng khám với ID {target_room_id}!")
             if not room.is_active:
                 raise BadRequestException(f"Buồng khám '{room.ten_phong}' đang tạm dừng hoạt động hoặc bảo trì!")
-
             if room.loai_phong != "kham_benh":
                 loai_phong_label = {
                     "xet_nghiem": "Phòng xét nghiệm cận lâm sàng",
@@ -182,19 +181,23 @@ class AdminShiftService:
                 raise BadRequestException(
                     f"Không thể phân ca khám cho buồng '{room.ten_phong}' vì đây là {loai_phong_label}, không phải buồng khám bệnh lâm sàng!"
                 )
-
             if room.chuyen_khoa_id and doc.chuyen_khoa_id and room.chuyen_khoa_id != doc.chuyen_khoa_id:
                 ten_ck_room = room.chuyen_khoa.ten_chuyen_khoa if room.chuyen_khoa else f"CK #{room.chuyen_khoa_id}"
                 ten_ck_doc = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else f"CK #{doc.chuyen_khoa_id}"
                 raise BadRequestException(
                     f"Sai lệch chuyên khoa: Buồng '{room.ten_phong}' thuộc chuyên khoa '{ten_ck_room}', không tương thích với chuyên khoa của BS {doc.nguoi_dung.ho_ten} ('{ten_ck_doc}')!"
                 )
-
             stmt_conflict_room = select(LichLamViec).where(
                 LichLamViec.phong_kham_id == target_room_id,
                 LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
-                LichLamViec.ca_lam_viec == payload.ca_lam_viec,
                 LichLamViec.is_active.is_(True),
+                or_(
+                    LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+                    and_(
+                        LichLamViec.gio_bat_dau < e_time,
+                        LichLamViec.gio_ket_thuc > s_time,
+                    ),
+                ),
             )
             conflict_shift = (await db.execute(stmt_conflict_room)).scalar_one_or_none()
             if conflict_shift:
@@ -204,18 +207,9 @@ class AdminShiftService:
                 raise ConflictException(
                     f"Xung đột buồng khám: Buồng '{room.ma_phong} - {room.ten_phong}' đã được phân cho bác sĩ {c_doc_name} trong ca {payload.ca_lam_viec} ngày {payload.ngay_lam_viec}!"
                 )
-
-        if payload.ca_lam_viec == CaLamViecEnum.SANG.value:
-            s_time = payload.gio_bat_dau or time(7, 30)
-            e_time = payload.gio_ket_thuc or time(11, 30)
-        else:
-            s_time = payload.gio_bat_dau or time(13, 30)
-            e_time = payload.gio_ket_thuc or time(17, 0)
-
         gioi_han = payload.gioi_han_ca_kham
         han_muc_dat_truoc = payload.han_muc_dat_truoc if payload.han_muc_dat_truoc is not None else max(1, int(gioi_han * 0.75))
         han_muc_vang_lai = payload.han_muc_vang_lai if payload.han_muc_vang_lai is not None else max(1, gioi_han - han_muc_dat_truoc)
-
         shift = LichLamViec(
             bac_si_id=payload.bac_si_id,
             phong_kham_id=target_room_id,
@@ -231,9 +225,7 @@ class AdminShiftService:
         db.add(shift)
         await db.commit()
         await db.refresh(shift)
-
         phong_display = f"{room.ma_phong} - {room.ten_phong}" if room else (doc.chuyen_khoa.vi_tri_phong if doc.chuyen_khoa else "")
-
         return ShiftResponse(
             id=shift.id,
             bac_si_id=doc.id,
@@ -255,7 +247,97 @@ class AdminShiftService:
             is_active=shift.is_active,
             ghi_chu_nghi=None,
         )
-
+    async def update_shift(self, shift_id: int, payload, db: AsyncSession) -> ShiftResponse:
+        stmt = (
+            select(LichLamViec)
+            .options(
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(LichLamViec.phong_kham),
+            )
+            .where(LichLamViec.id == shift_id)
+        )
+        shift = (await db.execute(stmt)).scalar_one_or_none()
+        if not shift:
+            raise NotFoundException(f"Không tìm thấy ca trực với ID {shift_id}!")
+        doc = shift.bac_si
+        target_room_id = getattr(payload, "phong_kham_id", None) if getattr(payload, "phong_kham_id", None) is not None else shift.phong_kham_id
+        room = None
+        if target_room_id:
+            stmt_room = (
+                select(PhongKham)
+                .options(selectinload(PhongKham.chuyen_khoa))
+                .where(PhongKham.id == target_room_id)
+            )
+            room = (await db.execute(stmt_room)).scalar_one_or_none()
+            if not room:
+                raise NotFoundException(f"Không tìm thấy buồng khám với ID {target_room_id}!")
+            if not room.is_active:
+                raise BadRequestException(f"Buồng khám '{room.ten_phong}' đang tạm dừng hoạt động hoặc bảo trì!")
+            if room.loai_phong != "kham_benh":
+                raise BadRequestException(f"Không thể phân ca khám cho buồng '{room.ten_phong}' vì đây không phải buồng khám bệnh lâm sàng!")
+        s_time = getattr(payload, "gio_bat_dau", None) or shift.gio_bat_dau
+        e_time = getattr(payload, "gio_ket_thuc", None) or shift.gio_ket_thuc
+        is_active_val = getattr(payload, "is_active", None) if getattr(payload, "is_active", None) is not None else shift.is_active
+        if target_room_id and is_active_val:
+            stmt_conflict = select(LichLamViec).where(
+                LichLamViec.id != shift_id,
+                LichLamViec.phong_kham_id == target_room_id,
+                LichLamViec.ngay_lam_viec == shift.ngay_lam_viec,
+                LichLamViec.is_active.is_(True),
+                or_(
+                    LichLamViec.ca_lam_viec == shift.ca_lam_viec,
+                    and_(
+                        LichLamViec.gio_bat_dau < e_time,
+                        LichLamViec.gio_ket_thuc > s_time,
+                    ),
+                ),
+            )
+            conflict_shift = (await db.execute(stmt_conflict)).scalar_one_or_none()
+            if conflict_shift:
+                raise ConflictException(
+                    f"Xung đột buồng khám: Buồng '{room.ma_phong} - {room.ten_phong}' đã được phân cho bác sĩ khác trong khung giờ này!"
+                )
+        if hasattr(payload, "phong_kham_id") and payload.phong_kham_id is not None:
+            shift.phong_kham_id = payload.phong_kham_id
+        if hasattr(payload, "gio_bat_dau") and payload.gio_bat_dau is not None:
+            shift.gio_bat_dau = payload.gio_bat_dau
+        if hasattr(payload, "gio_ket_thuc") and payload.gio_ket_thuc is not None:
+            shift.gio_ket_thuc = payload.gio_ket_thuc
+        if hasattr(payload, "gioi_han_ca_kham") and payload.gioi_han_ca_kham is not None:
+            shift.gioi_han_ca_kham = payload.gioi_han_ca_kham
+        if hasattr(payload, "han_muc_dat_truoc") and payload.han_muc_dat_truoc is not None:
+            shift.han_muc_dat_truoc = payload.han_muc_dat_truoc
+        if hasattr(payload, "han_muc_vang_lai") and payload.han_muc_vang_lai is not None:
+            shift.han_muc_vang_lai = payload.han_muc_vang_lai
+        if hasattr(payload, "is_active") and payload.is_active is not None:
+            shift.is_active = payload.is_active
+        if hasattr(payload, "ghi_chu_nghi") and payload.ghi_chu_nghi is not None:
+            shift.ghi_chu_nghi = payload.ghi_chu_nghi
+        await db.commit()
+        await db.refresh(shift)
+        phong_display = f"{room.ma_phong} - {room.ten_phong}" if room else (f"{shift.phong_kham.ma_phong} - {shift.phong_kham.ten_phong}" if shift.phong_kham else "")
+        return ShiftResponse(
+            id=shift.id,
+            bac_si_id=doc.id,
+            ten_bac_si=doc.nguoi_dung.ho_ten if doc and doc.nguoi_dung else "",
+            chuyen_khoa=doc.chuyen_khoa.ten_chuyen_khoa if doc and doc.chuyen_khoa else "Chưa gán",
+            phong_kham=phong_display,
+            phong_kham_id=shift.phong_kham_id,
+            ma_phong=room.ma_phong if room else (shift.phong_kham.ma_phong if shift.phong_kham else None),
+            ten_phong=room.ten_phong if room else (shift.phong_kham.ten_phong if shift.phong_kham else None),
+            tang_phong=room.tang if room else (shift.phong_kham.tang if shift.phong_kham else None),
+            ngay_lam_viec=shift.ngay_lam_viec,
+            ca_lam_viec=shift.ca_lam_viec,
+            gio_bat_dau=shift.gio_bat_dau,
+            gio_ket_thuc=shift.gio_ket_thuc,
+            gioi_han_ca_kham=shift.gioi_han_ca_kham,
+            han_muc_dat_truoc=shift.han_muc_dat_truoc,
+            han_muc_vang_lai=shift.han_muc_vang_lai,
+            so_luong_da_dat=shift.so_luong_da_dat,
+            is_active=shift.is_active,
+            ghi_chu_nghi=shift.ghi_chu_nghi,
+        )
     async def toggle_lock_shift(
         self, shift_id: int, payload: ShiftToggleLockRequest, db: AsyncSession
     ) -> ShiftResponse:
@@ -271,12 +353,10 @@ class AdminShiftService:
         shift = (await db.execute(stmt)).scalar_one_or_none()
         if not shift:
             raise NotFoundException(f"Không tìm thấy ca làm việc với ID {shift_id}!")
-
         shift.is_active = payload.is_active
         shift.ghi_chu_nghi = payload.ghi_chu_nghi
         await db.commit()
         await db.refresh(shift)
-
         phong_display = ""
         ma_phong = None
         ten_phong = None
@@ -288,7 +368,6 @@ class AdminShiftService:
             tang_phong = shift.phong_kham.tang
         elif shift.bac_si and shift.bac_si.chuyen_khoa:
             phong_display = shift.bac_si.chuyen_khoa.vi_tri_phong or ""
-
         return ShiftResponse(
             id=shift.id,
             bac_si_id=shift.bac_si_id,
@@ -310,7 +389,6 @@ class AdminShiftService:
             is_active=shift.is_active,
             ghi_chu_nghi=shift.ghi_chu_nghi,
         )
-
     async def declare_emergency_leave(
         self, shift_id: int, payload: EmergencyLeaveDeclareRequest, admin_user: TaiKhoan, db: AsyncSession
     ) -> EmergencyLeaveSummaryResponse:
@@ -326,13 +404,10 @@ class AdminShiftService:
         shift = (await db.execute(stmt)).scalar_one_or_none()
         if not shift:
             raise NotFoundException(f"Không tìm thấy ca làm việc với ID {shift_id}!")
-
         if not shift.is_active:
             raise ConflictException("Ca làm việc này đã được đánh dấu nghỉ/khóa trước đó!")
-
         shift.is_active = False
         shift.ghi_chu_nghi = f"Nghỉ đột xuất: {payload.ly_do_nghi}"
-
         stmt_cho = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == shift.bac_si_id,
             HangDoiKham.ngay_kham == shift.ngay_lam_viec,
@@ -340,7 +415,6 @@ class AdminShiftService:
             HangDoiKham.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value,
         )
         n_cho = (await db.execute(stmt_cho)).scalar() or 0
-
         stmt_dang = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == shift.bac_si_id,
             HangDoiKham.ngay_kham == shift.ngay_lam_viec,
@@ -348,7 +422,6 @@ class AdminShiftService:
             HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
         )
         n_dang = (await db.execute(stmt_dang)).scalar() or 0
-
         stmt_lich = select(func.count(LichKham.id)).where(
             LichKham.bac_si_id == shift.bac_si_id,
             LichKham.ngay_kham == shift.ngay_lam_viec,
@@ -360,15 +433,12 @@ class AdminShiftService:
             ]),
         )
         n_lich = (await db.execute(stmt_lich)).scalar() or 0
-
         await db.commit()
         await db.refresh(shift)
-
         logger.warning(
             f"🚨 [AUDIT - EMERGENCY_LEAVE] Shift: {shift.id} | Bác sĩ: {shift.bac_si_id} | Admin: {admin_user.id} | "
             f"N1(chờ)={n_cho}, N2(đang khám)={n_dang}, N3(lịch hẹn)={n_lich}"
         )
-
         return EmergencyLeaveSummaryResponse(
             lich_lam_viec_id=shift.id,
             bac_si_id=shift.bac_si_id,
@@ -382,7 +452,6 @@ class AdminShiftService:
             so_ve_dang_kham=n_dang,
             so_lich_chua_checkin=n_lich,
         )
-
     async def reassign_queue_to_replacement(
         self, shift_id: int, payload: ReassignQueueRequest, admin_user: TaiKhoan, db: AsyncSession
     ) -> ReassignQueueResponse:
@@ -398,10 +467,8 @@ class AdminShiftService:
         shift_goc = (await db.execute(stmt_goc)).scalar_one_or_none()
         if not shift_goc:
             raise NotFoundException(f"Không tìm thấy ca làm việc gốc với ID {shift_id}!")
-
         if shift_goc.is_active:
             raise ConflictException("Ca làm việc này chưa được khai báo nghỉ đột xuất!")
-
         stmt_bs_thay = (
             select(BacSi)
             .options(
@@ -413,16 +480,13 @@ class AdminShiftService:
         bs_thay = (await db.execute(stmt_bs_thay)).scalar_one_or_none()
         if not bs_thay:
             raise NotFoundException(f"Không tìm thấy bác sĩ thay thế với ID {payload.bac_si_thay_the_id}!")
-
         if bs_thay.id == shift_goc.bac_si_id:
             raise BadRequestException("Bác sĩ thay thế không thể là chính bác sĩ đang nghỉ!")
-
         if bs_thay.chuyen_khoa_id != shift_goc.bac_si.chuyen_khoa_id:
             raise BadRequestException(
                 f"Bác sĩ thay thế thuộc chuyên khoa '{bs_thay.chuyen_khoa.ten_chuyen_khoa if bs_thay.chuyen_khoa else ''}', "
                 f"không cùng chuyên khoa với bác sĩ nghỉ ('{shift_goc.bac_si.chuyen_khoa.ten_chuyen_khoa if shift_goc.bac_si.chuyen_khoa else ''}')!"
             )
-
         stmt_shift_thay = (
             select(LichLamViec)
             .where(
@@ -437,7 +501,6 @@ class AdminShiftService:
             raise ConflictException(
                 f"Bác sĩ thay thế {bs_thay.nguoi_dung.ho_ten} không có ca trực đang hoạt động trong ca {shift_goc.ca_lam_viec} ngày {shift_goc.ngay_lam_viec}!"
             )
-
         stmt_ve_cho = (
             select(HangDoiKham)
             .where(
@@ -450,7 +513,6 @@ class AdminShiftService:
             .with_for_update()
         )
         ve_cho_list = (await db.execute(stmt_ve_cho)).scalars().all()
-
         stmt_count_thay = select(func.count(HangDoiKham.id)).where(
             HangDoiKham.bac_si_id == bs_thay.id,
             HangDoiKham.ngay_kham == shift_goc.ngay_lam_viec,
@@ -467,14 +529,12 @@ class AdminShiftService:
                 f"Bác sĩ thay thế {bs_thay.nguoi_dung.ho_ten} sẽ bị quá tải! "
                 f"Hiện tại: {so_hien_tai}, Cần chuyển: {len(ve_cho_list)}, Giới hạn ca: {shift_thay.gioi_han_ca_kham}."
             )
-
         stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
             HangDoiKham.bac_si_id == bs_thay.id,
             HangDoiKham.ngay_kham == shift_goc.ngay_lam_viec,
             HangDoiKham.ca_kham == shift_goc.ca_lam_viec,
         )
         curr_max_stt = (await db.execute(stmt_max_stt)).scalar() or 0
-
         ten_goc = shift_goc.bac_si.nguoi_dung.ho_ten
         ten_moi = bs_thay.nguoi_dung.ho_ten
         count_cho = 0
@@ -489,7 +549,6 @@ class AdminShiftService:
                 if lk_item:
                     lk_item.bac_si_id = bs_thay.id
             count_cho += 1
-
         stmt_dang_kham = (
             select(HangDoiKham)
             .where(
@@ -510,14 +569,12 @@ class AdminShiftService:
                 lk = (await db.execute(stmt_lk)).scalar_one_or_none()
                 if lk:
                     lk.bac_si_id = bs_thay.id
-
                 stmt_luot = select(LuotKham).where(LuotKham.lich_kham_id == ve_dang.lich_kham_id)
                 luot = (await db.execute(stmt_luot)).scalar_one_or_none()
                 if luot:
                     luot.tiep_quan_boi_id = bs_thay.id
                     luot.ly_do_tiep_quan = f"Bàn giao ca do BS {ten_goc} nghỉ đột xuất"
             count_dang += 1
-
         stmt_lich_chua_den = (
             select(LichKham)
             .where(
@@ -537,14 +594,11 @@ class AdminShiftService:
         for lk_cd in lich_chua_den_list:
             lk_cd.bac_si_id = bs_thay.id
             count_lich += 1
-
         await db.commit()
-
         logger.info(
             f"✅ [QUEUE REASSIGNED] Shift: {shift_id} | Chuyển từ BS {shift_goc.bac_si_id} sang BS {bs_thay.id} | "
             f"Vé chờ: {count_cho}, Đang khám: {count_dang}, Lịch hẹn: {count_lich}"
         )
-
         return ReassignQueueResponse(
             lich_lam_viec_id=shift_id,
             bac_si_goc_id=shift_goc.bac_si_id,
@@ -556,7 +610,6 @@ class AdminShiftService:
             so_lich_chua_checkin_da_chuyen=count_lich,
             ghi_chu=f"Đã điều phối thành công sang Bác sĩ {ten_moi}",
         )
-
     async def postpone_and_cancel_unassigned(
         self, shift_id: int, admin_user: TaiKhoan, db: AsyncSession
     ) -> PostponeAndCancelResponse:
@@ -568,10 +621,8 @@ class AdminShiftService:
         shift = (await db.execute(stmt)).scalar_one_or_none()
         if not shift:
             raise NotFoundException(f"Không tìm thấy ca làm việc với ID {shift_id}!")
-
         if shift.is_active:
             raise ConflictException("Ca làm việc này chưa được khai báo nghỉ đột xuất!")
-
         stmt_ve_cho = (
             select(HangDoiKham)
             .where(
@@ -588,7 +639,6 @@ class AdminShiftService:
             ve.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
             ve.ghi_chu_dieu_phoi = "Tạm hoãn do Bác sĩ nghỉ đột xuất không có người trực thay thế"
             count_hoan += 1
-
         stmt_lich = (
             select(LichKham)
             .where(
@@ -609,13 +659,10 @@ class AdminShiftService:
             lk.trang_thai = TrangThaiLichEnum.TU_DONG_HUY.value
             lk.ghi_chu = "Phòng khám hủy do Bác sĩ nghỉ đột xuất (Bảo lưu điểm tín nhiệm)"
             count_huy += 1
-
         await db.commit()
-
         logger.warning(
             f"⚠️ [QUEUE POSTPONED & CANCELLED] Shift: {shift_id} | Vé tạm hoãn: {count_hoan} | Lịch hủy: {count_huy}"
         )
-
         return PostponeAndCancelResponse(
             lich_lam_viec_id=shift_id,
             bac_si_id=shift.bac_si_id,
@@ -623,10 +670,6 @@ class AdminShiftService:
             so_lich_da_huy=count_huy,
             ghi_chu="Đã tạm hoãn hàng đợi và hủy lịch hẹn an toàn (No-fault cancellation)",
         )
-
-
-
-
     DAY_NAME_VN = {
         2: "Thứ 2",
         3: "Thứ 3",
@@ -636,7 +679,6 @@ class AdminShiftService:
         7: "Thứ 7",
         8: "Chủ Nhật"
     }
-
     async def get_roster_templates_admin(self, db: AsyncSession, doctor_id: Optional[int] = None) -> List[RosterTemplateResponse]:
         stmt = (
             select(LichDinhKyBacSi)
@@ -672,12 +714,10 @@ class AdminShiftService:
                 is_active=r.is_active
             ))
         return results
-
     async def create_roster_template_admin(self, payload: RosterTemplateCreateRequest, db: AsyncSession) -> RosterTemplateResponse:
         doc = await db.get(BacSi, payload.bac_si_id)
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ có ID {payload.bac_si_id}")
-
         existing = (await db.execute(
             select(LichDinhKyBacSi).where(
                 LichDinhKyBacSi.bac_si_id == payload.bac_si_id,
@@ -687,10 +727,8 @@ class AdminShiftService:
         )).scalar_one_or_none()
         if existing:
             raise ConflictException(f"Bác sĩ đã có mẫu ca {payload.ca_lam_viec} vào {self.DAY_NAME_VN.get(payload.thu_trong_tuan)}!")
-
         gio_bd = payload.gio_bat_dau or (time(7, 30) if payload.ca_lam_viec == "sang" else time(13, 30))
         gio_kt = payload.gio_ket_thuc or (time(11, 30) if payload.ca_lam_viec == "sang" else time(17, 0))
-
         tmpl = LichDinhKyBacSi(
             bac_si_id=payload.bac_si_id,
             thu_trong_tuan=payload.thu_trong_tuan,
@@ -708,7 +746,6 @@ class AdminShiftService:
         await db.commit()
         await db.refresh(tmpl)
         return (await self.get_roster_templates_admin(db, doctor_id=payload.bac_si_id))[0]
-
     async def update_roster_template_admin(self, roster_id: int, payload: RosterTemplateUpdateRequest, db: AsyncSession) -> RosterTemplateResponse:
         tmpl = await db.get(LichDinhKyBacSi, roster_id)
         if not tmpl:
@@ -729,20 +766,16 @@ class AdminShiftService:
         await db.refresh(tmpl)
         res = await self.get_roster_templates_admin(db, doctor_id=tmpl.bac_si_id)
         return [r for r in res if r.id == tmpl.id][0]
-
     async def delete_roster_template_admin(self, roster_id: int, db: AsyncSession):
         tmpl = await db.get(LichDinhKyBacSi, roster_id)
         if not tmpl:
             raise NotFoundException(f"Không tìm thấy mẫu ca ID {roster_id}")
         await db.delete(tmpl)
         await db.commit()
-
     async def generate_shifts_from_roster(self, payload: RosterBatchGenerateRequest, db: AsyncSession) -> RosterBatchGenerateResponse:
         from datetime import timedelta
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu!")
-
-        # 1. Chế độ sao chép từ tuần nguồn (Kế thừa tuần trước / Sao chép tuần sau)
         if payload.template_type in ("COPY_PREVIOUS_WEEK", "INHERIT_WEEK") and payload.nguon_tu_ngay:
             src_start = payload.nguon_tu_ngay
             src_end = payload.nguon_den_ngay or (src_start + timedelta(days=6))
@@ -754,7 +787,6 @@ class AdminShiftService:
             if payload.bac_si_ids:
                 stmt_src = stmt_src.where(LichLamViec.bac_si_id.in_(payload.bac_si_ids))
             source_shifts = (await db.execute(stmt_src)).scalars().all()
-
             if not source_shifts:
                 return RosterBatchGenerateResponse(
                     tu_ngay=payload.tu_ngay,
@@ -765,18 +797,15 @@ class AdminShiftService:
                     so_ca_xung_dot_phong=0,
                     chi_tiet=[f"Không tìm thấy ca trực nguồn nào trong khoảng từ {src_start} đến {src_end}!"]
                 )
-
             so_tao = 0
             so_da_co = 0
             so_trung_phong = 0
             details = []
-
             for s in source_shifts:
                 delta_days = (s.ngay_lam_viec - src_start).days
                 target_date = payload.tu_ngay + timedelta(days=delta_days)
                 if target_date > payload.den_ngay:
                     continue
-
                 shift_exist = (await db.execute(
                     select(LichLamViec).where(
                         LichLamViec.bac_si_id == s.bac_si_id,
@@ -787,7 +816,6 @@ class AdminShiftService:
                 if shift_exist:
                     so_da_co += 1
                     continue
-
                 if s.phong_kham_id:
                     room_conflict = (await db.execute(
                         select(LichLamViec).where(
@@ -801,7 +829,6 @@ class AdminShiftService:
                         so_trung_phong += 1
                         details.append(f"Bỏ qua ca ngày {target_date} của BS ID {s.bac_si_id}: Buồng khám ID {s.phong_kham_id} đã có bác sĩ khác trực")
                         continue
-
                 new_shift = LichLamViec(
                     bac_si_id=s.bac_si_id,
                     ngay_lam_viec=target_date,
@@ -816,7 +843,6 @@ class AdminShiftService:
                 )
                 db.add(new_shift)
                 so_tao += 1
-
             await db.commit()
             details.append(f"Đã sao chép/kế thừa thành công {so_tao} ca trực từ tuần nguồn sang tuần đích, bỏ qua {so_da_co} ca đã có, tránh {so_trung_phong} xung đột buồng khám.")
             return RosterBatchGenerateResponse(
@@ -828,8 +854,6 @@ class AdminShiftService:
                 so_ca_xung_dot_phong=so_trung_phong,
                 chi_tiet=details
             )
-
-        # 2. Chế độ phát sinh theo khuôn mẫu định kỳ tuần (Bahmni Provider Roster)
         stmt = select(LichDinhKyBacSi).where(LichDinhKyBacSi.is_active.is_(True))
         if payload.bac_si_ids:
             stmt = stmt.where(LichDinhKyBacSi.bac_si_id.in_(payload.bac_si_ids))
@@ -844,19 +868,15 @@ class AdminShiftService:
                 so_ca_xung_dot_phong=0,
                 chi_tiet=["Không có mẫu lịch tuần nào đang hoạt động!"]
             )
-
         so_tao = 0
         so_da_co = 0
         so_trung_phong = 0
         details = []
-
         cur = payload.tu_ngay
         total_days = (payload.den_ngay - payload.tu_ngay).days + 1
-
         while cur <= payload.den_ngay:
             thu_num = cur.weekday() + 2
             matching_tmpls = [t for t in templates if t.thu_trong_tuan == thu_num]
-
             for t in matching_tmpls:
                 shift_exist = (await db.execute(
                     select(LichLamViec).where(
@@ -868,7 +888,6 @@ class AdminShiftService:
                 if shift_exist:
                     so_da_co += 1
                     continue
-
                 if t.phong_kham_id:
                     room_conflict = (await db.execute(
                         select(LichLamViec).where(
@@ -882,7 +901,6 @@ class AdminShiftService:
                         so_trung_phong += 1
                         details.append(f"Bỏ qua ca ngày {cur} của BS ID {t.bac_si_id}: Buồng khám ID {t.phong_kham_id} đã có bác sĩ khác trực")
                         continue
-
                 new_shift = LichLamViec(
                     bac_si_id=t.bac_si_id,
                     ngay_lam_viec=cur,
@@ -897,9 +915,7 @@ class AdminShiftService:
                 )
                 db.add(new_shift)
                 so_tao += 1
-
             cur += timedelta(days=1)
-
         await db.commit()
         details.append(f"Đã phát sinh thành công {so_tao} ca trực mới, bỏ qua {so_da_co} ca đã tồn tại, tránh {so_trung_phong} xung đột phòng.")
         return RosterBatchGenerateResponse(
@@ -911,9 +927,6 @@ class AdminShiftService:
             so_ca_xung_dot_phong=so_trung_phong,
             chi_tiet=details
         )
-
-
-
     async def _count_leave_impacts(
         self,
         db: AsyncSession,
@@ -922,7 +935,6 @@ class AdminShiftService:
         den_ngay: date,
         ca_lam_viec: Optional[str] = None,
     ) -> tuple[int, int]:
-        """Đếm số ca làm việc và số lịch khám thực tế trong CSDL bị ảnh hưởng bởi đợt nghỉ"""
         shift_stmt = select(func.count(LichLamViec.id)).where(
             LichLamViec.bac_si_id == bac_si_id,
             LichLamViec.ngay_lam_viec >= tu_ngay,
@@ -931,7 +943,6 @@ class AdminShiftService:
         if ca_lam_viec:
             shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == ca_lam_viec)
         shift_cnt = (await db.execute(shift_stmt)).scalar() or 0
-
         apt_stmt = select(func.count(LichKham.id)).where(
             LichKham.bac_si_id == bac_si_id,
             LichKham.ngay_kham >= tu_ngay,
@@ -947,7 +958,6 @@ class AdminShiftService:
             apt_stmt = apt_stmt.where(LichKham.ca_kham == ca_lam_viec)
         apt_cnt = (await db.execute(apt_stmt)).scalar() or 0
         return shift_cnt, apt_cnt
-
     async def get_leaves_admin(
         self,
         db: AsyncSession,
@@ -990,14 +1000,12 @@ class AdminShiftService:
                 created_at=r.created_at
             ))
         return results
-
     async def create_leave_admin(self, payload: DoctorLeaveCreateRequest, db: AsyncSession) -> DoctorLeaveResponse:
         doc = await db.get(BacSi, payload.bac_si_id)
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ ID {payload.bac_si_id}")
         if payload.den_ngay < payload.tu_ngay:
             raise BadRequestException("Ngày kết thúc nghỉ phải lớn hơn hoặc bằng ngày bắt đầu!")
-
         shift_stmt = select(LichLamViec.id).where(
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec >= payload.tu_ngay,
@@ -1007,11 +1015,9 @@ class AdminShiftService:
         if payload.ca_lam_viec:
             shift_stmt = shift_stmt.where(LichLamViec.ca_lam_viec == payload.ca_lam_viec)
         shift_ids = (await db.execute(shift_stmt)).scalars().all()
-
         so_ca, apt_cnt = await self._count_leave_impacts(
             db, payload.bac_si_id, payload.tu_ngay, payload.den_ngay, payload.ca_lam_viec
         )
-
         leave = NghiPhepBacSi(
             bac_si_id=payload.bac_si_id,
             loai_nghi=payload.loai_nghi,
@@ -1026,7 +1032,6 @@ class AdminShiftService:
         db.add(leave)
         await db.commit()
         await db.refresh(leave)
-
         if payload.loai_nghi == "NGHI_DOT_XUAT" and shift_ids:
             for s_id in shift_ids:
                 s = await db.get(LichLamViec, s_id)
@@ -1034,10 +1039,8 @@ class AdminShiftService:
                     s.is_active = False
                     s.ghi_chu_nghi = f"Nghỉ đột xuất: {payload.ly_do}"
             await db.commit()
-
         leaves = await self.get_leaves_admin(db, doctor_id=payload.bac_si_id)
         return [lv for lv in leaves if lv.id == leave.id][0]
-
     async def approve_leave_admin(
         self,
         leave_id: int,
@@ -1048,11 +1051,9 @@ class AdminShiftService:
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
-
         leave.trang_thai = payload.hanh_dong
         leave.nguoi_duyet_id = admin_user.id
         leave.ghi_chu_duyet = payload.ghi_chu
-
         if payload.hanh_dong == "DA_DUYET":
             stmt = select(LichLamViec).where(
                 LichLamViec.bac_si_id == leave.bac_si_id,
@@ -1066,17 +1067,14 @@ class AdminShiftService:
             for s in shifts:
                 s.is_active = False
                 s.ghi_chu_nghi = f"Nghỉ phép theo kế hoạch: {leave.ly_do}"
-
         await db.commit()
         await db.refresh(leave)
         leaves = await self.get_leaves_admin(db, doctor_id=leave.bac_si_id)
         return [lv for lv in leaves if lv.id == leave.id][0]
-
     async def get_leave_affected_bookings(self, leave_id: int, db: AsyncSession) -> List[AffectedBookingItem]:
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
-
         stmt = (
             select(LichKham)
             .options(
@@ -1098,7 +1096,6 @@ class AdminShiftService:
         )
         if leave.ca_lam_viec:
             stmt = stmt.where(LichKham.ca_kham == leave.ca_lam_viec)
-
         rows = (await db.execute(stmt)).scalars().all()
         results = []
         for r in rows:
@@ -1113,7 +1110,6 @@ class AdminShiftService:
                 trang_thai=r.trang_thai
             ))
         return results
-
     async def cancel_leave_admin(
         self,
         leave_id: int,
@@ -1123,7 +1119,6 @@ class AdminShiftService:
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
-
         if leave.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value:
             stmt = select(LichLamViec).where(
                 LichLamViec.bac_si_id == leave.bac_si_id,
@@ -1137,7 +1132,6 @@ class AdminShiftService:
             for s in shifts:
                 s.is_active = True
                 s.ghi_chu_nghi = None
-
         leave.trang_thai = TrangThaiNghiPhepEnum.DA_HUY.value
         admin_email = getattr(admin_user, "email", "Admin")
         leave.ghi_chu_duyet = f"Đơn nghỉ phép đã bị hủy bởi quản trị viên ({admin_email})"
@@ -1145,7 +1139,6 @@ class AdminShiftService:
         await db.refresh(leave)
         leaves = await self.get_leaves_admin(db, doctor_id=leave.bac_si_id)
         return [lv for lv in leaves if lv.id == leave.id][0]
-
     async def delete_leave_admin(
         self,
         leave_id: int,
@@ -1154,7 +1147,6 @@ class AdminShiftService:
         leave = await db.get(NghiPhepBacSi, leave_id)
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {leave_id}")
-
         if leave.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value:
             stmt = select(LichLamViec).where(
                 LichLamViec.bac_si_id == leave.bac_si_id,
@@ -1168,10 +1160,8 @@ class AdminShiftService:
             for s in shifts:
                 s.is_active = True
                 s.ghi_chu_nghi = None
-
         await db.delete(leave)
         await db.commit()
-
     async def get_doctor_schedule_matrix(
         self,
         db: AsyncSession,
@@ -1183,7 +1173,6 @@ class AdminShiftService:
     ) -> DoctorScheduleMatrixResponse:
         if den_ngay < tu_ngay:
             raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
-
         stmt_docs = (
             select(BacSi)
             .options(
@@ -1197,7 +1186,6 @@ class AdminShiftService:
             stmt_docs = stmt_docs.where(BacSi.id == resolved_doc_id)
         if chuyen_khoa_id:
             stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
-
         docs = (await db.execute(stmt_docs)).scalars().all()
         doc_ids = [d.id for d in docs]
         if not doc_ids:
@@ -1209,7 +1197,6 @@ class AdminShiftService:
                 tong_slot_da_dat=0,
                 matrix=[],
             )
-
         stmt_shifts = (
             select(LichLamViec)
             .options(selectinload(LichLamViec.phong_kham))
@@ -1221,9 +1208,7 @@ class AdminShiftService:
         )
         if phong_kham_id:
             stmt_shifts = stmt_shifts.where(LichLamViec.phong_kham_id == phong_kham_id)
-
         shifts = (await db.execute(stmt_shifts)).scalars().all()
-
         stmt_leaves = select(NghiPhepBacSi).where(
             NghiPhepBacSi.bac_si_id.in_(doc_ids),
             NghiPhepBacSi.den_ngay >= tu_ngay,
@@ -1231,7 +1216,6 @@ class AdminShiftService:
             NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
         )
         leaves = (await db.execute(stmt_leaves)).scalars().all()
-
         stmt_apts = (
             select(LichKham)
             .options(selectinload(LichKham.benh_nhan).selectinload(BenhNhan.nguoi_dung))
@@ -1246,31 +1230,25 @@ class AdminShiftService:
             )
         )
         apts = (await db.execute(stmt_apts)).scalars().all()
-
         doc_map = {d.id: d for d in docs}
         leaves_by_doc: Dict[int, List[NghiPhepBacSi]] = {}
         for leave_item in leaves:
             leaves_by_doc.setdefault(leave_item.bac_si_id, []).append(leave_item)
-
         apts_by_shift: Dict[tuple, List[LichKham]] = {}
         for a in apts:
             ca_str = "sang" if a.gio_kham.hour < 12 else "chieu"
             key = (a.bac_si_id, a.ngay_kham, ca_str)
             apts_by_shift.setdefault(key, []).append(a)
-
         matrix_cells: List[DoctorScheduleMatrixCell] = []
         tong_con_trong = 0
         tong_da_dat = 0
-
         for s in shifts:
             doc = doc_map.get(s.bac_si_id)
             if not doc:
                 continue
-
             doc_leaves = leaves_by_doc.get(s.bac_si_id, [])
             status_ca = "DANG_HOAT_DONG" if s.is_active else "DA_KHOA"
             ly_do = s.ghi_chu_nghi
-
             for leave_item in doc_leaves:
                 if leave_item.tu_ngay <= s.ngay_lam_viec <= leave_item.den_ngay:
                     if not leave_item.ca_lam_viec or leave_item.ca_lam_viec == s.ca_lam_viec:
@@ -1280,21 +1258,16 @@ class AdminShiftService:
                             status_ca = "NGHI_PHEP"
                         ly_do = leave_item.ly_do
                         break
-
             shift_apts = apts_by_shift.get((s.bac_si_id, s.ngay_lam_viec, s.ca_lam_viec), [])
             so_online = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") != "vang_lai")
             so_vang_lai = sum(1 for a in shift_apts if getattr(a, "nguon_dat", "online") == "vang_lai")
-
             limit_online = s.han_muc_dat_truoc or 6
             limit_walkin = s.han_muc_vang_lai or 2
-
             slot_on_free = max(0, limit_online - so_online)
             slot_wl_free = max(0, limit_walkin - so_vang_lai)
             is_full = (slot_on_free == 0 and slot_wl_free == 0)
-
             tong_con_trong += (slot_on_free + slot_wl_free)
             tong_da_dat += len(shift_apts)
-
             pts: List[DoctorScheduleSlotItem] = []
             for a in shift_apts:
                 pt_name = a.benh_nhan.nguoi_dung.ho_ten if a.benh_nhan and a.benh_nhan.nguoi_dung else "Bệnh nhân"
@@ -1308,7 +1281,6 @@ class AdminShiftService:
                     trang_thai=a.trang_thai,
                     loai_kham=getattr(a, "nguon_dat", "dat_truoc") or "dat_truoc",
                 ))
-
             matrix_cells.append(DoctorScheduleMatrixCell(
                 ca_id=s.id,
                 bac_si_id=doc.id,
@@ -1333,7 +1305,6 @@ class AdminShiftService:
                 is_full=is_full,
                 danh_sach_benh_nhan=pts,
             ))
-
         return DoctorScheduleMatrixResponse(
             tu_ngay=tu_ngay,
             den_ngay=den_ngay,
@@ -1342,7 +1313,6 @@ class AdminShiftService:
             tong_slot_da_dat=tong_da_dat,
             matrix=matrix_cells,
         )
-
     async def export_timesheet_report(
         self,
         db: AsyncSession,
@@ -1352,7 +1322,6 @@ class AdminShiftService:
     ) -> DoctorTimesheetReportResponse:
         if den_ngay < tu_ngay:
             raise BadRequestException("Ngày kết thúc 'den_ngay' không được nhỏ hơn ngày bắt đầu 'tu_ngay'!")
-
         stmt_docs = (
             select(BacSi)
             .options(
@@ -1363,7 +1332,6 @@ class AdminShiftService:
         )
         if chuyen_khoa_id:
             stmt_docs = stmt_docs.where(BacSi.chuyen_khoa_id == chuyen_khoa_id)
-
         docs = (await db.execute(stmt_docs)).scalars().all()
         doc_ids = [d.id for d in docs]
         if not doc_ids:
@@ -1375,7 +1343,6 @@ class AdminShiftService:
                 tong_luot_kham_toan_vien=0,
                 danh_sach_cham_cong=[],
             )
-
         shifts = (await db.execute(
             select(LichLamViec).where(
                 LichLamViec.bac_si_id.in_(doc_ids),
@@ -1383,7 +1350,6 @@ class AdminShiftService:
                 LichLamViec.ngay_lam_viec <= den_ngay,
             )
         )).scalars().all()
-
         leaves = (await db.execute(
             select(NghiPhepBacSi).where(
                 NghiPhepBacSi.bac_si_id.in_(doc_ids),
@@ -1392,7 +1358,6 @@ class AdminShiftService:
                 NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
             )
         )).scalars().all()
-
         apts = (await db.execute(
             select(LichKham).where(
                 LichKham.bac_si_id.in_(doc_ids),
@@ -1401,28 +1366,22 @@ class AdminShiftService:
                 LichKham.trang_thai == TrangThaiLichEnum.DA_KHAM.value,
             )
         )).scalars().all()
-
         report_items: List[DoctorTimesheetReportItem] = []
         tong_ca_vien = len(shifts)
         tong_kham_vien = len(apts)
-
         for doc in docs:
             d_shifts = [s for s in shifts if s.bac_si_id == doc.id]
             d_leaves = [lv for lv in leaves if lv.bac_si_id == doc.id]
             d_apts = [a for a in apts if a.bac_si_id == doc.id]
-
             so_ca_tong = len(d_shifts)
             so_ca_xong = sum(1 for s in d_shifts if s.is_active and s.ngay_lam_viec <= date.today())
             so_ca_phep = sum(lv.so_ca_anh_huong for lv in d_leaves if lv.loai_nghi == "NGHI_PHEP")
             so_ca_dot_xuat = sum(lv.so_ca_anh_huong for lv in d_leaves if lv.loai_nghi == "NGHI_DOT_XUAT")
             so_kham = len(d_apts)
-
             max_capacity = so_ca_tong * 8
             fill_rate = round((so_kham / max_capacity * 100.0), 1) if max_capacity > 0 else 0.0
-
             doc_name = doc.nguoi_dung.ho_ten if doc.nguoi_dung else f"BS {doc.id}"
             dept_name = doc.chuyen_khoa.ten_chuyen_khoa if doc.chuyen_khoa else "Đa khoa"
-
             report_items.append(DoctorTimesheetReportItem(
                 bac_si_id=doc.id,
                 ten_bac_si=doc_name,
@@ -1434,7 +1393,6 @@ class AdminShiftService:
                 tong_luot_kham=so_kham,
                 ty_le_lap_day_pct=fill_rate,
             ))
-
         return DoctorTimesheetReportResponse(
             tu_ngay=tu_ngay,
             den_ngay=den_ngay,
@@ -1443,7 +1401,4 @@ class AdminShiftService:
             tong_luot_kham_toan_vien=tong_kham_vien,
             danh_sach_cham_cong=report_items,
         )
-
-
-
 admin_shift_service = AdminShiftService()

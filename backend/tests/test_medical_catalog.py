@@ -2,14 +2,13 @@ import pytest
 from sqlalchemy import select
 from app.models.medical import DichVu
 from app.models.user import PhongKham
+from app.models.compliance import NhatKyTruyCapDuLieuYTe
 
 
 @pytest.mark.asyncio
 async def test_get_services_admin_includes_tt22_and_rooms(api_client, booking, db_session):
-    """Kiểm tra API lấy danh mục dịch vụ trả về đầy đủ phân nhóm Thông tư 22 và buồng thực hiện kỹ thuật"""
     headers = booking.tokens["admin"]
 
-    # Đảm bảo có phòng LAB01, CDHA01 và danh mục dịch vụ nếu CSDL test chưa có
     lab01 = (await db_session.execute(select(PhongKham).where(PhongKham.ma_phong == "LAB01"))).scalar_one_or_none()
     cdha01 = (await db_session.execute(select(PhongKham).where(PhongKham.ma_phong == "CDHA01"))).scalar_one_or_none()
     if not lab01:
@@ -52,7 +51,6 @@ async def test_get_services_admin_includes_tt22_and_rooms(api_client, booking, d
     data = res.json()["data"]
     assert len(data) >= 5
 
-    # Kiểm tra dịch vụ xét nghiệm máu đã map đúng buồng LAB01
     xn_svc = next((s for s in data if s["ma_dich_vu"] == "DV_XN_MAU"), None)
     assert xn_svc is not None
     assert xn_svc["ma_nhom_byt"] == "XN"
@@ -60,7 +58,6 @@ async def test_get_services_admin_includes_tt22_and_rooms(api_client, booking, d
     assert xn_svc["ma_phong_thuc_hien"] == "LAB01"
     assert "Xét Nghiệm" in xn_svc["ten_phong_thuc_hien"]
 
-    # Kiểm tra dịch vụ X-quang đã map đúng buồng CDHA01
     xq_svc = next((s for s in data if s["ma_dich_vu"] == "DV_XQ_NGUC"), None)
     assert xq_svc is not None
     assert xq_svc["ma_nhom_byt"] == "CDHA"
@@ -69,10 +66,8 @@ async def test_get_services_admin_includes_tt22_and_rooms(api_client, booking, d
 
 @pytest.mark.asyncio
 async def test_create_service_with_room_mapping(api_client, booking, db_session):
-    """Kiểm tra tạo mới dịch vụ kỹ thuật cận lâm sàng liên kết buồng kỹ thuật hợp lệ"""
     headers = booking.tokens["admin"]
     
-    # Tạo phòng kỹ thuật riêng
     lab_room = PhongKham(
         ma_phong=f"LAB_TEST_{booking.suffix}",
         ten_phong="Phòng Xét Nghiệm Test",
@@ -105,7 +100,6 @@ async def test_create_service_with_room_mapping(api_client, booking, db_session)
 
 @pytest.mark.asyncio
 async def test_create_service_rejects_nonexistent_room(api_client, booking):
-    """Kiểm tra từ chối tạo dịch vụ nếu buồng thực hiện không tồn tại (404)"""
     headers = booking.tokens["admin"]
     payload = {
         "ma_dich_vu": f"DV_INVALID_{booking.suffix}",
@@ -120,10 +114,8 @@ async def test_create_service_rejects_nonexistent_room(api_client, booking):
 
 @pytest.mark.asyncio
 async def test_update_service_tat_and_guidelines(api_client, booking, db_session):
-    """Kiểm tra cập nhật dịch vụ y tế: TAT, hướng dẫn chuẩn bị bệnh nhân và đơn giá"""
     headers = booking.tokens["admin"]
 
-    # Tạo dịch vụ ban đầu
     payload_create = {
         "ma_dich_vu": f"DV_US_{booking.suffix}",
         "ten_dich_vu": "Siêu âm Doppler Tim màu",
@@ -137,7 +129,6 @@ async def test_update_service_tat_and_guidelines(api_client, booking, db_session
     created_svc = create_res.json()["data"]
     svc_id = created_svc["id"]
 
-    # Cập nhật thông tin dịch vụ
     payload_update = {
         "don_gia": 350000.0,
         "thoi_gian_tra_ket_qua_phut": 25,
@@ -150,3 +141,154 @@ async def test_update_service_tat_and_guidelines(api_client, booking, db_session
     assert updated_data["thoi_gian_tra_ket_qua_phut"] == 25
     assert "mang theo hồ sơ điện tâm đồ" in updated_data["huong_dan_chuan_bi"]
 
+
+@pytest.mark.asyncio
+async def test_catalog_router_departments_crud(api_client, booking):
+    headers = booking.tokens["admin"]
+    create_payload = {
+        "ma_chuyen_khoa": f"CK_TEST_{booking.suffix}".upper(),
+        "ten_chuyen_khoa": f"Chuyên khoa Thử nghiệm {booking.suffix}",
+        "mo_ta": "Mô tả chuyên khoa thử nghiệm",
+        "vi_tri_phong": "Tầng 2",
+        "is_active": True
+    }
+    create_res = await api_client.post("/api/v1/admin/catalog/departments", json=create_payload, headers=headers)
+    assert create_res.status_code == 201
+    dept_data = create_res.json()["data"]
+    dept_id = dept_data["id"]
+    assert dept_data["ma_chuyen_khoa"] == create_payload["ma_chuyen_khoa"]
+
+    get_res = await api_client.get("/api/v1/admin/catalog/departments", headers=headers)
+    assert get_res.status_code == 200
+    depts = get_res.json()["data"]
+    assert any(d["id"] == dept_id for d in depts)
+
+    update_payload = {
+        "ten_chuyen_khoa": f"Chuyên khoa Đã sửa {booking.suffix}",
+        "mo_ta": "Mô tả mới",
+        "vi_tri_phong": "Tầng 3",
+        "is_active": True
+    }
+    update_res = await api_client.put(f"/api/v1/admin/catalog/departments/{dept_id}", json=update_payload, headers=headers)
+    assert update_res.status_code == 200
+    assert update_res.json()["data"]["ten_chuyen_khoa"] == update_payload["ten_chuyen_khoa"]
+
+    del_res = await api_client.delete(f"/api/v1/admin/catalog/departments/{dept_id}", headers=headers)
+    assert del_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_catalog_router_rooms_crud(api_client, booking):
+    headers = booking.tokens["admin"]
+    room_payload = {
+        "ma_phong": f"PK_CAT_{booking.suffix}",
+        "ten_phong": f"Phòng Khám Catalog {booking.suffix}",
+        "tang": "Tầng 2",
+        "loai_phong": "kham_benh",
+        "thiet_bi_chinh": "Máy đo huyết áp, ống nghe"
+    }
+    create_res = await api_client.post("/api/v1/admin/catalog/rooms", json=room_payload, headers=headers)
+    assert create_res.status_code == 201
+    room_data = create_res.json()["data"]
+    room_id = room_data["id"]
+
+    get_res = await api_client.get("/api/v1/admin/catalog/rooms", headers=headers)
+    assert get_res.status_code == 200
+    rooms = get_res.json()["data"]
+    assert any(r["id"] == room_id for r in rooms)
+
+    update_res = await api_client.put(
+        f"/api/v1/admin/catalog/rooms/{room_id}",
+        json={"ten_phong": f"Phòng Khám Đã Sửa {booking.suffix}", "tang": "Tầng 3"},
+        headers=headers
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["data"]["tang"] == "Tầng 3"
+
+    del_res = await api_client.delete(f"/api/v1/admin/catalog/rooms/{room_id}", headers=headers)
+    assert del_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_catalog_router_services_crud_and_prices(api_client, booking, db_session):
+    headers = booking.tokens["admin"]
+    svc_payload = {
+        "ma_dich_vu": f"DV_CRU_{booking.suffix}",
+        "ten_dich_vu": f"Dịch vụ Kỹ thuật Test {booking.suffix}",
+        "don_gia": 220000.0,
+        "don_vi_tinh": "Lần",
+        "ma_nhom_byt": "TDCN",
+        "thoi_gian_tra_ket_qua_phut": 15
+    }
+    create_res = await api_client.post("/api/v1/admin/catalog/services", json=svc_payload, headers=headers)
+    assert create_res.status_code == 201
+    svc_data = create_res.json()["data"]
+    svc_id = svc_data["id"]
+
+    get_res = await api_client.get("/api/v1/admin/catalog/services", headers=headers)
+    assert get_res.status_code == 200
+    services = get_res.json()["data"]
+    assert any(s["id"] == svc_id for s in services)
+
+    price_update_payload = {
+        "service_id": svc_id,
+        "don_gia": 260000.0,
+        "ly_do": "Điều chỉnh theo biến động chi phí vật tư y tế"
+    }
+    price_res = await api_client.post("/api/v1/admin/catalog/prices", json=price_update_payload, headers=headers)
+    assert price_res.status_code == 200
+    price_data = price_res.json()["data"]
+    assert price_data["don_gia_cu"] == 220000.0
+    assert price_data["don_gia_moi"] == 260000.0
+
+    history_res = await api_client.get(f"/api/v1/admin/catalog/prices/history?service_id={svc_id}", headers=headers)
+    assert history_res.status_code == 200
+    hist = history_res.json()["data"]
+    assert len(hist) >= 1
+    assert hist[0]["resource_id"] == svc_id
+    assert hist[0]["noi_dung_cu"]["don_gia"] == 220000.0
+    assert hist[0]["noi_dung_moi"]["don_gia"] == 260000.0
+
+    audit_entry = (await db_session.execute(
+        select(NhatKyTruyCapDuLieuYTe).where(
+            NhatKyTruyCapDuLieuYTe.resource_type == "SERVICE_PRICE",
+            NhatKyTruyCapDuLieuYTe.resource_id == svc_id
+        )
+    )).scalar_one_or_none()
+    assert audit_entry is not None
+
+    del_res = await api_client.delete(f"/api/v1/admin/catalog/services/{svc_id}", headers=headers)
+    assert del_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_catalog_router_import_genuine_persistence(api_client, booking, db_session):
+    headers = booking.tokens["admin"]
+    import_payload = {
+        "catalog_type": "services",
+        "items": [
+            {
+                "ma_dich_vu": f"DV_IMP_1_{booking.suffix}",
+                "ten_dich_vu": "Nội soi dạ dày gây mê",
+                "don_gia": 900000.0,
+                "don_vi_tinh": "Lần",
+                "ma_nhom_byt": "TT"
+            },
+            {
+                "ma_dich_vu": f"DV_IMP_2_{booking.suffix}",
+                "ten_dich_vu": "Nội soi đại tràng toàn bộ",
+                "don_gia": 1100000.0,
+                "don_vi_tinh": "Lần",
+                "ma_nhom_byt": "TT"
+            }
+        ]
+    }
+    res = await api_client.post("/api/v1/admin/catalog/import", json=import_payload, headers=headers)
+    assert res.status_code == 200
+    res_data = res.json()["data"]
+    assert res_data["success"] is True
+    assert res_data["imported_count"] == 2
+
+    s1 = (await db_session.execute(select(DichVu).where(DichVu.ma_dich_vu == f"DV_IMP_1_{booking.suffix}"))).scalar_one_or_none()
+    assert s1 is not None
+    assert float(s1.don_gia) == 900000.0

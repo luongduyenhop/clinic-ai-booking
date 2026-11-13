@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,7 +14,7 @@ from app.core.exceptions import (
     ForbiddenException,
     NotFoundException,
 )
-from app.models.medical import ChiTietDonThuoc, DonThuoc
+from app.models.medical import ChiTietDonThuoc, DonThuoc, LichSuDongBoDonThuoc
 from app.models.user import BacSi, TaiKhoan, VaiTroEnum
 from app.schemas.clinical import PrescriptionUpdateRequest
 from app.schemas.compliance import (
@@ -24,11 +24,6 @@ from app.schemas.compliance import (
 from app.services.credential_service import credential_service
 
 logger = logging.getLogger("clinic_backend")
-
-
-# ==============================================================================
-# BẢNG MA TRẬN CHUYỂN TRẠNG THÁI FSM ĐƠN THUỐC (INT-04 / R3)
-# ==============================================================================
 
 VALID_TRANSITIONS = {
     TrangThaiDonThuoc.DRAFT.value: {TrangThaiDonThuoc.VALIDATED.value},
@@ -60,19 +55,12 @@ VALID_TRANSITIONS = {
         TrangThaiDonThuoc.SUPERSEDED.value,
     },
     TrangThaiDonThuoc.ACCEPTED.value: {TrangThaiDonThuoc.SUPERSEDED.value},
-    TrangThaiDonThuoc.SUPERSEDED.value: set(),  # Trạng thái kết thúc (Terminal state)
+    TrangThaiDonThuoc.SUPERSEDED.value: set(),
 }
 
-
 class PrescriptionFSMService:
-    """
-    Dịch vụ Máy trạng thái hữu hạn (FSM) và kiểm soát tính bất biến của Đơn thuốc điện tử.
-    Tuân thủ Quyết định BYT về Đơn thuốc điện tử Quốc gia và NĐ 102/2025/NĐ-CP.
-    """
-
     @staticmethod
     def compute_prescription_hash(prescription_id: int, items: List[Dict[str, Any]]) -> str:
-        """Tính toán mã băm sha256 bất biến của dữ liệu thuốc trong đơn"""
         payload = f"{prescription_id}:" + json.dumps(
             sorted(items, key=lambda x: x.get("ten_thuoc", "")),
             sort_keys=True
@@ -81,7 +69,6 @@ class PrescriptionFSMService:
 
     @staticmethod
     def transition(current_status: str, next_status: str) -> str:
-        """Xác thực và thực hiện chuyển trạng thái theo ma trận chuẩn FSM"""
         allowed = VALID_TRANSITIONS.get(current_status, set())
         if next_status not in allowed:
             raise ConflictException(
@@ -92,10 +79,6 @@ class PrescriptionFSMService:
 
     @staticmethod
     def assert_immutable(status: str) -> None:
-        """
-        Khóa bất biến (Immutability Guard):
-        Chặn tuyệt đối sửa/xóa trực tiếp các trường thuốc một khi đơn đã ở trạng thái SIGNED, ISSUED, ACCEPTED, SUPERSEDED.
-        """
         if status in (
             TrangThaiDonThuoc.SIGNED.value,
             TrangThaiDonThuoc.ISSUED.value,
@@ -114,7 +97,6 @@ class PrescriptionFSMService:
         doctor_id: int,
         signature_data: str,
     ) -> Union[Dict[str, Any], DonThuoc]:
-        """Ký số đơn thuốc (hỗ trợ cả cấu trúc dict thuần và ORM model)"""
         if isinstance(prescription, dict):
             if prescription.get("trang_thai") != TrangThaiDonThuoc.VALIDATED.value:
                 raise ConflictException(
@@ -130,7 +112,6 @@ class PrescriptionFSMService:
             )
             return prescription
 
-        # ORM Instance
         if prescription.trang_thai != TrangThaiDonThuoc.VALIDATED.value:
             raise ConflictException(
                 f"Đơn thuốc phải ở trạng thái '{TrangThaiDonThuoc.VALIDATED.value}' trước khi ký số! "
@@ -200,16 +181,11 @@ class PrescriptionFSMService:
         old_prescription.ly_do_thay_the = reason
         return old_prescription, None
 
-    # ==========================================================================
-    # ASYNC SERVICE WORKFLOWS CHO API ROUTERS
-    # ==========================================================================
-
     async def get_prescription_or_404(
         self,
         db: AsyncSession,
         prescription_id: int
     ) -> DonThuoc:
-        """Truy vấn đơn thuốc cùng danh sách chi tiết thuốc theo ID"""
         stmt = (
             select(DonThuoc)
             .options(
@@ -229,14 +205,11 @@ class PrescriptionFSMService:
         prescription_id: int,
         user: TaiKhoan
     ) -> DonThuoc:
-        """Thẩm định chuyên môn đơn thuốc: DRAFT -> VALIDATED"""
         rx = await self.get_prescription_or_404(db, prescription_id)
-
-        # Chuyển trạng thái
         rx.trang_thai = self.transition(rx.trang_thai, TrangThaiDonThuoc.VALIDATED.value)
         await db.commit()
         await db.refresh(rx)
-        logger.info(f"📋 [FSM VALIDATED] DonThuoc: {rx.id} | User: {user.id}")
+        logger.info(f"[FSM VALIDATED] DonThuoc: {rx.id} | User: {user.id}")
         return rx
 
     async def sign_prescription_db(
@@ -246,10 +219,8 @@ class PrescriptionFSMService:
         user: TaiKhoan,
         signature_data: str
     ) -> DonThuoc:
-        """Ký số đơn thuốc điện tử: VALIDATED -> SIGNED"""
         rx = await self.get_prescription_or_404(db, prescription_id)
 
-        # 1. Bác sĩ thực hiện ký
         stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
         bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
         if not bac_si and user.vai_tro != VaiTroEnum.ADMIN.value:
@@ -257,14 +228,12 @@ class PrescriptionFSMService:
 
         doctor_id = bac_si.id if bac_si else rx.bac_si_ke_don_id
 
-        # 2. Kiểm tra điều kiện giấy phép hành nghề (INT-05 Credentialing Enforcement)
         await credential_service.check_doctor_license_valid(db, doctor_id)
 
-        # 3. Ký số & Khóa hash bất biến
         self.sign_prescription(rx, doctor_id=doctor_id, signature_data=signature_data)
         await db.commit()
         await db.refresh(rx)
-        logger.info(f"✍️ [FSM SIGNED] DonThuoc: {rx.id} | Doctor: {doctor_id} | Hash: {rx.du_lieu_don_thuoc_hash}")
+        logger.info(f"[FSM SIGNED] DonThuoc: {rx.id} | Doctor: {doctor_id} | Hash: {rx.du_lieu_don_thuoc_hash}")
         return rx
 
     async def issue_prescription_db(
@@ -273,12 +242,11 @@ class PrescriptionFSMService:
         prescription_id: int,
         user: TaiKhoan
     ) -> DonThuoc:
-        """Ban hành đơn thuốc ra bên ngoài: SIGNED -> ISSUED"""
         rx = await self.get_prescription_or_404(db, prescription_id)
         rx.trang_thai = self.transition(rx.trang_thai, TrangThaiDonThuoc.ISSUED.value)
         await db.commit()
         await db.refresh(rx)
-        logger.info(f"📤 [FSM ISSUED] DonThuoc: {rx.id} | User: {user.id}")
+        logger.info(f"[FSM ISSUED] DonThuoc: {rx.id} | User: {user.id}")
         return rx
 
     async def supersede_prescription_db(
@@ -288,7 +256,6 @@ class PrescriptionFSMService:
         user: TaiKhoan,
         payload: PrescriptionSupersedeRequest
     ) -> Tuple[DonThuoc, DonThuoc]:
-        """Thu hồi đơn cũ và tạo đơn thuốc thay thế mới liên kết (SUPERSEDED Workflow)"""
         rx = await self.get_prescription_or_404(db, prescription_id)
 
         stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
@@ -300,7 +267,6 @@ class PrescriptionFSMService:
 
         self.supersede(rx, new_prescription_id=None, reason=payload.ly_do)
 
-        # 2. Khởi tạo đơn mới ở trạng thái DRAFT
         now = datetime.now(timezone.utc)
         new_rx = DonThuoc(
             luot_kham_id=rx.luot_kham_id,
@@ -314,7 +280,6 @@ class PrescriptionFSMService:
         db.add(new_rx)
         await db.flush()
 
-        # 3. Gán danh sách thuốc cho đơn mới
         if payload.danh_sach_thuoc:
             for item in payload.danh_sach_thuoc:
                 chi_tiet = ChiTietDonThuoc(
@@ -330,12 +295,10 @@ class PrescriptionFSMService:
                 )
                 db.add(chi_tiet)
 
-        # 4. Gắn liên kết superseded_by_id từ đơn cũ sang đơn mới
         rx.superseded_by_id = new_rx.id
 
         await db.commit()
 
-        # Nạp lại đầy đủ quan hệ
         stmt_old = (
             select(DonThuoc)
             .options(selectinload(DonThuoc.danh_sach_chi_tiet))
@@ -350,7 +313,7 @@ class PrescriptionFSMService:
         saved_new = (await db.execute(stmt_new)).scalar_one()
 
         logger.info(
-            f"🔄 [FSM SUPERSEDED] Old Rx: {saved_old.id} -> New Rx: {saved_new.id} | Reason: {payload.ly_do}"
+            f"[FSM SUPERSEDED] Old Rx: {saved_old.id} -> New Rx: {saved_new.id} | Reason: {payload.ly_do}"
         )
         return saved_old, saved_new
 
@@ -361,10 +324,8 @@ class PrescriptionFSMService:
         user: TaiKhoan,
         payload: PrescriptionUpdateRequest
     ) -> DonThuoc:
-        """Cập nhật nội dung đơn thuốc (chỉ cho phép khi ở DRAFT hoặc VALIDATED; cấm khi SIGNED/ISSUED)"""
         rx = await self.get_prescription_or_404(db, prescription_id)
 
-        # Kiểm tra tính bất biến: SIGNED, ISSUED, ACCEPTED, SUPERSEDED -> 409 Conflict
         self.assert_immutable(rx.trang_thai)
 
         if payload.loi_dan_uong_thuoc is not None:
@@ -373,12 +334,10 @@ class PrescriptionFSMService:
             rx.ghi_chu_duoc_lam_sang = payload.ghi_chu_duoc_lam_sang
 
         if payload.danh_sach_thuoc is not None:
-            # Xóa các chi tiết thuốc cũ
             for old_item in list(rx.danh_sach_chi_tiet or []):
                 await db.delete(old_item)
             await db.flush()
 
-            # Thêm mới
             for item in payload.danh_sach_thuoc:
                 chi_tiet = ChiTietDonThuoc(
                     don_thuoc_id=rx.id,
@@ -393,14 +352,213 @@ class PrescriptionFSMService:
                 )
                 db.add(chi_tiet)
 
-            # Nếu đơn thuốc đã từng VALIDATED, quay về DRAFT để thẩm định lại
             if rx.trang_thai == TrangThaiDonThuoc.VALIDATED.value:
                 rx.trang_thai = TrangThaiDonThuoc.DRAFT.value
 
         await db.commit()
         await db.refresh(rx)
-        logger.info(f"✏️ [PRESCRIPTION UPDATED] DonThuoc: {rx.id} | Status: {rx.trang_thai}")
+        logger.info(f"[PRESCRIPTION UPDATED] DonThuoc: {rx.id} | Status: {rx.trang_thai}")
         return rx
 
+    async def get_prescription_queue(
+        self,
+        db: AsyncSession,
+        status: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        stmt = (
+            select(DonThuoc)
+            .options(
+                selectinload(DonThuoc.danh_sach_chi_tiet),
+                selectinload(DonThuoc.bac_si_ke_don),
+            )
+            .order_by(DonThuoc.id.desc())
+        )
+        if status:
+            stmt = stmt.where(DonThuoc.trang_thai == status)
+
+        stmt_count = select(func.count(DonThuoc.id))
+        if status:
+            stmt_count = stmt_count.where(DonThuoc.trang_thai == status)
+
+        total = (await db.execute(stmt_count)).scalar() or 0
+        paged_stmt = stmt.limit(limit).offset(offset)
+        records = (await db.execute(paged_stmt)).scalars().all()
+
+        items = []
+        for rx in records:
+            items.append({
+                "id": rx.id,
+                "ma_don_thuoc": rx.ma_don_thuoc or f"DT-{rx.id:06d}",
+                "luot_kham_id": rx.luot_kham_id,
+                "bac_si_ke_don_id": rx.bac_si_ke_don_id,
+                "trang_thai": rx.trang_thai,
+                "du_lieu_don_thuoc_hash": rx.du_lieu_don_thuoc_hash,
+                "chu_ky_so": rx.chu_ky_so,
+                "ngay_ky": rx.ngay_ky.isoformat() if rx.ngay_ky else None,
+                "idempotency_key": rx.idempotency_key,
+                "bien_nhan_giao_dich": rx.bien_nhan_giao_dich,
+                "thoi_gian_gui_cong": rx.thoi_gian_gui_cong.isoformat() if rx.thoi_gian_gui_cong else None,
+                "ma_ket_qua_cong": rx.ma_ket_qua_cong,
+                "thong_diep_cong": rx.thong_diep_cong,
+                "so_luong_thuoc": len(rx.danh_sach_chi_tiet or []),
+                "created_at": rx.created_at.isoformat() if rx.created_at else None,
+                "updated_at": rx.updated_at.isoformat() if rx.updated_at else None,
+            })
+
+        pending_statuses = [
+            TrangThaiDonThuoc.SUBMISSION_PENDING.value,
+            TrangThaiDonThuoc.SUBMITTED.value,
+            TrangThaiDonThuoc.UNKNOWN_RESULT.value,
+            TrangThaiDonThuoc.RETRY_PENDING.value,
+            TrangThaiDonThuoc.MANUAL_REVIEW.value,
+        ]
+        stmt_pending = select(func.count(DonThuoc.id)).where(DonThuoc.trang_thai.in_(pending_statuses))
+        pending_count = (await db.execute(stmt_pending)).scalar() or 0
+
+        stmt_synced = select(func.count(DonThuoc.id)).where(DonThuoc.trang_thai == TrangThaiDonThuoc.ACCEPTED.value)
+        synced_count = (await db.execute(stmt_synced)).scalar() or 0
+
+        stmt_failed = select(func.count(DonThuoc.id)).where(DonThuoc.trang_thai == TrangThaiDonThuoc.REJECTED.value)
+        failed_count = (await db.execute(stmt_failed)).scalar() or 0
+
+        return {
+            "total": total,
+            "items": items,
+            "pending_count": pending_count,
+            "synced_count": synced_count,
+            "failed_count": failed_count,
+        }
+
+    async def get_prescription_status_and_history(
+        self,
+        db: AsyncSession,
+        prescription_id: int,
+    ) -> Dict[str, Any]:
+        stmt = (
+            select(DonThuoc)
+            .options(
+                selectinload(DonThuoc.danh_sach_chi_tiet),
+                selectinload(DonThuoc.danh_sach_lich_su_dong_bo),
+                selectinload(DonThuoc.bac_si_ke_don),
+            )
+            .where(DonThuoc.id == prescription_id)
+        )
+        rx = (await db.execute(stmt)).scalar_one_or_none()
+        if not rx:
+            raise NotFoundException(f"Không tìm thấy đơn thuốc với ID {prescription_id}!")
+
+        history = []
+        for log in rx.danh_sach_lich_su_dong_bo or []:
+            history.append({
+                "id": log.id,
+                "lan_thu": log.lan_thu,
+                "loai_thao_tac": log.loai_thao_tac,
+                "trang_thai": log.trang_thai,
+                "ma_phan_hoi": log.ma_phan_hoi,
+                "thong_diep_phan_hoi": log.thong_diep_phan_hoi,
+                "ma_bien_nhan": log.ma_bien_nhan,
+                "idempotency_key": log.idempotency_key,
+                "thoi_gian_bat_dau": log.thoi_gian_bat_dau.isoformat() if log.thoi_gian_bat_dau else None,
+                "thoi_gian_ket_thuc": log.thoi_gian_ket_thuc.isoformat() if log.thoi_gian_ket_thuc else None,
+            })
+
+        if not history:
+            if rx.created_at:
+                history.append({
+                    "lan_thu": 1,
+                    "loai_thao_tac": "KHOI_TAO",
+                    "trang_thai": "DRAFT",
+                    "thong_diep_phan_hoi": "Khởi tạo đơn thuốc",
+                    "thoi_gian_bat_dau": rx.created_at.isoformat(),
+                    "thoi_gian_ket_thuc": rx.created_at.isoformat(),
+                })
+            if rx.ngay_ky:
+                history.append({
+                    "lan_thu": 2,
+                    "loai_thao_tac": "KY_SO",
+                    "trang_thai": "SIGNED",
+                    "thong_diep_phan_hoi": f"Ký số bởi bác sĩ ID {rx.bac_si_ke_don_id}",
+                    "thoi_gian_bat_dau": rx.ngay_ky.isoformat(),
+                    "thoi_gian_ket_thuc": rx.ngay_ky.isoformat(),
+                })
+            if rx.thoi_gian_gui_cong:
+                history.append({
+                    "lan_thu": 3,
+                    "loai_thao_tac": "LIEN_THONG_CONG",
+                    "trang_thai": rx.trang_thai,
+                    "ma_phan_hoi": rx.ma_ket_qua_cong,
+                    "thong_diep_phan_hoi": rx.thong_diep_cong or "Gửi cổng quốc gia",
+                    "ma_bien_nhan": rx.bien_nhan_giao_dich,
+                    "idempotency_key": rx.idempotency_key,
+                    "thoi_gian_bat_dau": rx.thoi_gian_gui_cong.isoformat(),
+                    "thoi_gian_ket_thuc": rx.thoi_gian_gui_cong.isoformat(),
+                })
+
+        is_immutable = rx.trang_thai in (
+            TrangThaiDonThuoc.SIGNED.value,
+            TrangThaiDonThuoc.ISSUED.value,
+            TrangThaiDonThuoc.ACCEPTED.value,
+            TrangThaiDonThuoc.SUPERSEDED.value,
+        )
+
+        return {
+            "prescription_id": rx.id,
+            "ma_don_thuoc": rx.ma_don_thuoc or f"DT-{rx.id:06d}",
+            "luot_kham_id": rx.luot_kham_id,
+            "bac_si_ke_don_id": rx.bac_si_ke_don_id,
+            "trang_thai": rx.trang_thai,
+            "is_immutable": is_immutable,
+            "du_lieu_don_thuoc_hash": rx.du_lieu_don_thuoc_hash,
+            "chu_ky_so": rx.chu_ky_so,
+            "ngay_ky": rx.ngay_ky.isoformat() if rx.ngay_ky else None,
+            "idempotency_key": rx.idempotency_key,
+            "bien_nhan_giao_dich": rx.bien_nhan_giao_dich,
+            "thoi_gian_gui_cong": rx.thoi_gian_gui_cong.isoformat() if rx.thoi_gian_gui_cong else None,
+            "ma_ket_qua_cong": rx.ma_ket_qua_cong,
+            "thong_diep_cong": rx.thong_diep_cong,
+            "superseded_by_id": rx.superseded_by_id,
+            "thay_the_cho_don_id": rx.thay_the_cho_don_id,
+            "ly_do_thay_the": rx.ly_do_thay_the,
+            "history": history,
+        }
+
+    async def get_queue_metrics(
+        self,
+        db: AsyncSession,
+    ) -> Dict[str, Any]:
+        stmt_synced = select(func.count(DonThuoc.id)).where(
+            DonThuoc.trang_thai == TrangThaiDonThuoc.ACCEPTED.value
+        )
+        total_synced = (await db.execute(stmt_synced)).scalar() or 0
+
+        pending_states = [
+            TrangThaiDonThuoc.SUBMISSION_PENDING.value,
+            TrangThaiDonThuoc.SUBMITTED.value,
+            TrangThaiDonThuoc.UNKNOWN_RESULT.value,
+            TrangThaiDonThuoc.RETRY_PENDING.value,
+            TrangThaiDonThuoc.MANUAL_REVIEW.value,
+        ]
+        stmt_pending = select(func.count(DonThuoc.id)).where(
+            DonThuoc.trang_thai.in_(pending_states)
+        )
+        pending_retry = (await db.execute(stmt_pending)).scalar() or 0
+
+        stmt_failed = select(func.count(DonThuoc.id)).where(
+            DonThuoc.trang_thai == TrangThaiDonThuoc.REJECTED.value
+        )
+        failed_count = (await db.execute(stmt_failed)).scalar() or 0
+
+        stmt_last = select(func.max(DonThuoc.thoi_gian_gui_cong))
+        last_sync = (await db.execute(stmt_last)).scalar()
+        last_sync_time = last_sync.isoformat() if last_sync else datetime.now(timezone.utc).isoformat()
+
+        return {
+            "total_synced": total_synced,
+            "pending_retry": pending_retry,
+            "failed_count": failed_count,
+            "last_sync_time": last_sync_time,
+        }
 
 prescription_fsm_service = PrescriptionFSMService()

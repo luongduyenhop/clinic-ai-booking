@@ -6,7 +6,6 @@ from sqlalchemy import func, select, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from app.core.exceptions import (
     ConflictException,
     NotFoundException,
@@ -26,15 +25,9 @@ from app.schemas.admin import (
     PatientStatusUpdateRequest,
     PatientAppointmentBrief,
 )
-
 logger = logging.getLogger(__name__)
-
-
 class AdminDoctorService:
-    """Dịch vụ chuyên trách Quản trị Bác sĩ và Danh bạ Bệnh nhân (SRP)"""
-
     async def get_doctors_admin(self, db: AsyncSession) -> List[DoctorAdminResponse]:
-        """Lấy danh sách bác sĩ đầy đủ phục vụ quản trị và phân ca"""
         stmt = (
             select(BacSi)
             .options(
@@ -46,19 +39,15 @@ class AdminDoctorService:
         )
         doctors = (await db.execute(stmt)).scalars().all()
         today = date.today()
-
         res = []
         for doc in doctors:
-            # Đếm số lịch khám của bác sĩ trong ngày hôm nay
             stmt_count = select(func.count(LichKham.id)).where(
                 LichKham.bac_si_id == doc.id,
                 LichKham.ngay_kham == today,
                 LichKham.trang_thai.notin_([TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value])
             )
             cnt = (await db.execute(stmt_count)).scalar() or 0
-
             room_str = f"[{doc.phong_kham.ma_phong}] {doc.phong_kham.ten_phong}" if doc.phong_kham else (doc.chuyen_khoa.vi_tri_phong if doc.chuyen_khoa else "Chưa gán")
-
             res.append(
                 DoctorAdminResponse(
                     id=doc.id,
@@ -87,9 +76,7 @@ class AdminDoctorService:
                 )
             )
         return res
-
     async def create_doctor_admin(self, payload: DoctorAdminCreateRequest, db: AsyncSession) -> DoctorAdminResponse:
-        """Tạo mới tài khoản và hồ sơ bác sĩ"""
         email = str(payload.email).strip().lower()
         license_number = payload.chung_chi_hanh_nghe.strip()
         phone = payload.so_dien_thoai.strip()
@@ -97,15 +84,10 @@ class AdminDoctorService:
         if payload.ngay_het_han and payload.ngay_het_han < date.today():
             license_status = "EXPIRED"
         can_practice = license_status not in ("EXPIRED", "SUSPENDED")
-
-        # Check both identity and login tables so the same email cannot be attached
-        # to a second person who does not yet have an account.
         if (await db.execute(select(TaiKhoan.id).where(TaiKhoan.email == email))).scalar_one_or_none():
             raise ConflictException(f"Email {payload.email} đã được đăng ký trong hệ thống!")
         if (await db.execute(select(NguoiDung.id).where(NguoiDung.email == email))).scalar_one_or_none():
             raise ConflictException(f"Email {payload.email} đã được sử dụng bởi hồ sơ khác!")
-
-        # Kiểm tra trùng chứng chỉ hành nghề
         stmt_cchn = select(BacSi).where(BacSi.chung_chi_hanh_nghe == license_number)
         if (await db.execute(stmt_cchn)).scalar_one_or_none():
             raise ConflictException(f"Chứng chỉ hành nghề {payload.chung_chi_hanh_nghe} đã tồn tại!")
@@ -116,22 +98,16 @@ class AdminDoctorService:
         ))).scalar_one_or_none()
         if phone_exists:
             raise ConflictException("Số điện thoại đã được sử dụng bởi người dùng khác.")
-
-        # Kiểm tra chuyên khoa hợp lệ
         stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
         ck = (await db.execute(stmt_ck)).scalar_one_or_none()
         if not ck:
             raise NotFoundException("Chuyên khoa được chọn không tồn tại!")
-
-        # Kiểm tra buồng khám vật lý nếu có chỉ định
         pk = None
         if payload.phong_kham_id:
             stmt_pk = select(PhongKham).where(PhongKham.id == payload.phong_kham_id, PhongKham.is_active.is_(True))
             pk = (await db.execute(stmt_pk)).scalar_one_or_none()
             if not pk:
                 raise NotFoundException("Buồng khám được chọn không tồn tại hoặc đã ngừng hoạt động!")
-
-        # 1. Tạo NguoiDung
         nguoi_dung = NguoiDung(
             ho_ten=payload.ho_ten.strip(),
             email=email,
@@ -140,9 +116,6 @@ class AdminDoctorService:
         )
         db.add(nguoi_dung)
         await db.flush()
-
-        # Keep the general HR record and medical license profile linked to the same
-        # person; the staff screen intentionally lists doctors separately.
         employee = NhanVien(
             nguoi_dung_id=nguoi_dung.id,
             ma_nhan_vien=f"BS-{uuid4().hex[:12].upper()}",
@@ -152,8 +125,6 @@ class AdminDoctorService:
         )
         db.add(employee)
         await db.flush()
-
-        # 2. Tạo TaiKhoan
         tai_khoan = TaiKhoan(
             nguoi_dung_id=nguoi_dung.id,
             email=email,
@@ -162,8 +133,6 @@ class AdminDoctorService:
             is_active=True,
         )
         db.add(tai_khoan)
-
-        # 3. Tạo BacSi
         bac_si = BacSi(
             nguoi_dung_id=nguoi_dung.id,
             nhan_vien_id=employee.id,
@@ -187,9 +156,7 @@ class AdminDoctorService:
             await db.rollback()
             raise ConflictException("Email, số điện thoại hoặc CCHN đã tồn tại.") from exc
         await db.refresh(bac_si)
-
         room_str = f"[{pk.ma_phong}] {pk.ten_phong}" if pk else (ck.vi_tri_phong if ck else "Chưa gán")
-
         return DoctorAdminResponse(
             id=bac_si.id,
             ho_ten=payload.ho_ten,
@@ -215,11 +182,9 @@ class AdminDoctorService:
             is_active=can_practice,
             so_luong_lich_hom_nay=0,
         )
-
     async def update_doctor_admin(
         self, doctor_id: int, payload: DoctorAdminUpdateRequest, db: AsyncSession
     ) -> DoctorAdminResponse:
-        """Cập nhật thông tin chuyên môn hoặc bật/tắt trạng thái nhận lịch hẹn (Bahmni Provider Availability)"""
         stmt = (
             select(BacSi)
             .options(
@@ -232,7 +197,6 @@ class AdminDoctorService:
         doc = (await db.execute(stmt)).scalar_one_or_none()
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ với ID {doctor_id}!")
-
         if payload.ho_ten is not None and doc.nguoi_dung:
             doc.nguoi_dung.ho_ten = payload.ho_ten.strip()
         if payload.so_dien_thoai is not None and doc.nguoi_dung:
@@ -264,7 +228,6 @@ class AdminDoctorService:
         if doc.ngay_cap and doc.ngay_het_han and doc.ngay_het_han < doc.ngay_cap:
             raise ConflictException("Ngày hết hạn CCHN không được trước ngày cấp.")
         if doc.ngay_het_han and doc.ngay_het_han < date.today():
-            # A manually selected ACTIVE state cannot override an expired date.
             doc.trang_thai_giay_phep = "EXPIRED"
             doc.is_active = False
         if payload.chuyen_khoa_id is not None:
@@ -295,11 +258,8 @@ class AdminDoctorService:
             ):
                 raise ConflictException("Bác sĩ có CCHN hết hạn hoặc bị đình chỉ không thể được mở nhận lịch.")
             doc.is_active = payload.is_active
-
         await db.commit()
         await db.refresh(doc)
-
-        # Reload relationships
         stmt_reload = (
             select(BacSi)
             .options(
@@ -310,9 +270,7 @@ class AdminDoctorService:
             .where(BacSi.id == doctor_id)
         )
         doc = (await db.execute(stmt_reload)).scalar_one()
-
         room_str = f"[{doc.phong_kham.ma_phong}] {doc.phong_kham.ten_phong}" if doc.phong_kham else (doc.chuyen_khoa.vi_tri_phong if doc.chuyen_khoa else "Chưa gán")
-
         return DoctorAdminResponse(
             id=doc.id,
             ho_ten=doc.nguoi_dung.ho_ten,
@@ -338,11 +296,6 @@ class AdminDoctorService:
             is_active=doc.is_active,
             so_luong_lich_hom_nay=0,
         )
-
-
-
-    # GÓI 6: QUẢN TRỊ HỒ SƠ BỆNH NHÂN (OpenMRS Master Patient Directory)
-    # =========================================================================
     async def get_patients_admin(
         self,
         db: AsyncSession,
@@ -366,7 +319,6 @@ class AdminDoctorService:
                     func.lower(BenhNhan.ma_dinh_danh_y_te).like(kw)
                 )
             )
-
         offset = (page - 1) * page_size
         stmt = stmt.offset(offset).limit(page_size)
         rows = (await db.execute(stmt)).scalars().all()
@@ -391,13 +343,11 @@ class AdminDoctorService:
                 tong_so_lich_kham=apt_count
             ))
         return results
-
     async def get_patient_detail_admin(self, patient_id: int, db: AsyncSession) -> PatientAdminDetailResponse:
         p = await db.get(BenhNhan, patient_id)
         if not p:
             raise NotFoundException(f"Không tìm thấy bệnh nhân ID {patient_id}")
         u = await db.get(NguoiDung, p.nguoi_dung_id)
-
         apt_stmt = (
             select(LichKham)
             .options(
@@ -422,7 +372,6 @@ class AdminDoctorService:
                 ten_chuyen_khoa=dept_name,
                 trang_thai=a.trang_thai
             ))
-
         return PatientAdminDetailResponse(
             id=p.id,
             nguoi_dung_id=p.nguoi_dung_id,
@@ -442,7 +391,6 @@ class AdminDoctorService:
             is_blocked_booking=p.is_blocked_booking,
             lich_su_dat_kham=apt_briefs
         )
-
     async def update_patient_status_admin(
         self,
         patient_id: int,
@@ -459,6 +407,4 @@ class AdminDoctorService:
         await db.commit()
         await db.refresh(p)
         return await self.get_patient_detail_admin(patient_id, db)
-
-
 admin_doctor_service = AdminDoctorService()

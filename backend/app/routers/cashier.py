@@ -21,6 +21,8 @@ from app.schemas.cashier import (
     InvoicePreviewResponse,
     InvoiceResponse,
     PendingBillsListResponse,
+    SepayWebhookPayload,
+    SepayWebhookResponse,
     ShiftSummaryResponse,
     UnbilledEncountersListResponse,
     RefundInvoiceRequest,
@@ -360,7 +362,6 @@ async def get_encounter_fee_sheet(
         message="Tổng hợp bảng kê viện phí tự động thành công"
     )
 
-
 @router.post(
     "/encounters/{encounter_id}/create-invoice",
     response_model=ResponseEnvelope[ProdInvoiceResponse],
@@ -386,7 +387,6 @@ async def create_invoice_from_encounter(
         message=f"Lập hóa đơn {invoice.invoice_code} thành công"
     )
 
-
 @router.post(
     "/invoices/{invoice_id}/generate-vietqr",
     response_model=ResponseEnvelope[VietQrGenerateResponse],
@@ -403,7 +403,6 @@ async def generate_invoice_vietqr(
         data=result,
         message=f"Sinh mã VietQR động cho hóa đơn #{invoice_id} thành công"
     )
-
 
 @router.post(
     "/payments/webhook",
@@ -427,4 +426,24 @@ async def process_cashier_bank_webhook(
     return ResponseEnvelope.success_response(
         data=result,
         message="Đối soát thanh toán Webhook thành công"
+    )
+
+@router.post(
+    "/webhook/sepay",
+    response_model=ResponseEnvelope[SepayWebhookResponse],
+    summary="Webhook SePay"
+)
+async def sepay_webhook(
+    payload: SepayWebhookPayload,
+    authorization: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.process_sepay_webhook(
+        payload=payload,
+        authorization_header=authorization,
+        db=db
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
     )

@@ -17,9 +17,9 @@
 
 **Mục tiêu**: Chuẩn bị rào chắn kỹ thuật, phân định sở hữu tệp và công cụ seed dữ liệu mẫu.
 
-- [ ] T001 [P] Khởi tạo tệp phân quyền sở hữu `.github/CODEOWNERS` gán trách nhiệm tệp cho 5 thành viên
-- [ ] T002 [P] Xây dựng script CLI `clinic-ai/backend/scripts/seed_admin_demo.py` hỗ trợ cờ `--reset` và `--append` với 6 rào chắn an toàn
-- [ ] T003 Viết kiểm thử tự động `clinic-ai/backend/tests/test_seed_admin_demo.py` xác minh tính lũy nghiệm (idempotency) và bảo tồn tài khoản người dùng
+- [X] T001 [P] Khởi tạo tệp phân quyền sở hữu `.github/CODEOWNERS` gán trách nhiệm tệp cho 5 thành viên
+- [X] T002 [P] Xây dựng script CLI `clinic-ai/backend/scripts/seed_admin_demo.py` hỗ trợ cờ `--reset` và `--append` với 6 rào chắn an toàn
+- [X] T003 Viết kiểm thử tự động `clinic-ai/backend/tests/test_seed_admin_demo.py` xác minh tính lũy nghiệm (idempotency) và bảo tồn tài khoản người dùng
 
 ---
 
@@ -27,14 +27,14 @@
 
 **Mục tiêu**: Tách nhỏ router `admin.py` thành các router con chuyên biệt và thiết lập rào chắn hồi quy `prRegressionGuard.test.mjs`.
 
-- [ ] T004 Tạo cấu trúc thư mục module hóa `clinic-ai/backend/app/routers/admin/` và file điều phối `__init__.py`
-- [ ] T005 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_bi.py` (WP01)
-- [ ] T006 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_catalog.py` (WP02)
-- [ ] T007 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_staff.py` (WP03)
-- [ ] T008 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_audit.py` (WP04)
-- [ ] T009 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_integration.py` (WP05)
-- [ ] T010 Đăng ký router tổng hợp `admin` vào `clinic-ai/backend/app/main.py`
-- [ ] T011 Cập nhật `clinic-ai/fe/tests/prRegressionGuard.test.mjs` để bổ sung rào chắn kiểm thử tự động các route Admin cốt lõi
+- [X] T004 Tạo cấu trúc thư mục module hóa `clinic-ai/backend/app/routers/admin/` và file điều phối `__init__.py`
+- [X] T005 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_bi.py` (WP01)
+- [X] T006 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_catalog.py` (WP02)
+- [X] T007 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_staff.py` (WP03)
+- [X] T008 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_audit.py` (WP04)
+- [X] T009 [P] Khởi tạo khung router `clinic-ai/backend/app/routers/admin/admin_integration.py` (WP05)
+- [X] T010 Đăng ký router tổng hợp `admin` vào `clinic-ai/backend/app/main.py`
+- [X] T011 Cập nhật `clinic-ai/fe/tests/prRegressionGuard.test.mjs` để bổ sung rào chắn kiểm thử tự động các route Admin cốt lõi
 
 **Checkpoint**: Nền tảng phân tách router đã sẵn sàng. 5 thành viên có thể bắt đầu làm việc song song trên 5 gói công việc độc lập.
 
@@ -46,14 +46,14 @@
 **Trách nhiệm tệp**: `admin_bi.py`, `AdminTemplate.jsx`, `App.jsx`, `clinicSeed.json`, `DashboardAdminPage.jsx`, `GuideAndQaManagementPage.jsx`
 
 ### Kiểm thử cho Gói 1
-- [ ] T012 [P] [WP01] Viết unit test `clinic-ai/backend/tests/test_admin_bi.py` kiểm tra API `/api/admin/bi/dashboard-stats` trả về số 0 khi DB rỗng
-- [ ] T013 [P] [WP01] Bổ sung test kiểm tra route `/admin/huong-dan` và `/admin/hoi-dap` trong `clinic-ai/fe/tests/prRegressionGuard.test.mjs`
+- [X] T012 [P] [WP01] Viết unit test `clinic-ai/backend/tests/test_admin_bi.py` kiểm tra API `/api/admin/bi/dashboard-stats` trả về số 0 khi DB rỗng
+- [X] T013 [P] [WP01] Bổ sung test kiểm tra route `/admin/huong-dan` và `/admin/hoi-dap` trong `clinic-ai/fe/tests/prRegressionGuard.test.mjs`
 
 ### Thực thi Gói 1
-- [ ] T014 [WP01] Triển khai API `/api/admin/bi/dashboard-stats` và `/api/admin/bi/export-excel` trong `clinic-ai/backend/app/routers/admin/admin_bi.py`
-- [ ] T015 [WP01] Cập nhật `clinic-ai/fe/src/pages/admin/DashboardAdminPage.jsx` xử lý Empty State (hiển thị số 0 rõ ràng, không sập khi DB rỗng)
-- [ ] T016 [WP01] Kết nối lại route `/admin/huong-dan` và `/admin/hoi-dap` trỏ đến `clinic-ai/fe/src/pages/admin/GuideAndQaManagementPage.jsx` trong `clinic-ai/fe/src/App.jsx`
-- [ ] T017 [WP01] Thực hiện 6 bước Audit và tinh gọn sidebar menu trong `clinic-ai/fe/src/services/admin/seed/clinicSeed.json` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`; phân loại chi tiết 6 menu thuộc nhóm `courses`: loại bỏ 3 menu lâm sàng/thao tác tuyến đầu (`Liệu trình`, `Hóa đơn`, `Lịch liệu trình`); đánh giá khả năng chuyển giao `Danh mục bài tập` và `Danh mục liệu trình mẫu` sang phạm vi WP-02 (`CatalogManagementPage.jsx`) và `Báo cáo liệu trình` tổng hợp ẩn danh sang WP-01 (`DashboardAdminPage.jsx`); không xóa máy móc các danh mục/báo cáo hợp lệ; các mục chưa đủ dữ liệu giữ trạng thái Chờ xác nhận/audit, không tự ý tạo route hay API mới
+- [X] T014 [WP01] Triển khai API `/api/admin/bi/dashboard-stats` và `/api/admin/bi/export-excel` trong `clinic-ai/backend/app/routers/admin/admin_bi.py`
+- [X] T015 [WP01] Cập nhật `clinic-ai/fe/src/pages/admin/DashboardAdminPage.jsx` xử lý Empty State (hiển thị số 0 rõ ràng, không sập khi DB rỗng)
+- [X] T016 [WP01] Kết nối lại route `/admin/huong-dan` và `/admin/hoi-dap` trỏ đến `clinic-ai/fe/src/pages/admin/GuideAndQaManagementPage.jsx` trong `clinic-ai/fe/src/App.jsx`
+- [X] T017 [WP01] Thực hiện 6 bước Audit và tinh gọn sidebar menu trong `clinic-ai/fe/src/services/admin/seed/clinicSeed.json` và `clinic-ai/fe/src/layouts/AdminTemplate.jsx`; phân loại chi tiết 6 menu thuộc nhóm `courses`: loại bỏ 3 menu lâm sàng/thao tác tuyến đầu (`Liệu trình`, `Hóa đơn`, `Lịch liệu trình`); đánh giá khả năng chuyển giao `Danh mục bài tập` và `Danh mục liệu trình mẫu` sang phạm vi WP-02 (`CatalogManagementPage.jsx`) và `Báo cáo liệu trình` tổng hợp ẩn danh sang WP-01 (`DashboardAdminPage.jsx`); không xóa máy móc các danh mục/báo cáo hợp lệ; các mục chưa đủ dữ liệu giữ trạng thái Chờ xác nhận/audit, không tự ý tạo route hay API mới
 
 **Checkpoint Gói 1**: Dashboard BI chạy chuẩn với dữ liệu PostgreSQL thật, route chết được khôi phục, menu gọn gàng.
 

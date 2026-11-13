@@ -8,7 +8,6 @@ from sqlalchemy.engine import URL
 ALLOWED_SLOT_DURATIONS = (15, 30, 45, 60)
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(str(ENV_PATH), ".env"),
@@ -83,7 +82,16 @@ class Settings(BaseSettings):
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
     CLINIC_PHONE: str = "1900 6868"
-    PAYMENT_WEBHOOK_SECRET: str = "clinic_ai_default_payment_webhook_secret_key_32bytes"
+    PAYMENT_WEBHOOK_SECRET: Optional[str] = "clinic_ai_default_payment_webhook_secret_key_32bytes"
+
+    SEPAY_API_KEY: Optional[str] = None
+    SEPAY_WEBHOOK_TOKEN: Optional[str] = None
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+    SEPAY_BANK_NAME: Optional[str] = None
+    SEPAY_ACCOUNT_NUMBER: Optional[str] = None
+    SEPAY_ACCOUNT_NAME: Optional[str] = None
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -99,8 +107,6 @@ class Settings(BaseSettings):
             value = value.strip()
             value = json.loads(value) if value.startswith("[") else value.split(",")
         origins = [origin.strip().rstrip("/") for origin in value if origin.strip()]
-        if any("*" in origin for origin in origins):
-            raise ValueError("BACKEND_CORS_ORIGINS does not accept wildcard origins")
         return origins
 
     @model_validator(mode="after")
@@ -127,6 +133,5 @@ class Settings(BaseSettings):
         if value not in ALLOWED_SLOT_DURATIONS:
             raise ValueError(f"SLOT_DURATION_MINUTES phải thuộc {ALLOWED_SLOT_DURATIONS}, nhận được {value}")
         return value
-
 
 settings = Settings()

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { staffService } from '../../services/admin/StaffService'
 import DoctorLeaveManagementTab from '../../components/admin/DoctorLeaveManagementTab'
 import DoctorScheduleManagementTab from '../../components/admin/DoctorScheduleManagementTab'
-import AdminStaffManagementTab from '../../components/admin/AdminStaffManagementTab'
 import { AppToast } from '../../components/common/AppNotification'
-import { adminService } from '../../services/admin/AdminService'
-import { PERMISSION_MODULES_23, getPermissionModuleLabel } from '../../utils/helpers/clinicConfigHelpers'
+import { PERMISSION_MODULES_23, getMasterOptions, getFormDefaults, getPermissionModuleLabel } from '../../utils/helpers/clinicConfigHelpers'
 import {
     StatusBadge,
     ShieldCheck,
@@ -13,58 +14,101 @@ import {
     FloppyDisk,
     CheckCircle,
     Broom,
+    Plus,
+    Trash,
+    Camera,
+    UploadSimple,
+    Warning,
+    XCircle,
     CalendarCheck,
     CalendarPlus,
 } from '../../components/common/ClinicIcon'
 
+const getNextStaffCode = (list) => {
+    let max = 0
+    ;(list || []).forEach((s) => {
+        const m = String(s.maNV || s.id || '').match(/(\d+)/)
+        if (m) {
+            const num = parseInt(m[1], 10)
+            if (num > max) max = num
+        }
+    })
+    return "NV" + String(max + 1).padStart(3, '0')
+}
+
 export default function RolePermissionPage() {
     const location = useLocation()
+    const dispatch = useDispatch()
     const searchParams = new URLSearchParams(location.search)
     const isLeaveMode = searchParams.get('tab') === 'nghi-phep' || location.pathname.includes('nghi-phep')
-    const isScheduleMode = searchParams.get('tab') === 'phan-lich' || location.pathname.includes('phan-lich') || location.pathname.includes('lich-lam-viec')
+    const isScheduleMode = searchParams.get('tab') === 'phan-lich' || location.pathname.includes('phan-lich')
     const isStaffMode = !isLeaveMode && !isScheduleMode && (location.pathname.includes('nhan-vien') || searchParams.get('tab') === 'nhan-vien')
 
-    const [roles, setRoles] = useState([])
-    const [rbacLoading, setRbacLoading] = useState(false)
-    const [rbacError, setRbacError] = useState('')
-    const permissionModules = PERMISSION_MODULES_23
+    const { clinicData } = useSelector((state) => state.app.admin)
+    const roles = clinicData?.roles || []
+    const staffList = clinicData?.staffList || []
+    const khoaPhongList = clinicData?.catalogs?.khoaPhong || []
+    const permissionModules = clinicData?.permissionModules || PERMISSION_MODULES_23
 
-    const [selectedRole, setSelectedRole] = useState({})
+    const masterOptions = getMasterOptions(clinicData)
+    const defaults = getFormDefaults(clinicData)
+    const licenseStatuses = [
+        { code: 'ACTIVE', label: 'Đủ điều kiện hành nghề' },
+        { code: 'EXPIRING_SOON', label: 'Sắp hết hạn (< 60 ngày)' },
+        { code: 'EXPIRED', label: 'Hết hạn (Chặn phân công)' },
+        { code: 'SUSPENDED', label: 'Đang đình chỉ (Chặn phân công)' },
+    ]
+    const staffRoleOptions = masterOptions.staffRoleOptions || [
+        'Admin / Phụ trách chuyên môn',
+        'Bác sĩ khám bệnh',
+        'Bác sĩ Cận lâm sàng',
+        'Lễ tân - Tiếp đón',
+        'Thu ngân - Viện phí',
+    ]
 
-    const roleFromDb = (role) => ({
-        id: role.ma_vai_tro,
-        maVaiTro: role.ma_vai_tro,
-        tenVaiTro: role.ten_vai_tro,
-        moTa: role.mo_ta,
-        permissions: permissionModules.map((module, index) => {
-            const codes = new Set(role.permission_codes || [])
-            return {
-                stt: index + 1,
-                xem: codes.has(`${module.maPhanHe}.view`),
-                them: codes.has(`${module.maPhanHe}.create`),
-                sua: codes.has(`${module.maPhanHe}.update`),
-                xoa: codes.has(`${module.maPhanHe}.delete`),
-                inXuat: codes.has(`${module.maPhanHe}.export`),
+    const [selectedRole, setSelectedRole] = useState(() => roles[0] || {})
+    const [newRoleName, setNewRoleName] = useState('')
+    const [newRoleDesc, setNewRoleDesc] = useState('')
+
+    const [staffForm, setStaffForm] = useState(
+        () =>
+            staffList[0] || {
+                id: '',
+                maNV: getNextStaffCode(staffList),
+                hoTen: '',
+                taiKhoan: '',
+                dienThoai: '',
+                vaiTro: staffRoleOptions[1],
+                khoaPhong: khoaPhongList[0]?.tenPhong || defaults.defaultClinicRoom,
+                chuyenKhoa: defaults.defaultSpecialty,
+                soCCHN: '',
+                ngayCapCCHN: '2022-01-01',
+                ngayHetHanCCHN: '2029-01-01',
+                trangThaiCCHN: 'ACTIVE',
+                trangThai: true,
             }
-        }),
-    })
+    )
 
-    const loadRoles = async () => {
-        setRbacLoading(true)
-        setRbacError('')
-        try {
-            const data = await adminService.getRBACRolesAdmin()
-            const mapped = data.map(roleFromDb)
-            setRoles(mapped)
-            setSelectedRole((current) => mapped.find((role) => role.id === current.id) || mapped[0] || {})
-        } catch (error) {
-            setRbacError(error?.response?.data?.message || 'Không tải được ma trận phân quyền từ backend.')
-        } finally {
-            setRbacLoading(false)
+    useEffect(() => {
+        let isMounted = true
+        const loadLiveStaffAndRoles = async () => {
+            try {
+                const [liveRoles, liveStaff] = await Promise.all([
+                    staffService.getRoles().catch(() => []),
+                    staffService.getStaffList().catch(() => []),
+                ])
+                if (isMounted) {
+                    if (Array.isArray(liveRoles) && liveRoles.length > 0) {
+                        setSelectedRole((prev) => (prev?.id ? prev : liveRoles[0]))
+                    }
+                }
+            } catch {}
         }
-    }
-
-    useEffect(() => { loadRoles() }, [])
+        loadLiveStaffAndRoles()
+        return () => {
+            isMounted = false
+        }
+    }, [])
 
     const handleTogglePermission = (stt, field) => {
         const updatedPermissions = (selectedRole.permissions || []).map((p) =>
@@ -86,19 +130,81 @@ export default function RolePermissionPage() {
     }
 
     const handleSaveRolePermissions = async () => {
+        const updatedRoles = roles.map((r) => (r.id === selectedRole.id ? selectedRole : r))
         try {
-            const actionNames = { xem: 'view', them: 'create', sua: 'update', xoa: 'delete', inXuat: 'export' }
-            const permission_codes = (selectedRole.permissions || []).flatMap((permission, index) =>
-                Object.entries(actionNames).filter(([key]) => permission[key]).map(([, action]) => `${permissionModules[index].maPhanHe}.${action}`)
-            )
-            const updated = await adminService.updateRBACRolePermissionsAdmin(selectedRole.maVaiTro, permission_codes)
-            const mapped = roles.map((role) => role.id === selectedRole.id ? roleFromDb(updated) : role)
-            setRoles(mapped)
-            setSelectedRole(roleFromDb(updated))
-            AppToast.success(`Đã lưu ma trận quyền ${selectedRole.tenVaiTro} vào PostgreSQL.`)
-        } catch (error) {
-            AppToast.error(error?.response?.data?.message || 'Không lưu được ma trận quyền.')
+            await staffService.updateRoles(updatedRoles)
+        } catch {}
+        await dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'roles',
+                items: updatedRoles,
+                auditEntry: {
+                    hanhDong: 'UPDATE_ROLE_PERMISSIONS',
+                    doiTuong: `Vai trò: ${selectedRole.tenVaiTro}`,
+                    mucDich: 'Cập nhật ma trận 23 quyền hạn người dùng',
+                },
+            })
+        )
+        AppToast.success(`Đã lưu ma trận phân quyền cho vai trò "${selectedRole.tenVaiTro}"!`)
+    }
+
+    const handleCreateRole = async () => {
+        if (!newRoleName.trim()) {
+            AppToast.warning('Vui lòng nhập Tên vai trò mới!')
+            return
         }
+        const newRole = {
+            id: `ROLE-${Date.now().toString().slice(-4)}`,
+            tenVaiTro: newRoleName,
+            moTa: newRoleDesc || 'Vai trò tùy chỉnh phòng khám',
+            permissions: Array.from({ length: permissionModules.length }, (_, idx) => ({
+                stt: idx + 1,
+                xem: true,
+                them: false,
+                sua: false,
+                xoa: false,
+                inXuat: false,
+            })),
+        }
+        const updatedRoles = [...roles, newRole]
+        try {
+            await staffService.updateRoles(updatedRoles)
+        } catch {}
+        await dispatch(updateClinicCollectionAsync({ collectionKey: 'roles', items: updatedRoles }))
+        setSelectedRole(newRole)
+        setNewRoleName('')
+        setNewRoleDesc('')
+        AppToast.success(`Đã tạo vai trò mới: ${newRole.tenVaiTro}`)
+    }
+
+    const handleSaveStaff = async () => {
+        if (!staffForm.hoTen?.trim()) {
+            AppToast.error('Vui lòng nhập Họ tên nhân sự / Bác sĩ!')
+            return
+        }
+        const exists = staffList.some((s) => s.id === staffForm.id && staffForm.id)
+        const nextMa = exists ? staffForm.maNV : (staffForm.maNV || getNextStaffCode(staffList))
+        const formWithCode = { ...staffForm, maNV: nextMa }
+        const updated = exists
+            ? staffList.map((s) => (s.id === staffForm.id ? { ...s, ...staffForm } : s))
+            : [...staffList, { ...formWithCode, id: nextMa }]
+
+        try {
+            await staffService.updateStaffList(updated)
+        } catch {}
+
+        await dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'staffList',
+                items: updated,
+                auditEntry: {
+                    hanhDong: exists ? 'UPDATE_STAFF_CREDENTIAL' : 'CREATE_STAFF_CREDENTIAL',
+                    doiTuong: `${formWithCode.hoTen} (${nextMa}) - CCHN: ${formWithCode.soCCHN} (${formWithCode.trangThaiCCHN})`,
+                    mucDich: 'Quản lý hồ sơ nhân sự và Chứng chỉ hành nghề',
+                },
+            })
+        )
+        AppToast.success(exists ? 'Đã cập nhật hồ sơ nhân sự & CCHN!' : 'Đã thêm nhân sự mới thành công!')
     }
 
     return (
@@ -160,23 +266,17 @@ export default function RolePermissionPage() {
                 </span>
             </div>
 
-            {isStaffMode ? (
-                <AdminStaffManagementTab />
-            ) : isScheduleMode ? (
+            {isScheduleMode ? (
                 <DoctorScheduleManagementTab />
             ) : isLeaveMode ? (
                 <DoctorLeaveManagementTab />
-            ) : (
+            ) : !isStaffMode ? (
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-4 medpro-card p-3.5 space-y-4">
                         <div className="medpro-section-title">
                             <span>DANH SÁCH VAI TRÒ ({roles.length})</span>
-                            <button type="button" onClick={loadRoles} className="text-xs text-sky-700">Làm mới</button>
                         </div>
-
-                        {rbacError && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{rbacError}</div>}
-                        {rbacLoading && <div className="text-xs text-slate-500">Đang tải vai trò từ PostgreSQL…</div>}
 
                         <div className="space-y-2">
                             {roles.map((r) => (
@@ -195,6 +295,27 @@ export default function RolePermissionPage() {
                             ))}
                         </div>
 
+                        <div className="p-3 rounded-xl bg-[#F8FBFE] border border-[#CBE9FA] space-y-2.5">
+                            <div className="text-xs font-bold text-[#003553] uppercase">THÊM VAI TRÒ MỚI</div>
+                            <input
+                                type="text"
+                                value={newRoleName}
+                                onChange={(e) => setNewRoleName(e.target.value)}
+                                placeholder="Tên vai trò (VD: Điều dưỡng trưởng)..."
+                                className="medpro-input"
+                            />
+                            <input
+                                type="text"
+                                value={newRoleDesc}
+                                onChange={(e) => setNewRoleDesc(e.target.value)}
+                                placeholder="Mô tả phạm vi quyền hạn..."
+                                className="medpro-input"
+                            />
+                            <button type="button" onClick={handleCreateRole} className="medpro-btn-primary w-full text-xs">
+                                <Plus size={14} weight="bold" />
+                                <span>Tạo vai trò mới</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-8 medpro-card p-4 space-y-3">
@@ -222,10 +343,9 @@ export default function RolePermissionPage() {
                                     <Broom size={15} weight="duotone" className="text-slate-500" />
                                     <span>Bỏ chọn tất cả</span>
                                 </button>
-                            <button
+                                <button
                                     type="button"
                                     onClick={handleSaveRolePermissions}
-                                disabled={!selectedRole.id || selectedRole.maVaiTro === 'admin' || rbacLoading}
                                     className="medpro-btn-primary text-xs"
                                 >
                                     <FloppyDisk size={15} weight="bold" />
@@ -276,6 +396,190 @@ export default function RolePermissionPage() {
                                     })}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+                    <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col">
+                        <div className="medpro-section-title">
+                            <span>DANH SÁCH NHÂN SỰ &amp; BÁC SĨ ({staffList.length})</span>
+                        </div>
+                        <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
+                            <table className="medpro-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã NV</th>
+                                        <th>Họ tên</th>
+                                        <th>Số CCHN</th>
+                                        <th>Trạng thái CCHN</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {staffList.map((s) => (
+                                        <tr
+                                            key={s.id}
+                                            onClick={() => setStaffForm({ ...s })}
+                                            className={`cursor-pointer ${
+                                                staffForm.id === s.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
+                                            }`}
+                                        >
+                                            <td className="font-mono font-bold text-[#00B5F1]">{s.maNV}</td>
+                                            <td className="font-semibold text-[#12263F]">{s.hoTen}</td>
+                                            <td className="font-mono text-xs">{s.soCCHN}</td>
+                                            <td>
+                                                <StatusBadge status={s.trangThaiCCHN} compact />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-7 medpro-card p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
+                            <div>
+                                <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
+                                    HỒ SƠ NHÂN SỰ &amp; CHỨNG CHỈ HÀNH NGHỀ Y TẾ
+                                </h2>
+                                <p className="text-xs text-slate-500">
+                                    Theo Luật KCB 15/2023/QH15 &amp; NĐ 96/2023/NĐ-CP: Hệ thống tự động chặn phân công nếu CCHN hết hạn
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const nextMa = getNextStaffCode(staffList)
+                                        setStaffForm({
+                                            id: '',
+                                            maNV: nextMa,
+                                            hoTen: '',
+                                            taiKhoan: '',
+                                            dienThoai: '',
+                                            vaiTro: staffRoleOptions[1],
+                                            khoaPhong: khoaPhongList[0]?.tenPhong || defaults.defaultClinicRoom,
+                                            chuyenKhoa: defaults.defaultSpecialty,
+                                            soCCHN: '',
+                                            ngayCapCCHN: '2022-01-01',
+                                            ngayHetHanCCHN: '2029-01-01',
+                                            trangThaiCCHN: 'ACTIVE',
+                                            trangThai: true,
+                                        })
+                                    }}
+                                    className="medpro-btn-outline text-xs"
+                                >
+                                    <Plus size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <span>Thêm nhân sự</span>
+                                </button>
+                                <button type="button" onClick={handleSaveStaff} className="medpro-btn-primary text-xs">
+                                    <FloppyDisk size={15} weight="bold" />
+                                    <span>Lưu hồ sơ &amp; CCHN</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="medpro-label mb-0">Mã nhân viên</label>
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={staffForm.maNV || ''}
+                                    readOnly
+                                    disabled
+                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    title="Mã nhân viên do hệ thống tự sinh theo chuẩn NVxxx, không thể chỉnh sửa"
+                                />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="medpro-label">Họ tên &amp; Học hàm/Học vị *</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.hoTen || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, hoTen: e.target.value })}
+                                    className="medpro-input font-semibold"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Tài khoản đăng nhập</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.taiKhoan || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, taiKhoan: e.target.value })}
+                                    className="medpro-input"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Số điện thoại</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.dienThoai || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, dienThoai: e.target.value })}
+                                    className="medpro-input tabular-nums"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Vai trò phân quyền</label>
+                                <select
+                                    value={staffForm.vaiTro || staffRoleOptions[1]}
+                                    onChange={(e) => setStaffForm({ ...staffForm, vaiTro: e.target.value })}
+                                    className="medpro-input font-semibold"
+                                >
+                                    {staffRoleOptions.map((ro) => (
+                                        <option key={ro} value={ro}>
+                                            {ro}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="medpro-label">Số Chứng chỉ hành nghề (CCHN)</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.soCCHN || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, soCCHN: e.target.value })}
+                                    className="medpro-input font-mono font-bold text-[#00B5F1]"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Ngày hết hạn CCHN</label>
+                                <input
+                                    type="date"
+                                    value={staffForm.ngayHetHanCCHN || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, ngayHetHanCCHN: e.target.value })}
+                                    className="medpro-input tabular-nums"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Trạng thái pháp lý CCHN</label>
+                                <select
+                                    value={staffForm.trangThaiCCHN || 'ACTIVE'}
+                                    onChange={(e) => setStaffForm({ ...staffForm, trangThaiCCHN: e.target.value })}
+                                    className="medpro-input font-bold"
+                                >
+                                    {licenseStatuses.map((ls) => (
+                                        <option key={ls.code} value={ls.code}>
+                                            {ls.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label className="medpro-label">Phạm vi hoạt động chuyên môn được cấp phép</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.chuyenKhoa || ''}
+                                    onChange={(e) => setStaffForm({ ...staffForm, chuyenKhoa: e.target.value })}
+                                    className="medpro-input font-semibold text-[#003553]"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

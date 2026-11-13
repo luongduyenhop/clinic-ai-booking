@@ -2,7 +2,7 @@ import { http } from './BaseService'
 
 function normalizeUrl(url) {
     if (typeof url !== 'string') return url
-    if (url.startsWith('/api/v1') || url.startsWith('http://') || url.startsWith('https://')) {
+    if (url.startsWith('/api/v1') || url.startsWith('http:') || url.startsWith('https:') || url.startsWith('//')) {
         return url
     }
     return `/api/v1${url.startsWith('/') ? url : `/${url}`}`

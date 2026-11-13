@@ -67,7 +67,7 @@ export default function LoginPage() {
                     </p>
                 )}
 
-                <div className="space-y-2.5 pt-1">
+                <div className="pt-2">
                     <button
                         type="submit"
                         disabled={formik.isSubmitting}

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -23,7 +24,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("clinic_backend")
 
-
 @lru_cache(maxsize=1)
 def _database_revision() -> str:
     backend_dir = Path(__file__).resolve().parents[1]
@@ -33,7 +33,6 @@ def _database_revision() -> str:
     if not revision:
         raise RuntimeError("No repository migration head was found.")
     return revision
-
 
 async def _check_database() -> None:
     async with engine.connect() as conn:
@@ -46,7 +45,6 @@ async def _check_database() -> None:
         else:
             await conn.execute(text("SELECT 1"))
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 [SYSTEM STARTING] Đang kết nối Cơ sở dữ liệu PostgreSQL...")
@@ -54,7 +52,6 @@ async def lifespan(app: FastAPI):
         await _check_database()
     else:
         from app.core.database import Base
-
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
@@ -64,7 +61,6 @@ async def lifespan(app: FastAPI):
     try:
         from starlette.concurrency import run_in_threadpool
         from app.ml.triage_model import MODEL_VERSION, get_ai_triage_model
-
         started = time.perf_counter()
         model = await run_in_threadpool(get_ai_triage_model)
         await run_in_threadpool(model.analyze, "đau đầu nhẹ", age=30)
@@ -75,8 +71,7 @@ async def lifespan(app: FastAPI):
         )
     except Exception as warmup_err:
         logger.warning(
-            "⚠️ [AI MODEL WARMUP] Không nạp trước được model, request đầu tiên "
-            "sẽ tự nạp: %s",
+            "⚠️ [AI MODEL WARMUP] Không nạp trước được model, request đầu tiên sẽ tự nạp: %s",
             warmup_err,
         )
 
@@ -85,17 +80,10 @@ async def lifespan(app: FastAPI):
     finally:
         await engine.dispose()
 
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     debug=settings.DEBUG,
-    description="""
-    ## Hệ Thống Quản Lý & Đặt Lịch Khám Bệnh Trực Tuyến Tích Hợp AI
-    * **Học phần:** Project 1 (IT1.241.3) - ĐH Giao Thông Vận Tải
-    * **Nhóm thực hiện:** Nhóm 2
-    * **Kiến trúc:** 3-Tier mở rộng kết hợp BCE Pattern & OpenMRS 3.0 Concept Dictionary
-    * **CSDL:** PostgreSQL 15 (Async SQLAlchemy 2.0)
-    """,
+    description="He Thong Quan Ly & Dat Lich Kham Benh Truc Tuyen Tich Hop AI",
     version="1.0.0",
     docs_url=None if settings.is_hosted else "/docs",
     redoc_url=None if settings.is_hosted else "/redoc",
@@ -107,7 +95,6 @@ from app.core.rate_limit import limiter
 from app.core.audit_middleware import PhiAuditMiddleware
 
 app.state.limiter = limiter
-
 app.add_middleware(PhiAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -123,7 +110,6 @@ from app.routers.auth import router as auth_router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(auth_router, prefix="/api", include_in_schema=False)
 
-
 @app.middleware("http")
 async def normalize_fe_auth_case(request, call_next):
     path = request.scope.get("path", "")
@@ -133,7 +119,6 @@ async def normalize_fe_auth_case(request, call_next):
         request.scope["path"] = "/api/v1/clinical/" + path[len("/clinical/"):]
     return await call_next(request)
 
-
 @app.get("/", tags=["Health Check"])
 async def root():
     return {
@@ -142,7 +127,6 @@ async def root():
         "docs_url": app.docs_url,
         "api_v1": settings.API_V1_STR
     }
-
 
 @app.get("/health", tags=["Health Check"], response_model=ResponseEnvelope[dict])
 async def health_check(response: Response):

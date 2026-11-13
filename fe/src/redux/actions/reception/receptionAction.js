@@ -81,66 +81,50 @@ export function normalizeTicket(ticket, defaultPatient = null) {
 export const fetchReceptionDataAsync = createAsyncThunk(
     'reception/fetchAll',
     async (_, { rejectWithValue }) => {
-        try {
-            const [specsRes, roomsRes, docsRes, srvsRes] = await Promise.allSettled([
-                receptionService.getSpecialties(),
-                receptionService.getRooms(),
-                receptionService.getDoctors(),
-                receptionService.getServices(),
-            ])
+        const responses = await Promise.allSettled([
+            receptionService.getSpecialties(),
+            receptionService.getRooms(),
+            receptionService.getDoctors(),
+            receptionService.getServices(),
+        ])
+        const lookups = [
+            ['departments', 'Chuyên khoa', (s) => ({
+                id: s.id, name: s.ten_chuyen_khoa || s.name,
+                code: s.ma_chuyen_khoa || s.code, room: s.vi_tri_phong || s.room,
+            })],
+            ['rooms', 'Phòng khám', (r) => ({
+                id: r.id || r.ma_phong, code: r.ma_phong, name: r.ten_phong,
+                departmentId: r.chuyen_khoa_id, currentWaiting: r.so_benh_nhan_cho || 0,
+                isOperational: r.dang_hoat_dong !== false,
+            })],
+            ['doctors', 'Bác sĩ', (d) => ({
+                id: d.id, name: d.ho_ten || d.name, departmentId: d.chuyen_khoa_id,
+                roomId: d.phong_kham_id, phong_kham_id: d.phong_kham_id,
+                room: d.phong_lam_viec, isAvailable: d.is_active !== false,
+            })],
+            ['services', 'Dịch vụ', (s) => ({
+                id: s.id, code: s.ma_dich_vu, name: s.ten_dich_vu,
+                price: s.don_gia, unit: s.don_vi_tinh, group: s.nhom_dich_vu,
+            })],
+        ]
+        const data = {}
+        const errors = []
 
-            const departments = specsRes.status === 'fulfilled'
-                ? (unwrapApi(specsRes.value) || []).map((s) => ({
-                    id: s.id,
-                    name: s.ten_chuyen_khoa || s.name,
-                    code: s.ma_chuyen_khoa || s.code,
-                    room: s.vi_tri_phong || s.room,
-                }))
-                : []
-
-            const rooms = roomsRes.status === 'fulfilled'
-                ? (unwrapApi(roomsRes.value) || []).map((r) => ({
-                    id: r.id || r.ma_phong,
-                    code: r.ma_phong,
-                    name: r.ten_phong,
-                    departmentId: r.chuyen_khoa_id,
-                    currentWaiting: r.so_benh_nhan_cho || 0,
-                    isOperational: r.dang_hoat_dong !== false,
-                }))
-                : []
-
-            const doctors = docsRes.status === 'fulfilled'
-                ? (unwrapApi(docsRes.value) || []).map((d) => ({
-                    id: d.id,
-                    name: d.ho_ten || d.name,
-                    departmentId: d.chuyen_khoa_id,
-                    roomId: d.phong_kham_id,
-                    phong_kham_id: d.phong_kham_id,
-                    room: d.phong_lam_viec,
-                    isAvailable: d.is_active !== false,
-                }))
-                : []
-
-            const services = srvsRes.status === 'fulfilled'
-                ? (unwrapApi(srvsRes.value) || []).map((s) => ({
-                    id: s.id,
-                    code: s.ma_dich_vu,
-                    name: s.ten_dich_vu,
-                    price: s.don_gia,
-                    unit: s.don_vi_tinh,
-                    group: s.nhom_dich_vu,
-                }))
-                : []
-
-            return {
-                departments,
-                rooms,
-                doctors,
-                services,
+        lookups.forEach(([key, label, map], index) => {
+            const response = responses[index]
+            try {
+                if (response.status === 'rejected') throw response.reason
+                const items = unwrapApi(response.value)
+                if (!Array.isArray(items)) throw new Error(`Dữ liệu ${label.toLowerCase()} không hợp lệ`)
+                data[key] = items.map(map)
+            } catch (error) {
+                errors.push(`${label}: ${pickErrorMessage(error, 'Không thể tải danh mục')}`)
             }
-        } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Lỗi tải dữ liệu quầy lễ tân'))
-        }
+        })
+
+        return errors.length
+            ? rejectWithValue(`Không thể tải đầy đủ danh mục quầy lễ tân. ${errors.join('; ')}`)
+            : data
     }
 )
 

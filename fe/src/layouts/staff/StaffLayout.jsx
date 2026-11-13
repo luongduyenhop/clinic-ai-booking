@@ -126,7 +126,7 @@ export default function StaffLayout() {
                     <div className="flex items-center gap-3 shrink-0">
                         {/* Đồng hồ & Ca trực */}
                         <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/60">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
                             <span className="font-mono">{formattedTime}</span>
                         </div>
 
@@ -142,7 +142,7 @@ export default function StaffLayout() {
 
                         {/* Thông tin nhân viên đăng nhập */}
                         <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#003553] to-[#00B5F1] text-white font-extrabold text-xs flex items-center justify-center shadow-2xs shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#0A5878] text-white font-extrabold text-xs flex items-center justify-center shrink-0">
                                 {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'NV'}
                             </div>
                             <div className="hidden md:block text-left min-w-0">

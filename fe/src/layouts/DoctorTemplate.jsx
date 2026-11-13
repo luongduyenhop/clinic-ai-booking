@@ -4,6 +4,10 @@ import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
 
 export default function DoctorTemplate() {
     const { user } = useSelector((state) => state.app.auth)
+    const savedClinicInfo = useSelector((state) => state.app.admin.clinicData?.clinicSettings)
+    const clinicInfo = savedClinicInfo?.is_synthetic === true || String(savedClinicInfo?.data_classification || '').startsWith('SYNTHETIC')
+        ? {}
+        : savedClinicInfo || {}
     const todayFormatted = new Intl.DateTimeFormat('vi-VN', {
         weekday: 'long',
         year: 'numeric',
@@ -18,7 +22,7 @@ export default function DoctorTemplate() {
                     <div className="h-16 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 shrink-0">
                             <Link to="/doctor" className="flex items-center gap-2.5 group shrink-0">
-                                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#003553] via-[#00B5F1] to-[#00A9E3] text-white flex items-center justify-center font-extrabold text-base shadow-md group-hover:scale-105 transition transform shrink-0">
+                                <div className="w-9 h-9 rounded-xl bg-[#0A5878] text-white flex items-center justify-center font-extrabold text-base shrink-0">
                                     ✚
                                 </div>
                                 <div className="shrink-0 whitespace-nowrap">
@@ -35,8 +39,8 @@ export default function DoctorTemplate() {
 
                             <div className="hidden md:flex items-center gap-2.5 text-xs shrink-0 whitespace-nowrap">
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8F4FD] text-[#003553] font-bold border border-sky-100 whitespace-nowrap shrink-0">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                                    {user?.room || 'Phòng Khám Nội Tổng Quát 1'} • {user?.specialty || 'Khoa Nội Tổng Quát'}
+                                    <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                                    {user?.room || 'Chưa phân công'} • {user?.specialty || 'Chưa cấu hình chuyên khoa'}
                                 </span>
                                 <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">
                                     🗓 {todayFormatted}
@@ -61,7 +65,7 @@ export default function DoctorTemplate() {
                         Hệ Thống ClinicAI Booking &copy; {new Date().getFullYear()} - Cổng làm việc chuyên biệt dành cho Bác sĩ.
                     </p>
                     <div className="flex items-center gap-4 text-[11px] text-slate-500">
-                        <span>Hỗ trợ y tế: <strong>1900-6868</strong></span>
+                        <span>Hỗ trợ y tế: <strong>{clinicInfo.dienThoai || 'Chưa cấu hình'}</strong></span>
                         <span>•</span>
                         <span>Chuẩn hóa Thông tư 32/2023/TT-BYT &amp; EMR Quốc gia</span>
                     </div>

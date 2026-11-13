@@ -37,6 +37,10 @@ export default function CashierManagementPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
+    const clinicSettings = clinicData?.clinicSettings || {}
+    const bankInfo = clinicSettings.is_synthetic === true || String(clinicSettings.data_classification || '').startsWith('SYNTHETIC')
+        ? {}
+        : clinicSettings.bankInfo || {}
 
     const vouchers = useMemo(() => {
         let list = [...(clinicData?.vouchers || [])]
@@ -161,6 +165,11 @@ export default function CashierManagementPage() {
     }
 
     const handleOpenQr = async (voucher) => {
+        if (!/^\d{6}$/.test(String(bankInfo.bankBin || '').trim()) ||
+            ![bankInfo.bankName, bankInfo.accountNumber, bankInfo.accountName].every((value) => String(value || '').trim())) {
+            AppToast.error('Vui lòng cấu hình đầy đủ thông tin VietQR trong Cài đặt phòng khám.')
+            return
+        }
         const target = voucher || form
         if (!target.invoiceId && target.luotKhamId) {
             try {
@@ -1036,10 +1045,10 @@ export default function CashierManagementPage() {
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
-                bankBin={clinicData?.clinicSettings?.bankInfo?.bankBin || '970422'}
-                bankName={clinicData?.clinicSettings?.bankInfo?.bankName || 'MBBank (Ngân hàng TMCP Quân Đội)'}
-                accountNumber={clinicData?.clinicSettings?.bankInfo?.accountNumber || '0901234567'}
-                accountName={clinicData?.clinicSettings?.bankInfo?.accountName || clinicData?.clinicSettings?.tenPhongKham || 'PHONG KHAM CLINIC AI'}
+                bankBin={bankInfo.bankBin}
+                bankName={bankInfo.bankName}
+                accountNumber={bankInfo.accountNumber}
+                accountName={bankInfo.accountName}
                 onConfirmPayment={async (inv) => {
                     const targetRef = inv?.invoiceId || inv?.maPhieu || inv?.id || form?.invoiceId || form?.maPhieu || form?.id
                     if (!targetRef) return

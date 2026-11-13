@@ -5,29 +5,23 @@ function getResolvedClinicInfo() {
         const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL') : null
         if (raw) {
             const parsed = JSON.parse(raw)
-            const s = parsed.clinicSettings
-            if (s && (s.tenPhongKham || s.tenCoSo)) {
-                const name = String(s.tenPhongKham || s.tenCoSo).toUpperCase()
-                const parts = [
-                    s.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-                    s.dienThoai ? `Hotline: ${s.dienThoai}` : 'Hotline: 1900 2115',
-                    s.giayPhepHoatDong ? `GPHĐ: ${s.giayPhepHoatDong}` : 'GPHĐ: Số 1428/HNO-GPHĐ',
-                ].filter(Boolean)
-                return {
-                    name,
-                    address: parts.join(' | '),
-                }
+            const rawSettings = parsed.clinicSettings || {}
+            const s = rawSettings.is_synthetic === true || String(rawSettings.data_classification || '').startsWith('SYNTHETIC')
+                ? {}
+                : rawSettings
+            return {
+                name: String(s.tenPhongKham || s.tenCoSo || 'Chưa cấu hình').toUpperCase(),
+                address: [
+                    s.diaChi || 'Địa chỉ: Chưa cấu hình',
+                    s.dienThoai ? `Hotline: ${s.dienThoai}` : 'Hotline: Chưa cấu hình',
+                    s.giayPhepHoatDong ? `GPHĐ: ${s.giayPhepHoatDong}` : 'GPHĐ: Chưa cấu hình',
+                ].join(' | '),
             }
         }
-    } catch {
-        return {
-            name: 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI',
-            address: 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội | Hotline: 1900 2115 | GPHĐ: Số 1428/HNO-GPHĐ',
-        }
-    }
+    } catch {}
     return {
-        name: 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC-AI',
-        address: 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội | Hotline: 1900 2115 | GPHĐ: Số 1428/HNO-GPHĐ',
+        name: 'CHƯA CẤU HÌNH',
+        address: 'Địa chỉ: Chưa cấu hình | Hotline: Chưa cấu hình | GPHĐ: Chưa cấu hình',
     }
 }
 

@@ -121,7 +121,7 @@ export default function ReceptionLayout() {
 
                         <div className="hidden sm:flex items-center gap-3 text-[11px] text-slate-400">
                             <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                                 <span className="font-medium text-slate-600">{shiftLabel}</span>
                             </span>
                         </div>

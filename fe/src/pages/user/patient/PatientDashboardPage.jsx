@@ -36,15 +36,15 @@ export default function PatientDashboardPage() {
     if (portalLoading) return <PatientLoading />
     if (portalError) return <PatientError message={portalError} onRetry={() => dispatch(fetchPatientPortalAsync())} />
 
-    const upcoming = portalData.appointments
+    const upcoming = portalData.appointmentsError ? null : portalData.appointments
         .filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status))
         .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate))[0]
 
     const familyList = portalData.familyMembers || []
 
     const cards = [
-        { label: 'Lịch hẹn', value: portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
-        { label: 'Lần khám', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/lich-su-kham' },
+        { label: 'Lịch hẹn', value: portalData.appointmentsError ? '—' : portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
+        { label: 'Lần khám', value: portalData.medicalHistoryError ? '—' : portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/lich-su-kham' },
         { label: 'Đơn thuốc', value: portalData.prescriptionError ? '—' : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length), icon: Pill, to: '/benh-nhan/don-thuoc' },
         { label: 'Kết quả CLS', value: portalData.labError ? '—' : (portalData.labMeta?.total_items ?? portalData.labResults.length), icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
     ]
@@ -145,7 +145,9 @@ export default function PatientDashboardPage() {
                         Xem tất cả
                     </Link>
                 </div>
-                {upcoming ? (
+                {portalData.appointmentsError ? (
+                    <PatientError message={portalData.appointmentsError} onRetry={() => dispatch(fetchPatientPortalAsync())} />
+                ) : upcoming ? (
                     <AppointmentCard appointment={upcoming} />
                 ) : (
                     <div className="medpro-card p-6 text-center text-sm text-slate-500">
@@ -163,7 +165,7 @@ export default function PatientDashboardPage() {
                             <div className="flex items-center gap-2">
                                 <Users size={20} className="text-[#008EC2]" />
                                 <h2 className="font-display font-bold text-[#003553]">
-                                    Hồ sơ Người thân ({familyList.length})
+                                    Hồ sơ Người thân ({portalData.familyMembersError ? '—' : familyList.length})
                                 </h2>
                             </div>
                             <button
@@ -222,7 +224,10 @@ export default function PatientDashboardPage() {
                             </form>
                         )}
 
-                        <div className="space-y-2.5">
+                        {portalData.familyMembersError ? (
+                            <PatientError message={portalData.familyMembersError} onRetry={() => dispatch(fetchPatientPortalAsync())} />
+                        ) : familyList.length ? (
+                            <div className="space-y-2.5">
                             {familyList.map((m) => (
                                 <div
                                     key={m.id}
@@ -248,7 +253,8 @@ export default function PatientDashboardPage() {
                                     </Link>
                                 </div>
                             ))}
-                        </div>
+                            </div>
+                        ) : <p className="text-sm text-slate-500">Chưa có hồ sơ người thân. Bạn có thể thêm hồ sơ bằng biểu mẫu này.</p>}
                     </div>
                 </section>
 
@@ -315,6 +321,8 @@ export default function PatientDashboardPage() {
                     title="Lần khám gần nhất"
                     empty="Chưa có lịch sử khám"
                     item={portalData.medicalHistory[0]}
+                    error={portalData.medicalHistoryError}
+                    onRetry={() => dispatch(fetchPatientPortalAsync())}
                     to="/benh-nhan/lich-su-kham"
                     render={(item) => (
                         <>
@@ -329,6 +337,8 @@ export default function PatientDashboardPage() {
                     title="Kết quả mới nhất"
                     empty="Chưa có kết quả cận lâm sàng"
                     item={portalData.labResults[0]}
+                    error={portalData.labError}
+                    onRetry={() => dispatch(fetchPatientPortalAsync())}
                     to="/benh-nhan/ket-qua-can-lam-sang"
                     render={(item) => (
                         <>
@@ -342,7 +352,7 @@ export default function PatientDashboardPage() {
     )
 }
 
-function Recent({ title, empty, item, to, render }) {
+function Recent({ title, empty, item, error, onRetry, to, render }) {
     return (
         <section className="medpro-card p-5">
             <div className="flex items-center justify-between">
@@ -351,7 +361,12 @@ function Recent({ title, empty, item, to, render }) {
                     Chi tiết
                 </Link>
             </div>
-            {item ? (
+            {error ? (
+                <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    <p>{error}</p>
+                    <button type="button" onClick={onRetry} className="mt-2 font-bold underline">Thử lại</button>
+                </div>
+            ) : item ? (
                 <div className="mt-4 grid gap-1 text-sm text-slate-600">{render(item)}</div>
             ) : (
                 <p className="mt-4 text-sm text-slate-400">{empty}</p>

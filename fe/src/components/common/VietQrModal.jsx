@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSelector } from 'react-redux'
 import {
     QrCode,
     Copy,
@@ -16,14 +17,25 @@ export default function VietQrModal({
     onClose,
     onConfirmPayment,
     invoice = {},
-    bankBin = '970422', 
-    bankName = 'MBBank (Ngân hàng TMCP Quân Đội)',
-    accountNumber = '0901234567',
-    accountName = 'PHONG KHAM CLINIC AI',
+    bankBin: suppliedBankBin,
+    bankName: suppliedBankName,
+    accountNumber: suppliedAccountNumber,
+    accountName: suppliedAccountName,
 }) {
     const [copiedContent, setCopiedContent] = useState(false)
     const [copiedAccount, setCopiedAccount] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
+    const savedClinicSettings = useSelector((state) => state.app.admin.clinicData?.clinicSettings)
+    const clinicSettings = savedClinicSettings || {}
+    const configuredBankInfo = clinicSettings.is_synthetic === true || String(clinicSettings.data_classification || '').startsWith('SYNTHETIC')
+        ? {}
+        : clinicSettings.bankInfo || {}
+    const bankBin = String(suppliedBankBin ?? configuredBankInfo.bankBin ?? '').trim()
+    const bankName = String(suppliedBankName ?? configuredBankInfo.bankName ?? '').trim()
+    const accountNumber = String(suppliedAccountNumber ?? configuredBankInfo.accountNumber ?? '').trim()
+    const accountName = String(suppliedAccountName ?? configuredBankInfo.accountName ?? '').trim()
+    const hasBankConfiguration = /^\d{6}$/.test(String(bankBin).trim()) &&
+        [bankName, accountNumber, accountName].every((value) => String(value || '').trim())
 
     if (!isOpen) return null
 
@@ -35,9 +47,11 @@ export default function VietQrModal({
 
     const transferContent = `CLINIC HD ${invoiceId} ${patientCode}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
 
-    const qrImageUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
-        transferContent
-    )}&accountName=${encodeURIComponent(accountName)}`
+    const qrImageUrl = hasBankConfiguration
+        ? `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
+              transferContent
+          )}&accountName=${encodeURIComponent(accountName)}`
+        : ''
 
     const handleCopy = async (text, type) => {
         try {
@@ -57,9 +71,12 @@ export default function VietQrModal({
     }
 
     const handleConfirm = async () => {
+        if (amount > 0 && !hasBankConfiguration) {
+            AppToast.error('Vui lòng cấu hình đầy đủ thông tin VietQR trước khi thanh toán.')
+            return
+        }
         if (!onConfirmPayment) {
-            AppToast.success('Đã đối soát thông tin chuyển khoản thành công!')
-            onClose()
+            AppToast.error('Chức năng xác nhận thanh toán chưa được cấu hình.')
             return
         }
         setIsConfirming(true)
@@ -79,7 +96,7 @@ export default function VietQrModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
             <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
-                <div className="bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white flex items-center justify-between">
+                <div className="bg-[#003553] p-5 text-white flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-teal-300">
                             <QrCode size={24} weight="bold" />
@@ -124,7 +141,7 @@ export default function VietQrModal({
                                 Không phát sinh chi phí cần thanh toán qua chuyển khoản ngân hàng. Thu ngân có thể xác nhận gạch nợ ngay.
                             </p>
                         </div>
-                    ) : (
+                    ) : hasBankConfiguration ? (
                         <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
                             <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
                                 <img
@@ -141,6 +158,10 @@ export default function VietQrModal({
                                 </div>
                             </div>
                         </div>
+                    ) : (
+                        <div className="p-6 rounded-2xl border border-amber-200 bg-amber-50 text-center text-sm text-amber-900">
+                            Chưa cấu hình đầy đủ thông tin ngân hàng nhận. Hãy cập nhật trong Cài đặt phòng khám.
+                        </div>
                     )}
 
                     <div className="space-y-2.5 text-xs">
@@ -149,21 +170,22 @@ export default function VietQrModal({
                                 <Bank size={15} className="text-[#00B5F1]" />
                                 Ngân hàng thụ hưởng:
                             </span>
-                            <span className="font-bold text-slate-800">{bankName}</span>
+                            <span className="font-bold text-slate-800">{hasBankConfiguration ? bankName : 'Chưa cấu hình'}</span>
                         </div>
 
                         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
                             <span className="text-slate-500">Chủ tài khoản:</span>
-                            <span className="font-bold text-slate-900 font-mono">{accountName}</span>
+                            <span className="font-bold text-slate-900 font-mono">{hasBankConfiguration ? accountName : 'Chưa cấu hình'}</span>
                         </div>
 
                         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
                             <span className="text-slate-500">Số tài khoản:</span>
                             <div className="flex items-center gap-2">
-                                <span className="font-mono font-black text-[#003553] text-sm">{accountNumber}</span>
+                                <span className="font-mono font-black text-[#003553] text-sm">{hasBankConfiguration ? accountNumber : 'Chưa cấu hình'}</span>
                                 <button
                                     type="button"
                                     onClick={() => handleCopy(accountNumber, 'account')}
+                                    disabled={!hasBankConfiguration}
                                     className="p-1 rounded-md hover:bg-slate-200 text-slate-600 transition cursor-pointer"
                                     title="Sao chép số tài khoản"
                                 >
@@ -206,12 +228,12 @@ export default function VietQrModal({
                     </button>
                     <button
                         type="button"
-                        disabled={isConfirming}
+                        disabled={isConfirming || (amount > 0 && !hasBankConfiguration)}
                         onClick={handleConfirm}
                         className="px-4.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-50"
                     >
                         <Check size={16} weight="bold" />
-                        <span>{isConfirming ? 'Đang xác nhận...' : 'Xác nhận Đã nhận tiền (Gạch nợ)'}</span>
+                        <span>{isConfirming ? 'Đang xác nhận...' : amount > 0 && !hasBankConfiguration ? 'Chưa cấu hình VietQR' : 'Xác nhận Đã nhận tiền (Gạch nợ)'}</span>
                     </button>
                 </div>
             </div>

@@ -54,7 +54,27 @@ const DRAFT_FIELDS = [
     'ket_luan_dieu_tri',
     'kham_chuyen_khoa',
     ...VITAL_FIELDS.map((f) => f.name),
+    'danh_sach_chan_doan',
+    'danh_sach_thuoc',
+    'loi_dan_uong_thuoc',
+    'trang_thai_don_thuoc',
+    'ngay_ky',
+    'chu_ky_so',
+    'nguoi_ky',
+    'ngay_hen_tai_kham',
+    'loi_dan_bac_si',
 ]
+
+const localDraftKey = (id) => `clinic_doctor_encounter_draft_${id}`
+
+const readLocalDraft = (id) => {
+    try {
+        const draft = JSON.parse(localStorage.getItem(localDraftKey(id)) || 'null')
+        return draft?.fields && typeof draft.fields === 'object' ? draft : null
+    } catch {
+        return null
+    }
+}
 
 const vitalsSchema = Yup.object(
     Object.fromEntries(
@@ -178,6 +198,9 @@ export default function ExamWorkstationPage() {
         setStep(targetStep)
     }
     const [savedAt, setSavedAt] = useState(null)
+    const [draftSaveState, setDraftSaveState] = useState('saved')
+    const [localDraft, setLocalDraft] = useState(null)
+    const [servicesState, setServicesState] = useState({ loading: true, error: null })
     const [orderSubmitting, setOrderSubmitting] = useState(false)
     const [pickedOrders, setPickedOrders] = useState([])
     const [calling, setCalling] = useState(false)
@@ -186,10 +209,12 @@ export default function ExamWorkstationPage() {
     const [rxModalState, setRxModalState] = useState({ open: false, tab: 'print' })
 
     const locked = Boolean(encounter?.is_locked)
-    const currentTicket = queue.find((t) => t.trang_thai === 'dang_kham')
+    const currentTicket = queueError || queueLoading ? null : queue.find((t) => t.trang_thai === 'dang_kham')
     const encounterId = pickedEncounterId || null
+    const encounterMatchesSelection = Boolean(encounter && String(encounter.id) === String(encounterId))
 
     const activeTicket = useMemo(() => {
+        if (queueError || queueLoading) return null
         if (!encounterId && !encounter?.ticket_id) return currentTicket || null
         return (
             queue.find(
@@ -198,7 +223,7 @@ export default function ExamWorkstationPage() {
                     (encounter?.ticket_id && String(t.ticket_id) === String(encounter.ticket_id))
             ) || (String(encounterId) === String(currentTicket?.encounter_id) ? currentTicket : null)
         )
-    }, [queue, encounterId, encounter?.ticket_id, currentTicket])
+    }, [queue, queueError, encounterId, encounter?.ticket_id, currentTicket])
 
     const isNotStarted = Boolean(
         !locked && activeTicket && String(activeTicket.trang_thai) === 'cho_kham'
@@ -230,12 +255,22 @@ export default function ExamWorkstationPage() {
 
     const loadQueue = useCallback(() => dispatch(fetchDoctorQueueAsync()), [dispatch])
 
+    const loadServices = useCallback(async () => {
+        setServicesState({ loading: true, error: null })
+        try {
+            await dispatch(fetchServicesAsync()).unwrap()
+            setServicesState({ loading: false, error: null })
+        } catch (error) {
+            setServicesState({ loading: false, error: String(error || 'Không tải được danh mục dịch vụ.') })
+        }
+    }, [dispatch])
+
     useEffect(() => {
         loadQueue()
-        dispatch(fetchServicesAsync())
+        loadServices()
         const timer = setInterval(loadQueue, QUEUE_POLL_MS)
         return () => clearInterval(timer)
-    }, [dispatch, loadQueue])
+    }, [dispatch, loadQueue, loadServices])
 
     useEffect(() => {
         if (encounterId) {
@@ -286,6 +321,7 @@ export default function ExamWorkstationPage() {
 
     const selectEncounter = (id) => {
         setPickedEncounterId(id)
+        setPickedOrders([])
         setStep(1)
         setSavedAt(null)
         const nextParams = new URLSearchParams(searchParams)
@@ -298,7 +334,11 @@ export default function ExamWorkstationPage() {
         setSearchParams(nextParams, { replace: true })
     }
 
-    const initialValues = useMemo(() => toFormValues(encounter), [encounter])
+    const serverValues = useMemo(() => toFormValues(encounter), [encounter])
+    const initialValues = useMemo(
+        () => localDraft?.encounterId === encounter?.id ? { ...serverValues, ...localDraft.fields } : serverValues,
+        [localDraft, encounter?.id, serverValues]
+    )
 
     const formik = useFormik({
         initialValues,
@@ -313,19 +353,61 @@ export default function ExamWorkstationPage() {
     )
     const debouncedDraft = useDebounce(draft, 800)
     const lastSaved = useRef(null)
+    const confirmedDraft = useRef(null)
+    const currentDraftRef = useRef(draft.fields)
+    currentDraftRef.current = draft.fields
     const hasDraftErrors = Object.keys(formik.errors).some((k) => DRAFT_FIELDS.includes(k))
 
     useEffect(() => {
+        if (!encounter?.id) {
+            setLocalDraft(null)
+            return
+        }
+        lastSaved.current = null
+        confirmedDraft.current = null
+        setSavedAt(null)
+        const recovered = readLocalDraft(encounter.id)
+        setLocalDraft(recovered ? { ...recovered, encounterId: encounter.id } : null)
+        setDraftSaveState(recovered ? 'unsaved' : 'saved')
+    }, [encounter?.id])
+
+    useEffect(() => {
+        if (!encounter?.id || isReadOnly) return
+        const serialized = JSON.stringify(draft.fields)
+        const serverSerialized = JSON.stringify(Object.fromEntries(DRAFT_FIELDS.map((key) => [key, serverValues[key]])))
+        if (serialized === serverSerialized || serialized === confirmedDraft.current) {
+            try { localStorage.removeItem(localDraftKey(encounter.id)) } catch {}
+            setDraftSaveState('saved')
+            return
+        }
+        try {
+            localStorage.setItem(localDraftKey(encounter.id), JSON.stringify({ fields: draft.fields, updated_at: new Date().toISOString() }))
+        } catch {}
+        if (draftSaveState !== 'saving') setDraftSaveState('unsaved')
+    }, [draft, serverValues, encounter?.id, isReadOnly])
+
+    useEffect(() => {
         if (!encounter || isReadOnly || hasDraftErrors || debouncedDraft.encounterId !== encounter.id) return
-        const initialDraft = JSON.stringify(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, initialValues[k]])))
+        const initialDraft = JSON.stringify(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, serverValues[k]])))
         const serialized = JSON.stringify(debouncedDraft.fields)
         if (serialized === initialDraft || serialized === lastSaved.current) return
         lastSaved.current = serialized
+        setDraftSaveState('saving')
         dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch: debouncedDraft.fields }))
             .unwrap()
-            .then((res) => setSavedAt(res.saved_at))
-            .catch((msg) => AppToast.error(msg))
-    }, [debouncedDraft, encounter, locked, hasDraftErrors, initialValues, dispatch, isReadOnly])
+            .then((res) => {
+                if (JSON.stringify(currentDraftRef.current) !== serialized) return
+                try { localStorage.removeItem(localDraftKey(encounter.id)) } catch {}
+                confirmedDraft.current = serialized
+                setLocalDraft({ encounterId: encounter.id, fields: debouncedDraft.fields })
+                setSavedAt(res.saved_at)
+                setDraftSaveState('saved')
+            })
+            .catch((msg) => {
+                if (JSON.stringify(currentDraftRef.current) === serialized) setDraftSaveState('unsaved')
+                AppToast.error(msg)
+            })
+    }, [debouncedDraft, encounter, hasDraftErrors, serverValues, dispatch, isReadOnly])
 
     const handleStartCurrentPatient = async () => {
         if (!encounterId) return
@@ -346,6 +428,10 @@ export default function ExamWorkstationPage() {
     }
 
     const handleCallNext = async () => {
+        if (queueError || queueLoading) {
+            AppToast.error(queueError || 'Đang tải hàng đợi. Vui lòng thử lại sau.')
+            return
+        }
         setQueueFilter('cho_kham')
         setCalling(true)
         try {
@@ -409,6 +495,10 @@ export default function ExamWorkstationPage() {
 
     const handleCreateOrders = async (dichVuIds) => {
         if (!dichVuIds || dichVuIds.length === 0) return true
+        if (servicesState.loading || servicesState.error) {
+            AppToast.error(servicesState.error || 'Đang tải danh mục dịch vụ. Vui lòng thử lại sau.')
+            return false
+        }
         setOrderSubmitting(true)
         try {
             await dispatch(createOrdersAsync({ encounterId: encounter.id, dichVuIds })).unwrap()
@@ -547,23 +637,32 @@ export default function ExamWorkstationPage() {
             nguoi_ky: v.nguoi_ky || null,
         }
         try {
+            const draftFields = Object.fromEntries(DRAFT_FIELDS.map((key) => [key, v[key]]))
+            const draftSerialized = JSON.stringify(draftFields)
+            lastSaved.current = draftSerialized
+            setDraftSaveState('saving')
+            const draftAck = await dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch: draftFields })).unwrap()
+            if (JSON.stringify(currentDraftRef.current) === draftSerialized) {
+                confirmedDraft.current = draftSerialized
+                try { localStorage.removeItem(localDraftKey(encounter.id)) } catch {}
+                setLocalDraft({ encounterId: encounter.id, fields: draftFields })
+                setSavedAt(draftAck.saved_at)
+                setDraftSaveState('saved')
+            }
             const completedEnc = await dispatch(completeEncounterAsync({ encounterId: encounter.id, payload })).unwrap()
-            AppToast.success('Đã hoàn tất khám và khóa bệnh án! Chuyển sang danh sách Đã xong.')
+            AppToast.success('Máy chủ đã xác nhận hoàn tất và khóa bệnh án.')
             await loadQueue()
             setQueueFilter('da_kham')
             if (completedEnc?.id) {
                 selectEncounter(completedEnc.id)
             }
         } catch (msg) {
+            setDraftSaveState((state) => state === 'saving' ? 'unsaved' : state)
             AppToast.error(msg)
         }
     }
 
     const handleComplete = async () => {
-        if (encounter && !encounter.thoi_gian_bat_dau) {
-            encounter.thoi_gian_bat_dau = new Date().toISOString()
-        }
-
         if (step !== 4) {
             AppToast.warning('Bạn cần hoàn thành các bước tuần tự đến Bước 4 (Đơn thuốc & Dặn dò) trước khi hoàn tất ca khám!')
             setStep(4)
@@ -661,7 +760,7 @@ export default function ExamWorkstationPage() {
             title: 'Hoàn tất khám và khóa bệnh án?',
             content: (
                 <div className="space-y-2 text-[13px]">
-                    <p>Sau khi khóa, hồ sơ chuyển sang chỉ đọc theo Thông tư 32/2023/TT-BYT. Hệ thống sẽ tự động đồng bộ hóa đơn viện phí sang Quầy Thu ngân.</p>
+                    <p>Sau khi máy chủ xác nhận khóa, hồ sơ chuyển sang chỉ đọc theo Thông tư 32/2023/TT-BYT.</p>
                 </div>
             ),
             okText: 'Khóa bệnh án',
@@ -696,9 +795,30 @@ export default function ExamWorkstationPage() {
     useDoctorShortcuts({
         onCallNext: handleCallNext,
         onOpenTemplates: () => setRxModalState({ open: true, tab: 'templates' }),
-        onSave: () => {
+        onSave: async () => {
             if (encounter?.id && !locked) {
-                AppToast.success('Đã lưu nháp hồ sơ khám thành công! (F5 / Ctrl+S)')
+                const fields = Object.fromEntries(DRAFT_FIELDS.map((key) => [key, formik.values[key]]))
+                const serialized = JSON.stringify(fields)
+                try {
+                    localStorage.setItem(localDraftKey(encounter.id), JSON.stringify({ fields, updated_at: new Date().toISOString() }))
+                } catch {}
+                lastSaved.current = serialized
+                setDraftSaveState('saving')
+                dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch: fields }))
+                    .unwrap()
+                    .then((res) => {
+                        if (JSON.stringify(currentDraftRef.current) !== serialized) return
+                        confirmedDraft.current = serialized
+                        try { localStorage.removeItem(localDraftKey(encounter.id)) } catch {}
+                        setLocalDraft({ encounterId: encounter.id, fields })
+                        setSavedAt(res.saved_at)
+                        setDraftSaveState('saved')
+                        AppToast.success('Đã xác nhận lưu nháp trên máy chủ.')
+                    })
+                    .catch((msg) => {
+                        setDraftSaveState('unsaved')
+                        AppToast.error(msg)
+                    })
             }
         },
         onJumpToOrders: () => setStep(2),
@@ -735,12 +855,20 @@ export default function ExamWorkstationPage() {
                 {encounterId && (
                     <div className="flex items-center gap-3">
                         <span className="text-[12px] text-slate-500 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
-                            <span className={`h-2 w-2 rounded-full ${savedAt ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                            {locked
+                            <span className={`h-2 w-2 rounded-full ${savedAt && draftSaveState === 'saved' && !encounterError ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                            {encounterError
+                                ? 'Không xác nhận được trạng thái nháp từ máy chủ'
+                                : encounterLoading && !encounterMatchesSelection
+                                ? 'Đang tải trạng thái hồ sơ…'
+                                : locked
                                 ? 'Bệnh án đã khóa (Chỉ đọc)'
+                                : draftSaveState === 'saving'
+                                ? 'Đang lưu nháp trên máy chủ…'
+                                : draftSaveState === 'unsaved'
+                                ? 'Chưa xác nhận lưu nháp trên máy chủ'
                                 : savedAt
-                                ? `Đã lưu nháp ${formatDateTime(savedAt).slice(-8)}`
-                                : 'Tự động lưu nháp'}
+                                ? `Đã lưu trên máy chủ ${formatDateTime(savedAt).slice(-8)}`
+                                : 'Bản nháp khớp dữ liệu máy chủ'}
                         </span>
                     </div>
                 )}
@@ -769,17 +897,21 @@ export default function ExamWorkstationPage() {
                                 🩺
                             </div>
                             <h2 className="text-xl font-extrabold text-[#003553]">
-                                Bàn Khám Đã Sẵn Sàng
+                                {queueError ? 'Không thể tải bàn khám' : queueLoading ? 'Đang tải hàng đợi khám' : 'Bàn Khám Đã Sẵn Sàng'}
                             </h2>
                             <p className="mt-2 text-xs text-slate-500 max-w-md leading-relaxed">
-                                Chưa có ca khám nào đang mở. Bác sĩ vui lòng nhấn <strong>[Gọi số tiếp theo]</strong> hoặc chọn một bệnh nhân từ danh sách hàng đợi bên trái để bắt đầu phiên khám.
+                                {queueError
+                                    ? 'Trạng thái hàng đợi hiện không khả dụng. Hãy thử tải lại trước khi bắt đầu hoặc hoàn tất ca khám.'
+                                    : queueLoading
+                                    ? 'Đang tải dữ liệu hàng đợi từ máy chủ.'
+                                    : <>Chưa có ca khám nào đang mở. Bác sĩ vui lòng nhấn <strong>[Gọi số tiếp theo]</strong> hoặc chọn một bệnh nhân từ danh sách hàng đợi bên trái để bắt đầu phiên khám.</>}
                             </p>
 
                             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                                 <button
                                     type="button"
                                     onClick={handleCallNext}
-                                    disabled={calling}
+                                    disabled={calling || queueLoading || Boolean(queueError)}
                                     className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[#00A9E3] hover:bg-[#0092c4] text-white font-extrabold text-sm shadow-md shadow-sky-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
                                 >
                                     <ClinicIcon name="ArrowRight" size={17} weight="bold" />
@@ -792,26 +924,26 @@ export default function ExamWorkstationPage() {
                                 <div className="rounded-2xl bg-slate-50 border border-slate-200/70 p-3.5 text-left">
                                     <span className="text-[11px] font-medium text-slate-500">Bệnh nhân đang chờ</span>
                                     <p className="text-lg font-extrabold text-[#003553] mt-0.5">
-                                        {queue.filter((t) => ['cho_kham', 'dang_kham'].includes(t.trang_thai)).length} lượt
+                                        {queueError || queueLoading ? '—' : `${queue.filter((t) => ['cho_kham', 'dang_kham'].includes(t.trang_thai)).length} lượt`}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl bg-amber-50/70 border border-amber-200/70 p-3.5 text-left">
                                     <span className="text-[11px] font-medium text-amber-800">Đang chờ KQ CLS</span>
                                     <p className="text-lg font-extrabold text-amber-900 mt-0.5">
-                                        {queue.filter((t) => t.trang_thai === 'tam_hoan').length} lượt
+                                        {queueError || queueLoading ? '—' : `${queue.filter((t) => t.trang_thai === 'tam_hoan').length} lượt`}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/70 p-3.5 text-left">
                                     <span className="text-[11px] font-medium text-emerald-800">Có kết quả CLS ⭐</span>
                                     <p className="text-lg font-extrabold text-emerald-900 mt-0.5">
-                                        {queue.filter((t) => t.trang_thai === 'co_ket_qua_cls' || (t.ghi_chu && t.ghi_chu.toLowerCase().includes('kết quả'))).length} lượt
+                                        {queueError || queueLoading ? '—' : `${queue.filter((t) => t.trang_thai === 'co_ket_qua_cls' || (t.ghi_chu && t.ghi_chu.toLowerCase().includes('kết quả'))).length} lượt`}
                                     </p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {encounterId && encounterLoading && !encounter && (
+                    {encounterId && encounterLoading && !encounterMatchesSelection && (
                         <div className="medpro-card p-8">
                             <LoadingBlock text="Đang tải hồ sơ bệnh án điện tử…" />
                         </div>
@@ -823,7 +955,7 @@ export default function ExamWorkstationPage() {
                         </div>
                     )}
 
-                    {encounterId && encounter && !encounterError && (
+                    {encounterId && encounterMatchesSelection && !encounterError && (
                         <>
                             <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
                                 <button
@@ -874,6 +1006,7 @@ export default function ExamWorkstationPage() {
                                 hasClsReady={hasClsReady}
                                 onStartExam={handleStartCurrentPatient}
                                 calling={calling}
+                                queueUnavailable={Boolean(queueError || queueLoading)}
                             />
 
 
@@ -907,6 +1040,9 @@ export default function ExamWorkstationPage() {
                                     <StepOrders
                                         encounter={encounter}
                                         services={services}
+                                        servicesLoading={servicesState.loading}
+                                        servicesError={servicesState.error}
+                                        onRetryCatalog={loadServices}
                                         locked={isReadOnly}
                                         submitting={orderSubmitting}
                                         onSubmit={handleCreateOrders}
@@ -1069,13 +1205,10 @@ export default function ExamWorkstationPage() {
                 diagnoses={formik.values.danh_sach_chan_doan || []}
                 prescriptionItems={formik.values.danh_sach_thuoc || []}
                 prescriptionNote={formik.values.loi_dan_uong_thuoc || formik.values.loi_dan_bac_si || ''}
-                onApplyOldPrescription={(items, note, srcId) => {
+                onApplyOldPrescription={(items, note) => {
                     formik.setFieldValue('danh_sach_thuoc', items)
                     if (note && !formik.values.loi_dan_uong_thuoc) {
                         formik.setFieldValue('loi_dan_uong_thuoc', note)
-                    }
-                    if (encounter?.id && srcId) {
-                        clinicalService.copyOldPrescription(encounter.id, srcId, items)
                     }
                 }}
                 onApplySampleTemplate={(items, note) => {

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import ExamWorkstationPage from './ExamWorkstationPage'
 import DoctorScheduleTab from '../../components/doctor/DoctorScheduleTab'
 import ExaminedHistoryTab from '../../components/doctor/ExaminedHistoryTab'
+import { ErrorBlock, LoadingBlock } from '../../components/doctor/clinical/StateBlocks'
 import { fetchDoctorQueueAsync } from '../../redux/actions/doctor/clinicalAction'
 import { clinicalService } from '../../services/doctor/ClinicalService'
 
@@ -11,7 +12,7 @@ export default function DoctorDashboardPage() {
     const dispatch = useDispatch()
     const [searchParams, setSearchParams] = useSearchParams()
     const { user } = useSelector((state) => state.app.auth)
-    const { queue = [] } = useSelector((state) => state.doctor.clinical)
+    const { queue = [], queueError, queueLoading } = useSelector((state) => state.doctor.clinical)
 
     const tabParam = (searchParams.get('tab') || '').toUpperCase()
     const initialTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
@@ -42,15 +43,17 @@ export default function DoctorDashboardPage() {
     }
 
     const activeQueueCount = useMemo(() => {
+        if (queueError || queueLoading) return null
         const allEncounters = clinicalService.getAllEncountersSync()
         return queue.filter((t) => {
             if (t.trang_thai === 'da_kham') return false
             const enc = allEncounters[t.encounter_id] || allEncounters[String(t.encounter_id)]
             return !enc?.is_locked
         }).length
-    }, [queue])
+    }, [queue, queueError, queueLoading])
 
     const examinedList = useMemo(() => {
+        if (queueError || queueLoading) return []
         const allEncounters = clinicalService.getAllEncountersSync()
         const completedFromQueue = queue
             .filter((t) => {
@@ -65,14 +68,14 @@ export default function DoctorDashboardPage() {
                 const primaryDx = dxList.find((d) => d.loai_chan_doan === 'chinh') || dxList[0]
                 const finalDiagnosis = primaryDx
                     ? `${primaryDx.ma_icd10} - ${primaryDx.ten_benh_chan_doan}`
-                    : 'Chưa có chẩn đoán'
+                    : 'Không có chẩn đoán trong hồ sơ.'
 
                 const timeStr = enc?.thoi_gian_khoa
                     ? new Date(enc.thoi_gian_khoa).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                     : ''
                 const dateStr = enc?.thoi_gian_khoa
                     ? new Date(enc.thoi_gian_khoa).toLocaleDateString('vi-VN')
-                    : new Date().toLocaleDateString('vi-VN')
+                    : ''
 
                 const labTests = (enc?.danh_sach_chi_dinh || [])
                     .filter((o) => o.trang_thai !== 'da_huy')
@@ -82,18 +85,18 @@ export default function DoctorDashboardPage() {
                 const prescriptions = rawRx.map((m, mIdx) => ({
                     id: m.id || mIdx + 1,
                     name: m.ten_thuoc,
-                    dosage: m.cach_dung_day_du || m.cach_dung || 'Theo chỉ định',
-                    quantity: `${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'}`,
+                    dosage: m.cach_dung_day_du || m.cach_dung || 'Chưa có cách dùng',
+                    quantity: [m.so_luong ?? '—', m.don_vi_tinh].filter(Boolean).join(' '),
                 }))
 
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
-                    queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
+                    queueNumber: t.ticket_code || (t.so_thu_tu_kham != null ? `#${String(t.so_thu_tu_kham).padStart(2, '0')}` : '—'),
                     patientId: t.patient_id,
-                    patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),
-                    fullName: t.ten_benh_nhan || bn.ho_ten || 'Bệnh nhân',
-                    gender: t.gioi_tinh || bn.gioi_tinh || 'Nam',
-                    age: t.tuoi || bn.tuoi || 30,
+                    patientCode: bn.ma || '—',
+                    fullName: t.ten_benh_nhan || bn.ho_ten || 'Chưa có tên',
+                    gender: t.gioi_tinh || bn.gioi_tinh || 'Chưa rõ',
+                    age: t.tuoi ?? bn.tuoi ?? '—',
                     phone: bn.so_dien_thoai || '',
                     healthInsurance: bn.so_bhyt || bn.healthInsurance || '',
                     status: 'COMPLETED',
@@ -102,12 +105,12 @@ export default function DoctorDashboardPage() {
                     finalDiagnosis,
                     labTests,
                     prescriptions,
-                    doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
+                    doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Không có ghi chú trong hồ sơ.',
                 }
             })
 
         return completedFromQueue
-    }, [queue])
+    }, [queue, queueError, queueLoading])
 
     return (
         <div className="space-y-4">
@@ -131,7 +134,7 @@ export default function DoctorDashboardPage() {
                                     : 'bg-slate-200 text-slate-700'
                             }`}
                         >
-                            {activeQueueCount}
+                            {activeQueueCount ?? '—'}
                         </span>
                     </button>
 
@@ -166,7 +169,7 @@ export default function DoctorDashboardPage() {
                                     : 'bg-slate-200 text-slate-700'
                             }`}
                         >
-                            {examinedList.length}
+                            {queueError || queueLoading ? '—' : examinedList.length}
                         </span>
                     </button>
                 </nav>
@@ -181,9 +184,11 @@ export default function DoctorDashboardPage() {
                     <DoctorScheduleTab doctorInfo={user} />
                 )}
 
-                {activeTab === 'HISTORY' && (
-                    <ExaminedHistoryTab examinedList={examinedList} />
-                )}
+                {activeTab === 'HISTORY' && (queueLoading
+                    ? <LoadingBlock text="Đang tải lịch sử từ máy chủ…" />
+                    : queueError
+                    ? <ErrorBlock message={queueError} onRetry={() => dispatch(fetchDoctorQueueAsync())} />
+                    : <ExaminedHistoryTab examinedList={examinedList} />)}
             </div>
         </div>
     )

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field
+from app.schemas.auth import SO_DIEN_THOAI_PATTERN
 
 
 # ── 1. Đăng ký tài khoản Bệnh nhân mới ──────────────────────────────
@@ -21,6 +22,7 @@ class PatientRegisterRequest(BaseModel):
 # ── 2. Cập nhật hồ sơ bệnh nhân ─────────────────────────────────────
 class PatientProfileUpdateRequest(BaseModel):
     ho_ten: Optional[str] = Field(None, max_length=150)
+    so_dien_thoai: Optional[str] = Field(None, pattern=SO_DIEN_THOAI_PATTERN)
     ngay_sinh: Optional[date] = None
     gioi_tinh: Optional[str] = Field(None, max_length=10)
     dia_chi: Optional[str] = Field(None, max_length=255)

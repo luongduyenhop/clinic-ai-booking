@@ -23,6 +23,7 @@ export const medicalCatalogService = {
       initials: item.ho_ten.split(/\s+/).slice(-2).map(word => word[0]).join('').toUpperCase(),
       room: item.vi_tri_phong || '', fee: Number(item.gia_kham_mac_dinh || 0),
       degree: item.hoc_vi || '',
+      isVerified: item.is_verified === true,
     }))
   },
 }

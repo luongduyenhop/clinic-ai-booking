@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { loadClinicDataAsync, updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../../components/common/AppNotification'
 import { getMasterOptions, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
-import { adminService } from '../../services/admin/AdminService'
+import { receptionService } from '../../services/reception/receptionService'
+import { unwrapApi, unwrapPagedApi, pickErrorMessage } from '../../utils/helpers/apiHelper'
 import DoctorScheduleManagementTab from '../../components/admin/DoctorScheduleManagementTab'
 import {
     StatusBadge,
@@ -21,7 +22,6 @@ import {
     XCircle,
     Clock,
     PhoneCall,
-    Receipt,
     ArrowsClockwise,
     DownloadSimple,
     Stethoscope,
@@ -36,9 +36,13 @@ export default function AppointmentManagementPage() {
     const { clinicData } = useSelector((state) => state.app.admin)
 
     const appointments = clinicData?.appointments || []
-    const khoaPhongList = clinicData?.catalogs?.khoaPhong || []
     const staffList = clinicData?.staffList || []
-    const servicePackages = clinicData?.servicePackageRegistrations || []
+    const servicePackages = useMemo(
+        () => (clinicData?.servicePackageRegistrations || []).filter(
+            (pkg) => pkg.is_synthetic !== true && !String(pkg.data_classification || '').includes('SYNTHETIC_TEST_FIXTURE'),
+        ),
+        [clinicData?.servicePackageRegistrations],
+    )
     const treatmentCourses = clinicData?.treatmentCourses || []
 
     const masterOptions = getMasterOptions(clinicData)
@@ -61,109 +65,127 @@ export default function AppointmentManagementPage() {
         }
     }, [queryTab])
 
-    const [matrixLoading, setMatrixLoading] = useState(false)
-    const [scheduleMatrix, setScheduleMatrix] = useState(null)
-    const [matrixTuNgay, setMatrixTuNgay] = useState('2026-10-12')
-    const [matrixDenNgay, setMatrixDenNgay] = useState('2026-10-18')
-
-    const fetchMatrixData = async () => {
-        setMatrixLoading(true)
-        try {
-            const data = await adminService.getDoctorScheduleMatrix({
-                tuNgay: matrixTuNgay,
-                denNgay: matrixDenNgay,
-            })
-            if (data && data.ma_tran_bac_si) {
-                setScheduleMatrix(data)
-            } else {
-                const rawDoctors = staffList.filter((s) => s.hoTen?.includes('BS') || s.vaiTro?.toLowerCase().includes('bác sĩ') || s.vaiTro?.toLowerCase().includes('chuyên môn'))
-                const doctors = rawDoctors.length ? rawDoctors : staffList.slice(0, 4)
-                const days = [
-                    { thu: 'Thứ 2', ngay: '2026-10-12' },
-                    { thu: 'Thứ 3', ngay: '2026-10-13' },
-                    { thu: 'Thứ 4', ngay: '2026-10-14' },
-                    { thu: 'Thứ 5', ngay: '2026-10-15' },
-                    { thu: 'Thứ 6', ngay: '2026-10-16' },
-                    { thu: 'Thứ 7', ngay: '2026-10-17' },
-                    { thu: 'Chủ Nhật', ngay: '2026-10-18' },
-                ]
-                const shifts = ['SANG', 'CHIEU']
-                const mockMatrix = doctors.map((doc, dIdx) => ({
-                    bac_si_id: doc.id || dIdx + 1,
-                    ten_bac_si: doc.hoTen || doc.ten || 'Bác sĩ',
-                    chuyen_khoa: doc.chuyenKhoa || 'Đa khoa',
-                    ca_truc: days.flatMap((d, dayIdx) =>
-                        shifts.map((ca, sIdx) => {
-                            const hasShift = (dIdx + dayIdx + sIdx) % 2 === 0
-                            return {
-                                shift_id: hasShift ? 100 + dIdx * 20 + dayIdx * 2 + sIdx : null,
-                                ngay: d.ngay,
-                                ca: ca,
-                                ca_label: ca === 'SANG' ? 'Sáng (07:30 - 11:30)' : 'Chiều (13:30 - 17:30)',
-                                phong_kham_id: hasShift ? (dIdx % 3) + 1 : null,
-                                ten_phong_kham: hasShift ? `Phòng P10${(dIdx % 3) + 1} - Khám ${doc.chuyenKhoa || 'Tổng quát'}` : null,
-                                so_cho_online: hasShift ? 5 : 0,
-                                so_cho_quay: hasShift ? 3 : 0,
-                                so_cho_tong: hasShift ? 8 : 0,
-                                da_dat_online: hasShift ? (dIdx + dayIdx) % 4 : 0,
-                                da_dat_quay: hasShift ? (sIdx + 1) : 0,
-                                con_trong_online: hasShift ? Math.max(0, 5 - ((dIdx + dayIdx) % 4)) : 0,
-                                con_trong_quay: hasShift ? Math.max(0, 3 - (sIdx + 1)) : 0,
-                                is_active: hasShift,
-                                ghi_chu_nghi: !hasShift && dayIdx === 6 ? 'Nghỉ theo kế hoạch' : null,
-                            }
-                        })
-                    ),
-                }))
-                setScheduleMatrix({
-                    tu_ngay: matrixTuNgay,
-                    den_ngay: matrixDenNgay,
-                    tong_bac_si: mockMatrix.length,
-                    tong_ca_truc: mockMatrix.length * 7,
-                    danh_sach_ngay: days.map((d) => d.ngay),
-                    ma_tran_bac_si: mockMatrix,
-                })
-            }
-        } catch {
-            AppToast.error('Không thể tải ma trận lịch trực!')
-        } finally {
-            setMatrixLoading(false)
-        }
+    const clinicToday = () => {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date()).map(({ type, value }) => [type, value]))
+        return `${parts.year}-${parts.month}-${parts.day}`
     }
-
-    useEffect(() => {
-        if (activeServiceTab === 'MA_TRAN_LICH_TRUC' && !scheduleMatrix) {
-            fetchMatrixData()
-        }
-    }, [activeServiceTab])
 
     const buildEmptyAppointment = () => ({
         id: '',
-        maLH: `LH26092200${appointments.length + 1}`,
-        maBN: `BN0000${150 + appointments.length + 1}`,
+        maLH: '',
+        maBN: '',
         hoTen: '',
-        ngaySinh: '1990-01-01',
-        tuoi: '36 tuổi',
+        ngaySinh: '',
+        tuoi: '',
         gioiTinh: genders[0],
         dienThoai: '',
         taiKhoan: '',
         diaChi: '',
-        ngayDatLich: '2026-10-12T10:30',
-        bacSi: defaults.defaultDoctor,
+        ngayDatLich: '',
+        bacSi: '',
         chuyenKhoa: defaults.defaultSpecialty,
         phongKham: defaults.defaultClinicRoom,
         trieuChung: '',
         ghiChu: '',
         trangThai: 'Chờ xác nhận',
-        nhanVienXacNhan: defaults.defaultReceptionist,
-        ngayXacNhan: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        nhanVienXacNhan: '',
+        ngayXacNhan: '',
         noiDungXacNhan: '',
     })
 
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [createForm, setCreateForm] = useState(() => ({ patientId: '', specialtyId: '', doctorId: '', appointmentDate: clinicToday(), timeSlot: '', reason: '' }))
+    const [createPatientSearch, setCreatePatientSearch] = useState('')
+    const [createPatients, setCreatePatients] = useState([])
+    const [createSpecialties, setCreateSpecialties] = useState([])
+    const [createDoctors, setCreateDoctors] = useState([])
+    const [createSlots, setCreateSlots] = useState([])
+    const [createError, setCreateError] = useState('')
+    const [createOptionsLoading, setCreateOptionsLoading] = useState(false)
+    const [createPatientsLoading, setCreatePatientsLoading] = useState(false)
+    const [createSlotsLoading, setCreateSlotsLoading] = useState(false)
+    const [createSaving, setCreateSaving] = useState(false)
     const [form, setForm] = useState(() => appointments[0] || buildEmptyAppointment())
     const hasInitializedRef = useRef(false)
+
+    const loadCreatePatients = async (query = createPatientSearch) => {
+        setCreatePatientsLoading(true)
+        setCreateError('')
+        try {
+            const result = unwrapPagedApi(await receptionService.searchPatients({ search: query.trim() || undefined, page: 1, page_size: 20 }))
+            setCreatePatients(result.items)
+        } catch (error) {
+            setCreatePatients([])
+            setCreateError(pickErrorMessage(error, 'Không thể tìm người bệnh từ hệ thống.'))
+        } finally {
+            setCreatePatientsLoading(false)
+        }
+    }
+
+    const handleOpenCreate = async () => {
+        setCreateForm({ patientId: '', specialtyId: '', doctorId: '', appointmentDate: clinicToday(), timeSlot: '', reason: '' })
+        setCreatePatientSearch('')
+        setCreatePatients([])
+        setCreateDoctors([])
+        setCreateSlots([])
+        setCreateError('')
+        setIsCreateModalOpen(true)
+        setCreateOptionsLoading(true)
+        try {
+            const specialties = unwrapApi(await receptionService.getSpecialties())
+            setCreateSpecialties(Array.isArray(specialties) ? specialties : [])
+        } catch (error) {
+            setCreateSpecialties([])
+            setCreateError(pickErrorMessage(error, 'Không thể tải chuyên khoa từ hệ thống.'))
+        } finally {
+            setCreateOptionsLoading(false)
+        }
+        await loadCreatePatients('')
+    }
+
+    const handleCreateSpecialtyChange = async (specialtyId) => {
+        setCreateForm((prev) => ({ ...prev, specialtyId, doctorId: '', timeSlot: '' }))
+        setCreateDoctors([])
+        setCreateSlots([])
+        if (!specialtyId) return
+        setCreateOptionsLoading(true)
+        setCreateError('')
+        try {
+            const result = unwrapPagedApi(await receptionService.getDoctors({ specialty_id: Number(specialtyId), page: 1, page_size: 100 }), 100)
+            setCreateDoctors(result.items)
+        } catch (error) {
+            setCreateError(pickErrorMessage(error, 'Không thể tải bác sĩ từ hệ thống.'))
+        } finally {
+            setCreateOptionsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (!isCreateModalOpen || !createForm.doctorId || !createForm.appointmentDate) {
+            setCreateSlots([])
+            setCreateSlotsLoading(false)
+            return undefined
+        }
+        let active = true
+        setCreateSlotsLoading(true)
+        setCreateError('')
+        receptionService.getDoctorSlots(createForm.doctorId, createForm.appointmentDate)
+            .then((response) => {
+                if (active) setCreateSlots((unwrapApi(response)?.slots || []).filter((slot) => slot.status === 'available'))
+            })
+            .catch((error) => {
+                if (active) {
+                    setCreateSlots([])
+                    setCreateError(pickErrorMessage(error, 'Không thể tải khung giờ trống.'))
+                }
+            })
+            .finally(() => { if (active) setCreateSlotsLoading(false) })
+        return () => { active = false }
+    }, [isCreateModalOpen, createForm.doctorId, createForm.appointmentDate])
 
     useEffect(() => {
         if (!hasInitializedRef.current && appointments.length > 0) {
@@ -190,50 +212,67 @@ export default function AppointmentManagementPage() {
         })
     }, [appointments, searchText, statusFilter])
 
-    const handleNew = () => {
-        setForm(buildEmptyAppointment())
-        AppToast.info('Đã khởi tạo mẫu Lịch hẹn mới!')
-    }
+    const handleNew = () => handleOpenCreate()
 
     const handleSave = async () => {
+        if (!form.id) {
+            AppToast.error('Lịch hẹn mới phải được tạo từ người bệnh, bác sĩ và khung giờ còn trống của hệ thống.')
+            return
+        }
         if (!form.hoTen?.trim() || !form.dienThoai?.trim()) {
             AppToast.error('Vui lòng nhập đầy đủ Họ tên và Số điện thoại đặt lịch!')
             return
         }
-        const exists = appointments.some((a) => a.id === form.id && form.id)
-        let updated
-        if (exists) {
-            updated = appointments.map((a) => (a.id === form.id ? { ...a, ...form } : a))
-        } else {
-            const newRecord = {
-                ...form,
-                id: form.maLH || `LH-${Date.now().toString().slice(-5)}`,
-                nhanVienXacNhan: form.nhanVienXacNhan || defaults.defaultReceptionist,
-                ngayXacNhan: form.ngayXacNhan || new Date().toISOString().replace('T', ' ').slice(0, 16),
-            }
-            updated = [newRecord, ...appointments]
-            setForm(newRecord)
-        }
+        const updated = appointments.map((a) => (a.id === form.id ? { ...a, ...form } : a))
 
-        await dispatch(
-            updateClinicCollectionAsync({
+        try {
+            await dispatch(updateClinicCollectionAsync({
                 collectionKey: 'appointments',
                 items: updated,
                 auditEntry: {
-                    hanhDong: exists ? 'UPDATE_APPOINTMENT' : 'CREATE_APPOINTMENT',
+                    hanhDong: 'UPDATE_APPOINTMENT',
                     doiTuong: `Lịch hẹn ${form.maLH} - BN ${form.hoTen}`,
                     mucDich: 'Cập nhật trạng thái lịch hẹn khám trực tuyến',
                 },
+            })).unwrap()
+            AppToast.success('Đã cập nhật thông tin lịch hẹn!')
+        } catch (error) {
+            AppToast.error(pickErrorMessage(error, 'Không thể cập nhật lịch hẹn.'))
+        }
+    }
+
+    const handleCreateAppointment = async () => {
+        if (!createForm.patientId || !createForm.doctorId || !createForm.appointmentDate || !createForm.timeSlot) {
+            setCreateError('Vui lòng chọn người bệnh, bác sĩ, ngày khám và khung giờ còn trống.')
+            return
+        }
+        setCreateSaving(true)
+        setCreateError('')
+        try {
+            const response = await receptionService.createAppointment({
+                benh_nhan_id: Number(createForm.patientId),
+                bac_si_id: Number(createForm.doctorId),
+                ngay_kham: createForm.appointmentDate,
+                gio_kham: createForm.timeSlot.length === 5 ? `${createForm.timeSlot}:00` : createForm.timeSlot,
+                ly_do_kham: createForm.reason.trim() || undefined,
             })
-        )
-        AppToast.success(exists ? 'Đã cập nhật thông tin lịch hẹn!' : 'Đã tạo lịch hẹn khám mới thành công!')
+            const record = unwrapApi(response)
+            if (!record?.id || !record?.ma_lich_kham) throw new Error('Hệ thống chưa xác nhận mã lịch hẹn. Vui lòng thử lại.')
+            setIsCreateModalOpen(false)
+            AppToast.success(`Đã tạo lịch hẹn ${record.ma_lich_kham} thành công.`)
+            dispatch(loadClinicDataAsync()).unwrap().catch(() => AppToast.warning('Lịch hẹn đã được tạo, nhưng danh sách chưa thể làm mới.'))
+        } catch (error) {
+            setCreateError(pickErrorMessage(error, 'Không thể tạo lịch hẹn. Vui lòng thử lại.'))
+        } finally {
+            setCreateSaving(false)
+        }
     }
 
     const handleDelete = async () => {
         if (!form.id) return
         const updated = appointments.filter((a) => a.id !== form.id)
-        await dispatch(
-            updateClinicCollectionAsync({
+        try {
+            await dispatch(updateClinicCollectionAsync({
                 collectionKey: 'appointments',
                 items: updated,
                 auditEntry: {
@@ -241,8 +280,11 @@ export default function AppointmentManagementPage() {
                     doiTuong: `Lịch hẹn ${form.maLH} - BN ${form.hoTen}`,
                     mucDich: 'Hủy lịch hẹn khám',
                 },
-            })
-        )
+            })).unwrap()
+        } catch (error) {
+            AppToast.error(pickErrorMessage(error, 'Không thể xóa lịch hẹn.'))
+            return
+        }
         setForm(updated[0] || buildEmptyAppointment())
         AppToast.info('Đã xóa lịch hẹn khám!')
     }
@@ -427,7 +469,7 @@ export default function AppointmentManagementPage() {
                                     <CalendarPlus size={15} weight="bold" className="text-[#00B5F1]" />
                                     <span>Tạo mới</span>
                                 </button>
-                                <button type="button" onClick={handleSave} className="medpro-btn-primary text-xs">
+                                <button type="button" onClick={handleSave} disabled={!form.id} className="medpro-btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50">
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu lịch hẹn</span>
                                 </button>
@@ -597,7 +639,7 @@ export default function AppointmentManagementPage() {
                                 </div>
                                 <div>
                                     <label className="medpro-label">Nhân viên tiếp đón</label>
-                                    <input type="text" value={form.nhanVienXacNhan || defaults.defaultReceptionist} readOnly className="medpro-input" />
+                                    <input type="text" value={form.nhanVienXacNhan || (form.id ? defaults.defaultReceptionist : '')} readOnly className="medpro-input" />
                                 </div>
                                 <div>
                                     <label className="medpro-label">Ngày xác nhận</label>
@@ -757,6 +799,76 @@ export default function AppointmentManagementPage() {
 
             {activeServiceTab === 'MA_TRAN_LICH_TRUC' && (
                 <DoctorScheduleManagementTab />
-            )}</div>
+            )}
+
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="create-appointment-title">
+                    <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h3 id="create-appointment-title" className="text-sm font-black uppercase text-[#003553]">TẠO LỊCH HẸN TỪ DỮ LIỆU HỆ THỐNG</h3>
+                            <button type="button" onClick={() => setIsCreateModalOpen(false)} aria-label="Đóng" className="text-slate-400 hover:text-slate-600">
+                                <XCircle size={18} weight="bold" />
+                            </button>
+                        </div>
+
+                        {createError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{createError}</p>}
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="sm:col-span-2">
+                                <label className="medpro-label">Tìm người bệnh</label>
+                                <div className="flex gap-2">
+                                    <input type="search" value={createPatientSearch} onChange={(e) => setCreatePatientSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); loadCreatePatients() } }} placeholder="Tên, số điện thoại hoặc mã hồ sơ" className="medpro-input" />
+                                    <button type="button" onClick={() => loadCreatePatients()} disabled={createPatientsLoading} className="medpro-btn-outline shrink-0 text-xs disabled:opacity-50">Tìm</button>
+                                </div>
+                                <select value={createForm.patientId} onChange={(e) => setCreateForm((prev) => ({ ...prev, patientId: e.target.value }))} disabled={createPatientsLoading} className="medpro-input mt-2">
+                                    <option value="">{createPatientsLoading ? 'Đang tải người bệnh...' : 'Chọn hồ sơ người bệnh'}</option>
+                                    {createPatients.map((patient) => (
+                                        <option key={patient.id} value={patient.id}>{patient.ho_ten || patient.fullName}{patient.so_dien_thoai || patient.phone ? ` · ${patient.so_dien_thoai || patient.phone}` : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="medpro-label">Chuyên khoa</label>
+                                <select value={createForm.specialtyId} onChange={(e) => handleCreateSpecialtyChange(e.target.value)} disabled={createOptionsLoading || !createSpecialties.length} className="medpro-input">
+                                    <option value="">{createOptionsLoading ? 'Đang tải...' : 'Chọn chuyên khoa'}</option>
+                                    {createSpecialties.map((specialty) => <option key={specialty.id} value={specialty.id}>{specialty.ten_chuyen_khoa}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="medpro-label">Bác sĩ</label>
+                                <select value={createForm.doctorId} onChange={(e) => setCreateForm((prev) => ({ ...prev, doctorId: e.target.value, timeSlot: '' }))} disabled={!createDoctors.length || createOptionsLoading} className="medpro-input">
+                                    <option value="">{createForm.specialtyId ? 'Chọn bác sĩ' : 'Chọn chuyên khoa trước'}</option>
+                                    {createDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.hoc_vi ? `${doctor.hoc_vi} ` : ''}{doctor.ho_ten}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="medpro-label">Ngày khám</label>
+                                <input type="date" min={clinicToday()} value={createForm.appointmentDate} onChange={(e) => setCreateForm((prev) => ({ ...prev, appointmentDate: e.target.value, timeSlot: '' }))} className="medpro-input" />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Khung giờ còn trống</label>
+                                <select value={createForm.timeSlot} onChange={(e) => setCreateForm((prev) => ({ ...prev, timeSlot: e.target.value }))} disabled={!createForm.doctorId || createSlotsLoading || !createSlots.length} className="medpro-input">
+                                    <option value="">{createSlotsLoading ? 'Đang tải khung giờ...' : createForm.doctorId ? 'Chọn giờ trống' : 'Chọn bác sĩ trước'}</option>
+                                    {createSlots.map((slot) => <option key={slot.time_str} value={slot.time_str}>{slot.time_str}</option>)}
+                                </select>
+                                {createForm.doctorId && !createSlotsLoading && !createSlots.length && <p className="mt-1 text-[11px] text-slate-500">Không có khung giờ trống trong ngày này.</p>}
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="medpro-label">Lý do khám</label>
+                                <input type="text" maxLength={255} value={createForm.reason} onChange={(e) => setCreateForm((prev) => ({ ...prev, reason: e.target.value }))} className="medpro-input" />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+                            <button type="button" onClick={() => setIsCreateModalOpen(false)} className="medpro-btn-outline text-xs">Hủy</button>
+                            <button type="button" onClick={handleCreateAppointment} disabled={createSaving || createSlotsLoading} className="medpro-btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50">
+                                {createSaving ? 'Đang tạo...' : 'Tạo lịch hẹn'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            </div>
     )
 }

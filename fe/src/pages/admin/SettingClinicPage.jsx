@@ -7,12 +7,10 @@ import {
     Gear,
     SlidersHorizontal,
     FloppyDisk,
-    ArrowsClockwise,
     Hospital,
     ShieldCheck,
     Scales,
     Receipt,
-    CheckCircle,
     QrCode,
 } from '../../components/common/ClinicIcon'
 
@@ -20,7 +18,10 @@ export default function SettingClinicPage() {
     const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
-    const settings = clinicData?.clinicSettings || {}
+    const savedSettings = clinicData?.clinicSettings || {}
+    const settings = savedSettings.is_synthetic === true || String(savedSettings.data_classification || '').startsWith('SYNTHETIC')
+        ? {}
+        : savedSettings
 
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeTab, setActiveTab] = useState(
@@ -35,29 +36,27 @@ export default function SettingClinicPage() {
         }
     }, [queryTab])
 
-    const [isPinging, setIsPinging] = useState(false)
-    const [pingResult, setPingResult] = useState(null)
-
     // Form settings state
     const [form, setForm] = useState({
-        tenPhongKham: settings.tenPhongKham || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI',
-        maCoSoKCB: settings.maCoSoKCB || '01-08924',
-        giayPhepHoatDong: settings.giayPhepHoatDong || 'Số 1428/HNO-GPHĐ (Cấp ngày 10/01/2023)',
-        nguoiChiuTrachNhiem: 'BS.CKII Nguyễn Minh Hoàng (CCHN: 004512/HNO-CCHN)',
-        dienThoai: settings.dienThoai || '1900 2115',
-        email: settings.email || 'cskh@clinic-ai.vn',
-        diaChi: settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+        tenPhongKham: settings.tenPhongKham || '',
+        maCoSoKCB: settings.maCoSoKCB || '',
+        giayPhepHoatDong: settings.giayPhepHoatDong || '',
+        nguoiChiuTrachNhiem: settings.nguoiChiuTrachNhiem || '',
+        dienThoai: settings.dienThoai || '',
+        email: settings.email || '',
+        diaChi: settings.diaChi || '',
         // Cổng liên thông
-        donThuocQuocGiaUrl: settings.congLienThong?.donThuocQuocGiaUrl || 'https://donthuocquocgia.vn/api/v1',
-        maLienThongCoSo: settings.congLienThong?.maLienThongCoSo || 'LT_0108924_CLINICAI',
-        duocQuocGiaUrl: settings.congLienThong?.duocQuocGiaUrl || 'https://duocquocgia.com.vn/api/v2',
-        maCoSoDuoc: settings.congLienThong?.maCoSoDuoc || 'DQG_0108924',
-        chuKySo: settings.congLienThong?.chuKySo || 'VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)',
+        donThuocQuocGiaUrl: settings.congLienThong?.donThuocQuocGiaUrl || '',
+        maLienThongCoSo: settings.congLienThong?.maLienThongCoSo || '',
+        duocQuocGiaUrl: settings.congLienThong?.duocQuocGiaUrl || '',
+        maCoSoDuoc: settings.congLienThong?.maCoSoDuoc || '',
+        chuKySo: settings.congLienThong?.chuKySo || '',
         // Tài chính
-        hoaDonDienTu: settings.congLienThong?.hoaDonDienTu || 'MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)',
-        nganHang: 'Ngân hàng TMCP Quân Đội (MBBank)',
-        soTaiKhoan: '0892419002115',
-        chuTaiKhoan: 'PHONG KHAM DA KHOA QUOC TE CLINIC-AI',
+        hoaDonDienTu: settings.congLienThong?.hoaDonDienTu || '',
+        bankBin: settings.bankInfo?.bankBin || '',
+        nganHang: settings.bankInfo?.bankName || '',
+        soTaiKhoan: settings.bankInfo?.accountNumber || '',
+        chuTaiKhoan: settings.bankInfo?.accountName || '',
         // Quy định
         batBuocICD10: settings.heThong?.batBuocICD10 ?? true,
         thuTienTruocCLS: settings.heThong?.thuTienTruocCLS ?? true,
@@ -66,21 +65,29 @@ export default function SettingClinicPage() {
 
     useEffect(() => {
         if (clinicData?.clinicSettings) {
-            const s = clinicData.clinicSettings
+            const rawSettings = clinicData.clinicSettings
+            const s = rawSettings.is_synthetic === true || String(rawSettings.data_classification || '').startsWith('SYNTHETIC')
+                ? {}
+                : rawSettings
             setForm((prev) => ({
                 ...prev,
-                tenPhongKham: s.tenPhongKham || prev.tenPhongKham,
-                maCoSoKCB: s.maCoSoKCB || prev.maCoSoKCB,
-                giayPhepHoatDong: s.giayPhepHoatDong || prev.giayPhepHoatDong,
-                dienThoai: s.dienThoai || prev.dienThoai,
-                email: s.email || prev.email,
-                diaChi: s.diaChi || prev.diaChi,
-                donThuocQuocGiaUrl: s.congLienThong?.donThuocQuocGiaUrl || prev.donThuocQuocGiaUrl,
-                maLienThongCoSo: s.congLienThong?.maLienThongCoSo || prev.maLienThongCoSo,
-                duocQuocGiaUrl: s.congLienThong?.duocQuocGiaUrl || prev.duocQuocGiaUrl,
-                maCoSoDuoc: s.congLienThong?.maCoSoDuoc || prev.maCoSoDuoc,
-                chuKySo: s.congLienThong?.chuKySo || prev.chuKySo,
-                hoaDonDienTu: s.congLienThong?.hoaDonDienTu || prev.hoaDonDienTu,
+                tenPhongKham: s.tenPhongKham || '',
+                maCoSoKCB: s.maCoSoKCB || '',
+                giayPhepHoatDong: s.giayPhepHoatDong || '',
+                nguoiChiuTrachNhiem: s.nguoiChiuTrachNhiem || '',
+                dienThoai: s.dienThoai || '',
+                email: s.email || '',
+                diaChi: s.diaChi || '',
+                donThuocQuocGiaUrl: s.congLienThong?.donThuocQuocGiaUrl || '',
+                maLienThongCoSo: s.congLienThong?.maLienThongCoSo || '',
+                duocQuocGiaUrl: s.congLienThong?.duocQuocGiaUrl || '',
+                maCoSoDuoc: s.congLienThong?.maCoSoDuoc || '',
+                chuKySo: s.congLienThong?.chuKySo || '',
+                hoaDonDienTu: s.congLienThong?.hoaDonDienTu || '',
+                bankBin: s.bankInfo?.bankBin || '',
+                nganHang: s.bankInfo?.bankName || '',
+                soTaiKhoan: s.bankInfo?.accountNumber || '',
+                chuTaiKhoan: s.bankInfo?.accountName || '',
                 batBuocICD10: s.heThong?.batBuocICD10 ?? prev.batBuocICD10,
                 thuTienTruocCLS: s.heThong?.thuTienTruocCLS ?? prev.thuTienTruocCLS,
                 tuDongKhoaSoSauGio: s.heThong?.tuDongKhoaSoSauGio || prev.tuDongKhoaSoSauGio,
@@ -88,31 +95,23 @@ export default function SettingClinicPage() {
         }
     }, [clinicData?.clinicSettings])
 
-    const handlePingGateway = () => {
-        setIsPinging(true)
-        setPingResult(null)
-        setTimeout(() => {
-            setIsPinging(false)
-            setPingResult({
-                status: 'CONNECTED',
-                code: 200,
-                latency: 42,
-                serverTime: new Date().toISOString(),
-                gatewayVersion: 'DonThuocQG-BYT v2.4.1 (Ready)',
-            })
-            AppToast.success('Kết nối Cổng Đơn thuốc Quốc gia BYT thành công! Độ trễ: 42ms')
-        }, 1200)
-    }
-
-    const handleSave = () => {
+    const handleSave = async () => {
         const updated = {
             ...settings,
             tenPhongKham: form.tenPhongKham,
             maCoSoKCB: form.maCoSoKCB,
             giayPhepHoatDong: form.giayPhepHoatDong,
+            nguoiChiuTrachNhiem: form.nguoiChiuTrachNhiem,
             dienThoai: form.dienThoai,
             email: form.email,
             diaChi: form.diaChi,
+            bankInfo: {
+                ...settings.bankInfo,
+                bankBin: form.bankBin,
+                bankName: form.nganHang,
+                accountNumber: form.soTaiKhoan,
+                accountName: form.chuTaiKhoan,
+            },
             heThong: {
                 ...settings.heThong,
                 batBuocICD10: form.batBuocICD10,
@@ -129,18 +128,22 @@ export default function SettingClinicPage() {
                 hoaDonDienTu: form.hoaDonDienTu,
             },
         }
-        dispatch(
-            updateClinicCollectionAsync({
-                collectionKey: 'clinicSettings',
-                items: updated,
-                auditEntry: {
-                    hanhDong: 'UPDATE_CLINIC_SETTINGS',
-                    doiTuong: updated.tenPhongKham || 'Cấu hình phòng khám',
-                    mucDich: 'Cập nhật tham số hệ thống & liên thông Bộ Y Tế',
-                },
-            })
-        )
-        AppToast.success('Lưu cấu hình hệ thống phòng khám thành công!')
+        try {
+            await dispatch(
+                updateClinicCollectionAsync({
+                    collectionKey: 'clinicSettings',
+                    items: updated,
+                    auditEntry: {
+                        hanhDong: 'UPDATE_CLINIC_SETTINGS',
+                        doiTuong: updated.tenPhongKham || 'Cấu hình phòng khám',
+                        mucDich: 'Cập nhật tham số hệ thống & liên thông Bộ Y Tế',
+                    },
+                })
+            ).unwrap()
+            AppToast.success('Lưu cấu hình hệ thống phòng khám thành công!')
+        } catch {
+            AppToast.error('Không thể lưu cấu hình phòng khám. Vui lòng thử lại.')
+        }
     }
 
     return (
@@ -148,18 +151,18 @@ export default function SettingClinicPage() {
             {/* Top Navigation & Operational Summary */}
             <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
+                    <span className="w-11 h-11 rounded-2xl bg-[#0A5878] text-white flex items-center justify-center">
                         <Gear size={24} weight="fill" />
                     </span>
                     <div>
                         <h1 className="text-lg font-black text-[#003553] tracking-wide flex items-center gap-2">
                             CÀI ĐẶT HỆ THỐNG PHÒNG KHÁM (/setting)
                             <span className="px-2 py-0.5 rounded-full bg-sky-100 text-[#00B5F1] text-[11px] font-bold">
-                                Cơ sở KCB Bộ Y Tế
+                                Thông tin cơ sở
                             </span>
                         </h1>
                         <p className="text-xs text-slate-500">
-                            Cấu hình thông tin pháp lý cơ sở khám chữa bệnh, cổng liên thông Quốc gia (TT 26), VietQR & MISA meInvoice
+                            Thông tin cơ sở khám chữa bệnh và cấu hình kết nối hệ thống
                         </p>
                     </div>
                 </div>
@@ -213,6 +216,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.tenPhongKham}
                                 onChange={(e) => setForm({ ...form, tenPhongKham: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1] font-bold text-[#003553]"
                             />
                         </div>
@@ -223,6 +227,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.maCoSoKCB}
                                 onChange={(e) => setForm({ ...form, maCoSoKCB: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1] font-mono font-bold text-[#00B5F1]"
                             />
                         </div>
@@ -233,6 +238,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.giayPhepHoatDong}
                                 onChange={(e) => setForm({ ...form, giayPhepHoatDong: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                             />
                         </div>
@@ -243,6 +249,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.nguoiChiuTrachNhiem}
                                 onChange={(e) => setForm({ ...form, nguoiChiuTrachNhiem: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                             />
                         </div>
@@ -253,6 +260,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.dienThoai}
                                 onChange={(e) => setForm({ ...form, dienThoai: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                             />
                         </div>
@@ -263,6 +271,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.email}
                                 onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                             />
                         </div>
@@ -273,6 +282,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.diaChi}
                                 onChange={(e) => setForm({ ...form, diaChi: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                             />
                         </div>
@@ -287,35 +297,10 @@ export default function SettingClinicPage() {
                         <div className="text-xs font-black text-[#003553] uppercase">
                             KẾT NỐI HỆ THỐNG ĐƠN THUỐC QUỐC GIA & HỒ SƠ SỨC KHỎE ĐIỆN TỬ (TT 26/2023)
                         </div>
-                        <button
-                            type="button"
-                            onClick={handlePingGateway}
-                            disabled={isPinging}
-                            className="medpro-btn-outline !py-1.5 !px-3 text-xs flex items-center gap-1.5 cursor-pointer"
-                        >
-                            <ArrowsClockwise size={14} className={isPinging ? 'animate-spin' : ''} />
-                            <span>{isPinging ? 'Đang ping kiểm tra...' : 'Kiểm tra kết nối Cổng (Ping Test)'}</span>
-                        </button>
+                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                            Chưa xác minh kết nối API
+                        </span>
                     </div>
-
-                    {pingResult && (
-                        <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 text-xs flex items-center justify-between animate-fadeIn">
-                            <div className="flex items-center gap-2">
-                                <CheckCircle size={20} weight="fill" className="text-emerald-600" />
-                                <div>
-                                    <div className="font-bold text-emerald-900">
-                                        Cổng Quốc Gia Đang Hoạt Động (HTTP {pingResult.code} OK)
-                                    </div>
-                                    <div className="text-[11px] text-emerald-700">
-                                        Phiên bản: {pingResult.gatewayVersion} &bull; Thời gian phản hồi: {pingResult.latency}ms
-                                    </div>
-                                </div>
-                            </div>
-                            <span className="font-mono text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                                ONLINE
-                            </span>
-                        </div>
-                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                         <div>
@@ -324,6 +309,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.donThuocQuocGiaUrl}
                                 onChange={(e) => setForm({ ...form, donThuocQuocGiaUrl: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 font-mono text-slate-700"
                             />
                         </div>
@@ -334,6 +320,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.maLienThongCoSo}
                                 onChange={(e) => setForm({ ...form, maLienThongCoSo: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 font-mono font-bold text-[#00B5F1]"
                             />
                         </div>
@@ -346,6 +333,7 @@ export default function SettingClinicPage() {
                                 type="text"
                                 value={form.chuKySo}
                                 onChange={(e) => setForm({ ...form, chuKySo: e.target.value })}
+                                placeholder="Chưa cấu hình"
                                 className="w-full p-2.5 rounded-lg border border-slate-200 font-medium text-slate-800"
                             />
                         </div>
@@ -363,11 +351,23 @@ export default function SettingClinicPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                         <div className="space-y-3">
                             <div>
+                                <label className="block text-slate-600 font-bold mb-1">Mã ngân hàng VietQR (BIN):</label>
+                                <input
+                                    type="text"
+                                    value={form.bankBin}
+                                    onChange={(e) => setForm({ ...form, bankBin: e.target.value })}
+                                    placeholder="Chưa cấu hình"
+                                    className="w-full p-2.5 rounded-lg border border-slate-200 font-mono"
+                                />
+                            </div>
+
+                            <div>
                                 <label className="block text-slate-600 font-bold mb-1">Ngân hàng thụ hưởng VietQR:</label>
                                 <input
                                     type="text"
                                     value={form.nganHang}
                                     onChange={(e) => setForm({ ...form, nganHang: e.target.value })}
+                                    placeholder="Chưa cấu hình"
                                     className="w-full p-2.5 rounded-lg border border-slate-200"
                                 />
                             </div>
@@ -378,6 +378,7 @@ export default function SettingClinicPage() {
                                     type="text"
                                     value={form.soTaiKhoan}
                                     onChange={(e) => setForm({ ...form, soTaiKhoan: e.target.value })}
+                                    placeholder="Chưa cấu hình"
                                     className="w-full p-2.5 rounded-lg border border-slate-200 font-mono font-bold text-[#00B5F1]"
                                 />
                             </div>
@@ -388,6 +389,7 @@ export default function SettingClinicPage() {
                                     type="text"
                                     value={form.chuTaiKhoan}
                                     onChange={(e) => setForm({ ...form, chuTaiKhoan: e.target.value })}
+                                    placeholder="Chưa cấu hình"
                                     className="w-full p-2.5 rounded-lg border border-slate-200 font-bold text-[#003553]"
                                 />
                             </div>
@@ -398,6 +400,7 @@ export default function SettingClinicPage() {
                                     type="text"
                                     value={form.hoaDonDienTu}
                                     onChange={(e) => setForm({ ...form, hoaDonDienTu: e.target.value })}
+                                    placeholder="Chưa cấu hình"
                                     className="w-full p-2.5 rounded-lg border border-slate-200"
                                 />
                             </div>
@@ -409,10 +412,13 @@ export default function SettingClinicPage() {
                             <div className="w-36 h-36 bg-white p-2 rounded-xl shadow-xs border border-slate-200 flex items-center justify-center">
                                 <QrCode size={110} className="text-[#003553]" />
                             </div>
-                            <div className="text-[11px] font-bold text-slate-700">{form.chuTaiKhoan}</div>
-                            <div className="text-[10.5px] font-mono text-slate-400">STK: {form.soTaiKhoan} &bull; MBBank</div>
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                                Tự động gạch nợ hóa đơn
+                            <div className="text-[11px] font-bold text-slate-700">{form.chuTaiKhoan || 'Chưa cấu hình chủ tài khoản'}</div>
+                            <div className="text-[10.5px] font-mono text-slate-500">
+                                STK: {form.soTaiKhoan || 'Chưa cấu hình'} &bull; {form.nganHang || 'Chưa cấu hình ngân hàng'}
+                            </div>
+                            <div className="text-[10.5px] font-mono text-slate-500">BIN: {form.bankBin || 'Chưa cấu hình'}</div>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                                Lưu đủ thông tin để tạo mã thanh toán
                             </span>
                         </div>
                     </div>

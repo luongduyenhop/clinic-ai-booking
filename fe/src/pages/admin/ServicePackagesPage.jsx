@@ -1,26 +1,27 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import { AppToast } from '../../components/common/AppNotification'
-import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import {
     StatusBadge,
     Package,
     Storefront,
     PlusCircle,
     MagnifyingGlass,
-    Receipt,
     CheckCircle,
     X,
     Eye,
-    Tag,
 } from '../../components/common/ClinicIcon'
 
 export default function ServicePackagesPage() {
-    const dispatch = useDispatch()
     const location = useLocation()
     const { clinicData } = useSelector((state) => state.app.admin)
-    const servicePackages = clinicData?.servicePackageRegistrations || []
+    const servicePackages = useMemo(
+        () => (clinicData?.servicePackageRegistrations || []).filter(
+            (pkg) => pkg.is_synthetic !== true && !String(pkg.data_classification || '').includes('SYNTHETIC_TEST_FIXTURE'),
+        ),
+        [clinicData?.servicePackageRegistrations],
+    )
 
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeTab, setActiveTab] = useState(
@@ -38,7 +39,6 @@ export default function ServicePackagesPage() {
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [selectedPackageTemplate, setSelectedPackageTemplate] = useState(null)
-    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
 
     // Danh mục mẫu gói khám lâm sàng & CLS
     const packageTemplates = useMemo(() => [
@@ -115,50 +115,6 @@ export default function ServicePackagesPage() {
         })
     }, [servicePackages, searchText, statusFilter])
 
-    // Form đăng ký gói mới
-    const [regForm, setRegForm] = useState({
-        tenBN: '',
-        maBN: 'BN0000155',
-        dienThoai: '',
-        selectedGoiId: 'MAU-GDV-01',
-    })
-
-    const handleCreatePackageReg = () => {
-        if (!regForm.tenBN.trim()) {
-            AppToast.error('Vui lòng nhập tên bệnh nhân!')
-            return
-        }
-        const template = packageTemplates.find((t) => t.id === regForm.selectedGoiId) || packageTemplates[0]
-        const newReg = {
-            id: `GDV-${Date.now().toString().slice(-4)}`,
-            maLH: `GDV2610${servicePackages.length + 10}`,
-            maBN: regForm.maBN,
-            tenBN: regForm.tenBN,
-            tenGoi: template.tenGoi,
-            ngayTao: new Date().toISOString().slice(0, 10),
-            ngayKham: new Date().toISOString().slice(0, 10),
-            tongTien: template.giaGoc,
-            giamGia: template.giaGoc - template.giaGoi,
-            thanhTien: template.giaGoi,
-            trangThai: 'Đã xác nhận',
-            thanhToan: 'Đã thu tiền',
-        }
-        const updated = [newReg, ...servicePackages]
-        dispatch(
-            updateClinicCollectionAsync({
-                collectionKey: 'servicePackageRegistrations',
-                items: updated,
-                auditEntry: {
-                    hanhDong: 'REGISTER_SERVICE_PACKAGE',
-                    doiTuong: `${newReg.maLH} - ${newReg.tenBN}`,
-                    mucDich: `Kích hoạt gói khám ${newReg.tenGoi}`,
-                },
-            })
-        )
-        setIsRegisterModalOpen(false)
-        AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}!`)
-    }
-
     return (
         <div className="space-y-4">
             {/* Top Navigation & Operational Summary */}
@@ -183,13 +139,17 @@ export default function ServicePackagesPage() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setIsRegisterModalOpen(true)}
-                        className="medpro-btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 cursor-pointer"
+                        disabled
+                        className="medpro-btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 cursor-not-allowed opacity-50"
                     >
                         <PlusCircle size={16} weight="bold" />
-                        <span>Kích hoạt gói mới cho BN</span>
+                        <span>Kích hoạt gói chưa khả dụng</span>
                     </button>
                 </div>
+            </div>
+
+            <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                Chưa thể kích hoạt gói: hệ thống chưa có API đăng ký gói và thanh toán có lưu trữ xác thực. Danh mục gói mẫu chỉ để tham khảo; không có đăng ký hoặc khoản thu nào được tạo.
             </div>
 
             {/* Sub-Tabs bar (Chuẩn tClinic) */}
@@ -407,189 +367,18 @@ export default function ServicePackagesPage() {
 
             {/* TAB 3: THANH TOÁN */}
             {activeTab === 'THANH_TOAN' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
-                    <div className="text-sm font-bold text-[#003553]">QUYẾT TOÁN THU VIỆN PHÍ GÓI DỊCH VỤ TRỌN GÓI</div>
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
-                            <thead>
-                                <tr>
-                                    <th>Mã LH</th>
-                                    <th>Họ tên BN</th>
-                                    <th>Gói đăng ký</th>
-                                    <th>Số tiền đã thu</th>
-                                    <th>Hình thức thu</th>
-                                    <th>Thu ngân</th>
-                                    <th>Thời gian thu</th>
-                                    <th>Hóa đơn</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {servicePackages.map((pkg) => (
-                                    <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{pkg.maLH}</td>
-                                        <td className="font-bold text-[#003553]">{pkg.tenBN}</td>
-                                        <td className="font-semibold text-slate-700">{pkg.tenGoi}</td>
-                                        <td className="font-mono font-black text-emerald-600">
-                                            {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
-                                        </td>
-                                        <td>Chuyển khoản VietQR</td>
-                                        <td>Vũ Thu Hà (TN-01)</td>
-                                        <td className="text-slate-500 font-mono">12/10/2026 08:35</td>
-                                        <td>
-                                            <span className="text-[#00B5F1] font-mono font-bold hover:underline cursor-pointer">
-                                                HD-GDV-00{pkg.id.slice(-2)}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    Dữ liệu thanh toán gói chưa khả dụng vì backend chưa có API xác nhận giao dịch. Không hiển thị khoản đã thu hoặc hóa đơn mẫu như giao dịch thật.
                 </div>
             )}
 
             {/* TAB 4: HÓA ĐƠN */}
             {activeTab === 'HOA_DON' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
-                    <div className="text-sm font-bold text-[#003553]">DANH SÁCH HÓA ĐƠN GÓI DỊCH VỤ ĐÃ PHÁT HÀNH</div>
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
-                            <thead>
-                                <tr>
-                                    <th>Số hóa đơn</th>
-                                    <th>Khách hàng / Bệnh nhân</th>
-                                    <th>Gói dịch vụ</th>
-                                    <th>Giá gói</th>
-                                    <th>VAT</th>
-                                    <th>Tổng tiền</th>
-                                    <th>Trạng thái HĐ</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {servicePackages.map((pkg, idx) => (
-                                    <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">0000{310 + idx}</td>
-                                        <td className="font-bold text-[#003553]">{pkg.tenBN}</td>
-                                        <td className="text-slate-700">{pkg.tenGoi}</td>
-                                        <td className="font-mono">{(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ</td>
-                                        <td className="font-mono">0 đ</td>
-                                        <td className="font-mono font-black text-[#00B5F1]">
-                                            {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
-                                        </td>
-                                        <td>
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                Đã xuất HĐĐT
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button
-                                                type="button"
-                                                onClick={() => AppToast.success(`Đang tải hóa đơn 0000${310 + idx}...`)}
-                                                className="medpro-btn-outline !py-1 !px-2.5 text-[11px]"
-                                            >
-                                                In hóa đơn
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    Chưa thể tra cứu hoặc phát hành hóa đơn gói: backend chưa cung cấp API hóa đơn có mã và trạng thái xác thực.
                 </div>
             )}
 
-            {/* MODAL KÍCH HOẠT GÓI MỚI CHO BỆNH NHÂN */}
-            {isRegisterModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-5 space-y-4 animate-scaleUp">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <h3 className="text-sm font-black text-[#003553] uppercase">KÍCH HOẠT GÓI KHÁM CHO BỆNH NHÂN</h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsRegisterModalOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-                            >
-                                <X size={18} weight="bold" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-3 text-xs">
-                            <div>
-                                <label className="block text-slate-600 font-bold mb-1">Tên bệnh nhân:</label>
-                                <input
-                                    type="text"
-                                    value={regForm.tenBN}
-                                    onChange={(e) => setRegForm({ ...regForm, tenBN: e.target.value })}
-                                    placeholder="Nhập tên bệnh nhân..."
-                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-slate-600 font-bold mb-0">Mã bệnh nhân:</label>
-                                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                            Hệ thống tự sinh
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={regForm.maBN || ''}
-                                        readOnly
-                                        disabled
-                                        className="w-full p-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed select-none"
-                                        title="Mã bệnh nhân do hệ thống cấp phát, không được sửa"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Số điện thoại:</label>
-                                    <input
-                                        type="text"
-                                        value={regForm.dienThoai}
-                                        onChange={(e) => setRegForm({ ...regForm, dienThoai: e.target.value })}
-                                        placeholder="09..."
-                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-slate-600 font-bold mb-1">Chọn gói dịch vụ:</label>
-                                <select
-                                    value={regForm.selectedGoiId}
-                                    onChange={(e) => setRegForm({ ...regForm, selectedGoiId: e.target.value })}
-                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
-                                >
-                                    {packageTemplates.map((t) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.tenGoi} ({t.giaGoi.toLocaleString('vi-VN')} đ)
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setIsRegisterModalOpen(false)}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleCreatePackageReg}
-                                className="medpro-btn-primary !py-1.5 !px-4 text-xs cursor-pointer"
-                            >
-                                Xác nhận kích hoạt
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

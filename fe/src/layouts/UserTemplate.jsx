@@ -1,9 +1,15 @@
 import { Link, Outlet } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import UserHeader from '../components/user/UserHeader'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
 export default function UserTemplate() {
+    const savedClinicInfo = useSelector((state) => state.app.admin.clinicData?.clinicSettings)
+    const clinicInfo = savedClinicInfo?.is_synthetic === true || String(savedClinicInfo?.data_classification || '').startsWith('SYNTHETIC')
+        ? {}
+        : savedClinicInfo || {}
+
     return (
         <div className="min-h-screen flex flex-col bg-white text-slate-800">
             {/* Header */}
@@ -28,9 +34,16 @@ export default function UserTemplate() {
                     <div>
                         <h2 className="font-display font-bold text-white">Hỗ trợ</h2>
                         <div className="mt-4 grid gap-2">
-                            <a href="tel:19001234">Hotline: 1900 1234</a>
-                            <a href="mailto:hotro@clinic-ai.vn">hotro@clinic-ai.vn</a>
-                            <span>Phục vụ 07:00–21:00</span>
+                            {clinicInfo.dienThoai ? (
+                                <a href={`tel:${clinicInfo.dienThoai}`}>Hotline: {clinicInfo.dienThoai}</a>
+                            ) : (
+                                <span>Hotline: Chưa cấu hình</span>
+                            )}
+                            {clinicInfo.email ? (
+                                <a href={`mailto:${clinicInfo.email}`}>{clinicInfo.email}</a>
+                            ) : (
+                                <span>Email: Chưa cấu hình</span>
+                            )}
                         </div>
                     </div>
                     <div>

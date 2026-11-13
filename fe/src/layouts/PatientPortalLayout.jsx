@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { CalendarCheck, CalendarPlus, ClipboardText, HouseLine, Microscope, Pill, Stethoscope } from '../components/common/ClinicIcon'
+import { CalendarCheck, CalendarPlus, ClipboardText, HouseLine, IdentificationCard, Microscope, Pill, Stethoscope } from '../components/common/ClinicIcon'
 import { fetchPatientPortalAsync } from '../redux/actions/user/patientPortalAction'
 
 const links = [
     { to: '/benh-nhan', end: true, label: 'Tổng quan', icon: HouseLine },
+    { to: '/benh-nhan/ho-so', label: 'Hồ sơ của tôi', icon: IdentificationCard },
     { to: '/benh-nhan/lich-hen', label: 'Lịch hẹn của tôi', icon: CalendarCheck },
     { to: '/benh-nhan/lich-su-kham', label: 'Lịch sử khám', icon: ClipboardText },
     { to: '/benh-nhan/benh-an', label: 'Bệnh án điện tử', icon: ClipboardText },

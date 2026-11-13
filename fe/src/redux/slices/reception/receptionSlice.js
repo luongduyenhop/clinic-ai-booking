@@ -127,6 +127,8 @@ const initialState = {
     resolvedIncidentKeys: loadResolvedIncidents(),
     activeRole: 'RECEPTIONIST',
     loading: false,
+    catalogLoading: false,
+    catalogError: null,
     queueLoading: false,
     error: null,
     isInitialized: false,
@@ -165,10 +167,14 @@ const receptionSlice = createSlice({
         builder
             .addCase(fetchReceptionDataAsync.pending, (state) => {
                 if (!state.isInitialized) state.loading = true
+                state.catalogLoading = true
+                state.catalogError = null
                 state.error = null
             })
             .addCase(fetchReceptionDataAsync.fulfilled, (state, action) => {
                 state.loading = false
+                state.catalogLoading = false
+                state.catalogError = null
                 state.isInitialized = true
                 if (action.payload) {
                     if (action.payload.departments) state.departments = action.payload.departments
@@ -180,6 +186,8 @@ const receptionSlice = createSlice({
             })
             .addCase(fetchReceptionDataAsync.rejected, (state, action) => {
                 state.loading = false
+                state.catalogLoading = false
+                state.catalogError = action.payload || 'Lỗi tải danh mục quầy lễ tân'
                 state.error = action.payload || 'Lỗi tải dữ liệu lễ tân'
             })
 

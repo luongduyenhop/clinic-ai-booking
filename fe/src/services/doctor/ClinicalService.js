@@ -5,41 +5,7 @@ import { pickErrorMessage } from '../../utils/helpers/apiHelper'
 
 
 export const USE_MOCK = false
-const WORKSPACE_STORAGE_KEY = 'clinic_doctor_workspace_v1'
-
-const FALLBACK_SERVICES = [
-    { id: 1, ma_dich_vu: 'DV_XN_01', ten_dich_vu: 'Tổng phân tích tế bào máu ngoại vi', don_gia: 95000, don_vi_tinh: 'Lần', nhom_dich_vu: 'xet_nghiem' },
-    { id: 2, ma_dich_vu: 'DV_XQ_01', ten_dich_vu: 'Chụp X-quang ngực thẳng', don_gia: 120000, don_vi_tinh: 'Lần', nhom_dich_vu: 'cdha' },
-    { id: 3, ma_dich_vu: 'DV_SA_01', ten_dich_vu: 'Siêu âm tim Doppler màu', don_gia: 250000, don_vi_tinh: 'Lần', nhom_dich_vu: 'cdha' },
-    { id: 4, ma_dich_vu: 'DV_ECG_01', ten_dich_vu: 'Điện tim thường (ECG 12 cần)', don_gia: 65000, don_vi_tinh: 'Lần', nhom_dich_vu: 'tdcn' },
-    { id: 5, ma_dich_vu: 'DV_NS_01', ten_dich_vu: 'Nội soi dạ dày - tá tràng', don_gia: 450000, don_vi_tinh: 'Lần', nhom_dich_vu: 'noi_soi' },
-]
-
-const FALLBACK_ICD10 = [
-    { ma: 'A09', ten: 'Tiêu chảy và viêm dạ dày ruột do nhiễm khuẩn' },
-    { ma: 'I10', ten: 'Bệnh tăng huyết áp vô căn (nguyên phát)' },
-    { ma: 'E11', ten: 'Đái tháo đường típ 2' },
-    { ma: 'K29.7', ten: 'Viêm dạ dày - tá tràng' },
-    { ma: 'K21.0', ten: 'Trào ngược dạ dày thực quản (GERD)' },
-    { ma: 'J02.9', ten: 'Viêm họng cấp' },
-    { ma: 'J30.4', ten: 'Viêm mũi dị ứng' },
-    { ma: 'J00', ten: 'Viêm mũi họng cấp (Cảm thường)' },
-]
-
-const FALLBACK_DRUGS = [
-    { id: 125, ma_thuoc: 'TH001', ten_thuoc: 'Augmentin 1g', hoat_chat: 'Amoxicillin + Acid Clavulanic', ham_luong: '1000mg', don_vi_tinh: 'Viên' },
-    { id: 126, ma_thuoc: 'TH002', ten_thuoc: 'Augmentin 625mg', hoat_chat: 'Amoxicillin + Acid Clavulanic', ham_luong: '625mg', don_vi_tinh: 'Viên' },
-    { id: 127, ma_thuoc: 'TH003', ten_thuoc: 'Amoxicillin 500mg', hoat_chat: 'Amoxicillin', ham_luong: '500mg', don_vi_tinh: 'Viên' },
-    { id: 130, ma_thuoc: 'TH006', ten_thuoc: 'Paracetamol 500mg', hoat_chat: 'Paracetamol', ham_luong: '500mg', don_vi_tinh: 'Viên' },
-    { id: 131, ma_thuoc: 'TH007', ten_thuoc: 'Panadol Extra', hoat_chat: 'Paracetamol + Caffeine', ham_luong: '500mg/65mg', don_vi_tinh: 'Viên' },
-    { id: 135, ma_thuoc: 'TH011', ten_thuoc: 'Amlodipine 5mg', hoat_chat: 'Amlodipine', ham_luong: '5mg', don_vi_tinh: 'Viên' },
-]
-
 const loadInitialDb = () => {
-    try {
-        localStorage.removeItem(WORKSPACE_STORAGE_KEY)
-        localStorage.removeItem('clinic_doctor_clinical_workspace_v2')
-    } catch {}
     return {
         encounters: {},
         queue: [],
@@ -74,7 +40,7 @@ const ticketToQueueItem = (t) => {
             ghiChu = 'Đã khám xong'
         } else {
             const activeOrders = (enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-            const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
+            const pendingOrders = activeOrders.filter((o) => !['da_co_ket_qua', 'da_duyet'].includes(o.trang_thai))
             if (activeOrders.length > 0 && pendingOrders.length === 0) {
                 trangThai = 'co_ket_qua_cls'
                 if (!ghiChu || !ghiChu.includes('CÓ KQ CLS')) {
@@ -145,7 +111,6 @@ const parseResultDetail = (item) => {
 const toWorklistItem = (item) => {
     const bn = item.benh_nhan || {}
     const hasResult = item.trang_thai === 'da_co_ket_qua'
-    const mirror = findMirrorOrder(item.id)?.order
     return {
         id: item.id,
         luot_kham_id: item.luot_kham_id,
@@ -167,9 +132,9 @@ const toWorklistItem = (item) => {
         ly_do: item.ly_do_vao_kham,
         chan_doan_so_bo: item.chan_doan_so_bo,
         bac_si_chi_dinh: item.bac_si_chi_dinh || 'Bác sĩ',
-        ket_qua_chi_tiet: (hasResult && parseResultDetail(item)) || mirror?.ket_qua_chi_tiet || null,
-        ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : mirror?.ket_qua_phan_loai || null,
-        tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || mirror?.tep_dinh_kem_url || null,
+        ket_qua_chi_tiet: hasResult ? parseResultDetail(item) : null,
+        ket_qua_phan_loai: hasResult ? item.ket_qua_phan_loai : null,
+        tep_dinh_kem_url: item.file_dinh_kem_urls?.[0] || null,
         trang_thai_ket_qua: item.trang_thai_ket_qua || null,
         thoi_gian_duyet: item.thoi_gian_duyet || null,
     }
@@ -213,78 +178,32 @@ export class ClinicalService extends BaseServices {
 
     hydrateFromPostgres = async (force = false) => {
         if (this._hydratedFromPg && !force) return
-        this._hydratedFromPg = true
         try {
             const res = await this.get('/api/v1/clinical/workspace-state', {
                 params: { _t: Date.now() },
                 __skipGlobalLoading: true,
             })
             const remote = res?.data?.data
-            if (remote && remote.encounters && Array.isArray(remote.queue)) {
-                const activeDangKham = db.queue.filter((t) => t.trang_thai === 'dang_kham')
-                const localEncounters = db.encounters || {}
-
-                const mergedEncounters = { ...remote.encounters }
-                Object.entries(localEncounters).forEach(([k, lEnc]) => {
-                    if (remote.encounters?.[k] && lEnc?.is_locked) {
-                        mergedEncounters[k] = { ...mergedEncounters[k], ...lEnc }
-                    }
-                })
-                activeDangKham.forEach((act) => {
-                    const lEnc = localEncounters[act.encounter_id] || localEncounters[String(act.encounter_id)]
-                    const rEnc = mergedEncounters[act.encounter_id] || mergedEncounters[String(act.encounter_id)]
-                    if (rEnc && lEnc && !lEnc.is_locked) {
-                        const updatedEnc = {
-                            ...rEnc,
-                            ...lEnc,
-                            thoi_gian_bat_dau: lEnc.thoi_gian_bat_dau || rEnc?.thoi_gian_bat_dau || new Date().toISOString(),
-                        }
-                        mergedEncounters[act.encounter_id] = updatedEnc
-                        mergedEncounters[String(act.encounter_id)] = updatedEnc
-                    }
-                })
-                db.encounters = mergedEncounters
-
-                db.queue = remote.queue.map((rem) => {
-                    const enc = mergedEncounters?.[rem.encounter_id] || mergedEncounters?.[String(rem.encounter_id)]
-                    if (enc?.is_locked || rem.trang_thai === 'da_kham') {
-                        return { ...rem, trang_thai: 'da_kham', ghi_chu: 'Đã khám xong' }
-                    }
-                    const activeOrders = (enc?.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
-                    const hasReadyOrders = activeOrders.length > 0 && pendingOrders.length === 0
-
-                    if (hasReadyOrders) {
-                        return { ...rem, trang_thai: 'co_ket_qua_cls', ghi_chu: rem.ghi_chu || '⭐ CÓ KQ CLS: Đã có kết quả' }
-                    }
-                    if (pendingOrders.length > 0 || rem.trang_thai === 'tam_hoan') {
-                        return { ...rem, trang_thai: 'tam_hoan', ghi_chu: rem.ghi_chu || 'Chờ kết quả Cận lâm sàng' }
-                    }
-                    if ((rem.trang_thai === 'dang_kham' || (enc?.thoi_gian_bat_dau && !enc?.is_locked)) && !enc?.is_locked) {
-                        return { ...rem, trang_thai: 'dang_kham', ghi_chu: 'Đang khám' }
-                    }
-                    return rem
-                })
-                db.extraOrders = Array.isArray(remote.extraOrders) ? remote.extraOrders : db.extraOrders
-                db.nextId = Number(remote.nextId) || db.nextId
-                try {
-                    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
-                } catch {
-                }
+            if (res?.data?.success === false || !remote || !remote.encounters || typeof remote.encounters !== 'object' || Array.isArray(remote.encounters) || !Array.isArray(remote.queue)) {
+                throw new Error('Máy chủ trả về trạng thái bàn khám không hợp lệ.')
             }
-        } catch {
+            db.encounters = remote.encounters
+            db.queue = remote.queue
+            db.extraOrders = Array.isArray(remote.extraOrders) ? remote.extraOrders : []
+            db.nextId = Number(remote.nextId) || db.nextId
+            this._hydratedFromPg = true
+        } catch (e) {
+            this._hydratedFromPg = false
+            throw new Error(pickErrorMessage(e, 'Không thể tải trạng thái bàn khám từ máy chủ.'))
         }
     }
 
     persistToPostgres = async () => {
-        try {
-            localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
-        } catch {
+        const res = await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true })
+        if (res?.data?.success === false || res?.data?.data?.saved !== true) {
+            throw new Error(res?.data?.message || 'Máy chủ chưa xác nhận lưu dữ liệu lâm sàng.')
         }
-        try {
-            await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true })
-        } catch {
-        }
+        return res.data.data
     }
 
     reloadFromPostgres = async () => {
@@ -292,10 +211,9 @@ export class ClinicalService extends BaseServices {
         await this.hydrateFromPostgres()
     }
 
-    syncOrdersToServer = async (enc) => {
-        const pending = (enc.danh_sach_chi_dinh || []).filter((o) => !o.server_order_id && o.trang_thai !== 'da_huy')
-        if (pending.length === 0) return
+    syncOrdersToServer = async (enc, dichVuIds, services) => {
         const bn = enc.benh_nhan || {}
+        if (!bn.ho_ten?.trim()) throw new Error('Thiếu tên bệnh nhân từ hồ sơ máy chủ; chưa gửi được chỉ định.')
         const tuoi = Number.parseInt(bn.tuoi, 10)
         try {
             const res = await this.post(
@@ -304,40 +222,38 @@ export class ClinicalService extends BaseServices {
                     workspace_encounter_id: String(enc.id),
                     benh_nhan: {
                         ma: bn.ma || null,
-                        ho_ten: bn.ho_ten || 'Bệnh nhân',
+                        ho_ten: bn.ho_ten,
                         gioi_tinh: bn.gioi_tinh || null,
                         tuoi: Number.isNaN(tuoi) ? null : tuoi,
                         di_ung_thuoc: bn.di_ung_thuoc || null,
                     },
                     ly_do_vao_kham: enc.ly_do_vao_kham || enc.ai_triage?.trieu_chung_nhap || null,
                     chan_doan_so_bo: diagnosisText(enc),
-                    dich_vu_ids: [...new Set(pending.map((o) => o.dich_vu_id).filter(Boolean))],
+                    dich_vu_ids: dichVuIds,
                 },
                 { __skipGlobalLoading: true }
             )
             const result = res?.data?.data
-            enc.luot_kham_server_id = result?.luot_kham_id
-            const returnedOrders = result?.orders || []
-            returnedOrders.forEach((so) => {
-                const o = pending.find(
-                    (x) =>
-                        !x.server_order_id &&
-                        (String(x.dich_vu_id) === String(so.dich_vu_id) || Number(x.dich_vu_id) === Number(so.dich_vu_id))
-                )
-                if (o) {
-                    o.server_order_id = Number(so.id)
-                    o.trang_thai = so.trang_thai
-                }
-                const inList = (enc.danh_sach_chi_dinh || []).find(
-                    (x) =>
-                        !x.server_order_id &&
-                        (String(x.dich_vu_id) === String(so.dich_vu_id) || Number(x.dich_vu_id) === Number(so.dich_vu_id))
-                )
-                if (inList) {
-                    inList.server_order_id = Number(so.id)
-                    inList.trang_thai = so.trang_thai
-                }
-            })
+            const returnedOrders = result?.orders
+            if (!result?.luot_kham_id || !Array.isArray(returnedOrders) || dichVuIds.some((id) => !returnedOrders.some((o) => String(o.dich_vu_id) === String(id) && o.id))) {
+                throw new Error('Máy chủ chưa xác nhận toàn bộ chỉ định đã gửi.')
+            }
+            return {
+                luot_kham_id: result.luot_kham_id,
+                orders: returnedOrders.map((order) => {
+                    const service = services.find((s) => String(s.id) === String(order.dich_vu_id))
+                    return {
+                        id: order.id,
+                        server_order_id: order.id,
+                        luot_kham_id: enc.id,
+                        dich_vu_id: order.dich_vu_id,
+                        ma_dich_vu: order.ma_dich_vu,
+                        nhom_dich_vu: order.nhom_dich_vu,
+                        ten_dich_vu: service?.ten_dich_vu,
+                        trang_thai: order.trang_thai,
+                    }
+                }),
+            }
         } catch (e) {
             console.warn('Sync CLS orders to /api/v1/subclinical/workspace-orders error:', e)
             const errorMsg = pickErrorMessage(e, 'Không thể gửi chỉ định cận lâm sàng lên máy chủ')
@@ -346,60 +262,28 @@ export class ClinicalService extends BaseServices {
         }
     }
 
-
-    reconcileQueueState = () => {
-        for (const t of db.queue) {
-            const enc = db.encounters[t.encounter_id] || db.encounters[String(t.encounter_id)]
-            if (enc) {
-                if (enc.is_locked) {
-                    t.trang_thai = 'da_kham'
-                    t.ghi_chu = 'Đã khám xong'
-                } else {
-                    const activeOrders = (enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
-                    if (activeOrders.length > 0 && pendingOrders.length === 0) {
-                        t.trang_thai = 'co_ket_qua_cls'
-                        if (!t.ghi_chu || !t.ghi_chu.includes('CÓ KQ CLS')) {
-                            t.ghi_chu = '⭐ CÓ KQ CLS: Đã có kết quả'
-                        }
-                    } else if (pendingOrders.length > 0 || t.trang_thai === 'tam_hoan') {
-                        t.trang_thai = 'tam_hoan'
-                        t.ghi_chu = t.ghi_chu || 'Chờ kết quả Cận lâm sàng'
-                    } else if (t.trang_thai === 'dang_kham') {
-                        t.so_lan_goi = Math.max(t.so_lan_goi || 0, 1)
-                        t.ghi_chu = 'Đang khám'
-                    }
-                }
-            }
-        }
-        const activeDangKham = db.queue.filter((t) => t.trang_thai === 'dang_kham')
-        if (activeDangKham.length > 1) {
-            const keepTicket = activeDangKham[activeDangKham.length - 1]
-            activeDangKham.forEach((t) => {
-                if (t !== keepTicket) {
-                    t.trang_thai = 'cho_kham'
-                    t.ghi_chu = 'Chờ khám'
-                }
-            })
-        }
-    }
-
     getMyQueue = async () => {
         await this.hydrateFromPostgres(true)
-        this.reconcileQueueState()
-        return delay(db.queue.map(ticketToQueueItem))
+        return { data: db.queue.map(ticketToQueueItem) }
+    }
+
+    getSavedQueueItem = async (ticketId) => {
+        await this.reloadFromPostgres()
+        const ticket = db.queue.find((t) => String(t.ticket_id) === String(ticketId) || String(t.encounter_id) === String(ticketId))
+        if (!ticket) throw new Error('Máy chủ chưa trả về lượt khám đã cập nhật.')
+        return { data: ticketToQueueItem(ticket) }
     }
 
     callNext = async () => {
-        this.reconcileQueueState()
-        const current = db.queue.find((t) => t.trang_thai === 'dang_kham')
+        await this.hydrateFromPostgres(true)
+        const activeTickets = db.queue.filter((t) => t.trang_thai === 'dang_kham')
+        if (activeTickets.length > 1) throw new Error('Hàng đợi máy chủ không nhất quán: có nhiều lượt đang khám.')
+        const current = activeTickets[0]
         if (current) {
-            return reject(
-                `Đang có bệnh nhân #${current.so_thu_tu_kham} (${current.ten_benh_nhan || 'Đang khám'}) trong phòng khám. Hoàn tất hoặc tạm hoãn trước khi gọi tiếp.`
-            )
+            throw new Error(`Đang có bệnh nhân #${current.so_thu_tu_kham} (${current.ten_benh_nhan || 'Đang khám'}) trong phòng khám. Hoàn tất hoặc tạm hoãn trước khi gọi tiếp.`)
         }
         const eligible = db.queue.filter((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
-        if (eligible.length === 0) return reject('Không còn bệnh nhân chờ khám.')
+        if (eligible.length === 0) throw new Error('Không còn bệnh nhân chờ khám.')
 
         const next = eligible.sort((a, b) => {
             const aReturned = a.trang_thai === 'co_ket_qua_cls' || (a.ghi_chu && a.ghi_chu.includes('CÓ KQ CLS'))
@@ -416,25 +300,23 @@ export class ClinicalService extends BaseServices {
         const enc = db.encounters[next.encounter_id] || db.encounters[String(next.encounter_id)]
         if (enc && !enc.thoi_gian_bat_dau) enc.thoi_gian_bat_dau = new Date().toISOString()
         await this.persistToPostgres()
-        return delay(ticketToQueueItem(next))
+        return this.getSavedQueueItem(next.ticket_id)
     }
 
     startSpecificPatient = async (encounterIdOrTicketId) => {
-        this.reconcileQueueState()
+        await this.hydrateFromPostgres(true)
+        const activeTickets = db.queue.filter((t) => t.trang_thai === 'dang_kham')
+        if (activeTickets.length > 1) throw new Error('Hàng đợi máy chủ không nhất quán: có nhiều lượt đang khám.')
         const ticket = db.queue.find(
             (t) => String(t.encounter_id) === String(encounterIdOrTicketId) || String(t.ticket_id) === String(encounterIdOrTicketId)
         )
-        if (!ticket) return reject('Không tìm thấy lượt khám trong hàng đợi')
+        if (!ticket) throw new Error('Không tìm thấy lượt khám trong hàng đợi')
         if (ticket.trang_thai === 'dang_kham') {
-            return delay(ticketToQueueItem(ticket))
+            return { data: ticketToQueueItem(ticket) }
         }
-        const current = db.queue.find(
-            (t) => t.trang_thai === 'dang_kham' && String(t.encounter_id) !== String(ticket.encounter_id) && String(t.ticket_id) !== String(ticket.ticket_id)
-        )
+        const current = activeTickets.find((t) => String(t.encounter_id) !== String(ticket.encounter_id) && String(t.ticket_id) !== String(ticket.ticket_id))
         if (current) {
-            return reject(
-                `Đang có bệnh nhân #${current.so_thu_tu_kham} (${current.ten_benh_nhan || 'Đang khám'}) trong phòng khám. Hoàn tất hoặc tạm hoãn ca hiện tại trước khi bắt đầu ca mới.`
-            )
+            throw new Error(`Đang có bệnh nhân #${current.so_thu_tu_kham} (${current.ten_benh_nhan || 'Đang khám'}) trong phòng khám. Hoàn tất hoặc tạm hoãn ca hiện tại trước khi bắt đầu ca mới.`)
         }
         ticket.trang_thai = 'dang_kham'
         ticket.so_lan_goi = (ticket.so_lan_goi || 0) + 1
@@ -444,24 +326,26 @@ export class ClinicalService extends BaseServices {
             enc.thoi_gian_bat_dau = new Date().toISOString()
         }
         await this.persistToPostgres()
-        return delay(ticketToQueueItem(ticket))
+        return this.getSavedQueueItem(ticket.ticket_id)
     }
 
     recall = async (ticketId) => {
+        await this.hydrateFromPostgres(true)
         const t = db.queue.find((x) => x.ticket_id === ticketId)
-        if (!t) return reject('Không tìm thấy số thứ tự')
+        if (!t) throw new Error('Không tìm thấy số thứ tự')
         t.so_lan_goi += 1
         await this.persistToPostgres()
-        return delay(ticketToQueueItem(t))
+        return this.getSavedQueueItem(t.ticket_id)
     }
 
     postponeTicket = async (ticketId, reason = 'Chờ kết quả Cận lâm sàng') => {
+        await this.hydrateFromPostgres(true)
         const t = db.queue.find((x) => x.ticket_id === ticketId || x.encounter_id === ticketId)
-        if (!t) return reject('Không tìm thấy lượt khám')
+        if (!t) throw new Error('Không tìm thấy lượt khám')
         t.trang_thai = 'tam_hoan'
         t.ghi_chu = reason
         await this.persistToPostgres()
-        return delay(ticketToQueueItem(t))
+        return this.getSavedQueueItem(t.ticket_id)
     }
 
     getEncounterSync = (encounterId) => db?.encounters?.[encounterId] || db?.encounters?.[String(encounterId)] || null
@@ -469,7 +353,6 @@ export class ClinicalService extends BaseServices {
 
     getEncounter = async (encounterId) => {
         await this.hydrateFromPostgres(true)
-        this.reconcileQueueState()
         try {
             const enc = getEncounterOrThrow(encounterId)
             return delay(enc)
@@ -479,214 +362,138 @@ export class ClinicalService extends BaseServices {
     }
 
     saveEncounterDraft = async (encounterId, patch) => {
+        await this.hydrateFromPostgres()
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
-        if (!enc) return reject('Không tìm thấy lượt khám')
-        if (enc.is_locked) return reject('Bệnh án đã khóa, không thể sửa.')
-        if (!enc.thoi_gian_bat_dau) {
-            enc.thoi_gian_bat_dau = new Date().toISOString()
-        }
+        if (!enc) throw new Error('Không tìm thấy lượt khám')
+        if (enc.is_locked) throw new Error('Bệnh án đã khóa, không thể sửa.')
         Object.assign(enc, patch)
         await this.persistToPostgres()
-        return delay({ saved_at: new Date().toISOString() }, 120)
+        return { data: { saved_at: new Date().toISOString() } }
     }
 
     createOrders = async (encounterId, dichVuIds) => {
+        await this.hydrateFromPostgres(true)
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
-        if (!enc) return reject('Không tìm thấy lượt khám')
+        if (!enc) throw new Error('Không tìm thấy lượt khám')
         const existing = new Set((enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy').map((o) => String(o.dich_vu_id)))
-        const allServices = (await this.getServicesCatalog()) || []
-        dichVuIds
-            .filter((id) => !existing.has(String(id)))
-            .forEach((id) => {
-                const s = allServices.find((x) => String(x.id) === String(id))
-                if (!s) return
-                enc.danh_sach_chi_dinh.push({
-                    id: db.nextId++,
-                    luot_kham_id: encounterId,
-                    dich_vu_id: s.id,
-                    ma_dich_vu: s.ma_dich_vu,
-                    ten_dich_vu: s.ten_dich_vu,
-                    nhom_dich_vu: s.nhom_dich_vu,
-                    trang_thai: 'da_chi_dinh',
-                    ket_qua_phan_loai: null,
-                    ket_qua_chi_tiet: null,
-                    tep_dinh_kem_url: null,
-                    thoi_gian_chi_dinh: new Date().toISOString(),
-                })
-            })
-        const ticket = db.queue.find(
-            (t) =>
-                String(t.encounter_id) === String(encounterId) ||
-                (enc?.lich_kham_id && String(t.ticket_id) === String(enc.lich_kham_id)) ||
-                (enc?.ticket_id && String(t.ticket_id) === String(enc.ticket_id)) ||
-                (enc?.benh_nhan?.id && String(t.patient_id) === String(enc.benh_nhan.id))
-        )
-        if (ticket) {
-            ticket.trang_thai = 'tam_hoan'
-            ticket.ghi_chu = 'Chờ kết quả Cận lâm sàng'
+        const ids = [...new Set((dichVuIds || []).filter((id) => !existing.has(String(id))))]
+        if (ids.length === 0) return { data: enc.danh_sach_chi_dinh || [] }
+        const allServices = await this.getServicesCatalog()
+        const selectedServices = ids.map((id) => allServices.find((s) => String(s.id) === String(id)))
+        if (selectedServices.some((service) => !service)) throw new Error('Danh mục dịch vụ không có một hoặc nhiều mục đã chọn. Tải lại danh mục trước khi gửi.')
+        if (selectedServices.some((service) => service.don_gia == null || !Number.isFinite(Number(service.don_gia)))) {
+            throw new Error('Danh mục máy chủ chưa có giá hợp lệ cho một hoặc nhiều dịch vụ đã chọn.')
         }
-
-        try {
-            await this.syncOrdersToServer(enc)
-        } catch (e) {
-            enc.danh_sach_chi_dinh = (enc.danh_sach_chi_dinh || []).filter((o) => Boolean(o.server_order_id))
-            throw e
-        }
+        const serverOrders = await this.syncOrdersToServer(enc, ids, selectedServices)
+        enc.luot_kham_server_id = serverOrders.luot_kham_id
+        enc.danh_sach_chi_dinh = [...(enc.danh_sach_chi_dinh || []), ...serverOrders.orders]
         await this.persistToPostgres()
+        await this.reloadFromPostgres()
+        const savedEncounter = getEncounterOrThrow(encounterId)
+        if (ids.some((id) => !(savedEncounter.danh_sach_chi_dinh || []).some((order) => String(order.dich_vu_id) === String(id) && order.server_order_id))) {
+            throw new Error('Chỉ định đã được tạo nhưng bàn khám chưa xác nhận đồng bộ trạng thái. Tải lại hồ sơ trước khi tiếp tục.')
+        }
         try {
             clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_ORDERED, {
                 encounterId,
-                orders: enc.danh_sach_chi_dinh,
+                orders: savedEncounter.danh_sach_chi_dinh,
             })
         } catch (e) {
             console.warn('Bridge emit CLS_ORDERED error:', e)
         }
-        return delay(enc.danh_sach_chi_dinh)
+        return { data: savedEncounter.danh_sach_chi_dinh }
     }
 
     cancelOrder = async (encounterId, orderId) => {
+        await this.hydrateFromPostgres(true)
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
         const o = enc?.danh_sach_chi_dinh?.find((x) => x.id === orderId)
-        if (!o) return reject('Không tìm thấy chỉ định')
-        if (o.trang_thai !== 'da_chi_dinh') return reject('Chỉ hủy được chỉ định chưa thực hiện.')
-        if (o.server_order_id) {
-            await this.post(`/api/v1/subclinical/orders/${o.server_order_id}/cancel?ly_do=${encodeURIComponent('Bác sĩ hủy chỉ định')}`, {})
-        }
+        if (!o) throw new Error('Không tìm thấy chỉ định')
+        if (o.trang_thai !== 'da_chi_dinh' || !o.server_order_id) throw new Error('Chỉ hủy được chỉ định đã xác nhận và chưa thực hiện.')
+        await this.post(`/api/v1/subclinical/orders/${o.server_order_id}/cancel?ly_do=${encodeURIComponent('Bác sĩ hủy chỉ định')}`, {})
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
         await this.persistToPostgres()
-        return delay(enc.danh_sach_chi_dinh)
+        await this.reloadFromPostgres()
+        return { data: getEncounterOrThrow(encounterId).danh_sach_chi_dinh }
     }
 
     completeEncounter = async (encounterId, payload) => {
+        await this.hydrateFromPostgres(true)
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
-        if (!enc) return reject('Không tìm thấy lượt khám')
+        if (!enc) throw new Error('Không tìm thấy lượt khám')
+        if (enc.is_locked) throw new Error('Bệnh án đã được máy chủ khóa.')
         const primary = (payload.danh_sach_chan_doan || []).filter((d) => d.loai_chan_doan === 'chinh')
-        if (primary.length !== 1) return reject('Cần đúng 1 chẩn đoán chính (ICD-10) trước khi hoàn tất khám.')
-        const pendingOrders = (enc.danh_sach_chi_dinh || []).filter(
-            (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua'
-        )
-        const ticket = db.queue.find(
-            (t) =>
-                String(t.encounter_id) === String(encounterId) ||
-                (enc?.lich_kham_id && String(t.ticket_id) === String(enc.lich_kham_id)) ||
-                (enc?.ticket_id && String(t.ticket_id) === String(enc.ticket_id)) ||
-                (enc?.benh_nhan?.id && String(t.patient_id) === String(enc.benh_nhan.id))
-        )
-        if (ticket?.trang_thai === 'tam_hoan' || pendingOrders.length > 0) {
-            return reject(
-                `Không thể hoàn tất lượt khám: còn ${pendingOrders.length} chỉ định cận lâm sàng đang thực hiện dở dang chưa có kết quả.`
-            )
-        }
-        Object.assign(enc, payload, { is_locked: true, thoi_gian_khoa: new Date().toISOString() })
-        if (ticket) {
-            ticket.trang_thai = 'da_kham'
-            ticket.ghi_chu = 'Đã khám xong'
-        }
-        await this.persistToPostgres()
+        if (primary.length !== 1) throw new Error('Cần đúng 1 chẩn đoán chính (ICD-10) trước khi hoàn tất khám.')
 
-        let newVoucher = null
-        try {
-            const examFee = 150000
-            const invoiceItems = [
-                {
-                    ten: 'Công khám chuyên khoa ' + (enc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'),
-                    soLuong: 1,
-                    donGia: examFee,
-                    soTien: examFee,
-                    loai: 'KHAM',
-                },
-            ]
-
-            const servicesCatalog = (await this.getServicesCatalog()) || []
-            ;(enc.danh_sach_chi_dinh || []).forEach((cls) => {
-                const s = servicesCatalog.find((x) => String(x.id) === String(cls.dich_vu_id) || x.ma_dich_vu === cls.ma_dich_vu)
-                const price = s?.don_gia || 180000
-                invoiceItems.push({
-                    ten: cls.ten_dich_vu,
-                    soLuong: 1,
-                    donGia: price,
-                    soTien: price,
-                    loai: 'CLS',
-                })
-            })
-
-            const drugsList = payload.don_thuoc?.danh_sach_thuoc || []
-            let totalDrugFee = 0
-            drugsList.forEach((d) => {
-                const qty = Number(d.so_luong) || 10
-                const price = Number(d.don_gia) || 8500
-                const itemTotal = qty * price
-                totalDrugFee += itemTotal
-                invoiceItems.push({
-                    ten: `${d.ten_thuoc} (${d.ham_luong || ''})`,
-                    soLuong: qty,
-                    donGia: price,
-                    soTien: itemTotal,
-                    loai: 'THUOC',
-                })
-            })
-
-            const totalAmount = invoiceItems.reduce((sum, item) => sum + item.soTien, 0)
-            const voucherCode = `PT26102600${Math.floor(100 + Math.random() * 900)}`
-
-            newVoucher = {
-                id: `PT-${Date.now().toString().slice(-6)}`,
-                maPhieu: voucherCode,
-                loaiPhieu: 'Phiếu thu',
-                tenPhieu: `Thu viện phí & tiền thuốc - BN ${enc.benh_nhan?.ho_ten || 'Vãng lai'}`,
-                maBN: enc.benh_nhan?.ma || 'BN-2026',
-                hoTenBN: enc.benh_nhan?.ho_ten || 'Bệnh nhân',
-                ngayThu: new Date().toISOString().replace('T', ' ').slice(0, 16),
-                nguoiThu: 'Phạm Thu Nga (Thu ngân)',
-                hinhThuc: 'Chuyển khoản',
-                daThu: false, 
-                ghiChu: `Khoa: ${enc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'} · Bác sĩ: ${enc.bac_si_kham || 'BS. CKI Trần Quốc Huy'} · Đơn: ${payload.don_thuoc?.ma_don_thuoc_quoc_gia || 'DTQG-2026'}`,
-                items: invoiceItems,
-                tongTien: totalAmount,
-                encounterId: enc.id,
-                tienKham: examFee,
-                tienCls: invoiceItems.filter((i) => i.loai === 'CLS').reduce((s, i) => s + i.soTien, 0),
-                tienThuoc: totalDrugFee,
-                thuocTaiPhongKham: true,
+        const diagnoses = payload.danh_sach_chan_doan || []
+        for (const diagnosis of diagnoses) {
+            const matches = await this.searchIcd10(diagnosis.ma_icd10, { silent: true })
+            if (!matches.some((item) => String(item.ma).toUpperCase() === String(diagnosis.ma_icd10).toUpperCase())) {
+                throw new Error(`Mã ICD-10 ${diagnosis.ma_icd10 || ''} không có trong danh mục máy chủ. Chọn lại chẩn đoán từ danh mục.`)
             }
+        }
 
-            const ADMIN_STORE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
-            const rawAdminStore = localStorage.getItem(ADMIN_STORE_KEY)
-            if (rawAdminStore) {
-                const adminStore = JSON.parse(rawAdminStore)
-                if (adminStore && Array.isArray(adminStore.vouchers)) {
-                    adminStore.vouchers.unshift(newVoucher)
-                    localStorage.setItem(ADMIN_STORE_KEY, JSON.stringify(adminStore))
+        const activeOrders = (enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
+        if (activeOrders.length > 0) {
+            const services = await this.getServicesCatalog()
+            for (const order of activeOrders) {
+                if (!order.server_order_id || !services.some((service) => String(service.id) === String(order.dich_vu_id))) {
+                    throw new Error('Không thể xác nhận một hoặc nhiều chỉ định với danh mục máy chủ. Tải lại danh mục và hồ sơ trước khi hoàn tất.')
                 }
             }
-
-            const PATIENT_HISTORY_KEY = 'clinic_patient_completed_encounters_v1'
-            const rawPatientHist = localStorage.getItem(PATIENT_HISTORY_KEY)
-            const historyList = rawPatientHist ? JSON.parse(rawPatientHist) : []
-            historyList.unshift({
-                ...enc,
-                voucherCode,
-                ngay_kham: new Date().toISOString().slice(0, 10),
-            })
-            localStorage.setItem(PATIENT_HISTORY_KEY, JSON.stringify(historyList.slice(0, 50)))
-
-            clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, {
-                encounterId,
-                voucher: newVoucher,
-                encounter: enc,
-            })
-        } catch (err) {
-            console.warn('Error syncing completed encounter to cashier & portal:', err)
         }
 
-        return delay(enc)
+        const drugs = payload.don_thuoc?.danh_sach_thuoc || []
+        for (const drug of drugs) {
+            const key = drug.ma_thuoc || drug.ten_thuoc
+            if (!key) throw new Error('Có thuốc chưa được chọn từ danh mục máy chủ.')
+            const matches = await this.searchDrugs(key, { silent: true })
+            const found = matches.some((item) => {
+                const sameId = drug.id && String(item.id) === String(drug.id)
+                const sameCode = drug.ma_thuoc && String(item.ma_thuoc).toLowerCase() === String(drug.ma_thuoc).toLowerCase()
+                const sameCatalogItem = String(item.ten_thuoc).trim().toLowerCase() === String(drug.ten_thuoc).trim().toLowerCase() &&
+                    (!drug.ham_luong || String(item.ham_luong || '').trim().toLowerCase() === String(drug.ham_luong).trim().toLowerCase())
+                return sameId || sameCode || sameCatalogItem
+            })
+            if (!found) throw new Error(`Thuốc ${drug.ten_thuoc || ''} không có trong danh mục máy chủ. Chọn lại thuốc từ danh mục.`)
+        }
+
+        const pendingOrders = activeOrders.filter((o) => !['da_co_ket_qua', 'da_duyet'].includes(o.trang_thai))
+        if (pendingOrders.length > 0) {
+            throw new Error(`Không thể hoàn tất lượt khám: còn ${pendingOrders.length} chỉ định cận lâm sàng đang thực hiện dở dang chưa có kết quả.`)
+        }
+
+        Object.assign(enc, payload, { is_locked: false })
+        await this.persistToPostgres()
+
+        const res = await this.post(`/api/v1/clinical/encounters/${encounterId}/complete`, {
+            ket_luan_dieu_tri: payload.ket_luan_dieu_tri,
+            loi_dan_bac_si: payload.loi_dan_bac_si,
+            ngay_hen_tai_kham: payload.ngay_hen_tai_kham,
+        })
+        const completed = res?.data?.data
+        if (!completed?.is_locked || String(completed.id) !== String(encounterId)) {
+            throw new Error('Máy chủ chưa xác nhận hoàn tất và khóa bệnh án.')
+        }
+
+        const confirmedWorkspace = { ...enc, ...completed, is_locked: true }
+        Object.assign(enc, confirmedWorkspace)
+        const ticket = db.queue.find((t) => String(t.encounter_id) === String(encounterId))
+        if (ticket) Object.assign(ticket, { trang_thai: 'da_kham', ghi_chu: 'Đã khám xong' })
+        try {
+            clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, { encounterId, encounter: completed })
+        } catch (e) {
+            console.warn('Bridge emit ENCOUNTER_COMPLETED error:', e)
+        }
+        return { data: confirmedWorkspace }
     }
 
     createAmendment = async (encounterId, payload) => {
-        if (!db.encounters[encounterId]?.is_locked) return reject('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
-        const amendment = { id: db.nextId++, trang_thai: 'CHO_PHE_DUYET', ...payload }
-        await this.persistToPostgres()
-        return delay(amendment)
+        await this.hydrateFromPostgres(true)
+        if (!this.getEncounterSync(encounterId)?.is_locked) throw new Error('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
+        const res = await this.post(`/api/v1/clinical/encounters/${encounterId}/amendments`, payload)
+        if (res?.data?.success === false || !res?.data?.data?.id) throw new Error(res?.data?.message || 'Máy chủ chưa xác nhận tạo biên bản đính chính.')
+        return { data: res.data.data }
     }
 
     rateAiSuggestion = async (encounterId, payload) => {
@@ -704,41 +511,39 @@ export class ClinicalService extends BaseServices {
     }
 
     getServices = async () => {
-        try {
-            const res = await this.get('/api/v1/medical/services', { __skipGlobalLoading: true })
-            if (res?.data?.data && res.data.data.length > 0) return res.data.data
-        } catch {
-        }
-        return delay(FALLBACK_SERVICES, 100)
+        const res = await this.get('/api/v1/medical/services', { __skipGlobalLoading: true, __skipGlobalError: true })
+        if (res?.data?.success === false || !Array.isArray(res?.data?.data)) throw new Error('Máy chủ trả về danh mục dịch vụ không hợp lệ.')
+        return res.data.data
     }
 
     getServicesCatalog = async () => {
-        const res = await this.getServices()
-        return Array.isArray(res) ? res : res?.data || []
+        return this.getServices()
     }
 
-    searchIcd10 = async (keyword) => {
+    searchIcd10 = async (keyword, { silent = false } = {}) => {
+        const q = String(keyword || '').trim()
         try {
-            const q = String(keyword || '').trim()
-            const res = await this.get(`/api/v1/medical/icd10?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true })
-            if (Array.isArray(res?.data?.data)) return res.data.data
-        } catch {
+            const res = await this.get(`/api/v1/medical/icd10?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true, __skipGlobalError: true })
+            if (res?.data?.success === false || !Array.isArray(res?.data?.data)) throw new Error('Máy chủ trả về danh mục ICD-10 không hợp lệ.')
+            return res.data.data
+        } catch (e) {
+            const message = pickErrorMessage(e, 'Không thể tải danh mục ICD-10 từ máy chủ.')
+            if (!silent) AppToast.error(message)
+            throw new Error(message)
         }
-        const q = String(keyword || '').trim().toLowerCase()
-        const result = FALLBACK_ICD10.filter((x) => x.ma.toLowerCase().includes(q) || x.ten.toLowerCase().includes(q)).slice(0, 15)
-        return delay(result, 50)
     }
 
-    searchDrugs = async (keyword) => {
+    searchDrugs = async (keyword, { silent = false } = {}) => {
+        const q = String(keyword || '').trim()
         try {
-            const q = String(keyword || '').trim()
-            const res = await this.get(`/api/v1/medical/drugs?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true })
-            if (Array.isArray(res?.data?.data)) return res.data.data
-        } catch {
+            const res = await this.get(`/api/v1/medical/drugs?keyword=${encodeURIComponent(q)}&limit=25`, { __skipGlobalLoading: true, __skipGlobalError: true })
+            if (res?.data?.success === false || !Array.isArray(res?.data?.data)) throw new Error('Máy chủ trả về danh mục thuốc không hợp lệ.')
+            return res.data.data
+        } catch (e) {
+            const message = pickErrorMessage(e, 'Không thể tải danh mục thuốc từ máy chủ.')
+            if (!silent) AppToast.error(message)
+            throw new Error(message)
         }
-        const q = String(keyword || '').trim().toLowerCase()
-        const result = FALLBACK_DRUGS.filter((x) => x.ten_thuoc.toLowerCase().includes(q) || x.hoat_chat.toLowerCase().includes(q)).slice(0, 15)
-        return delay(result, 100)
     }
 
     getClsWorklist = async ({ nhom, tuKhoa, ngay, tatCaNgay } = {}) => {
@@ -756,29 +561,25 @@ export class ClinicalService extends BaseServices {
             params.set('ngay', ngay)
         }
         const res = await this.get(`/api/v1/subclinical/queue?${params}`, { __skipGlobalLoading: true })
-        const items = res?.data?.data?.items || []
+        const items = res?.data?.data?.items
+        if (!Array.isArray(items)) throw new Error('Máy chủ trả về hàng đợi cận lâm sàng không hợp lệ.')
         return { data: items.filter((it) => it.trang_thai !== 'da_huy').map(toWorklistItem) }
     }
 
     startOrder = async (orderId) => {
         const res = await this.post(`/api/v1/subclinical/orders/${orderId}/start`, {})
-        const trangThai = res?.data?.data?.trang_thai || 'dang_thuc_hien'
-        await this.reloadFromPostgres()
-        const mirror = findMirrorOrder(orderId)
-        if (mirror && mirror.order.trang_thai === 'da_chi_dinh') {
-            mirror.order.trang_thai = trangThai
-            await this.persistToPostgres()
-        }
-        return { data: { id: orderId, trang_thai: trangThai } }
+        const confirmed = res?.data?.data
+        if (!confirmed?.trang_thai) throw new Error('Máy chủ chưa xác nhận bắt đầu chỉ định.')
+        return { data: confirmed }
     }
 
     submitOrderResult = async (orderId, payload) => {
         const final = payload.trang_thai === 'da_co_ket_qua'
-        let trangThai = payload.trang_thai
+        let confirmed = null
         const imaging = payload.ket_qua_chi_tiet?.loai === 'CDHA'
         if (imaging) {
             const res = await this.saveImagingResult(orderId, payload, final)
-            trangThai = res?.data?.data?.trang_thai || trangThai
+            confirmed = res?.data?.data
         }
         if (final && !imaging) {
             const detail = payload.ket_qua_chi_tiet
@@ -788,32 +589,29 @@ export class ClinicalService extends BaseServices {
                 tri_so_chi_tiet: detail && typeof detail === 'object' ? detail : {},
                 file_dinh_kem_urls: payload.tep_dinh_kem_url ? [payload.tep_dinh_kem_url] : [],
             })
-            trangThai = res?.data?.data?.trang_thai || trangThai
+            confirmed = res?.data?.data
         }
-        const result = { ...payload, id: orderId, trang_thai: trangThai }
-        if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
+        if (final && confirmed?.trang_thai !== 'da_co_ket_qua') {
+            throw new Error('Máy chủ chưa xác nhận hoàn tất kết quả cận lâm sàng.')
+        }
+        const result = { ...payload, ...confirmed, id: orderId }
 
-        await this.reloadFromPostgres()
-        const mirror = findMirrorOrder(orderId)
-        if (mirror) {
-            const patch = { ...result }
-            delete patch.id
-            Object.assign(mirror.order, patch)
-            const ticket = final ? db.queue.find((t) => t.encounter_id === mirror.enc.id) : null
-            if (ticket) {
-                ticket.trang_thai = 'co_ket_qua_cls'
-                ticket.muc_do_uu_tien = 0 
-                ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
+        if (!final) {
+            await this.reloadFromPostgres()
+            const mirror = findMirrorOrder(orderId)
+            if (mirror) {
+                const patch = { ...result }
+                delete patch.id
+                Object.assign(mirror.order, patch)
+                await this.persistToPostgres()
             }
-            await this.persistToPostgres()
         }
 
         if (final) {
             try {
                 clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
                     orderId,
-                    order: mirror?.order || result,
-                    encounterId: mirror?.enc.id,
+                    order: result,
                 })
             } catch (e) {
                 console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
@@ -859,67 +657,34 @@ export class ClinicalService extends BaseServices {
     }
 
     getSpecialtyExam = async (encounterId, deptCode) => {
-        try {
-            const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/specialty/${deptCode}`)
-            return res?.data?.data ?? null
-        } catch {
-            return db.encounters[encounterId]?.specialtyExams?.[deptCode] || null
-        }
+        const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/specialty/${deptCode}`)
+        return res?.data?.data ?? null
     }
 
     getAllSpecialtyExams = async (encounterId) => {
-        try {
-            const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/specialties`)
-            return res?.data?.data ?? {}
-        } catch {
-            return db.encounters[encounterId]?.specialtyExams || {}
-        }
+        const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/specialties`)
+        return res?.data?.data ?? {}
     }
 
     saveSpecialtyExam = async (encounterId, deptCode, data) => {
-        try {
-            const res = await this.put(`/api/v1/clinical/encounters/${encounterId}/specialty/${deptCode}`, { data })
-            if (db.encounters[encounterId]) {
-                db.encounters[encounterId].specialtyExams = {
-                    ...(db.encounters[encounterId].specialtyExams || {}),
-                    [deptCode]: res?.data?.data ?? data,
-                }
-                await this.persistToPostgres()
+        const res = await this.put(`/api/v1/clinical/encounters/${encounterId}/specialty/${deptCode}`, { data })
+        if (res?.data?.success === false || res?.data?.data == null) throw new Error(res?.data?.message || 'Máy chủ chưa xác nhận lưu phiếu khám chuyên khoa.')
+        if (db.encounters[encounterId]) {
+            db.encounters[encounterId].specialtyExams = {
+                ...(db.encounters[encounterId].specialtyExams || {}),
+                [deptCode]: res.data.data,
             }
-            return res?.data?.data ?? data
-        } catch {
-            if (db.encounters[encounterId]) {
-                db.encounters[encounterId].specialtyExams = {
-                    ...(db.encounters[encounterId].specialtyExams || {}),
-                    [deptCode]: data,
-                }
-                await this.persistToPostgres()
-            }
-            return data
         }
+        return res.data.data
     }
 
-    copyOldPrescription = async (encounterId, sourcePrescriptionId, fallbackItems = []) => {
-        try {
-            const res = await this.post(
-                `/api/v1/clinical/encounters/${encounterId}/copy-prescription/${sourcePrescriptionId}`,
-                {}
-            )
-            return res?.data?.data
-        } catch {
-            const enc = db.encounters[encounterId]
-            if (enc && fallbackItems.length) {
-                enc.don_thuoc = {
-                    id: db.nextId++,
-                    trang_thai: 'NHAP',
-                    ghi_chu_don_thuoc: `[Sao chép từ đơn thuốc cũ #${sourcePrescriptionId}]`,
-                    danh_sach_chi_tiet: structuredClone(fallbackItems),
-                }
-                await this.persistToPostgres()
-                return enc.don_thuoc
-            }
-            return null
-        }
+    copyOldPrescription = async (encounterId, sourcePrescriptionId) => {
+        const res = await this.post(
+            `/api/v1/clinical/encounters/${encounterId}/copy-prescription/${sourcePrescriptionId}`,
+            {}
+        )
+        if (res?.data?.success === false || !res?.data?.data) throw new Error(res?.data?.message || 'Máy chủ chưa xác nhận sao chép đơn thuốc.')
+        return res.data.data
     }
 
     getLabTemplate = async (orderId) => {

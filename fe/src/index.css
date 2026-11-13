@@ -57,7 +57,7 @@
   .medpro-card {
     background-color: #FFFFFF;
     border-radius: 14px;
-    box-shadow: 0 4px 20px -2px rgba(0, 53, 83, 0.06), 0 2px 6px -1px rgba(0, 181, 241, 0.04);
+    box-shadow: 0 4px 20px -2px rgba(0, 53, 83, 0.06), 0 2px 6px -1px rgba(0, 53, 83, 0.025);
     border: 1px solid #E2EDF5;
   }
 
@@ -70,8 +70,8 @@
     font-family: "Roboto", sans-serif;
     font-size: 12.5px;
     font-weight: 600;
-    box-shadow: 0 3px 10px rgba(0, 181, 241, 0.24);
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 53, 83, 0.12);
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -81,11 +81,7 @@
   }
   .medpro-btn-primary:hover {
     background-color: #009ED4;
-    box-shadow: 0 5px 14px rgba(0, 181, 241, 0.32);
-    transform: translateY(-1px);
-  }
-  .medpro-btn-primary:active {
-    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(0, 53, 83, 0.16);
   }
   .medpro-btn-primary:disabled {
     opacity: 0.55;
@@ -104,7 +100,7 @@
     font-size: 12.5px;
     font-weight: 700;
     box-shadow: 0 3px 10px rgba(255, 181, 74, 0.25);
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: background-color 0.18s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -114,7 +110,6 @@
   }
   .medpro-btn-amber:hover {
     background-color: #FBA342;
-    transform: translateY(-1px);
   }
   .medpro-btn-amber:disabled {
     opacity: 0.55;
@@ -132,7 +127,7 @@
     font-family: "Roboto", sans-serif;
     font-size: 12.5px;
     font-weight: 600;
-    transition: all 0.18s ease;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -156,7 +151,7 @@
     font-family: "Roboto", sans-serif;
     font-size: 12.5px;
     font-weight: 600;
-    transition: all 0.18s ease;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -194,7 +189,7 @@
   }
   .medpro-input:focus {
     border-color: #00B5F1;
-    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.14);
+    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.1);
   }
   .medpro-input:disabled,
   .medpro-input[readonly] {
@@ -355,7 +350,7 @@
 
   /* Admin Action Buttons */
   .admin-action-btn {
-    @apply inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-full border whitespace-nowrap text-xs font-bold transition-all cursor-pointer;
+    @apply inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-full border whitespace-nowrap text-xs font-bold transition-colors cursor-pointer;
   }
   .admin-action-btn-edit {
     @apply border-[#FFB54A] bg-[#FFF8EB] text-[#D97706] hover:bg-[#FFB54A] hover:text-white;
@@ -381,20 +376,19 @@
     font-family: var(--font-sans);
     font-weight: 600 !important;
     border-radius: 9999px !important;
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
   }
 
   .ant-btn-primary:not(.ant-btn-dangerous) {
     background-color: #00B5F1 !important;
     border-color: #00B5F1 !important;
     color: #FFFFFF !important;
-    box-shadow: 0 3px 10px rgba(0, 181, 241, 0.24) !important;
+    box-shadow: 0 2px 6px rgba(0, 53, 83, 0.12) !important;
   }
   .ant-btn-primary:not(.ant-btn-dangerous):hover {
     background-color: #009ED4 !important;
     border-color: #009ED4 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgba(0, 181, 241, 0.32) !important;
+    box-shadow: 0 3px 8px rgba(0, 53, 83, 0.16) !important;
   }
 
   .ant-btn-default:not(.ant-btn-dangerous) {
@@ -464,7 +458,7 @@
   .ant-picker {
     border-radius: 8px !important;
     border-color: #CBD5E1 !important;
-    transition: all 0.15s ease !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
   }
   .ant-input:focus,
   .ant-input-focused,
@@ -473,7 +467,7 @@
   .ant-select-focused .ant-select-selector,
   .ant-picker-focused {
     border-color: #00B5F1 !important;
-    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.14) !important;
+    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.1) !important;
   }
 
   /* Descriptions */

@@ -19,7 +19,7 @@ import {
     Scan
 } from '../../components/common/ClinicIcon'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchMedicalRecordsAsync, submitPatientFeedbackAsync } from '../../redux/actions/user/patientPortalAction'
+import { fetchMedicalRecordsAsync, fetchPatientPortalAsync, submitPatientFeedbackAsync } from '../../redux/actions/user/patientPortalAction'
 import ResultAttachments from '../../components/user/patient/ResultAttachments'
 
 export default function PatientMedicalRecordsPage() {
@@ -27,7 +27,8 @@ export default function PatientMedicalRecordsPage() {
     const { items: records, loading: isLoading, error: loadError } = useSelector((state) => state.user.user.medicalRecords)
     const feedback = useSelector((state) => state.user.user.feedbackMutation)
     const currentUser = useSelector((state) => state.app.auth.user)
-    const familyList = useSelector((state) => state.user.user.portalData?.familyMembers || [])
+    const { familyMembers = [], familyMembersError } = useSelector((state) => state.user.user.portalData || {})
+    const familyList = familyMembersError ? [] : familyMembers
     const [selectedRecordId, setSelectedRecordId] = useState(null)
     const [activeTab, setActiveTab] = useState('tong_quan')
 
@@ -40,6 +41,7 @@ export default function PatientMedicalRecordsPage() {
     const currentRecord = records.find((r) => r.id === selectedRecordId) || records[0]
 
     useEffect(() => { dispatch(fetchMedicalRecordsAsync()) }, [dispatch])
+    useEffect(() => { if (familyMembersError) setActiveFamilyMember('self') }, [familyMembersError])
 
     const handleOpenRating = () => {
         if (currentRecord.danhGia) {
@@ -132,7 +134,12 @@ export default function PatientMedicalRecordsPage() {
                     >
                         <User size={13} /> {currentUser?.fullName || currentUser?.ho_ten || 'Bản thân'} (Bản thân)
                     </button>
-                    {familyList.map((m) => (
+                    {familyMembersError ? (
+                        <div role="alert" className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-950/40 px-3 py-1.5 text-xs text-amber-100">
+                            <span>Không thể tải người thân; danh sách cũ đang được ẩn. Hồ sơ bản thân vẫn dùng được.</span>
+                            <button type="button" onClick={() => dispatch(fetchPatientPortalAsync())} className="shrink-0 font-bold underline">Thử lại</button>
+                        </div>
+                    ) : familyList.map((m) => (
                         <button
                             key={m.id}
                             onClick={() => {

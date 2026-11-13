@@ -40,7 +40,7 @@ export default function QueuePanel({
     }
 
     const handleCallNextWithVoice = async () => {
-        if (!onCallNext) return
+        if (!onCallNext || loading || error) return
         setFilter('cho_kham')
         const nextPatient = queue.find((t) => t.trang_thai === 'cho_kham' || t.trang_thai === 'co_ket_qua_cls')
         onCallNext()
@@ -50,7 +50,7 @@ export default function QueuePanel({
     }
 
     const handleRecallWithVoice = () => {
-        if (!onRecall) return
+        if (!onRecall || loading || error) return
         onRecall()
         if (currentTicket && voiceEnabled) {
             audioAnnouncer.announcePatient(currentTicket.ten_benh_nhan, currentTicket.so_thu_tu_kham, 'buồng khám số 1')
@@ -84,6 +84,7 @@ export default function QueuePanel({
         )
 
     const count = (key) => {
+        if (error || loading) return null
         if (key === 'cho_kham') return queue.filter((t) => ['cho_kham', 'dang_kham'].includes(t.trang_thai) && !isReturnedAfterCls(t) && !isWaitingCls(t)).length
         if (key === 'co_ket_qua') return queue.filter(isReturnedAfterCls).length
         if (key === 'tam_hoan') return queue.filter(isWaitingCls).length
@@ -91,7 +92,7 @@ export default function QueuePanel({
         return 0
     }
 
-    const visible = queue
+    const visible = (error || loading ? [] : queue)
         .filter((t) => {
             if (filter === 'cho_kham') return ['cho_kham', 'dang_kham'].includes(t.trang_thai) && !isReturnedAfterCls(t) && !isWaitingCls(t)
             if (filter === 'co_ket_qua') return isReturnedAfterCls(t)
@@ -146,7 +147,7 @@ export default function QueuePanel({
                     <button
                         type="button"
                         onClick={handleCallNextWithVoice}
-                        disabled={calling}
+                        disabled={calling || loading || Boolean(error)}
                         className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#00A9E3] text-white font-bold text-xs shadow-xs hover:bg-[#0092c4] active:scale-[0.99] transition cursor-pointer disabled:opacity-50"
                         title="Gọi bệnh nhân tiếp theo (Phím tắt: F2 hoặc Alt+N)"
                     >
@@ -160,7 +161,7 @@ export default function QueuePanel({
                     <button
                         type="button"
                         onClick={handleRecallWithVoice}
-                        disabled={!currentTicket}
+                        disabled={!currentTicket || loading || Boolean(error)}
                         className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
                     >
                         <ClinicIcon name="Bell" size={14} />
@@ -183,13 +184,14 @@ export default function QueuePanel({
                                 isActive ? 'bg-white text-[#003553] shadow-2xs' : 'text-slate-600 hover:text-[#003553]'
                             }`}
                         >
-                            {f.label} ({c})
+                            {f.label} ({c === null ? '—' : c})
                         </button>
                     )
                 })}
             </div>
 
             {loading && queue.length === 0 && <LoadingBlock text="Đang tải hàng đợi..." />}
+            {loading && queue.length > 0 && <LoadingBlock text="Đang xác nhận hàng đợi từ máy chủ…" />}
             {error && <ErrorBlock message={error} onRetry={onRetry} />}
             {!loading && !error && visible.length === 0 && (
                 <EmptyBlock icon="UsersThree" title="Không có bệnh nhân" hint="Hàng đợi danh mục này hiện đang trống." />

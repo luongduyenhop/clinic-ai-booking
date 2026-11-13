@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react'
 import { SERVICE_GROUPS, SPECIALTY_PACKS, ORDER_STATUS } from '../../../utils/constants/clinical'
 import { formatCurrency } from '../../../utils/helpers/formatCurrency'
 import { ClinicIcon } from '../../common/ClinicIcon'
-import { EmptyBlock } from '../clinical/StateBlocks'
+import { EmptyBlock, ErrorBlock, LoadingBlock } from '../clinical/StateBlocks'
 
 export default function StepOrders({
     encounter,
-    services,
+    services = [],
+    servicesLoading,
+    servicesError,
+    onRetryCatalog,
     locked,
     submitting,
     onSubmit,
@@ -29,9 +32,10 @@ export default function StepOrders({
 
     const orders = (encounter?.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
     const orderedIds = useMemo(() => new Set(orders.map((o) => String(o.dich_vu_id))), [orders])
+    const catalogAvailable = !servicesLoading && !servicesError
 
     const q = keyword.trim().toLowerCase()
-    const filtered = services.filter((s) => !q || s.ten_dich_vu.toLowerCase().includes(q) || s.ma_dich_vu.toLowerCase().includes(q))
+    const filtered = catalogAvailable ? services.filter((s) => !q || s.ten_dich_vu.toLowerCase().includes(q) || s.ma_dich_vu.toLowerCase().includes(q)) : []
 
     const toggle = (id) => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
@@ -42,11 +46,16 @@ export default function StepOrders({
     }
 
     const pickedServices = useMemo(() => {
+        if (!catalogAvailable) return []
         return (picked || []).map((id) => services.find((s) => String(s.id) === String(id))).filter(Boolean)
-    }, [picked, services])
+    }, [picked, services, catalogAvailable])
+    const unresolvedPickedCount = catalogAvailable ? Math.max(0, picked.length - pickedServices.length) : 0
 
-    const pickedTotal = pickedServices.reduce((sum, s) => sum + (s.don_gia || 0), 0)
-    const ordersTotal = orders.reduce((sum, o) => sum + (services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia || o.don_gia_tai_thoi_diem || o.don_gia || 0), 0)
+    const pickedHasPrices = pickedServices.every((s) => s.don_gia !== null && s.don_gia !== undefined && Number.isFinite(Number(s.don_gia)))
+    const pickedTotal = pickedHasPrices ? pickedServices.reduce((sum, s) => sum + Number(s.don_gia), 0) : null
+    const ordersTotal = orders.every((o) => o.don_gia_tai_thoi_diem !== null && o.don_gia_tai_thoi_diem !== undefined && Number.isFinite(Number(o.don_gia_tai_thoi_diem)))
+        ? orders.reduce((sum, o) => sum + Number(o.don_gia_tai_thoi_diem), 0)
+        : null
 
     const handleSend = async () => {
         const ok = await onSubmit(picked)
@@ -67,9 +76,12 @@ export default function StepOrders({
                         placeholder="Gõ tên hoặc mã: công thức máu, siêu âm…"
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
-                        disabled={locked}
+                        disabled={locked || !catalogAvailable}
                     />
                 </label>
+
+                {servicesLoading && <LoadingBlock text="Đang tải danh mục dịch vụ từ máy chủ…" />}
+                {servicesError && <ErrorBlock message={servicesError} onRetry={onRetryCatalog} />}
 
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[12px] text-slate-500">Gói theo khoa:</span>
@@ -77,7 +89,7 @@ export default function StepOrders({
                         <button
                             key={p.key}
                             type="button"
-                            disabled={locked}
+                            disabled={locked || !catalogAvailable}
                             aria-pressed={pack === p.key}
                             onClick={() => applyPack(p)}
                             className={`rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition cursor-pointer disabled:cursor-not-allowed ${
@@ -89,7 +101,7 @@ export default function StepOrders({
                     ))}
                 </div>
 
-                {SERVICE_GROUPS.map((g) => {
+                {catalogAvailable && SERVICE_GROUPS.map((g) => {
                     const items = filtered.filter((s) => s.nhom_dich_vu === g.key)
                     if (items.length === 0) return null
                     return (
@@ -122,7 +134,7 @@ export default function StepOrders({
                         </fieldset>
                     )
                 })}
-                {filtered.length === 0 && <EmptyBlock icon="MagnifyingGlass" title="Không tìm thấy dịch vụ phù hợp" />}
+                {catalogAvailable && filtered.length === 0 && <EmptyBlock icon="MagnifyingGlass" title={services.length ? 'Không tìm thấy dịch vụ phù hợp' : 'Danh mục dịch vụ máy chủ đang trống'} />}
             </div>
 
             <div className="flex flex-[1_1_280px] flex-col gap-3.5 self-start rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
@@ -152,7 +164,7 @@ export default function StepOrders({
                                 <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-2xs border border-sky-200">
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[12px] font-bold text-[#003553] truncate">{s.ten_dich_vu}</span>
-                                        <span className="text-[11px] font-semibold text-slate-600">{formatCurrency(s.don_gia)}</span>
+                                        <span className="text-[11px] font-semibold text-slate-600">{s.don_gia != null && Number.isFinite(Number(s.don_gia)) ? formatCurrency(s.don_gia) : 'Chưa có giá từ máy chủ'}</span>
                                     </div>
                                     <button
                                         type="button"
@@ -167,10 +179,12 @@ export default function StepOrders({
                         </div>
                     )}
 
+                    {unresolvedPickedCount > 0 && <p role="alert" className="text-[11px] font-semibold text-rose-700">{unresolvedPickedCount} lựa chọn không có trong danh mục hiện tại. Vui lòng chọn lại dịch vụ.</p>}
+
                     {pickedServices.length > 0 && (
                         <div className="flex items-center justify-between text-xs pt-2 border-t border-sky-200">
                             <span className="font-medium text-slate-600">Tạm tính ({pickedServices.length} DV):</span>
-                            <span className="font-extrabold text-[#003553]">{formatCurrency(pickedTotal)}</span>
+                            <span className="font-extrabold text-[#003553]">{pickedTotal === null ? 'Thiếu giá từ máy chủ' : formatCurrency(pickedTotal)}</span>
                         </div>
                     )}
 
@@ -181,7 +195,7 @@ export default function StepOrders({
                                 ? 'bg-[#00A9E3] hover:bg-[#0092c4] text-white shadow-md shadow-sky-500/25 animate-pulse'
                                 : 'bg-slate-200 text-slate-400'
                         }`}
-                        disabled={locked || pickedServices.length === 0 || submitting}
+                        disabled={locked || !catalogAvailable || pickedServices.length === 0 || unresolvedPickedCount > 0 || !pickedHasPrices || submitting}
                         onClick={handleSend}
                     >
                         {submitting ? 'Đang gửi sang KTV…' : pickedServices.length > 0 ? `🚀 Gửi ${pickedServices.length} chỉ định sang phòng KTV` : 'Gửi chỉ định sang phòng KTV'}
@@ -194,7 +208,7 @@ export default function StepOrders({
                             Đã gửi chỉ định ({orders.length})
                         </span>
                         {orders.length > 0 && (
-                            <span className="text-[11px] text-slate-600 font-semibold">{formatCurrency(ordersTotal)}</span>
+                            <span className="text-[11px] text-slate-600 font-semibold">{ordersTotal === null ? 'Thiếu giá đã lưu trên máy chủ' : formatCurrency(ordersTotal)}</span>
                         )}
                     </div>
 
@@ -211,9 +225,9 @@ export default function StepOrders({
                                 return (
                                     <div key={o.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-2xs border border-slate-200">
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-[12px] font-bold text-[#003553] truncate">{o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || "Dịch vụ CLS"}</span>
+                                            <span className="text-[12px] font-bold text-[#003553] truncate">{o.ten_dich_vu || `Dịch vụ không xác định (#${o.dich_vu_id})`}</span>
                                             <span className="text-[10px] text-slate-400">
-                                                {o.don_gia_tai_thoi_diem ? formatCurrency(o.don_gia_tai_thoi_diem) : (services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia ? formatCurrency(services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia) : '')}
+                                                {o.don_gia_tai_thoi_diem !== null && o.don_gia_tai_thoi_diem !== undefined ? formatCurrency(o.don_gia_tai_thoi_diem) : 'Chưa có giá xác nhận'}
                                             </span>
                                         </div>
                                         <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${

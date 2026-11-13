@@ -18,6 +18,7 @@ export default function PatientBanner({
     hasClsReady: externalHasClsReady,
     onStartExam,
     calling,
+    queueUnavailable,
 }) {
     const bn = encounter?.benh_nhan || {}
 
@@ -60,7 +61,7 @@ export default function PatientBanner({
                     <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                         <h1 className="text-[18px] font-extrabold text-[#003553] tracking-tight">{bn.ho_ten}</h1>
                         <span className="text-[12px] font-semibold text-slate-500">
-                            {bn.gioi_tinh} · {bn.tuoi} tuổi · Mã: <strong className="text-slate-700">{bn.ma || 'BN-2026'}</strong> · Mã LK: <strong className="text-slate-700">{encounter?.ma_lich_kham}</strong>
+                            {bn.gioi_tinh || 'Chưa rõ giới tính'} · {bn.tuoi != null ? `${bn.tuoi} tuổi` : 'Chưa rõ tuổi'} · Mã: <strong className="text-slate-700">{bn.ma || '—'}</strong> · Mã LK: <strong className="text-slate-700">{encounter?.ma_lich_kham || encounter?.id || '—'}</strong>
                         </span>
                     </div>
 
@@ -78,13 +79,17 @@ export default function PatientBanner({
                             </span>
                         ) : (
                             <span className="text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                Chưa ghi nhận dị ứng
+                                Chưa có dữ liệu dị ứng
                             </span>
                         )}
 
                         {encounter?.is_locked ? (
                             <span className="text-[11px] font-bold bg-slate-800 text-white px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                 <ClinicIcon name="LockKey" size={12} /> Bệnh án đã khóa
+                            </span>
+                        ) : queueUnavailable ? (
+                            <span role="status" className="text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <ClinicIcon name="WarningCircle" size={12} /> Không xác nhận được hàng đợi
                             </span>
                         ) : isWaitingCls ? (
                             <span className="text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
@@ -107,7 +112,7 @@ export default function PatientBanner({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {!encounter?.is_locked && !isExamining && !isWaitingCls && onStartExam && (
+                    {!encounter?.is_locked && !queueUnavailable && !isExamining && !isWaitingCls && onStartExam && (
                         <button
                             type="button"
                             onClick={onStartExam}

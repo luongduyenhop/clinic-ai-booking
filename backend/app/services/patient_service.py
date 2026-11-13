@@ -1,10 +1,11 @@
 import json
 from typing import List, Optional
 from sqlalchemy import desc, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
+from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException, NotFoundException
 from app.models.medical import ChiDinh, DanhGiaDichVu, DonThuoc, LuotKham
 from app.models.user import BacSi, BenhNhan, HoSoNguoiThan, NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.patient import (
@@ -102,6 +103,16 @@ class PatientService:
         if nd:
             if payload.ho_ten is not None:
                 nd.ho_ten = payload.ho_ten
+            if payload.so_dien_thoai is not None:
+                duplicate = (await db.execute(
+                    select(NguoiDung.id).where(
+                        NguoiDung.so_dien_thoai == payload.so_dien_thoai,
+                        NguoiDung.id != nd.id,
+                    )
+                )).scalar_one_or_none()
+                if duplicate is not None:
+                    raise ConflictException("Số điện thoại này đã được sử dụng bởi tài khoản khác")
+                nd.so_dien_thoai = payload.so_dien_thoai
             if payload.ngay_sinh is not None:
                 nd.ngay_sinh = payload.ngay_sinh
             if payload.gioi_tinh is not None:
@@ -118,7 +129,18 @@ class PatientService:
         if payload.di_ung_thuoc is not None:
             bn.di_ung_thuoc = payload.di_ung_thuoc
 
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            if payload.so_dien_thoai is not None and (await db.execute(
+                select(NguoiDung.id).where(
+                    NguoiDung.so_dien_thoai == payload.so_dien_thoai,
+                    NguoiDung.id != user.nguoi_dung_id,
+                )
+            )).scalar_one_or_none() is not None:
+                raise ConflictException("Số điện thoại này đã được sử dụng bởi tài khoản khác")
+            raise
         await db.refresh(bn)
         return await self.get_patient_profile(user, db)
 

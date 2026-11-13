@@ -31,7 +31,7 @@ import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
 import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
 import { receptionService } from '../../services/reception/receptionService'
-import { unwrapApi } from '../../utils/helpers/apiHelper'
+import { unwrapApi, pickErrorMessage } from '../../utils/helpers/apiHelper'
 import { formatDoctorName } from '../../utils/doctorHelper'
 
 function normalizePatient(p) {
@@ -123,6 +123,9 @@ export default function CheckInPage() {
         services,
         roomStatus = [],
         queueEntries = [],
+        catalogLoading,
+        catalogError,
+        isInitialized: catalogsInitialized,
     } = useSelector((state) => state.reception)
 
     const [searchKeyword, setSearchKeyword] = useState('')
@@ -144,14 +147,14 @@ export default function CheckInPage() {
         { value: 'thuong_binh', label: 'Thương binh / Người có công' },
     ]
 
-    const loadingSpecialties = !departments || departments.length === 0
+    const catalogReady = catalogsInitialized && !catalogLoading && !catalogError
+    const loadingSpecialties = catalogLoading || (!catalogsInitialized && !catalogError)
 
     const [walkInDepartmentId, setWalkInDepartmentId] = useState(null)
     const [walkInDoctorId, setWalkInDoctorId] = useState(null)
     const [walkInDoctors, setWalkInDoctors] = useState([])
     const [loadingWalkInDocs, setLoadingWalkInDocs] = useState(false)
-    const [walkInRoomId, setWalkInRoomId] = useState('')
-    const [walkInServiceId, setWalkInServiceId] = useState('')
+    const [walkInDoctorsError, setWalkInDoctorsError] = useState('')
     const [priorityType, setPriorityType] = useState('NORMAL')
     const [priorityReason, setPriorityReason] = useState('nguoi_gia')
     const [checkInNotes, setCheckInNotes] = useState('')
@@ -171,6 +174,7 @@ export default function CheckInPage() {
     })
     const [quickWalkInDoctors, setQuickWalkInDoctors] = useState([])
     const [loadingQuickDocs, setLoadingQuickDocs] = useState(false)
+    const [quickWalkInDoctorsError, setQuickWalkInDoctorsError] = useState('')
     const [patientNotFoundForPhone, setPatientNotFoundForPhone] = useState(false)
 
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
@@ -188,53 +192,73 @@ export default function CheckInPage() {
 
     const loadDoctorsForDepartment = async (depId) => {
         if (!depId) return []
-        try {
-            const res = await receptionService.getDoctors({
-                specialty_id: Number(depId),
-                page: 1,
-                page_size: 100,
-            })
-            const data = unwrapApi(res)
-            const list = Array.isArray(data) ? data : data?.items || []
-            return list.map((d) => {
-                const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
-                return {
-                    id: d.id,
-                    name: d.ho_ten || d.name,
-                    title: d.hoc_vi || '',
-                    roomId: d.phong_kham_id || rs?.phong_kham_id,
-                    roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
-                    waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
-                    status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
-                }
-            })
-        } catch {
-            return []
-        }
+        const res = await receptionService.getDoctors({
+            specialty_id: Number(depId),
+            page: 1,
+            page_size: 100,
+        })
+        const data = unwrapApi(res)
+        const list = Array.isArray(data) ? data : data?.items
+        if (!Array.isArray(list)) throw new Error('Dữ liệu bác sĩ không hợp lệ')
+        return list.map((d) => {
+            const rs = (roomStatus || []).find((r) => r.bac_si_id === d.id)
+            return {
+                id: d.id,
+                name: d.ho_ten || d.name,
+                title: d.hoc_vi || '',
+                roomId: d.phong_kham_id || rs?.phong_kham_id,
+                roomName: rs?.ten_phong || d.vi_tri_phong || 'Phòng khám',
+                waitingCount: rs?.so_benh_nhan_cho ?? rs?.so_nguoi_cho ?? 0,
+                status: d.is_active === false ? 'ON_LEAVE' : 'AVAILABLE',
+            }
+        })
     }
 
     const fetchWalkInDoctors = async (depId) => {
+        setWalkInDoctors([])
+        setWalkInDoctorsError('')
         setLoadingWalkInDocs(true)
-        const mapped = await loadDoctorsForDepartment(depId)
-        setWalkInDoctors(mapped)
-        setLoadingWalkInDocs(false)
+        try {
+            setWalkInDoctors(await loadDoctorsForDepartment(depId))
+        } catch (error) {
+            setWalkInDoctorsError(pickErrorMessage(error, 'Không thể tải danh sách bác sĩ'))
+        } finally {
+            setLoadingWalkInDocs(false)
+        }
     }
 
     const fetchQuickDoctors = async (depId) => {
+        setQuickWalkInDoctors([])
+        setQuickWalkInDoctorsError('')
         setLoadingQuickDocs(true)
-        const mapped = await loadDoctorsForDepartment(depId)
-        setQuickWalkInDoctors(mapped)
-        setLoadingQuickDocs(false)
+        try {
+            setQuickWalkInDoctors(await loadDoctorsForDepartment(depId))
+        } catch (error) {
+            setQuickWalkInDoctorsError(pickErrorMessage(error, 'Không thể tải danh sách bác sĩ'))
+        } finally {
+            setLoadingQuickDocs(false)
+        }
     }
 
     const fetchDoctorsForInitialDepartment = async (depId) => {
         setLoadingWalkInDocs(true)
         setLoadingQuickDocs(true)
-        const mapped = await loadDoctorsForDepartment(depId)
-        setWalkInDoctors(mapped)
-        setQuickWalkInDoctors(mapped)
-        setLoadingWalkInDocs(false)
-        setLoadingQuickDocs(false)
+        setWalkInDoctorsError('')
+        setQuickWalkInDoctorsError('')
+        try {
+            const mapped = await loadDoctorsForDepartment(depId)
+            setWalkInDoctors(mapped)
+            setQuickWalkInDoctors(mapped)
+        } catch (error) {
+            const message = pickErrorMessage(error, 'Không thể tải danh sách bác sĩ')
+            setWalkInDoctors([])
+            setQuickWalkInDoctors([])
+            setWalkInDoctorsError(message)
+            setQuickWalkInDoctorsError(message)
+        } finally {
+            setLoadingWalkInDocs(false)
+            setLoadingQuickDocs(false)
+        }
     }
 
     useEffect(() => {
@@ -492,19 +516,14 @@ export default function CheckInPage() {
     }
 
     const handleWalkInDepartmentChange = (depId) => {
+        if (!catalogReady) return
         setWalkInDepartmentId(depId)
         setWalkInDoctorId(null)
         fetchWalkInDoctors(depId)
-
-        const targetSpec = (departments || []).find((s) => s.id === depId || s.code === depId)
-        const depRoom = (rooms || []).find((r) => r.departmentId === depId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || (rooms || [])[0]
-        if (depRoom) setWalkInRoomId(depRoom.id || depRoom.code)
-
-        const depService = (services || []).find((s) => s.departmentId === depId) || (services || [])[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
-        if (depService) setWalkInServiceId(depService.id)
     }
 
     const handleQuickDepartmentChange = (depId) => {
+        if (!catalogReady) return
         setQuickWalkInForm((prev) => ({ ...prev, departmentId: depId, doctorId: null }))
         fetchQuickDoctors(depId)
     }
@@ -520,22 +539,14 @@ export default function CheckInPage() {
     }
 
     useEffect(() => {
-        if (!initialDeptLoadedRef.current && departments && departments.length > 0) {
+        if (catalogReady && !initialDeptLoadedRef.current && departments && departments.length > 0) {
             initialDeptLoadedRef.current = true
             const firstId = departments[0].id
             setWalkInDepartmentId(firstId)
             setQuickWalkInForm((prev) => ({ ...prev, departmentId: firstId }))
-
-            const targetSpec = departments[0]
-            const depRoom = (rooms || []).find((r) => r.departmentId === firstId || (targetSpec && (r.departmentId === targetSpec.id || r.code === targetSpec.code))) || (rooms || [])[0]
-            if (depRoom) setWalkInRoomId(depRoom.id || depRoom.code)
-
-            const depService = (services || []).find((s) => s.departmentId === firstId) || (services || [])[0] || { id: 1, name: 'Khám bệnh chuyên khoa', price: 150000 }
-            if (depService) setWalkInServiceId(depService.id)
-
             fetchDoctorsForInitialDepartment(firstId)
         }
-    }, [departments, rooms, services])
+    }, [catalogReady, departments])
 
     const handleConfirmCheckIn = async () => {
         if (!selectedPatient) {
@@ -572,6 +583,11 @@ export default function CheckInPage() {
                 setPriorityReason('nguoi_gia')
                 setCheckInNotes('')
             } else {
+                if (!catalogReady) {
+                    message.error(catalogError || 'Đang tải danh mục tiếp nhận. Vui lòng thử lại sau.')
+                    setIsSubmitting(false)
+                    return
+                }
                 if (!walkInDepartmentId && !walkInDoctorId) {
                     message.error('Vui lòng chọn chuyên khoa tiếp nhận hoặc bác sĩ tiếp nhận')
                     setIsSubmitting(false)
@@ -677,6 +693,10 @@ export default function CheckInPage() {
     }
 
     const handleQuickWalkInSubmit = async () => {
+        if (!catalogReady) {
+            message.error(catalogError || 'Đang tải danh mục tiếp nhận. Vui lòng thử lại sau.')
+            return
+        }
         const cleanName = quickWalkInForm.fullName?.trim() || ''
         const cleanPhone = quickWalkInForm.phone?.trim().replace(/\s+/g, '') || ''
 
@@ -748,7 +768,7 @@ export default function CheckInPage() {
                     phone: '',
                     gender: 'Nam',
                     birthYear: '',
-                    departmentId: depId || (departments[0]?.id ?? 1),
+                    departmentId: depId || departments[0]?.id || null,
                     doctorId: null,
                     priority: 'NORMAL',
                     priorityReason: 'nguoi_gia',
@@ -806,7 +826,7 @@ export default function CheckInPage() {
                                     phone: '',
                                     gender: 'Nam',
                                     birthYear: '',
-                                    departmentId: depId || (departments[0]?.id ?? 1),
+                                    departmentId: depId || departments[0]?.id || null,
                                     doctorId: null,
                                     priority: 'NORMAL',
                                     priorityReason: 'nguoi_gia',
@@ -840,6 +860,16 @@ export default function CheckInPage() {
 
     return (
         <div className="space-y-4">
+            {catalogLoading && <Alert type="info" showIcon message="Đang tải danh mục chuyên khoa, phòng khám, bác sĩ và dịch vụ..." />}
+            {catalogError && (
+                <Alert
+                    type="error"
+                    showIcon
+                    message="Không thể tải đầy đủ danh mục tiếp nhận"
+                    description={catalogError}
+                    action={<Button size="small" onClick={() => dispatch(fetchReceptionDataAsync())} loading={catalogLoading}>Thử lại</Button>}
+                />
+            )}
             {(isNearQuota || isOverQuota) && (
                 <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
                     isOverQuota ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'
@@ -1144,10 +1174,10 @@ export default function CheckInPage() {
                                             const isSelected = selectedAppointment?.id === app.id || (selectedAppointment?.ma_lich_kham && selectedAppointment.ma_lich_kham === app.ma_lich_kham)
                                             const displayCode = app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`
                                             const displayTime = app.timeSlot || app.gio_kham || 'Theo ca khám'
-                                            const depName = app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'
-                                            const docName = app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : (doc?.name ? formatDoctorName(doc.name) : 'Theo phân bổ ca')
-                                            const roomName = app.phong_kham || room?.name || 'Phòng khám'
-                                            const srvName = app.ten_dich_vu || srv?.name || 'Khám bệnh chuyên khoa'
+                                            const depName = app.ten_chuyen_khoa || dep?.name || 'Chưa xác định'
+                                            const docName = app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : (doc?.name ? formatDoctorName(doc.name) : 'Chưa xác định')
+                                            const roomName = app.phong_kham || room?.name || 'Chưa xác định'
+                                            const srvName = app.ten_dich_vu || srv?.name || 'Chưa xác định'
 
                                             return (
                                                 <div
@@ -1188,7 +1218,8 @@ export default function CheckInPage() {
                                     </div>
                                     <Select
                                         className="w-full"
-                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : departments.length ? "Chọn chuyên khoa khám..." : "Chưa có chuyên khoa để chọn"}
+                                        disabled={!catalogReady || !departments.length}
                                         value={walkInDepartmentId}
                                         onChange={handleWalkInDepartmentChange}
                                         options={(departments || []).map((s) => ({
@@ -1196,6 +1227,7 @@ export default function CheckInPage() {
                                             label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
                                         }))}
                                     />
+                                    {!loadingSpecialties && catalogsInitialized && !catalogError && departments.length === 0 && <p className="mt-1 text-rose-600" role="alert">Danh mục chưa có chuyên khoa; hãy liên hệ quản trị viên.</p>}
                                 </div>
 
                                 <div>
@@ -1210,6 +1242,8 @@ export default function CheckInPage() {
                                         placeholder={
                                             loadingWalkInDocs
                                                 ? "Đang tải danh sách bác sĩ..."
+                                                : walkInDoctorsError
+                                                  ? "Không thể tải danh sách bác sĩ"
                                                 : !walkInDepartmentId
                                                   ? "Chọn chuyên khoa trước"
                                                   : walkInDoctors.length === 0
@@ -1218,7 +1252,7 @@ export default function CheckInPage() {
                                         }
                                         allowClear
                                         loading={loadingWalkInDocs}
-                                        disabled={!walkInDepartmentId || loadingWalkInDocs}
+                                        disabled={!catalogReady || !walkInDepartmentId || loadingWalkInDocs || Boolean(walkInDoctorsError)}
                                         value={walkInDoctorId || undefined}
                                         onChange={handleWalkInDoctorChange}
                                         options={[
@@ -1230,6 +1264,7 @@ export default function CheckInPage() {
                                             })),
                                         ]}
                                     />
+                                    {walkInDoctorsError && <p className="mt-1 text-rose-600" role="alert">{walkInDoctorsError} <button type="button" onClick={() => fetchWalkInDoctors(walkInDepartmentId)} className="font-bold underline">Thử tải lại</button></p>}
                                 </div>
                             </div>
                         )}
@@ -1310,6 +1345,7 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleConfirmCheckIn}
                                 loading={isSubmitting}
+                                disabled={isSubmitting || (checkInMode === 'WALK_IN' && !catalogReady)}
                                 className="medpro-btn-primary !h-10 !px-6 text-sm font-bold shadow-md">
                                 Cấp STT Khám & Xem phiếu in
                             </Button>
@@ -1408,7 +1444,8 @@ export default function CheckInPage() {
                                     </div>
                                     <Select
                                         className="w-full"
-                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : departments.length ? "Chọn chuyên khoa khám..." : "Chưa có chuyên khoa để chọn"}
+                                        disabled={!catalogReady || !departments.length}
                                         value={quickWalkInForm.departmentId}
                                         onChange={handleQuickDepartmentChange}
                                         options={(departments || []).map((s) => ({
@@ -1416,6 +1453,7 @@ export default function CheckInPage() {
                                             label: s.name || s.ten_chuyen_khoa || 'Chuyên khoa',
                                         }))}
                                     />
+                                    {!loadingSpecialties && catalogsInitialized && !catalogError && departments.length === 0 && <p className="mt-1 text-rose-600" role="alert">Danh mục chưa có chuyên khoa; hãy liên hệ quản trị viên.</p>}
                                 </div>
                             </div>
 
@@ -1431,6 +1469,8 @@ export default function CheckInPage() {
                                     placeholder={
                                         loadingQuickDocs
                                             ? "Đang tải danh sách bác sĩ..."
+                                            : quickWalkInDoctorsError
+                                              ? "Không thể tải danh sách bác sĩ"
                                             : !quickWalkInForm.departmentId
                                               ? "Chọn chuyên khoa trước"
                                               : quickWalkInDoctors.length === 0
@@ -1439,7 +1479,7 @@ export default function CheckInPage() {
                                     }
                                     allowClear
                                     loading={loadingQuickDocs}
-                                    disabled={!quickWalkInForm.departmentId || loadingQuickDocs}
+                                    disabled={!catalogReady || !quickWalkInForm.departmentId || loadingQuickDocs || Boolean(quickWalkInDoctorsError)}
                                     value={quickWalkInForm.doctorId || undefined}
                                     onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, doctorId: val || null })}
                                     options={[
@@ -1451,6 +1491,7 @@ export default function CheckInPage() {
                                         })),
                                     ]}
                                 />
+                                {quickWalkInDoctorsError && <p className="mt-1 text-rose-600" role="alert">{quickWalkInDoctorsError} <button type="button" onClick={() => fetchQuickDoctors(quickWalkInForm.departmentId)} className="font-bold underline">Thử tải lại</button></p>}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1525,6 +1566,7 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleQuickWalkInSubmit}
                                 loading={isSubmitting}
+                                disabled={isSubmitting || !catalogReady}
                                 className="medpro-btn-primary w-full !h-10 text-sm font-bold shadow-md mt-2"
                             >
                                 Cấp STT Khám Nhanh & In Phiếu

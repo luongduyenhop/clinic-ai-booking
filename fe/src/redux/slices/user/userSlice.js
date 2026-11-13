@@ -14,14 +14,21 @@ const initialState = {
     triageLoading: false,
     triageError: null,
     triageResult: null,
-    portalData: { appointments: [], medicalHistory: [], prescriptions: [], labResults: [], doctorSchedules: [] },
+    portalData: {
+        appointments: [], appointmentsError: '',
+        familyMembers: [], familyMembersError: '',
+        medicalHistory: [], medicalHistoryError: '',
+        prescriptions: [], prescriptionError: '',
+        labResults: [], labError: '',
+        doctorSchedules: [],
+    },
     prescriptionsPage: { items: [], meta: null, loading: false, error: '', requestId: null },
     labResultsPage: { items: [], meta: null, loading: false, error: '', requestId: null },
     medicalRecords: { items: [], loading: false, error: '', requestId: null },
     patientLookup: { items: null, loading: false, error: '', requestId: null },
     familyMutation: { loading: false, error: '' },
     feedbackMutation: { loading: false, error: '' },
-    portalLoading: false,
+    portalLoading: true,
     portalError: null,
 }
 
@@ -56,7 +63,16 @@ const userSlice = createSlice({
             .addCase(analyzeSymptomsAsync.fulfilled, (state, action) => { state.triageLoading = false; state.triageResult = action.payload })
             .addCase(analyzeSymptomsAsync.rejected, (state, action) => { state.triageLoading = false; state.triageError = action.payload || 'Không thể phân tích triệu chứng' })
             .addCase(fetchPatientPortalAsync.pending, (state) => { state.portalLoading = true; state.portalError = null })
-            .addCase(fetchPatientPortalAsync.fulfilled, (state, action) => { state.portalLoading = false; state.portalData = action.payload })
+            .addCase(fetchPatientPortalAsync.fulfilled, (state, action) => {
+                state.portalLoading = false
+                state.portalError = null
+                for (const key of ['appointments', 'familyMembers', 'medicalHistory', 'prescriptions', 'prescriptionMeta', 'labResults', 'labMeta']) {
+                    if (action.payload[key] !== undefined && action.payload[key] !== null) state.portalData[key] = action.payload[key]
+                }
+                for (const key of ['appointmentsError', 'familyMembersError', 'medicalHistoryError', 'prescriptionError', 'labError']) {
+                    state.portalData[key] = action.payload[key]
+                }
+            })
             .addCase(fetchPatientPortalAsync.rejected, (state, action) => { state.portalLoading = false; state.portalError = action.payload || 'Không thể tải dữ liệu bệnh nhân' })
         for (const [thunk, key] of [[fetchMedicalRecordsAsync, 'medicalRecords'], [findPatientCodeAsync, 'patientLookup']]) {
             builder.addCase(thunk.pending, (state, action) => {

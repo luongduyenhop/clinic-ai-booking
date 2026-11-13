@@ -41,27 +41,23 @@ jobs:
 
       - name: Transfer Build & Code to VPS
         run: |
-          SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
-          SSH_HOST=$(printf "%s" "$SSH_HOST" | tr -d ' \r\n')
-          [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
-          SSH_USER="${{ secrets.VPS_SSH_USER }}"
-          SSH_USER=$(printf "%s" "$SSH_USER" | tr -d ' \r\n')
+          SSH_HOST=$(printf "%s" "${{ secrets.VPS_SSH_HOST }}" | tr -d ' \r\n')
+          case "$SSH_HOST" in
+            *.*) ;;
+            *) SSH_HOST="3.27.138.183" ;;
+          esac
+          SSH_USER=$(printf "%s" "${{ secrets.VPS_SSH_USER }}" | tr -d ' \r\n')
           [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
-          if ! ssh -v -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" "echo SSH_CONNECTED" > /tmp/ssh.log 2>&1; then
-            ERR_MSG=$(tr '\r\n' '  ' < /tmp/ssh.log | tail -c 400)
-            echo "::error::HOST_LEN=${#SSH_HOST} USER_LEN=${#SSH_USER} LOG=$ERR_MSG"
-            cat /tmp/ssh.log
-            exit 1
-          fi
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa fe-dist.tar.gz "$SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/"
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -r backend/app "$SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/"
 
       - name: Update Containers and Verify Service Health
         run: |
-          SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
-          SSH_HOST=$(printf "%s" "$SSH_HOST" | tr -d ' \r\n')
-          [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
-          SSH_USER="${{ secrets.VPS_SSH_USER }}"
-          SSH_USER=$(printf "%s" "$SSH_USER" | tr -d ' \r\n')
+          SSH_HOST=$(printf "%s" "${{ secrets.VPS_SSH_HOST }}" | tr -d ' \r\n')
+          case "$SSH_HOST" in
+            *.*) ;;
+            *) SSH_HOST="3.27.138.183" ;;
+          esac
+          SSH_USER=$(printf "%s" "${{ secrets.VPS_SSH_USER }}" | tr -d ' \r\n')
           [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" "bash /home/ubuntu/clinic-ai/deploy.sh"

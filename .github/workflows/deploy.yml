@@ -38,6 +38,8 @@ jobs:
           mkdir -p ~/.ssh
           printf "%s\n" "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          echo "KEY_SIZE=$(wc -c < ~/.ssh/id_rsa)" >> $GITHUB_STEP_SUMMARY
+          ssh-keygen -l -f ~/.ssh/id_rsa >> $GITHUB_STEP_SUMMARY 2>&1 || echo "KEY_INVALID" >> $GITHUB_STEP_SUMMARY
 
       - name: Transfer Build & Code to VPS
         run: |
@@ -45,6 +47,12 @@ jobs:
           [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
           SSH_USER="${{ secrets.VPS_SSH_USER }}"
           [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
+          echo "Connecting to $SSH_USER@$SSH_HOST" >> $GITHUB_STEP_SUMMARY
+          ssh -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "echo SSH_CONNECTED" > /tmp/ssh.log 2>&1 || {
+            cat /tmp/ssh.log >> $GITHUB_STEP_SUMMARY
+            exit 1
+          }
+          cat /tmp/ssh.log >> $GITHUB_STEP_SUMMARY
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa fe-dist.tar.gz $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -r backend/app $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/
 

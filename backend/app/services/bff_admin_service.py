@@ -814,7 +814,8 @@ class BffAdminService:
         base_dvts = catalogs.get("donViTinh") or []
 
         def _make_dvt_code(name: str) -> str:
-            import unicodedata, re
+            import re
+            import unicodedata
             nfd = unicodedata.normalize("NFD", name)
             ascii_str = "".join(c for c in nfd if unicodedata.category(c) != "Mn").replace("đ", "d").replace("Đ", "D")
             code = re.sub(r"[^A-Za-z0-9]+", "_", ascii_str).strip("_").upper()

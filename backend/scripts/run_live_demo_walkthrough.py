@@ -33,7 +33,7 @@ async def main():
         )
         assert qr_parse_res.status_code == 200, f"Parse QR failed: {qr_parse_res.text}"
         qr_data = qr_parse_res.json()["data"]
-        print(f" -> Quet QR CCCD 7 truong thanh cong:")
+        print(" -> Quet QR CCCD 7 truong thanh cong:")
         print(f"    + Ho ten:    {qr_data['full_name']}")
         print(f"    + So CCCD:   {qr_data['cccd_number']}")
         print(f"    + Ngay sinh: {qr_data['date_of_birth']} ({qr_data['gender']})")
@@ -66,7 +66,7 @@ async def main():
         )
         if vitals_res.status_code in (200, 201):
             v_data = vitals_res.json()["data"]
-            print(f" -> Do sinh hieu: HA 122/80 mmHg | SpO2: 98% | Than nhiet: 38.2 C")
+            print(" -> Do sinh hieu: HA 122/80 mmHg | SpO2: 98% | Than nhiet: 38.2 C")
             print(f"    + Chi so BMI tinh tu dong: {v_data['bmi']} (The trang: Binh thuong)")
 
         allergy_check = await client.post(
@@ -106,10 +106,10 @@ async def main():
         )
         if fee_res.status_code == 200:
             fee_data = fee_res.json()["data"]
-            print(f" -> Bang ke vien phi tu dong:")
+            print(" -> Bang ke vien phi tu dong:")
             print(f"    + Phi kham chuyen khoa: {float(fee_data['total_service_amount']):,.0f} VND")
             print(f"    + Phi thuoc ke don:     {float(fee_data['total_medication_amount']):,.0f} VND")
-            print(f"    ---------------------------------------------")
+            print("    ---------------------------------------------")
             print(f"    = Tong vien phi thuc thu: {float(fee_data['final_amount']):,.0f} VND")
 
         inv_res = await client.post(
@@ -135,7 +135,7 @@ async def main():
         )
         if qr_res.status_code == 200:
             qr_resp = qr_res.json()["data"]
-            print(f" -> Sinh ma Napas VietQR 247 Dong:")
+            print(" -> Sinh ma Napas VietQR 247 Dong:")
             print(f"    + Bank BIN:       {qr_resp['bank_bin']} (Napas 247)")
             print(f"    + So tai khoan:   {qr_resp['account_number']}")
             print(f"    + So tien:        {float(qr_resp['final_amount']):,.0f} VND")
@@ -164,8 +164,7 @@ async def main():
             },
         )
         if webhook_res.status_code == 200:
-            w_data = webhook_res.json()["data"]
-            print(f" -> Nhan Webhook tu Ngan hang Napas: Chu ky HMAC-SHA256 hop le!")
+            print(" -> Nhan Webhook tu Ngan hang Napas: Chu ky HMAC-SHA256 hop le!")
             print(f" -> Hoa don {invoice_code} duoc khoa so: status = PAID | is_locked = True")
 
         print("\n" + "=" * 78)

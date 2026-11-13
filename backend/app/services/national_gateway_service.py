@@ -250,7 +250,7 @@ class NationalGatewayService:
             TrangThaiDonThuoc.RETRY_PENDING.value,
         ):
             raise ConflictException(
-                f"Chỉ có thể retry gửi Cổng khi đơn thuốc ở trạng thái UNKNOWN_RESULT hoặc RETRY_PENDING!"
+                "Chỉ có thể retry gửi Cổng khi đơn thuốc ở trạng thái UNKNOWN_RESULT hoặc RETRY_PENDING!"
             )
 
         retry_key = idempotency_key or rx.idempotency_key

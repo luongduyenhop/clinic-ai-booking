@@ -79,7 +79,8 @@ services:
       bootstrap:
         condition: service_completed_successfully
     environment: *backend-env
-    mem_limit: 450m
+    # Model AI triage can ~1.8GB RAM khi nap; 450m lam backend bi OOM lap lai (502).
+    mem_limit: ${BACKEND_MEM_LIMIT:-2g}
     volumes:
       - cls_uploads:/var/lib/clinic
     healthcheck:

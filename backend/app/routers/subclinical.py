@@ -1,17 +1,16 @@
 from datetime import date, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
-from fastapi.security import HTTPAuthorizationCredentials
-from sqlalchemy import select
-from app.core.dependencies import get_current_user, require_roles, get_current_user_flexible, security
-from app.core.exceptions import ForbiddenException, NotFoundException
+from app.core.dependencies import get_current_user, require_roles
+from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan, VaiTroEnum, BenhNhan
-from app.models.medical import ChiDinh, LuotKham
+from app.models.user import TaiKhoan, VaiTroEnum
+from app.models.medical import ChiDinh
 from app.schemas.cls_approval import ClsApprovalResponse, ClsReportResponse, ReturnedClsResultsResponse
 from app.schemas.cls_imaging import (
     ClsFileListResponse,
@@ -32,6 +31,7 @@ from app.schemas.subclinical import (
 )
 from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
 from app.services.cls_approval_service import cls_approval_service
+from app.services.clinical_service import clinical_service
 from app.services.cls_file_service import cls_file_service
 from app.services.cls_lab_result_service import cls_lab_result_service
 from app.services.cls_service_group import CLS_GROUPS
@@ -41,6 +41,18 @@ router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghi
 
 CLS_WORKBENCH_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN]
 CLS_APPROVER_ROLES = [VaiTroEnum.KY_THUAT_VIEN, VaiTroEnum.ADMIN]
+
+
+async def check_cls_file_scope(order_id: int, user: TaiKhoan, db: AsyncSession) -> None:
+    # Technicians staff a shared workbench and receive unassigned orders.
+    if user.vai_tro in (VaiTroEnum.ADMIN.value, VaiTroEnum.KY_THUAT_VIEN.value):
+        return
+    order = await db.get(ChiDinh, order_id)
+    if not order:
+        raise NotFoundException("Không tìm thấy chỉ định cận lâm sàng.")
+    await clinical_service.get_authorized_encounter(order.luot_kham_id, user, db)
+    if user.vai_tro == VaiTroEnum.BENH_NHAN.value and order.trang_thai not in ("da_co_ket_qua", "da_duyet"):
+        raise ForbiddenException("Kết quả cận lâm sàng chưa được trả.")
 
 
 @router.get(
@@ -158,6 +170,8 @@ async def create_orders_from_workspace(
     current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
+    if settings.is_hosted:
+        raise ForbiddenException("Tạo chỉ định từ API lượt khám đã phân công.")
     result = await subclinical_service.create_orders_from_workspace(payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -215,6 +229,7 @@ async def upload_subclinical_file(
     current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
     db: AsyncSession = Depends(get_db)
 ):
+    await check_cls_file_scope(order_id, current_user, db)
     result = await cls_file_service.upload_file(order_id, file, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -233,6 +248,7 @@ async def list_subclinical_files(
     current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
     db: AsyncSession = Depends(get_db)
 ):
+    await check_cls_file_scope(order_id, current_user, db)
     result = await cls_file_service.list_files(order_id, db)
     return ResponseEnvelope.success_response(data=result, message=f"Có {len(result.items)} ảnh kết quả")
 
@@ -243,27 +259,15 @@ async def list_subclinical_files(
     summary="Xem ảnh kết quả CLS (bắt buộc xác thực, không public)"
 )
 async def get_subclinical_file(
+    request: Request,
     order_id: int,
     file_id: str = Path(..., max_length=40),
-    token: Optional[str] = Query(None),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    current_user = await get_current_user_flexible(token=token, credentials=credentials, db=db)
-    if current_user.vai_tro in [VaiTroEnum.KY_THUAT_VIEN.value, VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value]:
-        pass
-    elif current_user.vai_tro == VaiTroEnum.BENH_NHAN.value:
-        bn = (await db.execute(select(BenhNhan).where(BenhNhan.nguoi_dung_id == current_user.nguoi_dung_id))).scalar_one_or_none()
-        order = await db.get(ChiDinh, order_id)
-        if not order:
-            raise NotFoundException("Không tìm thấy ảnh kết quả")
-        if not bn:
-            raise ForbiddenException("Bạn không có quyền truy cập chức năng này")
-        lk = await db.get(LuotKham, order.luot_kham_id)
-        if not lk or lk.benh_nhan_id != bn.id:
-            raise ForbiddenException("Bạn không có quyền truy cập tệp kết quả này")
-    else:
-        raise ForbiddenException("Bạn không có quyền truy cập chức năng này")
+    if any(key.lower() == "token" for key in request.query_params):
+        raise UnauthorizedException("Vui lòng gửi thông tin xác thực trong Authorization header.")
+    await check_cls_file_scope(order_id, current_user, db)
 
     path, media_type = await cls_file_service.get_file(order_id, file_id, db)
     return FileResponse(
@@ -284,6 +288,7 @@ async def delete_subclinical_file(
     current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
     db: AsyncSession = Depends(get_db)
 ):
+    await check_cls_file_scope(order_id, current_user, db)
     await cls_file_service.delete_file(order_id, file_id, db)
     return ResponseEnvelope.success_response(data=None, message="Đã xóa ảnh kết quả")
 

@@ -8,7 +8,6 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.config import settings
 
@@ -142,7 +141,7 @@ class ClinicalService:
 
     
     @staticmethod
-    def _build_hang_doi_query(today, doc_id: Optional[int] = None, dept_id: Optional[int] = None):
+    def _build_hang_doi_query(today, doc_id: Optional[int] = None):
         stmt = (
             select(HangDoiKham)
             .options(
@@ -160,216 +159,128 @@ class ClinicalService:
         )
         if doc_id:
             stmt = stmt.where(HangDoiKham.bac_si_id == doc_id)
-        elif dept_id:
-            stmt = stmt.join(BacSi, HangDoiKham.bac_si_id == BacSi.id).where(BacSi.chuyen_khoa_id == dept_id)
         return stmt.order_by(HangDoiKham.muc_do_uu_tien.asc(), HangDoiKham.so_thu_tu_kham.asc())
 
     async def get_or_sync_workspace_state(
         self,
         db: AsyncSession,
-        current_user: Optional[TaiKhoan] = None,
+        current_user: TaiKhoan,
         doctor_id: Optional[int] = None,
-    ) -> Optional[dict]:
-        if not hasattr(self, "_workspace_state_cache"):
-            self._workspace_state_cache = {}
-        data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
-        encounters = data.get("encounters") or {}
+    ) -> dict:
+        doctor = None
+        if current_user.vai_tro == VaiTroEnum.BAC_SI.value:
+            doctor = await self._get_doctor_from_user(current_user, db)
+            if doctor_id is not None and doctor_id != doctor.id:
+                raise ForbiddenException("Bạn chỉ có quyền xem bàn khám mình phụ trách.")
+            doctor_id = doctor.id
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
         today = datetime.now(clinic_tz).date()
-
-        target_doc_id = doctor_id
-        target_dept_id = None
-        default_dept_code = "KHOA_NOI"
-        default_dept_name = "Khoa Nội tổng quát"
-        if current_user and current_user.vai_tro == VaiTroEnum.BAC_SI.value:
-            stmt_bs = (
-                select(BacSi)
-                .options(selectinload(BacSi.chuyen_khoa))
-                .where(BacSi.nguoi_dung_id == current_user.nguoi_dung_id)
-            )
-            bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
-            if bs_row:
-                target_doc_id = bs_row.id
-                target_dept_id = bs_row.chuyen_khoa_id
-                if bs_row.chuyen_khoa:
-                    default_dept_code = bs_row.chuyen_khoa.ma_chuyen_khoa or default_dept_code
-                    default_dept_name = bs_row.chuyen_khoa.ten_chuyen_khoa or default_dept_name
-        elif target_doc_id is not None:
-            stmt_bs = (
-                select(BacSi)
-                .options(selectinload(BacSi.chuyen_khoa))
-                .where(BacSi.id == target_doc_id)
-            )
-            bs_row = (await db.execute(stmt_bs)).scalar_one_or_none()
-            if bs_row:
-                target_dept_id = bs_row.chuyen_khoa_id
-                if bs_row.chuyen_khoa:
-                    default_dept_code = bs_row.chuyen_khoa.ma_chuyen_khoa or default_dept_code
-                    default_dept_name = bs_row.chuyen_khoa.ten_chuyen_khoa or default_dept_name
-
-        active_tickets = (await db.execute(self._build_hang_doi_query(today, target_doc_id, target_dept_id))).scalars().all()
-        if not active_tickets and target_dept_id is not None:
-            active_tickets = (await db.execute(self._build_hang_doi_query(today, None, target_dept_id))).scalars().all()
-
+        tickets = (await db.execute(self._build_hang_doi_query(today, doctor_id))).scalars().all()
         queue = []
-        invalid_reasons = {
-            "chờ khám bệnh", "cho kham benh", "chờ khám", "cho kham",
-            "đang khám", "dang kham", "chờ cls", "cho cls",
-            "khám theo chỉ định tiếp đón", "kham theo chi dinh tiep don"
-        }
-        for t in active_tickets:
-            target_enc_id = t.lich_kham_id or t.id
-            bn_user = t.benh_nhan.nguoi_dung if t.benh_nhan and t.benh_nhan.nguoi_dung else None
-            ho_ten = bn_user.ho_ten if bn_user else "Bệnh nhân Tiếp đón"
-            gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
-            so_dt = bn_user.so_dien_thoai if bn_user else ""
-
-            birth_year = bn_user.ngay_sinh.year if bn_user and bn_user.ngay_sinh else 1990
-            current_year = datetime.now(timezone.utc).year
-            tuoi = current_year - birth_year if birth_year else 35
-
-            patient_code = t.benh_nhan.ma_dinh_danh_y_te if t.benh_nhan else f"BN-2026-{t.id:04d}"
-            di_ung = t.benh_nhan.di_ung_thuoc if t.benh_nhan and t.benh_nhan.di_ung_thuoc else "Chưa ghi nhận dị ứng"
-
-            raw_ly_do = ""
-            if t.lich_kham and t.lich_kham.ly_do_kham:
-                raw_ly_do = t.lich_kham.ly_do_kham.strip()
-            elif t.ghi_chu_dieu_phoi:
-                raw_ly_do = t.ghi_chu_dieu_phoi.strip()
-
-            ly_do = "" if raw_ly_do.lower() in invalid_reasons else raw_ly_do
-
-            str_enc_id = str(target_enc_id)
-            existing_enc = encounters.get(str_enc_id)
-            status_ticket = t.trang_thai
-            ghi_chu_ticket = t.ghi_chu_dieu_phoi
-            if existing_enc:
-                if (existing_enc.get("ly_do_vao_kham") or "").strip().lower() in invalid_reasons:
-                    existing_enc["ly_do_vao_kham"] = ""
-                if isinstance(existing_enc.get("ai_triage"), dict) and (existing_enc["ai_triage"].get("trieu_chung_nhap") or "").strip().lower() in invalid_reasons:
-                    existing_enc["ai_triage"]["trieu_chung_nhap"] = ""
-                if existing_enc.get("is_locked"):
-                    status_ticket = "da_kham"
-                    ghi_chu_ticket = "Đã khám xong"
-                    if t.trang_thai != TrangThaiHangDoiEnum.DA_KHAM.value:
-                        t.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
-                        t.ghi_chu_dieu_phoi = ghi_chu_ticket
-                else:
-                    chi_dinh_list = existing_enc.get("danh_sach_chi_dinh") or []
-                    active_orders = [
-                        o for o in chi_dinh_list
-                        if isinstance(o, dict) and str(o.get("trang_thai") or "").lower() not in ("da_huy", "huy")
-                    ]
-                    pending_orders = [
-                        o for o in active_orders
-                        if str(o.get("trang_thai") or "").lower() not in ("da_co_ket_qua", "da_duyet")
-                    ]
-                    if active_orders and not pending_orders:
-                        status_ticket = "co_ket_qua_cls"
-                        ghi_chu_ticket = "⭐ CÓ KQ CLS: Đã có kết quả"
-                    elif pending_orders:
-                        status_ticket = "tam_hoan"
-                        ghi_chu_ticket = "Chờ kết quả Cận lâm sàng"
-                        if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
-                            t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-                            t.ghi_chu_dieu_phoi = ghi_chu_ticket
-                    elif t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value or (
-                        existing_enc.get("thoi_gian_bat_dau") and not existing_enc.get("is_locked")
-                    ):
-                        status_ticket = "dang_kham"
-                        ghi_chu_ticket = "Đang khám"
-                        if t.trang_thai != TrangThaiHangDoiEnum.DANG_KHAM.value:
-                            t.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
-                            t.ghi_chu_dieu_phoi = ghi_chu_ticket
-            if not ghi_chu_ticket:
-                ghi_chu_ticket = "Chờ khám" if status_ticket == "cho_kham" else ("Đang khám" if status_ticket == "dang_kham" else ("Chờ kết quả Cận lâm sàng" if status_ticket == "tam_hoan" else ""))
-
-            t_ck = t.bac_si.chuyen_khoa if t.bac_si and t.bac_si.chuyen_khoa else None
-            ticket_dept_code = t_ck.ma_chuyen_khoa if t_ck and t_ck.ma_chuyen_khoa else default_dept_code
-            ticket_dept_name = t_ck.ten_chuyen_khoa if t_ck and t_ck.ten_chuyen_khoa else default_dept_name
-
-            new_q_item = {
-                "ticket_id": t.id,
-                "encounter_id": target_enc_id,
-                "ticket_code": f"TICKET-{t.so_thu_tu_kham:02d}",
-                "patient_id": t.benh_nhan_id,
-                "so_thu_tu_kham": f"{t.so_thu_tu_kham:02d}",
-                "muc_do_uu_tien": t.muc_do_uu_tien or 2,
-                "trang_thai": status_ticket,
-                "so_lan_goi": t.so_lan_goi or 0,
-                "ghi_chu": ghi_chu_ticket,
-                "chuyen_khoa_id": t.bac_si.chuyen_khoa_id if t.bac_si else target_dept_id,
-                "ma_chuyen_khoa": ticket_dept_code,
-                "ten_chuyen_khoa": ticket_dept_name,
-                "benh_nhan": {
-                    "id": t.benh_nhan_id,
-                    "ma": patient_code,
-                    "ho_ten": ho_ten,
-                    "gioi_tinh": gioi_tinh,
-                    "tuoi": tuoi,
-                    "so_dien_thoai": so_dt,
-                    "di_ung_thuoc": di_ung,
-                    "so_lan_kham": 1,
-                },
-                "ten_benh_nhan": ho_ten,
-                "gioi_tinh": gioi_tinh,
-                "tuoi": tuoi,
-                "ly_do": ly_do,
+        encounters = {}
+        for ticket in tickets:
+            patient = ticket.benh_nhan
+            person = patient.nguoi_dung
+            birth_date = person.ngay_sinh
+            age = (
+                today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                if birth_date else None
+            )
+            patient_data = {
+                "id": patient.id,
+                "ma": patient.ma_dinh_danh_y_te,
+                "ho_ten": person.ho_ten,
+                "gioi_tinh": person.gioi_tinh,
+                "tuoi": age,
+                "so_dien_thoai": person.so_dien_thoai,
+                "di_ung_thuoc": patient.di_ung_thuoc,
             }
-            queue.append(new_q_item)
+            encounter = await self._get_ticket_encounter(ticket, db)
+            if doctor and encounter and doctor.id not in (encounter.bac_si_id, encounter.tiep_quan_boi_id):
+                continue
 
-            if str_enc_id not in encounters:
-                encounters[str_enc_id] = {
-                    "id": target_enc_id,
-                    "lich_kham_id": t.lich_kham_id,
-                    "ma_lich_kham": t.lich_kham.ma_lich_kham if t.lich_kham else f"LK-{t.id}",
-                    "benh_nhan": new_q_item["benh_nhan"],
-                    "ai_triage": {
-                        "trieu_chung_nhap": ly_do,
-                        "ten_chuyen_khoa": ticket_dept_name,
-                        "ma_chuyen_khoa": ticket_dept_code,
-                        "do_tin_cay": 0.9,
-                        "co_dau_hieu_cap_cuu": (t.muc_do_uu_tien == 1),
-                    },
-                    "chuyen_khoa_kham": ticket_dept_code,
-                    "ten_chuyen_khoa": ticket_dept_name,
-                    "kham_chuyen_khoa": None,
-                    "thoi_gian_bat_dau": None,
-                    "ly_do_vao_kham": ly_do,
-                    "benh_su": t.lich_kham.trieu_chung_ban_dau if t.lich_kham else "",
-                    "kham_lam_sang_bo_phan": "",
-                    "nhiet_do_c": "36.5",
-                    "mach_lan_phut": "75",
-                    "huyet_ap_tam_thu": "120",
-                    "huyet_ap_tam_truong": "80",
-                    "nhip_tho_lan_phut": "18",
-                    "can_nang_kg": "60",
-                    "chieu_cao_cm": "165",
-                    "bmi": "22.0",
-                    "ket_luan_dieu_tri": "",
-                    "loi_dan_bac_si": "",
-                    "ngay_hen_tai_kham": "",
-                    "danh_sach_chan_doan": [],
-                    "danh_sach_chi_dinh": [],
-                    "don_thuoc": [],
+            appointment = ticket.lich_kham
+            department = ticket.bac_si.chuyen_khoa
+            workspace_id = f"ticket-{ticket.id}"
+            status = ticket.trang_thai
+            if status in (TrangThaiHangDoiEnum.CHO_GOI.value, TrangThaiHangDoiEnum.DANG_GOI.value):
+                status = TrangThaiHangDoiEnum.CHO_KHAM.value
+            order_rows = encounter.danh_sach_chi_dinh if encounter else []
+            active_orders = [order for order in order_rows if order.trang_thai != "da_huy"]
+            orders_returned = active_orders and all(
+                order.trang_thai in ("da_co_ket_qua", "da_duyet") for order in active_orders
+            )
+            if encounter and encounter.is_locked:
+                status = TrangThaiHangDoiEnum.DA_KHAM.value
+            elif status == TrangThaiHangDoiEnum.TAM_HOAN.value and orders_returned:
+                status = "co_ket_qua_cls"
+
+            queue.append({
+                "ticket_id": ticket.id,
+                "encounter_id": workspace_id,
+                "ticket_code": f"TICKET-{ticket.so_thu_tu_kham:02d}",
+                "patient_id": patient.id,
+                "so_thu_tu_kham": f"{ticket.so_thu_tu_kham:02d}",
+                "muc_do_uu_tien": ticket.muc_do_uu_tien,
+                "trang_thai": status,
+                "so_lan_goi": ticket.so_lan_goi,
+                "ghi_chu": ticket.ghi_chu_dieu_phoi,
+                "chuyen_khoa_id": department.id if department else None,
+                "ma_chuyen_khoa": department.ma_chuyen_khoa if department else None,
+                "ten_chuyen_khoa": department.ten_chuyen_khoa if department else None,
+                "benh_nhan": patient_data,
+                "ten_benh_nhan": person.ho_ten,
+                "gioi_tinh": person.gioi_tinh,
+                "tuoi": age,
+                "ly_do": appointment.ly_do_kham if appointment else None,
+            })
+            encounter_data = (
+                self._to_encounter_response(encounter).model_dump(mode="json")
+                if encounter else {
+                    "ly_do_vao_kham": appointment.ly_do_kham if appointment else None,
+                    "benh_su": appointment.trieu_chung_ban_dau if appointment else None,
                     "is_locked": False,
+                    "danh_sach_chan_doan": [],
                 }
-            else:
-                if encounters[str_enc_id].get("chuyen_khoa_kham") in (None, "", "CHUYEN_KHOA"):
-                    encounters[str_enc_id]["chuyen_khoa_kham"] = ticket_dept_code
-                encounters[str_enc_id]["ten_chuyen_khoa"] = ticket_dept_name
+            )
+            encounter_data.update({
+                "id": workspace_id,
+                "ticket_id": ticket.id,
+                "lich_kham_id": ticket.lich_kham_id,
+                "luot_kham_server_id": encounter.id if encounter else None,
+                "ma_lich_kham": appointment.ma_lich_kham if appointment else None,
+                "benh_nhan": patient_data,
+                "chuyen_khoa_kham": department.ma_chuyen_khoa if department else None,
+                "ten_chuyen_khoa": department.ten_chuyen_khoa if department else None,
+                "danh_sach_chi_dinh": [
+                    {
+                        **order_data,
+                        "server_order_id": order.id,
+                        "ma_dich_vu": order.dich_vu.ma_dich_vu if order.dich_vu else None,
+                        "nhom_dich_vu": order.dich_vu.ma_nhom_byt if order.dich_vu else None,
+                        "trang_thai": "da_co_ket_qua" if order.trang_thai == "da_duyet" else order.trang_thai,
+                    }
+                    for order, order_data in zip(order_rows, encounter_data.get("danh_sach_chi_dinh", []))
+                ],
+            })
+            if encounter and encounter.don_thuoc:
+                prescription = encounter_data["don_thuoc"]
+                prescription["danh_sach_thuoc"] = prescription["danh_sach_chi_tiet"]
+                encounter_data["danh_sach_thuoc"] = prescription["danh_sach_chi_tiet"]
+            encounters[workspace_id] = encounter_data
 
-        data["queue"] = queue
-        data["encounters"] = encounters
-        row.data_json = data
-        flag_modified(row, "data_json")
-        await db.commit()
+        return await self.enrich_workspace_ai({"queue": queue, "encounters": encounters}, db)
 
-        if current_user and current_user.vai_tro in ("bac_si", "admin"):
-            data = await self.enrich_workspace_ai(data, db)
-
-        return data
+    async def _get_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, *, for_update: bool = False
+    ) -> LuotKham | None:
+        condition = LuotKham.hang_doi_kham_id == ticket.id
+        if ticket.lich_kham_id is not None:
+            condition = or_(condition, LuotKham.lich_kham_id == ticket.lich_kham_id)
+        return await self._get_encounter_matching(
+            condition & (LuotKham.benh_nhan_id == ticket.benh_nhan_id), db, for_update
+        )
 
     @staticmethod
     def _assert_completion_diagnosis_invariant(luot_kham: LuotKham) -> None:
@@ -407,6 +318,9 @@ class ClinicalService:
         db: AsyncSession,
         for_update: bool = False
     ) -> Optional[LuotKham]:
+        return await self._get_encounter_matching(LuotKham.id == encounter_id, db, for_update)
+
+    async def _get_encounter_matching(self, condition, db: AsyncSession, for_update: bool = False) -> LuotKham | None:
         stmt = (
             select(LuotKham)
             .options(
@@ -415,11 +329,39 @@ class ClinicalService:
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
                 selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet)
             )
-            .where(LuotKham.id == encounter_id)
+            .where(condition)
         )
         if for_update:
             stmt = stmt.with_for_update()
         return (await db.execute(stmt)).scalar_one_or_none()
+
+    async def assert_encounter_access(self, encounter: LuotKham, user: TaiKhoan, db: AsyncSession) -> None:
+        if user.vai_tro == VaiTroEnum.ADMIN.value:
+            return
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            doctor = await self._get_doctor_from_user(user, db)
+            if doctor.id in (encounter.bac_si_id, encounter.tiep_quan_boi_id):
+                return
+        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+            patient = await db.get(BenhNhan, encounter.benh_nhan_id)
+            if patient and patient.nguoi_dung_id == user.nguoi_dung_id:
+                return
+        raise ForbiddenException("Bạn không có quyền truy cập lượt khám này.")
+
+    async def get_authorized_encounter(self, encounter_id: int, user: TaiKhoan, db: AsyncSession) -> LuotKham:
+        encounter = await db.get(LuotKham, encounter_id)
+        if not encounter:
+            raise NotFoundException("Không tìm thấy thông tin lượt khám.")
+        await self.assert_encounter_access(encounter, user, db)
+        return encounter
+
+    async def assert_prescription_edit_access(self, prescription_id: int, user: TaiKhoan, db: AsyncSession) -> None:
+        if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
+            raise ForbiddenException("Bạn không có quyền cập nhật đơn thuốc.")
+        prescription = await db.get(DonThuoc, prescription_id)
+        if not prescription:
+            raise NotFoundException("Không tìm thấy đơn thuốc.")
+        await self.get_authorized_encounter(prescription.luot_kham_id, user, db)
 
     def _to_prescription_response(self, dt: DonThuoc) -> PrescriptionResponse:
         return PrescriptionResponse(
@@ -665,16 +607,7 @@ class ClinicalService:
         if not luot_kham:
             raise NotFoundException("Không tìm thấy thông tin lượt khám!")
 
-        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
-            stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
-            benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
-            if not benh_nhan or luot_kham.benh_nhan_id != benh_nhan.id:
-                raise ForbiddenException("Bạn không có quyền xem hồ sơ bệnh án của người khác!")
-        elif user.vai_tro == VaiTroEnum.BAC_SI.value:
-            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
-            bac_si = (await db.execute(stmt_bs)).scalar_one_or_none()
-            if not bac_si or (luot_kham.bac_si_id != bac_si.id and luot_kham.tiep_quan_boi_id != bac_si.id and user.vai_tro != VaiTroEnum.ADMIN.value):
-                raise ForbiddenException("Bạn chỉ có quyền xem bệnh án do mình phụ trách hoặc tiếp quản!")
+        await self.assert_encounter_access(luot_kham, user, db)
 
         await audit_trail_service.log_access(
             db=db,
@@ -872,9 +805,10 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[OrderResponse]:
+        await self.get_authorized_encounter(encounter_id, user, db)
         stmt = (
             select(ChiDinh)
-            .options(selectinload(ChiDinh.dich_vu))
+            .options(selectinload(ChiDinh.dich_vu), selectinload(ChiDinh.phieu_ket_qua))
             .where(ChiDinh.luot_kham_id == encounter_id)
             .order_by(ChiDinh.id.asc())
         )
@@ -905,16 +839,26 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[EncounterResponse]:
+        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+            patient = await db.get(BenhNhan, patient_id)
+            if not patient or patient.nguoi_dung_id != user.nguoi_dung_id:
+                raise ForbiddenException("Bạn chỉ có quyền xem lịch sử khám của mình.")
+        elif user.vai_tro not in (VaiTroEnum.ADMIN.value, VaiTroEnum.BAC_SI.value):
+            raise ForbiddenException("Bạn không có quyền xem lịch sử khám.")
         stmt = (
             select(LuotKham)
             .options(
                 selectinload(LuotKham.danh_sach_chan_doan),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
                 selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet)
             )
             .where(LuotKham.benh_nhan_id == patient_id)
             .order_by(LuotKham.thoi_gian_bat_dau.desc())
         )
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            doctor = await self._get_doctor_from_user(user, db)
+            stmt = stmt.where(or_(LuotKham.bac_si_id == doctor.id, LuotKham.tiep_quan_boi_id == doctor.id))
         encounters = (await db.execute(stmt)).scalars().all()
         return [self._to_encounter_response(lk) for lk in encounters]
 
@@ -923,7 +867,7 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession
     ) -> List[EncounterResponse]:
-        stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.id)
+        stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
         if not benh_nhan:
             return []
@@ -1103,16 +1047,7 @@ class ClinicalService:
         if not luot_kham:
             raise NotFoundException(f"Không tìm thấy lượt khám với ID {encounter_id}!")
 
-        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
-            stmt_bn = select(BenhNhan.id).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
-            bn_id = (await db.execute(stmt_bn)).scalar_one_or_none()
-            if luot_kham.benh_nhan_id != bn_id:
-                raise ForbiddenException("Bạn không có quyền xem đơn thuốc của người bệnh khác!")
-        elif user.vai_tro == VaiTroEnum.BAC_SI.value:
-            stmt_bs = select(BacSi.id).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
-            bs_id = (await db.execute(stmt_bs)).scalar_one_or_none()
-            if luot_kham.bac_si_id != bs_id and luot_kham.tiep_quan_boi_id != bs_id and user.vai_tro != VaiTroEnum.ADMIN.value:
-                raise ForbiddenException("Bạn không phụ trách ca khám này!")
+        await self.assert_encounter_access(luot_kham, user, db)
 
         if not luot_kham.don_thuoc:
             raise NotFoundException("Lượt khám này chưa có đơn thuốc nào được kê!")
@@ -1431,6 +1366,7 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> Optional[PhysicalExamResponse]:
+        await self.get_authorized_encounter(encounter_id, user, db)
         stmt = select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == encounter_id)
         pe = (await db.execute(stmt)).scalar_one_or_none()
         if not pe:
@@ -1583,6 +1519,7 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> Optional[dict]:
+        await self.get_authorized_encounter(encounter_id, user, db)
         key = (dept_code or "").strip().lower()
         model_cls = self._SPECIALTY_MODEL_MAP.get(key)
         if not model_cls:
@@ -1606,6 +1543,7 @@ class ClinicalService:
         user: TaiKhoan,
         db: AsyncSession,
     ) -> dict:
+        await self.get_authorized_encounter(encounter_id, user, db)
         out = {}
         for key, model_cls in [
             ("noi", KhamNoiKhoa),
@@ -1670,61 +1608,61 @@ class ClinicalService:
         self,
         db: AsyncSession,
         payload: dict,
-        current_user: Optional[TaiKhoan] = None,
+        current_user: TaiKhoan,
     ) -> dict:
-        user_id = current_user.id if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
+        doctor = None
+        if current_user.vai_tro != VaiTroEnum.ADMIN.value:
+            doctor = await self._get_doctor_from_user(current_user, db)
 
         try:
-            if not hasattr(self, "_workspace_state_cache"):
-                self._workspace_state_cache = {}
-            old_data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
-            old_queue = old_data.get("queue") or []
-            client_queue = payload.get("queue") or []
-            merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
-            for cq in client_queue:
-                if isinstance(cq, dict) and "ticket_id" in cq:
-                    merged_queue_map[cq["ticket_id"]] = cq
-            payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
-            self._workspace_state_cache["doctor_clinical_workspace"] = payload
+            from app.services.credential_service import credential_service
 
-            client_queue = payload.get("queue") or []
-            if isinstance(client_queue, list):
-                for q_item in client_queue:
-                    if isinstance(q_item, dict) and q_item.get("ticket_id"):
-                        try:
-                            tid = int(q_item["ticket_id"])
-                            t_rec = (await db.execute(select(HangDoiKham).where(HangDoiKham.id == tid))).scalar_one_or_none()
-                            if t_rec:
-                                q_status = q_item.get("trang_thai")
-                                q_note = q_item.get("ghi_chu")
-                                if q_status == "dang_kham":
-                                    t_rec.trang_thai = TrangThaiHangDoiEnum.DANG_KHAM.value
-                                    t_rec.thoi_gian_bat_dau = t_rec.thoi_gian_bat_dau or datetime.now(timezone.utc)
-                                    if q_item.get("so_lan_goi"):
-                                        try:
-                                            t_rec.so_lan_goi = int(q_item["so_lan_goi"])
-                                        except (ValueError, TypeError):
-                                            pass
-                                    t_rec.ghi_chu_dieu_phoi = q_note or "Đang khám"
-                                elif q_status == "tam_hoan":
-                                    t_rec.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-                                    if q_note:
-                                        t_rec.ghi_chu_dieu_phoi = q_note
-                                elif q_status == "da_kham":
-                                    t_rec.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
-                                    if q_note:
-                                        t_rec.ghi_chu_dieu_phoi = q_note
-                                elif q_status == "co_ket_qua_cls":
-                                    t_rec.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
-                                    t_rec.muc_do_uu_tien = 3
-                                    if q_note:
-                                        t_rec.ghi_chu_dieu_phoi = q_note
-                                elif q_status == "cho_kham":
-                                    t_rec.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
-                                    if q_note:
-                                        t_rec.ghi_chu_dieu_phoi = q_note
-                        except (ValueError, TypeError):
-                            pass
+            for item in sorted(payload["queue"], key=lambda entry: entry["ticket_id"]):
+                ticket = (await db.execute(
+                    select(HangDoiKham).options(selectinload(HangDoiKham.lich_kham))
+                    .where(HangDoiKham.id == item["ticket_id"]).with_for_update()
+                )).scalar_one_or_none()
+                if not ticket:
+                    raise NotFoundException("Không tìm thấy vé hàng đợi.")
+                if doctor and ticket.bac_si_id != doctor.id:
+                    raise ForbiddenException("Bạn chỉ có quyền cập nhật vé khám được phân công.")
+                if ticket.trang_thai in (
+                    TrangThaiHangDoiEnum.DA_KHAM.value,
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ):
+                    continue
+
+                new_status = item["trang_thai"]
+                if new_status == TrangThaiHangDoiEnum.DANG_KHAM.value:
+                    encounter = await self._get_ticket_encounter(ticket, db, for_update=True)
+                    if encounter and encounter.is_locked:
+                        raise ConflictException("Hồ sơ bệnh án đã hoàn tất và bị khóa.")
+                    if not encounter:
+                        await credential_service.check_doctor_license_valid(db, ticket.bac_si_id)
+                        if ticket.lich_kham and ticket.lich_kham.trang_thai in CANCELLED_STATUSES:
+                            raise ConflictException("Không thể bắt đầu lượt khám có lịch hẹn đã hủy.")
+                        db.add(LuotKham(
+                            lich_kham_id=ticket.lich_kham_id,
+                            hang_doi_kham_id=ticket.id,
+                            bac_si_id=ticket.bac_si_id,
+                            benh_nhan_id=ticket.benh_nhan_id,
+                            thoi_gian_bat_dau=datetime.now(timezone.utc),
+                            ly_do_vao_kham=ticket.lich_kham.ly_do_kham if ticket.lich_kham else None,
+                        ))
+                        if ticket.lich_kham:
+                            ticket.lich_kham.trang_thai = TrangThaiLichEnum.DANG_KHAM.value
+                        await db.flush()
+                    ticket.trang_thai = new_status
+                    ticket.thoi_gian_bat_dau = ticket.thoi_gian_bat_dau or datetime.now(timezone.utc)
+                    if item.get("so_lan_goi") is not None:
+                        ticket.so_lan_goi = max(ticket.so_lan_goi, item["so_lan_goi"])
+                elif new_status == TrangThaiHangDoiEnum.TAM_HOAN.value:
+                    ticket.trang_thai = new_status
+                elif new_status != ticket.trang_thai:
+                    continue
+                if item.get("ghi_chu") is not None:
+                    ticket.ghi_chu_dieu_phoi = item["ghi_chu"]
 
             def _to_int(val):
                 try:
@@ -1747,27 +1685,29 @@ class ClinicalService:
                     rec.bac_si_thuc_hien_id = b_id
                 return rec
 
-            encounters = payload.get("encounters") or {}
-            first_bs = (await db.execute(select(BacSi).limit(1))).scalars().first()
+            encounters = payload["encounters"]
 
             if isinstance(encounters, dict):
                 for enc_key, enc_data in encounters.items():
-                    if not isinstance(enc_data, dict):
-                        continue
-
-                    target_lk = None
-                    raw_id = enc_data.get("id") or enc_key
-                    try:
-                        enc_id = int(raw_id)
-                        target_lk = (await db.execute(select(LuotKham).where(LuotKham.id == enc_id))).scalar_one_or_none()
-                    except (ValueError, TypeError):
-                        target_lk = None
-
-                    if not target_lk:
-                        logger.warning(
-                            f"Bỏ qua đồng bộ encounter {raw_id}: không tìm thấy LuotKham tương ứng trong CSDL."
-                        )
-                        continue
+                    if enc_key.startswith("ticket-") and enc_key[7:].isdigit():
+                        ticket = await db.get(HangDoiKham, int(enc_key[7:]))
+                        if not ticket:
+                            raise NotFoundException("Không tìm thấy vé hàng đợi.")
+                        if doctor and ticket.bac_si_id != doctor.id:
+                            raise ForbiddenException("Bạn chỉ có quyền cập nhật vé khám được phân công.")
+                        target_lk = await self._get_ticket_encounter(ticket, db, for_update=True)
+                        if not target_lk:
+                            raise ConflictException("Cần bắt đầu lượt khám trước khi lưu bệnh án.")
+                    elif enc_key.isdigit():
+                        target_lk = await self._get_encounter_with_relations(int(enc_key), db, for_update=True)
+                        if not target_lk:
+                            raise NotFoundException("Không tìm thấy thông tin lượt khám.")
+                    else:
+                        raise UnprocessableEntityException("Mã lượt khám không hợp lệ.")
+                    if doctor and doctor.id not in (target_lk.bac_si_id, target_lk.tiep_quan_boi_id):
+                        raise ForbiddenException("Bạn chỉ có quyền cập nhật lượt khám được phân công.")
+                    if target_lk.is_locked:
+                        raise ConflictException("Hồ sơ bệnh án đã hoàn tất và bị khóa.")
 
                     if "mach_lan_phut" in enc_data:
                         m = _to_int(enc_data.get("mach_lan_phut"))
@@ -1820,7 +1760,7 @@ class ClinicalService:
                     if enc_data.get("kham_lam_sang_bo_phan"):
                         target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
 
-                    bs_id = target_lk.bac_si_id or (first_bs.id if first_bs else None)
+                    bs_id = doctor.id if doctor else (target_lk.tiep_quan_boi_id or target_lk.bac_si_id)
 
                     kham_ck = enc_data.get("kham_chuyen_khoa")
                     if kham_ck is not None or enc_data.get("ket_luan_dieu_tri"):
@@ -2076,7 +2016,7 @@ class ClinicalService:
                         )
 
                     orders = [o for o in (enc_data.get("danh_sach_chi_dinh") or []) if isinstance(o, dict)]
-                    if orders:
+                    if orders and not settings.is_hosted:
                         service_codes = [str(o.get("ma_dich_vu") or f"DV-{o.get('dich_vu_id', 1)}")[:50] for o in orders]
                         existing_dvs = (
                             await db.execute(select(DichVu).where(DichVu.ma_dich_vu.in_(service_codes)))
@@ -2336,7 +2276,8 @@ class ClinicalService:
                                         "cach_dung": c_dung,
                                     })
 
-                                if requested_status == TrangThaiDonThuoc.SIGNED.value:
+                                if requested_status == TrangThaiDonThuoc.SIGNED.value and not settings.is_hosted:
+                                    await credential_service.check_doctor_license_valid(db, bs_id)
                                     existing_rx.trang_thai = TrangThaiDonThuoc.SIGNED.value
                                     existing_rx.ngay_ky = datetime.now(timezone.utc)
                                     existing_rx.nguoi_ky_id = bs_id
@@ -2350,9 +2291,8 @@ class ClinicalService:
 
             await db.commit()
             return {"saved": True}
-        except Exception as e:
+        except Exception:
             await db.rollback()
-            logger.error(f"Error syncing clinical data to Postgres: {e}", exc_info=True)
             raise
 
     def strip_vietnamese_accents(self, text: str) -> str:

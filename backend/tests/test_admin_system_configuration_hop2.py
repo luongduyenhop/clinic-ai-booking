@@ -229,7 +229,8 @@ async def test_production_environment_prevents_default_insecure_admin(db_session
             await db_session.delete(existing_admin)
             await db_session.flush()
 
-        await seed_database(db_session)
+        with pytest.raises(RuntimeError, match="outside development and test"):
+            await seed_database(db_session)
 
         admin_account = (await db_session.execute(stmt_admin)).scalar_one_or_none()
         assert admin_account is None

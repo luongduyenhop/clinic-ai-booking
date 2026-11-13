@@ -71,6 +71,7 @@ import TasksPage from './pages/reception/TasksPage'
 import ReportsPage from './pages/reception/ReportsPage'
 
 function App() {
+    const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
     return (
         <>
             <ToastContainer position="top-right" autoClose={3500} />
@@ -89,7 +90,7 @@ function App() {
                         <Route path="check-in" element={<CheckInPage />} />
                         <Route path="queue" element={<QueueManagementPage />} />
                         <Route path="cashier" element={<CashierManagementPage />} />
-                        <Route path="billing-audit" element={<CashierBillingAuditDashboard />} />
+                        <Route path="billing-audit" element={demoMode ? <Navigate to="/reception/cashier" replace /> : <CashierBillingAuditDashboard />} />
                         <Route path="patients" element={<PatientsPage />} />
                         <Route path="schedule" element={<ClinicSchedulePage />} />
                         <Route path="administration" element={<AdministrationPage />} />
@@ -103,7 +104,7 @@ function App() {
                     <Route path="/bac-si" element={<DoctorSection />} />
                     <Route path="/chuyen-khoa" element={<SpecialtySection />} />
                     <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/register" element={demoMode ? <Navigate to="/login" replace /> : <RegisterPage />} />
                     <Route path="/dat-lich" element={<BookingPage />} />
                     <Route path="/dat-lich-kham" element={<BookingWizardPage />} />
                     <Route path="/khao-sat-trieu-chung" element={<SymptomSurveyPage />} />
@@ -145,7 +146,7 @@ function App() {
                         <Route path="lich-hen" element={<AppointmentManagementPage />} />
 
                         <Route path="thu-chi" element={<CashierManagementPage />} />
-                        <Route path="thu-ngan-vietqr" element={<CashierBillingAuditDashboard />} />
+                        <Route path="thu-ngan-vietqr" element={demoMode ? <Navigate to="/admin/thu-chi" replace /> : <CashierBillingAuditDashboard />} />
 
                         <Route path="tin-tuc" element={<NewsManagementPage />} />
                         <Route path="danh-muc-tin-tuc" element={<NewsManagementPage />} />

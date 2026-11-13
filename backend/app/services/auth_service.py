@@ -71,11 +71,10 @@ class AuthService:
         db.add(tai_khoan)
         await db.commit()
 
-        logger.info(f"🔑 [OTP GENERATED] Email: {payload.email} | Code: {otp_code} | Hết hạn lúc: {otp_expired_at}")
         try:
             await email_service.send_otp_email(recipient_email=payload.email, otp_code=otp_code)
-        except Exception as exc:
-            logger.warning(f"⚠️ [EMAIL FAILED] Không thể gửi OTP qua email: {exc}")
+        except Exception:
+            logger.warning("Không thể gửi email OTP.")
 
         return {
             "email": payload.email,
@@ -388,7 +387,7 @@ class AuthService:
         await db.commit()
         await db.refresh(nguoi_dung)
 
-        logger.info(f"👤 [PROFILE UPDATED] User ID: {user.id} | Họ tên: {nguoi_dung.ho_ten}")
+        logger.info("Đã cập nhật hồ sơ tài khoản %s.", user.id)
         return await self.get_user_profile(user, db)
 
     async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:

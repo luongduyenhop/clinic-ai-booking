@@ -1,4 +1,4 @@
-export const DOMAIN = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+export const DOMAIN = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
 export const SIGNALR_HUB = import.meta.env.VITE_SIGNALR_HUB_URL || ''
 
 export const TOKEN = 'accessToken'
@@ -39,6 +39,7 @@ export const STAFF_ROLES = [
     'CASHIER',
     ROLE_TECHNICIAN,
     'TECHNICIAN',
+    'KY_THUAT_VIEN',
     'KTV_CLS',
     ROLE_LAB_TECH,
     'KTV_XET_NGHIEM',
@@ -92,7 +93,7 @@ export const getRoleDefaultPath = (role) => {
     if (r === 'BAC_SI' || r === 'DOCTOR' || r === 'BS') return '/doctor'
     if (r === 'LE_TAN' || r === 'RECEPTIONIST' || r === 'RECEPTION_SUPERVISOR' || r === 'THU_NGAN' || r === 'CASHIER') return '/reception/dashboard'
     if (r === 'KTV_XET_NGHIEM' || r === 'LAB_TECH' || r === 'ROLE-LAB-TECH') return '/staff/paraclinical-work?nhom=XET_NGHIEM'
-    if (r === 'KTV_CLS' || r === 'TECHNICIAN') return '/staff/paraclinical-work'
+    if (r === 'KTV_CLS' || r === 'TECHNICIAN' || r === 'KY_THUAT_VIEN') return '/staff/paraclinical-work'
     return '/benh-nhan'
 }
 

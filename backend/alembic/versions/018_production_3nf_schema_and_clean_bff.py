@@ -13,9 +13,6 @@ def upgrade() -> None:
     inspector = sa.inspect(bind)
     existing_tables = set(inspector.get_table_names())
 
-    if "he_thong_trang_thai_bff" in existing_tables:
-        op.drop_table("he_thong_trang_thai_bff")
-
     if "users" not in existing_tables:
         op.create_table(
             "users",

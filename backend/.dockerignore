@@ -17,6 +17,15 @@ __pycache__/
 
 # Sensitive environment files
 .env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+logs/
+reports/
 
 # Documentation & IDE
 docs/

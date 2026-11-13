@@ -5,7 +5,7 @@ dist
 .idea
 .vscode
 .env
-.env.local
+.env.*
 backend
 document
 screenshots

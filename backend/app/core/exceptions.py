@@ -75,7 +75,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        logger.warning(f"Validation Error at {request.url.path}: {exc.errors()}")
+        logger.warning("Validation error at %s", request.url.path)
         formatted_errors = []
         for err in exc.errors():
             loc = " -> ".join(str(loc_item) for loc_item in err.get("loc", []))

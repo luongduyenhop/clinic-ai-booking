@@ -1,8 +1,6 @@
-import asyncio
 from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal, engine, Base
 from app.core.security import hash_password
 from app.core.seed_5_departments import (
     DEPARTMENTS_DATA,
@@ -42,16 +40,7 @@ from app.models.medical import (
 )
 
 
-async def _execute_seeding(session):
-    valid_mas = {item["ma"] for item in DEPARTMENTS_DATA}
-    stmt_deactivate_legacy = select(ChuyenKhoa).where(
-        ~ChuyenKhoa.ma_chuyen_khoa.in_(valid_mas),
-        ChuyenKhoa.is_active.is_(True),
-    )
-    legacy_depts = (await session.execute(stmt_deactivate_legacy)).scalars().all()
-    for old_dept in legacy_depts:
-        old_dept.is_active = False
-
+async def seed_catalogs(session):
     dept_map = {}
     for item in DEPARTMENTS_DATA:
         stmt = select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == item["ma"])
@@ -177,6 +166,18 @@ async def _execute_seeding(session):
             service_map[code] = new_svc
 
     await session.flush()
+    return dept_map, room_map, service_map
+
+
+async def _execute_seeding(session):
+    valid_codes = {department["ma"] for department in DEPARTMENTS_DATA}
+    legacy_departments = (await session.scalars(select(ChuyenKhoa).where(
+        ~ChuyenKhoa.ma_chuyen_khoa.in_(valid_codes),
+        ChuyenKhoa.is_active.is_(True),
+    ))).all()
+    for department in legacy_departments:
+        department.is_active = False
+    dept_map, room_map, _ = await seed_catalogs(session)
 
     is_dev_or_test = settings.ENVIRONMENT.lower() in ("development", "test", "local") or settings.DEBUG
 
@@ -473,18 +474,14 @@ async def _execute_seeding(session):
     await session.flush()
 
 
-async def seed_database(session=None):
-    if session is not None:
-        await _execute_seeding(session)
-        return
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with AsyncSessionLocal() as db_sess:
-        await _execute_seeding(db_sess)
-        await db_sess.commit()
+async def seed_database(session):
+    """Populate local test fixtures in an explicitly supplied test session."""
+    if settings.ENVIRONMENT.lower() not in {"development", "test", "local"}:
+        raise RuntimeError("Local test fixtures are unavailable outside development and test")
+    await _execute_seeding(session)
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_database())
+    from scripts.seed_demo import main
+
+    main()

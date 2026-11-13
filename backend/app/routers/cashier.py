@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, Header, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user,require_roles
 from app.core.response import ResponseEnvelope
 from app.core.exceptions import ForbiddenException
 from app.models.production_models import UserProduction
 from app.models.user import TaiKhoan, VaiTroEnum
+from app.routers.billing import require_bank_integration
 from app.schemas.cashier import (
     CloseShiftRequest,
     CloseShiftResponse,
@@ -206,6 +208,8 @@ async def pay_invoice(
     current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
+    if settings.is_demo and payload.phuong_thuc_thanh_toan != "tien_mat":
+        raise ForbiddenException("Bản demo chỉ ghi nhận thu tiền mặt thử nghiệm.")
     invoice = await cashier_service.pay_invoice(
         invoice_id=invoice_id,
         payload=payload,
@@ -386,6 +390,7 @@ async def create_invoice_from_encounter(
 @router.post(
     "/invoices/{invoice_id}/generate-vietqr",
     response_model=ResponseEnvelope[VietQrGenerateResponse],
+    dependencies=[Depends(require_bank_integration)],
     summary="Sinh mã VietQR động chuẩn Napas 247 cho hóa đơn"
 )
 async def generate_invoice_vietqr(
@@ -403,6 +408,7 @@ async def generate_invoice_vietqr(
 @router.post(
     "/payments/webhook",
     response_model=ResponseEnvelope[BankWebhookResponse],
+    dependencies=[Depends(require_bank_integration)],
     summary="Tiếp nhận Webhook ngân hàng đối soát thanh toán VietQR Napas 247"
 )
 async def process_cashier_bank_webhook(

@@ -5,6 +5,7 @@ import { pickErrorMessage } from '../../utils/helpers/apiHelper'
 
 
 export const USE_MOCK = false
+const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 const WORKSPACE_STORAGE_KEY = 'clinic_doctor_workspace_v1'
 
 const FALLBACK_SERVICES = [
@@ -220,6 +221,15 @@ export class ClinicalService extends BaseServices {
                 __skipGlobalLoading: true,
             })
             const remote = res?.data?.data
+            if (demoMode) {
+                if (!remote?.encounters || !Array.isArray(remote.queue)) {
+                    throw new Error('Máy chủ trả về dữ liệu bàn khám không hợp lệ.')
+                }
+                db.encounters = remote.encounters
+                db.queue = remote.queue
+                db.extraOrders = []
+                return
+            }
             if (remote && remote.encounters && Array.isArray(remote.queue)) {
                 const activeDangKham = db.queue.filter((t) => t.trang_thai === 'dang_kham')
                 const localEncounters = db.encounters || {}
@@ -272,11 +282,18 @@ export class ClinicalService extends BaseServices {
                 } catch {
                 }
             }
-        } catch {
+        } catch (error) {
+            this._hydratedFromPg = false
+            if (demoMode) throw error
         }
     }
 
-    persistToPostgres = async () => {
+    persistToPostgres = async (changes = {}) => {
+        if (demoMode) {
+            if (!changes.queue?.length && !Object.keys(changes.encounters || {}).length) return
+            await this.put('/api/v1/clinical/workspace-state', changes, { __skipGlobalLoading: true })
+            return
+        }
         try {
             localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
         } catch {
@@ -415,7 +432,7 @@ export class ClinicalService extends BaseServices {
         next.ghi_chu = 'Đang khám'
         const enc = db.encounters[next.encounter_id] || db.encounters[String(next.encounter_id)]
         if (enc && !enc.thoi_gian_bat_dau) enc.thoi_gian_bat_dau = new Date().toISOString()
-        await this.persistToPostgres()
+        await this.persistToPostgres({ queue: [next] })
         return delay(ticketToQueueItem(next))
     }
 
@@ -443,7 +460,7 @@ export class ClinicalService extends BaseServices {
         if (enc && !enc.thoi_gian_bat_dau) {
             enc.thoi_gian_bat_dau = new Date().toISOString()
         }
-        await this.persistToPostgres()
+        await this.persistToPostgres({ queue: [ticket] })
         return delay(ticketToQueueItem(ticket))
     }
 
@@ -451,7 +468,7 @@ export class ClinicalService extends BaseServices {
         const t = db.queue.find((x) => x.ticket_id === ticketId)
         if (!t) return reject('Không tìm thấy số thứ tự')
         t.so_lan_goi += 1
-        await this.persistToPostgres()
+        await this.persistToPostgres({ queue: [t] })
         return delay(ticketToQueueItem(t))
     }
 
@@ -460,7 +477,7 @@ export class ClinicalService extends BaseServices {
         if (!t) return reject('Không tìm thấy lượt khám')
         t.trang_thai = 'tam_hoan'
         t.ghi_chu = reason
-        await this.persistToPostgres()
+        await this.persistToPostgres({ queue: [t] })
         return delay(ticketToQueueItem(t))
     }
 
@@ -482,6 +499,11 @@ export class ClinicalService extends BaseServices {
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
         if (!enc) return reject('Không tìm thấy lượt khám')
         if (enc.is_locked) return reject('Bệnh án đã khóa, không thể sửa.')
+        if (demoMode) {
+            await this.persistToPostgres({ encounters: { [encounterId]: patch } })
+            Object.assign(enc, patch)
+            return { data: { saved_at: new Date().toISOString() } }
+        }
         if (!enc.thoi_gian_bat_dau) {
             enc.thoi_gian_bat_dau = new Date().toISOString()
         }
@@ -494,6 +516,22 @@ export class ClinicalService extends BaseServices {
         const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
         if (!enc) return reject('Không tìm thấy lượt khám')
         const existing = new Set((enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy').map((o) => String(o.dich_vu_id)))
+        if (demoMode) {
+            if (!enc.luot_kham_server_id) return reject('Cần bắt đầu khám trước khi gửi chỉ định.')
+            for (const id of new Set(dichVuIds.map(Number))) {
+                if (!existing.has(String(id))) {
+                    await this.post(`/api/v1/clinical/encounters/${enc.luot_kham_server_id}/orders`, { dich_vu_id: id })
+                }
+            }
+            const ticket = db.queue.find((item) => item.encounter_id === encounterId)
+            if (ticket) {
+                await this.persistToPostgres({
+                    queue: [{ ...ticket, trang_thai: 'tam_hoan', ghi_chu: 'Chờ kết quả Cận lâm sàng' }],
+                })
+            }
+            await this.reloadFromPostgres()
+            return delay(db.encounters[encounterId]?.danh_sach_chi_dinh || [])
+        }
         const allServices = (await this.getServicesCatalog()) || []
         dichVuIds
             .filter((id) => !existing.has(String(id)))
@@ -576,6 +614,18 @@ export class ClinicalService extends BaseServices {
             return reject(
                 `Không thể hoàn tất lượt khám: còn ${pendingOrders.length} chỉ định cận lâm sàng đang thực hiện dở dang chưa có kết quả.`
             )
+        }
+        if (demoMode) {
+            if (!enc.luot_kham_server_id) return reject('Cần bắt đầu khám trước khi hoàn tất.')
+            await this.persistToPostgres({ encounters: { [encounterId]: payload } })
+            await this.post(`/api/v1/clinical/encounters/${enc.luot_kham_server_id}/complete`, {
+                ket_luan_dieu_tri: payload.ket_luan_dieu_tri,
+                loi_dan_bac_si: payload.loi_dan_bac_si,
+                ngay_hen_tai_kham: payload.ngay_hen_tai_kham,
+            })
+            await this.reloadFromPostgres()
+            clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, { encounterId })
+            return delay(db.encounters[encounterId])
         }
         Object.assign(enc, payload, { is_locked: true, thoi_gian_khoa: new Date().toISOString() })
         if (ticket) {
@@ -704,6 +754,10 @@ export class ClinicalService extends BaseServices {
     }
 
     getServices = async () => {
+        if (demoMode) {
+            const res = await this.get('/api/v1/medical/services', { __skipGlobalLoading: true })
+            return res?.data?.data || []
+        }
         try {
             const res = await this.get('/api/v1/medical/services', { __skipGlobalLoading: true })
             if (res?.data?.data && res.data.data.length > 0) return res.data.data
@@ -742,7 +796,7 @@ export class ClinicalService extends BaseServices {
     }
 
     getClsWorklist = async ({ nhom, tuKhoa, ngay, tatCaNgay } = {}) => {
-        await this.hydrateFromPostgres()
+        if (!demoMode) await this.hydrateFromPostgres()
         const params = new URLSearchParams({ trang_thai: 'tat_ca' })
         if (nhom && nhom !== 'ALL') {
             params.set('nhom_dich_vu', nhom)
@@ -763,6 +817,7 @@ export class ClinicalService extends BaseServices {
     startOrder = async (orderId) => {
         const res = await this.post(`/api/v1/subclinical/orders/${orderId}/start`, {})
         const trangThai = res?.data?.data?.trang_thai || 'dang_thuc_hien'
+        if (demoMode) return { data: { id: orderId, trang_thai: trangThai } }
         await this.reloadFromPostgres()
         const mirror = findMirrorOrder(orderId)
         if (mirror && mirror.order.trang_thai === 'da_chi_dinh') {
@@ -793,8 +848,8 @@ export class ClinicalService extends BaseServices {
         const result = { ...payload, id: orderId, trang_thai: trangThai }
         if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
 
-        await this.reloadFromPostgres()
-        const mirror = findMirrorOrder(orderId)
+        if (!demoMode) await this.reloadFromPostgres()
+        const mirror = demoMode ? null : findMirrorOrder(orderId)
         if (mirror) {
             const patch = { ...result }
             delete patch.id

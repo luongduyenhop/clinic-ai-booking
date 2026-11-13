@@ -1,8 +1,9 @@
-import os
+import json
 from pathlib import Path
 from typing import Optional
-from pydantic import computed_field, field_validator
+from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 ALLOWED_SLOT_DURATIONS = (15, 30, 45, 60)
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
@@ -19,6 +20,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     ENVIRONMENT: str = "development"
+    BACKEND_CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    ENABLE_DEMO_SEED: bool = False
+    ENABLE_OUTBOUND_NOTIFICATIONS: bool = True
     INITIAL_ADMIN_EMAIL: str = "admin@clinic.com"
     INITIAL_ADMIN_PASSWORD: Optional[str] = None
 
@@ -31,13 +35,31 @@ class Settings(BaseSettings):
 
     @computed_field
     def sync_database_url(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return self._postgres_url("postgresql")
 
     @computed_field
     def async_database_url(self) -> str:
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return self._postgres_url("postgresql+asyncpg")
+
+    def _postgres_url(self, driver: str) -> str:
+        return URL.create(
+            driver,
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            database=self.POSTGRES_DB,
+        ).render_as_string(hide_password=False)
+
+    @property
+    def is_demo(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() == "demo"
+
+    @property
+    def is_hosted(self) -> bool:
+        return self.is_demo or self.ENVIRONMENT.strip().lower() in ("production", "prod", "staging")
 
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
@@ -69,6 +91,35 @@ class Settings(BaseSettings):
         if not value or len(value) < 32:
             raise ValueError("SECRET_KEY is required and must be at least 32 characters")
         return value
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: list[str] | str) -> list[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            value = json.loads(value) if value.startswith("[") else value.split(",")
+        origins = [origin.strip().rstrip("/") for origin in value if origin.strip()]
+        if any("*" in origin for origin in origins):
+            raise ValueError("BACKEND_CORS_ORIGINS does not accept wildcard origins")
+        return origins
+
+    @model_validator(mode="after")
+    def _validate_hosted_settings(self):
+        if not self.is_hosted:
+            return self
+        if self.DEBUG:
+            raise ValueError("DEBUG must be disabled on hosted deployments")
+        if not self.is_demo and self.ENABLE_DEMO_SEED:
+            raise ValueError("ENABLE_DEMO_SEED requires ENVIRONMENT=demo")
+        if self.is_demo and self.ENABLE_OUTBOUND_NOTIFICATIONS:
+            raise ValueError("ENABLE_OUTBOUND_NOTIFICATIONS must be disabled for demo")
+        if (
+            "change_in_production" in self.SECRET_KEY.lower()
+            or "replace_with" in self.SECRET_KEY.lower()
+            or "placeholder" in self.SECRET_KEY.lower()
+        ):
+            raise ValueError("SECRET_KEY must be generated for this deployment")
+        return self
 
     @field_validator("SLOT_DURATION_MINUTES")
     @classmethod

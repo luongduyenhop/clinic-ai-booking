@@ -40,23 +40,18 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
       - name: Transfer Build & Code to VPS
-        env:
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST || '3.27.138.183' }}
-          SSH_USER: ${{ secrets.VPS_SSH_USER || 'ubuntu' }}
         run: |
+          SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
+          [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
+          SSH_USER="${{ secrets.VPS_SSH_USER }}"
+          [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa fe-dist.tar.gz $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -r backend/app $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/
 
       - name: Update Containers and Verify Service Health
-        env:
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST || '3.27.138.183' }}
-          SSH_USER: ${{ secrets.VPS_SSH_USER || 'ubuntu' }}
         run: |
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "cd /home/ubuntu/clinic-ai && \
-            mkdir -p fe/dist && \
-            tar -xzf fe-dist.tar.gz -C fe/dist/ && \
-            docker cp backend/app clinic-demo-backend-1:/app/ && \
-            docker cp fe/dist/. clinic-demo-frontend-1:/usr/share/nginx/html/ && \
-            docker restart clinic-demo-backend-1 clinic-demo-frontend-1 && \
-            sleep 8 && \
-            curl -fsS http://127.0.0.1:3000/healthz"
+          SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
+          [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
+          SSH_USER="${{ secrets.VPS_SSH_USER }}"
+          [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "bash /home/ubuntu/clinic-ai/deploy.sh"

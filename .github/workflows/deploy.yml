@@ -38,19 +38,18 @@ jobs:
           mkdir -p ~/.ssh
           printf "%s\n" "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          KEY_SIZE=$(wc -c < ~/.ssh/id_rsa)
-          KEY_CHECK=$(ssh-keygen -l -f ~/.ssh/id_rsa 2>&1 || echo "INVALID_KEY")
-          echo "::notice::KEY_SIZE=$KEY_SIZE | KEY_CHECK=$KEY_CHECK"
 
       - name: Transfer Build & Code to VPS
         run: |
           SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
+          SSH_HOST=$(printf "%s" "$SSH_HOST" | tr -d ' \r\n')
           [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
           SSH_USER="${{ secrets.VPS_SSH_USER }}"
+          SSH_USER=$(printf "%s" "$SSH_USER" | tr -d ' \r\n')
           [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
           if ! ssh -v -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" "echo SSH_CONNECTED" > /tmp/ssh.log 2>&1; then
-            ERR_MSG=$(tail -n 20 /tmp/ssh.log | tr '\n' ' ')
-            echo "::error::SSH failed: $ERR_MSG"
+            ERR_MSG=$(tr '\r\n' '  ' < /tmp/ssh.log | tail -c 400)
+            echo "::error::HOST_LEN=${#SSH_HOST} USER_LEN=${#SSH_USER} LOG=$ERR_MSG"
             cat /tmp/ssh.log
             exit 1
           fi
@@ -60,7 +59,9 @@ jobs:
       - name: Update Containers and Verify Service Health
         run: |
           SSH_HOST="${{ secrets.VPS_SSH_HOST }}"
+          SSH_HOST=$(printf "%s" "$SSH_HOST" | tr -d ' \r\n')
           [ -z "$SSH_HOST" ] && SSH_HOST="3.27.138.183"
           SSH_USER="${{ secrets.VPS_SSH_USER }}"
+          SSH_USER=$(printf "%s" "$SSH_USER" | tr -d ' \r\n')
           [ -z "$SSH_USER" ] && SSH_USER="ubuntu"
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa "$SSH_USER@$SSH_HOST" "bash /home/ubuntu/clinic-ai/deploy.sh"

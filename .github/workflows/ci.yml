@@ -88,10 +88,10 @@ jobs:
       - name: 1. Checkout Mã Nguồn
         uses: actions/checkout@v4
 
-      - name: 2. Cài đặt môi trường Node.js 20
+      - name: 2. Cài đặt môi trường Node.js 24 (trùng fe/Dockerfile)
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "fe/package-lock.json"
 

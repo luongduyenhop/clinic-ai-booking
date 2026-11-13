@@ -82,11 +82,11 @@ tar -xzf "$INCOMING/fe-dist.tar.gz" -C "$APP_DIR/fe/dist"
 # 3. Chuẩn bị env file (không in giá trị)
 # ------------------------------------------------------------------------------
 env_has() { grep -qE "^$1=.+" "$2" 2>/dev/null; }
-env_get() { { grep -E "^$1=" "$2" 2>/dev/null || true; } | tail -n 1 | cut -d= -f2-; }
+env_get() { { grep -E "^$1=" "$2" 2>/dev/null || true; } | tail -n 1 | cut -d= -f2- | tr -d '\r'; }
 env_set() {
   local key="$1" value="$2" file="$3" tmp
   tmp="$(mktemp "$file.XXXXXX")"
-  grep -vE "^$key=" "$file" > "$tmp" || true
+  { grep -vE "^$key=" "$file" || true; } | tr -d '\r' > "$tmp"
   printf '%s=%s\n' "$key" "$value" >> "$tmp"
   chmod 600 "$tmp"
   mv "$tmp" "$file"
@@ -108,7 +108,7 @@ if [ -z "$ENV_FILE" ]; then
   [ "$DB_VOLUME_EXISTS" -eq 0 ]     || fail "Khong tim thay .env.demo/.env nhung da co volume ${PROJECT_NAME}_postgres_data. Khoi phuc env file cu truoc khi deploy (khong tao mat khau moi)."
   ENV_FILE="$APP_DIR/.env.demo"
   log "Lan dau trien khai: tao $(basename "$ENV_FILE") tu .env.demo.example"
-  ( umask 077; grep -vE "^($(echo "$CORE_KEYS" | tr ' ' '|'))=" .env.demo.example > "$ENV_FILE" )
+  ( umask 077; grep -vE "^($(echo "$CORE_KEYS" | tr ' ' '|'))=" .env.demo.example | tr -d '\r' > "$ENV_FILE" )
 fi
 chmod 600 "$ENV_FILE"
 

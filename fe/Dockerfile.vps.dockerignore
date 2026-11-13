@@ -1,0 +1,5 @@
+# Dockerfile.vps chi can nginx.conf va bundle da build san (fe/dist).
+# fe/.dockerignore loai "dist" cho Dockerfile thuong nen can file rieng nay (BuildKit).
+*
+!nginx.conf
+!dist

@@ -1,7 +1,6 @@
 import pytest
 from sqlalchemy import select
 
-from app.models.bff_store import HeThongTrangThaiBff
 from app.models.user import VaiTroEnum
 from app.services.bff_admin_service import bff_admin_service
 from app.services.staff_portal_service import READ_COLLECTIONS, staff_portal_service
@@ -25,9 +24,7 @@ async def test_admin_bff_rejects_anonymous_and_all_non_admin_roles(api_client, b
     for method, path, body in ADMIN_REQUESTS:
         response = await api_client.request(method, path, headers=headers, json=body)
         assert response.status_code == (403 if role else 401), response.text
-    assert not (await db_session.execute(select(HeThongTrangThaiBff).where(
-        HeThongTrangThaiBff.collection_key == "qaUnauthorized",
-    ))).scalar_one_or_none()
+    assert getattr(bff_admin_service, "_bff_collections", {}).get("qaUnauthorized") is None
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,86 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin BI & Analytics API Contract",
+    "version": "1.0.0",
+    "description": "API contract for Admin Dashboard, Revenue Analytics, and Room Occupancy Reports"
+  },
+  "paths": {
+    "/api/admin/bi/dashboard-stats": {
+      "get": {
+        "summary": "Get aggregate clinic operational statistics",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard KPI summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_encounters": { "type": "integer" },
+                    "total_revenue": { "type": "number" },
+                    "completed_encounters": { "type": "integer" },
+                    "active_doctors_today": { "type": "integer" },
+                    "room_utilization_rate": { "type": "number" }
+                  },
+                  "required": ["total_encounters", "total_revenue", "completed_encounters", "active_doctors_today", "room_utilization_rate"]
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden - requires ADMIN role" }
+        }
+      }
+    },
+    "/api/admin/bi/export-excel": {
+      "get": {
+        "summary": "Export comprehensive report to Excel file",
+        "parameters": [
+          {
+            "name": "report_type",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["revenue", "services", "doctors", "rooms"] }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary Excel file stream",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

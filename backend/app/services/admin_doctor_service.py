@@ -1,7 +1,9 @@
 import logging
 from datetime import date
+from uuid import uuid4
 from typing import List, Optional
 from sqlalchemy import func, select, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,7 +16,7 @@ from app.models.appointment import (
     LichKham,
     TrangThaiLichEnum,
 )
-from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
+from app.models.user import BacSi, ChuyenKhoa, NguoiDung, NhanVien, PhongKham, TaiKhoan, VaiTroEnum, BenhNhan
 from app.schemas.admin import (
     DoctorAdminCreateRequest,
     DoctorAdminUpdateRequest,
@@ -71,6 +73,13 @@ class AdminDoctorService:
                     phong_kham=room_str,
                     hoc_vi=doc.hoc_vi,
                     chung_chi_hanh_nghe=doc.chung_chi_hanh_nghe,
+                    ngay_cap=doc.ngay_cap,
+                    ngay_het_han=doc.ngay_het_han,
+                    pham_vi_chuyen_mon=doc.pham_vi_chuyen_mon or [],
+                    trang_thai_giay_phep=doc.trang_thai_giay_phep,
+                    account_id=doc.nguoi_dung.tai_khoan.id if doc.nguoi_dung.tai_khoan else None,
+                    account_active=doc.nguoi_dung.tai_khoan.is_active if doc.nguoi_dung.tai_khoan else None,
+                    account_role=doc.nguoi_dung.tai_khoan.vai_tro if doc.nguoi_dung.tai_khoan else None,
                     nam_kinh_nghiem=doc.nam_kinh_nghiem,
                     gia_kham_mac_dinh=float(doc.gia_kham_mac_dinh),
                     is_active=doc.is_active,
@@ -81,15 +90,32 @@ class AdminDoctorService:
 
     async def create_doctor_admin(self, payload: DoctorAdminCreateRequest, db: AsyncSession) -> DoctorAdminResponse:
         """Tạo mới tài khoản và hồ sơ bác sĩ"""
-        # Kiểm tra trùng email
-        stmt_acc = select(TaiKhoan).where(TaiKhoan.email == payload.email)
-        if (await db.execute(stmt_acc)).scalar_one_or_none():
+        email = str(payload.email).strip().lower()
+        license_number = payload.chung_chi_hanh_nghe.strip()
+        phone = payload.so_dien_thoai.strip()
+        license_status = payload.trang_thai_giay_phep
+        if payload.ngay_het_han and payload.ngay_het_han < date.today():
+            license_status = "EXPIRED"
+        can_practice = license_status not in ("EXPIRED", "SUSPENDED")
+
+        # Check both identity and login tables so the same email cannot be attached
+        # to a second person who does not yet have an account.
+        if (await db.execute(select(TaiKhoan.id).where(TaiKhoan.email == email))).scalar_one_or_none():
             raise ConflictException(f"Email {payload.email} đã được đăng ký trong hệ thống!")
+        if (await db.execute(select(NguoiDung.id).where(NguoiDung.email == email))).scalar_one_or_none():
+            raise ConflictException(f"Email {payload.email} đã được sử dụng bởi hồ sơ khác!")
 
         # Kiểm tra trùng chứng chỉ hành nghề
-        stmt_cchn = select(BacSi).where(BacSi.chung_chi_hanh_nghe == payload.chung_chi_hanh_nghe)
+        stmt_cchn = select(BacSi).where(BacSi.chung_chi_hanh_nghe == license_number)
         if (await db.execute(stmt_cchn)).scalar_one_or_none():
             raise ConflictException(f"Chứng chỉ hành nghề {payload.chung_chi_hanh_nghe} đã tồn tại!")
+        if payload.ngay_cap and payload.ngay_het_han and payload.ngay_het_han < payload.ngay_cap:
+            raise ConflictException("Ngày hết hạn CCHN không được trước ngày cấp.")
+        phone_exists = (await db.execute(select(NguoiDung.id).where(
+            NguoiDung.so_dien_thoai == phone
+        ))).scalar_one_or_none()
+        if phone_exists:
+            raise ConflictException("Số điện thoại đã được sử dụng bởi người dùng khác.")
 
         # Kiểm tra chuyên khoa hợp lệ
         stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
@@ -107,17 +133,30 @@ class AdminDoctorService:
 
         # 1. Tạo NguoiDung
         nguoi_dung = NguoiDung(
-            ho_ten=payload.ho_ten,
-            so_dien_thoai=payload.so_dien_thoai,
+            ho_ten=payload.ho_ten.strip(),
+            email=email,
+            so_dien_thoai=phone,
             gioi_tinh="Khác",
         )
         db.add(nguoi_dung)
         await db.flush()
 
+        # Keep the general HR record and medical license profile linked to the same
+        # person; the staff screen intentionally lists doctors separately.
+        employee = NhanVien(
+            nguoi_dung_id=nguoi_dung.id,
+            ma_nhan_vien=f"BS-{uuid4().hex[:12].upper()}",
+            chuc_danh=payload.hoc_vi.strip(),
+            loai_nhan_vien="BAC_SI",
+            is_active=True,
+        )
+        db.add(employee)
+        await db.flush()
+
         # 2. Tạo TaiKhoan
         tai_khoan = TaiKhoan(
             nguoi_dung_id=nguoi_dung.id,
-            email=payload.email,
+            email=email,
             mat_khau_hash=get_password_hash(payload.mat_khau),
             vai_tro=VaiTroEnum.BAC_SI.value,
             is_active=True,
@@ -127,17 +166,26 @@ class AdminDoctorService:
         # 3. Tạo BacSi
         bac_si = BacSi(
             nguoi_dung_id=nguoi_dung.id,
+            nhan_vien_id=employee.id,
             chuyen_khoa_id=ck.id,
             phong_kham_id=pk.id if pk else None,
             hoc_vi=payload.hoc_vi,
-            chung_chi_hanh_nghe=payload.chung_chi_hanh_nghe,
+            chung_chi_hanh_nghe=license_number,
+            ngay_cap=payload.ngay_cap,
+            ngay_het_han=payload.ngay_het_han,
+            pham_vi_chuyen_mon=payload.pham_vi_chuyen_mon,
+            trang_thai_giay_phep=license_status,
             nam_kinh_nghiem=payload.nam_kinh_nghiem,
             gia_kham_mac_dinh=payload.gia_kham_mac_dinh,
             mo_ta_chuyen_sau=payload.mo_ta_chuyen_sau,
-            is_active=True,
+            is_active=can_practice,
         )
         db.add(bac_si)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError as exc:
+            await db.rollback()
+            raise ConflictException("Email, số điện thoại hoặc CCHN đã tồn tại.") from exc
         await db.refresh(bac_si)
 
         room_str = f"[{pk.ma_phong}] {pk.ten_phong}" if pk else (ck.vi_tri_phong if ck else "Chưa gán")
@@ -145,7 +193,7 @@ class AdminDoctorService:
         return DoctorAdminResponse(
             id=bac_si.id,
             ho_ten=payload.ho_ten,
-            email=payload.email,
+            email=email,
             so_dien_thoai=payload.so_dien_thoai,
             chuyen_khoa_id=ck.id,
             ten_chuyen_khoa=ck.ten_chuyen_khoa,
@@ -154,10 +202,17 @@ class AdminDoctorService:
             ten_phong_kham=pk.ten_phong if pk else None,
             phong_kham=room_str,
             hoc_vi=payload.hoc_vi,
-            chung_chi_hanh_nghe=payload.chung_chi_hanh_nghe,
+            chung_chi_hanh_nghe=license_number,
+            ngay_cap=payload.ngay_cap,
+            ngay_het_han=payload.ngay_het_han,
+            pham_vi_chuyen_mon=payload.pham_vi_chuyen_mon,
+            trang_thai_giay_phep=license_status,
+            account_id=tai_khoan.id,
+            account_active=tai_khoan.is_active,
+            account_role=tai_khoan.vai_tro,
             nam_kinh_nghiem=payload.nam_kinh_nghiem,
             gia_kham_mac_dinh=payload.gia_kham_mac_dinh,
-            is_active=True,
+            is_active=can_practice,
             so_luong_lich_hom_nay=0,
         )
 
@@ -188,6 +243,30 @@ class AdminDoctorService:
             doc.nguoi_dung.so_dien_thoai = phone
         if payload.hoc_vi is not None:
             doc.hoc_vi = payload.hoc_vi
+        if payload.chung_chi_hanh_nghe is not None:
+            new_license = payload.chung_chi_hanh_nghe.strip()
+            duplicate = (await db.execute(select(BacSi.id).where(
+                BacSi.chung_chi_hanh_nghe == new_license, BacSi.id != doctor_id
+            ))).scalar_one_or_none()
+            if duplicate:
+                raise ConflictException("Số chứng chỉ hành nghề đã được gán cho bác sĩ khác.")
+            doc.chung_chi_hanh_nghe = new_license
+        if "ngay_cap" in payload.model_fields_set:
+            doc.ngay_cap = payload.ngay_cap
+        if "ngay_het_han" in payload.model_fields_set:
+            doc.ngay_het_han = payload.ngay_het_han
+        if payload.pham_vi_chuyen_mon is not None:
+            doc.pham_vi_chuyen_mon = payload.pham_vi_chuyen_mon
+        if payload.trang_thai_giay_phep is not None:
+            doc.trang_thai_giay_phep = payload.trang_thai_giay_phep
+            if payload.trang_thai_giay_phep in ("EXPIRED", "SUSPENDED"):
+                doc.is_active = False
+        if doc.ngay_cap and doc.ngay_het_han and doc.ngay_het_han < doc.ngay_cap:
+            raise ConflictException("Ngày hết hạn CCHN không được trước ngày cấp.")
+        if doc.ngay_het_han and doc.ngay_het_han < date.today():
+            # A manually selected ACTIVE state cannot override an expired date.
+            doc.trang_thai_giay_phep = "EXPIRED"
+            doc.is_active = False
         if payload.chuyen_khoa_id is not None:
             stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
             ck = (await db.execute(stmt_ck)).scalar_one_or_none()
@@ -210,6 +289,11 @@ class AdminDoctorService:
         if payload.mo_ta_chuyen_sau is not None:
             doc.mo_ta_chuyen_sau = payload.mo_ta_chuyen_sau
         if payload.is_active is not None:
+            if payload.is_active and (
+                doc.trang_thai_giay_phep in ("EXPIRED", "SUSPENDED")
+                or (doc.ngay_het_han is not None and doc.ngay_het_han < date.today())
+            ):
+                raise ConflictException("Bác sĩ có CCHN hết hạn hoặc bị đình chỉ không thể được mở nhận lịch.")
             doc.is_active = payload.is_active
 
         await db.commit()
@@ -242,6 +326,13 @@ class AdminDoctorService:
             phong_kham=room_str,
             hoc_vi=doc.hoc_vi,
             chung_chi_hanh_nghe=doc.chung_chi_hanh_nghe,
+            ngay_cap=doc.ngay_cap,
+            ngay_het_han=doc.ngay_het_han,
+            pham_vi_chuyen_mon=doc.pham_vi_chuyen_mon or [],
+            trang_thai_giay_phep=doc.trang_thai_giay_phep,
+            account_id=doc.nguoi_dung.tai_khoan.id if doc.nguoi_dung.tai_khoan else None,
+            account_active=doc.nguoi_dung.tai_khoan.is_active if doc.nguoi_dung.tai_khoan else None,
+            account_role=doc.nguoi_dung.tai_khoan.vai_tro if doc.nguoi_dung.tai_khoan else None,
             nam_kinh_nghiem=doc.nam_kinh_nghiem,
             gia_kham_mac_dinh=float(doc.gia_kham_mac_dinh),
             is_active=doc.is_active,

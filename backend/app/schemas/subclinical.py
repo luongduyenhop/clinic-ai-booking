@@ -21,7 +21,7 @@ class PatientBrief(BaseModel):
 
 
 class SubclinicalQueueItem(BaseModel):
-    id: int  # chi_dinh_id
+    id: int
     luot_kham_id: int
     dich_vu: SubclinicalServiceBrief
     nhom_dich_vu: Optional[str] = None
@@ -157,3 +157,41 @@ class PhysicalExamResponse(BaseModel):
     da_lieu: Optional[str] = None
     phan_loai_the_luc: Optional[str] = None
     bac_si_ket_luan_id: Optional[int] = None
+
+
+class BarcodeGenerateResponse(BaseModel):
+    order_id: int
+    barcode_id: str
+    status: str
+
+
+class ParaclinicalResultInput(BaseModel):
+    parameter_code: str
+    parameter_name: str
+    measured_value: str
+    numeric_value: Optional[float] = None
+    measurement_unit: Optional[str] = None
+    reference_low: Optional[float] = None
+    reference_high: Optional[float] = None
+    conclusion: Optional[str] = None
+
+
+class ParaclinicalResultSubmitRequest(BaseModel):
+    results: List[ParaclinicalResultInput]
+    technician_notes: Optional[str] = None
+
+
+class ParaclinicalOrderResultResponse(BaseModel):
+    order_id: int
+    status: str
+    barcode_id: Optional[str] = None
+    has_panic_value: bool = False
+    results_count: int
+
+
+class ParaclinicalVerifyResponse(BaseModel):
+    order_id: int
+    status: str
+    verified_by: int
+    verified_at: datetime
+

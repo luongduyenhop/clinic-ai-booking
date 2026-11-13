@@ -136,6 +136,8 @@ export const getStaffMenuForRole = (role) => {
             group: '3. Nhân sự & Phân quyền (IAM)',
             items: [
                 { to: '/staff/permissions', label: 'Nhân sự, CCHN & Phân quyền', icon: ShieldCheck, badge: 'RBAC' },
+                { to: '/admin/phan-lich', label: 'Phân lịch trực & Ma trận Ca', icon: CalendarPlus },
+                { to: '/admin/nghi-phep', label: 'Duyệt nghỉ phép Bác sĩ', icon: CalendarCheck },
                 { to: '/staff/patients', label: 'Hồ sơ Bệnh nhân (Master)', icon: Users },
             ],
         },

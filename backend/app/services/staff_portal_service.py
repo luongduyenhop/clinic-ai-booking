@@ -18,7 +18,7 @@ WRITE_COLLECTIONS = {
     "ky_thuat_vien": {"paraclinicalTasks"},
 }
 COMMON_KEYS = {"schemaVersion", "formDefaults", "addressShortcuts", "referrers"}
-CATALOG_KEYS = {"goTat", "donViTinh", "khoanThu", "phuongPhapTruDau", "diaChi", "khoaPhong", "danhMucBenh", "thuocVatTu", "dichVu"}
+CATALOG_KEYS = {"goTat", "donViTinh", "khoanThu", "phuongPhapTruDau", "diaChi", "khoaPhong", "chuyenKhoa", "danhMucBenh", "thuocVatTu", "dichVu"}
 OPTION_KEYS = {"genders", "maritalStatuses", "countries", "bloodTypes", "specialties", "registrationStatuses", "appointmentStatuses", "appointmentConfirmationActions", "paraclinicalStatuses", "paraclinicalModalities", "paymentMethods", "voucherTypes", "serviceOrderCategoryTabs", "prescriptionFsmSteps"}
 CLINIC_KEYS = {"tenPhongKham", "maCoSoKCB", "giayPhepHoatDong", "dienThoai", "email", "diaChi"}
 

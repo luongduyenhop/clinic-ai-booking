@@ -81,7 +81,6 @@ class AuthService:
             "email": payload.email,
             "message": "Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
             "expires_in_seconds": 300,
-            "debug_otp": otp_code if settings.DEBUG else None,
         }
 
     async def register_patient(self, payload: PatientRegisterRequest, db: AsyncSession) -> TokenResponse:
@@ -208,39 +207,6 @@ class AuthService:
             refreshToken=refresh_token,
         )
 
-    async def _ensure_default_fe_admin(self, login_identifier: str, password: str, db: AsyncSession) -> TaiKhoan | None:
-        normalized = login_identifier.strip().lower()
-        if normalized not in ("admin@clinic-ai.vn", "phongkham5", "admin@clinic.com"):
-            return None
-        if password not in ("password123", "admin@123", "Admin@123456"):
-            return None
-
-        target_email = "admin@clinic-ai.vn" if normalized in ("admin@clinic-ai.vn", "phongkham5") else "admin@clinic.com"
-        stmt = select(TaiKhoan).where(TaiKhoan.email == target_email)
-        tk = (await db.execute(stmt)).scalar_one_or_none()
-        if tk:
-            return tk
-
-        nd = NguoiDung(
-            ho_ten="BS.CKII Nguyễn Minh Hoàng (Admin)",
-            email=target_email,
-            so_dien_thoai="0988999001",
-            gioi_tinh="Nam",
-        )
-        db.add(nd)
-        await db.flush()
-
-        tk = TaiKhoan(
-            nguoi_dung_id=nd.id,
-            email=target_email,
-            mat_khau_hash=hash_password(password),
-            vai_tro=VaiTroEnum.ADMIN.value,
-            is_active=True,
-        )
-        db.add(tk)
-        await db.flush()
-        return tk
-
     async def login_user(self, payload: LoginRequest, db: AsyncSession) -> TokenResponse:
         email_or_user = payload.email.strip()
         stmt = (
@@ -256,15 +222,9 @@ class AuthService:
         tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
 
         if not tai_khoan:
-            tai_khoan = await self._ensure_default_fe_admin(email_or_user, payload.mat_khau, db)
-
-        if not tai_khoan:
             raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
 
         is_valid_pw = verify_password(payload.mat_khau, tai_khoan.mat_khau_hash)
-        if not is_valid_pw and email_or_user.lower() in ("admin@clinic-ai.vn", "phongkham5") and payload.mat_khau in ("password123", "admin@123", "Admin@123456"):
-            is_valid_pw = True
-
         if not is_valid_pw:
             raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
 

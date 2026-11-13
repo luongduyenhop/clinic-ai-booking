@@ -1,20 +1,23 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import computed_field, field_validator
+import os
+from pathlib import Path
 from typing import Optional
+from pydantic import computed_field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ALLOWED_SLOT_DURATIONS = (15, 30, 45, 60)
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(ENV_PATH), ".env"),
         env_ignore_empty=True,
         extra="ignore"
     )
 
     PROJECT_NAME: str = "Clinic AI Booking System"
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = True
+    DEBUG: bool = False
     ENVIRONMENT: str = "development"
     INITIAL_ADMIN_EMAIL: str = "admin@clinic.com"
     INITIAL_ADMIN_PASSWORD: Optional[str] = None
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
             return self.DATABASE_URL
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    SECRET_KEY: str = "super_secret_clinic_jwt_key_project_1_change_in_production_2026"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 2
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
@@ -58,6 +61,14 @@ class Settings(BaseSettings):
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
     CLINIC_PHONE: str = "1900 6868"
+    PAYMENT_WEBHOOK_SECRET: str = "clinic_ai_default_payment_webhook_secret_key_32bytes"
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _validate_secret_key(cls, value: str) -> str:
+        if not value or len(value) < 32:
+            raise ValueError("SECRET_KEY is required and must be at least 32 characters")
+        return value
 
     @field_validator("SLOT_DURATION_MINUTES")
     @classmethod

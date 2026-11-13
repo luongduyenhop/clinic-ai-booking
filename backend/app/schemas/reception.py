@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -60,3 +60,38 @@ class ReceptionPatientResponse(BaseModel):
     diem_tin_nhiem: int = 100
     so_lan_no_show: int = 0
     is_blocked_booking: bool = False
+
+
+class CccdQrParseRequest(BaseModel):
+    qr_string: str = Field(..., min_length=5)
+
+
+class CccdQrParsedResponse(BaseModel):
+    cccd_number: str
+    cmnd_number: Optional[str] = None
+    full_name: str
+    date_of_birth: Optional[date] = None
+    gender: str
+    address: str
+    issue_date: Optional[date] = None
+
+
+class EncounterCreateRequest(BaseModel):
+    patient_id: int
+    doctor_id: int
+    clinic_room_number: str = Field(..., min_length=1, max_length=20)
+    chief_complaint: str = Field(..., min_length=2)
+    appointment_id: Optional[int] = None
+
+
+class EncounterResponse(BaseModel):
+    id: int
+    encounter_code: str
+    patient_id: int
+    doctor_id: int
+    appointment_id: Optional[int] = None
+    queue_number: int
+    clinic_room_number: str
+    status: str
+    chief_complaint: str
+    created_at: datetime

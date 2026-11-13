@@ -4,16 +4,20 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Optional
-from sqlalchemy import delete, select, or_
+from sqlalchemy import delete, select, update, or_, and_, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.appointment import HangDoiKham, LichKham
+from app.core.exceptions import ConflictException
+from app.models.appointment import HangDoiKham, LichKham, LichLamViec
 from app.models.bff_store import HeThongTrangThaiBff
 from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
 from app.models.content import BaiVietTinTuc, MauBieuYTe
 from app.models.medical import (
+    ChanDoan,
     ChiDinh,
+    ChiTietDonThuoc,
     ChiTietHoaDon,
     DichVu,
     HoaDon,
@@ -21,14 +25,19 @@ from app.models.medical import (
     KhoaSoCaTruc,
     LuotKham,
     LuotKhamTheLuc,
+    PhieuKhamChuyenKhoa,
     PhieuThuChi,
+    Thuoc,
 )
 from app.models.specialized import (
+    ChiTietGoiKham,
+    ChiTietGoiKhamDaMua,
     DangKyGoiKham,
     GoiDichVu,
     LieuTrinhDieuTri,
 )
-from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham
+from app.core.exceptions import BadRequestException
+from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, NhanVien, PhongKham
 
 SEED_FILE_PATH = (
     Path(__file__).resolve().parents[3]
@@ -94,6 +103,109 @@ def _build_role_permissions(role_seed: dict, total_modules: int = 23) -> list[di
     return result
 
 
+def _classify_drug_group(name: str, active: str, code: str) -> str:
+    s = f"{name or ''} {active or ''} {code or ''}".lower()
+    if any(k in s for k in ["augmentin", "amoxicillin", "zinnat", "cefuroxime", "ciprofloxacin", "levofloxacin", "azithromycin", "klacid", "clarithromycin", "metronidazol", "kháng sinh"]):
+        return "Kháng sinh kê đơn"
+    if any(k in s for k in ["paracetamol", "panadol", "hapacol", "efferalgan", "hạ sốt"]):
+        return "Giảm đau - Hạ sốt"
+    if any(k in s for k in ["ibuprofen", "meloxicam", "celecoxib", "voltaren", "diclofenac"]):
+        return "Kháng viêm không steroid (NSAID)"
+    if any(k in s for k in ["chymotrypsin", "alphachymotrypsin", "medrol", "methylprednisolone"]):
+        return "Kháng viêm - Giảm phù nề"
+    if any(k in s for k in ["nexium", "omeprazol", "pantoprazol", "gaviscon", "yumangel", "dạ dày", "esomeprazole"]):
+        return "Thuốc Dạ dày - Tiêu hóa"
+    if any(k in s for k in ["motilium", "domperidone", "duspatalin", "debridat", "smecta", "hidrasec", "oresol", "enterogermina", "bioflora"]):
+        return "Thuốc Tiêu hóa - Đường ruột"
+    if any(k in s for k in ["amlodipin", "bisoprolol", "concor", "micardis", "telmisartan", "losartan", "coveram", "perindopril"]):
+        return "Thuốc Tim mạch - Huyết áp"
+    if any(k in s for k in ["lipitor", "atorvastatin", "crestor", "rosuvastatin", "mỡ máu", "lipid"]):
+        return "Thuốc Tim mạch - Hạ lipid máu"
+    if any(k in s for k in ["glucophage", "metformin", "diamicron", "gliclazide", "jardiance", "empagliflozin", "tiểu đường"]):
+        return "Thuốc Điều trị Đái tháo đường"
+    if any(k in s for k in ["telfast", "fexofenadine", "loratadin", "cetirizin", "aerius", "desloratadine", "singulair", "montelukast"]):
+        return "Thuốc Chống dị ứng - Kháng Histamin"
+    if any(k in s for k in ["ventolin", "salbutamol", "acemuc", "acetylcysteine", "prospan", "long đờm"]):
+        return "Thuốc Hô hấp - Giảm ho & Giãn phế quản"
+    if any(k in s for k in ["betaserc", "betahistine", "sibelium", "flunarizine", "tanakan", "ginkgo", "tiền đình"]):
+        return "Thuốc Thần kinh - Tuần hoàn não & Tiền đình"
+    if any(k in s for k in ["calci", "canxi", "vitamin", "3b", "kẽm", "gluconate", "khoáng chất"]):
+        return "Vitamin & Khoáng chất"
+    return "Thuốc kê đơn"
+
+
+def _normalize_service_group(raw_group: Optional[str]) -> str:
+    g = (raw_group or "").strip()
+    mapping = {
+        "KHAM": "Khám bệnh",
+        "XN": "Xét nghiệm",
+        "CDHA": "Chẩn đoán hình ảnh",
+        "TDCN": "Thăm dò chức năng",
+        "NS": "Nội soi",
+        "TT": "Thủ thuật - VLTL",
+        "CLS": "Cận lâm sàng",
+    }
+    return mapping.get(g, g or "Khám bệnh")
+
+
+def _get_icd_chapter(code: str) -> str:
+    c = (code or "").strip().upper()
+    if not c:
+        return "Chương khác"
+    ch = c[0]
+    if ch in ("A", "B"):
+        return "Chương I: Bệnh nhiễm trùng và ký sinh trùng"
+    if ch == "C" or (ch == "D" and len(c) > 1 and c[1] in "01234"):
+        return "Chương II: Tân sinh (Khối u)"
+    if ch == "D":
+        return "Chương III: Bệnh của máu và cơ quan tạo máu"
+    if ch == "E":
+        return "Chương IV: Bệnh nội tiết, dinh dưỡng và chuyển hóa"
+    if ch == "F":
+        return "Chương V: Rối loạn tâm thần và hành vi"
+    if ch == "G":
+        return "Chương VI: Bệnh hệ thần kinh"
+    if ch == "H" and len(c) > 1 and c[1] in "012345":
+        return "Chương VII: Bệnh của mắt và phần phụ"
+    if ch == "H":
+        return "Chương VIII: Bệnh của tai và xương chũm"
+    if ch == "I":
+        return "Chương IX: Bệnh hệ tuần hoàn"
+    if ch == "J":
+        return "Chương X: Bệnh hệ hô hấp"
+    if ch == "K":
+        return "Chương XI: Bệnh hệ tiêu hóa"
+    if ch == "L":
+        return "Chương XII: Bệnh của da và mô dưới da"
+    if ch == "M":
+        return "Chương XIII: Bệnh hệ cơ-xương-khớp"
+    if ch == "N":
+        return "Chương XIV: Bệnh hệ sinh dục - tiết niệu"
+    if ch == "O":
+        return "Chương XV: Thai nghén, sinh đẻ và hậu sản"
+    if ch == "P":
+        return "Chương XVI: Một số tình trạng trong chu sinh"
+    if ch == "Q":
+        return "Chương XVII: Dị tật bẩm sinh, biến dạng"
+    if ch == "R":
+        return "Chương XVIII: Triệu chứng & dấu hiệu bất thường"
+    if ch in ("S", "T"):
+        return "Chương XIX: Tổn thương, ngộ độc"
+    if ch in ("V", "W", "X", "Y"):
+        return "Chương XX: Nguyên nhân ngoại lai của bệnh tật"
+    if ch == "Z":
+        return "Chương XXI: Yếu tố tiếp xúc dịch vụ y tế"
+    if ch == "U":
+        return "Chương XXII: Mã dùng cho mục đích đặc biệt"
+    return "Chương khác"
+
+
+def _is_infectious_icd(code: str, name: str) -> bool:
+    c = (code or "").strip().upper()
+    n = (name or "").lower()
+    return c.startswith(("A", "B")) or any(k in n for k in ["truyền nhiễm", "dengue", "thủy đậu", "sốt rét", "lao", "dịch tả"])
+
+
 class BffAdminService:
 
     def __init__(self):
@@ -155,7 +267,9 @@ class BffAdminService:
             "guideCategories": seed.get("guideCategories", []),
             "guides": seed.get("guides", []),
             "qaList": seed.get("qaList", []),
-            "staffList": seed.get("staffList", []),
+            # Employee and doctor screens use relational records through dedicated
+            # endpoints. Never seed the old demo staff collection into bootstrap.
+            "staffList": [],
             "roles": roles,
             "templates": seed.get("templates", []),
             "complianceObligations": seed.get("complianceObligations", []),
@@ -178,19 +292,18 @@ class BffAdminService:
     async def get_bootstrap_data(self, db: AsyncSession) -> dict:
         data = self._load_clean_seed()
 
-        stmt = select(HeThongTrangThaiBff)
-        rows = (await db.execute(stmt)).scalars().all()
-        existing_keys = set()
-        for row in rows:
-            existing_keys.add(row.collection_key)
-            if row.collection_key in ("inventoryBatches", "navigationConfig"):
+        if not hasattr(self, "_bff_collections"):
+            self._bff_collections = {}
+        existing_keys = set(self._bff_collections.keys())
+        for key, val in self._bff_collections.items():
+            if key in ("inventoryBatches", "navigationConfig"):
                 continue
-            if row.collection_key == "catalogs" and isinstance(row.data_json, dict):
+            if key == "catalogs" and isinstance(val, dict):
                 merged_catalogs = copy.deepcopy(data.get("catalogs", {}))
-                merged_catalogs.update(row.data_json)
+                merged_catalogs.update(val)
                 data["catalogs"] = merged_catalogs
             else:
-                data[row.collection_key] = row.data_json
+                data[key] = val
 
         data["inventoryBatches"] = []
         if len(existing_keys) < 5:
@@ -198,7 +311,7 @@ class BffAdminService:
 
         data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
         data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []))
-        data["staffList"] = await self._project_relational_staff(db, data.get("staffList", []))
+        data["staffList"] = await self._project_relational_staff(db)
         data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}))
         data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []))
         data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []))
@@ -379,77 +492,89 @@ class BffAdminService:
         return result
 
 
-    async def _project_relational_staff(self, db: AsyncSession, base_staff: list) -> list:
-        stmt = (
-            select(BacSi)
-            .options(
-                selectinload(BacSi.nguoi_dung),
-                selectinload(BacSi.chuyen_khoa),
-                selectinload(BacSi.phong_kham),
+    async def _project_relational_staff(self, db: AsyncSession) -> list:
+        employees = (
+            await db.execute(
+                select(NhanVien)
+                .join(NhanVien.nguoi_dung)
+                .options(
+                    selectinload(NhanVien.nguoi_dung).selectinload(NguoiDung.tai_khoan),
+                    selectinload(NhanVien.bac_si).selectinload(BacSi.chuyen_khoa),
+                    selectinload(NhanVien.bac_si).selectinload(BacSi.phong_kham),
+                )
+                .where(NguoiDung.is_deleted.is_(False))
+                .order_by(NhanVien.id.asc())
             )
-            .order_by(BacSi.id.asc())
-        )
-        db_doctors = (await db.execute(stmt)).scalars().all()
-        if not db_doctors:
-            return base_staff
-
-        merged_map = {}
-        for s in base_staff or []:
-            code = str(s.get("maNV") or s.get("id") or "").strip()
-            cchn = str(s.get("soCCHN") or "").strip()
-            name = str(s.get("hoTen") or "").strip().lower()
-            if code:
-                merged_map[code] = s
-            if cchn:
-                merged_map[cchn] = s
-            if name:
-                merged_map[name] = s
-
+        ).scalars().all()
         result = []
-        seen_keys = set()
-        for bs in db_doctors:
-            u = bs.nguoi_dung
-            cchn = str(bs.chung_chi_hanh_nghe or f"CCHN-{bs.id:04d}").strip()
-            full_name = f"{bs.hoc_vi + ' ' if bs.hoc_vi and bs.hoc_vi not in (u.ho_ten or '') else ''}{u.ho_ten if u else f'Bác sĩ #{bs.id}'}".strip()
-            raw_name = (u.ho_ten or "").strip().lower()
-            existing = merged_map.get(cchn) or merged_map.get(full_name.lower()) or merged_map.get(raw_name)
-            code = str(existing.get("maNV") if existing and existing.get("maNV") else f"NV{bs.id:03d}").strip()
-            room_name = bs.phong_kham.ten_phong if bs.phong_kham else (existing.get("khoaPhong") if existing else "Phòng số 1 (Phòng khám Nội)")
-            spec_name = bs.chuyen_khoa.ten_chuyen_khoa if bs.chuyen_khoa else (existing.get("chuyenKhoa") if existing else "Nội tổng quát")
-            item = {
-                "id": existing.get("id") if existing and existing.get("id") else f"NV-{bs.id:03d}",
-                "maNV": code,
-                "hoTen": existing.get("hoTen") if existing and existing.get("hoTen") else full_name,
-                "taiKhoan": (u.email if u and u.email else None) or (existing.get("taiKhoan") if existing else f"bs{bs.id}@clinic.com"),
-                "dienThoai": (u.so_dien_thoai if u and u.so_dien_thoai else None) or (existing.get("dienThoai") if existing else f"0901000{bs.id:03d}"),
-                "vaiTro": existing.get("vaiTro") if existing and existing.get("vaiTro") else "Bác sĩ khám bệnh",
-                "khoaPhong": room_name,
-                "chuyenKhoa": spec_name,
-                "soCCHN": cchn,
-                "ngayCapCCHN": bs.ngay_cap.isoformat() if bs.ngay_cap else (existing.get("ngayCapCCHN") if existing else "2020-01-15"),
-                "ngayHetHanCCHN": bs.ngay_het_han.isoformat() if bs.ngay_het_han else (existing.get("ngayHetHanCCHN") if existing else "2028-01-15"),
-                "trangThaiCCHN": bs.trang_thai_giay_phep or (existing.get("trangThaiCCHN") if existing else "ACTIVE"),
-                "trangThai": bool(bs.is_active) if bs.is_active is not None else True,
+        for employee in employees:
+            person = employee.nguoi_dung
+            doctor = employee.bac_si
+            role_labels = {
+                "BAC_SI": "Bác sĩ khám bệnh",
+                "LE_TAN": "Lễ tân",
+                "THU_NGAN": "Thu ngân",
+                "KY_THUAT_VIEN": "Kỹ thuật viên",
             }
-            if existing:
-                for k, v in existing.items():
-                    if k not in item:
-                        item[k] = v
-            result.append(item)
-            seen_keys.update({code.lower(), cchn.lower(), full_name.lower(), raw_name})
-
-        for s in base_staff or []:
-            code = str(s.get("maNV") or s.get("id") or "").strip().lower()
-            cchn = str(s.get("soCCHN") or "").strip().lower()
-            name = str(s.get("hoTen") or "").strip().lower()
-            if code not in seen_keys and (not cchn or cchn not in seen_keys) and (not name or name not in seen_keys):
-                result.append(s)
-                seen_keys.update({code, cchn, name})
-
+            result.append({
+                "id": f"NV-{employee.id}",
+                "maNV": employee.ma_nhan_vien,
+                "hoTen": person.ho_ten,
+                "taiKhoan": person.tai_khoan.email if person.tai_khoan else person.email,
+                "dienThoai": person.so_dien_thoai,
+                "vaiTro": role_labels.get(employee.loai_nhan_vien, employee.loai_nhan_vien),
+                "khoaPhong": doctor.phong_kham.ten_phong if doctor and doctor.phong_kham else None,
+                "chuyenKhoa": doctor.chuyen_khoa.ten_chuyen_khoa if doctor and doctor.chuyen_khoa else None,
+                "soCCHN": doctor.chung_chi_hanh_nghe if doctor else None,
+                "ngayCapCCHN": doctor.ngay_cap.isoformat() if doctor and doctor.ngay_cap else None,
+                "ngayHetHanCCHN": doctor.ngay_het_han.isoformat() if doctor and doctor.ngay_het_han else None,
+                "trangThaiCCHN": doctor.trang_thai_giay_phep if doctor else None,
+                "trangThai": bool(employee.is_active and (doctor.is_active if doctor else True)),
+                "accountId": person.tai_khoan.id if person.tai_khoan else None,
+                "accountActive": person.tai_khoan.is_active if person.tai_khoan else None,
+                "accountRole": person.tai_khoan.vai_tro if person.tai_khoan else None,
+            })
         return result
 
     async def _project_relational_catalogs(self, db: AsyncSession, base_catalogs: dict) -> dict:
         catalogs = copy.deepcopy(base_catalogs or {})
+
+        db_departments = (
+            await db.execute(select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc()))
+        ).scalars().all()
+        if db_departments:
+            base_depts = catalogs.get("chuyenKhoa") or []
+            dept_map = {str(d.get("maChuyenKhoa") or d.get("id") or "").strip().upper(): d for d in base_depts}
+            projected_depts = []
+            seen_dept_codes = set()
+            for ck in db_departments:
+                code = str(ck.ma_chuyen_khoa or f"CK{ck.id:02d}").strip().upper()
+                ex = dept_map.get(code)
+                name = ck.ten_chuyen_khoa or (ex.get("tenChuyenKhoa") if ex else code)
+                loc = ck.vi_tri_phong or (ex.get("viTriPhong") if ex else "Tầng 1 - Khu khám bệnh")
+                desc = ck.mo_ta or (ex.get("moTa") if ex else "")
+                is_act = bool(ck.is_active) if ck.is_active is not None else True
+                item = {
+                    "id": ex.get("id") if (ex and ex.get("id")) else f"CK-{ck.id}",
+                    "maChuyenKhoa": code,
+                    "tenChuyenKhoa": name,
+                    "viTriPhong": loc,
+                    "moTa": desc,
+                    "trangThai": is_act,
+                    "is_active": is_act,
+                }
+                if ex:
+                    for k, v in ex.items():
+                        if k not in item:
+                            item[k] = v
+                projected_depts.append(item)
+                seen_dept_codes.add(code)
+            for bd in base_depts:
+                c = str(bd.get("maChuyenKhoa") or bd.get("id") or "").strip().upper()
+                if c and c not in seen_dept_codes:
+                    projected_depts.append(bd)
+                    seen_dept_codes.add(c)
+            catalogs["chuyenKhoa"] = projected_depts
 
         db_rooms = (
             await db.execute(select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).order_by(PhongKham.id.asc()))
@@ -459,16 +584,38 @@ class BffAdminService:
             room_map = {str(r.get("maPhong") or r.get("id") or "").strip(): r for r in base_rooms}
             projected_rooms = []
             seen_room_codes = set()
+            seen_room_ids = set()
             for r in db_rooms:
                 code = str(r.ma_phong or f"PK{r.id:02d}").strip()
                 ex = room_map.get(code)
+                dept_name = r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else (ex.get("chuyenKhoa") if ex else "Khoa Nội tổng quát")
+                default_doc = "BS.CKII Nguyễn Minh Hoàng"
+                if dept_name:
+                    nd = dept_name.lower()
+                    if "ngoai" in nd:
+                        default_doc = "ThS. BS Đặng Hải Phương"
+                    elif "tai mui hong" in nd:
+                        default_doc = "ThS.BS Trần Quốc Tuấn"
+                    elif "rang" in nd:
+                        default_doc = "BS. CKII Trần Quốc Huy"
+                    elif "mat" in nd:
+                        default_doc = "ThS. BS Lê Ngọc Lan"
+                    elif "co xuong khop" in nd or "khop" in nd:
+                        default_doc = "BS.CKI Lê Thu Trang"
+                    elif "hinh anh" in nd or "x-quang" in nd or "sieu am" in nd:
+                        default_doc = "BS.CKI Phạm Quang Huy"
+                candidate_id = ex.get("id") if (ex and ex.get("id")) else f"ROOM-DB-{r.id:03d}"
+                if candidate_id in seen_room_ids:
+                    candidate_id = f"ROOM-{code}"
+                seen_room_ids.add(candidate_id)
+
                 item = {
-                    "id": ex.get("id") if ex and ex.get("id") else f"KP-{r.id:02d}",
+                    "id": candidate_id,
                     "maPhong": code,
                     "tenPhong": r.ten_phong or (ex.get("tenPhong") if ex else code),
-                    "chuyenKhoa": r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else (ex.get("chuyenKhoa") if ex else "Đa khoa"),
+                    "chuyenKhoa": dept_name,
                     "tang": r.tang or (ex.get("tang") if ex else "Tầng 1"),
-                    "bacSiPhuTrach": ex.get("bacSiPhuTrach") if ex and ex.get("bacSiPhuTrach") else "PGS.TS Phạm Đức Minh",
+                    "bacSiPhuTrach": ex.get("bacSiPhuTrach") if ex and ex.get("bacSiPhuTrach") else default_doc,
                     "trangThai": bool(r.is_active) if r.is_active is not None else True,
                 }
                 if ex:
@@ -480,6 +627,11 @@ class BffAdminService:
             for br in base_rooms:
                 c = str(br.get("maPhong") or br.get("id") or "").strip()
                 if c and c not in seen_room_codes:
+                    bid = str(br.get("id") or f"ROOM-{c}").strip()
+                    if bid in seen_room_ids:
+                        bid = f"ROOM-SEED-{c}"
+                    seen_room_ids.add(bid)
+                    br["id"] = bid
                     projected_rooms.append(br)
                     seen_room_codes.add(c)
             saved_room_order = {
@@ -507,7 +659,7 @@ class BffAdminService:
                     "id": ex.get("id") if ex and ex.get("id") else code,
                     "maDV": code,
                     "tenDV": s.ten_dich_vu or (ex.get("tenDV") if ex else code),
-                    "nhomDV": ex.get("nhomDV") if ex and ex.get("nhomDV") else (s.ma_nhom_byt or "Cận lâm sàng"),
+                    "nhomDV": _normalize_service_group(ex.get("nhomDV") if ex and ex.get("nhomDV") else s.ma_nhom_byt),
                     "dvt": s.don_vi_tinh or (ex.get("dvt") if ex else "Lần"),
                     "donGia": int(Decimal(str(s.don_gia or 0))),
                     "phongTH": s.phong_thuc_hien.ten_phong if s.phong_thuc_hien else (ex.get("phongTH") if ex else "Phòng kỹ thuật"),
@@ -529,6 +681,204 @@ class BffAdminService:
             }
             projected_services.sort(key=lambda item: saved_service_order.get(item["maDV"], len(saved_service_order)))
             catalogs["dichVu"] = projected_services
+
+        db_drugs = (
+            await db.execute(select(Thuoc).order_by(Thuoc.id.asc()))
+        ).scalars().all()
+        if db_drugs:
+            base_drugs = catalogs.get("thuocVatTu") or []
+            drug_map = {str(d.get("maThuoc") or d.get("id") or "").strip().upper(): d for d in base_drugs}
+            projected_drugs = []
+            seen_drug_codes = set()
+            for d in db_drugs:
+                code = str(d.ma_thuoc_noi_bo or f"TH{d.id:03d}").strip().upper()
+                ex = drug_map.get(code)
+                name = d.ten_thuoc or (ex.get("tenThuoc") if ex else code)
+                active = d.hoat_chat or (ex.get("hoatChat") if ex else "")
+                group = _classify_drug_group(name, active, code)
+                if ex and ex.get("nhomThuoc") and ex.get("tenThuoc") == d.ten_thuoc:
+                    group = ex.get("nhomThuoc")
+                unit = d.don_vi_tinh or (ex.get("dvt") if ex else "Viên")
+                usage = d.duong_dung or (ex.get("duongDung") if ex else "Uống sau ăn")
+                strength = d.ham_luong or (ex.get("hamLuong") if ex else "")
+                is_act = bool(d.is_active) if d.is_active is not None else True
+                item = {
+                    "id": ex.get("id") if (ex and ex.get("id")) else code,
+                    "maThuoc": code,
+                    "tenThuoc": name,
+                    "hoatChat": active,
+                    "hamLuong": strength,
+                    "dvt": unit,
+                    "donViTinh": unit,
+                    "duongDung": usage,
+                    "huongDan": usage,
+                    "nhomThuoc": group,
+                    "trangThai": is_act,
+                    "is_active": is_act,
+                }
+                if ex:
+                    for k, v in ex.items():
+                        if k not in item:
+                            item[k] = v
+                projected_drugs.append(item)
+                seen_drug_codes.add(code)
+            for bd in base_drugs:
+                c = str(bd.get("maThuoc") or bd.get("id") or "").strip().upper()
+                if c and c not in seen_drug_codes:
+                    projected_drugs.append(bd)
+                    seen_drug_codes.add(c)
+            catalogs["thuocVatTu"] = projected_drugs
+
+        db_icds = (
+            await db.execute(
+                select(KhaiNiem)
+                .where(KhaiNiem.loai_khai_niem == "benh_icd10")
+                .order_by(KhaiNiem.ma_khai_niem.asc())
+            )
+        ).scalars().all()
+        if db_icds:
+            base_icds = catalogs.get("danhMucBenh") or []
+            icd_map = {str(i.get("maICD") or i.get("id") or "").strip().upper(): i for i in base_icds}
+            projected_icds = []
+            seen_icd_codes = set()
+            for i in db_icds:
+                code = str(i.ma_khai_niem).strip().upper()
+                ex = icd_map.get(code)
+                name = i.ten_khai_niem or (ex.get("tenBenh") if ex else code)
+                chapter = (ex.get("chuongBenh") if ex and ex.get("chuongBenh") else None) or i.mo_ta or _get_icd_chapter(code)
+                is_infectious = (
+                    bool(ex.get("truyenNhiem"))
+                    if (ex and "truyenNhiem" in ex)
+                    else _is_infectious_icd(code, name)
+                )
+                is_act = bool(i.is_active) if i.is_active is not None else True
+                item = {
+                    "id": ex.get("id") if (ex and ex.get("id")) else f"ICD-{code}",
+                    "maICD": code,
+                    "tenBenh": name,
+                    "chuongBenh": chapter,
+                    "truyenNhiem": is_infectious,
+                    "trangThai": is_act,
+                    "is_active": is_act,
+                }
+                if ex:
+                    for k, v in ex.items():
+                        if k not in item:
+                            item[k] = v
+                projected_icds.append(item)
+                seen_icd_codes.add(code)
+            for bi in base_icds:
+                c = str(bi.get("maICD") or bi.get("id") or "").strip().upper()
+                if c and c not in seen_icd_codes:
+                    projected_icds.append(bi)
+                    seen_icd_codes.add(c)
+            catalogs["danhMucBenh"] = projected_icds
+
+        # Project donViTinh from PostgreSQL Thuoc & DichVu tables
+        db_thuoc_units = (
+            await db.execute(
+                select(Thuoc.don_vi_tinh, func.count(Thuoc.id))
+                .where(Thuoc.don_vi_tinh.isnot(None), Thuoc.don_vi_tinh != "")
+                .group_by(Thuoc.don_vi_tinh)
+            )
+        ).all()
+        db_dv_units = (
+            await db.execute(
+                select(DichVu.don_vi_tinh, func.count(DichVu.id))
+                .where(DichVu.don_vi_tinh.isnot(None), DichVu.don_vi_tinh != "")
+                .group_by(DichVu.don_vi_tinh)
+            )
+        ).all()
+
+        usage_counts: dict[str, int] = {}
+        thuoc_counts: dict[str, int] = {}
+        dv_counts: dict[str, int] = {}
+        for u, cnt in db_thuoc_units:
+            u_clean = str(u).strip()
+            if u_clean:
+                thuoc_counts[u_clean] = thuoc_counts.get(u_clean, 0) + int(cnt)
+                usage_counts[u_clean] = usage_counts.get(u_clean, 0) + int(cnt)
+        for u, cnt in db_dv_units:
+            u_clean = str(u).strip()
+            if u_clean:
+                dv_counts[u_clean] = dv_counts.get(u_clean, 0) + int(cnt)
+                usage_counts[u_clean] = usage_counts.get(u_clean, 0) + int(cnt)
+
+        base_dvts = catalogs.get("donViTinh") or []
+
+        def _make_dvt_code(name: str) -> str:
+            import unicodedata, re
+            nfd = unicodedata.normalize("NFD", name)
+            ascii_str = "".join(c for c in nfd if unicodedata.category(c) != "Mn").replace("đ", "d").replace("Đ", "D")
+            code = re.sub(r"[^A-Za-z0-9]+", "_", ascii_str).strip("_").upper()
+            return code[:30] or "DVT"
+
+        projected_dvts = []
+        seen_dvt_names = set()
+
+        for idx, d in enumerate(base_dvts):
+            d_name = str(d.get("ten") or d.get("noiDung") or d.get("ma") or "").strip()
+            if not d_name:
+                continue
+            d_key = d_name.lower()
+            if d_key in seen_dvt_names:
+                continue
+            cnt = usage_counts.get(d_name, 0)
+            if not cnt:
+                for u_name, c_num in usage_counts.items():
+                    if u_name.lower() in d_key or d_key in u_name.lower():
+                        cnt += c_num
+            scope = d.get("loai") or d.get("phamVi")
+            if not scope:
+                in_th = d_name in thuoc_counts
+                in_dv = d_name in dv_counts
+                if in_th and not in_dv:
+                    scope = "THUOC"
+                elif in_dv and not in_th:
+                    scope = "DICH_VU"
+                else:
+                    scope = "CHUNG"
+            desc = d.get("moTa") or (f"Áp dụng cho {cnt} bản ghi Thuốc & Dịch vụ" if cnt > 0 else "Đơn vị tính chuẩn phòng khám")
+            item = {
+                "id": d.get("id") or f"DVT-{_make_dvt_code(d_name)}",
+                "ma": d.get("ma") or _make_dvt_code(d_name),
+                "ten": d_name,
+                "noiDung": d_name,
+                "loai": scope,
+                "phamVi": scope,
+                "moTa": desc,
+                "usageCount": cnt,
+                "thuTu": d.get("thuTu") or (idx + 1),
+                "trangThai": d.get("trangThai", True) if d.get("trangThai") is not None else True,
+                "is_active": d.get("is_active", True) if d.get("is_active") is not None else True,
+            }
+            projected_dvts.append(item)
+            seen_dvt_names.add(d_key)
+
+        for u_name, cnt in sorted(usage_counts.items(), key=lambda x: -x[1]):
+            u_key = u_name.lower()
+            if u_key not in seen_dvt_names:
+                code = _make_dvt_code(u_name)
+                in_th = u_name in thuoc_counts
+                in_dv = u_name in dv_counts
+                scope = "THUOC" if (in_th and not in_dv) else ("DICH_VU" if (in_dv and not in_th) else "CHUNG")
+                item = {
+                    "id": f"DVT-{code}",
+                    "ma": code,
+                    "ten": u_name,
+                    "noiDung": u_name,
+                    "loai": scope,
+                    "phamVi": scope,
+                    "moTa": f"Dữ liệu thực tế từ PostgreSQL ({cnt} bản ghi đang áp dụng)",
+                    "usageCount": cnt,
+                    "thuTu": len(projected_dvts) + 1,
+                    "trangThai": True,
+                    "is_active": True,
+                }
+                projected_dvts.append(item)
+                seen_dvt_names.add(u_key)
+
+        catalogs["donViTinh"] = projected_dvts
 
         return catalogs
 
@@ -830,7 +1180,6 @@ class BffAdminService:
             "newsArticles",
             "catalogs",
             "qaList",
-            "staffList",
             "roles",
             "templates",
             "auditLogs",
@@ -847,7 +1196,6 @@ class BffAdminService:
         for key in [
             "patients",
             "appointments",
-            "staffList",
             "registrations",
             "paraclinicalTasks",
             "templates",
@@ -877,18 +1225,9 @@ class BffAdminService:
         value: Any,
         user_id: Optional[int] = None,
     ) -> None:
-        stmt = select(HeThongTrangThaiBff).where(HeThongTrangThaiBff.collection_key == key)
-        record = (await db.execute(stmt)).scalar_one_or_none()
-        if record:
-            record.data_json = value
-            record.updated_by_id = user_id
-        else:
-            record = HeThongTrangThaiBff(
-                collection_key=key,
-                data_json=value,
-                updated_by_id=user_id,
-            )
-            db.add(record)
+        if not hasattr(self, "_bff_collections"):
+            self._bff_collections = {}
+        self._bff_collections[key] = value
 
     async def _append_audit_entry(
         self,
@@ -1012,39 +1351,7 @@ class BffAdminService:
             return
 
         if collection_key == "staffList":
-            first_ck = (await db.execute(select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc()))).scalars().first()
-            first_pk = (await db.execute(select(PhongKham).order_by(PhongKham.id.asc()))).scalars().first()
-            for s in items:
-                cchn = str(s.get("soCCHN") or s.get("maNV") or s.get("id") or "").strip()
-                if not cchn:
-                    continue
-                stmt_bs = select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.chung_chi_hanh_nghe == cchn[:50])
-                existing_bs = (await db.execute(stmt_bs)).scalar_one_or_none()
-                ho_ten = str(s.get("hoTen") or "Bác sĩ Chuyên khoa").strip()[:150]
-                if existing_bs:
-                    existing_bs.trang_thai_giay_phep = str(s.get("trangThaiCCHN") or existing_bs.trang_thai_giay_phep or "ACTIVE")[:30]
-                    existing_bs.ngay_cap = _parse_date_safe(s.get("ngayCapCCHN"), existing_bs.ngay_cap)
-                    existing_bs.ngay_het_han = _parse_date_safe(s.get("ngayHetHanCCHN"), existing_bs.ngay_het_han)
-                    existing_bs.is_active = bool(s.get("trangThai", True))
-                    if existing_bs.nguoi_dung:
-                        existing_bs.nguoi_dung.ho_ten = ho_ten
-                else:
-                    nd = NguoiDung(ho_ten=ho_ten)
-                    db.add(nd)
-                    await db.flush()
-                    db.add(
-                        BacSi(
-                            nguoi_dung_id=nd.id,
-                            chuyen_khoa_id=first_ck.id if first_ck else None,
-                            phong_kham_id=first_pk.id if first_pk else None,
-                            hoc_vi="BS.CKI",
-                            chung_chi_hanh_nghe=cchn[:50],
-                            ngay_cap=_parse_date_safe(s.get("ngayCapCCHN"), date(2020, 1, 15)),
-                            ngay_het_han=_parse_date_safe(s.get("ngayHetHanCCHN"), date(2028, 1, 15)),
-                            trang_thai_giay_phep=str(s.get("trangThaiCCHN") or "ACTIVE")[:30],
-                            is_active=bool(s.get("trangThai", True)),
-                        )
-                    )
+            raise BadRequestException("staffList không còn được lưu qua dữ liệu BFF. Hãy dùng API hồ sơ nhân sự và bác sĩ chuyên dụng.")
 
         elif collection_key == "patients":
             for p in items:
@@ -1397,7 +1704,14 @@ class BffAdminService:
         elif collection_key == "corporateCheckups":
             pass
 
-    async def _sync_catalog_relational_tables(self, db: AsyncSession, sub_key: str, items: Any) -> None:
+    async def _sync_catalog_relational_tables(
+        self,
+        db: AsyncSession,
+        sub_key: str,
+        items: Any,
+        prev_items: Optional[list] = None,
+        catalogs: Optional[dict] = None,
+    ) -> None:
         if not isinstance(items, list):
             return
 
@@ -1406,17 +1720,36 @@ class BffAdminService:
                 code = str(r.get("maPhong") or r.get("id") or "").strip()
                 if not code:
                     continue
+                ck_name = str(r.get("chuyenKhoa") or "").strip()
+                ck_id = None
+                if ck_name:
+                    stmt_ck = select(ChuyenKhoa.id).where(
+                        or_(
+                            ChuyenKhoa.ten_chuyen_khoa == ck_name,
+                            ChuyenKhoa.ten_chuyen_khoa.ilike(f"%{ck_name}%"),
+                            ChuyenKhoa.ma_chuyen_khoa.ilike(f"%{ck_name}%"),
+                        )
+                    ).limit(1)
+                    ck_id = (await db.execute(stmt_ck)).scalar_one_or_none()
+
+                is_act = bool(r.get("trangThai", True) if r.get("trangThai") is not None else r.get("is_active", True))
                 stmt = select(PhongKham).where(PhongKham.ma_phong == code[:50])
                 existing = (await db.execute(stmt)).scalar_one_or_none()
                 if existing:
                     existing.ten_phong = str(r.get("tenPhong") or existing.ten_phong)[:100]
+                    if r.get("tang"):
+                        existing.tang = str(r.get("tang"))[:20]
+                    if ck_id:
+                        existing.chuyen_khoa_id = ck_id
+                    existing.is_active = is_act
                 else:
                     db.add(PhongKham(
                         ma_phong=code[:50],
                         ten_phong=str(r.get("tenPhong") or code)[:100],
                         tang=str(r.get("tang") or "Tầng 1")[:20],
+                        chuyen_khoa_id=ck_id,
                         loai_phong="kham_benh",
-                        is_active=True,
+                        is_active=is_act,
                     ))
 
         elif sub_key == "dichVu":
@@ -1427,38 +1760,167 @@ class BffAdminService:
                 stmt = select(DichVu).where(DichVu.ma_dich_vu == code[:50])
                 existing = (await db.execute(stmt)).scalar_one_or_none()
                 price = _parse_decimal_safe(s.get("giaDV") or s.get("donGia") or 150000)
+                dvt_val = str(s.get("donViTinh") or s.get("dvt") or "Lần")[:30]
+                nhom_val = str(s.get("loaiDV") or s.get("nhomDV") or "CLS")[:50]
+                is_act = bool(s.get("trangThai", True) if s.get("trangThai") is not None else s.get("is_active", True))
                 if existing:
                     existing.ten_dich_vu = str(s.get("tenDV") or existing.ten_dich_vu)[:150]
                     existing.don_gia = price
+                    existing.don_vi_tinh = dvt_val
+                    existing.ma_nhom_byt = nhom_val
+                    existing.is_active = is_act
                 else:
                     db.add(DichVu(
                         ma_dich_vu=code[:50],
                         ten_dich_vu=str(s.get("tenDV") or code)[:150],
                         don_gia=price,
-                        don_vi_tinh=str(s.get("donViTinh") or "Lần")[:30],
-                        ma_nhom_byt=str(s.get("loaiDV") or "CLS")[:50],
-                        is_active=True,
+                        don_vi_tinh=dvt_val,
+                        ma_nhom_byt=nhom_val,
+                        is_active=is_act,
                     ))
 
-        elif sub_key in ("danhMucBenh", "thuocVatTu"):
-            loai_kn = "benh_icd10" if sub_key == "danhMucBenh" else "thuoc_tham_chieu"
+        elif sub_key == "thuocVatTu":
             for item in items:
-                code = str(item.get("maICD") or item.get("maThuoc") or item.get("id") or "").strip()
-                name = str(item.get("tenBenh") or item.get("tenThuoc") or code).strip()
+                code = str(item.get("maThuoc") or item.get("ma") or item.get("id") or "").strip().upper()
                 if not code:
                     continue
-                stmt = select(KhaiNiem).where(KhaiNiem.ma_khai_niem == code[:50])
+                name = str(item.get("tenThuoc") or item.get("ten") or code).strip()
+                active_ing = str(item.get("hoatChat") or "").strip() or None
+                strength = str(item.get("hamLuong") or "").strip() or None
+                unit = str(item.get("dvt") or item.get("donViTinh") or "Viên").strip()[:50]
+                usage = str(item.get("duongDung") or item.get("huongDan") or "Uống sau ăn").strip()[:100]
+                is_act = bool(item.get("trangThai", True) if item.get("trangThai") is not None else item.get("is_active", True))
+
+                stmt = select(Thuoc).where(Thuoc.ma_thuoc_noi_bo == code[:50])
+                existing = (await db.execute(stmt)).scalar_one_or_none()
+                if existing:
+                    existing.ten_thuoc = name[:255]
+                    if active_ing:
+                        existing.hoat_chat = active_ing[:255]
+                    if strength:
+                        existing.ham_luong = strength[:100]
+                    existing.don_vi_tinh = unit
+                    existing.duong_dung = usage
+                    existing.is_active = is_act
+                else:
+                    db.add(Thuoc(
+                        ma_thuoc_noi_bo=code[:50],
+                        ten_thuoc=name[:255],
+                        hoat_chat=active_ing[:255] if active_ing else None,
+                        ham_luong=strength[:100] if strength else None,
+                        don_vi_tinh=unit,
+                        duong_dung=usage,
+                        is_active=is_act,
+                    ))
+
+        elif sub_key == "danhMucBenh":
+            for item in items:
+                code = str(item.get("maICD") or item.get("ma") or item.get("id") or "").strip().upper()
+                if not code:
+                    continue
+                name = str(item.get("tenBenh") or item.get("ten") or code).strip()
+                chapter = str(item.get("chuongBenh") or item.get("moTa") or "").strip()[:255]
+                is_act = bool(item.get("trangThai", True) if item.get("trangThai") is not None else item.get("is_active", True))
+
+                stmt = select(KhaiNiem).where(
+                    KhaiNiem.ma_khai_niem == code[:50],
+                    KhaiNiem.loai_khai_niem == "benh_icd10",
+                )
                 existing = (await db.execute(stmt)).scalar_one_or_none()
                 if existing:
                     existing.ten_khai_niem = name[:255]
+                    if chapter:
+                        existing.mo_ta = chapter
+                    existing.is_active = is_act
                 else:
                     db.add(KhaiNiem(
                         ma_khai_niem=code[:50],
                         ten_khai_niem=name[:255],
-                        loai_khai_niem=loai_kn,
-                        mo_ta=str(item.get("nhomBenh") or item.get("hoatChat") or ""),
-                        is_active=True,
+                        loai_khai_niem="benh_icd10",
+                        mo_ta=chapter or None,
+                        is_active=is_act,
                     ))
+
+        elif sub_key == "chuyenKhoa":
+            for item in items:
+                code = str(item.get("maChuyenKhoa") or item.get("maCK") or item.get("ma") or item.get("id") or "").strip().upper()
+                if not code:
+                    continue
+                name = str(item.get("tenChuyenKhoa") or item.get("ten") or code).strip()
+                loc = str(item.get("viTriPhong") or "").strip()[:100]
+                desc = str(item.get("moTa") or "").strip()
+                is_act = bool(item.get("trangThai", True) if item.get("trangThai") is not None else item.get("is_active", True))
+
+                stmt = select(ChuyenKhoa).where(
+                    or_(
+                        ChuyenKhoa.ma_chuyen_khoa == code[:50],
+                        ChuyenKhoa.ten_chuyen_khoa == name[:100],
+                    )
+                )
+                existing = (await db.execute(stmt)).scalar_one_or_none()
+                if existing:
+                    existing.ten_chuyen_khoa = name[:100]
+                    existing.ma_chuyen_khoa = code[:50]
+                    if loc:
+                        existing.vi_tri_phong = loc
+                    if desc:
+                        existing.mo_ta = desc
+                    existing.is_active = is_act
+                else:
+                    db.add(ChuyenKhoa(
+                        ma_chuyen_khoa=code[:50],
+                        ten_chuyen_khoa=name[:100],
+                        vi_tri_phong=loc or None,
+                        mo_ta=desc or None,
+                        is_active=is_act,
+                    ))
+
+        elif sub_key == "donViTinh":
+            if prev_items and isinstance(items, list):
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    item_id = str(item.get("id") or "").strip()
+                    item_code = str(item.get("ma") or "").strip().upper()
+                    new_name = str(item.get("ten") or item.get("noiDung") or item_code).strip()
+                    if not new_name:
+                        continue
+
+                    matched_prev = None
+                    for prev in prev_items:
+                        if not isinstance(prev, dict):
+                            continue
+                        p_id = str(prev.get("id") or "").strip()
+                        p_code = str(prev.get("ma") or "").strip().upper()
+                        if (item_id and p_id and item_id == p_id) or (item_code and p_code and item_code == p_code):
+                            matched_prev = prev
+                            break
+
+                    if matched_prev:
+                        old_name = str(matched_prev.get("ten") or matched_prev.get("noiDung") or matched_prev.get("ma") or "").strip()
+                        if old_name and old_name != new_name:
+                            # 1. Cascade update Thuoc table in PostgreSQL
+                            await db.execute(
+                                update(Thuoc)
+                                .where(Thuoc.don_vi_tinh == old_name)
+                                .values(don_vi_tinh=new_name)
+                            )
+                            # 2. Cascade update DichVu table in PostgreSQL
+                            await db.execute(
+                                update(DichVu)
+                                .where(DichVu.don_vi_tinh == old_name)
+                                .values(don_vi_tinh=new_name)
+                            )
+                            # 3. Cascade update in-memory / JSON catalogs
+                            if catalogs is not None:
+                                for th in catalogs.get("thuocVatTu") or []:
+                                    if str(th.get("dvt") or th.get("donViTinh") or "").strip() == old_name:
+                                        th["dvt"] = new_name
+                                        th["donViTinh"] = new_name
+                                for dv in catalogs.get("dichVu") or []:
+                                    if str(dv.get("dvt") or dv.get("donViTinh") or "").strip() == old_name:
+                                        dv["dvt"] = new_name
+                                        dv["donViTinh"] = new_name
 
     async def update_collection(
         self,
@@ -1470,6 +1932,8 @@ class BffAdminService:
     ) -> dict:
         if collection_key == "inventoryBatches":
             items = []
+        if collection_key == "staffList":
+            raise BadRequestException("staffList không còn được lưu qua dữ liệu BFF. Hãy dùng API hồ sơ nhân sự và bác sĩ chuyên dụng.")
 
         await self._upsert_bff_key(db, collection_key, items, user_id=user_id)
         await self._sync_relational_tables(db, collection_key, items)
@@ -1482,6 +1946,322 @@ class BffAdminService:
         current_data["inventoryBatches"] = []
         return current_data
 
+    async def _delete_catalog_relational_item(
+        self,
+        db: AsyncSession,
+        sub_key: str,
+        item: dict,
+        item_key: Optional[str] = None,
+    ) -> None:
+        if not item or not isinstance(item, dict):
+            return
+
+        if sub_key == "chuyenKhoa":
+            code = str(item.get("maChuyenKhoa") or item.get("maCK") or item.get("ma") or item.get("id") or item_key or "").strip().upper()
+            name = str(item.get("tenChuyenKhoa") or item.get("ten") or "").strip()
+
+            conditions = []
+            if code:
+                conditions.append(ChuyenKhoa.ma_chuyen_khoa == code[:50])
+                if code.startswith("CK-"):
+                    try:
+                        conditions.append(ChuyenKhoa.id == int(code.replace("CK-", "")))
+                    except ValueError:
+                        pass
+            if name:
+                conditions.append(ChuyenKhoa.ten_chuyen_khoa == name[:100])
+                conditions.append(ChuyenKhoa.ten_chuyen_khoa.ilike(name[:100]))
+            raw_id = str(item.get("id") or "").strip()
+            if raw_id.isdigit():
+                conditions.append(ChuyenKhoa.id == int(raw_id))
+            elif raw_id.startswith("CK-"):
+                try:
+                    conditions.append(ChuyenKhoa.id == int(raw_id.replace("CK-", "")))
+                except ValueError:
+                    pass
+
+            if not conditions:
+                return
+
+            stmt = select(ChuyenKhoa).where(or_(*conditions)).limit(1)
+            target = (await db.execute(stmt)).scalar_one_or_none()
+            if not target:
+                return
+
+            cnt_bs = (await db.execute(select(func.count(BacSi.id)).where(BacSi.chuyen_khoa_id == target.id))).scalar() or 0
+            cnt_pk = (await db.execute(select(func.count(PhongKham.id)).where(PhongKham.chuyen_khoa_id == target.id))).scalar() or 0
+            cnt_lk = (await db.execute(select(func.count(LichKham.id)).where(LichKham.chuyen_khoa_id == target.id))).scalar() or 0
+            cnt_dv = (await db.execute(select(func.count(DichVu.id)).where(DichVu.chuyen_khoa_id == target.id))).scalar() or 0
+            cnt_pkck = (await db.execute(select(func.count(PhieuKhamChuyenKhoa.id)).where(PhieuKhamChuyenKhoa.chuyen_khoa_id == target.id))).scalar() or 0
+
+            reasons = []
+            if cnt_bs > 0:
+                reasons.append(f"{cnt_bs} bác sĩ thuộc chuyên khoa")
+            if cnt_pk > 0:
+                reasons.append(f"{cnt_pk} phòng khám trực thuộc")
+            if cnt_lk > 0:
+                reasons.append(f"{cnt_lk} lịch khám hẹn của bệnh nhân")
+            if cnt_dv > 0:
+                reasons.append(f"{cnt_dv} dịch vụ kỹ thuật")
+            if cnt_pkck > 0:
+                reasons.append(f"{cnt_pkck} phiếu khám chuyên khoa")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
+            try:
+                await db.delete(target)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise ConflictException(
+                    "Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: Ràng buộc toàn vẹn cơ sở dữ liệu y tế."
+                )
+
+        elif sub_key == "khoaPhong":
+            code = str(item.get("maPhong") or item.get("id") or item_key or "").strip()
+            name = str(item.get("tenPhong") or "").strip()
+
+            conditions = []
+            if code:
+                conditions.append(PhongKham.ma_phong == code[:50])
+                clean_code = code.replace(".", "")
+                conditions.append(PhongKham.ma_phong == clean_code[:50])
+                conditions.append(PhongKham.ma_phong == f"ROOM-{code}"[:50])
+            if name:
+                conditions.append(PhongKham.ten_phong == name[:100])
+                conditions.append(PhongKham.ten_phong.ilike(name[:100]))
+            raw_id = str(item.get("id") or "").strip()
+            if raw_id.isdigit():
+                conditions.append(PhongKham.id == int(raw_id))
+            elif "ROOM-DB-" in raw_id:
+                try:
+                    num = int(raw_id.replace("ROOM-DB-", ""))
+                    conditions.append(PhongKham.id == num)
+                except ValueError:
+                    pass
+
+            if not conditions:
+                return
+
+            stmt = select(PhongKham).where(or_(*conditions)).limit(1)
+            target = (await db.execute(stmt)).scalar_one_or_none()
+            if not target:
+                return
+
+            cnt_bs = (await db.execute(select(func.count(BacSi.id)).where(BacSi.phong_kham_id == target.id))).scalar() or 0
+            cnt_cd = (await db.execute(select(func.count(ChiDinh.id)).where(ChiDinh.phong_thuc_hien_id == target.id))).scalar() or 0
+            cnt_dv = (await db.execute(select(func.count(DichVu.id)).where(DichVu.phong_thuc_hien_id == target.id))).scalar() or 0
+            cnt_pkck = (await db.execute(select(func.count(PhieuKhamChuyenKhoa.id)).where(PhieuKhamChuyenKhoa.phong_kham_id == target.id))).scalar() or 0
+            cnt_hd = (await db.execute(select(func.count(HangDoiKham.id)).where(HangDoiKham.phong_kham_id == target.id))).scalar() or 0
+            cnt_llv = (await db.execute(select(func.count(LichLamViec.id)).where(LichLamViec.phong_kham_id == target.id))).scalar() or 0
+
+            reasons = []
+            if cnt_bs > 0:
+                reasons.append(f"{cnt_bs} bác sĩ đang phụ trách/phân công")
+            if cnt_cd > 0:
+                reasons.append(f"{cnt_cd} chỉ định dịch vụ y tế tại phòng")
+            if cnt_dv > 0:
+                reasons.append(f"{cnt_dv} dịch vụ kỹ thuật liên kết phòng")
+            if cnt_llv > 0:
+                reasons.append(f"{cnt_llv} ca trực/lịch làm việc")
+            if cnt_pkck > 0:
+                reasons.append(f"{cnt_pkck} phiếu khám bệnh")
+            if cnt_hd > 0:
+                reasons.append(f"{cnt_hd} lượt hàng đợi khám")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
+            try:
+                await db.delete(target)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise ConflictException(
+                    "Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: Ràng buộc toàn vẹn cơ sở dữ liệu y tế."
+                )
+
+        elif sub_key == "dichVu":
+            code = str(item.get("maDV") or item.get("id") or item_key or "").strip()
+            name = str(item.get("tenDV") or "").strip()
+
+            conditions = []
+            if code:
+                conditions.append(DichVu.ma_dich_vu == code[:50])
+            if name:
+                conditions.append(DichVu.ten_dich_vu == name[:150])
+                conditions.append(DichVu.ten_dich_vu.ilike(name[:150]))
+            raw_id = str(item.get("id") or "").strip()
+            if raw_id.isdigit():
+                conditions.append(DichVu.id == int(raw_id))
+
+            if not conditions:
+                return
+
+            stmt = select(DichVu).where(or_(*conditions)).limit(1)
+            target = (await db.execute(stmt)).scalar_one_or_none()
+            if not target:
+                return
+
+            cnt_cd = (await db.execute(select(func.count(ChiDinh.id)).where(ChiDinh.dich_vu_id == target.id))).scalar() or 0
+            cnt_gk = (await db.execute(select(func.count(ChiTietGoiKham.id)).where(ChiTietGoiKham.dich_vu_id == target.id))).scalar() or 0
+            cnt_gdm = (await db.execute(select(func.count(ChiTietGoiKhamDaMua.id)).where(ChiTietGoiKhamDaMua.dich_vu_id == target.id))).scalar() or 0
+
+            reasons = []
+            if cnt_cd > 0:
+                reasons.append(f"{cnt_cd} chỉ định cận lâm sàng trong hồ sơ bệnh án")
+            if cnt_gk > 0:
+                reasons.append(f"{cnt_gk} cấu hình gói khám dịch vụ")
+            if cnt_gdm > 0:
+                reasons.append(f"{cnt_gdm} lượt gói dịch vụ đã mua của bệnh nhân")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
+            try:
+                await db.delete(target)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise ConflictException(
+                    "Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: Ràng buộc toàn vẹn cơ sở dữ liệu y tế."
+                )
+
+        elif sub_key == "thuocVatTu":
+            code = str(item.get("maThuoc") or item.get("ma") or item.get("id") or item_key or "").strip().upper()
+            name = str(item.get("tenThuoc") or item.get("ten") or "").strip()
+
+            conditions = []
+            if code:
+                conditions.append(Thuoc.ma_thuoc_noi_bo == code[:50])
+            if name:
+                conditions.append(Thuoc.ten_thuoc == name[:255])
+                conditions.append(Thuoc.ten_thuoc.ilike(name[:255]))
+            raw_id = str(item.get("id") or "").strip()
+            if raw_id.isdigit():
+                conditions.append(Thuoc.id == int(raw_id))
+
+            if not conditions:
+                return
+
+            stmt = select(Thuoc).where(or_(*conditions)).limit(1)
+            target = (await db.execute(stmt)).scalar_one_or_none()
+            if not target:
+                return
+
+            cnt_dt = (await db.execute(select(func.count(ChiTietDonThuoc.id)).where(
+                or_(
+                    ChiTietDonThuoc.thuoc_id == target.id,
+                    ChiTietDonThuoc.ten_thuoc == target.ten_thuoc,
+                )
+            ))).scalar() or 0
+
+            reasons = []
+            if cnt_dt > 0:
+                reasons.append(f"{cnt_dt} đơn thuốc đã kê cho bệnh nhân")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
+            try:
+                await db.delete(target)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise ConflictException(
+                    "Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: Ràng buộc toàn vẹn cơ sở dữ liệu y tế."
+                )
+
+        elif sub_key == "danhMucBenh":
+            code = str(item.get("maICD") or item.get("ma") or item.get("id") or item_key or "").strip().upper()
+            name = str(item.get("tenBenh") or item.get("ten") or "").strip()
+
+            conditions = []
+            if code:
+                conditions.append(KhaiNiem.ma_khai_niem == code[:50])
+            if name:
+                conditions.append(KhaiNiem.ten_khai_niem == name[:255])
+                conditions.append(KhaiNiem.ten_khai_niem.ilike(name[:255]))
+            raw_id = str(item.get("id") or "").strip()
+            if raw_id.isdigit():
+                conditions.append(KhaiNiem.id == int(raw_id))
+
+            if not conditions:
+                return
+
+            stmt = select(KhaiNiem).where(
+                and_(
+                    or_(*conditions),
+                    KhaiNiem.loai_khai_niem == "benh_icd10"
+                )
+            ).limit(1)
+            target = (await db.execute(stmt)).scalar_one_or_none()
+            if not target:
+                return
+
+            cnt_cd = (await db.execute(select(func.count(ChanDoan.id)).where(
+                or_(
+                    ChanDoan.khai_niem_id == target.id,
+                    ChanDoan.ma_icd10 == target.ma_khai_niem,
+                )
+            ))).scalar() or 0
+
+            reasons = []
+            if cnt_cd > 0:
+                reasons.append(f"{cnt_cd} hồ sơ chẩn đoán bệnh án của bệnh nhân")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
+            try:
+                await db.delete(target)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise ConflictException(
+                    "Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: Ràng buộc toàn vẹn cơ sở dữ liệu y tế."
+                )
+
+        elif sub_key == "donViTinh":
+            unit_name = str(item.get("ten") or item.get("noiDung") or item.get("ma") or item_key or "").strip()
+            if not unit_name:
+                return
+
+            cnt_thuoc = (await db.execute(
+                select(func.count(Thuoc.id)).where(Thuoc.don_vi_tinh == unit_name)
+            )).scalar() or 0
+            cnt_dv = (await db.execute(
+                select(func.count(DichVu.id)).where(DichVu.don_vi_tinh == unit_name)
+            )).scalar() or 0
+
+            reasons = []
+            if cnt_thuoc > 0:
+                reasons.append(f"{cnt_thuoc} thuốc kê đơn trong danh mục")
+            if cnt_dv > 0:
+                reasons.append(f"{cnt_dv} dịch vụ kỹ thuật")
+
+            if reasons:
+                details = ", ".join(reasons)
+                raise ConflictException(
+                    f"Dữ liệu này không xóa được vì đang được liên kết với dữ liệu khác: {details}. Vui lòng hủy liên kết hoặc chuyển sang trạng thái Tạm ngưng!"
+                )
+
     async def update_catalog_subcollection(
         self,
         db: AsyncSession,
@@ -1489,14 +2269,36 @@ class BffAdminService:
         items: Any,
         audit_entry: Optional[dict] = None,
         user_id: Optional[int] = None,
+        deleted_item: Optional[dict] = None,
+        deleted_item_key: Optional[str] = None,
     ) -> dict:
         current_data = await self.get_bootstrap_data(db)
         catalogs = dict(current_data.get("catalogs") or {})
+        prev_items = catalogs.get(sub_key) or []
+
+        if not deleted_item and audit_entry and audit_entry.get("hanhDong") == "DELETE_CATALOG_ITEM" and isinstance(items, list) and isinstance(prev_items, list):
+            new_keys = set()
+            for it in items:
+                if isinstance(it, dict):
+                    k = str(it.get("maChuyenKhoa") or it.get("maPhong") or it.get("maDV") or it.get("maThuoc") or it.get("maICD") or it.get("id") or "").strip().upper()
+                    if k:
+                        new_keys.add(k)
+            for prev in prev_items:
+                if isinstance(prev, dict):
+                    pk = str(prev.get("maChuyenKhoa") or prev.get("maPhong") or prev.get("maDV") or prev.get("maThuoc") or prev.get("maICD") or prev.get("id") or "").strip().upper()
+                    if pk and pk not in new_keys:
+                        deleted_item = prev
+                        deleted_item_key = pk
+                        break
+
+        if deleted_item:
+            await self._delete_catalog_relational_item(db, sub_key, deleted_item, deleted_item_key)
+
         catalogs[sub_key] = items
         current_data["catalogs"] = catalogs
 
         await self._upsert_bff_key(db, "catalogs", catalogs, user_id=user_id)
-        await self._sync_catalog_relational_tables(db, sub_key, items)
+        await self._sync_catalog_relational_tables(db, sub_key, items, prev_items=prev_items, catalogs=catalogs)
         await self._append_audit_entry(
             db,
             current_data,
@@ -1506,12 +2308,13 @@ class BffAdminService:
         )
 
         await db.commit()
-        current_data["inventoryBatches"] = []
-        return current_data
+        refreshed_data = await self.get_bootstrap_data(db)
+        refreshed_data["inventoryBatches"] = []
+        return refreshed_data
 
     async def reset_demo_data(self, db: AsyncSession) -> dict:
-        await db.execute(delete(HeThongTrangThaiBff))
-        await db.commit()
+        if hasattr(self, "_bff_collections"):
+            self._bff_collections.clear()
         self._initial_relational_synced = False
         return await self.get_bootstrap_data(db)
 

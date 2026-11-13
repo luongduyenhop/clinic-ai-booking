@@ -25,7 +25,6 @@ class EncounterCreateRequest(BaseModel):
     chan_doan_so_bo: Optional[str] = Field(None, description="Chẩn đoán sơ bộ ban đầu của bác sĩ")
     tien_su_di_ung: Optional[str] = Field(None, description="Tiền sử dị ứng thuốc / thức ăn")
 
-    # Chỉ số sinh hiệu (Vital Signs)
     mach_lan_phut: Optional[int] = Field(None, ge=30, le=250, description="Mạch (nhịp/phút)")
     nhiet_do_c: Optional[float] = Field(None, ge=30.0, le=45.0, description="Thân nhiệt (°C)")
     huyet_ap_tam_thu: Optional[int] = Field(None, ge=50, le=300, description="Huyết áp tâm thu (mmHg)")
@@ -40,9 +39,6 @@ class EncounterCreateRequest(BaseModel):
 
 
 class DiagnosisCreateRequest(BaseModel):
-    """Yêu cầu thêm kết luận chẩn đoán bệnh theo mã ICD-10"""
-    # Định dạng ICD-10: chữ cái + 2 ký tự nhóm bệnh, mã con tùy chọn sau dấu chấm (I10, K29.7, S72.001)
-    # (chuẩn hóa ' k29.7 ' -> 'K29.7' ở BeforeValidator vì pattern của StringConstraints chạy trước strip/to_upper)
     ma_icd10: Annotated[
         str,
         BeforeValidator(lambda v: v.strip().upper() if isinstance(v, str) else v),
@@ -201,7 +197,6 @@ class PrescriptionResponse(BaseModel):
     danh_sach_chi_tiet: List[PrescriptionItemResponse] = []
     created_at: Optional[datetime] = None
 
-    # Quản lý Tuân thủ Pháp lý & Liên thông Cổng Quốc gia (INT-04 / R3)
     trang_thai: str = "DRAFT"
     ma_don_quoc_gia: Optional[str] = None
     chu_ky_so: Optional[str] = None
@@ -219,7 +214,6 @@ class PrescriptionResponse(BaseModel):
 
 
 class EncounterCompleteRequest(BaseModel):
-    """Yêu cầu hoàn tất ca khám và khóa hồ sơ bệnh án theo Thông tư 32/2023/TT-BYT"""
     ket_luan_dieu_tri: Optional[str] = Field(None, description="Kết luận điều trị y khoa")
     loi_dan_bac_si: Optional[str] = Field(None, description="Lời dặn của bác sĩ")
     ngay_hen_tai_kham: Optional[date] = Field(None, description="Ngày hẹn tái khám (nếu có)")
@@ -227,7 +221,6 @@ class EncounterCompleteRequest(BaseModel):
 
 
 class EncounterResponse(BaseModel):
-    """Chi tiết lượt khám lâm sàng / Bệnh án điện tử EMR"""
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -243,7 +236,6 @@ class EncounterResponse(BaseModel):
     chan_doan_so_bo: Optional[str] = None
     tien_su_di_ung: Optional[str] = None
 
-    # Sinh hiệu
     mach_lan_phut: Optional[int] = None
     nhiet_do_c: Optional[float] = None
     huyet_ap_tam_thu: Optional[int] = None
@@ -260,12 +252,10 @@ class EncounterResponse(BaseModel):
     ngay_hen_tai_kham: Optional[date] = None
     loi_dan_tai_kham: Optional[str] = None
 
-    # Khóa bệnh án
     is_locked: bool
     thoi_gian_khoa: Optional[datetime] = None
     nguoi_khoa_id: Optional[int] = None
 
-    # Danh sách liên quan
     danh_sach_chan_doan: List[DiagnosisResponse] = []
     danh_sach_chi_dinh: List[OrderResponse] = []
     don_thuoc: Optional[PrescriptionResponse] = None
@@ -322,8 +312,63 @@ class AmendmentResponse(BaseModel):
 
 
 class AmendmentApproveRequest(BaseModel):
-    """Schema trưởng khoa / admin gửi khi phê duyệt hoặc từ chối đính chính"""
     ghi_chu: Optional[str] = Field(None, description="Ghi chú của người phê duyệt/từ chối")
     ma_kiem_thao: Optional[str] = Field(None, description="Số biên bản kiểm thảo chuyên môn (bắt buộc với mức CAO theo Điều 69 Luật KCB 2023)")
     thoi_gian_kiem_thao: Optional[datetime] = Field(None, description="Thời gian họp kiểm thảo chuyên môn")
+
+
+class Icd10SearchItem(BaseModel):
+    code: str
+    name_vi: str
+    name_en: Optional[str] = None
+    chapter: Optional[str] = None
+
+
+class VitalsCreateRequest(BaseModel):
+    systolic_bp: float = Field(..., ge=40, le=260)
+    diastolic_bp: float = Field(..., ge=30, le=160)
+    heart_rate: float = Field(..., ge=30, le=250)
+    body_temperature: float = Field(..., ge=32.0, le=44.0)
+    respiratory_rate: Optional[float] = Field(None, ge=5, le=80)
+    spo2_percentage: Optional[float] = Field(None, ge=50, le=100)
+    height_cm: Optional[float] = Field(None, ge=30, le=250)
+    weight_kg: Optional[float] = Field(None, ge=1, le=300)
+
+
+class VitalsResponse(BaseModel):
+    id: int
+    encounter_id: int
+    systolic_bp: float
+    diastolic_bp: float
+    heart_rate: float
+    body_temperature: float
+    respiratory_rate: Optional[float] = None
+    spo2_percentage: Optional[float] = None
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    bmi: Optional[float] = None
+    is_critical: bool = False
+    warnings: List[str] = []
+    recorded_at: datetime
+
+
+class SealAndSignResponse(BaseModel):
+    encounter_id: int
+    status: str
+    is_locked: bool
+    signed_at: datetime
+    record_hash: str
+    signature: str
+
+
+class AllergyCheckRequest(BaseModel):
+    patient_id: int
+    active_ingredient: str = Field(..., min_length=2)
+
+
+class AllergyCheckResponse(BaseModel):
+    has_conflict: bool
+    is_blocked: bool
+    details: Optional[str] = None
+
 

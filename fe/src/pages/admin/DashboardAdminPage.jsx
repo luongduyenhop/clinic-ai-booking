@@ -93,6 +93,12 @@ export default function DashboardAdminPage() {
         }
     }, [location.pathname])
     const [timeFilter, setTimeFilter] = useState('week')
+    const [customTuNgay, setCustomTuNgay] = useState(() => {
+        const d = new Date()
+        d.setDate(d.getDate() - 30)
+        return d.toISOString().split('T')[0]
+    })
+    const [customDenNgay, setCustomDenNgay] = useState(() => new Date().toISOString().split('T')[0])
 
     const [topDiseases, setTopDiseases] = useState([])
     const [topServices, setTopServices] = useState([])
@@ -132,7 +138,7 @@ export default function DashboardAdminPage() {
             setAnalyticsLoading(true)
             try {
                 const now = new Date()
-                const denNgay = now.toISOString().split('T')[0]
+                let denNgay = now.toISOString().split('T')[0]
                 let tuNgay = denNgay
                 if (timeFilter === 'week') {
                     const d = new Date()
@@ -142,6 +148,9 @@ export default function DashboardAdminPage() {
                     const d = new Date()
                     d.setDate(d.getDate() - 30)
                     tuNgay = d.toISOString().split('T')[0]
+                } else if (timeFilter === 'custom') {
+                    tuNgay = customTuNgay || denNgay
+                    denNgay = customDenNgay || denNgay
                 }
                 const query = { tuNgay, denNgay }
 
@@ -179,7 +188,7 @@ export default function DashboardAdminPage() {
             }
         }
         fetchAnalytics()
-    }, [timeFilter])
+    }, [timeFilter, customTuNgay, customDenNgay])
 
     const registrations = clinicData?.registrations || []
     const staffList = clinicData?.staffList || []
@@ -240,6 +249,7 @@ export default function DashboardAdminPage() {
         { id: 'today', label: 'Hôm nay' },
         { id: 'week', label: 'Tuần này' },
         { id: 'month', label: 'Tháng này' },
+        { id: 'custom', label: 'Tùy chọn' },
     ]
 
     return (
@@ -298,25 +308,46 @@ export default function DashboardAdminPage() {
                     })}
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
-                        <Clock size={13} />
-                        <span>Kỳ thống kê:</span>
-                    </span>
-                    {timeFilters.map((tf) => (
-                        <button
-                            key={tf.id}
-                            type="button"
-                            onClick={() => setTimeFilter(tf.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                                timeFilter === tf.id
-                                    ? 'bg-[#003553] text-white shadow-xs'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:border-[#00B5F1]'
-                            }`}
-                        >
-                            {tf.label}
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
+                            <Clock size={13} />
+                            <span>Kỳ thống kê:</span>
+                        </span>
+                        {timeFilters.map((tf) => (
+                            <button
+                                key={tf.id}
+                                type="button"
+                                onClick={() => setTimeFilter(tf.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                    timeFilter === tf.id
+                                        ? 'bg-[#003553] text-white shadow-xs'
+                                        : 'bg-white border border-slate-200 text-slate-600 hover:border-[#00B5F1]'
+                                }`}
+                            >
+                                {tf.label}
+                            </button>
+                        ))}
+                    </div>
+                    {timeFilter === 'custom' && (
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+                            <ClinicIcon name="Calendar" size={14} className="text-[#00B5F1]" />
+                            <span className="text-[11px] text-slate-500 font-medium">Từ:</span>
+                            <input
+                                type="date"
+                                value={customTuNgay}
+                                onChange={(e) => setCustomTuNgay(e.target.value)}
+                                className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 font-semibold focus:outline-none focus:border-[#00B5F1]"
+                            />
+                            <span className="text-[11px] text-slate-500 font-medium">Đến:</span>
+                            <input
+                                type="date"
+                                value={customDenNgay}
+                                onChange={(e) => setCustomDenNgay(e.target.value)}
+                                className="text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 font-semibold focus:outline-none focus:border-[#00B5F1]"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 

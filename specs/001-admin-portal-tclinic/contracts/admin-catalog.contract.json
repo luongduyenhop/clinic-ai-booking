@@ -1,0 +1,96 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Admin Medical Catalog API Contract",
+    "version": "1.0.0",
+    "description": "API contract for managing Departments, Rooms, Services, Pricing, Medicines and ICD-10"
+  },
+  "paths": {
+    "/api/admin/catalog/services": {
+      "get": {
+        "summary": "List medical services with current price",
+        "parameters": [
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "is_active", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of medical services",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "ma_dich_vu": { "type": "string" },
+                      "ten_dich_vu": { "type": "string" },
+                      "don_vi_tinh": { "type": "string" },
+                      "don_gia_hien_tai": { "type": "number" },
+                      "dang_kinh_doanh": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new medical service",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ma_dich_vu": { "type": "string" },
+                  "ten_dich_vu": { "type": "string" },
+                  "nhom_dich_vu_id": { "type": "integer" },
+                  "don_vi_tinh": { "type": "string" },
+                  "don_gia_ban_dau": { "type": "number" }
+                },
+                "required": ["ma_dich_vu", "ten_dich_vu", "don_vi_tinh", "don_gia_ban_dau"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Service created successfully" },
+          "409": { "description": "Service code already exists" }
+        }
+      }
+    },
+    "/api/admin/catalog/services/{id}/price": {
+      "put": {
+        "summary": "Update price for service by creating an immutable price record",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "new_price": { "type": "number" },
+                  "effective_date": { "type": "string", "format": "date" },
+                  "reason": { "type": "string" }
+                },
+                "required": ["new_price", "effective_date"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Price updated successfully" },
+          "404": { "description": "Service not found" }
+        }
+      }
+    }
+  }
+}

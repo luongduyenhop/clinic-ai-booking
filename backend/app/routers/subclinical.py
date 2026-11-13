@@ -25,13 +25,16 @@ from app.schemas.subclinical import (
     SubclinicalResultSubmitRequest,
     WorkspaceOrdersRequest,
     WorkspaceOrdersResponse,
+    BarcodeGenerateResponse,
+    ParaclinicalResultSubmitRequest as ProdResultSubmitRequest,
+    ParaclinicalOrderResultResponse,
+    ParaclinicalVerifyResponse,
 )
 from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
 from app.services.cls_approval_service import cls_approval_service
 from app.services.cls_file_service import cls_file_service
 from app.services.cls_lab_result_service import cls_lab_result_service
 from app.services.cls_service_group import CLS_GROUPS
-from app.services.cls_workspace_bridge_service import cls_workspace_bridge_service
 from app.services.subclinical_service import subclinical_service
 
 router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghiệm / CĐHA (LIS & PACS)"])
@@ -155,7 +158,7 @@ async def create_orders_from_workspace(
     current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
-    result = await cls_workspace_bridge_service.create_orders_from_workspace(payload, current_user, db)
+    result = await subclinical_service.create_orders_from_workspace(payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Đã gửi {len(result.orders)} chỉ định cận lâm sàng sang phòng kỹ thuật",
@@ -357,3 +360,57 @@ async def get_returned_results(
 ):
     result = await cls_approval_service.returned_results(current_user, since, db)
     return ResponseEnvelope.success_response(data=result, message=f"Có {len(result.items)} kết quả mới")
+
+
+@router.post(
+    "/orders/{order_id}/generate-barcode",
+    response_model=ResponseEnvelope[BarcodeGenerateResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def generate_barcode_endpoint(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await subclinical_service.generate_specimen_barcode(order_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Tạo mã barcode ống nghiệm thành công",
+    )
+
+
+@router.post(
+    "/orders/{order_id}/results",
+    response_model=ResponseEnvelope[ParaclinicalOrderResultResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_order_results_endpoint(
+    order_id: int,
+    payload: ProdResultSubmitRequest,
+    current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await subclinical_service.submit_paraclinical_results(order_id, payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Nhập kết quả xét nghiệm thành công",
+        code=status.HTTP_201_CREATED,
+    )
+
+
+@router.post(
+    "/orders/{order_id}/verify",
+    response_model=ResponseEnvelope[ParaclinicalVerifyResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def verify_order_endpoint(
+    order_id: int,
+    current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await subclinical_service.verify_paraclinical_order(order_id, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Ký duyệt kết quả cận lâm sàng thành công",
+    )
+

@@ -13,6 +13,7 @@ import {
     Stethoscope,
     IdentificationCard,
     Microscope,
+    Receipt,
 } from '../../components/common/ClinicIcon'
 
 const STAFF_ACCOUNTS = [
@@ -96,6 +97,25 @@ const STAFF_ACCOUNTS = [
         badgeBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
         icon: Microscope,
     },
+    {
+        roleKey: 'CASHIER',
+        role: 'ADMIN',
+        label: 'Thu ngân – Viện phí VietQR',
+        desc: 'Lê Thị Mai · Bảng kê viện phí, phát hành VietQR Napas 247 & gạch nợ',
+        creds: { email: 'thungan@clinic.com', mat_khau: 'Cashier@2026' },
+        profile: {
+            id: 'USER_CASHIER_01',
+            fullName: 'Thu Ngân Lê Thị Mai',
+            shortName: 'Thu Ngân Mai',
+            role: 'ADMIN',
+            email: 'thungan@clinic.com',
+            department: 'Quầy Thu Ngân Viện Phí',
+        },
+        defaultPath: '/admin/thu-ngan-vietqr',
+        color: 'from-amber-600 to-yellow-700',
+        badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
+        icon: Receipt,
+    },
 ]
 
 const clearStaleSessionStorage = () => {
@@ -118,23 +138,14 @@ export default function StaffLoginPage() {
     const handleQuickStaffLogin = async (staffConfig) => {
         setSubmittingRole(staffConfig.roleKey)
         try {
-            let accessToken = 'token-' + staffConfig.roleKey.toLowerCase()
-            let refreshToken = 'refresh-' + staffConfig.roleKey.toLowerCase()
-            let userProfile = staffConfig.profile
-
-            try {
-                const res = await authService.login(staffConfig.creds)
-                const data = res?.data?.data || res?.data || {}
-                if (data.access_token || data.accessToken) {
-                    accessToken = data.access_token || data.accessToken
-                    refreshToken = data.refresh_token || data.refreshToken || refreshToken
-                }
-                if (data.user) {
-                    userProfile = { ...userProfile, ...data.user, role: staffConfig.role }
-                }
-            } catch {
-                userProfile = staffConfig.profile
+            const res = await authService.login(staffConfig.creds)
+            const data = res?.data?.data || res?.data || {}
+            const accessToken = data.access_token || data.accessToken
+            const refreshToken = data.refresh_token || data.refreshToken
+            if (!accessToken) {
+                throw new Error('Máy chủ không trả về mã xác thực phiên')
             }
+            const userProfile = { ...staffConfig.profile, ...(data.user || {}), role: staffConfig.role }
 
             clearStaleSessionStorage()
 
@@ -150,6 +161,8 @@ export default function StaffLoginPage() {
             AppToast.success(`Đăng nhập thành công với vai trò: ${staffConfig.label}!`)
             const targetPath = location.state?.from?.pathname || staffConfig.defaultPath
             navigate(targetPath, { replace: true })
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Đăng nhập ca trực thất bại')
         } finally {
             setSubmittingRole(null)
         }

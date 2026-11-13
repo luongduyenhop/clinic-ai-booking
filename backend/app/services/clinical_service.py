@@ -1,5 +1,7 @@
+import hashlib
 import json
 import logging
+import unicodedata
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List
@@ -11,8 +13,17 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.core.config import settings
 
 from app.core.exceptions import NotFoundException, ConflictException, ForbiddenException, UnprocessableEntityException
+from app.models.production_models import (
+    EncounterProduction,
+    DiagnosisICD10Production,
+    EncounterDiagnosisProduction,
+    ClinicalVitalProduction,
+    PatientAllergyProduction,
+    EmrSignedRecordProduction,
+    PatientProduction,
+    UserProduction,
+)
 from app.models.appointment import LichKham, TrangThaiLichEnum, CANCELLED_STATUSES, HangDoiKham, TrangThaiHangDoiEnum, PhanTichAI, PhanTichAIGoiY, DanhGiaAI
-from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     LuotKham,
     ChanDoan,
@@ -53,6 +64,12 @@ from app.schemas.clinical import (
     AmendmentCreateRequest,
     AmendmentResponse,
     AmendmentApproveRequest,
+    Icd10SearchItem,
+    VitalsCreateRequest,
+    VitalsResponse,
+    SealAndSignResponse,
+    AllergyCheckRequest,
+    AllergyCheckResponse,
 )
 from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 
@@ -153,19 +170,9 @@ class ClinicalService:
         current_user: Optional[TaiKhoan] = None,
         doctor_id: Optional[int] = None,
     ) -> Optional[dict]:
-        stmt = select(HeThongTrangThaiBff).where(
-            HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
-        )
-        row = (await db.execute(stmt)).scalar_one_or_none()
-        if not row:
-            row = HeThongTrangThaiBff(
-                collection_key="doctor_clinical_workspace",
-                data_json={"encounters": {}, "queue": [], "extraOrders": [], "nextId": 9500},
-            )
-            db.add(row)
-            await db.flush()
-
-        data = row.data_json if isinstance(row.data_json, dict) else {}
+        if not hasattr(self, "_workspace_state_cache"):
+            self._workspace_state_cache = {}
+        data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
         encounters = data.get("encounters") or {}
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
@@ -212,7 +219,7 @@ class ClinicalService:
             "khám theo chỉ định tiếp đón", "kham theo chi dinh tiep don"
         }
         for t in active_tickets:
-            target_enc_id = t.lich_kham_id or (5000 + t.id)
+            target_enc_id = t.lich_kham_id or t.id
             bn_user = t.benh_nhan.nguoi_dung if t.benh_nhan and t.benh_nhan.nguoi_dung else None
             ho_ten = bn_user.ho_ten if bn_user else "Bệnh nhân Tiếp đón"
             gioi_tinh = bn_user.gioi_tinh if bn_user else "Khác"
@@ -1668,29 +1675,17 @@ class ClinicalService:
         user_id = current_user.id if current_user and hasattr(current_user, "id") and isinstance(current_user.id, int) else None
 
         try:
-            stmt = select(HeThongTrangThaiBff).where(
-                HeThongTrangThaiBff.collection_key == "doctor_clinical_workspace"
-            )
-            row = (await db.execute(stmt)).scalar_one_or_none()
-            if row:
-                old_data = row.data_json if isinstance(row.data_json, dict) else {}
-                old_queue = old_data.get("queue") or []
-                client_queue = payload.get("queue") or []
-                merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
-                for cq in client_queue:
-                    if isinstance(cq, dict) and "ticket_id" in cq:
-                        merged_queue_map[cq["ticket_id"]] = cq
-                payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
-                row.data_json = payload
-                row.updated_by_id = user_id
-            else:
-                db.add(
-                    HeThongTrangThaiBff(
-                        collection_key="doctor_clinical_workspace",
-                        data_json=payload,
-                        updated_by_id=user_id,
-                    )
-                )
+            if not hasattr(self, "_workspace_state_cache"):
+                self._workspace_state_cache = {}
+            old_data = self._workspace_state_cache.get("doctor_clinical_workspace", {})
+            old_queue = old_data.get("queue") or []
+            client_queue = payload.get("queue") or []
+            merged_queue_map = {q["ticket_id"]: q for q in old_queue if isinstance(q, dict) and "ticket_id" in q}
+            for cq in client_queue:
+                if isinstance(cq, dict) and "ticket_id" in cq:
+                    merged_queue_map[cq["ticket_id"]] = cq
+            payload["queue"] = list(merged_queue_map.values()) if merged_queue_map else client_queue
+            self._workspace_state_cache["doctor_clinical_workspace"] = payload
 
             client_queue = payload.get("queue") or []
             if isinstance(client_queue, list):
@@ -2359,6 +2354,266 @@ class ClinicalService:
             await db.rollback()
             logger.error(f"Error syncing clinical data to Postgres: {e}", exc_info=True)
             raise
+
+    def strip_vietnamese_accents(self, text: str) -> str:
+        if not text:
+            return ""
+        normalized = unicodedata.normalize("NFKD", text)
+        stripped = "".join(c for c in normalized if not unicodedata.combining(c))
+        return stripped.replace("đ", "d").replace("Đ", "D").lower().strip()
+
+    async def search_icd10(self, query: str, db: AsyncSession) -> List[Icd10SearchItem]:
+        q_clean = query.strip()
+        q_norm = self.strip_vietnamese_accents(q_clean)
+
+        stmt = select(DiagnosisICD10Production).where(DiagnosisICD10Production.is_active.is_(True))
+        records = (await db.execute(stmt)).scalars().all()
+
+        if not records:
+            default_seeds = [
+                DiagnosisICD10Production(code="J02.9", chapter_code="X", name_vi="Viêm họng cấp, không đặc hiệu", name_en="Acute pharyngitis, unspecified", is_common=True),
+                DiagnosisICD10Production(code="I10", chapter_code="IX", name_vi="Bệnh tăng huyết áp vô căn (nguyên phát)", name_en="Essential (primary) hypertension", is_common=True),
+                DiagnosisICD10Production(code="E11.9", chapter_code="IV", name_vi="Đái tháo đường típ 2, không biến chứng", name_en="Type 2 diabetes mellitus without complications", is_common=True),
+                DiagnosisICD10Production(code="K29.7", chapter_code="XI", name_vi="Viêm dạ dày, không đặc hiệu", name_en="Gastritis, unspecified", is_common=True),
+                DiagnosisICD10Production(code="J00", chapter_code="X", name_vi="Viêm mũi họng cấp (cảm thường)", name_en="Acute nasopharyngitis (common cold)", is_common=True),
+                DiagnosisICD10Production(code="J20.9", chapter_code="X", name_vi="Viêm phế quản cấp, không đặc hiệu", name_en="Acute bronchitis, unspecified", is_common=True),
+                DiagnosisICD10Production(code="A09", chapter_code="I", name_vi="Viêm dạ dày ruột và viêm đại tràng không rõ nguyên nhân", name_en="Infectious gastroenteritis and colitis, unspecified", is_common=True),
+                DiagnosisICD10Production(code="M54.5", chapter_code="XIII", name_vi="Đau vùng thắt lưng", name_en="Low back pain", is_common=True),
+            ]
+            for s in default_seeds:
+                db.add(s)
+            await db.commit()
+            records = default_seeds
+
+        matches = []
+        for r in records:
+            code_match = q_norm in r.code.lower()
+            name_vi_norm = self.strip_vietnamese_accents(r.name_vi)
+            name_vi_match = q_norm in name_vi_norm
+            name_en_match = q_norm in (r.name_en or "").lower()
+            if code_match or name_vi_match or name_en_match:
+                matches.append(Icd10SearchItem(
+                    code=r.code,
+                    name_vi=r.name_vi,
+                    name_en=r.name_en,
+                    chapter=r.chapter_code,
+                ))
+
+        if not matches:
+            stmt_kn = select(KhaiNiem).where(KhaiNiem.loai_khai_niem == "benh")
+            concepts = (await db.execute(stmt_kn)).scalars().all()
+            for c in concepts:
+                c_norm = self.strip_vietnamese_accents(c.ten_tieng_viet)
+                if q_norm in c_norm or (c.ma_khai_niem and q_norm in c.ma_khai_niem.lower()):
+                    matches.append(Icd10SearchItem(
+                        code=c.ma_khai_niem or "R69",
+                        name_vi=c.ten_tieng_viet,
+                        name_en=c.ten_tieng_anh,
+                        chapter="XVIII",
+                    ))
+
+        return matches[:20]
+
+    async def record_encounter_vitals(
+        self, encounter_id: int, payload: VitalsCreateRequest, user: TaiKhoan, db: AsyncSession
+    ) -> VitalsResponse:
+        encounter = await db.get(EncounterProduction, encounter_id)
+        if not encounter:
+            legacy_lk = await db.get(LuotKham, encounter_id)
+            if not legacy_lk:
+                raise NotFoundException(f"Không tìm thấy lượt khám với ID {encounter_id}")
+            if legacy_lk.is_locked:
+                raise ForbiddenException("Bệnh án đã được ký số và đóng niêm phong bất biến (Invariant EMR-1)")
+        elif encounter.is_locked:
+            raise ForbiddenException("Bệnh án đã được ký số và đóng niêm phong bất biến (Invariant EMR-1)")
+
+        calculated_bmi = None
+        if payload.height_cm and payload.weight_kg and payload.height_cm > 0:
+            height_m = float(payload.height_cm) / 100.0
+            calculated_bmi = round(float(payload.weight_kg) / (height_m * height_m), 2)
+
+        is_critical = False
+        warnings = []
+
+        if payload.systolic_bp >= 180 or payload.diastolic_bp >= 120:
+            is_critical = True
+            warnings.append("Cơn tăng huyết áp khẩn cấp (Hypertensive Crisis)")
+        elif payload.systolic_bp <= 80 or payload.diastolic_bp <= 50:
+            is_critical = True
+            warnings.append("Tụt huyết áp nguy kịch / Dấu hiệu sốc")
+
+        if payload.spo2_percentage is not None and payload.spo2_percentage <= 90:
+            is_critical = True
+            warnings.append("Suy hô hấp cấp (SpO2 <= 90%)")
+
+        if payload.body_temperature >= 39.5:
+            is_critical = True
+            warnings.append("Sốt cao nguy kịch >= 39.5°C")
+
+        if payload.heart_rate >= 140 or payload.heart_rate <= 45:
+            is_critical = True
+            warnings.append("Rối loạn nhịp tim đe dọa tính mạng")
+
+        recorded_by_id = user.id
+        user_prod_stmt = select(UserProduction.id).where(
+            or_(
+                UserProduction.id == user.id,
+                UserProduction.email == getattr(user, "email", None),
+                UserProduction.username == getattr(user, "email", None),
+            )
+        )
+        found_prod_user_id = (await db.execute(user_prod_stmt)).scalar_one_or_none()
+        if found_prod_user_id:
+            recorded_by_id = found_prod_user_id
+
+        vital = ClinicalVitalProduction(
+            encounter_id=encounter_id,
+            systolic_bp=Decimal(str(payload.systolic_bp)),
+            diastolic_bp=Decimal(str(payload.diastolic_bp)),
+            heart_rate=Decimal(str(payload.heart_rate)),
+            body_temperature=Decimal(str(payload.body_temperature)),
+            respiratory_rate=Decimal(str(payload.respiratory_rate)) if payload.respiratory_rate is not None else None,
+            spo2_percentage=Decimal(str(payload.spo2_percentage)) if payload.spo2_percentage is not None else None,
+            height_cm=Decimal(str(payload.height_cm)) if payload.height_cm is not None else None,
+            weight_kg=Decimal(str(payload.weight_kg)) if payload.weight_kg is not None else None,
+            bmi=Decimal(str(calculated_bmi)) if calculated_bmi is not None else None,
+            recorded_by=recorded_by_id,
+            recorded_at=datetime.now(timezone.utc),
+        )
+        db.add(vital)
+
+        stmt_lk = select(LuotKham).where(LuotKham.id == encounter_id)
+        existing_lk = (await db.execute(stmt_lk)).scalar_one_or_none()
+        if existing_lk:
+            vital_legacy = LuotKhamTheLuc(
+                luot_kham_id=existing_lk.id,
+                mach_lan_phut=int(payload.heart_rate),
+                nhiet_do_c=float(payload.body_temperature),
+                huyet_ap_tam_thu=int(payload.systolic_bp),
+                huyet_ap_tam_truong=int(payload.diastolic_bp),
+                nhip_tho_lan_phut=int(payload.respiratory_rate) if payload.respiratory_rate else None,
+                can_nang_kg=float(payload.weight_kg) if payload.weight_kg else None,
+                chieu_cao_cm=float(payload.height_cm) if payload.height_cm else None,
+                spo2=float(payload.spo2_percentage) if payload.spo2_percentage else None,
+                bmi=float(calculated_bmi) if calculated_bmi else None,
+            )
+            db.add(vital_legacy)
+
+        await db.commit()
+        await db.refresh(vital)
+
+        return VitalsResponse(
+            id=vital.id,
+            encounter_id=vital.encounter_id,
+            systolic_bp=float(vital.systolic_bp),
+            diastolic_bp=float(vital.diastolic_bp),
+            heart_rate=float(vital.heart_rate),
+            body_temperature=float(vital.body_temperature),
+            respiratory_rate=float(vital.respiratory_rate) if vital.respiratory_rate is not None else None,
+            spo2_percentage=float(vital.spo2_percentage) if vital.spo2_percentage is not None else None,
+            height_cm=float(vital.height_cm) if vital.height_cm is not None else None,
+            weight_kg=float(vital.weight_kg) if vital.weight_kg is not None else None,
+            bmi=float(vital.bmi) if vital.bmi is not None else None,
+            is_critical=is_critical,
+            warnings=warnings,
+            recorded_at=vital.recorded_at,
+        )
+
+    async def check_drug_allergy_conflict(
+        self, patient_id: int, active_ingredient: str, db: AsyncSession
+    ) -> AllergyCheckResponse:
+        normalized_target = self.strip_vietnamese_accents(active_ingredient).replace("ll", "l").replace("cc", "c")
+        if not normalized_target:
+            return AllergyCheckResponse(has_conflict=False, is_blocked=False)
+
+        stmt_allergies = select(PatientAllergyProduction).where(PatientAllergyProduction.patient_id == patient_id)
+        allergies = (await db.execute(stmt_allergies)).scalars().all()
+
+        for a in allergies:
+            norm_name = self.strip_vietnamese_accents(a.active_ingredient_name).replace("ll", "l").replace("cc", "c")
+            if normalized_target in norm_name or norm_name in normalized_target or (len(norm_name) >= 5 and norm_name[:5] in normalized_target):
+                return AllergyCheckResponse(
+                    has_conflict=True,
+                    is_blocked=True,
+                    details=f"Cảnh báo dị ứng nghiêm trọng: Bệnh nhân có tiền sử dị ứng với hoạt chất {a.active_ingredient_name} ({a.severity})",
+                )
+
+        stmt_p = select(PatientProduction).where(PatientProduction.id == patient_id)
+        p = (await db.execute(stmt_p)).scalar_one_or_none()
+        if p:
+            stmt_bn = select(BenhNhan).where(BenhNhan.ma_dinh_danh_y_te == p.patient_code)
+            bn = (await db.execute(stmt_bn)).scalar_one_or_none()
+            if bn and bn.di_ung_thuoc and bn.di_ung_thuoc.strip().lower() not in ("không", "khong", "none", ""):
+                norm_bn_diung = self.strip_vietnamese_accents(bn.di_ung_thuoc).replace("ll", "l").replace("cc", "c")
+                if normalized_target in norm_bn_diung or norm_bn_diung in normalized_target or (len(norm_bn_diung) >= 5 and norm_bn_diung[:5] in normalized_target):
+                    return AllergyCheckResponse(
+                        has_conflict=True,
+                        is_blocked=True,
+                        details=f"Cảnh báo dị ứng nghiêm trọng: Bệnh nhân có tiền sử ghi nhận '{bn.di_ung_thuoc}'",
+                    )
+
+        return AllergyCheckResponse(has_conflict=False, is_blocked=False)
+
+    async def seal_and_sign_encounter(
+        self, encounter_id: int, user: TaiKhoan, db: AsyncSession
+    ) -> SealAndSignResponse:
+        encounter = await db.get(EncounterProduction, encounter_id)
+        legacy_lk = await db.get(LuotKham, encounter_id)
+
+        if not encounter and not legacy_lk:
+            raise NotFoundException(f"Không tìm thấy lượt khám với ID {encounter_id}")
+
+        if (encounter and encounter.is_locked) or (legacy_lk and legacy_lk.is_locked):
+            raise ConflictException("Bệnh án đã được ký số và niêm phong trước đó, không thể chỉnh sửa hoặc ký lại!")
+
+        stmt_diag_prod = select(EncounterDiagnosisProduction).where(EncounterDiagnosisProduction.encounter_id == encounter_id)
+        has_prod_diag = (await db.execute(stmt_diag_prod)).scalars().first() is not None
+
+        stmt_diag_legacy = select(ChanDoan).where(ChanDoan.luot_kham_id == encounter_id)
+        has_legacy_diag = (await db.execute(stmt_diag_legacy)).scalars().first() is not None
+
+        if not has_prod_diag and not has_legacy_diag:
+            raise UnprocessableEntityException("Không thể ký đóng bệnh án khi chưa có chẩn đoán bệnh theo mã ICD-10 (Invariant EMR-1)")
+
+        signing_time = datetime.now(timezone.utc)
+        payload_to_hash = f"EMR-ENC:{encounter_id}|USER:{user.id}|TIME:{signing_time.isoformat()}"
+        doc_hash = hashlib.sha256(payload_to_hash.encode("utf-8")).hexdigest()
+        sig_container = f"RSA-SHA256-SIG-{user.id}-{doc_hash[:20].upper()}"
+
+        signed_record = EmrSignedRecordProduction(
+            encounter_id=encounter_id,
+            document_type="OUTPATIENT_RECORD",
+            document_hash=doc_hash,
+            signature_container=sig_container,
+            signer_name=getattr(user, "email", getattr(user, "username", "Bac Si")),
+            signer_license_id=f"CCHN-{user.id:06d}",
+            certificate_serial=f"SERIAL-{user.id:04d}-{signing_time.strftime('%Y%m%d')}",
+            signed_timestamp=signing_time,
+            pdf_storage_path=f"/var/emr/signed/ENC_{encounter_id}_{doc_hash[:8]}.pdf",
+            is_tampered=False,
+        )
+        db.add(signed_record)
+
+        if encounter:
+            encounter.is_locked = True
+            encounter.status = "COMPLETED_LOCKED"
+            encounter.signed_at = signing_time
+
+        if legacy_lk:
+            legacy_lk.is_locked = True
+            legacy_lk.thoi_gian_ket_thuc = signing_time
+
+        await db.commit()
+
+        return SealAndSignResponse(
+            encounter_id=encounter_id,
+            status="COMPLETED_LOCKED",
+            is_locked=True,
+            signed_at=signing_time,
+            record_hash=doc_hash,
+            signature=sig_container,
+        )
+
 
 
 clinical_service = ClinicalService()

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.account_status import ensure_account_active
 from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
-from app.models.user import TaiKhoan, VaiTroEnum
+from app.models.user import TaiKhoan, VaiTroEnum, VaiTro, VaiTroQuyen, Quyen
 
 security = HTTPBearer(auto_error=False)
 
@@ -76,3 +76,66 @@ def require_roles(allowed_roles: List[VaiTroEnum]):
             )
         return current_user
     return role_checker
+
+
+def require_permission(permission_code: str):
+    """Check the persisted RBAC matrix for API operations; admin remains the system superuser."""
+    async def permission_checker(
+        current_user: TaiKhoan = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> TaiKhoan:
+        if current_user.vai_tro == VaiTroEnum.ADMIN.value:
+            return current_user
+        # Initialize defaults on first use so persisted permissions are
+        # effective even before an administrator opens the RBAC screen.
+        from app.services.admin_rbac_service import admin_rbac_service
+        await admin_rbac_service._ensure_catalog(db)
+        stmt = (
+            select(Quyen.id)
+            .join(VaiTroQuyen, VaiTroQuyen.quyen_id == Quyen.id)
+            .join(VaiTro, VaiTro.id == VaiTroQuyen.vai_tro_id)
+            .where(VaiTro.ma_vai_tro == current_user.vai_tro, VaiTro.is_active.is_(True))
+            .where(Quyen.ma_quyen == permission_code)
+        )
+        if (await db.execute(stmt)).scalar_one_or_none() is None:
+            raise ForbiddenException(f"Vai trò hiện tại chưa được cấp quyền {permission_code}.")
+        return current_user
+    return permission_checker
+
+
+def permission_action_for_request(request: Request) -> str:
+    endpoint_name = getattr(request.scope.get("endpoint"), "__name__", "")
+    if "export" in endpoint_name:
+        return "export"
+    return {
+        "GET": "view",
+        "POST": "create",
+        "PUT": "update",
+        "PATCH": "update",
+        "DELETE": "delete",
+    }.get(request.method.upper(), "view")
+
+
+def require_module_permission(module_code: str):
+    """Enforce a module's persisted CRUD permission for the current request."""
+    async def module_checker(
+        request: Request,
+        current_user: TaiKhoan = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> TaiKhoan:
+        if current_user.vai_tro == VaiTroEnum.ADMIN.value:
+            return current_user
+        from app.services.admin_rbac_service import admin_rbac_service
+        await admin_rbac_service._ensure_catalog(db)
+        permission_code = f"{module_code}.{permission_action_for_request(request)}"
+        stmt = (
+            select(Quyen.id)
+            .join(VaiTroQuyen, VaiTroQuyen.quyen_id == Quyen.id)
+            .join(VaiTro, VaiTro.id == VaiTroQuyen.vai_tro_id)
+            .where(VaiTro.ma_vai_tro == current_user.vai_tro, VaiTro.is_active.is_(True))
+            .where(Quyen.ma_quyen == permission_code)
+        )
+        if (await db.execute(stmt)).scalar_one_or_none() is None:
+            raise ForbiddenException(f"Vai trò hiện tại chưa được cấp quyền {permission_code}.")
+        return current_user
+    return module_checker

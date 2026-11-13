@@ -1,0 +1,22 @@
+* @lead-admin
+backend/app/routers/admin/admin_bi.py @member-1-bi
+fe/src/pages/admin/DashboardAdminPage.jsx @member-1-bi
+fe/src/pages/admin/GuideAndQaManagementPage.jsx @member-1-bi
+fe/src/layouts/AdminTemplate.jsx @member-1-bi
+fe/src/services/admin/seed/clinicSeed.json @member-1-bi
+
+backend/app/routers/admin/admin_catalog.py @member-2-catalog
+fe/src/pages/admin/CatalogManagementPage.jsx @member-2-catalog
+fe/src/pages/admin/TemplateManagementPage.jsx @member-2-catalog
+fe/src/pages/admin/ServicePackagesPage.jsx @member-2-catalog
+
+backend/app/routers/admin/admin_staff.py @member-3-staff
+fe/src/pages/admin/RolePermissionPage.jsx @member-3-staff
+fe/src/pages/admin/SettingClinicPage.jsx @member-3-staff
+
+backend/app/routers/admin/admin_audit.py @member-4-audit
+fe/src/pages/admin/ComplianceAndAuditPage.jsx @member-4-audit
+backend/scripts/seed_admin_demo.py @member-4-audit
+
+backend/app/routers/admin/admin_integration.py @member-5-integration
+fe/src/pages/admin/CorporateHealthPage.jsx @member-5-integration

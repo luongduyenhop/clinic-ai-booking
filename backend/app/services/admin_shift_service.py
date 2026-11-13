@@ -1,7 +1,7 @@
 import logging
 from datetime import date, time
 from typing import Dict, List, Optional
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -146,13 +146,30 @@ class AdminShiftService:
         if not doc:
             raise NotFoundException(f"Không tìm thấy bác sĩ với ID {payload.bac_si_id}!")
 
+        if not (doc.chung_chi_hanh_nghe or getattr(doc, "so_cchn", None)):
+            raise BadRequestException(f"Bác sĩ {doc.nguoi_dung.ho_ten} chưa có Chứng chỉ hành nghề (CCHN) hợp lệ!")
+
         from app.services.credential_service import credential_service
         await credential_service.check_doctor_license_valid(db, payload.bac_si_id)
+
+        if payload.ca_lam_viec == CaLamViecEnum.SANG.value:
+            s_time = payload.gio_bat_dau or time(7, 30)
+            e_time = payload.gio_ket_thuc or time(11, 30)
+        else:
+            s_time = payload.gio_bat_dau or time(13, 30)
+            e_time = payload.gio_ket_thuc or time(17, 0)
 
         stmt_dup = select(LichLamViec).where(
             LichLamViec.bac_si_id == payload.bac_si_id,
             LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
-            LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+            LichLamViec.is_active.is_(True),
+            or_(
+                LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+                and_(
+                    LichLamViec.gio_bat_dau < e_time,
+                    LichLamViec.gio_ket_thuc > s_time,
+                ),
+            ),
         )
         if (await db.execute(stmt_dup)).scalar_one_or_none():
             raise ConflictException(
@@ -193,8 +210,14 @@ class AdminShiftService:
             stmt_conflict_room = select(LichLamViec).where(
                 LichLamViec.phong_kham_id == target_room_id,
                 LichLamViec.ngay_lam_viec == payload.ngay_lam_viec,
-                LichLamViec.ca_lam_viec == payload.ca_lam_viec,
                 LichLamViec.is_active.is_(True),
+                or_(
+                    LichLamViec.ca_lam_viec == payload.ca_lam_viec,
+                    and_(
+                        LichLamViec.gio_bat_dau < e_time,
+                        LichLamViec.gio_ket_thuc > s_time,
+                    ),
+                ),
             )
             conflict_shift = (await db.execute(stmt_conflict_room)).scalar_one_or_none()
             if conflict_shift:
@@ -204,13 +227,6 @@ class AdminShiftService:
                 raise ConflictException(
                     f"Xung đột buồng khám: Buồng '{room.ma_phong} - {room.ten_phong}' đã được phân cho bác sĩ {c_doc_name} trong ca {payload.ca_lam_viec} ngày {payload.ngay_lam_viec}!"
                 )
-
-        if payload.ca_lam_viec == CaLamViecEnum.SANG.value:
-            s_time = payload.gio_bat_dau or time(7, 30)
-            e_time = payload.gio_ket_thuc or time(11, 30)
-        else:
-            s_time = payload.gio_bat_dau or time(13, 30)
-            e_time = payload.gio_ket_thuc or time(17, 0)
 
         gioi_han = payload.gioi_han_ca_kham
         han_muc_dat_truoc = payload.han_muc_dat_truoc if payload.han_muc_dat_truoc is not None else max(1, int(gioi_han * 0.75))
@@ -254,6 +270,104 @@ class AdminShiftService:
             so_luong_da_dat=0,
             is_active=shift.is_active,
             ghi_chu_nghi=None,
+        )
+
+    async def update_shift(self, shift_id: int, payload, db: AsyncSession) -> ShiftResponse:
+        stmt = (
+            select(LichLamViec)
+            .options(
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.nguoi_dung),
+                selectinload(LichLamViec.bac_si).selectinload(BacSi.chuyen_khoa),
+                selectinload(LichLamViec.phong_kham),
+            )
+            .where(LichLamViec.id == shift_id)
+        )
+        shift = (await db.execute(stmt)).scalar_one_or_none()
+        if not shift:
+            raise NotFoundException(f"Không tìm thấy ca trực với ID {shift_id}!")
+
+        doc = shift.bac_si
+        target_room_id = getattr(payload, "phong_kham_id", None) if getattr(payload, "phong_kham_id", None) is not None else shift.phong_kham_id
+        room = None
+        if target_room_id:
+            stmt_room = (
+                select(PhongKham)
+                .options(selectinload(PhongKham.chuyen_khoa))
+                .where(PhongKham.id == target_room_id)
+            )
+            room = (await db.execute(stmt_room)).scalar_one_or_none()
+            if not room:
+                raise NotFoundException(f"Không tìm thấy buồng khám với ID {target_room_id}!")
+            if not room.is_active:
+                raise BadRequestException(f"Buồng khám '{room.ten_phong}' đang tạm dừng hoạt động hoặc bảo trì!")
+            if room.loai_phong != "kham_benh":
+                raise BadRequestException(f"Không thể phân ca khám cho buồng '{room.ten_phong}' vì đây không phải buồng khám bệnh lâm sàng!")
+
+        s_time = getattr(payload, "gio_bat_dau", None) or shift.gio_bat_dau
+        e_time = getattr(payload, "gio_ket_thuc", None) or shift.gio_ket_thuc
+        is_active_val = getattr(payload, "is_active", None) if getattr(payload, "is_active", None) is not None else shift.is_active
+
+        if target_room_id and is_active_val:
+            stmt_conflict = select(LichLamViec).where(
+                LichLamViec.id != shift_id,
+                LichLamViec.phong_kham_id == target_room_id,
+                LichLamViec.ngay_lam_viec == shift.ngay_lam_viec,
+                LichLamViec.is_active.is_(True),
+                or_(
+                    LichLamViec.ca_lam_viec == shift.ca_lam_viec,
+                    and_(
+                        LichLamViec.gio_bat_dau < e_time,
+                        LichLamViec.gio_ket_thuc > s_time,
+                    ),
+                ),
+            )
+            conflict_shift = (await db.execute(stmt_conflict)).scalar_one_or_none()
+            if conflict_shift:
+                raise ConflictException(
+                    f"Xung đột buồng khám: Buồng '{room.ma_phong} - {room.ten_phong}' đã được phân cho bác sĩ khác trong khung giờ này!"
+                )
+
+        if hasattr(payload, "phong_kham_id") and payload.phong_kham_id is not None:
+            shift.phong_kham_id = payload.phong_kham_id
+        if hasattr(payload, "gio_bat_dau") and payload.gio_bat_dau is not None:
+            shift.gio_bat_dau = payload.gio_bat_dau
+        if hasattr(payload, "gio_ket_thuc") and payload.gio_ket_thuc is not None:
+            shift.gio_ket_thuc = payload.gio_ket_thuc
+        if hasattr(payload, "gioi_han_ca_kham") and payload.gioi_han_ca_kham is not None:
+            shift.gioi_han_ca_kham = payload.gioi_han_ca_kham
+        if hasattr(payload, "han_muc_dat_truoc") and payload.han_muc_dat_truoc is not None:
+            shift.han_muc_dat_truoc = payload.han_muc_dat_truoc
+        if hasattr(payload, "han_muc_vang_lai") and payload.han_muc_vang_lai is not None:
+            shift.han_muc_vang_lai = payload.han_muc_vang_lai
+        if hasattr(payload, "is_active") and payload.is_active is not None:
+            shift.is_active = payload.is_active
+        if hasattr(payload, "ghi_chu_nghi") and payload.ghi_chu_nghi is not None:
+            shift.ghi_chu_nghi = payload.ghi_chu_nghi
+
+        await db.commit()
+        await db.refresh(shift)
+
+        phong_display = f"{room.ma_phong} - {room.ten_phong}" if room else (f"{shift.phong_kham.ma_phong} - {shift.phong_kham.ten_phong}" if shift.phong_kham else "")
+        return ShiftResponse(
+            id=shift.id,
+            bac_si_id=doc.id,
+            ten_bac_si=doc.nguoi_dung.ho_ten if doc and doc.nguoi_dung else "",
+            chuyen_khoa=doc.chuyen_khoa.ten_chuyen_khoa if doc and doc.chuyen_khoa else "Chưa gán",
+            phong_kham=phong_display,
+            phong_kham_id=shift.phong_kham_id,
+            ma_phong=room.ma_phong if room else (shift.phong_kham.ma_phong if shift.phong_kham else None),
+            ten_phong=room.ten_phong if room else (shift.phong_kham.ten_phong if shift.phong_kham else None),
+            tang_phong=room.tang if room else (shift.phong_kham.tang if shift.phong_kham else None),
+            ngay_lam_viec=shift.ngay_lam_viec,
+            ca_lam_viec=shift.ca_lam_viec,
+            gio_bat_dau=shift.gio_bat_dau,
+            gio_ket_thuc=shift.gio_ket_thuc,
+            gioi_han_ca_kham=shift.gioi_han_ca_kham,
+            han_muc_dat_truoc=shift.han_muc_dat_truoc,
+            han_muc_vang_lai=shift.han_muc_vang_lai,
+            so_luong_da_dat=shift.so_luong_da_dat,
+            is_active=shift.is_active,
+            ghi_chu_nghi=shift.ghi_chu_nghi,
         )
 
     async def toggle_lock_shift(

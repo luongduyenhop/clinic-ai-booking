@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -16,6 +16,8 @@ from app.schemas.cashier import (
     InvoicePreviewResponse,
     InvoiceResponse,
     PendingBillsListResponse,
+    SepayWebhookPayload,
+    SepayWebhookResponse,
     ShiftSummaryResponse,
     UnbilledEncountersListResponse,
     RefundInvoiceRequest,
@@ -320,4 +322,25 @@ async def refund_invoice(
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Hoàn tiền thành công {result.so_tien_hoan:,.0f}đ cho hóa đơn {result.ma_hoa_don}"
+    )
+
+
+@router.post(
+    "/webhook/sepay",
+    response_model=ResponseEnvelope[SepayWebhookResponse],
+    summary="Webhook SePay"
+)
+async def sepay_webhook(
+    payload: SepayWebhookPayload,
+    authorization: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.process_sepay_webhook(
+        payload=payload,
+        authorization_header=authorization,
+        db=db
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=result.message
     )

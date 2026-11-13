@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, useSearchParams, Link } from 'react-router-dom'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { auditService } from '../../services/admin/AuditService'
 import {
     StatusBadge,
     EmptyState,
@@ -117,6 +118,46 @@ export default function ComplianceAndAuditPage() {
 
     const [searchAudit, setSearchAudit] = useState('')
     const [roleFilter, setRoleFilter] = useState('ALL')
+    const [liveAuditLogs, setLiveAuditLogs] = useState([])
+    const [auditPagination, setAuditPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 })
+    const [isLoadingAudit, setIsLoadingAudit] = useState(false)
+
+    const fetchLiveAuditLogs = async (targetPage = 1) => {
+        setIsLoadingAudit(true)
+        try {
+            const params = {
+                page: targetPage,
+                page_size: 20,
+            }
+            if (roleFilter && roleFilter !== 'ALL') {
+                params.actor = roleFilter
+            }
+            if (searchAudit && searchAudit.trim()) {
+                params.action = searchAudit.trim()
+                if (!params.actor) {
+                    params.actor = searchAudit.trim()
+                }
+            }
+            const res = await auditService.getAuditLogs(params)
+            const payload = res?.data?.data
+            const items = Array.isArray(payload) ? payload : (payload?.items || [])
+            const total = payload?.total ?? payload?.total_items ?? items.length
+            const totalPages = payload?.total_pages ?? Math.max(1, Math.ceil(total / 20))
+            setLiveAuditLogs(items)
+            setAuditPagination({ page: targetPage, pageSize: 20, total, totalPages })
+        } catch {
+            setLiveAuditLogs([])
+        } finally {
+            setIsLoadingAudit(false)
+        }
+    }
+
+    useEffect(() => {
+        if (activeTab === 'AUDIT') {
+            fetchLiveAuditLogs(1)
+        }
+    }, [activeTab, searchAudit, roleFilter])
+
     const [syncingKey, setSyncingKey] = useState('')
 
     const [searchRx, setSearchRx] = useState('')
@@ -354,7 +395,7 @@ export default function ComplianceAndAuditPage() {
                         }`}
                     >
                         <ClipboardText size={15} weight="bold" />
-                        <span>4. Nhật ký Kiểm toán ({auditLogs.length})</span>
+                        <span>4. Nhật ký Kiểm toán ({auditPagination.total || liveAuditLogs.length || auditLogs.length})</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=SETTING"
@@ -374,13 +415,14 @@ export default function ComplianceAndAuditPage() {
                     type="button"
                     onClick={() => {
                         const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Mô tả', 'Phân hệ', 'Địa chỉ IP']
-                        const rows = (auditLogs || []).map((l) => [
+                        const sourceLogs = liveAuditLogs.length > 0 ? liveAuditLogs : auditLogs
+                        const rows = (sourceLogs || []).map((l) => [
                             l.timestamp || l.thoiGian || '',
-                            ROLE_LABEL_MAP[l.role] || l.role || l.actor || l.nguoiDung || '',
-                            ACTION_LABEL_MAP[l.action] || l.action || l.hanhDong || '',
-                            l.description || l.moTa || '',
-                            l.module || l.phanHe || '',
-                            l.ip || '127.0.0.1',
+                            ROLE_LABEL_MAP[l.role] || ROLE_LABEL_MAP[l.vaiTro] || l.role || l.vaiTro || l.actor || l.nguoiDung || '',
+                            ACTION_LABEL_MAP[l.action] || ACTION_LABEL_MAP[l.hanhDong] || l.action || l.hanhDong || '',
+                            l.description || l.moTa || l.doiTuong || '',
+                            l.module || l.phanHe || l.loai_nhat_ky || '',
+                            l.ip || l.client_ip || '127.0.0.1',
                         ])
                         exportToExcel({
                             filename: `ho-so-thanh-tra-y-te-audit_${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -1026,24 +1068,24 @@ export default function ComplianceAndAuditPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredLogs.map((log) => (
+                                {(liveAuditLogs.length > 0 ? liveAuditLogs : filteredLogs).map((log) => (
                                     <tr key={log.id}>
                                         <td className="font-mono font-bold text-[#003553]">{log.id}</td>
-                                        <td className="tabular-nums text-xs">{log.thoiGian}</td>
-                                        <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
+                                        <td className="tabular-nums text-xs">{log.thoiGian || log.timestamp}</td>
+                                        <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || log.actor || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
                                         <td>
-                                            <span className="medpro-badge-info">{ROLE_LABEL_MAP[log.vaiTro] || log.vaiTro}</span>
+                                            <span className="medpro-badge-info">{ROLE_LABEL_MAP[log.vaiTro] || ROLE_LABEL_MAP[log.role] || log.vaiTro || log.role}</span>
                                         </td>
-                                        <td className="font-semibold text-xs text-[#003553]">{ACTION_LABEL_MAP[log.hanhDong] || log.hanhDong}</td>
-                                        <td className="font-semibold">{log.doiTuong}</td>
-                                        <td className="text-xs text-slate-600">{log.mucDich}</td>
-                                        <td className="font-mono text-xs text-slate-500">{log.ip}</td>
+                                        <td className="font-semibold text-xs text-[#003553]">{ACTION_LABEL_MAP[log.hanhDong] || ACTION_LABEL_MAP[log.action] || log.hanhDong || log.action}</td>
+                                        <td className="font-semibold">{log.doiTuong || log.resource_type}</td>
+                                        <td className="text-xs text-slate-600">{log.mucDich || log.purpose}</td>
+                                        <td className="font-mono text-xs text-slate-500">{log.ip || log.client_ip}</td>
                                         <td>
-                                            <StatusBadge status={log.ketQua} compact />
+                                            <StatusBadge status={log.ketQua || 'SUCCESS'} compact />
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredLogs.length === 0 && (
+                                {(liveAuditLogs.length > 0 ? liveAuditLogs : filteredLogs).length === 0 && (
                                     <tr>
                                         <td colSpan={9}>
                                             <EmptyState icon="ClipboardText" title="Không tìm thấy bản ghi nhật ký kiểm toán" />
@@ -1053,6 +1095,32 @@ export default function ComplianceAndAuditPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {auditPagination.totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-2 text-xs">
+                            <span className="text-slate-500">
+                                Hiển thị trang {auditPagination.page} / {auditPagination.totalPages} (Tổng số {auditPagination.total} bản ghi)
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => fetchLiveAuditLogs(auditPagination.page - 1)}
+                                    disabled={auditPagination.page <= 1 || isLoadingAudit}
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs disabled:opacity-40"
+                                >
+                                    Trang trước
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchLiveAuditLogs(auditPagination.page + 1)}
+                                    disabled={auditPagination.page >= auditPagination.totalPages || isLoadingAudit}
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs disabled:opacity-40"
+                                >
+                                    Trang sau
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

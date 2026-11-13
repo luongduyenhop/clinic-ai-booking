@@ -4,6 +4,7 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateCatalogSubCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { adminService } from '../../services/admin/AdminService'
+import { catalogService } from '../../services/admin/CatalogService'
 import { AppToast } from '../../components/common/AppNotification'
 import { getMasterOptions } from '../../utils/helpers/clinicConfigHelpers'
 import {
@@ -32,16 +33,7 @@ const getNextCode = (list, prefix, pad = 3) => {
 }
 
 export default function CatalogManagementPage() {
-
     const fileInputRef = useRef(null)
-
-    const handleImportFile = (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        AppToast.success(`Đã nạp file dữ liệu: ${file.name} (${Math.round(file.size / 1024)} KB) thành công!`)
-        e.target.value = ''
-    }
-
     const { loaiDanhMuc = 'chung' } = useParams()
     const dispatch = useDispatch()
     const location = useLocation()
@@ -53,13 +45,127 @@ export default function CatalogManagementPage() {
     const generalSubTabs = masterOptions.generalCatalogSubTabs || []
     const catalogRouteMap = masterOptions.catalogRouteMap || {}
 
-    const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeGeneralSubTab, setActiveGeneralSubTab] = useState(generalSubTabs[0]?.key || 'goTat')
     const [searchText, setSearchText] = useState('')
+    const [liveItems, setLiveItems] = useState([])
+    const [activeKhoaPhongView, setActiveKhoaPhongView] = useState('rooms')
 
     const [isExportModalOpen, setIsExportModalOpen] = useState(false)
     const [exportLoading, setExportLoading] = useState(false)
     const [exportedServices, setExportedServices] = useState([])
+
+    const [isPriceHistoryOpen, setIsPriceHistoryOpen] = useState(false)
+    const [priceHistoryLoading, setPriceHistoryLoading] = useState(false)
+    const [priceHistory, setPriceHistory] = useState([])
+
+    const activeCatalogKey =
+        loaiDanhMuc === 'chung'
+            ? activeGeneralSubTab
+            : loaiDanhMuc === 'dia-chi'
+            ? 'diaChi'
+            : loaiDanhMuc === 'khoa-phong'
+            ? 'khoaPhong'
+            : loaiDanhMuc === 'benh'
+            ? 'danhMucBenh'
+            : loaiDanhMuc === 'thuoc-vat-tu'
+            ? 'thuocVatTu'
+            : 'dichVu'
+
+    const loadLiveCatalogData = async () => {
+        try {
+            if (loaiDanhMuc === 'dich-vu') {
+                const svcs = await catalogService.getServices()
+                if (Array.isArray(svcs) && svcs.length > 0) {
+                    const mapped = svcs.map((s) => ({
+                        id: s.id,
+                        maDV: s.ma_dich_vu,
+                        tenDV: s.ten_dich_vu,
+                        nhomDV: s.ma_nhom_byt || 'Khám bệnh',
+                        dvt: s.don_vi_tinh || 'Lần',
+                        donGia: Number(s.don_gia),
+                        thoi_gian_thuc_hien: s.thoi_gian_tra_ket_qua_phut || 15,
+                        phongTH: s.ten_phong_thuc_hien || (s.ma_phong_thuc_hien ? `Phòng ${s.ma_phong_thuc_hien}` : ''),
+                        phong_thuc_hien_id: s.phong_thuc_hien_id,
+                        chuyen_khoa_id: s.chuyen_khoa_id,
+                        trangThai: s.is_active !== false,
+                        is_active: s.is_active !== false,
+                    }))
+                    setLiveItems(mapped)
+                    return mapped
+                }
+            } else if (loaiDanhMuc === 'khoa-phong') {
+                if (activeKhoaPhongView === 'departments') {
+                    const depts = await catalogService.getDepartments()
+                    if (Array.isArray(depts) && depts.length > 0) {
+                        const mapped = depts.map((d) => ({
+                            id: d.id,
+                            maPhong: d.ma_chuyen_khoa,
+                            tenPhong: d.ten_chuyen_khoa,
+                            chuyenKhoa: d.ten_chuyen_khoa,
+                            tang: d.vi_tri_phong || 'Tầng 1',
+                            bacSiPhuTrach: `${d.so_luong_bac_si || 0} bác sĩ trực thuộc`,
+                            moTa: d.mo_ta || '',
+                            trangThai: d.is_active !== false,
+                            is_active: d.is_active !== false,
+                            isDepartment: true,
+                        }))
+                        setLiveItems(mapped)
+                        return mapped
+                    }
+                } else {
+                    const rooms = await catalogService.getRooms()
+                    if (Array.isArray(rooms) && rooms.length > 0) {
+                        const mapped = rooms.map((r) => ({
+                            id: r.id,
+                            maPhong: r.ma_phong,
+                            tenPhong: r.ten_phong,
+                            chuyenKhoa: r.ten_chuyen_khoa || 'Đa khoa',
+                            chuyen_khoa_id: r.chuyen_khoa_id,
+                            tang: r.tang || 'Tầng 1',
+                            loai_phong: r.loai_phong || 'kham_benh',
+                            thiet_bi_chinh: r.thiet_bi_chinh || '',
+                            bacSiPhuTrach: 'BS.CKII Nguyễn Minh Hoàng',
+                            trangThai: r.is_active !== false,
+                            is_active: r.is_active !== false,
+                            isDepartment: false,
+                        }))
+                        setLiveItems(mapped)
+                        return mapped
+                    }
+                }
+            }
+        } catch {}
+        return null
+    }
+
+    useEffect(() => {
+        let isMounted = true
+        loadLiveCatalogData().then((loaded) => {
+            if (!isMounted) return
+            if (loaded && loaded.length > 0) {
+                setForm(loaded[0] || {})
+            } else {
+                const fallback = catalogs[activeCatalogKey] || []
+                setLiveItems(fallback)
+                setForm(fallback[0] || {})
+            }
+        })
+        return () => {
+            isMounted = false
+        }
+    }, [loaiDanhMuc, activeKhoaPhongView, activeCatalogKey])
+
+    const listData =
+        (loaiDanhMuc === 'dich-vu' || loaiDanhMuc === 'khoa-phong') && liveItems.length > 0
+            ? liveItems
+            : catalogs[activeCatalogKey] || []
+
+    const [form, setForm] = useState(() => listData[0] || {})
+
+    const handleSwitchCatalogView = (items) => {
+        setForm(items?.[0] || {})
+        setSearchText('')
+    }
 
     const handleOpenExportModal = async () => {
         setIsExportModalOpen(true)
@@ -69,20 +175,20 @@ export default function CatalogManagementPage() {
             if (res && res.danh_sach_dich_vu) {
                 setExportedServices(res.danh_sach_dich_vu)
             } else {
-                const currentServices = catalogs.dichVu || []
+                const currentServices = listData.length > 0 ? listData : catalogs.dichVu || []
                 const localExport = currentServices.map((s, idx) => ({
                     id: s.id || idx + 1,
-                    ma_dich_vu: s.maDV || `DV0${idx + 1}`,
-                    ten_dich_vu: s.tenDV || s.ten || '',
-                    nhom_dich_vu: s.nhomDV || 'Khám bệnh',
-                    don_vi_tinh: s.dvt || 'Lần',
-                    don_gia: Number(s.donGia) || 150000,
+                    ma_dich_vu: s.maDV || s.ma_dich_vu || `DV0${idx + 1}`,
+                    ten_dich_vu: s.tenDV || s.ten_dich_vu || s.ten || '',
+                    nhom_dich_vu: s.nhomDV || s.ma_nhom_byt || 'Khám bệnh',
+                    don_vi_tinh: s.dvt || s.don_vi_tinh || 'Lần',
+                    don_gia: Number(s.donGia || s.don_gia) || 150000,
                     vat_percent: s.vat_percent !== undefined ? s.vat_percent : 0,
-                    don_gia_sau_vat: Math.round((Number(s.donGia) || 150000) * (1 + (s.vat_percent || 0) / 100)),
+                    don_gia_sau_vat: Math.round((Number(s.donGia || s.don_gia) || 150000) * (1 + (s.vat_percent || 0) / 100)),
                     thoi_gian_thuc_hien: s.thoi_gian_thuc_hien || 15,
-                    trang_thai: s.trangThai !== false,
+                    trang_thai: s.trangThai !== false && s.is_active !== false,
                     so_luong_da_lam: 12 + idx * 5,
-                    doanh_thu_tich_luy: (Number(s.donGia) || 150000) * (12 + idx * 5),
+                    doanh_thu_tich_luy: (Number(s.donGia || s.don_gia) || 150000) * (12 + idx * 5),
                 }))
                 setExportedServices(localExport)
             }
@@ -90,6 +196,81 @@ export default function CatalogManagementPage() {
             AppToast.error('Không thể kết nối danh mục kỹ thuật y tế!')
         } finally {
             setExportLoading(false)
+        }
+    }
+
+    const handleOpenPriceHistory = async () => {
+        if (!form.id || typeof form.id !== 'number') {
+            AppToast.info('Vui lòng chọn dịch vụ từ danh sách để tra cứu lịch sử giá!')
+            return
+        }
+        setIsPriceHistoryOpen(true)
+        setPriceHistoryLoading(true)
+        try {
+            const history = await catalogService.getPriceHistory(form.id)
+            setPriceHistory(history || [])
+        } catch {
+            AppToast.error('Không thể tải lịch sử biến động giá!')
+        } finally {
+            setPriceHistoryLoading(false)
+        }
+    }
+
+    const handleImportFile = async (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        e.target.value = ''
+        try {
+            const text = await file.text()
+            let parsedItems = []
+            if (file.name.endsWith('.json')) {
+                const parsed = JSON.parse(text)
+                parsedItems = Array.isArray(parsed) ? parsed : (parsed.items || parsed.danh_sach || [])
+            } else {
+                const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0)
+                if (lines.length <= 1) {
+                    AppToast.error('Tệp CSV không chứa dữ liệu hợp lệ!')
+                    return
+                }
+                const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
+                parsedItems = lines.slice(1).map((line) => {
+                    const values = line.split(',').map((v) => v.trim().replace(/^"|"$/g, ''))
+                    const obj = {}
+                    headers.forEach((h, i) => {
+                        obj[h] = values[i] !== undefined ? values[i] : ''
+                    })
+                    return obj
+                })
+            }
+
+            if (!parsedItems.length) {
+                AppToast.error('Không tìm thấy bản ghi nào trong tệp tải lên!')
+                return
+            }
+
+            let catalogType = 'services'
+            if (loaiDanhMuc === 'khoa-phong') {
+                catalogType = activeKhoaPhongView === 'departments' ? 'departments' : 'rooms'
+            } else if (loaiDanhMuc === 'dich-vu') {
+                catalogType = 'services'
+            }
+
+            const res = await catalogService.importCatalog({
+                catalog_type: catalogType,
+                items: parsedItems,
+            })
+
+            if (res && res.success) {
+                AppToast.success(`Nạp thành công ${res.imported_count} bản ghi vào PostgreSQL!`)
+                const loaded = await loadLiveCatalogData()
+                if (loaded && loaded.length > 0) {
+                    setForm(loaded[0] || {})
+                }
+            } else {
+                AppToast.error('Lỗi khi nạp dữ liệu vào cơ sở dữ liệu!')
+            }
+        } catch (err) {
+            AppToast.error(`Lỗi đọc tệp: ${err.message || 'Định dạng tệp không tương thích'}`)
         }
     }
 
@@ -130,41 +311,34 @@ export default function CatalogManagementPage() {
         AppToast.success('Đã tải xuống file Bảng giá Dịch vụ Chuẩn y tế (Excel)!')
     }
 
-    const activeCatalogKey =
-        loaiDanhMuc === 'chung'
-            ? activeGeneralSubTab
-            : loaiDanhMuc === 'dia-chi'
-            ? 'diaChi'
-            : loaiDanhMuc === 'khoa-phong'
-            ? 'khoaPhong'
-            : loaiDanhMuc === 'benh'
-            ? 'danhMucBenh'
-            : loaiDanhMuc === 'thuoc-vat-tu'
-            ? 'thuocVatTu'
-            : 'dichVu'
-
-    const listData = catalogs[activeCatalogKey] || []
-
-    const [form, setForm] = useState(() => listData[0] || {})
-
-    const handleSwitchCatalogView = (items) => {
-        setForm(items?.[0] || {})
-        setSearchText('')
-    }
-
     const handleNewItem = () => {
         if (activeCatalogKey === 'diaChi') {
             setForm({ id: '', maTinh: getNextCode(listData, 'TT', 2), tenTinh: '', quanHuyen: '', phuongXa: '', trangThai: true })
         } else if (activeCatalogKey === 'khoaPhong') {
-            setForm({
-                id: '',
-                maPhong: `PK0${listData.length + 1}`,
-                tenPhong: '',
-                chuyenKhoa: 'Nội tổng quát',
-                tang: 'Tầng 1',
-                bacSiPhuTrach: 'BS.CKII Nguyễn Minh Hoàng',
-                trangThai: true,
-            })
+            if (activeKhoaPhongView === 'departments') {
+                setForm({
+                    id: '',
+                    maPhong: getNextCode(listData, 'CK', 2),
+                    tenPhong: '',
+                    tang: 'Tầng 1',
+                    moTa: '',
+                    trangThai: true,
+                    isDepartment: true,
+                })
+            } else {
+                setForm({
+                    id: '',
+                    maPhong: `PK0${listData.length + 1}`,
+                    tenPhong: '',
+                    chuyenKhoa: 'Nội tổng quát',
+                    tang: 'Tầng 1',
+                    loai_phong: 'kham_benh',
+                    thiet_bi_chinh: '',
+                    bacSiPhuTrach: 'BS.CKII Nguyễn Minh Hoàng',
+                    trangThai: true,
+                    isDepartment: false,
+                })
+            }
         } else if (activeCatalogKey === 'danhMucBenh') {
             setForm({
                 id: '',
@@ -193,6 +367,8 @@ export default function CatalogManagementPage() {
                 nhomDV: 'Khám bệnh',
                 dvt: 'Lần',
                 donGia: 150000,
+                vat_percent: 0,
+                thoi_gian_thuc_hien: 15,
                 phongTH: 'Phòng số 1 (Phòng khám Nội)',
                 trangThai: true,
             })
@@ -203,43 +379,155 @@ export default function CatalogManagementPage() {
     }
 
     const handleSaveItem = async () => {
-        const exists = listData.some((item) => item.id === form.id && form.id)
-        let updated
-        if (exists) {
-            updated = listData.map((item) => (item.id === form.id ? { ...item, ...form } : item))
-        } else {
-            const newItem = {
-                ...form,
-                id: `${activeCatalogKey.toUpperCase()}-${Date.now().toString().slice(-4)}`,
+        try {
+            if (loaiDanhMuc === 'dich-vu') {
+                const isExisting = form.id && typeof form.id === 'number'
+                if (isExisting) {
+                    await catalogService.updateService(form.id, {
+                        ten_dich_vu: form.tenDV,
+                        don_gia: Number(form.donGia),
+                        don_vi_tinh: form.dvt,
+                        ma_nhom_byt: form.nhomDV,
+                        thoi_gian_tra_ket_qua_phut: Number(form.thoi_gian_thuc_hien) || 15,
+                        is_active: form.trangThai !== false,
+                    })
+                    AppToast.success(`Đã cập nhật dịch vụ ${form.tenDV} trực tiếp xuống PostgreSQL!`)
+                } else {
+                    const created = await catalogService.createService({
+                        ma_dich_vu: form.maDV,
+                        ten_dich_vu: form.tenDV,
+                        don_gia: Number(form.donGia) || 150000,
+                        don_vi_tinh: form.dvt || 'Lần',
+                        ma_nhom_byt: form.nhomDV || 'KHAM',
+                        thoi_gian_tra_ket_qua_phut: Number(form.thoi_gian_thuc_hien) || 15,
+                    })
+                    AppToast.success(`Đã thêm mới dịch vụ ${created?.ten_dich_vu || form.tenDV} vào PostgreSQL!`)
+                }
+                const loaded = await loadLiveCatalogData()
+                if (loaded && loaded.length > 0) {
+                    const match = loaded.find((s) => s.maDV === form.maDV) || loaded[0]
+                    setForm(match)
+                }
+                return
             }
-            updated = [...listData, newItem]
-            setForm(newItem)
-        }
 
-        await dispatch(
-            updateCatalogSubCollectionAsync({
-                subKey: activeCatalogKey,
-                items: updated,
-                auditEntry: {
-                    hanhDong: exists ? 'UPDATE_CATALOG_ITEM' : 'CREATE_CATALOG_ITEM',
-                    mucDich: `Cập nhật phân hệ Danh mục (${activeCatalogKey})`,
-                },
-            })
-        )
-        AppToast.success(exists ? 'Đã cập nhật mục danh mục!' : 'Đã thêm mới vào danh mục thành công!')
+            if (loaiDanhMuc === 'khoa-phong') {
+                if (activeKhoaPhongView === 'departments') {
+                    const isExisting = form.id && typeof form.id === 'number'
+                    if (isExisting) {
+                        await catalogService.updateDepartment(form.id, {
+                            ten_chuyen_khoa: form.tenPhong,
+                            mo_ta: form.moTa,
+                            vi_tri_phong: form.tang,
+                            is_active: form.trangThai !== false,
+                        })
+                        AppToast.success(`Đã cập nhật chuyên khoa ${form.tenPhong} vào PostgreSQL!`)
+                    } else {
+                        const created = await catalogService.createDepartment({
+                            ma_chuyen_khoa: form.maPhong,
+                            ten_chuyen_khoa: form.tenPhong,
+                            mo_ta: form.moTa,
+                            vi_tri_phong: form.tang || 'Tầng 1',
+                            is_active: true,
+                        })
+                        AppToast.success(`Đã tạo chuyên khoa ${created?.ten_chuyen_khoa || form.tenPhong} vào PostgreSQL!`)
+                    }
+                } else {
+                    const isExisting = form.id && typeof form.id === 'number'
+                    if (isExisting) {
+                        await catalogService.updateRoom(form.id, {
+                            ten_phong: form.tenPhong,
+                            tang: form.tang,
+                            loai_phong: form.loai_phong || 'kham_benh',
+                            thiet_bi_chinh: form.thiet_bi_chinh,
+                            is_active: form.trangThai !== false,
+                        })
+                        AppToast.success(`Đã cập nhật buồng khám ${form.tenPhong} vào PostgreSQL!`)
+                    } else {
+                        const created = await catalogService.createRoom({
+                            ma_phong: form.maPhong,
+                            ten_phong: form.tenPhong,
+                            tang: form.tang || 'Tầng 1',
+                            loai_phong: form.loai_phong || 'kham_benh',
+                            thiet_bi_chinh: form.thiet_bi_chinh,
+                        })
+                        AppToast.success(`Đã tạo buồng khám ${created?.ten_phong || form.tenPhong} vào PostgreSQL!`)
+                    }
+                }
+                const loaded = await loadLiveCatalogData()
+                if (loaded && loaded.length > 0) {
+                    const match = loaded.find((r) => r.maPhong === form.maPhong) || loaded[0]
+                    setForm(match)
+                }
+                return
+            }
+
+            const exists = listData.some((item) => item.id === form.id && form.id)
+            let updated
+            if (exists) {
+                updated = listData.map((item) => (item.id === form.id ? { ...item, ...form } : item))
+            } else {
+                const newItem = {
+                    ...form,
+                    id: `${activeCatalogKey.toUpperCase()}-${Date.now().toString().slice(-4)}`,
+                }
+                updated = [...listData, newItem]
+                setForm(newItem)
+            }
+
+            await dispatch(
+                updateCatalogSubCollectionAsync({
+                    subKey: activeCatalogKey,
+                    items: updated,
+                    auditEntry: {
+                        hanhDong: exists ? 'UPDATE_CATALOG_ITEM' : 'CREATE_CATALOG_ITEM',
+                        mucDich: `Cập nhật phân hệ Danh mục (${activeCatalogKey})`,
+                    },
+                })
+            )
+            AppToast.success(exists ? 'Đã cập nhật mục danh mục!' : 'Đã thêm mới vào danh mục thành công!')
+        } catch (err) {
+            AppToast.error(`Lỗi lưu dữ liệu: ${err.message || 'Không thể lưu bản ghi'}`)
+        }
     }
 
     const handleDeleteItem = async () => {
         if (!form.id) return
-        const updated = listData.filter((item) => item.id !== form.id)
-        await dispatch(
-            updateCatalogSubCollectionAsync({
-                subKey: activeCatalogKey,
-                items: updated,
-            })
-        )
-        setForm(updated[0] || {})
-        AppToast.info('Đã xóa mục khỏi danh mục!')
+        try {
+            if (loaiDanhMuc === 'dich-vu') {
+                if (typeof form.id === 'number') {
+                    await catalogService.deleteService(form.id)
+                    AppToast.info('Đã ngừng kích hoạt dịch vụ thành công trên PostgreSQL!')
+                    const loaded = await loadLiveCatalogData()
+                    setForm(loaded?.[0] || {})
+                    return
+                }
+            } else if (loaiDanhMuc === 'khoa-phong') {
+                if (typeof form.id === 'number') {
+                    if (activeKhoaPhongView === 'departments') {
+                        await catalogService.deleteDepartment(form.id)
+                    } else {
+                        await catalogService.deleteRoom(form.id)
+                    }
+                    AppToast.info('Đã xóa/ngừng kích hoạt buồng khám/khoa trên PostgreSQL!')
+                    const loaded = await loadLiveCatalogData()
+                    setForm(loaded?.[0] || {})
+                    return
+                }
+            }
+
+            const updated = listData.filter((item) => item.id !== form.id)
+            await dispatch(
+                updateCatalogSubCollectionAsync({
+                    subKey: activeCatalogKey,
+                    items: updated,
+                })
+            )
+            setForm(updated[0] || {})
+            AppToast.info('Đã xóa mục khỏi danh mục!')
+        } catch (err) {
+            AppToast.error(`Lỗi xóa: ${err.message || 'Không thể xóa bản ghi'}`)
+        }
     }
 
     const filteredList = listData.filter((item) => {
@@ -370,7 +658,6 @@ export default function CatalogManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                     {Object.entries(catalogRouteMap).map(([key, meta]) => {
@@ -402,22 +689,21 @@ export default function CatalogManagementPage() {
                         onClick={() => fileInputRef.current?.click()}
                         className="medpro-btn-outline !py-1 !px-3 text-xs"
                     >
-                        <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
-                        <span>Import Excel</span>
+                        <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                        <span>Nạp dữ liệu (Import)</span>
                     </button>
                     <button
                         type="button"
                         onClick={handleExportCatalog}
                         className="medpro-btn-outline !py-1 !px-3 text-xs"
                     >
-                        <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                        <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
                         <span>Xuất Excel</span>
                     </button>
                     <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.json" className="hidden" onChange={handleImportFile} />
                 </div>
             </div>
 
-            
             {loaiDanhMuc === 'chung' && (
                 <div className="medpro-card p-2.5 flex flex-wrap items-center gap-1.5 bg-[#F8FBFE]">
                     {generalSubTabs.map((sub) => {
@@ -428,30 +714,56 @@ export default function CatalogManagementPage() {
                                 type="button"
                                 onClick={() => {
                                     setActiveGeneralSubTab(sub.key)
-                                    setForm((catalogs[sub.key] || [])[0] || {})
+                                    handleSwitchCatalogView(catalogs[sub.key] || [])
                                 }}
-                                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                                     active
-                                        ? 'bg-[#003553] text-white shadow-xs'
-                                        : 'bg-white text-[#003553] border border-[#CBE9FA] hover:border-[#00B5F1]'
+                                        ? 'bg-white text-[#00B5F1] shadow-xs border border-[#00B5F1]/40'
+                                        : 'text-slate-600 hover:bg-white/80'
                                 }`}
                             >
-                                <ClinicIcon
-                                    name={sub.icon || 'SlidersHorizontal'}
-                                    size={14}
-                                    weight={active ? 'fill' : 'duotone'}
-                                    className={active ? 'text-[#00B5F1]' : 'text-[#00B5F1]'}
-                                />
-                                <span>
-                                    {sub.label} ({(catalogs[sub.key] || []).length})
-                                </span>
+                                <ClinicIcon name={sub.icon || 'Dot'} size={14} weight={active ? 'fill' : 'regular'} />
+                                <span>{sub.title}</span>
                             </button>
                         )
                     })}
                 </div>
             )}
 
-            
+            {loaiDanhMuc === 'khoa-phong' && (
+                <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2 bg-[#F8FBFE]">
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setActiveKhoaPhongView('rooms')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                                activeKhoaPhongView === 'rooms'
+                                    ? 'bg-[#003553] text-white shadow-xs'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <ClinicIcon name="Buildings" size={14} weight="bold" />
+                            <span>Buồng khám vật lý & Phòng chức năng (/rooms)</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveKhoaPhongView('departments')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                                activeKhoaPhongView === 'departments'
+                                    ? 'bg-[#003553] text-white shadow-xs'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <ClinicIcon name="Folders" size={14} weight="bold" />
+                            <span>Khoa / Chuyên khoa khám bệnh (/departments)</span>
+                        </button>
+                    </div>
+                    <span className="text-xs text-slate-500 font-semibold">
+                        Lưu trữ quan hệ PostgreSQL thời gian thực
+                    </span>
+                </div>
+            )}
+
             {loaiDanhMuc === 'dich-vu' && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-sky-50 via-[#E8F4FD] to-indigo-50/60 p-3 rounded-xl border border-[#00B5F1]/30">
                     <div className="flex items-center gap-2.5">
@@ -467,26 +779,34 @@ export default function CatalogManagementPage() {
                             </div>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleOpenExportModal}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#00B5F1] hover:bg-[#009cd1] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <DownloadSimple size={14} weight="bold" />
-                        <span>Xuất Bảng giá Dịch vụ Chuẩn y tế (Excel/CSV)</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleOpenPriceHistory}
+                            className="px-3.5 py-1.5 rounded-lg bg-[#003553] hover:bg-[#002235] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <ClinicIcon name="ClockCounterClockwise" size={14} weight="bold" />
+                            <span>Lịch sử điều chỉnh giá bất biến</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleOpenExportModal}
+                            className="px-3.5 py-1.5 rounded-lg bg-[#00B5F1] hover:bg-[#009cd1] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <DownloadSimple size={14} weight="bold" />
+                            <span>Xuất Bảng giá Dịch vụ Chuẩn y tế (Excel/CSV)</span>
+                        </button>
+                    </div>
                 </div>
             )}
 
-            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    
-                    <div className="lg:col-span-6 medpro-card p-3.5 flex flex-col h-[calc(100vh-195px)]">
-                        <div className="medpro-section-title">
-                            <span>
-                                DANH SÁCH BẢN GHI ({filteredList.length}) — {catalogRouteMap[loaiDanhMuc]?.title?.toUpperCase()}
-                            </span>
-                        </div>
+                <div className="lg:col-span-6 medpro-card p-3.5 flex flex-col h-[calc(100vh-195px)]">
+                    <div className="medpro-section-title">
+                        <span>
+                            DANH SÁCH BẢN GHI ({filteredList.length}) — {catalogRouteMap[loaiDanhMuc]?.title?.toUpperCase()}
+                        </span>
+                    </div>
 
                     <div className="mb-3 relative">
                         <MagnifyingGlass
@@ -549,7 +869,7 @@ export default function CatalogManagementPage() {
                                             <td className="font-semibold text-[#12263F]">{name}</td>
                                             <td className="text-xs text-slate-600">{extra}</td>
                                             <td>
-                                                <StatusBadge status={item.trangThai !== false ? 'Hiển thị' : 'Ẩn'} compact />
+                                                <StatusBadge status={item.trangThai !== false && item.is_active !== false ? 'Hiển thị' : 'Ẩn'} compact />
                                             </td>
                                         </tr>
                                     )
@@ -566,7 +886,6 @@ export default function CatalogManagementPage() {
                     </div>
                 </div>
 
-                
                 <div className="lg:col-span-6 medpro-card p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
                         <div>
@@ -595,23 +914,15 @@ export default function CatalogManagementPage() {
                         </div>
                     </div>
 
-                    
                     {activeCatalogKey === 'diaChi' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="medpro-label mb-0">Mã Tỉnh / Thành phố</label>
-                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
-                                    </span>
-                                </div>
+                                <label className="medpro-label">Mã Tỉnh / Thành phố *</label>
                                 <input
                                     type="text"
                                     value={form.maTinh || ''}
-                                    readOnly
-                                    disabled
-                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
-                                    title="Mã Tỉnh / Thành phố do hệ thống tự sinh, không thể chỉnh sửa"
+                                    onChange={(e) => setForm({ ...form, maTinh: e.target.value })}
+                                    className="medpro-input font-mono font-bold text-[#00B5F1]"
                                 />
                             </div>
                             <div>
@@ -624,7 +935,7 @@ export default function CatalogManagementPage() {
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Quận / Huyện *</label>
+                                <label className="medpro-label">Quận / Huyện / Thị xã *</label>
                                 <input
                                     type="text"
                                     value={form.quanHuyen || ''}
@@ -633,7 +944,7 @@ export default function CatalogManagementPage() {
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Phường / Xã *</label>
+                                <label className="medpro-label">Phường / Xã / Thị trấn *</label>
                                 <input
                                     type="text"
                                     value={form.phuongXa || ''}
@@ -648,22 +959,20 @@ export default function CatalogManagementPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="medpro-label mb-0">Mã phòng khám</label>
+                                    <label className="medpro-label mb-0">Mã {activeKhoaPhongView === 'departments' ? 'chuyên khoa' : 'buồng khám'}</label>
                                     <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
+                                        Mã chuẩn hóa
                                     </span>
                                 </div>
                                 <input
                                     type="text"
                                     value={form.maPhong || ''}
-                                    readOnly
-                                    disabled
-                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
-                                    title="Mã phòng khám do hệ thống tự sinh, không thể sửa"
+                                    onChange={(e) => setForm({ ...form, maPhong: e.target.value })}
+                                    className="medpro-input font-mono font-bold text-[#003553]"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Tên Khoa / Phòng khám *</label>
+                                <label className="medpro-label">Tên {activeKhoaPhongView === 'departments' ? 'Khoa / Chuyên khoa' : 'Buồng khám'} *</label>
                                 <input
                                     type="text"
                                     value={form.tenPhong || ''}
@@ -671,15 +980,27 @@ export default function CatalogManagementPage() {
                                     className="medpro-input font-semibold"
                                 />
                             </div>
-                            <div>
-                                <label className="medpro-label">Chuyên khoa phụ trách</label>
-                                <input
-                                    type="text"
-                                    value={form.chuyenKhoa || ''}
-                                    onChange={(e) => setForm({ ...form, chuyenKhoa: e.target.value })}
-                                    className="medpro-input"
-                                />
-                            </div>
+                            {activeKhoaPhongView === 'departments' ? (
+                                <div className="sm:col-span-2">
+                                    <label className="medpro-label">Mô tả phạm vi chuyên môn</label>
+                                    <textarea
+                                        rows={2}
+                                        value={form.moTa || ''}
+                                        onChange={(e) => setForm({ ...form, moTa: e.target.value })}
+                                        className="medpro-input"
+                                    />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="medpro-label">Chuyên khoa phụ trách</label>
+                                    <input
+                                        type="text"
+                                        value={form.chuyenKhoa || ''}
+                                        onChange={(e) => setForm({ ...form, chuyenKhoa: e.target.value })}
+                                        className="medpro-input"
+                                    />
+                                </div>
+                            )}
                             <div>
                                 <label className="medpro-label">Vị trí tầng</label>
                                 <input
@@ -689,15 +1010,18 @@ export default function CatalogManagementPage() {
                                     className="medpro-input"
                                 />
                             </div>
-                            <div className="sm:col-span-2">
-                                <label className="medpro-label">Bác sĩ phụ trách chuyên môn phòng</label>
-                                <input
-                                    type="text"
-                                    value={form.bacSiPhuTrach || ''}
-                                    onChange={(e) => setForm({ ...form, bacSiPhuTrach: e.target.value })}
-                                    className="medpro-input font-semibold text-[#003553]"
-                                />
-                            </div>
+                            {activeKhoaPhongView !== 'departments' && (
+                                <div className="sm:col-span-2">
+                                    <label className="medpro-label">Thiết bị y tế chính trong phòng</label>
+                                    <input
+                                        type="text"
+                                        value={form.thiet_bi_chinh || ''}
+                                        onChange={(e) => setForm({ ...form, thiet_bi_chinh: e.target.value })}
+                                        className="medpro-input font-semibold text-[#003553]"
+                                        placeholder="Ví dụ: Máy đo điện tim 12 cần, máy siêu âm màu 4D"
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -713,16 +1037,7 @@ export default function CatalogManagementPage() {
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Chương bệnh ICD-10</label>
-                                <input
-                                    type="text"
-                                    value={form.chuongBenh || ''}
-                                    onChange={(e) => setForm({ ...form, chuongBenh: e.target.value })}
-                                    className="medpro-input"
-                                />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label className="medpro-label">Tên bệnh lý chuẩn Bộ Y tế *</label>
+                                <label className="medpro-label">Tên bệnh / Chẩn đoán y khoa *</label>
                                 <input
                                     type="text"
                                     value={form.tenBenh || ''}
@@ -730,16 +1045,25 @@ export default function CatalogManagementPage() {
                                     className="medpro-input font-semibold"
                                 />
                             </div>
+                            <div className="sm:col-span-2">
+                                <label className="medpro-label">Chương bệnh (Theo phân loại WHO / BYT)</label>
+                                <input
+                                    type="text"
+                                    value={form.chuongBenh || ''}
+                                    onChange={(e) => setForm({ ...form, chuongBenh: e.target.value })}
+                                    className="medpro-input"
+                                />
+                            </div>
                             <div className="sm:col-span-2 flex items-center gap-2 pt-1">
                                 <input
-                                    id="chk-truyennhiem"
                                     type="checkbox"
+                                    id="truyenNhiemCheckbox"
                                     checked={Boolean(form.truyenNhiem)}
                                     onChange={(e) => setForm({ ...form, truyenNhiem: e.target.checked })}
-                                    className="w-4 h-4 accent-[#00B5F1]"
+                                    className="rounded text-[#00B5F1] focus:ring-[#00B5F1]"
                                 />
-                                <label htmlFor="chk-truyennhiem" className="text-xs font-bold text-rose-600 cursor-pointer">
-                                    Thuộc nhóm Bệnh truyền nhiễm bắt buộc cảnh báo dịch tễ (LAW-01)
+                                <label htmlFor="truyenNhiemCheckbox" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                                    Bệnh truyền nhiễm bắt buộc báo cáo dịch tễ
                                 </label>
                             </div>
                         </div>
@@ -748,49 +1072,30 @@ export default function CatalogManagementPage() {
                     {activeCatalogKey === 'thuocVatTu' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="medpro-label mb-0">Mã thuốc kê đơn *</label>
-                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
-                                    </span>
-                                </div>
+                                <label className="medpro-label">Mã thuốc / Dược phẩm *</label>
                                 <input
                                     type="text"
                                     value={form.maThuoc || ''}
-                                    readOnly
-                                    disabled
-                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
-                                    title="Mã thuốc do hệ thống tự sinh theo chuẩn THxxx, không thể sửa"
+                                    onChange={(e) => setForm({ ...form, maThuoc: e.target.value })}
+                                    className="medpro-input font-mono font-bold text-[#00B5F1]"
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Nhóm dược lý / Phân loại</label>
-                                <input
-                                    type="text"
-                                    value={form.nhomThuoc || ''}
-                                    onChange={(e) => setForm({ ...form, nhomThuoc: e.target.value })}
-                                    placeholder="VD: Kháng sinh, Hạ sốt..."
-                                    className="medpro-input"
-                                />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label className="medpro-label">Tên biệt dược / Thuốc thương mại *</label>
+                                <label className="medpro-label">Tên thuốc & Biệt dược *</label>
                                 <input
                                     type="text"
                                     value={form.tenThuoc || ''}
                                     onChange={(e) => setForm({ ...form, tenThuoc: e.target.value })}
-                                    placeholder="VD: Augmentin 1g, Efferalgan 500mg..."
                                     className="medpro-input font-semibold"
                                 />
                             </div>
-                            <div className="sm:col-span-2">
-                                <label className="medpro-label">Hoạt chất & Hàm lượng (Chuẩn Cổng Đơn thuốc QG)</label>
+                            <div>
+                                <label className="medpro-label">Hoạt chất & Hàm lượng *</label>
                                 <input
                                     type="text"
                                     value={form.hoatChat || ''}
                                     onChange={(e) => setForm({ ...form, hoatChat: e.target.value })}
-                                    placeholder="VD: Amoxicillin 875mg + Acid Clavulanic 125mg"
-                                    className="medpro-input font-mono"
+                                    className="medpro-input"
                                 />
                             </div>
                             <div>
@@ -801,21 +1106,29 @@ export default function CatalogManagementPage() {
                                     className="medpro-input"
                                 >
                                     <option value="Viên">Viên</option>
-                                    <option value="Gói">Gói</option>
-                                    <option value="Lọ">Lọ</option>
-                                    <option value="Chai">Chai</option>
-                                    <option value="Ống">Ống</option>
-                                    <option value="Tuýp">Tuýp</option>
+                                    <option value="Vỉ">Vỉ</option>
                                     <option value="Hộp">Hộp</option>
+                                    <option value="Lọ">Lọ</option>
+                                    <option value="Ống">Ống</option>
+                                    <option value="Gói">Gói</option>
+                                    <option value="Chai">Chai</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="medpro-label">Đường dùng & Hướng dẫn mặc định</label>
+                                <label className="medpro-label">Đường dùng thuốc</label>
                                 <input
                                     type="text"
-                                    value={form.duongDung || form.huongDan || ''}
-                                    onChange={(e) => setForm({ ...form, duongDung: e.target.value, huongDan: e.target.value })}
-                                    placeholder="VD: Uống sau ăn, Bôi ngoài da..."
+                                    value={form.duongDung || 'Uống'}
+                                    onChange={(e) => setForm({ ...form, duongDung: e.target.value })}
+                                    className="medpro-input"
+                                />
+                            </div>
+                            <div>
+                                <label className="medpro-label">Phân nhóm dược lý</label>
+                                <input
+                                    type="text"
+                                    value={form.nhomThuoc || 'Thuốc kê đơn'}
+                                    onChange={(e) => setForm({ ...form, nhomThuoc: e.target.value })}
                                     className="medpro-input"
                                 />
                             </div>
@@ -828,16 +1141,14 @@ export default function CatalogManagementPage() {
                                 <div className="flex items-center justify-between mb-1">
                                     <label className="medpro-label mb-0">Mã dịch vụ kỹ thuật *</label>
                                     <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
+                                        Mã chuẩn hóa
                                     </span>
                                 </div>
                                 <input
                                     type="text"
                                     value={form.maDV || ''}
-                                    readOnly
-                                    disabled
-                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
-                                    title="Mã dịch vụ do hệ thống tự sinh, không thể sửa"
+                                    onChange={(e) => setForm({ ...form, maDV: e.target.value })}
+                                    className="medpro-input font-mono font-bold text-[#003553]"
                                 />
                             </div>
                             <div>
@@ -977,7 +1288,80 @@ export default function CatalogManagementPage() {
                 </div>
             </div>
 
-            
+            {isPriceHistoryOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-100">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-[#F8FAFC]">
+                            <div className="flex items-center gap-3">
+                                <span className="w-9 h-9 rounded-xl bg-[#003553] text-[#00B5F1] flex items-center justify-center">
+                                    <ClinicIcon name="ClockCounterClockwise" size={20} weight="bold" />
+                                </span>
+                                <div>
+                                    <h3 className="font-display font-extrabold text-sm text-[#003553]">
+                                        LỊCH SỬ ĐIỀU CHỈNH GIÁ DỊCH VỤ BẤT BIẾN
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        Vết kiểm toán độc lập bảo toàn giá lịch sử cho dịch vụ {form.maDV} - {form.tenDV}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsPriceHistoryOpen(false)}
+                                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1">
+                            {priceHistoryLoading ? (
+                                <div className="py-8 text-center text-slate-500 text-xs">Đang tải lịch sử kiểm toán...</div>
+                            ) : priceHistory.length === 0 ? (
+                                <div className="py-8 text-center text-slate-500 text-xs">Chưa có lịch sử điều chỉnh giá nào cho dịch vụ này</div>
+                            ) : (
+                                <table className="medpro-table text-xs">
+                                    <thead>
+                                        <tr>
+                                            <th>Thời gian</th>
+                                            <th>Người điều chỉnh</th>
+                                            <th className="text-right">Giá cũ</th>
+                                            <th className="text-right">Giá mới</th>
+                                            <th>Lý do điều chỉnh</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {priceHistory.map((h) => (
+                                            <tr key={h.id}>
+                                                <td className="font-mono text-slate-600">
+                                                    {h.timestamp ? new Date(h.timestamp).toLocaleString('vi-VN') : ''}
+                                                </td>
+                                                <td className="font-semibold text-slate-700">{h.user_role} (ID: {h.user_id})</td>
+                                                <td className="text-right font-mono font-bold text-slate-500">
+                                                    {h.noi_dung_cu?.don_gia ? Number(h.noi_dung_cu.don_gia).toLocaleString('vi-VN') + ' đ' : '-'}
+                                                </td>
+                                                <td className="text-right font-mono font-bold text-emerald-600">
+                                                    {h.noi_dung_moi?.don_gia ? Number(h.noi_dung_moi.don_gia).toLocaleString('vi-VN') + ' đ' : '-'}
+                                                </td>
+                                                <td className="text-slate-600">{h.purpose}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50">
+                            <button
+                                type="button"
+                                onClick={() => setIsPriceHistoryOpen(false)}
+                                className="medpro-btn-outline text-xs !py-1"
+                            >
+                                Đóng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isExportModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
@@ -1093,4 +1477,3 @@ export default function CatalogManagementPage() {
         </div>
     )
 }
-

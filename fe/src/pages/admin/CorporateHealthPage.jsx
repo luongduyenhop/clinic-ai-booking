@@ -19,6 +19,7 @@ import {
     Printer,
     FileText,
     Scales,
+    Package,
 } from '../../components/common/ClinicIcon'
 
 export default function CorporateHealthPage() {
@@ -34,15 +35,83 @@ export default function CorporateHealthPage() {
     ].filter(Boolean).join(' | ')
     const corporateCheckups = clinicData?.corporateCheckups || []
 
+    const defaultPackages = useMemo(() => [
+        {
+            id: 'GK-01',
+            maGoi: 'GK-TT32-01',
+            tenGoi: 'Gói khám tiêu chuẩn Thông tư 32/2023/TT-BYT',
+            donGia: 1200000,
+            tieuChuan: 'Thông tư 32/2023/TT-BYT',
+            doiTuong: 'Cán bộ nhân viên văn phòng, người lao động định kỳ',
+            danhMucTram: [
+                'Khám thể lực: chiều cao, cân nặng, chỉ số BMI, huyết áp, mạch',
+                'Khám lâm sàng toàn diện: Nội tổng quát, Ngoại, Da liễu, Mắt, Tai Mũi Họng, Răng Hàm Mặt',
+                'Khám chuyên khoa Phụ sản & tầm soát tế bào cổ tử cung (lao động nữ)',
+                'Xét nghiệm: Huyết học tổng phân tích 18 thông số, Đường huyết đói Glucose',
+                'Xét nghiệm: Tổng phân tích nước tiểu 10 thông số tự động',
+                'Chẩn đoán hình ảnh: Chụp X-quang tim phổi thẳng kỹ thuật số'
+            ]
+        },
+        {
+            id: 'GK-02',
+            maGoi: 'GK-NC-02',
+            tenGoi: 'Gói khám tổng quát nâng cao & tầm soát chuyển hóa',
+            donGia: 2500000,
+            tieuChuan: 'Bộ Y tế & Tiêu chuẩn Quốc tế JCI',
+            doiTuong: 'Chuyên viên, quản lý cấp trung, nhân sự trên 35 tuổi',
+            danhMucTram: [
+                'Toàn bộ danh mục gói tiêu chuẩn Thông tư 32',
+                'Siêu âm ổ bụng tổng quát màu Doppler (Gan, Mật, Tụy, Lách, Thận)',
+                'Đo điện tim đồ 12 chuyển đạo ECG nghỉ',
+                'Sinh hóa chức năng gan: AST (GOT), ALT (GPT), GGT',
+                'Sinh hóa chức năng thận: Ure, Creatinine máu, Acid Uric',
+                'Bộ mỡ máu: Cholesterol toàn phần, Triglyceride, HDL-C, LDL-C'
+            ]
+        },
+        {
+            id: 'GK-03',
+            maGoi: 'GK-NN-03',
+            tenGoi: 'Gói tầm soát bệnh nghề nghiệp & môi trường độc hại',
+            donGia: 1800000,
+            tieuChuan: 'Thông tư 28/2016/TT-BYT',
+            doiTuong: 'Công nhân nhà máy, kỹ sư công trường, tiếp xúc hóa chất hoặc tiếng ồn',
+            danhMucTram: [
+                'Toàn bộ danh mục gói tiêu chuẩn Thông tư 32',
+                'Đo chức năng thông khí phổi Spirometry (tầm soát sớm hen nghề nghiệp, COPD)',
+                'Đo thính lực dải âm tần tự động trong buồng cách âm tiêu chuẩn',
+                'Xét nghiệm định lượng chì máu hoặc kim loại nặng nghề nghiệp',
+                'Chụp X-quang phổi chuẩn ILO phát hiện xơ hóa hoặc bụi phổi'
+            ]
+        },
+        {
+            id: 'GK-04',
+            maGoi: 'GK-VIP-04',
+            tenGoi: 'Gói khám sức khỏe VIP - Ban Giám đốc & Lãnh đạo',
+            donGia: 4800000,
+            tieuChuan: 'Tiêu chuẩn Cao cấp VIP Quốc tế',
+            doiTuong: 'Hội đồng quản trị, Ban Tổng Giám đốc, Quản lý cấp cao',
+            danhMucTram: [
+                'Toàn bộ danh mục gói nâng cao chuyên sâu',
+                'Siêu âm tim màu Doppler & Siêu âm Doppler màu tuyến giáp',
+                'Chụp cắt lớp vi tính CT lồng ngực liều thấp tầm soát u sớm',
+                'Bộ dấu ấn sinh học ung thư: CEA (tiêu hóa), AFP (gan), PSA (nam giới) / CA125 (nữ)',
+                'Nội soi Tai Mũi Họng dải tần hẹp NBI tầm soát ung thư biểu mô',
+                'Tư vấn kết quả và phác đồ theo dõi sức khỏe 1-1 cùng Bác sĩ Chuyên khoa II'
+            ]
+        }
+    ], [])
+
+    const corporatePackages = clinicData?.corporatePackages || defaultPackages
+
     const queryTab = new URLSearchParams(location.search).get('tab')
     const [activeTab, setActiveTab] = useState(
-        queryTab && ['DANG_KY_DOAN', 'THANH_TOAN', 'HOA_DON', 'DANH_MUC'].includes(queryTab)
+        queryTab && ['DANG_KY_DOAN', 'THANH_TOAN', 'HOA_DON', 'DANH_MUC', 'GOI_KHAM'].includes(queryTab)
             ? queryTab
             : 'DANG_KY_DOAN'
     )
 
     useEffect(() => {
-        if (queryTab && ['DANG_KY_DOAN', 'THANH_TOAN', 'HOA_DON', 'DANH_MUC'].includes(queryTab)) {
+        if (queryTab && ['DANG_KY_DOAN', 'THANH_TOAN', 'HOA_DON', 'DANH_MUC', 'GOI_KHAM'].includes(queryTab)) {
             setActiveTab(queryTab)
         }
     }, [queryTab])
@@ -52,6 +121,7 @@ export default function CorporateHealthPage() {
     const [selectedCorp, setSelectedCorp] = useState(corporateCheckups[0] || null)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
 
     const [newCorpForm, setNewCorpForm] = useState({
         tenDoan: '',
@@ -61,87 +131,157 @@ export default function CorporateHealthPage() {
         dienThoai: '',
         dotKham: 'Khám sức khỏe định kỳ Quý IV - 2026',
         soLuongNhanVien: 50,
-        goiKham: 'Gói khám tiêu chuẩn TT 32/2023/TT-BYT',
+        goiKham: 'Gói khám tiêu chuẩn Thông tư 32/2023/TT-BYT',
         donGiaNguoi: 1200000,
         chietKhau: 10,
     })
 
-    const mockEmployees = useMemo(() => {
-        if (!selectedCorp) return []
-        const baseName = selectedCorp.tenDoan?.split(' ')[0] || 'NV'
-        return [
-            {
-                id: 'NV01',
-                maNV: 'TL-101',
-                hoTen: 'Nguyễn Văn Thành',
-                gioiTinh: 'Nam',
-                namSinh: 1991,
-                chucVu: 'Kỹ sư phần mềm',
-                theLuc: 'Đạt',
-                lamSang: 'Đạt',
-                xetNghiem: 'Chờ kết quả',
-                xQuang: 'Đạt (Tim phổi bt)',
-                ketLuan: 'Chưa kết luận',
-                phanLoai: '-',
-            },
-            {
-                id: 'NV02',
-                maNV: 'TL-102',
-                hoTen: 'Trần Thị Mai Phương',
-                gioiTinh: 'Nữ',
-                namSinh: 1995,
-                chucVu: 'Chuyên viên Nhân sự',
-                theLuc: 'Đạt',
-                lamSang: 'Đạt',
-                xetNghiem: 'Đạt',
-                xQuang: 'Đạt',
-                ketLuan: 'Đã hoàn thành',
-                phanLoai: 'Loại I (Tốt)',
-            },
-            {
-                id: 'NV03',
-                maNV: 'TL-103',
-                hoTen: 'Lê Hoàng Nam',
-                gioiTinh: 'Nam',
-                namSinh: 1988,
-                chucVu: 'Trưởng phòng Kỹ thuật',
-                theLuc: 'Đạt',
-                lamSang: 'Đạt (Tăng HA nhẹ)',
-                xetNghiem: 'Đạt',
-                xQuang: 'Đạt',
-                ketLuan: 'Đã hoàn thành',
-                phanLoai: 'Loại II (Khá)',
-            },
-            {
-                id: 'NV04',
-                maNV: 'TL-104',
-                hoTen: 'Vũ Minh Anh',
-                gioiTinh: 'Nữ',
-                namSinh: 1998,
-                chucVu: 'UI/UX Designer',
-                theLuc: 'Đang khám',
-                lamSang: 'Chưa khám',
-                xetNghiem: 'Chưa lấy mẫu',
-                xQuang: 'Chưa chụp',
-                ketLuan: 'Chưa kết luận',
-                phanLoai: '-',
-            },
-            {
-                id: 'NV05',
-                maNV: 'TL-105',
-                hoTen: 'Phạm Đức Huy',
-                gioiTinh: 'Nam',
-                namSinh: 1993,
-                chucVu: 'DevOps Engineer',
-                theLuc: 'Đạt',
-                lamSang: 'Đạt',
-                xetNghiem: 'Đạt',
-                xQuang: 'Đạt',
-                ketLuan: 'Đã hoàn thành',
-                phanLoai: 'Loại I (Tốt)',
-            },
-        ]
+    const [newPackageForm, setNewPackageForm] = useState({
+        maGoi: '',
+        tenGoi: '',
+        donGia: 1500000,
+        tieuChuan: 'Thông tư 32/2023/TT-BYT',
+        doiTuong: 'Cán bộ nhân viên doanh nghiệp',
+        danhMucTramText: '',
+    })
+
+    const employeesList = useMemo(() => {
+        return selectedCorp?.employees || []
     }, [selectedCorp])
+
+    const [importFileName, setImportFileName] = useState('')
+    const [importedEmployees, setImportedEmployees] = useState([])
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setImportFileName(file.name)
+        const reader = new FileReader()
+        reader.onload = (evt) => {
+            try {
+                const text = evt.target?.result
+                if (typeof text !== 'string') return
+                if (file.name.endsWith('.json')) {
+                    const parsed = JSON.parse(text)
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setImportedEmployees(parsed)
+                        AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp JSON!`)
+                        return
+                    }
+                }
+                const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+                if (lines.length <= 1) {
+                    AppToast.error('Tệp không chứa dữ liệu hoặc thiếu dòng tiêu đề!')
+                    return
+                }
+                const rows = lines.slice(1)
+                const parsed = rows.map((line, idx) => {
+                    const parts = line.split(',').map((p) => p.trim())
+                    return {
+                        id: `NV${Date.now().toString().slice(-4)}${idx + 1}`,
+                        maNV: parts[0] || `NV-${idx + 1}`,
+                        hoTen: parts[1] || `Nhân viên ${idx + 1}`,
+                        gioiTinh: parts[2] || 'Nam',
+                        namSinh: Number(parts[3]) || 1990,
+                        chucVu: parts[4] || 'Nhân viên',
+                        theLuc: parts[5] || 'Đạt',
+                        lamSang: parts[6] || 'Đạt',
+                        xetNghiem: parts[7] || 'Đạt',
+                        xQuang: parts[8] || 'Đạt',
+                        phanLoai: parts[9] || 'Loại I (Tốt)',
+                        ketLuan: parts[10] || 'Đủ sức khỏe làm việc',
+                    }
+                })
+                setImportedEmployees(parsed)
+                AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp CSV!`)
+            } catch {
+                AppToast.error('Không thể đọc tệp danh sách nhân viên. Vui lòng kiểm tra định dạng!')
+            }
+        }
+        reader.readAsText(file)
+    }
+
+    const handleConfirmImport = () => {
+        if (!selectedCorp) {
+            AppToast.error('Vui lòng chọn hợp đồng khám đoàn!')
+            return
+        }
+        if (!importedEmployees || importedEmployees.length === 0) {
+            AppToast.error('Vui lòng chọn tệp danh sách nhân viên (.csv hoặc .json) để nạp!')
+            return
+        }
+        const currentList = selectedCorp.employees || []
+        const updatedEmployees = [...currentList, ...importedEmployees]
+        const updatedCorp = {
+            ...selectedCorp,
+            employees: updatedEmployees,
+            soLuongNhanVien: Math.max(selectedCorp.soLuongNhanVien || 0, updatedEmployees.length),
+        }
+        const updatedCorps = corporateCheckups.map((c) => (c.id === selectedCorp.id ? updatedCorp : c))
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'corporateCheckups',
+                items: updatedCorps,
+                auditEntry: {
+                    hanhDong: 'IMPORT_CORPORATE_EMPLOYEES',
+                    doiTuong: `${selectedCorp.soHopDong} - ${selectedCorp.tenDoan}`,
+                    mucDich: `Nạp danh sách ${importedEmployees.length} nhân viên vào hợp đồng đoàn`,
+                },
+            })
+        )
+        setSelectedCorp(updatedCorp)
+        setIsImportModalOpen(false)
+        const count = importedEmployees.length
+        setImportedEmployees([])
+        setImportFileName('')
+        AppToast.success(`Đã nạp thành công ${count} nhân viên vào đoàn ${selectedCorp.tenDoan}!`)
+    }
+
+    const handleDownloadTemplate = (e) => {
+        e.preventDefault()
+        const headers = ['Mã NV', 'Họ và tên', 'Giới tính', 'Năm sinh', 'Chức vụ', 'Thể lực', 'Lâm sàng', 'Xét nghiệm', 'X-Quang', 'Phân loại', 'Kết luận']
+        const rows = [
+            ['TL-101', 'Nguyễn Văn Thành', 'Nam', 1991, 'Kỹ sư phần mềm', 'Đạt', 'Đạt', 'Đạt', 'Đạt (Tim phổi bt)', 'Loại I (Tốt)', 'Đủ sức khỏe làm việc'],
+            ['TL-102', 'Trần Thị Mai Phương', 'Nữ', 1995, 'Chuyên viên Nhân sự', 'Đạt', 'Đạt', 'Đạt', 'Đạt', 'Loại I (Tốt)', 'Đủ sức khỏe làm việc'],
+            ['TL-103', 'Lê Hoàng Nam', 'Nam', 1988, 'Trưởng phòng Kỹ thuật', 'Đạt', 'Đạt (Tăng HA nhẹ)', 'Đạt', 'Đạt', 'Loại II (Khá)', 'Đủ sức khỏe làm việc'],
+        ]
+        exportToExcel({
+            filename: 'mau_danh_sach_nhan_vien_tt32.xlsx',
+            sheetName: 'DanhSachNhanVien',
+            title: 'DANH SÁCH NHÂN VIÊN KHÁM SỨC KHỎE (MẪU THÔNG TƯ 32/2023/TT-BYT)',
+            clinicName: configuredClinicName,
+            clinicAddress: configuredClinicAddress,
+            headers,
+            rows,
+            signOff: true,
+        })
+        AppToast.success('Đã xuất file Excel mẫu chuẩn TT 32 thành công!')
+    }
+
+    const handleRequestPayment = (corp) => {
+        const updatedCorps = corporateCheckups.map((c) => {
+            if (c.id === corp.id) {
+                return {
+                    ...c,
+                    trangThaiThanhToan: 'Đã gửi đề nghị thanh toán',
+                    ngayDeNghiThanhToan: new Date().toISOString().slice(0, 10),
+                }
+            }
+            return c
+        })
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'corporateCheckups',
+                items: updatedCorps,
+                auditEntry: {
+                    hanhDong: 'REQUEST_CORPORATE_PAYMENT',
+                    doiTuong: `${corp.soHopDong} - ${corp.tenDoan}`,
+                    mucDich: `Gửi đề nghị thanh toán và tạo phiếu thu B2B cho ${corp.tenDoan}`,
+                },
+            })
+        )
+        AppToast.success(`Đã cập nhật phiếu thu và gửi đề nghị thanh toán tới ${corp.tenDoan}!`)
+    }
 
     const filteredCheckups = useMemo(() => {
         return corporateCheckups.filter((corp) => {
@@ -160,8 +300,9 @@ export default function CorporateHealthPage() {
         const totalEmployees = corporateCheckups.reduce((acc, c) => acc + (Number(c.soLuongNhanVien) || 0), 0)
         const totalCompleted = corporateCheckups.reduce((acc, c) => acc + (Number(c.daKham) || 0), 0)
         const totalRevenue = corporateCheckups.reduce((acc, c) => acc + (Number(c.tongTien) || 0), 0)
-        return { totalCorps, totalEmployees, totalCompleted, totalRevenue }
-    }, [corporateCheckups])
+        const totalPackages = corporatePackages.length
+        return { totalCorps, totalEmployees, totalCompleted, totalRevenue, totalPackages }
+    }, [corporateCheckups, corporatePackages])
 
     const handleCreateContract = () => {
         if (!newCorpForm.tenDoan.trim()) {
@@ -184,6 +325,8 @@ export default function CorporateHealthPage() {
             tongTien: tongGia,
             tamUng: tongGia * 0.3,
             chietKhau: Number(newCorpForm.chietKhau),
+            goiKham: newCorpForm.goiKham,
+            donGiaNguoi: Number(newCorpForm.donGiaNguoi),
             trangThai: 'Đang thực hiện',
         }
 
@@ -195,7 +338,7 @@ export default function CorporateHealthPage() {
                 auditEntry: {
                     hanhDong: 'CREATE_CORPORATE_CONTRACT',
                     doiTuong: `${newCorp.soHopDong} - ${newCorp.tenDoan}`,
-                    mucDich: `Tạo hợp đồng khám đoàn (${newCorp.soLuongNhanVien} NV)`,
+                    mucDich: `Tạo hợp đồng khám đoàn (${newCorp.soLuongNhanVien} NV - ${newCorp.goiKham})`,
                 },
             })
         )
@@ -204,9 +347,46 @@ export default function CorporateHealthPage() {
         AppToast.success(`Tạo hợp đồng khám đoàn ${newCorp.tenDoan} thành công!`)
     }
 
+    const handleCreatePackage = () => {
+        if (!newPackageForm.tenGoi.trim()) {
+            AppToast.error('Vui lòng nhập tên gói khám!')
+            return
+        }
+        const rawLines = newPackageForm.danhMucTramText
+            ? newPackageForm.danhMucTramText.split('\n').map((s) => s.trim()).filter(Boolean)
+            : []
+        const newPkg = {
+            id: `GK-${Date.now().toString().slice(-4)}`,
+            maGoi: newPackageForm.maGoi || `GK-CS-${Date.now().toString().slice(-4)}`,
+            tenGoi: newPackageForm.tenGoi,
+            donGia: Number(newPackageForm.donGia) || 1500000,
+            tieuChuan: newPackageForm.tieuChuan || 'Thông tư 32/2023/TT-BYT',
+            doiTuong: newPackageForm.doiTuong || 'Cán bộ nhân viên doanh nghiệp',
+            danhMucTram: rawLines.length > 0 ? rawLines : [
+                'Khám thể lực và lâm sàng tổng quát',
+                'Xét nghiệm công thức máu & đường huyết',
+                'Tổng phân tích nước tiểu 10 thông số',
+                'Chụp X-quang tim phổi kỹ thuật số'
+            ],
+        }
+        const updated = [newPkg, ...corporatePackages]
+        dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'corporatePackages',
+                items: updated,
+                auditEntry: {
+                    hanhDong: 'CREATE_CORPORATE_PACKAGE',
+                    doiTuong: `${newPkg.maGoi} - ${newPkg.tenGoi}`,
+                    mucDich: `Tạo gói khám sức khỏe đoàn (${newPkg.donGia.toLocaleString('vi-VN')} đ/người)`,
+                },
+            })
+        )
+        setIsPackageModalOpen(false)
+        AppToast.success(`Tạo gói khám ${newPkg.tenGoi} thành công!`)
+    }
+
     return (
         <div className="space-y-4">
-            
             <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
@@ -220,12 +400,20 @@ export default function CorporateHealthPage() {
                             </span>
                         </h1>
                         <p className="text-xs text-slate-500">
-                            Quản lý hợp đồng khám đoàn, import danh sách nhân sự, theo dõi tiến độ trạm khám & xuất hóa đơn VAT
+                            Quản lý hợp đồng khám đoàn, cấu hình gói khám, import danh sách nhân sự & tiến độ trạm khám
                         </p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setIsPackageModalOpen(true)}
+                        className="medpro-btn-outline !py-2 !px-3.5 text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <Package size={15} weight="bold" />
+                        <span>Thêm gói khám</span>
+                    </button>
                     <button
                         type="button"
                         onClick={() => setIsImportModalOpen(true)}
@@ -245,7 +433,6 @@ export default function CorporateHealthPage() {
                 </div>
             </div>
 
-            
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="bg-white rounded-xl p-3.5 border border-[#E5EEF5] shadow-2xs flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#00B5F1] flex items-center justify-center font-bold">
@@ -292,19 +479,19 @@ export default function CorporateHealthPage() {
                 </div>
             </div>
 
-            
-            <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
+            <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl overflow-x-auto">
                 {[
                     { id: 'DANG_KY_DOAN', label: '1. Đăng ký đoàn & Tiến độ trạm' },
-                    { id: 'THANH_TOAN', label: '2. Thanh toán & Công nợ B2B' },
-                    { id: 'HOA_DON', label: '3. Hóa đơn điện tử VAT đoàn' },
-                    { id: 'DANH_MUC', label: '4. Danh mục cơ quan đối tác' },
+                    { id: 'GOI_KHAM', label: '2. Gói khám sức khỏe đoàn' },
+                    { id: 'THANH_TOAN', label: '3. Thanh toán & Công nợ B2B' },
+                    { id: 'HOA_DON', label: '4. Hóa đơn điện tử VAT đoàn' },
+                    { id: 'DANH_MUC', label: '5. Danh mục cơ quan đối tác' },
                 ].map((t) => (
                     <button
                         key={t.id}
                         type="button"
                         onClick={() => setActiveTab(t.id)}
-                        className={`px-3.5 py-2 text-xs font-bold transition border-b-2 cursor-pointer ${
+                        className={`px-3.5 py-2 text-xs font-bold transition border-b-2 cursor-pointer whitespace-nowrap ${
                             activeTab === t.id
                                 ? 'border-[#00B5F1] text-[#00B5F1]'
                                 : 'border-transparent text-slate-500 hover:text-[#003553]'
@@ -315,10 +502,8 @@ export default function CorporateHealthPage() {
                 ))}
             </div>
 
-            
             {activeTab === 'DANG_KY_DOAN' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    
                     <div className="lg:col-span-5 bg-white rounded-xl border border-[#E5EEF5] p-3.5 space-y-3">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                             <span className="text-xs font-black text-[#003553] uppercase">HỢP ĐỒNG ĐOÀN ({filteredCheckups.length})</span>
@@ -358,6 +543,12 @@ export default function CorporateHealthPage() {
                                             <StatusBadge status={corp.trangThai} compact />
                                         </div>
 
+                                        <div className="mt-2 text-[11px] text-slate-600 flex items-center gap-1.5">
+                                            <span className="px-1.5 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-bold text-[10px]">
+                                                {corp.goiKham || 'Gói tiêu chuẩn TT 32'}
+                                            </span>
+                                        </div>
+
                                         <div className="mt-2 text-[11.5px] text-slate-600 flex items-center justify-between">
                                             <span>Tiến độ khám:</span>
                                             <span className="font-extrabold text-[#003553]">
@@ -383,7 +574,6 @@ export default function CorporateHealthPage() {
                         </div>
                     </div>
 
-                    
                     <div className="lg:col-span-7 bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                         {selectedCorp ? (
                             <>
@@ -393,6 +583,9 @@ export default function CorporateHealthPage() {
                                         <div className="text-xs text-slate-500">
                                             Đợt khám: <span className="font-semibold text-slate-700">{selectedCorp.dotKham}</span> &bull; HĐ:{' '}
                                             <span className="font-mono font-bold text-sky-600">{selectedCorp.soHopDong}</span>
+                                        </div>
+                                        <div className="text-xs text-slate-600 mt-0.5">
+                                            Gói chỉ định: <span className="font-bold text-[#00B5F1]">{selectedCorp.goiKham || 'Gói tiêu chuẩn TT 32/2023/TT-BYT'}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5">
@@ -406,30 +599,30 @@ export default function CorporateHealthPage() {
                                         </button>
                                         <button
                                             type="button"
-                             onClick={() => {
-    const headers = ['STT', 'Họ tên nhân viên', 'Mã NV', 'Năm sinh', 'Giới tính', 'Xếp loại sức khỏe', 'Kết luận chuyên môn']
-    const rows = (selectedCorp?.employees || []).map((e, idx) => [
-        idx + 1,
-        e.hoTen || e.name || '',
-        e.maNV || '',
-        e.namSinh || '',
-        e.gioiTinh || '',
-        e.xepLoai || 'Loại I',
-        e.ketLuan || 'Đủ sức khỏe làm việc',
-    ])
-    exportToExcel({
-        filename: `ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
-        sheetName: 'Kết Quả Khám Đoàn',
-        title: 'BÁO CÁO KẾT QUẢ KHÁM SỨC KHỎE ĐỊNH KỲ (THÔNG TƯ 32/2023/TT-BYT)',
-        subtitle: `Đơn vị: ${selectedCorp?.tenDoan || selectedCorp?.tenCongTy || 'Doanh nghiệp'} • Hợp đồng: ${selectedCorp?.soHopDong || 'Chưa có'} • Tổng số: ${rows.length} CBNV`,
-        clinicName: configuredClinicName,
-        clinicAddress: configuredClinicAddress,
-        headers,
-        rows,
-        signOff: true,
-    })
-    AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công!')
-}}
+                                            onClick={() => {
+                                                const headers = ['STT', 'Họ tên nhân viên', 'Mã NV', 'Năm sinh', 'Giới tính', 'Xếp loại sức khỏe', 'Kết luận chuyên môn']
+                                                const rows = (selectedCorp?.employees || []).map((e, idx) => [
+                                                    idx + 1,
+                                                    e.hoTen || e.name || '',
+                                                    e.maNV || '',
+                                                    e.namSinh || '',
+                                                    e.gioiTinh || '',
+                                                    e.xepLoai || 'Loại I',
+                                                    e.ketLuan || 'Đủ sức khỏe làm việc',
+                                                ])
+                                                exportToExcel({
+                                                    filename: `ket-qua-kham-doan-${selectedCorp?.soHopDong || 'tt32'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                                                    sheetName: 'Kết Quả Khám Đoàn',
+                                                    title: 'BÁO CÁO KẾT QUẢ KHÁM SỨC KHỎE ĐỊNH KỲ (THÔNG TƯ 32/2023/TT-BYT)',
+                                                    subtitle: `Đơn vị: ${selectedCorp?.tenDoan || selectedCorp?.tenCongTy || 'Doanh nghiệp'} • Hợp đồng: ${selectedCorp?.soHopDong || 'Chưa có'} • Gói khám: ${selectedCorp?.goiKham || 'TT 32'} • Tổng số: ${rows.length} CBNV`,
+                                                    clinicName: configuredClinicName,
+                                                    clinicAddress: configuredClinicAddress,
+                                                    headers,
+                                                    rows,
+                                                    signOff: true,
+                                                })
+                                                AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công!')
+                                            }}
                                             className="px-2.5 py-1.5 rounded-lg bg-[#00B5F1] text-white text-xs font-bold hover:bg-[#009bd1] transition flex items-center gap-1"
                                         >
                                             <DownloadSimple size={14} weight="bold" />
@@ -440,7 +633,9 @@ export default function CorporateHealthPage() {
 
                                 <div className="text-xs font-bold text-[#003553] uppercase tracking-wider flex items-center justify-between">
                                     <span>DANH SÁCH NHÂN SỰ & TIẾN ĐỘ TRẠM KHÁM</span>
-                                    <span className="text-[11px] font-normal text-slate-400">Hiển thị mẫu 5 nhân viên</span>
+                                    <span className="text-[11px] font-normal text-slate-400">
+                                        {employeesList.length > 0 ? `${employeesList.length} nhân viên` : 'Chưa có dữ liệu'}
+                                    </span>
                                 </div>
 
                                 <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
@@ -457,47 +652,55 @@ export default function CorporateHealthPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {mockEmployees.map((emp) => (
-                                                <tr key={emp.id}>
-                                                    <td className="font-mono font-bold text-[#00B5F1]">{emp.maNV}</td>
-                                                    <td>
-                                                        <div className="font-bold text-[#003553]">{emp.hoTen}</div>
-                                                        <div className="text-[10.5px] text-slate-400">
-                                                            {emp.gioiTinh} &bull; {emp.namSinh} &bull; {emp.chucVu}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                                                            {emp.theLuc}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700">
-                                                            {emp.lamSang}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span
-                                                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                                                emp.xetNghiem === 'Đạt'
-                                                                    ? 'bg-emerald-50 text-emerald-700'
-                                                                    : 'bg-amber-50 text-amber-700'
-                                                            }`}
-                                                        >
-                                                            {emp.xetNghiem}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700">
-                                                            {emp.xQuang}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="font-bold text-xs text-[#003553]">{emp.phanLoai}</div>
-                                                        <div className="text-[10px] text-slate-400">{emp.ketLuan}</div>
+                                            {employeesList.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">
+                                                        Chưa có danh sách nhân viên cho đoàn này. Vui lòng nạp danh sách từ file Excel.
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            ) : (
+                                                employeesList.map((emp) => (
+                                                    <tr key={emp.id || emp.maNV}>
+                                                        <td className="font-mono font-bold text-[#00B5F1]">{emp.maNV}</td>
+                                                        <td>
+                                                            <div className="font-bold text-[#003553]">{emp.hoTen}</div>
+                                                            <div className="text-[10.5px] text-slate-400">
+                                                                {emp.gioiTinh} &bull; {emp.namSinh} &bull; {emp.chucVu}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                                                                {emp.theLuc || 'Đạt'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700">
+                                                                {emp.lamSang || 'Đạt'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span
+                                                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                                    emp.xetNghiem === 'Đạt'
+                                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                                        : 'bg-amber-50 text-amber-700'
+                                                                }`}
+                                                            >
+                                                                {emp.xetNghiem || 'Đạt'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700">
+                                                                {emp.xQuang || 'Đạt'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="font-bold text-xs text-[#003553]">{emp.phanLoai || 'Loại I (Tốt)'}</div>
+                                                            <div className="text-[10px] text-slate-400">{emp.ketLuan || 'Đủ sức khỏe làm việc'}</div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -511,7 +714,97 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            
+            {activeTab === 'GOI_KHAM' && (
+                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                            <div className="text-sm font-black text-[#003553] uppercase tracking-wide">
+                                DANH MỤC GÓI KHÁM SỨC KHỎE ĐOÀN DOANH NGHIỆP ({corporatePackages.length})
+                            </div>
+                            <div className="text-xs text-slate-500">
+                                Cấu hình tiêu chuẩn kỹ thuật các trạm khám và bảng giá dịch vụ trọn gói theo quy định Thông tư 32/2023/TT-BYT
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsPackageModalOpen(true)}
+                            className="medpro-btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                        >
+                            <PlusCircle size={16} weight="bold" />
+                            <span>Tạo gói khám mới</span>
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {corporatePackages.map((pkg) => (
+                            <div
+                                key={pkg.id}
+                                className="p-4 rounded-xl border border-[#E5EEF5] bg-[#FDFEFE] hover:shadow-xs transition space-y-3 flex flex-col justify-between"
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-[#00B5F1] border border-sky-100">
+                                                {pkg.maGoi}
+                                            </span>
+                                            <h3 className="text-xs font-black text-[#003553] mt-1">{pkg.tenGoi}</h3>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-black text-[#00B5F1] font-mono">
+                                                {Number(pkg.donGia).toLocaleString('vi-VN')} đ
+                                            </div>
+                                            <div className="text-[10px] text-slate-400">/ nhân sự</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                                        <span className="font-semibold text-slate-600">Tiêu chuẩn:</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                                            {pkg.tieuChuan}
+                                        </span>
+                                    </div>
+
+                                    <div className="text-[11px] text-slate-500">
+                                        <span className="font-semibold text-slate-600">Đối tượng áp dụng:</span>{' '}
+                                        <span>{pkg.doiTuong}</span>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-100 space-y-1">
+                                        <div className="text-[11px] font-bold text-[#003553] uppercase">Danh mục các trạm khám & chỉ định:</div>
+                                        <ul className="space-y-1 pl-4 list-disc text-[11px] text-slate-600">
+                                            {(pkg.danhMucTram || []).map((tram, i) => (
+                                                <li key={i}>{tram}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                    <span className="text-[10.5px] text-slate-400">
+                                        {(pkg.danhMucTram || []).length} trạm khám chuyên khoa
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNewCorpForm({
+                                                ...newCorpForm,
+                                                goiKham: pkg.tenGoi,
+                                                donGiaNguoi: pkg.donGia,
+                                            })
+                                            setIsAddModalOpen(true)
+                                        }}
+                                        className="medpro-btn-outline !py-1 !px-2.5 text-[11px] flex items-center gap-1"
+                                    >
+                                        <PlusCircle size={13} />
+                                        <span>Áp dụng cho HĐ mới</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'THANH_TOAN' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="text-sm font-bold text-[#003553]">QUẢN LÝ QUYẾT TOÁN CÔNG NỢ KHÁM ĐOÀN B2B</div>
@@ -522,6 +815,7 @@ export default function CorporateHealthPage() {
                                     <th>Mã đoàn</th>
                                     <th>Doanh nghiệp</th>
                                     <th>Số HĐ</th>
+                                    <th>Gói khám áp dụng</th>
                                     <th>Tổng giá trị</th>
                                     <th>Đã tạm ứng</th>
                                     <th>Còn lại phải thu</th>
@@ -538,6 +832,7 @@ export default function CorporateHealthPage() {
                                             <td className="font-mono font-bold text-[#00B5F1]">{corp.maDoan}</td>
                                             <td className="font-bold text-[#003553]">{corp.tenDoan}</td>
                                             <td className="font-mono text-xs">{corp.soHopDong}</td>
+                                            <td className="text-slate-600 font-semibold">{corp.goiKham || 'Gói tiêu chuẩn TT 32'}</td>
                                             <td className="font-mono font-black text-[#003553]">
                                                 {(corp.tongTien || 0).toLocaleString('vi-VN')} đ
                                             </td>
@@ -556,7 +851,7 @@ export default function CorporateHealthPage() {
                                             <td>
                                                 <button
                                                     type="button"
-                                                    onClick={() => AppToast.success(`Gửi đề nghị thanh toán tới ${corp.tenDoan}!`)}
+                                                    onClick={() => handleRequestPayment(corp)}
                                                     className="medpro-btn-outline !py-1 !px-2.5 text-[11px]"
                                                 >
                                                     Tạo phiếu thu B2B
@@ -571,7 +866,6 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            
             {activeTab === 'HOA_DON' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -619,7 +913,6 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            
             {activeTab === 'DANH_MUC' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
                     <div className="text-sm font-bold text-[#003553]">DANH MỤC CƠ QUAN / ĐỐI TÁC KHÁM SỨC KHỎE</div>
@@ -639,7 +932,6 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            
             {isAddModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-5 space-y-4 animate-scaleUp">
@@ -688,6 +980,28 @@ export default function CorporateHealthPage() {
                                 </div>
                             </div>
 
+                            <div>
+                                <label className="block text-slate-600 font-bold mb-1">Chọn gói khám sức khỏe:</label>
+                                <select
+                                    value={newCorpForm.goiKham}
+                                    onChange={(e) => {
+                                        const found = corporatePackages.find((p) => p.tenGoi === e.target.value)
+                                        setNewCorpForm({
+                                            ...newCorpForm,
+                                            goiKham: e.target.value,
+                                            donGiaNguoi: found ? found.donGia : newCorpForm.donGiaNguoi,
+                                        })
+                                    }}
+                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1] bg-white"
+                                >
+                                    {corporatePackages.map((pkg) => (
+                                        <option key={pkg.id} value={pkg.tenGoi}>
+                                            {pkg.tenGoi} ({Number(pkg.donGia).toLocaleString('vi-VN')} đ/người)
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block text-slate-600 font-bold mb-1">Đơn giá/nhân sự (VNĐ):</label>
@@ -707,6 +1021,13 @@ export default function CorporateHealthPage() {
                                         className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-between">
+                                <span className="text-slate-600 font-semibold">Ước tính giá trị hợp đồng:</span>
+                                <span className="font-mono font-black text-[#003553]">
+                                    {Math.round((newCorpForm.soLuongNhanVien * newCorpForm.donGiaNguoi * (100 - newCorpForm.chietKhau)) / 100).toLocaleString('vi-VN')} đ
+                                </span>
                             </div>
 
                             <div>
@@ -763,7 +1084,109 @@ export default function CorporateHealthPage() {
                 </div>
             )}
 
-            
+            {isPackageModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-5 space-y-4 animate-scaleUp">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <h3 className="text-sm font-black text-[#003553] uppercase">TẠO GÓI KHÁM SỨC KHỎE ĐOÀN MỚI</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsPackageModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                                <X size={18} weight="bold" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 text-xs">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-slate-600 font-bold mb-1">Mã gói khám:</label>
+                                    <input
+                                        type="text"
+                                        value={newPackageForm.maGoi}
+                                        onChange={(e) => setNewPackageForm({ ...newPackageForm, maGoi: e.target.value })}
+                                        placeholder="GK-TT32-05..."
+                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-600 font-bold mb-1">Đơn giá tiêu chuẩn (VNĐ):</label>
+                                    <input
+                                        type="number"
+                                        value={newPackageForm.donGia}
+                                        onChange={(e) => setNewPackageForm({ ...newPackageForm, donGia: Number(e.target.value) })}
+                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-slate-600 font-bold mb-1">Tên gói khám:</label>
+                                <input
+                                    type="text"
+                                    value={newPackageForm.tenGoi}
+                                    onChange={(e) => setNewPackageForm({ ...newPackageForm, tenGoi: e.target.value })}
+                                    placeholder="Gói khám tầm soát chuyên đề..."
+                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-slate-600 font-bold mb-1">Tiêu chuẩn pháp lý:</label>
+                                    <input
+                                        type="text"
+                                        value={newPackageForm.tieuChuan}
+                                        onChange={(e) => setNewPackageForm({ ...newPackageForm, tieuChuan: e.target.value })}
+                                        placeholder="Thông tư 32/2023/TT-BYT..."
+                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-600 font-bold mb-1">Đối tượng áp dụng:</label>
+                                    <input
+                                        type="text"
+                                        value={newPackageForm.doiTuong}
+                                        onChange={(e) => setNewPackageForm({ ...newPackageForm, doiTuong: e.target.value })}
+                                        placeholder="Nhân sự định kỳ, sản xuất..."
+                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-slate-600 font-bold mb-1">Danh mục trạm khám & chỉ định (mỗi dòng 1 mục):</label>
+                                <textarea
+                                    rows={4}
+                                    value={newPackageForm.danhMucTramText}
+                                    onChange={(e) => setNewPackageForm({ ...newPackageForm, danhMucTramText: e.target.value })}
+                                    placeholder="Khám thể lực tổng quát&#10;Khám lâm sàng các chuyên khoa&#10;Xét nghiệm huyết học 18 chỉ số&#10;Chụp X-quang tim phổi..."
+                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setIsPackageModalOpen(false)}
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCreatePackage}
+                                className="medpro-btn-primary !py-1.5 !px-4 text-xs cursor-pointer"
+                            >
+                                Lưu gói khám
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isImportModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-5 space-y-4 animate-scaleUp">
@@ -771,7 +1194,11 @@ export default function CorporateHealthPage() {
                             <h3 className="text-sm font-black text-[#003553] uppercase">NHẬP DANH SÁCH NHÂN VIÊN TỪ EXCEL</h3>
                             <button
                                 type="button"
-                                onClick={() => setIsImportModalOpen(false)}
+                                onClick={() => {
+                                    setIsImportModalOpen(false)
+                                    setImportedEmployees([])
+                                    setImportFileName('')
+                                }}
                                 className="text-slate-400 hover:text-slate-600 cursor-pointer"
                             >
                                 <X size={18} weight="bold" />
@@ -780,15 +1207,28 @@ export default function CorporateHealthPage() {
 
                         <div className="space-y-3 text-xs">
                             <p className="text-slate-500">
-                                Tải lên tệp danh sách nhân viên (.xlsx, .csv) theo biểu mẫu chuẩn Thông tư 32 của phòng khám.
+                                Tải lên tệp danh sách nhân viên (.xlsx, .csv, .json) theo biểu mẫu chuẩn Thông tư 32 của phòng khám.
                             </p>
-                            <div className="border-2 border-dashed border-[#00B5F1]/40 rounded-xl p-6 text-center bg-[#F8FCFF] space-y-2">
+                            <label htmlFor="employeeFileInput" className="block border-2 border-dashed border-[#00B5F1]/40 rounded-xl p-6 text-center bg-[#F8FCFF] space-y-2 cursor-pointer hover:bg-sky-50/50 transition">
+                                <input
+                                    id="employeeFileInput"
+                                    type="file"
+                                    accept=".csv,.json,.xlsx"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                />
                                 <UploadSimple size={32} className="mx-auto text-[#00B5F1]" />
-                                <div className="font-bold text-[#003553]">Kéo thả file Excel vào đây</div>
-                                <div className="text-[11px] text-slate-400">hoặc nhấn để chọn tệp từ máy tính</div>
-                            </div>
+                                <div className="font-bold text-[#003553]">
+                                    {importFileName ? importFileName : 'Nhấn để chọn tệp từ máy tính'}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                    {importedEmployees.length > 0
+                                        ? `Đã nhận diện ${importedEmployees.length} nhân viên sẵn sàng nạp`
+                                        : 'Hỗ trợ tệp .csv, .json định dạng TT 32'}
+                                </div>
+                            </label>
                             <div className="flex items-center justify-between text-[11px] text-[#00B5F1]">
-                                <a href="#template" onClick={(e) => { e.preventDefault(); AppToast.success('Đã tải mẫu Excel chuẩn TT 32!') }} className="hover:underline flex items-center gap-1 font-bold">
+                                <a href="#template" onClick={handleDownloadTemplate} className="hover:underline flex items-center gap-1 font-bold">
                                     <DownloadSimple size={13} />
                                     <span>Tải file Excel mẫu (.xlsx)</span>
                                 </a>
@@ -798,17 +1238,18 @@ export default function CorporateHealthPage() {
                         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                             <button
                                 type="button"
-                                onClick={() => setIsImportModalOpen(false)}
+                                onClick={() => {
+                                    setIsImportModalOpen(false)
+                                    setImportedEmployees([])
+                                    setImportFileName('')
+                                }}
                                 className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                             >
                                 Đóng
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setIsImportModalOpen(false)
-                                    AppToast.success('Đã nạp thành công danh sách 48 nhân viên vào đoàn!')
-                                }}
+                                onClick={handleConfirmImport}
                                 className="medpro-btn-primary !py-1.5 !px-4 text-xs cursor-pointer"
                             >
                                 Xác nhận nạp dữ liệu

@@ -1,7 +1,7 @@
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,7 @@ from app.models.appointment import (
     PhanTichAI,
     DanhGiaAI,
 )
+from app.models.compliance import NhatKyTruyCapDuLieuYTe
 from app.models.medical import DichVu, KhaiNiem, TuKhoaCapCuu
 from app.models.user import BacSi, ChuyenKhoa, PhongKham
 from app.schemas.admin import (
@@ -32,17 +33,19 @@ from app.schemas.admin import (
     AIAccuracySpecialtyItem,
     ServiceExportItem,
     ServiceExportResponse,
+    DepartmentCreateRequest,
+    DepartmentUpdateRequest,
+    DepartmentAdminResponse,
+    RoomCreateRequest,
+    RoomResponse,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class AdminCatalogService:
-    """Dịch vụ chuyên trách Danh mục Dịch vụ Kỹ thuật, Khái niệm AI và Từ khóa Cấp cứu (SRP)"""
 
-    # --- 3. Danh mục Dịch vụ & Giá (Thông tư 22/2023/TT-BYT & Nơi Thực Hiện Cận Lâm Sàng) ---
     async def get_services_admin(self, db: AsyncSession) -> List[ServiceItemAdminResponse]:
-        """Lấy danh mục dịch vụ cận lâm sàng & khám niêm yết kèm nơi thực hiện kỹ thuật"""
         stmt = (
             select(DichVu)
             .options(
@@ -75,7 +78,6 @@ class AdminCatalogService:
         ]
 
     async def create_service_admin(self, payload: ServiceCreateRequest, db: AsyncSession) -> ServiceItemAdminResponse:
-        """Tạo dịch vụ mới chuẩn hóa phòng khám tư nhân & gán buồng thực hiện kỹ thuật"""
         stmt_dup = select(DichVu).where(DichVu.ma_dich_vu == payload.ma_dich_vu)
         if (await db.execute(stmt_dup)).scalar_one_or_none():
             raise ConflictException(f"Mã dịch vụ {payload.ma_dich_vu} đã tồn tại!")
@@ -134,9 +136,12 @@ class AdminCatalogService:
         )
 
     async def update_service_admin(
-        self, service_id: int, payload: ServiceUpdateRequest, db: AsyncSession
+        self,
+        service_id: int,
+        payload: ServiceUpdateRequest,
+        db: AsyncSession,
+        user_id: Optional[int] = None
     ) -> ServiceItemAdminResponse:
-        """Cập nhật dịch vụ y tế, thời gian trả kết quả (TAT) và hướng dẫn chuẩn bị"""
         stmt = (
             select(DichVu)
             .options(
@@ -152,6 +157,24 @@ class AdminCatalogService:
         if payload.ten_dich_vu is not None:
             service.ten_dich_vu = payload.ten_dich_vu
         if payload.don_gia is not None:
+            old_price = float(service.don_gia)
+            new_price = float(payload.don_gia)
+            if old_price != new_price:
+                audit_entry = NhatKyTruyCapDuLieuYTe(
+                    user_id=user_id or 1,
+                    user_role="ADMIN",
+                    loai_nhat_ky="GIA_DICH_VU",
+                    patient_id=1,
+                    action="UPDATE_PRICE",
+                    resource_type="SERVICE_PRICE",
+                    resource_id=service.id,
+                    purpose=f"Dieu chinh don gia dich vu {service.ma_dich_vu} tu {old_price} sang {new_price}",
+                    noi_dung_cu_json={"ma_dich_vu": service.ma_dich_vu, "ten_dich_vu": service.ten_dich_vu, "don_gia": old_price},
+                    noi_dung_moi_json={"ma_dich_vu": service.ma_dich_vu, "ten_dich_vu": service.ten_dich_vu, "don_gia": new_price},
+                    client_ip="127.0.0.1",
+                    timestamp=datetime.now(timezone.utc),
+                )
+                db.add(audit_entry)
             service.don_gia = payload.don_gia
         if payload.don_vi_tinh is not None:
             service.don_vi_tinh = payload.don_vi_tinh
@@ -191,7 +214,6 @@ class AdminCatalogService:
 
         await db.commit()
 
-        # Re-fetch
         stmt_fresh = (
             select(DichVu)
             .options(
@@ -221,10 +243,459 @@ class AdminCatalogService:
             huong_dan_chuan_bi=getattr(service, "huong_dan_chuan_bi", None),
         )
 
+    async def delete_service_admin(self, service_id: int, db: AsyncSession) -> Dict[str, Any]:
+        stmt = select(DichVu).where(DichVu.id == service_id)
+        service = (await db.execute(stmt)).scalar_one_or_none()
+        if not service:
+            raise NotFoundException(f"Không tìm thấy dịch vụ ID {service_id}")
+        service.is_active = False
+        await db.commit()
+        return {"id": service_id, "is_active": False, "message": "Đã ngừng kích hoạt dịch vụ thành công"}
 
+    async def get_departments_admin(self, db: AsyncSession, is_active: Optional[bool] = None) -> List[DepartmentAdminResponse]:
+        stmt = select(ChuyenKhoa).order_by(ChuyenKhoa.id.asc())
+        if is_active is not None:
+            stmt = stmt.where(ChuyenKhoa.is_active == is_active)
+        depts = (await db.execute(stmt)).scalars().all()
+        results = []
+        for d in depts:
+            doc_cnt = (await db.execute(
+                select(func.count(BacSi.id)).where(BacSi.chuyen_khoa_id == d.id)
+            )).scalar() or 0
+            room_cnt = (await db.execute(
+                select(func.count(PhongKham.id)).where(PhongKham.chuyen_khoa_id == d.id)
+            )).scalar() or 0
+            results.append(DepartmentAdminResponse(
+                id=d.id,
+                ma_chuyen_khoa=d.ma_chuyen_khoa,
+                ten_chuyen_khoa=d.ten_chuyen_khoa,
+                mo_ta=d.mo_ta,
+                vi_tri_phong=d.vi_tri_phong,
+                is_active=d.is_active,
+                so_luong_bac_si=doc_cnt,
+                so_luong_phong_kham=room_cnt
+            ))
+        return results
 
-    # GÓI 4: QUẢN TRỊ ÁNH XẠ TRIỆU CHỨNG - CHUYÊN KHOA & ĐÁNH GIÁ AI
-    # =========================================================================
+    async def create_department_admin(self, payload: DepartmentCreateRequest, db: AsyncSession) -> DepartmentAdminResponse:
+        existing = (await db.execute(
+            select(ChuyenKhoa).where(
+                or_(
+                    ChuyenKhoa.ma_chuyen_khoa == payload.ma_chuyen_khoa.strip(),
+                    ChuyenKhoa.ten_chuyen_khoa == payload.ten_chuyen_khoa.strip()
+                )
+            )
+        )).scalar_one_or_none()
+        if existing:
+            raise ConflictException(f"Chuyên khoa với mã '{payload.ma_chuyen_khoa}' hoặc tên '{payload.ten_chuyen_khoa}' đã tồn tại!")
+
+        dept = ChuyenKhoa(
+            ma_chuyen_khoa=payload.ma_chuyen_khoa.strip().upper(),
+            ten_chuyen_khoa=payload.ten_chuyen_khoa.strip(),
+            mo_ta=payload.mo_ta,
+            vi_tri_phong=payload.vi_tri_phong,
+            is_active=payload.is_active
+        )
+        db.add(dept)
+        await db.commit()
+        await db.refresh(dept)
+        return DepartmentAdminResponse(
+            id=dept.id,
+            ma_chuyen_khoa=dept.ma_chuyen_khoa,
+            ten_chuyen_khoa=dept.ten_chuyen_khoa,
+            mo_ta=dept.mo_ta,
+            vi_tri_phong=dept.vi_tri_phong,
+            is_active=dept.is_active,
+            so_luong_bac_si=0,
+            so_luong_phong_kham=0
+        )
+
+    async def update_department_admin(self, dept_id: int, payload: DepartmentUpdateRequest, db: AsyncSession) -> DepartmentAdminResponse:
+        dept = await db.get(ChuyenKhoa, dept_id)
+        if not dept:
+            raise NotFoundException(f"Không tìm thấy chuyên khoa có ID {dept_id}")
+
+        if payload.ten_chuyen_khoa is not None:
+            dup = (await db.execute(
+                select(ChuyenKhoa).where(
+                    ChuyenKhoa.ten_chuyen_khoa == payload.ten_chuyen_khoa.strip(),
+                    ChuyenKhoa.id != dept_id
+                )
+            )).scalar_one_or_none()
+            if dup:
+                raise ConflictException(f"Tên chuyên khoa '{payload.ten_chuyen_khoa}' đã được sử dụng!")
+            dept.ten_chuyen_khoa = payload.ten_chuyen_khoa.strip()
+
+        if payload.mo_ta is not None:
+            dept.mo_ta = payload.mo_ta
+        if payload.vi_tri_phong is not None:
+            dept.vi_tri_phong = payload.vi_tri_phong
+        if payload.is_active is not None:
+            dept.is_active = payload.is_active
+
+        await db.commit()
+        await db.refresh(dept)
+        doc_cnt = (await db.execute(select(func.count(BacSi.id)).where(BacSi.chuyen_khoa_id == dept.id))).scalar() or 0
+        room_cnt = (await db.execute(select(func.count(PhongKham.id)).where(PhongKham.chuyen_khoa_id == dept.id))).scalar() or 0
+        return DepartmentAdminResponse(
+            id=dept.id,
+            ma_chuyen_khoa=dept.ma_chuyen_khoa,
+            ten_chuyen_khoa=dept.ten_chuyen_khoa,
+            mo_ta=dept.mo_ta,
+            vi_tri_phong=dept.vi_tri_phong,
+            is_active=dept.is_active,
+            so_luong_bac_si=doc_cnt,
+            so_luong_phong_kham=room_cnt
+        )
+
+    async def delete_department_admin(self, dept_id: int, db: AsyncSession) -> Dict[str, Any]:
+        dept = await db.get(ChuyenKhoa, dept_id)
+        if not dept:
+            raise NotFoundException(f"Không tìm thấy chuyên khoa có ID {dept_id}")
+        doc_cnt = (await db.execute(select(func.count(BacSi.id)).where(BacSi.chuyen_khoa_id == dept.id))).scalar() or 0
+        room_cnt = (await db.execute(select(func.count(PhongKham.id)).where(PhongKham.chuyen_khoa_id == dept.id))).scalar() or 0
+        if doc_cnt > 0 or room_cnt > 0:
+            dept.is_active = False
+            await db.commit()
+            return {"id": dept_id, "is_active": False, "message": "Chuyên khoa có liên kết đã chuyển sang ngừng hoạt động"}
+        await db.delete(dept)
+        await db.commit()
+        return {"id": dept_id, "deleted": True, "message": "Đã xóa chuyên khoa thành công"}
+
+    async def get_rooms_admin(
+        self,
+        db: AsyncSession,
+        loai_phong: Optional[str] = None,
+        chuyen_khoa_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+    ) -> List[RoomResponse]:
+        stmt = (
+            select(PhongKham)
+            .options(selectinload(PhongKham.chuyen_khoa))
+        )
+        if loai_phong:
+            stmt = stmt.where(PhongKham.loai_phong == loai_phong)
+        if chuyen_khoa_id:
+            stmt = stmt.where((PhongKham.chuyen_khoa_id == chuyen_khoa_id) | (PhongKham.chuyen_khoa_id.is_(None)))
+        if is_active is not None:
+            stmt = stmt.where(PhongKham.is_active == is_active)
+        stmt = stmt.order_by(PhongKham.tang, PhongKham.ma_phong)
+        rooms = (await db.execute(stmt)).scalars().all()
+        return [
+            RoomResponse(
+                id=r.id,
+                ma_phong=r.ma_phong,
+                ten_phong=r.ten_phong,
+                chuyen_khoa_id=r.chuyen_khoa_id,
+                ten_chuyen_khoa=r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else "Đa khoa / Dùng chung",
+                tang=r.tang,
+                loai_phong=r.loai_phong,
+                thiet_bi_chinh=r.thiet_bi_chinh,
+                is_active=r.is_active,
+            )
+            for r in rooms
+        ]
+
+    async def create_room_admin(self, payload: RoomCreateRequest, db: AsyncSession) -> RoomResponse:
+        stmt_check = select(PhongKham).where(PhongKham.ma_phong == payload.ma_phong)
+        existing = (await db.execute(stmt_check)).scalar_one_or_none()
+        if existing:
+            raise ConflictException(f"Buồng khám mã '{payload.ma_phong}' đã tồn tại!")
+
+        room = PhongKham(
+            ma_phong=payload.ma_phong,
+            ten_phong=payload.ten_phong,
+            chuyen_khoa_id=payload.chuyen_khoa_id,
+            tang=payload.tang,
+            loai_phong=payload.loai_phong,
+            thiet_bi_chinh=payload.thiet_bi_chinh,
+            is_active=True,
+        )
+        db.add(room)
+        await db.commit()
+        await db.refresh(room)
+
+        ten_ck = "Đa khoa / Dùng chung"
+        if room.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == room.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if ck:
+                ten_ck = ck.ten_chuyen_khoa
+
+        return RoomResponse(
+            id=room.id,
+            ma_phong=room.ma_phong,
+            ten_phong=room.ten_phong,
+            chuyen_khoa_id=room.chuyen_khoa_id,
+            ten_chuyen_khoa=ten_ck,
+            tang=room.tang,
+            loai_phong=room.loai_phong,
+            thiet_bi_chinh=room.thiet_bi_chinh,
+            is_active=room.is_active,
+        )
+
+    async def update_room_admin(self, room_id: int, payload: Any, db: AsyncSession) -> RoomResponse:
+        room = await db.get(PhongKham, room_id)
+        if not room:
+            raise NotFoundException(f"Không tìm thấy buồng khám có ID {room_id}")
+
+        ten_phong = getattr(payload, "ten_phong", None) or (payload.get("ten_phong") if isinstance(payload, dict) else None)
+        chuyen_khoa_id = getattr(payload, "chuyen_khoa_id", None) or (payload.get("chuyen_khoa_id") if isinstance(payload, dict) else None)
+        tang = getattr(payload, "tang", None) or (payload.get("tang") if isinstance(payload, dict) else None)
+        loai_phong = getattr(payload, "loai_phong", None) or (payload.get("loai_phong") if isinstance(payload, dict) else None)
+        thiet_bi_chinh = getattr(payload, "thiet_bi_chinh", None) or (payload.get("thiet_bi_chinh") if isinstance(payload, dict) else None)
+        is_active = getattr(payload, "is_active", None) if hasattr(payload, "is_active") else (payload.get("is_active") if isinstance(payload, dict) else None)
+
+        if ten_phong is not None:
+            room.ten_phong = ten_phong
+        if chuyen_khoa_id is not None:
+            room.chuyen_khoa_id = chuyen_khoa_id if chuyen_khoa_id > 0 else None
+        if tang is not None:
+            room.tang = tang
+        if loai_phong is not None:
+            room.loai_phong = loai_phong
+        if thiet_bi_chinh is not None:
+            room.thiet_bi_chinh = thiet_bi_chinh
+        if is_active is not None:
+            room.is_active = is_active
+
+        await db.commit()
+        await db.refresh(room)
+
+        ten_ck = "Đa khoa / Dùng chung"
+        if room.chuyen_khoa_id:
+            stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == room.chuyen_khoa_id)
+            ck = (await db.execute(stmt_ck)).scalar_one_or_none()
+            if ck:
+                ten_ck = ck.ten_chuyen_khoa
+
+        return RoomResponse(
+            id=room.id,
+            ma_phong=room.ma_phong,
+            ten_phong=room.ten_phong,
+            chuyen_khoa_id=room.chuyen_khoa_id,
+            ten_chuyen_khoa=ten_ck,
+            tang=room.tang,
+            loai_phong=room.loai_phong,
+            thiet_bi_chinh=room.thiet_bi_chinh,
+            is_active=room.is_active,
+        )
+
+    async def delete_room_admin(self, room_id: int, db: AsyncSession) -> Dict[str, Any]:
+        room = await db.get(PhongKham, room_id)
+        if not room:
+            raise NotFoundException(f"Không tìm thấy buồng khám có ID {room_id}")
+        svc_cnt = (await db.execute(select(func.count(DichVu.id)).where(DichVu.phong_thuc_hien_id == room.id))).scalar() or 0
+        if svc_cnt > 0:
+            room.is_active = False
+            await db.commit()
+            return {"id": room_id, "is_active": False, "message": "Buồng khám đã liên kết dịch vụ được chuyển sang ngừng hoạt động"}
+        await db.delete(room)
+        await db.commit()
+        return {"id": room_id, "deleted": True, "message": "Đã xóa buồng khám thành công"}
+
+    async def get_prices_admin(self, db: AsyncSession, service_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        stmt = select(DichVu).order_by(DichVu.ma_dich_vu.asc())
+        if service_id is not None:
+            stmt = stmt.where(DichVu.id == service_id)
+        services = (await db.execute(stmt)).scalars().all()
+        results = []
+        for s in services:
+            history_count = (await db.execute(
+                select(func.count(NhatKyTruyCapDuLieuYTe.id)).where(
+                    NhatKyTruyCapDuLieuYTe.resource_type == "SERVICE_PRICE",
+                    NhatKyTruyCapDuLieuYTe.resource_id == s.id
+                )
+            )).scalar() or 0
+            results.append({
+                "service_id": s.id,
+                "ma_dich_vu": s.ma_dich_vu,
+                "ten_dich_vu": s.ten_dich_vu,
+                "don_gia": float(s.don_gia),
+                "don_vi_tinh": s.don_vi_tinh,
+                "ma_nhom_byt": s.ma_nhom_byt,
+                "is_active": s.is_active,
+                "so_lan_dieu_chinh_gia": history_count,
+            })
+        return results
+
+    async def update_service_price_admin(
+        self,
+        service_id: int,
+        don_gia: float,
+        db: AsyncSession,
+        user_id: Optional[int] = None,
+        ly_do: Optional[str] = None
+    ) -> Dict[str, Any]:
+        stmt = select(DichVu).where(DichVu.id == service_id)
+        service = (await db.execute(stmt)).scalar_one_or_none()
+        if not service:
+            raise NotFoundException(f"Không tìm thấy dịch vụ ID {service_id}")
+        old_price = float(service.don_gia)
+        new_price = float(don_gia)
+        audit_entry = NhatKyTruyCapDuLieuYTe(
+            user_id=user_id or 1,
+            user_role="ADMIN",
+            loai_nhat_ky="GIA_DICH_VU",
+            patient_id=1,
+            action="UPDATE_PRICE",
+            resource_type="SERVICE_PRICE",
+            resource_id=service.id,
+            purpose=ly_do or f"Điều chỉnh đơn giá dịch vụ {service.ma_dich_vu} từ {old_price} sang {new_price}",
+            noi_dung_cu_json={"ma_dich_vu": service.ma_dich_vu, "ten_dich_vu": service.ten_dich_vu, "don_gia": old_price},
+            noi_dung_moi_json={"ma_dich_vu": service.ma_dich_vu, "ten_dich_vu": service.ten_dich_vu, "don_gia": new_price},
+            client_ip="127.0.0.1",
+            timestamp=datetime.now(timezone.utc),
+        )
+        db.add(audit_entry)
+        service.don_gia = new_price
+        await db.commit()
+        await db.refresh(service)
+        return {
+            "service_id": service.id,
+            "ma_dich_vu": service.ma_dich_vu,
+            "ten_dich_vu": service.ten_dich_vu,
+            "don_gia_cu": old_price,
+            "don_gia_moi": new_price,
+            "thoi_gian_cap_nhat": audit_entry.timestamp.isoformat(),
+            "ly_do": audit_entry.purpose
+        }
+
+    async def get_price_history_admin(self, db: AsyncSession, service_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        stmt = (
+            select(NhatKyTruyCapDuLieuYTe)
+            .where(NhatKyTruyCapDuLieuYTe.resource_type == "SERVICE_PRICE")
+            .order_by(NhatKyTruyCapDuLieuYTe.timestamp.desc())
+        )
+        if service_id is not None:
+            stmt = stmt.where(NhatKyTruyCapDuLieuYTe.resource_id == service_id)
+        records = (await db.execute(stmt)).scalars().all()
+        history = []
+        for r in records:
+            history.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "user_role": r.user_role,
+                "action": r.action,
+                "resource_id": r.resource_id,
+                "purpose": r.purpose,
+                "noi_dung_cu": r.noi_dung_cu_json,
+                "noi_dung_moi": r.noi_dung_moi_json,
+                "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+            })
+        return history
+
+    async def import_catalog_admin(
+        self,
+        catalog_type: str,
+        items: List[Dict[str, Any]],
+        db: AsyncSession
+    ) -> Dict[str, Any]:
+        if not items:
+            raise BadRequestException("Danh sách bản ghi nạp vào không được để trống")
+        normalized_type = catalog_type.lower()
+        imported = 0
+        if normalized_type in ["departments", "chuyenkhoa", "chuyen_khoa"]:
+            for item in items:
+                code = str(item.get("ma_chuyen_khoa") or item.get("ma") or "").strip()
+                name = str(item.get("ten_chuyen_khoa") or item.get("ten") or "").strip()
+                if not code or not name:
+                    continue
+                existing = (await db.execute(select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == code))).scalar_one_or_none()
+                if existing:
+                    existing.ten_chuyen_khoa = name
+                    if item.get("mo_ta"):
+                        existing.mo_ta = item.get("mo_ta")
+                    if item.get("vi_tri_phong"):
+                        existing.vi_tri_phong = item.get("vi_tri_phong")
+                else:
+                    dept = ChuyenKhoa(
+                        ma_chuyen_khoa=code.upper(),
+                        ten_chuyen_khoa=name,
+                        mo_ta=item.get("mo_ta"),
+                        vi_tri_phong=item.get("vi_tri_phong"),
+                        is_active=True,
+                    )
+                    db.add(dept)
+                imported += 1
+        elif normalized_type in ["rooms", "khoaphong", "khoa_phong"]:
+            for item in items:
+                code = str(item.get("ma_phong") or item.get("ma") or "").strip()
+                name = str(item.get("ten_phong") or item.get("ten") or "").strip()
+                if not code or not name:
+                    continue
+                existing = (await db.execute(select(PhongKham).where(PhongKham.ma_phong == code))).scalar_one_or_none()
+                if existing:
+                    existing.ten_phong = name
+                    if item.get("tang"):
+                        existing.tang = item.get("tang")
+                    if item.get("loai_phong"):
+                        existing.loai_phong = item.get("loai_phong")
+                    if item.get("thiet_bi_chinh"):
+                        existing.thiet_bi_chinh = item.get("thiet_bi_chinh")
+                else:
+                    room = PhongKham(
+                        ma_phong=code,
+                        ten_phong=name,
+                        tang=item.get("tang") or "Tầng 1",
+                        loai_phong=item.get("loai_phong") or "kham_benh",
+                        thiet_bi_chinh=item.get("thiet_bi_chinh"),
+                        is_active=True,
+                    )
+                    db.add(room)
+                imported += 1
+        elif normalized_type in ["services", "dichvu", "dich_vu"]:
+            for item in items:
+                code = str(item.get("ma_dich_vu") or item.get("maDV") or item.get("ma") or "").strip()
+                name = str(item.get("ten_dich_vu") or item.get("tenDV") or item.get("ten") or "").strip()
+                price = float(item.get("don_gia") or item.get("donGia") or 0.0)
+                if not code or not name:
+                    continue
+                existing = (await db.execute(select(DichVu).where(DichVu.ma_dich_vu == code))).scalar_one_or_none()
+                if existing:
+                    if float(existing.don_gia) != price:
+                        audit_entry = NhatKyTruyCapDuLieuYTe(
+                            user_id=1,
+                            user_role="ADMIN",
+                            loai_nhat_ky="GIA_DICH_VU",
+                            patient_id=1,
+                            action="UPDATE_PRICE",
+                            resource_type="SERVICE_PRICE",
+                            resource_id=existing.id,
+                            purpose=f"Import cập nhật đơn giá dịch vụ {code} từ {float(existing.don_gia)} sang {price}",
+                            noi_dung_cu_json={"ma_dich_vu": existing.ma_dich_vu, "ten_dich_vu": existing.ten_dich_vu, "don_gia": float(existing.don_gia)},
+                            noi_dung_moi_json={"ma_dich_vu": existing.ma_dich_vu, "ten_dich_vu": existing.ten_dich_vu, "don_gia": price},
+                            client_ip="127.0.0.1",
+                            timestamp=datetime.now(timezone.utc),
+                        )
+                        db.add(audit_entry)
+                        existing.don_gia = price
+                    existing.ten_dich_vu = name
+                    if item.get("don_vi_tinh") or item.get("dvt"):
+                        existing.don_vi_tinh = item.get("don_vi_tinh") or item.get("dvt")
+                    if item.get("ma_nhom_byt") or item.get("nhomDV"):
+                        existing.ma_nhom_byt = item.get("ma_nhom_byt") or item.get("nhomDV")
+                else:
+                    service = DichVu(
+                        ma_dich_vu=code,
+                        ten_dich_vu=name,
+                        don_gia=price,
+                        don_vi_tinh=item.get("don_vi_tinh") or item.get("dvt") or "Lần",
+                        ma_nhom_byt=item.get("ma_nhom_byt") or item.get("nhomDV"),
+                        is_active=True,
+                    )
+                    db.add(service)
+                imported += 1
+        else:
+            raise BadRequestException(f"Loại danh mục import '{catalog_type}' không hợp lệ!")
+        await db.commit()
+        return {
+            "success": True,
+            "catalog_type": catalog_type,
+            "imported_count": imported,
+            "message": f"Đã nạp và lưu thành công {imported} bản ghi vào PostgreSQL"
+        }
+
     async def get_concepts_admin(
         self,
         db: AsyncSession,
@@ -394,10 +865,8 @@ class AdminCatalogService:
         await db.commit()
 
     async def get_ai_accuracy_report(self, db: AsyncSession) -> AIAccuracyReportResponse:
-        """Đo lường độ chính xác gợi ý chuyên khoa của AI đối soát với chẩn đoán thực tế của bác sĩ"""
         total_ai = (await db.execute(select(func.count(PhanTichAI.id)))).scalar() or 0
 
-        # Số ca đã có kết luận khám thực tế
         stmt = (
             select(PhanTichAI, LichKham, BacSi)
             .join(LichKham, PhanTichAI.lich_kham_id == LichKham.id)
@@ -426,8 +895,8 @@ class AdminCatalogService:
                 so_khop += 1
                 specialty_stats[dept_id]["matched"] += 1
 
-        overall_acc = round((so_khop / so_kham * 100.0), 1) if so_kham > 0 else 92.5
-        avg_stars = (await db.execute(select(func.avg(DanhGiaAI.so_sao)))).scalar() or 4.8
+        overall_acc = round((so_khop / so_kham * 100.0), 1) if so_kham > 0 else 0.0
+        avg_stars = (await db.execute(select(func.avg(DanhGiaAI.so_sao)))).scalar() or 0.0
 
         dept_list = []
         for d_id, s_data in specialty_stats.items():
@@ -455,10 +924,6 @@ class AdminCatalogService:
         chuyen_khoa_id: Optional[int] = None,
         ma_nhom_byt: Optional[str] = None
     ) -> ServiceExportResponse:
-        """
-        Xuất toàn bộ danh mục dịch vụ kỹ thuật y tế & bảng giá niêm yết (tClinic / Thông tư 22/2023/TT-BYT).
-        Hỗ trợ đối soát bảng giá và báo cáo niêm yết công khai.
-        """
         stmt = (
             select(DichVu)
             .options(
@@ -495,8 +960,6 @@ class AdminCatalogService:
             ngay_xuat=date.today(),
             danh_muc=items
         )
-
-    # =========================================================================
 
 
 admin_catalog_service = AdminCatalogService()

@@ -43,3 +43,23 @@ test('Reception pages preserve doctor absences rebalancing and emergency handove
     assert.ok(checkInContent.includes('EmergencyHandoverModal'), 'CheckInPage must retain EmergencyHandoverModal')
     assert.ok(queueContent.includes('EmergencyHandoverModal'), 'QueueManagementPage must retain EmergencyHandoverModal')
 })
+
+test('Admin layout and dashboard maintain core structure and zero comments', async () => {
+    const templateContent = await readFile(new URL('../src/layouts/AdminTemplate.jsx', import.meta.url), 'utf8')
+    const dashboardContent = await readFile(new URL('../src/pages/admin/DashboardAdminPage.jsx', import.meta.url), 'utf8')
+    assert.ok(templateContent.includes('AdminHeader'), 'AdminTemplate must render AdminHeader')
+    assert.ok(templateContent.includes('getNavigationConfig'), 'AdminTemplate must use getNavigationConfig')
+    assert.ok(templateContent.includes('Trung tâm Điều hành & Thống kê BI'), 'AdminTemplate must retain BI breadcrumb')
+    assert.ok(!templateContent.includes('//') && !templateContent.includes('/*'), 'AdminTemplate must be clean without comments')
+    assert.ok(dashboardContent.includes('getDashboardStatsAsync'), 'DashboardAdminPage must fetch dashboard stats')
+    assert.ok(dashboardContent.includes('OPERATIONAL_PORTAL_LINKS'), 'DashboardAdminPage must define operational portal links')
+    assert.ok(!dashboardContent.includes('//') && !dashboardContent.includes('/*'), 'DashboardAdminPage must be clean without comments')
+})
+
+test('Admin routes connect guide and QA management pages without dead redirects', async () => {
+    const appContent = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+    assert.ok(appContent.includes("import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'"), 'App.jsx must import GuideAndQaManagementPage')
+    assert.ok(appContent.includes('<Route path="huong-dan" element={<GuideAndQaManagementPage />} />'), 'huong-dan must route to GuideAndQaManagementPage')
+    assert.ok(appContent.includes('<Route path="hoi-dap" element={<GuideAndQaManagementPage />} />'), 'hoi-dap must route to GuideAndQaManagementPage')
+    assert.ok(!appContent.includes('//') && !appContent.includes('/*'), 'App.jsx must be clean without comments')
+})

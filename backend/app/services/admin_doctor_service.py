@@ -29,10 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class AdminDoctorService:
-    """Dịch vụ chuyên trách Quản trị Bác sĩ và Danh bạ Bệnh nhân (SRP)"""
 
     async def get_doctors_admin(self, db: AsyncSession) -> List[DoctorAdminResponse]:
-        """Lấy danh sách bác sĩ đầy đủ phục vụ quản trị và phân ca"""
         stmt = (
             select(BacSi)
             .options(
@@ -47,7 +45,6 @@ class AdminDoctorService:
 
         res = []
         for doc in doctors:
-            # Đếm số lịch khám của bác sĩ trong ngày hôm nay
             stmt_count = select(func.count(LichKham.id)).where(
                 LichKham.bac_si_id == doc.id,
                 LichKham.ngay_kham == today,
@@ -80,24 +77,19 @@ class AdminDoctorService:
         return res
 
     async def create_doctor_admin(self, payload: DoctorAdminCreateRequest, db: AsyncSession) -> DoctorAdminResponse:
-        """Tạo mới tài khoản và hồ sơ bác sĩ"""
-        # Kiểm tra trùng email
         stmt_acc = select(TaiKhoan).where(TaiKhoan.email == payload.email)
         if (await db.execute(stmt_acc)).scalar_one_or_none():
             raise ConflictException(f"Email {payload.email} đã được đăng ký trong hệ thống!")
 
-        # Kiểm tra trùng chứng chỉ hành nghề
         stmt_cchn = select(BacSi).where(BacSi.chung_chi_hanh_nghe == payload.chung_chi_hanh_nghe)
         if (await db.execute(stmt_cchn)).scalar_one_or_none():
             raise ConflictException(f"Chứng chỉ hành nghề {payload.chung_chi_hanh_nghe} đã tồn tại!")
 
-        # Kiểm tra chuyên khoa hợp lệ
         stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.id == payload.chuyen_khoa_id)
         ck = (await db.execute(stmt_ck)).scalar_one_or_none()
         if not ck:
             raise NotFoundException("Chuyên khoa được chọn không tồn tại!")
 
-        # Kiểm tra buồng khám vật lý nếu có chỉ định
         pk = None
         if payload.phong_kham_id:
             stmt_pk = select(PhongKham).where(PhongKham.id == payload.phong_kham_id, PhongKham.is_active.is_(True))
@@ -105,7 +97,6 @@ class AdminDoctorService:
             if not pk:
                 raise NotFoundException("Buồng khám được chọn không tồn tại hoặc đã ngừng hoạt động!")
 
-        # 1. Tạo NguoiDung
         nguoi_dung = NguoiDung(
             ho_ten=payload.ho_ten,
             so_dien_thoai=payload.so_dien_thoai,
@@ -114,7 +105,6 @@ class AdminDoctorService:
         db.add(nguoi_dung)
         await db.flush()
 
-        # 2. Tạo TaiKhoan
         tai_khoan = TaiKhoan(
             nguoi_dung_id=nguoi_dung.id,
             email=payload.email,
@@ -124,7 +114,6 @@ class AdminDoctorService:
         )
         db.add(tai_khoan)
 
-        # 3. Tạo BacSi
         bac_si = BacSi(
             nguoi_dung_id=nguoi_dung.id,
             chuyen_khoa_id=ck.id,
@@ -164,7 +153,6 @@ class AdminDoctorService:
     async def update_doctor_admin(
         self, doctor_id: int, payload: DoctorAdminUpdateRequest, db: AsyncSession
     ) -> DoctorAdminResponse:
-        """Cập nhật thông tin chuyên môn hoặc bật/tắt trạng thái nhận lịch hẹn (Bahmni Provider Availability)"""
         stmt = (
             select(BacSi)
             .options(
@@ -215,7 +203,6 @@ class AdminDoctorService:
         await db.commit()
         await db.refresh(doc)
 
-        # Reload relationships
         stmt_reload = (
             select(BacSi)
             .options(
@@ -248,10 +235,6 @@ class AdminDoctorService:
             so_luong_lich_hom_nay=0,
         )
 
-
-
-    # GÓI 6: QUẢN TRỊ HỒ SƠ BỆNH NHÂN (OpenMRS Master Patient Directory)
-    # =========================================================================
     async def get_patients_admin(
         self,
         db: AsyncSession,

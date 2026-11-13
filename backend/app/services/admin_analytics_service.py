@@ -612,27 +612,6 @@ class AdminAnalyticsService:
                 )
             )
 
-        if not items:
-            default_meds = [
-                ("Amoxicillin + Clavulanic Acid (Augmentin 1g)", "Amoxicillin 875mg + Acid Clavulanic 125mg", "Viên", 38, 380, "Kháng sinh Beta-lactam"),
-                ("Paracetamol 500mg (Efferalgan)", "Paracetamol", "Viên", 52, 520, "Hạ sốt, giảm đau"),
-                ("Esomeprazole 40mg (Nexium Mups)", "Esomeprazole", "Viên", 29, 406, "Ức chế bơm Proton (PPI)"),
-                ("Desloratadine 5mg (Aerius)", "Desloratadine", "Viên", 24, 240, "Kháng Histamin H1"),
-                ("Amlodipin 5mg (Stamlo)", "Amlodipin besylat 5mg", "Viên", 18, 540, "Thuốc tim mạch / Huyết áp"),
-            ]
-            for ten, hc, dvt, lk, sl, nh in default_meds[:limit]:
-                items.append(
-                    TopMedicineStatItem(
-                        ten_thuoc=ten,
-                        hoat_chat=hc,
-                        don_vi_tinh=dvt,
-                        so_luot_ke=lk,
-                        tong_so_luong=sl,
-                        nhom=nh,
-                    )
-                )
-            total_prescriptions = sum(it.so_luot_ke for it in items)
-
         return TopMedicinesResponse(
             tu_ngay=d_start,
             den_ngay=d_end,

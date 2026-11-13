@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { staffService } from '../../services/admin/StaffService'
 import DoctorLeaveManagementTab from '../../components/admin/DoctorLeaveManagementTab'
 import DoctorScheduleManagementTab from '../../components/admin/DoctorScheduleManagementTab'
 import { AppToast } from '../../components/common/AppNotification'
@@ -88,6 +89,27 @@ export default function RolePermissionPage() {
             }
     )
 
+    useEffect(() => {
+        let isMounted = true
+        const loadLiveStaffAndRoles = async () => {
+            try {
+                const [liveRoles, liveStaff] = await Promise.all([
+                    staffService.getRoles().catch(() => []),
+                    staffService.getStaffList().catch(() => []),
+                ])
+                if (isMounted) {
+                    if (Array.isArray(liveRoles) && liveRoles.length > 0) {
+                        setSelectedRole((prev) => (prev?.id ? prev : liveRoles[0]))
+                    }
+                }
+            } catch {}
+        }
+        loadLiveStaffAndRoles()
+        return () => {
+            isMounted = false
+        }
+    }, [])
+
     const handleTogglePermission = (stt, field) => {
         const updatedPermissions = (selectedRole.permissions || []).map((p) =>
             p.stt === stt ? { ...p, [field]: !p[field] } : p
@@ -109,6 +131,9 @@ export default function RolePermissionPage() {
 
     const handleSaveRolePermissions = async () => {
         const updatedRoles = roles.map((r) => (r.id === selectedRole.id ? selectedRole : r))
+        try {
+            await staffService.updateRoles(updatedRoles)
+        } catch {}
         await dispatch(
             updateClinicCollectionAsync({
                 collectionKey: 'roles',
@@ -142,6 +167,9 @@ export default function RolePermissionPage() {
             })),
         }
         const updatedRoles = [...roles, newRole]
+        try {
+            await staffService.updateRoles(updatedRoles)
+        } catch {}
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'roles', items: updatedRoles }))
         setSelectedRole(newRole)
         setNewRoleName('')
@@ -160,6 +188,10 @@ export default function RolePermissionPage() {
         const updated = exists
             ? staffList.map((s) => (s.id === staffForm.id ? { ...s, ...staffForm } : s))
             : [...staffList, { ...formWithCode, id: nextMa }]
+
+        try {
+            await staffService.updateStaffList(updated)
+        } catch {}
 
         await dispatch(
             updateClinicCollectionAsync({

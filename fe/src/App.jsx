@@ -50,11 +50,14 @@ import CatalogManagementPage from './pages/admin/CatalogManagementPage'
 import RolePermissionPage from './pages/admin/RolePermissionPage'
 import TemplateManagementPage from './pages/admin/TemplateManagementPage'
 import ComplianceAndAuditPage from './pages/admin/ComplianceAndAuditPage'
+import CashierBillingAuditDashboard from './pages/admin/CashierBillingAuditDashboard'
 import ServicePackagesPage from './pages/admin/ServicePackagesPage'
 import TreatmentCoursePage from './pages/admin/TreatmentCoursePage'
 import SettingClinicPage from './pages/admin/SettingClinicPage'
 import DownloadAppPage from './pages/admin/DownloadAppPage'
 import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
+import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'
+import CorporateHealthPage from './pages/admin/CorporateHealthPage'
 import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
 import ExamWorkstationPage from './pages/doctor/ExamWorkstationPage'
 import ParaclinicalWorkPage from './pages/doctor/ParaclinicalWorkPage'
@@ -88,6 +91,7 @@ function App() {
                         <Route path="check-in" element={<CheckInPage />} />
                         <Route path="queue" element={<QueueManagementPage />} />
                         <Route path="cashier" element={<CashierManagementPage />} />
+                        <Route path="billing-audit" element={<CashierBillingAuditDashboard />} />
                         <Route path="patients" element={<PatientsPage />} />
                         <Route path="schedule" element={<ClinicSchedulePage />} />
                         <Route path="administration" element={<AdministrationPage />} />
@@ -143,6 +147,7 @@ function App() {
                         <Route path="lich-hen" element={<AppointmentManagementPage />} />
 
                         <Route path="thu-chi" element={<CashierManagementPage />} />
+                        <Route path="thu-ngan-vietqr" element={<CashierBillingAuditDashboard />} />
 
                         <Route path="tin-tuc" element={<NewsManagementPage />} />
                         <Route path="danh-muc-tin-tuc" element={<NewsManagementPage />} />
@@ -160,12 +165,12 @@ function App() {
                         <Route path="tuan-thu" element={<ComplianceAndAuditPage />} />
                         <Route path="lich-su-hoat-dong" element={<ComplianceAndAuditPage />} />
 
-                        <Route path="huong-dan" element={<Navigate to="/admin" replace />} />
-                        <Route path="danh-muc-huong-dan" element={<Navigate to="/admin" replace />} />
-                        <Route path="hoi-dap" element={<Navigate to="/admin" replace />} />
-                        <Route path="dang-ky-doan" element={<Navigate to="/admin" replace />} />
-                        <Route path="dangkydoan" element={<Navigate to="/admin" replace />} />
-                        <Route path="kham-doan" element={<Navigate to="/admin" replace />} />
+                        <Route path="huong-dan" element={<GuideAndQaManagementPage />} />
+                        <Route path="danh-muc-huong-dan" element={<GuideAndQaManagementPage />} />
+                        <Route path="hoi-dap" element={<GuideAndQaManagementPage />} />
+                        <Route path="dang-ky-doan" element={<CorporateHealthPage />} />
+                        <Route path="dangkydoan" element={<CorporateHealthPage />} />
+                        <Route path="kham-doan" element={<CorporateHealthPage />} />
 
                         <Route path="goi-dich-vu" element={<ServicePackagesPage />} />
                         <Route path="goidichvu" element={<ServicePackagesPage />} />

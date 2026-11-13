@@ -6,6 +6,8 @@ import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEve
 import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
 import { mapDoctorPerformanceItems } from '../../utils/helpers/doctorPerformanceMapping'
 import { adminService } from '../../services/admin/AdminService'
+import { exportToExcel } from '../../utils/helpers/exportUtils'
+import { AppToast } from '../../components/common/AppNotification'
 import {
     ClinicIcon,
     StatusBadge,
@@ -17,6 +19,7 @@ import {
     Receipt,
     ChartBar,
     Sparkle,
+    DownloadSimple,
 } from '../../components/common/ClinicIcon'
 
 const OPERATIONAL_PORTAL_LINKS = [
@@ -92,6 +95,55 @@ export default function DashboardAdminPage() {
     const [doctorPerformance, setDoctorPerformance] = useState(null)
     const [roomWorkload, setRoomWorkload] = useState([])
     const [analyticsLoading, setAnalyticsLoading] = useState(false)
+    const [exportingExcel, setExportingExcel] = useState(false)
+
+    const handleExportBiExcel = async () => {
+        setExportingExcel(true)
+        try {
+            const data = await adminService.exportBiExcel()
+            const list = data?.danh_muc || data?.danh_sach_dich_vu || data?.items || []
+            if (!list.length) {
+                AppToast.info('Không có dữ liệu để xuất báo cáo')
+                return
+            }
+            const headers = [
+                'Mã dịch vụ',
+                'Tên dịch vụ kỹ thuật',
+                'Chuyên khoa',
+                'Đơn giá',
+                'Đơn vị tính',
+                'Mã nhóm BYT',
+                'Phòng thực hiện',
+                'Thời gian trả KQ (phút)',
+                'Trạng thái',
+            ]
+            const rows = list.map((item) => [
+                item.ma_dich_vu || '',
+                item.ten_dich_vu || '',
+                item.chuyen_khoa || '',
+                Number(item.don_gia) || 0,
+                item.don_vi_tinh || 'Lần',
+                item.ma_nhom_byt || '',
+                item.phong_thuc_hien || '',
+                Number(item.thoi_gian_tra_ket_qua_phut) || 0,
+                item.is_active ? 'Đang hoạt động' : 'Tạm ngưng',
+            ])
+            await exportToExcel({
+                filename: `bao-cao-bi-danh-muc-dich-vu_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                sheetName: 'Báo cáo BI',
+                title: 'BÁO CÁO THỐNG KÊ QUẢN TRỊ BI & DANH MỤC DỊCH VỤ',
+                subtitle: `Phân hệ Quản trị BI • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} dịch vụ`,
+                headers,
+                rows,
+                signOff: true,
+            })
+            AppToast.success(`Đã xuất báo cáo BI (${rows.length} dịch vụ) thành công!`)
+        } catch {
+            AppToast.error('Lỗi khi xuất báo cáo BI ra file Excel')
+        } finally {
+            setExportingExcel(false)
+        }
+    }
 
     useEffect(() => {
         const refreshStats = () => {
@@ -165,7 +217,7 @@ export default function DashboardAdminPage() {
     const paidVouchersRevenue = vouchers
         .filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi'))
         .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
-    const liveRevenue = Math.max(Number(stats?.tong_doanh_thu_trong_ngay || 0), paidVouchersRevenue)
+    const liveRevenue = Number(stats?.tong_doanh_thu_trong_ngay ?? paidVouchersRevenue)
 
     const expiredOrSoonLicenses = staffList.filter(
         (s) => s.trangThaiCCHN === 'EXPIRED' || s.trangThaiCCHN === 'EXPIRING_SOON'
@@ -251,7 +303,7 @@ export default function DashboardAdminPage() {
                     })}
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                     <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
                         <Clock size={13} />
                         <span>Kỳ thống kê:</span>
@@ -270,6 +322,15 @@ export default function DashboardAdminPage() {
                             {tf.label}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        onClick={handleExportBiExcel}
+                        disabled={exportingExcel}
+                        className="ml-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <DownloadSimple size={14} weight="bold" />
+                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel Báo Cáo BI'}</span>
+                    </button>
                 </div>
             </div>
 
@@ -280,7 +341,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng lượt tiếp nhận</div>
                                 <div className="font-display text-2xl font-extrabold text-[#003553] mt-1">
-                                    {Math.max(1, Math.round(registrations.length * multiplier))}
+                                    {stats?.so_ca_da_check_in ?? registrations.length}
                                 </div>
                                 <Link to="/admin/bao-cao" className="text-[11px] font-bold text-[#00B5F1] hover:underline mt-1 inline-block">
                                     Báo cáo lưu lượng &rarr;
@@ -295,7 +356,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hoàn tất khám &amp; Kê đơn</div>
                                 <div className="font-display text-2xl font-extrabold text-emerald-600 mt-1">
-                                    {Math.round(registrations.filter((r) => r.trangThai === 'Đã khám').length * multiplier) || 2}
+                                    {stats?.so_ca_hoan_tat_kham ?? registrations.filter((r) => r.trangThai === 'Đã khám').length}
                                 </div>
                                 <Link to="/admin/tuan-thu?tab=DON_THUOC" className="text-[11px] font-bold text-emerald-600 hover:underline mt-1 inline-block">
                                     Đồng bộ ĐTQG &rarr;
@@ -310,7 +371,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Nhân sự &amp; Bác sĩ Active</div>
                                 <div className="font-display text-2xl font-extrabold text-sky-600 mt-1">
-                                    {staffList.length || 6}
+                                    {stats?.tong_bac_si_hoat_dong ?? staffList.length}
                                 </div>
                                 <Link to="/admin/nhan-vien" className="text-[11px] font-bold text-sky-600 hover:underline mt-1 inline-block">
                                     Kiểm soát CCHN &rarr;
@@ -325,7 +386,7 @@ export default function DashboardAdminPage() {
                             <div>
                                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu kỳ báo cáo</div>
                                 <div className="font-display text-xl font-extrabold text-amber-600 mt-1">
-                                    {Number(liveRevenue || Math.round((accountantSummary.doanhThuDichVu || 0) * multiplier)).toLocaleString('vi-VN')} đ
+                                    {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
                                 </div>
                                 <button
                                     type="button"
@@ -387,14 +448,12 @@ export default function DashboardAdminPage() {
                                 </Link>
                             </div>
                             <div className="space-y-3 mt-3">
-                                {(roomWorkload.length > 0
-                                    ? roomWorkload
-                                    : [
-                                          { ma_phong: 'PK01', ten_phong: 'Phòng khám Nội 1', chuyen_khoa: 'Nội tổng quát', tong_ca_truc_phan_bo: 14, ty_le_su_dung_phan_tram: 77.8 },
-                                          { ma_phong: 'PK02', ten_phong: 'Phòng Tai Mũi Họng', chuyen_khoa: 'Tai Mũi Họng', tong_ca_truc_phan_bo: 12, ty_le_su_dung_phan_tram: 66.7 },
-                                          { ma_phong: 'PK03', ten_phong: 'Phòng Cơ Xương Khớp', chuyen_khoa: 'Cơ xương khớp', tong_ca_truc_phan_bo: 10, ty_le_su_dung_phan_tram: 55.6 },
-                                      ]
-                                ).map((room, idx) => (
+                                {roomWorkload.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400 text-xs">
+                                        Chưa có dữ liệu tải trọng buồng khám
+                                    </div>
+                                ) : (
+                                    roomWorkload.map((room, idx) => (
                                     <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
                                         <div className="flex justify-between text-xs font-bold text-[#003553]">
                                             <span>{room.ma_phong} - {room.ten_phong}</span>
@@ -417,7 +476,7 @@ export default function DashboardAdminPage() {
                                             />
                                         </div>
                                     </div>
-                                ))}
+                                )))}
                             </div>
                         </div>
                     </div>
@@ -467,28 +526,28 @@ export default function DashboardAdminPage() {
                         <div className="medpro-card p-4 border-l-4 border-l-[#003553]">
                             <div className="text-[11px] font-bold uppercase text-slate-500">1. Doanh thu Khám Lâm Sàng</div>
                             <div className="font-display text-xl font-black text-[#003553] mt-1">
-                                {Number(stats?.doanh_thu_kham_lam_sang || Math.round((accountantSummary.doanhThuDichVu || 14850000) * 0.4 * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_kham_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">Công khám đa chuyên khoa</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
                             <div className="text-[11px] font-bold uppercase text-slate-500">2. Cận Lâm Sàng &amp; DVKT</div>
                             <div className="font-display text-xl font-black text-[#008EC2] mt-1">
-                                {Number(stats?.doanh_thu_can_lam_sang || Math.round((accountantSummary.doanhThuDichVu || 14850000) * 0.6 * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_can_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
                             <div className="text-[11px] font-bold uppercase text-slate-500">3. Dịch vụ Kỹ thuật Chuyên sâu</div>
                             <div className="font-display text-xl font-black text-emerald-600 mt-1">
-                                {Number(stats?.doanh_thu_goi_dich_vu || Math.round((accountantSummary.doanhThuDichVu || 1200000) * 0.3 * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.doanh_thu_goi_dich_vu ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">Thủ thuật &amp; Tầm soát định kỳ</div>
                         </div>
                         <div className="medpro-card p-4 border-l-4 border-l-amber-500 bg-amber-50/30">
                             <div className="text-[11px] font-bold uppercase text-amber-800">Tổng Thực Thu Hệ Thống</div>
                             <div className="font-display text-xl font-black text-amber-700 mt-1">
-                                {Number(stats?.tong_doanh_thu_trong_ngay || Math.round((accountantSummary.doanhThuDichVu || 14850000) * multiplier)).toLocaleString('vi-VN')} đ
+                                {Number(stats?.tong_doanh_thu_trong_ngay ?? 0).toLocaleString('vi-VN')} đ
                             </div>
                             <div className="text-[11px] text-amber-600 mt-0.5">Đã quyết toán qua Thu ngân</div>
                         </div>
@@ -545,24 +604,25 @@ export default function DashboardAdminPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(topMedicines.length > 0
-                                            ? topMedicines
-                                            : [
-                                                  { ma_thuoc: 'TH001', ten_thuoc: 'Amlodipin 5mg (Stamlo)', don_vi_tinh: 'Viên', so_don_ke: 28, tong_so_luong: 392 },
-                                                  { ma_thuoc: 'TH003', ten_thuoc: 'Augmentin 1g (Amoxicillin + Clavulanat)', don_vi_tinh: 'Viên', so_don_ke: 21, tong_so_luong: 210 },
-                                                  { ma_thuoc: 'TH002', ten_thuoc: 'Magne-B6 Corbière', don_vi_tinh: 'Viên', so_don_ke: 19, tong_so_luong: 380 },
-                                              ]
-                                        ).slice(0, 5).map((med, idx) => (
-                                            <tr key={idx}>
-                                                <td className="font-mono font-bold text-[#003553]">{med.ma_thuoc || `TH00${idx + 1}`}</td>
-                                                <td className="font-bold text-[#12263F]">{med.ten_thuoc}</td>
-                                                <td>{med.don_vi_tinh || 'Viên'}</td>
-                                                <td className="text-center font-bold text-[#00B5F1]">{med.so_don_ke || 12} đơn</td>
-                                                <td className="text-right font-mono font-extrabold text-emerald-600">
-                                                    {Number(med.tong_so_luong || 120).toLocaleString('vi-VN')}
+                                        {topMedicines.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-slate-400">
+                                                    Chưa có dữ liệu thuốc được kê
                                                 </td>
                                             </tr>
-                                        ))}
+                                        ) : (
+                                            topMedicines.slice(0, 5).map((med, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="font-mono font-bold text-[#003553]">{med.ma_thuoc || `TH00${idx + 1}`}</td>
+                                                    <td className="font-bold text-[#12263F]">{med.ten_thuoc}</td>
+                                                    <td>{med.don_vi_tinh || 'Viên'}</td>
+                                                    <td className="text-center font-bold text-[#00B5F1]">{med.so_don_ke || 0} đơn</td>
+                                                    <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                        {Number(med.tong_so_luong || 0).toLocaleString('vi-VN')}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -589,34 +649,34 @@ export default function DashboardAdminPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(topServices.length > 0
-                                        ? topServices
-                                        : [
-                                              { ma_dich_vu: 'DV001', ten_dich_vu: 'Khám chuyên khoa Nội Tim mạch', nhom_dich_vu: 'Khám bệnh', don_gia: 200000, so_luong_chi_dinh: 45, tong_doanh_thu: 9000000 },
-                                              { ma_dich_vu: 'CLS01', ten_dich_vu: 'Chụp X-quang Tim phổi thẳng', nhom_dich_vu: 'CĐHA', don_gia: 150000, so_luong_chi_dinh: 38, tong_doanh_thu: 5700000 },
-                                              { ma_dich_vu: 'XN01', ten_dich_vu: 'Tổng phân tích tế bào máu ngoại vi', nhom_dich_vu: 'Xét nghiệm', don_gia: 120000, so_luong_chi_dinh: 42, tong_doanh_thu: 5040000 },
-                                              { ma_dich_vu: 'SA01', ten_dich_vu: 'Siêu âm Doppler tim màu', nhom_dich_vu: 'Siêu âm', don_gia: 350000, so_luong_chi_dinh: 14, tong_doanh_thu: 4900000 },
-                                          ]
-                                    ).map((srv, sIdx) => (
-                                        <tr key={sIdx}>
-                                            <td className="font-mono font-bold text-[#003553]">{srv.ma_dich_vu}</td>
-                                            <td className="font-bold text-[#12263F]">{srv.ten_dich_vu}</td>
-                                            <td>
-                                                <span className="px-2 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-semibold border border-sky-100 text-[11px]">
-                                                    {srv.nhom_dich_vu || 'Dịch vụ'}
-                                                </span>
-                                            </td>
-                                            <td className="text-right font-mono font-bold text-slate-700">
-                                                {Number(srv.don_gia).toLocaleString('vi-VN')} đ
-                                            </td>
-                                            <td className="text-center font-bold text-[#003553]">
-                                                {srv.so_luong_chi_dinh} lượt
-                                            </td>
-                                            <td className="text-right font-mono font-extrabold text-emerald-600">
-                                                {Number(srv.tong_doanh_thu).toLocaleString('vi-VN')} đ
+                                    {topServices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="text-center py-8 text-slate-400">
+                                                Chưa có dữ liệu dịch vụ kỹ thuật
                                             </td>
                                         </tr>
-                                    ))}
+                                    ) : (
+                                        topServices.map((srv, sIdx) => (
+                                            <tr key={sIdx}>
+                                                <td className="font-mono font-bold text-[#003553]">{srv.ma_dich_vu}</td>
+                                                <td className="font-bold text-[#12263F]">{srv.ten_dich_vu}</td>
+                                                <td>
+                                                    <span className="px-2 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-semibold border border-sky-100 text-[11px]">
+                                                        {srv.nhom_dich_vu || 'Dịch vụ'}
+                                                    </span>
+                                                </td>
+                                                <td className="text-right font-mono font-bold text-slate-700">
+                                                    {Number(srv.don_gia || 0).toLocaleString('vi-VN')} đ
+                                                </td>
+                                                <td className="text-center font-bold text-[#003553]">
+                                                    {srv.so_luong_chi_dinh || 0} lượt
+                                                </td>
+                                                <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                    {Number(srv.tong_doanh_thu || 0).toLocaleString('vi-VN')} đ
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -710,36 +770,34 @@ export default function DashboardAdminPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(topDiseases.length > 0
-                                            ? topDiseases
-                                            : (clinicData?.catalogs?.danhMucBenh || []).map((b) => ({
-                                                  ma_icd10: b.maICD,
-                                                  ten_benh: b.tenBenh,
-                                                  chuong_benh: b.chuongBenh,
-                                                  so_ca: b.maICD === 'I10' ? 42 : b.maICD === 'J00' ? 29 : b.maICD === 'M54.5' ? 18 : 6,
-                                                  ty_le_phan_tram: b.maICD === 'I10' ? 44.2 : b.maICD === 'J00' ? 30.5 : 18.9,
-                                                  truyen_nhiem: b.truyenNhiem,
-                                              }))
-                                        ).map((b, idx) => (
-                                            <tr key={idx}>
-                                                <td className="font-mono font-bold text-[#003553]">{b.ma_icd10}</td>
-                                                <td className="font-bold text-[#12263F]">{b.ten_benh}</td>
-                                                <td className="text-xs text-slate-500">{b.chuong_benh || 'Ngoại trú'}</td>
-                                                <td className="font-mono font-extrabold text-[#00B5F1] text-center">
-                                                    {b.so_ca} ca
-                                                </td>
-                                                <td className="text-center font-bold text-slate-700">
-                                                    {b.ty_le_phan_tram || 0}%
-                                                </td>
-                                                <td>
-                                                    {b.truyen_nhiem ? (
-                                                        <span className="medpro-badge-danger">Nhóm B (Báo cáo Sở)</span>
-                                                    ) : (
-                                                        <span className="medpro-badge-success">Ngoại trú thường</span>
-                                                    )}
+                                        {topDiseases.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="text-center py-8 text-slate-400">
+                                                    Chưa có dữ liệu mô hình bệnh tật
                                                 </td>
                                             </tr>
-                                        ))}
+                                        ) : (
+                                            topDiseases.map((b, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="font-mono font-bold text-[#003553]">{b.ma_icd10}</td>
+                                                    <td className="font-bold text-[#12263F]">{b.ten_benh}</td>
+                                                    <td className="text-xs text-slate-500">{b.chuong_benh || 'Ngoại trú'}</td>
+                                                    <td className="font-mono font-extrabold text-[#00B5F1] text-center">
+                                                        {b.so_ca || 0} ca
+                                                    </td>
+                                                    <td className="text-center font-bold text-slate-700">
+                                                        {b.ty_le_phan_tram || 0}%
+                                                    </td>
+                                                    <td>
+                                                        {b.truyen_nhiem ? (
+                                                            <span className="medpro-badge-danger">Nhóm B (Báo cáo Sở)</span>
+                                                        ) : (
+                                                            <span className="medpro-badge-success">Ngoại trú thường</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

@@ -10,14 +10,12 @@ from app.core.config import settings
 
 
 def _resolve_active_database_url() -> tuple[str, bool]:
-    """Kiểm tra kết nối PostgreSQL; nếu dịch vụ PostgreSQL/Docker chưa bật thì tự động dùng SQLite bền vững"""
     url = settings.async_database_url
     if url.startswith("sqlite"):
         return url, True
     try:
-        parsed_url = make_url(url)
-        host = parsed_url.host or settings.POSTGRES_SERVER
-        port = parsed_url.port or settings.POSTGRES_PORT
+        host = settings.POSTGRES_SERVER
+        port = settings.POSTGRES_PORT
         with socket.create_connection((host, int(port)), timeout=2.0):
             return url, False
     except OSError:
@@ -42,7 +40,6 @@ else:
         pool_pre_ping=True,
     )
 
-# Async Session Factory
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,

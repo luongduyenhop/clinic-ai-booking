@@ -1,4 +1,4 @@
-import { BaseServices } from '../BaseService'
+import { BaseServices, http } from '../BaseService'
 import { INITIAL_CLINIC_DATA, getFormDefaults } from '../../utils/helpers/clinicConfigHelpers'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
 
@@ -286,6 +286,11 @@ export class AdminService extends BaseServices {
         return res.data?.data || res.data
     }
 
+
+    exportBiExcel = async () => {
+        const res = await http.get('/api/v1/admin/bi/export-excel')
+        return res?.data?.data || res?.data
+    }
 
     exportServicesCatalog = async ({ nhomDichVu, trangThai } = {}) => {
         try {

@@ -252,20 +252,8 @@
             "icon": "ClipboardText",
             "children": [
               {
-                "label": "Liệu trình",
-                "path": "/admin/lieu-trinh"
-              },
-              {
-                "label": "Hóa đơn",
-                "path": "/admin/lieu-trinh?tab=HOA_DON"
-              },
-              {
                 "label": "Danh mục liệu trình",
                 "path": "/admin/lieu-trinh?tab=DANH_MUC"
-              },
-              {
-                "label": "Lịch liệu trình",
-                "path": "/admin/lieu-trinh?tab=LICH"
               },
               {
                 "label": "Báo cáo liệu trình",

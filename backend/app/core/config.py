@@ -1,3 +1,4 @@
+from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field, field_validator
 from typing import Optional
@@ -28,13 +29,25 @@ class Settings(BaseSettings):
 
     @computed_field
     def sync_database_url(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        pwd = quote_plus(self.POSTGRES_PASSWORD) if self.POSTGRES_PASSWORD else ""
+        return f"postgresql://{self.POSTGRES_USER}:{pwd}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @computed_field
     def async_database_url(self) -> str:
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        pwd = quote_plus(self.POSTGRES_PASSWORD) if self.POSTGRES_PASSWORD else ""
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{pwd}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+    @computed_field
+    def is_hosted(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("production", "staging", "hosted")
+
+    @computed_field
+    def is_demo(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("demo",)
+
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     SECRET_KEY: str = "super_secret_clinic_jwt_key_project_1_change_in_production_2026"
     ALGORITHM: str = "HS256"
@@ -58,6 +71,15 @@ class Settings(BaseSettings):
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
     CLINIC_PHONE: str = "1900 6868"
+    SEPAY_API_KEY: Optional[str] = None
+    SEPAY_WEBHOOK_TOKEN: Optional[str] = None
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+    PAYMENT_WEBHOOK_SECRET: Optional[str] = None
+    SEPAY_BANK_NAME: Optional[str] = None
+    SEPAY_ACCOUNT_NUMBER: Optional[str] = None
+    SEPAY_ACCOUNT_NAME: Optional[str] = None
 
     @field_validator("SLOT_DURATION_MINUTES")
     @classmethod

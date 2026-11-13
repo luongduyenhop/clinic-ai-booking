@@ -1,0 +1,64 @@
+name: Deploy to Production VPS
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    name: Build Frontend & Deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: fe/package-lock.json
+
+      - name: Install Frontend Dependencies & Build
+        working-directory: ./fe
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package Frontend Bundle
+        run: |
+          tar -czf fe-dist.tar.gz -C fe/dist .
+
+      - name: Setup SSH Connection
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Transfer Build & Code to VPS
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        run: |
+          scp fe-dist.tar.gz $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/
+          scp -r backend/app $SSH_USER@$SSH_HOST:/home/ubuntu/clinic-ai/backend/
+
+      - name: Update Containers and Verify Service Health
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        run: |
+          ssh $SSH_USER@$SSH_HOST "cd /home/ubuntu/clinic-ai && \
+            mkdir -p fe/dist && \
+            tar -xzf fe-dist.tar.gz -C fe/dist/ && \
+            docker cp backend/app clinic-demo-backend-1:/app/ && \
+            docker cp fe/dist/. clinic-demo-frontend-1:/usr/share/nginx/html/ && \
+            docker restart clinic-demo-backend-1 clinic-demo-frontend-1 && \
+            sleep 8 && \
+            curl -fsS http://127.0.0.1:3000/healthz"

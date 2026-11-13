@@ -1,6 +1,7 @@
 import asyncio
 from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select, text, delete, func
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, Base
 from app.core.security import hash_password
 from app.models.user import ChuyenKhoa, NguoiDung, TaiKhoan, BenhNhan, BacSi, PhongKham, VaiTroEnum
@@ -67,9 +68,9 @@ ROOMS_DATA = [
 
 DOCTORS_DATA = [
     {
-        "ho_ten": "PGS.TS Phạm Đức Minh",
-        "email": "minh.doctor@clinic.com",
-        "sdt": "0988000104",
+        "ho_ten": "PGS.TS Phạm Đức Minh [DEMO]",
+        "email": "minh.doctor@clinic-ai.test",
+        "sdt": "0000000104",
         "hoc_vi": "PGS.TS",
         "dept_ma": "KHOA_NOI",
         "room_ma": "P101",
@@ -78,9 +79,9 @@ DOCTORS_DATA = [
         "gia_kham": 250000.0,
     },
     {
-        "ho_ten": "BS. CKII Nguyễn Minh Hoàng",
-        "email": "hoang.doctor@clinic.com",
-        "sdt": "0988000105",
+        "ho_ten": "BS. CKII Nguyễn Minh Hoàng [DEMO]",
+        "email": "hoang.doctor@clinic-ai.test",
+        "sdt": "0000000105",
         "hoc_vi": "BS.CKII",
         "dept_ma": "KHOA_NOI",
         "room_ma": "P102",
@@ -89,9 +90,9 @@ DOCTORS_DATA = [
         "gia_kham": 200000.0,
     },
     {
-        "ho_ten": "ThS. BS Đặng Hải Phương",
-        "email": "phuong.doctor@clinic.com",
-        "sdt": "0988000106",
+        "ho_ten": "ThS. BS Đặng Hải Phương [DEMO]",
+        "email": "phuong.doctor@clinic-ai.test",
+        "sdt": "0000000106",
         "hoc_vi": "ThS.BS",
         "dept_ma": "KHOA_NGOAI",
         "room_ma": "P201",
@@ -100,9 +101,9 @@ DOCTORS_DATA = [
         "gia_kham": 200000.0,
     },
     {
-        "ho_ten": "BS. CKI Lê Hoàng Long",
-        "email": "long.doctor@clinic.com",
-        "sdt": "0988000103",
+        "ho_ten": "BS. CKI Lê Hoàng Long [DEMO]",
+        "email": "long.doctor@clinic-ai.test",
+        "sdt": "0000000103",
         "hoc_vi": "BS.CKI",
         "dept_ma": "KHOA_TMH",
         "room_ma": "P202",
@@ -111,9 +112,9 @@ DOCTORS_DATA = [
         "gia_kham": 200000.0,
     },
     {
-        "ho_ten": "BS. CKII Trần Quốc Huy",
-        "email": "huy.doctor@clinic.com",
-        "sdt": "0988000107",
+        "ho_ten": "BS. CKII Trần Quốc Huy [DEMO]",
+        "email": "huy.doctor@clinic-ai.test",
+        "sdt": "0000000107",
         "hoc_vi": "BS.CKII",
         "dept_ma": "KHOA_RANG",
         "room_ma": "P301",
@@ -122,9 +123,9 @@ DOCTORS_DATA = [
         "gia_kham": 180000.0,
     },
     {
-        "ho_ten": "ThS. BS Lê Ngọc Lan",
-        "email": "lan.doctor@clinic.com",
-        "sdt": "0988000108",
+        "ho_ten": "ThS. BS Lê Ngọc Lan [DEMO]",
+        "email": "lan.doctor@clinic-ai.test",
+        "sdt": "0000000108",
         "hoc_vi": "ThS.BS",
         "dept_ma": "KHOA_MAT",
         "room_ma": "P302",
@@ -133,52 +134,52 @@ DOCTORS_DATA = [
         "gia_kham": 180000.0,
     },
     {
-        "ho_ten": "BS. CKI Nguyễn Thu Hà", "email": "ha.noi@clinic.test", "sdt": "0988000111",
+        "ho_ten": "BS. CKI Nguyễn Thu Hà [DEMO]", "email": "ha.noi@clinic-ai.test", "sdt": "0000000111",
         "hoc_vi": "BS.CKI", "dept_ma": "KHOA_NOI", "room_ma": "P103", "kinh_nghiem": 11,
         "mo_ta": "Khám Nội tổng quát, hô hấp và tư vấn kiểm soát bệnh mạn tính", "gia_kham": 190000.0,
     },
     {
-        "ho_ten": "ThS. BS Trần Minh Khoa", "email": "khoa.noi@clinic.test", "sdt": "0988000112",
+        "ho_ten": "ThS. BS Trần Minh Khoa [DEMO]", "email": "khoa.noi@clinic-ai.test", "sdt": "0000000112",
         "hoc_vi": "ThS.BS", "dept_ma": "KHOA_NOI", "room_ma": "P104", "kinh_nghiem": 9,
         "mo_ta": "Khám Nội khoa, tiêu hóa và tư vấn sức khỏe định kỳ", "gia_kham": 180000.0,
     },
     {
-        "ho_ten": "BS. CKI Lê Quốc Bảo", "email": "bao.ngoai@clinic.test", "sdt": "0988000113",
+        "ho_ten": "BS. CKI Lê Quốc Bảo [DEMO]", "email": "bao.ngoai@clinic-ai.test", "sdt": "0000000113",
         "hoc_vi": "BS.CKI", "dept_ma": "KHOA_NGOAI", "room_ma": "P211", "kinh_nghiem": 12,
         "mo_ta": "Khám Ngoại khoa, xử lý vết thương và tiểu phẫu", "gia_kham": 210000.0,
     },
     {
-        "ho_ten": "ThS. BS Phạm Anh Tuấn", "email": "tuan.ngoai@clinic.test", "sdt": "0988000114",
+        "ho_ten": "ThS. BS Phạm Anh Tuấn [DEMO]", "email": "tuan.ngoai@clinic-ai.test", "sdt": "0000000114",
         "hoc_vi": "ThS.BS", "dept_ma": "KHOA_NGOAI", "room_ma": "P212", "kinh_nghiem": 8,
         "mo_ta": "Ngoại tổng quát, tư vấn và chăm sóc sau tiểu phẫu", "gia_kham": 190000.0,
     },
     {
-        "ho_ten": "BS. CKI Vũ Thanh Tâm", "email": "tam.tmh@clinic.test", "sdt": "0988000115",
+        "ho_ten": "BS. CKI Vũ Thanh Tâm [DEMO]", "email": "tam.tmh@clinic-ai.test", "sdt": "0000000115",
         "hoc_vi": "BS.CKI", "dept_ma": "KHOA_TMH", "room_ma": "P221", "kinh_nghiem": 13,
         "mo_ta": "Khám Tai Mũi Họng và nội soi chẩn đoán", "gia_kham": 210000.0,
     },
     {
-        "ho_ten": "ThS. BS Nguyễn Hải Yến", "email": "yen.tmh@clinic.test", "sdt": "0988000116",
+        "ho_ten": "ThS. BS Nguyễn Hải Yến [DEMO]", "email": "yen.tmh@clinic-ai.test", "sdt": "0000000116",
         "hoc_vi": "ThS.BS", "dept_ma": "KHOA_TMH", "room_ma": "P222", "kinh_nghiem": 7,
         "mo_ta": "Điều trị bệnh lý mũi xoang, họng và tai giữa", "gia_kham": 190000.0,
     },
     {
-        "ho_ten": "BS. CKI Nguyễn Hoài Nam", "email": "nam.rang@clinic.test", "sdt": "0988000117",
+        "ho_ten": "BS. CKI Nguyễn Hoài Nam [DEMO]", "email": "nam.rang@clinic-ai.test", "sdt": "0000000117",
         "hoc_vi": "BS.CKI", "dept_ma": "KHOA_RANG", "room_ma": "P311", "kinh_nghiem": 10,
         "mo_ta": "Nha khoa tổng quát, điều trị tủy và phục hình răng", "gia_kham": 190000.0,
     },
     {
-        "ho_ten": "ThS. BS Đỗ Ngọc Anh", "email": "anh.rang@clinic.test", "sdt": "0988000118",
+        "ho_ten": "ThS. BS Đỗ Ngọc Anh [DEMO]", "email": "anh.rang@clinic-ai.test", "sdt": "0000000118",
         "hoc_vi": "ThS.BS", "dept_ma": "KHOA_RANG", "room_ma": "P312", "kinh_nghiem": 6,
         "mo_ta": "Khám răng miệng, nha chu và chăm sóc răng trẻ em", "gia_kham": 170000.0,
     },
     {
-        "ho_ten": "BS. CKI Trần Thu Hương", "email": "huong.mat@clinic.test", "sdt": "0988000119",
+        "ho_ten": "BS. CKI Trần Thu Hương [DEMO]", "email": "huong.mat@clinic-ai.test", "sdt": "0000000119",
         "hoc_vi": "BS.CKI", "dept_ma": "KHOA_MAT", "room_ma": "P321", "kinh_nghiem": 12,
         "mo_ta": "Khám thị lực, tật khúc xạ và bệnh lý võng mạc", "gia_kham": 190000.0,
     },
     {
-        "ho_ten": "ThS. BS Phan Đức Thành", "email": "thanh.mat@clinic.test", "sdt": "0988000120",
+        "ho_ten": "ThS. BS Phan Đức Thành [DEMO]", "email": "thanh.mat@clinic-ai.test", "sdt": "0000000120",
         "hoc_vi": "ThS.BS", "dept_ma": "KHOA_MAT", "room_ma": "P322", "kinh_nghiem": 8,
         "mo_ta": "Khám và điều trị bệnh lý kết mạc, giác mạc và khúc xạ", "gia_kham": 180000.0,
     },
@@ -201,20 +202,24 @@ SPECIFIC_SERVICES = [
 ]
 
 SAMPLE_PATIENTS = [
-    {"ho_ten": "Trần Văn Bình", "sdt": "0912111001", "ngay_sinh": date(1985, 3, 10), "gioi_tinh": "Nam", "dia_chi": "Đống Đa, Hà Nội", "ma": "BN-2026-0011", "ly_do": "Đau rát họng, nuốt vướng 3 ngày nay", "dept_ma": "KHOA_TMH"},
-    {"ho_ten": "Lê Thị Mai", "sdt": "0912111002", "ngay_sinh": date(1992, 7, 22), "gioi_tinh": "Nữ", "dia_chi": "Cầu Giấy, Hà Nội", "ma": "BN-2026-0012", "ly_do": "Đau nhức răng hàm dưới bên phải khi ăn", "dept_ma": "KHOA_RANG"},
-    {"ho_ten": "Nguyễn Hoàng Nam", "sdt": "0912111003", "ngay_sinh": date(1978, 11, 5), "gioi_tinh": "Nam", "dia_chi": "Thanh Xuân, Hà Nội", "ma": "BN-2026-0013", "ly_do": "Mắt phải đỏ cộm, chảy nước mắt", "dept_ma": "KHOA_MAT"},
-    {"ho_ten": "Vũ Thu Trang", "sdt": "0912111004", "ngay_sinh": date(1995, 4, 18), "gioi_tinh": "Nữ", "dia_chi": "Ba Đình, Hà Nội", "ma": "BN-2026-0014", "ly_do": "Té xe trầy xước phần mềm cẳng chân cần rửa & khâu", "dept_ma": "KHOA_NGOAI"},
-    {"ho_ten": "Đặng Quốc Tuấn", "sdt": "0912111005", "ngay_sinh": date(1965, 8, 30), "gioi_tinh": "Nam", "dia_chi": "Hai Bà Trưng, Hà Nội", "ma": "BN-2026-0015", "ly_do": "Khám định kỳ huyết áp, mệt mỏi khi vận động", "dept_ma": "KHOA_NOI"},
-    {"ho_ten": "Hoàng Thị Hạnh", "sdt": "0912111006", "ngay_sinh": date(1989, 12, 14), "gioi_tinh": "Nữ", "dia_chi": "Tây Hồ, Hà Nội", "ma": "BN-2026-0016", "ly_do": "Ù tai trái kèm chóng mặt nhẹ", "dept_ma": "KHOA_TMH"},
-    {"ho_ten": "Phạm Văn Đức", "sdt": "0912111007", "ngay_sinh": date(2000, 2, 8), "gioi_tinh": "Nam", "dia_chi": "Hà Đông, Hà Nội", "ma": "BN-2026-0017", "ly_do": "Mọc răng khôn hàm dưới sưng đau góc hàm", "dept_ma": "KHOA_RANG"},
-    {"ho_ten": "Nguyễn Bích Ngọc", "sdt": "0912111008", "ngay_sinh": date(1997, 9, 25), "gioi_tinh": "Nữ", "dia_chi": "Hoàng Mai, Hà Nội", "ma": "BN-2026-0018", "ly_do": "Nhìn mờ khi làm việc máy tính, đo tật khúc xạ", "dept_ma": "KHOA_MAT"},
+    {"ho_ten": "Bệnh Nhân Mẫu 01 [SYNTHETIC]", "sdt": "0000000001", "ngay_sinh": date(1985, 3, 10), "gioi_tinh": "Nam", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0011", "ly_do": "Đau rát họng, nuốt vướng 3 ngày nay", "dept_ma": "KHOA_TMH"},
+    {"ho_ten": "Bệnh Nhân Mẫu 02 [SYNTHETIC]", "sdt": "0000000002", "ngay_sinh": date(1992, 7, 22), "gioi_tinh": "Nữ", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0012", "ly_do": "Đau nhức răng hàm dưới bên phải khi ăn", "dept_ma": "KHOA_RANG"},
+    {"ho_ten": "Bệnh Nhân Mẫu 03 [SYNTHETIC]", "sdt": "0000000003", "ngay_sinh": date(1978, 11, 5), "gioi_tinh": "Nam", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0013", "ly_do": "Mắt phải đỏ cộm, chảy nước mắt", "dept_ma": "KHOA_MAT"},
+    {"ho_ten": "Bệnh Nhân Mẫu 04 [SYNTHETIC]", "sdt": "0000000004", "ngay_sinh": date(1995, 4, 18), "gioi_tinh": "Nữ", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0014", "ly_do": "Té xe trầy xước phần mềm cẳng chân cần rửa & khâu", "dept_ma": "KHOA_NGOAI"},
+    {"ho_ten": "Bệnh Nhân Mẫu 05 [SYNTHETIC]", "sdt": "0000000005", "ngay_sinh": date(1965, 8, 30), "gioi_tinh": "Nam", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0015", "ly_do": "Khám định kỳ huyết áp, mệt mỏi khi vận động", "dept_ma": "KHOA_NOI"},
+    {"ho_ten": "Bệnh Nhân Mẫu 06 [SYNTHETIC]", "sdt": "0000000006", "ngay_sinh": date(1989, 12, 14), "gioi_tinh": "Nữ", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0016", "ly_do": "Ù tai trái kèm chóng mặt nhẹ", "dept_ma": "KHOA_TMH"},
+    {"ho_ten": "Bệnh Nhân Mẫu 07 [SYNTHETIC]", "sdt": "0000000007", "ngay_sinh": date(2000, 2, 8), "gioi_tinh": "Nam", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0017", "ly_do": "Mọc răng khôn hàm dưới sưng đau góc hàm", "dept_ma": "KHOA_RANG"},
+    {"ho_ten": "Bệnh Nhân Mẫu 08 [SYNTHETIC]", "sdt": "0000000008", "ngay_sinh": date(1997, 9, 25), "gioi_tinh": "Nữ", "dia_chi": "Khu Vực Thử Nghiệm [DEMO]", "ma": "BN-2026-0018", "ly_do": "Nhìn mờ khi làm việc máy tính, đo tật khúc xạ", "dept_ma": "KHOA_MAT"},
 ]
 
 
-async def seed_clinic_5_departments():
-    """Chuẩn hóa dữ liệu toàn diện: 5 chuyên khoa chuẩn, buồng khám, bác sĩ thật, ca trực, dịch vụ và hàng đợi"""
-    print("🚀 [SEED 5 KHOA] Bắt đầu chuẩn hóa dữ liệu CSDL...")
+async def seed_clinic_5_departments(confirm_seed_demo: bool = False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
 
     async with AsyncSessionLocal() as session:
         # 1. Chuẩn hóa 5 Chuyên khoa
@@ -295,11 +300,11 @@ async def seed_clinic_5_departments():
 
             stmt_tk = select(TaiKhoan).where(TaiKhoan.nguoi_dung_id == nd.id)
             tk = (await session.execute(stmt_tk)).scalar_one_or_none()
-            if not tk:
+            if not tk and settings.INITIAL_ADMIN_PASSWORD:
                 tk = TaiKhoan(
                     nguoi_dung_id=nd.id,
                     email=doc["email"],
-                    mat_khau_hash=hash_password("Doctor@123456"),
+                    mat_khau_hash=hash_password(settings.INITIAL_ADMIN_PASSWORD),
                     vai_tro=VaiTroEnum.BAC_SI.value,
                     is_active=True,
                 )
@@ -511,4 +516,6 @@ async def seed_clinic_5_departments():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_clinic_5_departments())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed_clinic_5_departments(confirm_seed_demo=confirmed))

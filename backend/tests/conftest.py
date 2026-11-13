@@ -1,4 +1,8 @@
 import os
+
+os.environ.setdefault("SECRET_KEY", "test_secret_key_ci_pipeline_2026_at_least_32_chars")
+os.environ.setdefault("PAYMENT_WEBHOOK_SECRET", "test_payment_webhook_secret_key_32bytes")
+
 import uuid
 import httpx
 import pytest

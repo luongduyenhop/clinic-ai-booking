@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 from sqlalchemy import select, delete
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.security import get_password_hash
 from app.models.user import NguoiDung, TaiKhoan, BacSi, ChuyenKhoa, VaiTroEnum, BenhNhan
@@ -10,9 +11,15 @@ from app.models.appointment import (
 )
 from app.models.medical import LuotKham
 
-async def seed():
+async def seed(confirm_seed_demo: bool = False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
     async with AsyncSessionLocal() as db:
-        print("🌱 Seeding E2E test data for Emergency Leave & Queue Re-routing...")
         today = datetime.date(2026, 10, 5)
 
         # 1. Ensure Specialty KHOA_TIM_MACH exists
@@ -30,28 +37,29 @@ async def seed():
         print(f"Doctor A: {bs_a.id}")
 
         # 3. Doctor B (Substitute Doctor in Tim mạch)
-        stmt_user_b = select(TaiKhoan).where(TaiKhoan.email == "bao.doctor@clinic.com")
+        stmt_user_b = select(TaiKhoan).where(TaiKhoan.email == "bao.doctor@clinic-ai.test")
         tk_b = (await db.execute(stmt_user_b)).scalar_one_or_none()
         if not tk_b:
             nd_b = NguoiDung(
-                ho_ten="BS. CKI Vũ Đình Bảo",
-                email="bao.doctor@clinic.com",
-                so_dien_thoai="0988776655",
+                ho_ten="BS. CKI Vũ Đình Bảo [DEMO]",
+                email="bao.doctor@clinic-ai.test",
+                so_dien_thoai="0000000002",
                 gioi_tinh="Nam",
-                cccd_so="001085000099"
+                cccd_so="000000000002"
             )
             db.add(nd_b)
             await db.flush()
 
-            tk_b = TaiKhoan(
-                nguoi_dung_id=nd_b.id,
-                email="bao.doctor@clinic.com",
-                mat_khau_hash=get_password_hash("Doctor@123456"),
-                vai_tro=VaiTroEnum.BAC_SI.value,
-                is_active=True
-            )
-            db.add(tk_b)
-            await db.flush()
+            if settings.INITIAL_ADMIN_PASSWORD:
+                tk_b = TaiKhoan(
+                    nguoi_dung_id=nd_b.id,
+                    email="bao.doctor@clinic-ai.test",
+                    mat_khau_hash=get_password_hash(settings.INITIAL_ADMIN_PASSWORD),
+                    vai_tro=VaiTroEnum.BAC_SI.value,
+                    is_active=True
+                )
+                db.add(tk_b)
+                await db.flush()
 
             bs_b = BacSi(
                 nguoi_dung_id=nd_b.id,
@@ -306,4 +314,6 @@ async def seed():
         print(f"Shift D (BS Minh): ID={shift_d.id if shift_d else 'N/A'}")
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed(confirm_seed_demo=confirmed))

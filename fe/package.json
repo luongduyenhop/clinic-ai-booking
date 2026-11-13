@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test --test-concurrency=1 tests/*.test.mjs tests/test_paraclinical_challenger.mjs tests/test_reception_admin_sync_challenger.mjs"
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.11",

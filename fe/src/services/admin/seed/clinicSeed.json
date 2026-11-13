@@ -1,21 +1,17 @@
 {
   "schemaVersion": "2.0.0-promax",
   "authSeed": {
-    "accessToken": "demo-clinic-ai-admin-token",
-    "refreshToken": "demo-clinic-ai-refresh-token",
     "role": "ADMIN",
     "user": {
       "id": "USR-ADMIN-01",
-      "fullName": "BS.CKII Nguyễn Minh Hoàng (Admin)",
-      "shortName": "BS.CKII Nguyễn Minh Hoàng",
-      "email": "admin@clinic-ai.vn",
-      "department": "Ban Giám Đốc / Nội Tổng Quát",
-      "licenseNo": "004512/HNO-CCHN"
+      "fullName": "Quản Trị Viên [DEMO]",
+      "shortName": "Admin [DEMO]",
+      "email": "admin.demo@clinic-ai.test",
+      "department": "Ban Giám Đốc [DEMO]",
+      "licenseNo": "SYN-CCHN-001"
     },
-    "defaultLoginCredentials": {
-      "usernameOrEmail": "admin@clinic-ai.vn",
-      "password": "password123"
-    }
+    "is_synthetic": true,
+    "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
   },
   "navigationConfig": {
     "headerWorkflowTabs": [
@@ -858,9 +854,9 @@
     ]
   },
   "formDefaults": {
-    "defaultReceptionist": "Lễ tân Nguyễn Mai Phương",
-    "defaultCashier": "Thu ngân Lê Thanh Huyền",
-    "defaultDoctor": "BS.CKII Nguyễn Minh Hoàng",
+    "defaultReceptionist": "Lễ Tân Mẫu [DEMO]",
+    "defaultCashier": "Thu Ngân Mẫu [DEMO]",
+    "defaultDoctor": "BS. Mẫu Khám 01 [DEMO]",
     "defaultClinicRoom": "Phòng số 1 (Phòng khám Nội)",
     "defaultSpecialty": "Nội tổng quát",
     "defaultProvince": "Thành phố Hà Nội",
@@ -880,82 +876,90 @@
     {
       "id": "BN0000150",
       "maBN": "BN0000150",
-      "hoTen": "Nguyễn Thị B",
+      "hoTen": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "tuoi": "38 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
-      "cccd": "001188012345",
-      "email": "nguyenthib88@gmail.com",
+      "dienThoai": "0000000001",
+      "cccd": "000000000001",
+      "email": "patient01@clinic-ai.test",
       "tinhThanh": "Thành phố Hà Nội",
       "quanHuyen": "Quận Cầu Giấy",
       "phuongXa": "Phường Dịch Vọng",
-      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
-      "taiKhoan": "0325351112",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
+      "taiKhoan": "0000000001",
       "nhomMau": "O+",
       "diUng": "Không ghi nhận dị ứng thuốc",
       "ngayTao": "26/09/2026",
-      "trangThai": "Đang hoạt động"
+      "trangThai": "Đang hoạt động",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "BN0000149",
       "maBN": "BN0000149",
-      "hoTen": "Nguyễn Văn An",
+      "hoTen": "Bệnh Nhân Mẫu 02 [SYNTHETIC]",
       "ngaySinh": "1979-11-20",
       "tuoi": "47 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0987564113",
-      "cccd": "001079054321",
-      "email": "nguyenvanan79@gmail.com",
+      "dienThoai": "0000000002",
+      "cccd": "000000000002",
+      "email": "patient02@clinic-ai.test",
       "tinhThanh": "Thành phố Hà Nội",
       "quanHuyen": "Quận Đống Đa",
       "phuongXa": "Phường Láng Hạ",
-      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
-      "taiKhoan": "0987564113",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
+      "taiKhoan": "0000000002",
       "nhomMau": "A+",
       "diUng": "Dị ứng nhẹ với Penicillin",
       "ngayTao": "26/09/2026",
-      "trangThai": "Đang hoạt động"
+      "trangThai": "Đang hoạt động",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "BN0000144",
       "maBN": "BN0000144",
-      "hoTen": "Đinh Công Minh",
+      "hoTen": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngaySinh": "1995-03-08",
       "tuoi": "31 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0912445889",
-      "cccd": "036095008812",
-      "email": "dinhcongminh95@gmail.com",
+      "dienThoai": "0000000003",
+      "cccd": "000000000003",
+      "email": "patient03@clinic-ai.test",
       "tinhThanh": "Tỉnh Nam Định",
       "quanHuyen": "Thành phố Nam Định",
       "phuongXa": "Phường Bà Triệu",
-      "diaChi": "42 Bà Triệu, TP. Nam Định",
-      "taiKhoan": "0912445889",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
+      "taiKhoan": "0000000003",
       "nhomMau": "B+",
       "diUng": "Không",
       "ngayTao": "25/09/2026",
-      "trangThai": "Đang hoạt động"
+      "trangThai": "Đang hoạt động",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "BN0000138",
       "maBN": "BN0000138",
-      "hoTen": "Trần Thị Thu Hà",
+      "hoTen": "Bệnh Nhân Mẫu 04 [SYNTHETIC]",
       "ngaySinh": "2001-08-19",
       "tuoi": "25 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0978123990",
-      "cccd": "001301099881",
-      "email": "tranthuha01@gmail.com",
+      "dienThoai": "0000000004",
+      "cccd": "000000000004",
+      "email": "patient04@clinic-ai.test",
       "tinhThanh": "Thành phố Hà Nội",
       "quanHuyen": "Quận Thanh Xuân",
       "phuongXa": "Phường Nhân Chính",
-      "diaChi": "Khu đô thị Trung Hòa Nhân Chính, Thanh Xuân, Hà Nội",
-      "taiKhoan": "0978123990",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
+      "taiKhoan": "0000000004",
       "nhomMau": "AB+",
       "diUng": "Không",
       "ngayTao": "24/09/2026",
-      "trangThai": "Đang hoạt động"
+      "trangThai": "Đang hoạt động",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "appointments": [
@@ -963,59 +967,63 @@
       "id": "LH260922001",
       "maLH": "LH260922001",
       "maBN": "BN0000150",
-      "hoTen": "Nguyễn Thị B",
+      "hoTen": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "tuoi": "38 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
-      "taiKhoan": "0325351112",
-      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "dienThoai": "0000000001",
+      "taiKhoan": "0000000001",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "ngayDatLich": "2026-10-12T08:30",
-      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "chuyenKhoa": "Nội tổng quát",
       "phongKham": "Phòng số 1 - Nội tổng quát",
       "trieuChung": "Đau tức ngực trái âm ỉ kèm khó thở khi gắng sức, mệt mỏi 3 ngày nay",
       "ghiChu": "Bệnh nhân đặt lịch trực tuyến qua cổng Medpro Clinic-AI",
       "trangThai": "Xác nhận",
-      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "nhanVienXacNhan": "Lễ Tân Mẫu [DEMO]",
       "ngayXacNhan": "2026-10-12 07:45",
-      "noiDungXacNhan": "Đã gọi điện xác nhận lịch hẹn khám lúc 08:30 tại Phòng số 1."
+      "noiDungXacNhan": "Đã gọi điện xác nhận lịch hẹn khám lúc 08:30 tại Phòng số 1.",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "LH260922002",
       "maLH": "LH260922002",
       "maBN": "BN0000149",
-      "hoTen": "Nguyễn Văn An",
+      "hoTen": "Bệnh Nhân Mẫu 02 [SYNTHETIC]",
       "ngaySinh": "1979-11-20",
       "tuoi": "47 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0987564113",
-      "taiKhoan": "0987564113",
-      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
+      "dienThoai": "0000000002",
+      "taiKhoan": "0000000002",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "ngayDatLich": "2026-10-12T09:15",
-      "bacSi": "ThS.BS Trần Quốc Tuấn",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "chuyenKhoa": "Tai mũi họng",
       "phongKham": "Phòng số 3 - Tai Mũi Họng",
       "trieuChung": "Ho khan kéo dài, đau rát họng, nghẹt mũi về đêm",
       "ghiChu": "Tái khám theo hẹn",
       "trangThai": "Đang khám",
-      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "nhanVienXacNhan": "Lễ Tân Mẫu [DEMO]",
       "ngayXacNhan": "2026-10-12 08:00",
-      "noiDungXacNhan": "Bệnh nhân đã đến quầy tiếp đón và chuyển vào phòng khám."
+      "noiDungXacNhan": "Bệnh nhân đã đến quầy tiếp đón và chuyển vào phòng khám.",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "LH260922003",
       "maLH": "LH260922003",
       "maBN": "BN0000144",
-      "hoTen": "Đinh Công Minh",
+      "hoTen": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngaySinh": "1995-03-08",
       "tuoi": "31 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0912445889",
-      "taiKhoan": "0912445889",
-      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "dienThoai": "0000000003",
+      "taiKhoan": "0000000003",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "ngayDatLich": "2026-10-12T10:00",
-      "bacSi": "BS.CKI Lê Thu Trang",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "chuyenKhoa": "Cơ xương khớp",
       "phongKham": "Phòng số 2 - Cơ xương khớp",
       "trieuChung": "Đau mỏi vùng cột sống thắt lưng lan xuống chân phải",
@@ -1023,29 +1031,33 @@
       "trangThai": "Chờ xác nhận",
       "nhanVienXacNhan": "",
       "ngayXacNhan": "",
-      "noiDungXacNhan": ""
+      "noiDungXacNhan": "",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "LH260922004",
       "maLH": "LH260922004",
       "maBN": "BN0000138",
-      "hoTen": "Trần Thị Thu Hà",
+      "hoTen": "Bệnh Nhân Mẫu 04 [SYNTHETIC]",
       "ngaySinh": "2001-08-19",
       "tuoi": "25 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0978123990",
-      "taiKhoan": "0978123990",
-      "diaChi": "Khu đô thị Trung Hòa Nhân Chính, Thanh Xuân, Hà Nội",
+      "dienThoai": "0000000004",
+      "taiKhoan": "0000000004",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "ngayDatLich": "2026-10-11T14:30",
-      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "chuyenKhoa": "Nội tổng quát",
       "phongKham": "Phòng số 1 - Nội tổng quát",
       "trieuChung": "Khám sức khỏe tổng quát định kỳ",
       "ghiChu": "Đăng ký gói khám tổng quát cơ bản",
       "trangThai": "Kết thúc khám",
-      "nhanVienXacNhan": "Lễ tân Nguyễn Mai Phương",
+      "nhanVienXacNhan": "Lễ Tân Mẫu [DEMO]",
       "ngayXacNhan": "2026-10-11 13:50",
-      "noiDungXacNhan": "Đã hoàn thành đợt khám."
+      "noiDungXacNhan": "Đã hoàn thành đợt khám.",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "registrations": [
@@ -1054,17 +1066,17 @@
       "stt": 1,
       "maKCB": "2209260003",
       "maBN": "BN0000150",
-      "hoTen": "Nguyễn Thị B",
+      "hoTen": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "tuoi": "38 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
+      "dienThoai": "0000000001",
       "maLichHen": "LH260922001",
-      "taiKhoan": "0325351112",
-      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "taiKhoan": "0000000001",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "phongKham": "Phòng số 1 (Phòng khám Nội)",
       "chuyenKhoa": "Nội tổng quát",
-      "bacSi": "BS.CKII Nguyễn Minh Hoàng",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "ngayDangKy": "2026-10-12 08:35",
       "uuTien": true,
       "trieuChung": "Đau tức ngực trái âm ỉ kèm khó thở khi gắng sức, mệt mỏi 3 ngày nay",
@@ -1243,24 +1255,26 @@
           "khopCan": "Khớp cắn Loại I",
           "khopThaiDuongHam": "Khớp hoạt động bình thường, há ngậm êm"
         }
-      }
+      },
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "KCB260922002",
       "stt": 2,
       "maKCB": "2209260002",
       "maBN": "BN0000149",
-      "hoTen": "Nguyễn Văn An",
+      "hoTen": "Bệnh Nhân Mẫu 02 [SYNTHETIC]",
       "ngaySinh": "1979-11-20",
       "tuoi": "47 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0987564113",
+      "dienThoai": "0000000002",
       "maLichHen": "LH260922002",
-      "taiKhoan": "0987564113",
-      "diaChi": "Số 105 Láng Hạ, Đống Đa, Hà Nội",
+      "taiKhoan": "0000000002",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "phongKham": "Phòng số 3 (Tai Mũi Họng)",
       "chuyenKhoa": "Tai mũi họng",
-      "bacSi": "ThS.BS Trần Quốc Tuấn",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "ngayDangKy": "2026-10-12 08:50",
       "uuTien": false,
       "trieuChung": "Ho khan kéo dài, đau rát họng, nghẹt mũi về đêm",
@@ -1402,24 +1416,26 @@
           "khopCan": "Khớp cắn Loại I",
           "khopThaiDuongHam": "Khớp bình thường, không đau"
         }
-      }
+      },
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "KCB260922001",
       "stt": 3,
       "maKCB": "2209260001",
       "maBN": "BN0000144",
-      "hoTen": "Đinh Công Minh",
+      "hoTen": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngaySinh": "1995-03-08",
       "tuoi": "31 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0912445889",
+      "dienThoai": "0000000003",
       "maLichHen": "LH260922003",
-      "taiKhoan": "0912445889",
-      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "taiKhoan": "0000000003",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "phongKham": "Phòng số 2 (Cơ xương khớp)",
       "chuyenKhoa": "Cơ xương khớp",
-      "bacSi": "BS.CKI Lê Thu Trang",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "ngayDangKy": "2026-10-12 09:10",
       "uuTien": false,
       "trieuChung": "Đau mỏi vùng cột sống thắt lưng lan xuống chân phải",
@@ -1561,7 +1577,9 @@
           "khopCan": "Khớp cắn Loại I",
           "khopThaiDuongHam": "Bình thường"
         }
-      }
+      },
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "paraclinicalTasks": [
@@ -1570,18 +1588,18 @@
       "stt": 1,
       "maKCB": "2209260003",
       "maBN": "BN0000150",
-      "hoTen": "Nguyễn Thị B",
+      "hoTen": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "tuoi": "38 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
-      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "dienThoai": "0000000001",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "maDV": "DV008",
       "tenDV": "Chụp Xquang tim phổi thẳng",
       "loaiCLS": "X-Quang",
       "phongTH": "Phòng X-Quang 1",
-      "bacSiChiDinh": "BS.CKII Nguyễn Minh Hoàng",
-      "bacSiThucHien": "BS.CKI Phạm Quang Huy",
+      "bacSiChiDinh": "BS. Mẫu Khám [DEMO]",
+      "bacSiThucHien": "BS. Mẫu Cận Lâm Sàng [DEMO]",
       "ngayThucHien": "2026-10-12 08:55",
       "trangThai": "Đã có kết quả",
       "mauKetQua": "MAU-CLS-01",
@@ -1595,57 +1613,63 @@
           "ghiChu": "Phim X-Quang ngực thẳng chuẩn kỹ thuật số DICOM",
           "thoiGian": "2026-10-12 08:54"
         }
-      ]
+      ],
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "CLS-002",
       "stt": 2,
       "maKCB": "2209260003",
       "maBN": "BN0000150",
-      "hoTen": "Nguyễn Thị B",
+      "hoTen": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "tuoi": "38 tuổi",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
-      "diaChi": "Số 18 Duy Tân, Dịch Vọng, Cầu Giấy, Hà Nội",
+      "dienThoai": "0000000001",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "maDV": "DV005",
       "tenDV": "Siêu âm ổ bụng tổng quát",
       "loaiCLS": "Siêu âm",
       "phongTH": "Phòng Siêu âm 2",
-      "bacSiChiDinh": "BS.CKII Nguyễn Minh Hoàng",
-      "bacSiThucHien": "BS.CKI Vũ Thị Lan",
+      "bacSiChiDinh": "BS. Mẫu Khám [DEMO]",
+      "bacSiThucHien": "BS. Mẫu Cận Lâm Sàng [DEMO]",
       "ngayThucHien": "2026-10-12 09:10",
       "trangThai": "Chờ thực hiện",
       "mauKetQua": "MAU-CLS-02",
       "moTa": "- Gan: Kích thước bình thường, bờ đều, nhu mô đồng nhất, tĩnh mạch cửa không giãn.\n- Túi mật: Thành không dày, lòng không có sỏi.\n- Tụy, Lách: Cấu trúc siêu âm bình thường.\n- Thận phải & Thận trái: Đài bể thận không giãn, không có sỏi cản âm.\n- Bàng quang: Thành nhẵn, nước tiểu trong.",
       "ketLuan": "Siêu âm ổ bụng tổng quát chưa phát hiện bất thường.",
       "deNghi": "Kiểm tra định kỳ 6 tháng/lần.",
-      "hinhAnh": []
+      "hinhAnh": [],
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "CLS-003",
       "stt": 3,
       "maKCB": "2209260001",
       "maBN": "BN0000144",
-      "hoTen": "Đinh Công Minh",
+      "hoTen": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngaySinh": "1995-03-08",
       "tuoi": "31 tuổi",
       "gioiTinh": "Nam",
-      "dienThoai": "0912445889",
-      "diaChi": "42 Bà Triệu, TP. Nam Định",
+      "dienThoai": "0000000003",
+      "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
       "maDV": "DV012",
       "tenDV": "Chiếu đèn hồng ngoại & Điện xung trị liệu",
       "loaiCLS": "PT - TT",
       "phongTH": "Phòng PT-TT & Phục hồi chức năng",
-      "bacSiChiDinh": "BS.CKI Lê Thu Trang",
-      "bacSiThucHien": "BS.CKI Lê Thu Trang",
+      "bacSiChiDinh": "BS. Mẫu Khám [DEMO]",
+      "bacSiThucHien": "BS. Mẫu Cận Lâm Sàng [DEMO]",
       "ngayThucHien": "2026-10-12 09:20",
       "trangThai": "Đã có kết quả",
       "mauKetQua": "MAU-CLS-03",
       "moTa": "- Tiến hành chiếu đèn hồng ngoại vùng thắt lưng L3-S1 trong 15 phút.\n- Kết hợp điện xung giảm đau tần số trung bình 20 phút.\n- Bệnh nhân đáp ứng tốt, không bỏng rát da.",
       "ketLuan": "Hoàn thành thủ thuật Vật lý trị liệu vùng cột sống thắt lưng buổi 1.",
       "deNghi": "Duy trì liệu trình 5 buổi liên tiếp.",
-      "hinhAnh": []
+      "hinhAnh": [],
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "vouchers": [
@@ -1653,11 +1677,11 @@
       "id": "PT260922001",
       "maPhieu": "PT260922001",
       "loaiPhieu": "Phiếu thu",
-      "tenPhieu": "Thu viện phí BN Nguyễn Thị B (Mã KCB: 2209260003)",
+      "tenPhieu": "Thu viện phí BN Bệnh Nhân Mẫu 01 [SYNTHETIC] (Mã KCB: 2209260003)",
       "maBN": "BN0000150",
-      "hoTenBN": "Nguyễn Thị B",
+      "hoTenBN": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngayThu": "2026-10-12 08:40",
-      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "nguoiThu": "Thu Ngân Mẫu [DEMO]",
       "hinhThuc": "Chuyển khoản",
       "daThu": true,
       "ghiChu": "Đã thanh toán qua mã VietQR ngân hàng",
@@ -1681,17 +1705,19 @@
           "ghiChu": "Phòng Siêu âm 2"
         }
       ],
-      "tongTien": 450000
+      "tongTien": 450000,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "PT260922002",
       "maPhieu": "PT260922002",
       "loaiPhieu": "Phiếu thu",
-      "tenPhieu": "Thu viện phí BN Nguyễn Văn An (Mã KCB: 2209260002)",
+      "tenPhieu": "Thu viện phí BN Bệnh Nhân Mẫu 02 [SYNTHETIC] (Mã KCB: 2209260002)",
       "maBN": "BN0000149",
-      "hoTenBN": "Nguyễn Văn An",
+      "hoTenBN": "Bệnh Nhân Mẫu 02 [SYNTHETIC]",
       "ngayThu": "2026-10-12 08:55",
-      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "nguoiThu": "Thu Ngân Mẫu [DEMO]",
       "hinhThuc": "Tiền mặt",
       "daThu": true,
       "ghiChu": "Thu tiền tại quầy viện phí tầng 1",
@@ -1703,17 +1729,19 @@
           "ghiChu": "Phòng số 3"
         }
       ],
-      "tongTien": 200000
+      "tongTien": 200000,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "PT260922003",
       "maPhieu": "PT260922003",
       "loaiPhieu": "Phiếu thu",
-      "tenPhieu": "Thu tiền thủ thuật BN Đinh Công Minh (Mã KCB: 2209260001)",
+      "tenPhieu": "Thu tiền thủ thuật BN Bệnh Nhân Mẫu 03 [SYNTHETIC] (Mã KCB: 2209260001)",
       "maBN": "BN0000144",
-      "hoTenBN": "Đinh Công Minh",
+      "hoTenBN": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngayThu": "2026-10-12 09:15",
-      "nguoiThu": "Thu ngân Lê Thanh Huyền",
+      "nguoiThu": "Thu Ngân Mẫu [DEMO]",
       "hinhThuc": "Tiền mặt",
       "daThu": false,
       "ghiChu": "Đang chờ bệnh nhân hoàn tất thủ thuật",
@@ -1725,7 +1753,9 @@
           "ghiChu": "Phòng PT-TT"
         }
       ],
-      "tongTien": 150000
+      "tongTien": 150000,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "newsCategories": [
@@ -2277,92 +2307,104 @@
   "qaList": [
     {
       "id": "QA-01",
-      "nguoiHoi": "Nguyễn Thị B (0325351112)",
+      "nguoiHoi": "Bệnh Nhân Mẫu 01 [SYNTHETIC] (0000000001)",
       "chuyenKhoa": "Nội tổng quát",
       "cauHoi": "Thưa bác sĩ, tôi đang uống thuốc huyết áp Amlodipin 5mg vào buổi sáng nhưng hôm nay quên uống lúc 8h thì buổi trưa uống bù được không ạ?",
       "traLoi": "Chào chị B, nếu chị nhớ ra trong vòng vài giờ (trước buổi chiều) thì có thể uống bổ sung ngay 1 viên. Tuyệt đối không uống gấp đôi liều vào ngày hôm sau.",
       "bacSiTraLoi": "BS.CKII Nguyễn Minh Hoàng",
       "ngayHoi": "2026-10-12 08:15",
-      "trangThai": "Đã trả lời"
+      "trangThai": "Đã trả lời",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "QA-02",
-      "nguoiHoi": "Lê Hoàng Nam (0904112334)",
+      "nguoiHoi": "Bệnh Nhân Mẫu 01 [SYNTHETIC] (0000000001)",
       "chuyenKhoa": "Cơ xương khớp",
       "cauHoi": "Tôi bị đau cổ vai gáy kèm tê bì bàn tay phải khi ngồi máy tính lâu thì nên khám chuyên khoa nào?",
       "traLoi": "",
       "bacSiTraLoi": "",
       "ngayHoi": "2026-10-12 09:05",
-      "trangThai": "Chờ phản hồi"
+      "trangThai": "Chờ phản hồi",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "staffList": [
     {
       "id": "NV-001",
       "maNV": "NV001",
-      "hoTen": "BS.CKII Nguyễn Minh Hoàng",
-      "taiKhoan": "admin@clinic-ai.vn",
-      "dienThoai": "0901234567",
+      "hoTen": "Nhân Sự Y Tế Mẫu 1 [DEMO]",
+      "taiKhoan": "staff01.demo@clinic-ai.test",
+      "dienThoai": "0000000011",
       "vaiTro": "Admin / Phụ trách chuyên môn",
       "khoaPhong": "Phòng số 1 (Phòng khám Nội)",
       "chuyenKhoa": "Nội tổng quát, Tim mạch",
-      "soCCHN": "004512/HNO-CCHN",
+      "soCCHN": "SYN-CCHN-001",
       "ngayCapCCHN": "2020-04-15",
       "ngayHetHanCCHN": "2028-04-15",
       "trangThaiCCHN": "ACTIVE",
-      "trangThai": true
+      "trangThai": true,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "NV-002",
       "maNV": "NV002",
-      "hoTen": "ThS.BS Trần Quốc Tuấn",
-      "taiKhoan": "bstuan@clinic-ai.vn",
-      "dienThoai": "0912345678",
+      "hoTen": "Nhân Sự Y Tế Mẫu 2 [DEMO]",
+      "taiKhoan": "staff02.demo@clinic-ai.test",
+      "dienThoai": "0000000012",
       "vaiTro": "Bác sĩ khám bệnh",
       "khoaPhong": "Phòng số 3 (Tai Mũi Họng)",
       "chuyenKhoa": "Tai mũi họng",
-      "soCCHN": "008921/HNO-CCHN",
+      "soCCHN": "SYN-CCHN-002",
       "ngayCapCCHN": "2021-11-10",
       "ngayHetHanCCHN": "2026-11-25",
       "trangThaiCCHN": "EXPIRING_SOON",
-      "trangThai": true
+      "trangThai": true,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "NV-003",
       "maNV": "NV003",
-      "hoTen": "BS.CKI Lê Thu Trang",
-      "taiKhoan": "bstrang@clinic-ai.vn",
-      "dienThoai": "0988776655",
+      "hoTen": "Nhân Sự Y Tế Mẫu 3 [DEMO]",
+      "taiKhoan": "staff03.demo@clinic-ai.test",
+      "dienThoai": "0000000013",
       "vaiTro": "Bác sĩ khám bệnh",
       "khoaPhong": "Phòng số 2 (Cơ xương khớp)",
       "chuyenKhoa": "Cơ xương khớp, Phục hồi chức năng",
-      "soCCHN": "006110/HNO-CCHN",
+      "soCCHN": "SYN-CCHN-003",
       "ngayCapCCHN": "2019-06-20",
       "ngayHetHanCCHN": "2029-06-20",
       "trangThaiCCHN": "ACTIVE",
-      "trangThai": true
+      "trangThai": true,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "NV-004",
       "maNV": "NV004",
-      "hoTen": "BS.CKI Phạm Quang Huy",
-      "taiKhoan": "bshuy_cls@clinic-ai.vn",
-      "dienThoai": "0933445566",
+      "hoTen": "Nhân Sự Y Tế Mẫu 4 [DEMO]",
+      "taiKhoan": "staff04.demo@clinic-ai.test",
+      "dienThoai": "0000000014",
       "vaiTro": "Bác sĩ Cận lâm sàng",
       "khoaPhong": "Phòng X-Quang 1",
       "chuyenKhoa": "Chẩn đoán hình ảnh",
-      "soCCHN": "003219/HNO-CCHN",
+      "soCCHN": "SYN-CCHN-004",
       "ngayCapCCHN": "2018-01-10",
       "ngayHetHanCCHN": "2025-12-31",
       "trangThaiCCHN": "EXPIRED",
-      "trangThai": true
+      "trangThai": true,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "NV-005",
       "maNV": "NV005",
-      "hoTen": "Nguyễn Mai Phương",
-      "taiKhoan": "letan@clinic-ai.vn",
-      "dienThoai": "0966554433",
+      "hoTen": "Nhân Sự Y Tế Mẫu 5 [DEMO]",
+      "taiKhoan": "staff05.demo@clinic-ai.test",
+      "dienThoai": "0000000015",
       "vaiTro": "Lễ tân - Tiếp đón",
       "khoaPhong": "Quầy Tiếp đón Tầng 1",
       "chuyenKhoa": "Hành chính - Tiếp đón",
@@ -2370,7 +2412,9 @@
       "ngayCapCCHN": "",
       "ngayHetHanCCHN": "",
       "trangThaiCCHN": "ACTIVE",
-      "trangThai": true
+      "trangThai": true,
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "permissionModules": [
@@ -2702,7 +2746,10 @@
       "doiTuong": "Đơn thuốc DTQG-2026-000150 (BN0000150)",
       "mucDich": "Ký số đơn thuốc ngoại trú theo TT 26/2025/TT-BYT",
       "ip": "192.168.1.15",
-      "ketQua": "THÀNH CÔNG"
+      "ketQua": "THÀNH CÔNG",
+      "nguoiThucHien": "Quản Trị Viên [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "AUD-1002",
@@ -2713,7 +2760,10 @@
       "doiTuong": "DV008 - Chụp Xquang tim phổi thẳng (BN0000150)",
       "mucDich": "Trả kết quả và hình ảnh Cận lâm sàng",
       "ip": "192.168.1.28",
-      "ketQua": "THÀNH CÔNG"
+      "ketQua": "THÀNH CÔNG",
+      "nguoiThucHien": "Quản Trị Viên [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "AUD-1003",
@@ -2724,7 +2774,10 @@
       "doiTuong": "BS.CKI Phạm Quang Huy (003219/HNO-CCHN)",
       "mucDich": "Chặn phân công ca khám mới do CCHN quá hạn 31/12/2025",
       "ip": "127.0.0.1",
-      "ketQua": "ĐÃ CHẶN (403)"
+      "ketQua": "ĐÃ CHẶN (403)",
+      "nguoiThucHien": "Quản Trị Viên [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "AUD-1004",
@@ -2732,10 +2785,13 @@
       "nguoiDung": "Nguyễn Mai Phương",
       "vaiTro": "LE_TAN",
       "hanhDong": "CREATE_REGISTRATION",
-      "doiTuong": "Mã KCB 2209260003 (BN0000150 - Nguyễn Thị B)",
+      "doiTuong": "Mã KCB 2209260003 (BN0000150 - Bệnh Nhân Mẫu [SYNTHETIC])",
       "mucDich": "Tiếp đón bệnh nhân từ lịch hẹn LH260922001",
       "ip": "192.168.1.10",
-      "ketQua": "THÀNH CÔNG"
+      "ketQua": "THÀNH CÔNG",
+      "nguoiThucHien": "Quản Trị Viên [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "roleWorkbenches": {
@@ -2889,7 +2945,7 @@
       "maLH": "GDV261001",
       "maBN": "BN0000150",
       "tenBN": "Nguyễn Thị B",
-      "dienThoai": "0325351112",
+      "dienThoai": "0000000001",
       "tenGoi": "Gói khám Sức khỏe Tổng quát Cơ bản (Gói DV số 1)",
       "ngayTao": "2026-10-12 08:15",
       "ngayKham": "2026-10-12",
@@ -2898,14 +2954,17 @@
       "thanhTien": 495000,
       "trangThai": "Đang khám",
       "thanhToan": "Đã thu tiền",
-      "nhanVienXacNhan": "Nguyễn Mai Phương"
+      "nhanVienXacNhan": "Nguyễn Mai Phương",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "GDV-261012-02",
       "maLH": "GDV261002",
       "maBN": "BN0000148",
       "tenBN": "Phạm Thu Hương",
-      "dienThoai": "0936881920",
+      "dienThoai": "0000000001",
       "tenGoi": "Gói Tầm soát Tim mạch & Huyết áp Chuyên sâu",
       "ngayTao": "2026-10-12 09:00",
       "ngayKham": "2026-10-14",
@@ -2914,14 +2973,17 @@
       "thanhTien": 1125000,
       "trangThai": "Xác nhận",
       "thanhToan": "Chờ thanh toán",
-      "nhanVienXacNhan": "Nguyễn Mai Phương"
+      "nhanVienXacNhan": "Nguyễn Mai Phương",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "GDV-261011-03",
       "maLH": "GDV261003",
       "maBN": "BN0000144",
       "tenBN": "Đinh Công Minh",
-      "dienThoai": "0912445889",
+      "dienThoai": "0000000001",
       "tenGoi": "Gói Tầm soát Cơ xương khớp & Cột sống",
       "ngayTao": "2026-10-11 14:20",
       "ngayKham": "2026-10-11",
@@ -2930,7 +2992,10 @@
       "thanhTien": 850000,
       "trangThai": "Kết thúc khám",
       "thanhToan": "Đã thu tiền",
-      "nhanVienXacNhan": "Nguyễn Mai Phương"
+      "nhanVienXacNhan": "Nguyễn Mai Phương",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "treatmentCourses": [
@@ -2938,11 +3003,11 @@
       "id": "LT-2610-01",
       "maDangKy": "LT2610001",
       "maBN": "BN0000144",
-      "tenBN": "Đinh Công Minh",
-      "dienThoai": "0912445889",
+      "tenBN": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
+      "dienThoai": "0000000003",
       "tuoi": "31 tuổi",
       "tenLieuTrinh": "Liệu trình Phục hồi chức năng Cột sống thắt lưng (10 buổi)",
-      "bacSi": "BS.CKI Lê Thu Trang",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "ngayDangKy": "2026-10-10",
       "soBuoiDaTap": 3,
       "tongSoBuoi": 10,
@@ -2954,17 +3019,21 @@
       "thanhTien": 2500000,
       "thanhToan": "Đã thanh toán trọn gói",
       "trangThai": "Đang điều trị",
-      "baiTap": "Chiếu đèn hồng ngoại 15p + Điện xung giảm đau 20p + Kéo giãn cột sống thắt lưng"
+      "baiTap": "Chiếu đèn hồng ngoại 15p + Điện xung giảm đau 20p + Kéo giãn cột sống thắt lưng",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
+      "bacSiPhuTrach": "BS. Mẫu Khám [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "LT-2610-02",
       "maDangKy": "LT2610002",
       "maBN": "BN0000146",
-      "tenBN": "Vũ Thị Ngọc Ánh",
-      "dienThoai": "0978123990",
+      "tenBN": "Bệnh Nhân Mẫu 04 [SYNTHETIC]",
+      "dienThoai": "0000000004",
       "tuoi": "28 tuổi",
       "tenLieuTrinh": "Liệu trình Vật lý trị liệu Hội chứng Cổ Vai Gáy (7 buổi)",
-      "bacSi": "BS.CKI Lê Thu Trang",
+      "bacSi": "BS. Mẫu Khám [DEMO]",
       "ngayDangKy": "2026-10-08",
       "soBuoiDaTap": 5,
       "tongSoBuoi": 7,
@@ -2976,19 +3045,23 @@
       "thanhTien": 1750000,
       "thanhToan": "Đã tạm ứng 50%",
       "trangThai": "Đang điều trị",
-      "baiTap": "Siêu âm trị liệu vùng cơ thang + Xoa bóp bấm huyệt cổ vai gáy"
+      "baiTap": "Siêu âm trị liệu vùng cơ thang + Xoa bóp bấm huyệt cổ vai gáy",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
+      "bacSiPhuTrach": "BS. Mẫu Khám [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "corporateCheckups": [
     {
       "id": "DOAN-01",
       "maDoan": "00000024",
-      "tenDoan": "Công ty Cổ phần Công nghệ ThinkLabs",
+      "tenDoan": "Đoàn Khám Sức Khỏe Mẫu [DEMO]",
       "dotKham": "Khám sức khỏe định kỳ Quý IV - 2026",
-      "nguoiLienHe": "Bà Nguyễn Thị Loan (Trưởng phòng Nhân sự)",
-      "dienThoai": "0829680678",
-      "maSoThue": "0102455523",
-      "diaChi": "Khu Công nghệ cao Hòa Lạc, Hà Nội",
+      "nguoiLienHe": "Đại Diện Doanh Nghiệp Mẫu [DEMO]",
+      "dienThoai": "0000000005",
+      "maSoThue": "0000000001",
+      "diaChi": "Khu Vực Thử Nghiệm Doanh Nghiệp Mẫu [DEMO]",
       "soHopDong": "HĐ-KSK/2026/TL-024",
       "ngayHopDong": "2026-10-01",
       "soLuongNhanVien": 85,
@@ -2996,17 +3069,20 @@
       "tongTien": 68000000,
       "tamUng": 40000000,
       "chietKhau": 10,
-      "trangThai": "Đang triển khai khám"
+      "trangThai": "Đang triển khai khám",
+      "congTy": "Công Ty Thử Nghiệm Mẫu [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "DOAN-02",
       "maDoan": "00000015",
-      "tenDoan": "Công ty Cổ phần Sản xuất Hapico",
+      "tenDoan": "Đoàn Khám Sức Khỏe Mẫu [DEMO]",
       "dotKham": "Khám sức khỏe định kỳ Năm 2026 (Theo TT 32/2023/TT-BYT)",
-      "nguoiLienHe": "Ông Đinh Văn Dũng",
-      "dienThoai": "0934681101",
-      "maSoThue": "0108891234",
-      "diaChi": "49 Trần Điền, Định Công, Hoàng Mai, Hà Nội",
+      "nguoiLienHe": "Đại Diện Doanh Nghiệp Mẫu [DEMO]",
+      "dienThoai": "0000000006",
+      "maSoThue": "0000000002",
+      "diaChi": "Khu Vực Thử Nghiệm Doanh Nghiệp Mẫu [DEMO]",
       "soHopDong": "HĐ-KSK/2026/HPC-015",
       "ngayHopDong": "2026-09-20",
       "soLuongNhanVien": 120,
@@ -3014,7 +3090,10 @@
       "tongTien": 96000000,
       "tamUng": 96000000,
       "chietKhau": 12,
-      "trangThai": "Đã hoàn thành & Đồng bộ HSSK"
+      "trangThai": "Đã hoàn thành & Đồng bộ HSSK",
+      "congTy": "Công Ty Thử Nghiệm Mẫu [DEMO]",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "healthCheckupClassifications": [
@@ -3093,9 +3172,11 @@
       "maKCB": "2209260003",
       "benhNhan": "Nguyễn Thị B",
       "ngayLap": "2026-10-12 09:10",
-      "nguoiLap": "DS. Trần Minh Châu",
+      "nguoiLap": "Dược Sĩ Mẫu [DEMO]",
       "maLienThongDQG": "DQG-INV-9920184",
-      "trangThai": "Đã đồng bộ Dược QG"
+      "trangThai": "Đã đồng bộ Dược QG",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "DQG-SYNC-02",
@@ -3104,9 +3185,11 @@
       "maKCB": "N/A (Nhập kho nhà thuốc)",
       "benhNhan": "Công ty Dược phẩm TW1 (CPC1)",
       "ngayLap": "2026-10-10 15:20",
-      "nguoiLap": "DS. Trần Minh Châu",
+      "nguoiLap": "Dược Sĩ Mẫu [DEMO]",
       "maLienThongDQG": "DQG-IMP-8810293",
-      "trangThai": "Đã đồng bộ Dược QG"
+      "trangThai": "Đã đồng bộ Dược QG",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "DQG-SYNC-03",
@@ -3115,92 +3198,106 @@
       "maKCB": "Chốt tồn kho đầu tháng 10/2026",
       "benhNhan": "Kho Dược Phòng khám Clinic-AI",
       "ngayLap": "2026-10-01 07:30",
-      "nguoiLap": "BS.CKII Nguyễn Minh Hoàng",
+      "nguoiLap": "Dược Sĩ Mẫu [DEMO]",
       "maLienThongDQG": "DQG-INIT-7701920",
-      "trangThai": "Đã đồng bộ Dược QG"
+      "trangThai": "Đã đồng bộ Dược QG",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "nationalEhrSync": [
     {
       "id": "HSSK-01",
       "maKCB": "2610060003",
-      "benhNhan": "Vũ Đức Nhân",
+      "benhNhan": "Bệnh Nhân Mẫu 01 [SYNTHETIC]",
       "ngaySinh": "2003-03-02",
       "gioiTinh": "Nam",
-      "dienThoai": "0862356860",
+      "dienThoai": "0000000001",
       "mauKham": "Mẫu người từ 18 tuổi (TT 32/2023/TT-BYT)",
       "phanLoaiSucKhoe": "Loại I",
       "ngayKetLuan": "2026-10-12",
       "idempotencyKey": "HSSK-IDEM-2610060003-V1",
       "trangThai": "Đã đồng bộ HSSK",
-      "ngayDongBo": "2026-10-12 09:40"
+      "ngayDongBo": "2026-10-12 09:40",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "HSSK-02",
       "maKCB": "2610060002",
-      "benhNhan": "Quang Tùng",
+      "benhNhan": "Bệnh Nhân Mẫu 02 [SYNTHETIC]",
       "ngaySinh": "2020-09-03",
       "gioiTinh": "Nam",
-      "dienThoai": "0942512227",
+      "dienThoai": "0000000002",
       "mauKham": "Mẫu người từ 06 đến dưới 18 tuổi",
       "phanLoaiSucKhoe": "Loại II",
       "ngayKetLuan": "2026-10-12",
       "idempotencyKey": "HSSK-IDEM-2610060002-V1",
       "trangThai": "Chưa đồng bộ",
-      "ngayDongBo": "Chờ gửi cổng"
+      "ngayDongBo": "Chờ gửi cổng",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "HSSK-03",
       "maKCB": "2209260003",
-      "benhNhan": "Nguyễn Thị B",
+      "benhNhan": "Bệnh Nhân Mẫu 03 [SYNTHETIC]",
       "ngaySinh": "1988-05-12",
       "gioiTinh": "Nữ",
-      "dienThoai": "0325351112",
+      "dienThoai": "0000000003",
       "mauKham": "Mẫu người từ 18 tuổi (TT 32/2023/TT-BYT)",
       "phanLoaiSucKhoe": "Loại II",
       "ngayKetLuan": "2026-10-12",
       "idempotencyKey": "HSSK-IDEM-2209260003-V1",
       "trangThai": "Đã đồng bộ HSSK",
-      "ngayDongBo": "2026-10-12 09:15"
+      "ngayDongBo": "2026-10-12 09:15",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ],
   "clinicSettings": {
-    "tenPhongKham": "Phòng Khám Đa Khoa Quốc Tế Clinic-AI (Mô hình chuẩn tClinic)",
-    "maCoSoKCB": "01-08924",
-    "giayPhepHoatDong": "Số 1428/HNO-GPHĐ (Cấp ngày 10/01/2023)",
-    "dienThoai": "1900 2115",
-    "email": "cskh@clinic-ai.vn",
-    "diaChi": "Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
+    "tenPhongKham": "Phòng Khám Đa Khoa Mẫu Clinic-AI [DEMO]",
+    "maCoSoKCB": "00-00000",
+    "giayPhepHoatDong": "Số 0000/DEMO-GPHĐ",
+    "dienThoai": "0000000000",
+    "email": "contact@clinic-ai.test",
+    "diaChi": "Khu vực Thử nghiệm Phòng khám, Phòng Demo",
     "heThong": {
       "batBuocICD10": true,
       "thuTienTruocCLS": true,
       "tuDongKhoaSoSauGio": "23:00 (Sau 1 ngày)"
     },
     "congLienThong": {
-      "donThuocQuocGiaUrl": "https://donthuocquocgia.vn/api/v1",
-      "maLienThongCoSo": "LT_0108924_CLINICAI",
-      "hoaDonDienTu": "MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)",
-      "chuKySo": "VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)"
-    }
+      "donThuocQuocGiaUrl": "https://donthuocquocgia.test/api/v1",
+      "maLienThongCoSo": "LT_DEMO_000000",
+      "hoaDonDienTu": "DEMO meInvoice (MST: 0000000000)",
+      "chuKySo": "DEMO SmartCA HSM"
+    },
+    "is_synthetic": true,
+    "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
   },
   "systemNotifications": [
     {
       "id": "notif-01",
       "type": "exam",
       "title": "Bệnh nhân mới tiếp đón",
-      "content": "BN Nguyễn Thị B (Mã KCB: 2209260003) đang chờ khám tại Phòng khám Nội 1.",
+      "content": "BN Bệnh Nhân Mẫu [SYNTHETIC] (Mã KCB: 2209260003) đang chờ khám tại Phòng khám Nội 1.",
       "time": "5 phút trước",
       "unread": true,
-      "link": "/admin/kham-benh"
+      "link": "/admin/kham-benh",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "notif-02",
       "type": "cls",
       "title": "Kết quả Cận lâm sàng sẵn sàng",
-      "content": "Chụp X-Quang tim phổi thẳng của BN Đinh Công Minh đã có kết quả và hình ảnh.",
+      "content": "Chụp X-Quang tim phổi thẳng của BN Bệnh Nhân Mẫu [SYNTHETIC] đã có kết quả và hình ảnh.",
       "time": "12 phút trước",
       "unread": true,
-      "link": "/admin/can-lam-sang"
+      "link": "/admin/can-lam-sang",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "notif-03",
@@ -3209,16 +3306,20 @@
       "content": "Đơn thuốc ĐTQG-2026-000150 đã được Cổng Đơn thuốc Quốc gia xác nhận (Receipt: REC-77491).",
       "time": "25 phút trước",
       "unread": true,
-      "link": "/admin/tuan-thu?tab=DON_THUOC"
+      "link": "/admin/tuan-thu?tab=DON_THUOC",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     },
     {
       "id": "notif-04",
       "type": "cashier",
       "title": "Phiếu thu viện phí mới",
-      "content": "Thu ngân đã thu 495.000 đ cho Gói khám Sức khỏe tổng quát cơ bản (BN Nguyễn Thị B).",
+      "content": "Thu ngân đã thu 495.000 đ cho Gói khám Sức khỏe tổng quát cơ bản (BN Bệnh Nhân Mẫu [SYNTHETIC]).",
       "time": "40 phút trước",
       "unread": false,
-      "link": "/admin/thu-chi"
+      "link": "/admin/thu-chi",
+      "is_synthetic": true,
+      "data_classification": "SYNTHETIC_TEST_FIXTURE_DO_NOT_DEPLOY_TO_PRODUCTION"
     }
   ]
 }

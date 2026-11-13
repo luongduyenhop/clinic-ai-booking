@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -12,111 +11,8 @@ import {
     ShieldCheck,
     Stethoscope,
     IdentificationCard,
-    Microscope,
-    Receipt,
+    LockKey,
 } from '../../components/common/ClinicIcon'
-
-const STAFF_ACCOUNTS = [
-    {
-        roleKey: 'ADMIN',
-        role: 'ADMIN',
-        label: 'Quản trị viên (Admin)',
-        desc: 'Ban điều hành, phân quyền, danh mục',
-        creds: { email: 'admin@clinic.com', mat_khau: 'Admin@123456' },
-        profile: {
-            id: 'USER_ADMIN_01',
-            fullName: 'Quản Trị Viên Hệ Thống',
-            shortName: 'Admin',
-            role: 'ADMIN',
-            email: 'admin@clinic.com',
-            department: 'Ban Giám Đốc',
-        },
-        defaultPath: '/admin',
-        color: 'from-amber-500 to-amber-700',
-        badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
-        icon: ShieldCheck,
-    },
-    {
-        roleKey: 'DOCTOR',
-        role: 'BAC_SI',
-        label: 'Bác sĩ Khám bệnh (Khoa Nội tổng quát)',
-        desc: 'PGS.TS Phạm Đức Minh · Phòng 101 Nội tổng quát',
-        creds: { email: 'minh.doctor@clinic.com', mat_khau: 'Doctor@123456' },
-        profile: {
-            id: 'USER_DOC_01',
-            fullName: 'PGS.TS Phạm Đức Minh',
-            shortName: 'BS. Minh',
-            role: 'BAC_SI',
-            email: 'minh.doctor@clinic.com',
-            department: 'Khoa Nội tổng quát',
-            specialty: 'Khoa Nội tổng quát',
-            chuyen_khoa_ma: 'KHOA_NOI',
-            room: 'Phòng 101',
-            cchn: '001234/BYT-CCHN',
-        },
-        defaultPath: '/doctor',
-        color: 'from-sky-500 to-sky-700',
-        badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
-        icon: Stethoscope,
-    },
-    {
-        roleKey: 'RECEPTIONIST',
-        role: 'LE_TAN',
-        label: 'Lễ tân – Thu ngân',
-        desc: 'Nguyễn Thị Thu Cúc · Tiếp đón, Điều phối Hàng đợi & Thu viện phí VietQR',
-        creds: { email: 'letan@clinic.com', mat_khau: 'LeTan@123456' },
-        profile: {
-            id: 'USER_RECEPTION_01',
-            fullName: 'Nguyễn Thị Thu Cúc',
-            shortName: 'Lễ tân – Thu ngân Cúc',
-            role: 'LE_TAN',
-            email: 'letan@clinic.com',
-            department: 'Quầy Tiếp Đón & Thu Ngân Viện Phí',
-        },
-        defaultPath: '/reception/dashboard',
-        color: 'from-teal-500 to-emerald-700',
-        badgeBg: 'bg-teal-100 text-teal-800 border-teal-200',
-        icon: IdentificationCard,
-    },
-    {
-        roleKey: 'LAB_TECH',
-        role: 'KY_THUAT_VIEN',
-        label: 'KTV Cận lâm sàng & Xét nghiệm LIS',
-        desc: 'CN. Hoàng Thị Yến · Phòng Lab Huyết học & Chẩn đoán hình ảnh',
-        creds: { email: 'ktv@clinic.com', mat_khau: 'Ktv@123456' },
-        profile: {
-            id: 'USER_LAB_01',
-            fullName: 'CN. Hoàng Thị Yến',
-            shortName: 'KTV. Yến LIS',
-            role: 'KY_THUAT_VIEN',
-            email: 'ktv@clinic.com',
-            department: 'Khoa Xét Nghiệm & Cận Lâm Sàng',
-        },
-        defaultPath: '/staff/paraclinical-work?nhom=XET_NGHIEM',
-        color: 'from-indigo-500 to-indigo-700',
-        badgeBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        icon: Microscope,
-    },
-    {
-        roleKey: 'CASHIER',
-        role: 'ADMIN',
-        label: 'Thu ngân – Viện phí VietQR',
-        desc: 'Lê Thị Mai · Bảng kê viện phí, phát hành VietQR Napas 247 & gạch nợ',
-        creds: { email: 'thungan@clinic.com', mat_khau: 'Cashier@2026' },
-        profile: {
-            id: 'USER_CASHIER_01',
-            fullName: 'Thu Ngân Lê Thị Mai',
-            shortName: 'Thu Ngân Mai',
-            role: 'ADMIN',
-            email: 'thungan@clinic.com',
-            department: 'Quầy Thu Ngân Viện Phí',
-        },
-        defaultPath: '/admin/thu-ngan-vietqr',
-        color: 'from-amber-600 to-yellow-700',
-        badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
-        icon: Receipt,
-    },
-]
 
 const clearStaleSessionStorage = () => {
     try {
@@ -133,40 +29,6 @@ export default function StaffLoginPage() {
     const navigate = useNavigate()
     const location = useLocation()
     const dispatch = useDispatch()
-    const [submittingRole, setSubmittingRole] = useState(null)
-
-    const handleQuickStaffLogin = async (staffConfig) => {
-        setSubmittingRole(staffConfig.roleKey)
-        try {
-            const res = await authService.login(staffConfig.creds)
-            const data = res?.data?.data || res?.data || {}
-            const accessToken = data.access_token || data.accessToken
-            const refreshToken = data.refresh_token || data.refreshToken
-            if (!accessToken) {
-                throw new Error('Máy chủ không trả về mã xác thực phiên')
-            }
-            const userProfile = { ...staffConfig.profile, ...(data.user || {}), role: staffConfig.role }
-
-            clearStaleSessionStorage()
-
-            dispatch(
-                setAuth({
-                    accessToken,
-                    refreshToken,
-                    role: staffConfig.role,
-                    user: userProfile,
-                })
-            )
-
-            AppToast.success(`Đăng nhập thành công với vai trò: ${staffConfig.label}!`)
-            const targetPath = location.state?.from?.pathname || staffConfig.defaultPath
-            navigate(targetPath, { replace: true })
-        } catch (err) {
-            AppToast.error(err?.response?.data?.message || err?.message || 'Đăng nhập ca trực thất bại')
-        } finally {
-            setSubmittingRole(null)
-        }
-    }
 
     const formik = useFormik({
         initialValues: { email: '', password: '' },
@@ -265,7 +127,7 @@ export default function StaffLoginPage() {
                             <input
                                 type="email"
                                 name="email"
-                                placeholder="minh.doctor@clinic.com hoặc letan@clinic.com"
+                                placeholder="bacsi@clinic-ai.vn hoặc canboyte@clinic-ai.vn"
                                 value={formik.values.email}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -326,61 +188,52 @@ export default function StaffLoginPage() {
                 <div className="lg:col-span-7 space-y-4">
                     <div className="border-b border-white/10 pb-3">
                         <span className="text-xs font-bold text-[#00B5F1] uppercase tracking-wider block">
-                            Truy cập nhanh theo phân hệ
+                            Hệ thống Phân quyền HIS
                         </span>
                         <h2 className="text-xl font-display font-extrabold text-white mt-1">
-                            Chọn Ca Trực Chuyên Môn Để Đăng Nhập Ngay
+                            Tiêu Chuẩn Xác Thực Nghiệp Vụ Y Tế
                         </h2>
                         <p className="text-xs text-sky-200/70 mt-1">
-                            Bấm vào vai trò của bạn để tự động nạp thông tin xác thực và chuyển thẳng đến không gian làm
-                            việc:
+                            Truy cập phân hệ dựa trên định danh cá nhân và chứng chỉ hành nghề đã được kiểm duyệt:
                         </p>
                     </div>
 
-                    <div className="grid gap-2.5">
-                        {STAFF_ACCOUNTS.map((staff) => {
-                            const IconComponent = staff.icon
-                            const isCurrent = submittingRole === staff.roleKey
-                            return (
-                                <button
-                                    key={staff.roleKey}
-                                    type="button"
-                                    onClick={() => handleQuickStaffLogin(staff)}
-                                    disabled={Boolean(submittingRole)}
-                                    className="w-full text-left p-3.5 rounded-2xl bg-[#00263C] hover:bg-[#003553] border border-white/10 hover:border-[#00B5F1]/50 transition duration-150 flex items-center justify-between gap-4 group cursor-pointer disabled:opacity-50"
-                                >
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div
-                                            className={`w-11 h-11 rounded-xl bg-gradient-to-br ${staff.color} text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform`}
-                                        >
-                                            <IconComponent size={22} weight="bold" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="text-sm font-bold text-white group-hover:text-[#00B5F1] transition">
-                                                    {staff.label}
-                                                </h3>
-                                                <span
-                                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${staff.badgeBg}`}
-                                                >
-                                                    {staff.role}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-sky-200/60 truncate mt-0.5">{staff.desc}</p>
-                                        </div>
-                                    </div>
+                    <div className="grid gap-3">
+                        <div className="p-4 rounded-2xl bg-[#00263C] border border-white/10 flex items-start gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-[#00B5F1] flex items-center justify-center shrink-0">
+                                <Stethoscope size={20} weight="bold" />
+                            </div>
+                            <div className="text-xs">
+                                <h3 className="font-bold text-white text-sm">Phân hệ Lâm sàng & Bác sĩ</h3>
+                                <p className="text-sky-200/70 mt-0.5 leading-relaxed">
+                                    Thực hiện chẩn đoán, kê đơn thuốc điện tử liên thông Cổng Quốc gia và chỉ định cận lâm sàng.
+                                </p>
+                            </div>
+                        </div>
 
-                                    <div className="text-right shrink-0">
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-[#00B5F1] group-hover:translate-x-1 transition-transform">
-                                            {isCurrent ? 'Đang vào...' : 'Vào ca →'}
-                                        </span>
-                                        <span className="block text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {staff.creds.email}
-                                        </span>
-                                    </div>
-                                </button>
-                            )
-                        })}
+                        <div className="p-4 rounded-2xl bg-[#00263C] border border-white/10 flex items-start gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
+                                <IdentificationCard size={20} weight="bold" />
+                            </div>
+                            <div className="text-xs">
+                                <h3 className="font-bold text-white text-sm">Tiếp đón, Điều phối & Viện phí</h3>
+                                <p className="text-sky-200/70 mt-0.5 leading-relaxed">
+                                    Tiếp nhận người bệnh, điều phối hàng đợi thông minh và xử lý thanh toán viện phí VietQR Napas 247.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-[#00263C] border border-white/10 flex items-start gap-3.5">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                                <LockKey size={20} weight="bold" />
+                            </div>
+                            <div className="text-xs">
+                                <h3 className="font-bold text-white text-sm">Bảo vệ Dữ liệu Bệnh án Điện tử</h3>
+                                <p className="text-sky-200/70 mt-0.5 leading-relaxed">
+                                    Mọi hành động truy xuất và chỉnh sửa hồ sơ bệnh án được kiểm toán tự động theo tiêu chuẩn an ninh y tế.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs text-slate-300">

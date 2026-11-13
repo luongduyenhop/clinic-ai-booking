@@ -1,6 +1,6 @@
 import asyncio
 from datetime import date, datetime, time, timedelta, timezone
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, Base
 from app.core.security import hash_password
@@ -181,15 +181,20 @@ async def _execute_seeding(session):
     is_dev_or_test = settings.ENVIRONMENT.lower() in ("development", "test", "local") or settings.DEBUG
 
     if is_dev_or_test:
+        demo_pwd = settings.INITIAL_ADMIN_PASSWORD
         system_staff = [
-            ("Quản Trị Viên Hệ Thống", "admin@clinic.com", "0988000001", "Admin@123456", VaiTroEnum.ADMIN.value),
-            ("BS.CKII Nguyễn Minh Hoàng (Admin)", "admin@clinic-ai.vn", "0988999001", "password123", VaiTroEnum.ADMIN.value),
-            ("Điều Dưỡng Lê Tân", "letan@clinic.com", "0988000002", "LeTan@123456", VaiTroEnum.LE_TAN.value),
-            ("Kỹ Thuật Viên Xét Nghiệm & CĐHA", "ktv@clinic.com", "0988000003", "Ktv@123456", VaiTroEnum.KY_THUAT_VIEN.value),
-            ("Thu Ngân Viện Phí", "thungan@clinic.com", "0988000004", "ThuNgan@123456", VaiTroEnum.THU_NGAN.value),
+            ("Quản Trị Viên [DEMO]", "admin.demo@clinic-ai.test", "0000000001", VaiTroEnum.ADMIN.value),
+            ("Điều Dưỡng Lễ Tân [DEMO]", "letan.demo@clinic-ai.test", "0000000002", VaiTroEnum.LE_TAN.value),
+            ("Kỹ Thuật Viên [DEMO]", "ktv.demo@clinic-ai.test", "0000000003", VaiTroEnum.KY_THUAT_VIEN.value),
+            ("Thu Ngân Viện Phí [DEMO]", "thungan.demo@clinic-ai.test", "0000000004", VaiTroEnum.THU_NGAN.value),
         ]
-        for name, email, phone, pwd, role in system_staff:
-            stmt_user = select(NguoiDung).where(NguoiDung.email == email)
+        for name, email, phone, role in system_staff:
+            stmt_user = select(NguoiDung).where(
+                or_(
+                    NguoiDung.email == email,
+                    NguoiDung.email == email.replace("@clinic-ai.test", "@clinic.com"),
+                )
+            )
             user = (await session.execute(stmt_user)).scalar_one_or_none()
             if not user:
                 user = NguoiDung(
@@ -201,30 +206,41 @@ async def _execute_seeding(session):
                 )
                 session.add(user)
                 await session.flush()
+            else:
+                user.email = email
+                user.ho_ten = name
+                user.so_dien_thoai = phone
 
-            stmt_account = select(TaiKhoan).where(TaiKhoan.email == email)
+            stmt_account = select(TaiKhoan).where(
+                or_(
+                    TaiKhoan.email == email,
+                    TaiKhoan.email == email.replace("@clinic-ai.test", "@clinic.com"),
+                )
+            )
             account = (await session.execute(stmt_account)).scalar_one_or_none()
-            if not account:
+            if not account and demo_pwd:
                 account = TaiKhoan(
                     nguoi_dung_id=user.id,
                     email=email,
-                    mat_khau_hash=hash_password(pwd),
+                    mat_khau_hash=hash_password(demo_pwd),
                     vai_tro=role,
                     is_active=True,
                 )
                 session.add(account)
+            elif account:
+                account.email = email
     else:
         stmt_admin_check = select(TaiKhoan).where(TaiKhoan.vai_tro == VaiTroEnum.ADMIN.value)
         has_admin = (await session.execute(stmt_admin_check)).first() is not None
         if not has_admin and settings.INITIAL_ADMIN_PASSWORD:
-            admin_email = settings.INITIAL_ADMIN_EMAIL or "admin@clinic.com"
+            admin_email = settings.INITIAL_ADMIN_EMAIL or "admin.demo@clinic-ai.test"
             stmt_user = select(NguoiDung).where(NguoiDung.email == admin_email)
             user = (await session.execute(stmt_user)).scalar_one_or_none()
             if not user:
                 user = NguoiDung(
-                    ho_ten="Quản Trị Viên Hệ Thống",
+                    ho_ten="Quản Trị Viên Hệ Thống [DEMO]",
                     email=admin_email,
-                    so_dien_thoai="0988000001",
+                    so_dien_thoai="0000000001",
                     ngay_sinh=date(1990, 1, 1),
                     gioi_tinh="Nam",
                 )
@@ -243,7 +259,12 @@ async def _execute_seeding(session):
     created_doctors = []
     if is_dev_or_test:
         for doc in DOCTORS_DATA:
-            stmt_user = select(NguoiDung).where(NguoiDung.email == doc["email"])
+            stmt_user = select(NguoiDung).where(
+                or_(
+                    NguoiDung.email == doc["email"],
+                    NguoiDung.email == doc["email"].replace("@clinic-ai.test", "@clinic.com"),
+                )
+            )
             user = (await session.execute(stmt_user)).scalar_one_or_none()
             if not user:
                 user = NguoiDung(
@@ -256,18 +277,29 @@ async def _execute_seeding(session):
                 )
                 session.add(user)
                 await session.flush()
+            else:
+                user.email = doc["email"]
+                user.ho_ten = doc["ho_ten"]
+                user.so_dien_thoai = doc["sdt"]
 
-            stmt_account = select(TaiKhoan).where(TaiKhoan.email == doc["email"])
+            stmt_account = select(TaiKhoan).where(
+                or_(
+                    TaiKhoan.email == doc["email"],
+                    TaiKhoan.email == doc["email"].replace("@clinic-ai.test", "@clinic.com"),
+                )
+            )
             account = (await session.execute(stmt_account)).scalar_one_or_none()
-            if not account:
+            if not account and demo_pwd:
                 account = TaiKhoan(
                     nguoi_dung_id=user.id,
                     email=doc["email"],
-                    mat_khau_hash=hash_password("Doctor@123456"),
+                    mat_khau_hash=hash_password(demo_pwd),
                     vai_tro=VaiTroEnum.BAC_SI.value,
                     is_active=True,
                 )
                 session.add(account)
+            elif account:
+                account.email = doc["email"]
 
             dept_id = dept_map.get(doc["dept_ma"])
             room_id = room_map.get(doc["room_ma"])
@@ -309,23 +341,36 @@ async def _execute_seeding(session):
             )
             morning_shift = (await session.execute(stmt_morning)).scalar_one_or_none()
             if morning_shift:
-                if morning_shift.phong_kham_id is None:
-                    morning_shift.phong_kham_id = doctor.phong_kham_id
-            else:
-                session.add(
-                    LichLamViec(
-                        bac_si_id=doctor.id,
-                        phong_kham_id=doctor.phong_kham_id,
-                        ngay_lam_viec=work_date,
-                        ca_lam_viec=CaLamViecEnum.SANG.value,
-                        gio_bat_dau=time(7, 30),
-                        gio_ket_thuc=time(11, 30),
-                        gioi_han_ca_kham=8,
-                        han_muc_dat_truoc=6,
-                        han_muc_vang_lai=2,
-                        is_active=True,
+                if morning_shift.phong_kham_id is None and doctor.phong_kham_id is not None:
+                    stmt_room_taken = select(LichLamViec.id).where(
+                        LichLamViec.phong_kham_id == doctor.phong_kham_id,
+                        LichLamViec.ngay_lam_viec == work_date,
+                        LichLamViec.ca_lam_viec == CaLamViecEnum.SANG.value,
+                        LichLamViec.id != morning_shift.id,
                     )
+                    if not (await session.execute(stmt_room_taken)).first():
+                        morning_shift.phong_kham_id = doctor.phong_kham_id
+            else:
+                stmt_room_taken = select(LichLamViec.id).where(
+                    LichLamViec.phong_kham_id == doctor.phong_kham_id,
+                    LichLamViec.ngay_lam_viec == work_date,
+                    LichLamViec.ca_lam_viec == CaLamViecEnum.SANG.value,
                 )
+                if not (await session.execute(stmt_room_taken)).first():
+                    session.add(
+                        LichLamViec(
+                            bac_si_id=doctor.id,
+                            phong_kham_id=doctor.phong_kham_id,
+                            ngay_lam_viec=work_date,
+                            ca_lam_viec=CaLamViecEnum.SANG.value,
+                            gio_bat_dau=time(7, 30),
+                            gio_ket_thuc=time(11, 30),
+                            gioi_han_ca_kham=8,
+                            han_muc_dat_truoc=6,
+                            han_muc_vang_lai=2,
+                            is_active=True,
+                        )
+                    )
 
             stmt_afternoon = select(LichLamViec).where(
                 LichLamViec.bac_si_id == doctor.id,
@@ -334,55 +379,91 @@ async def _execute_seeding(session):
             )
             afternoon_shift = (await session.execute(stmt_afternoon)).scalar_one_or_none()
             if afternoon_shift:
-                if afternoon_shift.phong_kham_id is None:
-                    afternoon_shift.phong_kham_id = doctor.phong_kham_id
-            else:
-                session.add(
-                    LichLamViec(
-                        bac_si_id=doctor.id,
-                        phong_kham_id=doctor.phong_kham_id,
-                        ngay_lam_viec=work_date,
-                        ca_lam_viec=CaLamViecEnum.CHIEU.value,
-                        gio_bat_dau=time(13, 30),
-                        gio_ket_thuc=time(17, 0),
-                        gioi_han_ca_kham=7,
-                        han_muc_dat_truoc=5,
-                        han_muc_vang_lai=2,
-                        is_active=True,
+                if afternoon_shift.phong_kham_id is None and doctor.phong_kham_id is not None:
+                    stmt_room_taken = select(LichLamViec.id).where(
+                        LichLamViec.phong_kham_id == doctor.phong_kham_id,
+                        LichLamViec.ngay_lam_viec == work_date,
+                        LichLamViec.ca_lam_viec == CaLamViecEnum.CHIEU.value,
+                        LichLamViec.id != afternoon_shift.id,
                     )
+                    if not (await session.execute(stmt_room_taken)).first():
+                        afternoon_shift.phong_kham_id = doctor.phong_kham_id
+            else:
+                stmt_room_taken = select(LichLamViec.id).where(
+                    LichLamViec.phong_kham_id == doctor.phong_kham_id,
+                    LichLamViec.ngay_lam_viec == work_date,
+                    LichLamViec.ca_lam_viec == CaLamViecEnum.CHIEU.value,
                 )
+                if not (await session.execute(stmt_room_taken)).first():
+                    session.add(
+                        LichLamViec(
+                            bac_si_id=doctor.id,
+                            phong_kham_id=doctor.phong_kham_id,
+                            ngay_lam_viec=work_date,
+                            ca_lam_viec=CaLamViecEnum.CHIEU.value,
+                            gio_bat_dau=time(13, 30),
+                            gio_ket_thuc=time(17, 0),
+                            gioi_han_ca_kham=7,
+                            han_muc_dat_truoc=5,
+                            han_muc_vang_lai=2,
+                            is_active=True,
+                        )
+                    )
 
     if is_dev_or_test:
-        patient_email = "patient@test.com"
-        stmt_pt_user = select(NguoiDung).where(NguoiDung.email == patient_email)
+        patient_email = "patient01@clinic-ai.test"
+        stmt_pt_user = select(NguoiDung).where(
+            or_(
+                NguoiDung.email == patient_email,
+                NguoiDung.email == "patient@test.com",
+            )
+        )
         patient_user = (await session.execute(stmt_pt_user)).scalar_one_or_none()
         if not patient_user:
             patient_user = NguoiDung(
-                ho_ten="Nguyễn Thị Bệnh Nhân",
+                ho_ten="Bệnh Nhân Mẫu 01 [SYNTHETIC]",
                 email=patient_email,
-                so_dien_thoai="0912345678",
+                so_dien_thoai="0000000005",
                 ngay_sinh=date(1998, 10, 15),
                 gioi_tinh="Nữ",
-                dia_chi="Cầu Giấy, Hà Nội",
+                dia_chi="Khu vực Thử nghiệm Phòng khám, Phòng Demo",
             )
             session.add(patient_user)
             await session.flush()
+        else:
+            patient_user.email = patient_email
+            patient_user.ho_ten = "Bệnh Nhân Mẫu 01 [SYNTHETIC]"
+            patient_user.so_dien_thoai = "0000000005"
 
-        stmt_pt_account = select(TaiKhoan).where(TaiKhoan.email == patient_email)
+        stmt_pt_account = select(TaiKhoan).where(
+            or_(
+                TaiKhoan.email == patient_email,
+                TaiKhoan.email == "patient@test.com",
+            )
+        )
         patient_account = (await session.execute(stmt_pt_account)).scalar_one_or_none()
-        if not patient_account:
+        if not patient_account and demo_pwd:
             patient_account = TaiKhoan(
                 nguoi_dung_id=patient_user.id,
                 email=patient_email,
-                mat_khau_hash=hash_password("Patient@123456"),
+                mat_khau_hash=hash_password(demo_pwd),
                 vai_tro=VaiTroEnum.BENH_NHAN.value,
                 is_active=True,
             )
             session.add(patient_account)
+        elif patient_account:
+            patient_account.email = patient_email
 
-        stmt_patient = select(BenhNhan).where(BenhNhan.nguoi_dung_id == patient_user.id)
+        stmt_patient = select(BenhNhan).where(
+            or_(
+                BenhNhan.nguoi_dung_id == patient_user.id,
+                BenhNhan.ma_dinh_danh_y_te == "BN-2026-0001",
+            )
+        )
         patient_profile = (await session.execute(stmt_patient)).scalar_one_or_none()
-        if not patient_profile:
+        if patient_profile:
+            patient_profile.nguoi_dung_id = patient_user.id
+        else:
             patient_profile = BenhNhan(
                 nguoi_dung_id=patient_user.id,
                 ma_dinh_danh_y_te="BN-2026-0001",
@@ -473,7 +554,16 @@ async def _execute_seeding(session):
     await session.flush()
 
 
-async def seed_database(session=None):
+async def seed_database(session=None, confirm_seed_demo=False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
     if session is not None:
         await _execute_seeding(session)
         return
@@ -487,4 +577,6 @@ async def seed_database(session=None):
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_database())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed_database(confirm_seed_demo=confirmed))

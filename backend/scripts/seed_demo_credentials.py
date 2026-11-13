@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.models.production_models import (
@@ -21,44 +22,53 @@ from app.models.production_models import (
 from app.models.user import BacSi, NguoiDung, TaiKhoan, VaiTroEnum
 
 
-async def seed():
+async def seed(confirm_seed_demo: bool = False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
+    demo_pwd = settings.INITIAL_ADMIN_PASSWORD
     async with AsyncSessionLocal() as session:
         accounts = [
-            ("admin@clinic.com", "Admin@123456", "Quản Trị Viên", VaiTroEnum.ADMIN.value, "ADMIN"),
-            ("doctor@clinic.com", "Doctor@2026", "BS. Nguyễn Văn An", VaiTroEnum.BAC_SI.value, "DOCTOR"),
-            ("thungan@clinic.com", "Cashier@2026", "Thu Ngân Lê Thị Mai", VaiTroEnum.THU_NGAN.value, "CASHIER"),
-            ("tiepdon@clinic.com", "Reception@2026", "Tiếp Đón Hoàng Lan", VaiTroEnum.LE_TAN.value, "RECEPTIONIST"),
+            ("admin.demo@clinic-ai.test", "Quản Trị Viên [DEMO]", VaiTroEnum.ADMIN.value, "ADMIN"),
+            ("doctor.demo@clinic-ai.test", "BS. Mẫu Khám [DEMO]", VaiTroEnum.BAC_SI.value, "DOCTOR"),
+            ("thungan.demo@clinic-ai.test", "Thu Ngân Viện Phí [DEMO]", VaiTroEnum.THU_NGAN.value, "CASHIER"),
+            ("tiepdon.demo@clinic-ai.test", "Tiếp Đón [DEMO]", VaiTroEnum.LE_TAN.value, "RECEPTIONIST"),
         ]
 
-        for email, pwd, full_name, role_legacy, role_prod in accounts:
+        for email, full_name, role_legacy, role_prod in accounts:
             stmt_tk = select(TaiKhoan).where(TaiKhoan.email == email)
             tk = (await session.execute(stmt_tk)).scalar_one_or_none()
-            hashed = hash_password(pwd)
+            hashed = hash_password(demo_pwd) if demo_pwd else None
             if not tk:
                 nd = NguoiDung(
                     ho_ten=full_name,
                     email=email,
-                    so_dien_thoai=f"0988{email[:5]}",
+                    so_dien_thoai="0000000001",
                     gioi_tinh="Nam",
                 )
                 session.add(nd)
                 await session.flush()
-                tk = TaiKhoan(
-                    nguoi_dung_id=nd.id,
-                    email=email,
-                    mat_khau_hash=hashed,
-                    vai_tro=role_legacy,
-                    is_active=True,
-                )
-                session.add(tk)
-                await session.flush()
-            else:
+                if hashed:
+                    tk = TaiKhoan(
+                        nguoi_dung_id=nd.id,
+                        email=email,
+                        mat_khau_hash=hashed,
+                        vai_tro=role_legacy,
+                        is_active=True,
+                    )
+                    session.add(tk)
+                    await session.flush()
+            elif hashed:
                 tk.mat_khau_hash = hashed
                 tk.is_active = True
 
             stmt_up = select(UserProduction).where(UserProduction.email == email)
             up = (await session.execute(stmt_up)).scalar_one_or_none()
-            if not up:
+            if not up and hashed:
                 up = UserProduction(
                     username=email.split("@")[0],
                     hashed_password=hashed,
@@ -154,22 +164,25 @@ async def seed():
         if not demo_p:
             demo_p = PatientProduction(
                 patient_code="BN-DEMO-2026",
-                cccd_number="001099008899",
-                full_name="NGUYỄN VĂN AN",
+                cccd_number="000000000001",
+                full_name="Bệnh Nhân Mẫu [SYNTHETIC]",
                 date_of_birth=date(1990, 5, 20),
                 gender="MALE",
-                phone_number="0912345678",
-                address="123 Phố Huế, Hoàn Kiếm, Hà Nội",
+                phone_number="0000000001",
+                address="Khu vực Thử nghiệm Demo",
             )
             session.add(demo_p)
             await session.flush()
 
-        stmt_dr = select(UserProduction).where(UserProduction.email == "doctor@clinic.com")
-        dr = (await session.execute(stmt_dr)).scalar_one()
+        stmt_dr = select(UserProduction).where(UserProduction.email == "doctor.demo@clinic-ai.test")
+        dr = (await session.execute(stmt_dr)).scalar_one_or_none()
+        if not dr:
+            stmt_dr_any = select(UserProduction).where(UserProduction.role == "DOCTOR")
+            dr = (await session.execute(stmt_dr_any)).scalars().first()
 
         stmt_enc = select(EncounterProduction).where(EncounterProduction.encounter_code == "ENC-DEMO-2026")
         demo_enc = (await session.execute(stmt_enc)).scalar_one_or_none()
-        if not demo_enc:
+        if not demo_enc and dr:
             demo_enc = EncounterProduction(
                 encounter_code="ENC-DEMO-2026",
                 patient_id=demo_p.id,
@@ -183,8 +196,9 @@ async def seed():
             await session.flush()
 
         await session.commit()
-        print("Demo database successfully initialized!")
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed(confirm_seed_demo=confirmed))

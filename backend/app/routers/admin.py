@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_permission
 from app.core.exceptions import ForbiddenException
@@ -1118,6 +1119,8 @@ async def reset_admin_demo_data(
     current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise ForbiddenException("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp hoặc khôi phục dữ liệu demo trên môi trường PRODUCTION!")
     data = await bff_admin_service.reset_demo_data(db)
     return ResponseEnvelope.success_response(
         data=data,

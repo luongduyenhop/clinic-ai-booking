@@ -29,7 +29,6 @@ function loadClinicStore() {
         localStorage.removeItem('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX')
         const raw = localStorage.getItem(STORAGE_KEY)
         if (!raw) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CLINIC_DATA))
             return structuredClone(INITIAL_CLINIC_DATA)
         }
         const parsed = JSON.parse(raw)
@@ -130,7 +129,7 @@ export class AdminService extends BaseServices {
             rooms.find((r) => r.chuyenKhoa?.toLowerCase().includes(keyword) || r.tenPhong?.toLowerCase().includes(keyword))
 
         let matchedRoom = findRoomByKeyword('nội') || rooms[0]
-        let chuyenKhoa = matchedRoom?.chuyenKhoa || defaults.defaultSpecialty
+        let chuyenKhoa = matchedRoom?.chuyenKhoa || defaults.defaultSpecialty || 'Nội tổng quát'
         let mucDoUuTien = 'Bình thường'
         let lyDoGoiY = 'Triệu chứng nội khoa tổng quát, phù hợp khám tầm soát ban đầu tại Chuyên khoa Nội.'
 
@@ -155,8 +154,8 @@ export class AdminService extends BaseServices {
         return {
             data: {
                 chuyenKhoa,
-                phongKham: matchedRoom?.tenPhong || defaults.defaultClinicRoom,
-                bacSi: matchedRoom?.bacSiPhuTrach || defaults.defaultDoctor,
+                phongKham: matchedRoom?.tenPhong || defaults.defaultClinicRoom || 'Phòng khám Nội',
+                bacSi: matchedRoom?.bacSiPhuTrach || defaults.defaultDoctor || 'Bác sĩ phụ trách',
                 mucDoUuTien,
                 lyDoGoiY,
             },

@@ -180,18 +180,18 @@ Docker sẽ tự động:
 
 ---
 
-## 🔑 TÀI KHOẢN MẪU ĐỂ ĐĂNG NHẬP & TEST NGAY (SEED DATA)
+## 🔑 TÀI KHOẢN MẪU (DEMO / DEVELOPMENT)
 
-Sau khi chạy `seed_data.py`, hệ thống tự động nạp sẵn các tài khoản thử nghiệm:
+Khi chạy nạp dữ liệu demo trên môi trường phát triển (`--confirm-seed-demo` kết hợp `ENABLE_DEMO_SEED=true`), mật khẩu khởi tạo được quản lý qua biến môi trường `INITIAL_ADMIN_PASSWORD` trong `.env`. Hệ thống không sử dụng bất kỳ mật khẩu mặc định cố định nào trong mã nguồn:
 
 | Vai trò (Role) | Email đăng nhập | Mật khẩu | Thông tin chi tiết |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (ADMIN)** | `admin@clinic.com` | `Admin@123456` | Toàn quyền quản trị hệ thống, danh mục khoa phòng |
-| **Bác sĩ (DOCTOR)** | `an.doctor@clinic.com` | `Doctor@123456` | BSCKI. Nguyễn Văn An (Khoa Tim mạch, phòng 201) |
-| **Bác sĩ (DOCTOR)** | `bich.doctor@clinic.com` | `Doctor@123456` | ThS.BS. Trần Thị Bích (Khoa Tiêu hóa, phòng 202) |
-| **Bệnh nhân (PATIENT)**| `patient@test.com` | `Patient@123456` | Nguyễn Thị Bệnh Nhân (Mã y tế: BN-2026-0001, O+) |
+| **Quản trị viên (ADMIN)** | `admin.demo@clinic-ai.test` | Theo `INITIAL_ADMIN_PASSWORD` | Quản trị hệ thống thử nghiệm [DEMO] |
+| **Bác sĩ (DOCTOR)** | `doctor.demo@clinic-ai.test` | Theo `INITIAL_ADMIN_PASSWORD` | Bác sĩ khám chữa bệnh thử nghiệm [DEMO] |
+| **Nhân viên thu ngân (CASHIER)** | `thungan.demo@clinic-ai.test` | Theo `INITIAL_ADMIN_PASSWORD` | Thu ngân viện phí thử nghiệm [DEMO] |
+| **Bệnh nhân (PATIENT)**| `patient01@clinic-ai.test` | Theo `INITIAL_ADMIN_PASSWORD` | Bệnh nhân mẫu tổng hợp [SYNTHETIC] |
 
-*Ngoài ra, hệ thống đã nạp sẵn **lịch làm việc 14 ngày tới** cho 4 bác sĩ mẫu và **1 ca khám mẫu hoàn chỉnh** gồm chẩn đoán ICD-10 và đơn thuốc.*
+*Toàn bộ dữ liệu mẫu đều là dữ liệu tổng hợp (`is_synthetic: true`), phục vụ mục đích kiểm thử và bị khóa hoàn toàn trên môi trường sản xuất.*
 
 ---
 

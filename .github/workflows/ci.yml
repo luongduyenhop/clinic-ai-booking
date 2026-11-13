@@ -15,13 +15,13 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: clinic_db
-          POSTGRES_USER: clinic_user
-          POSTGRES_PASSWORD: clinic_password
+          POSTGRES_DB: clinic_ci_test_db
+          POSTGRES_USER: clinic_ci_user
+          POSTGRES_PASSWORD: clinic_ci_test_password_2026
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U clinic_ci_user -d clinic_ci_test_db"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -51,13 +51,39 @@ jobs:
           python -m ruff check --fix .
           python -m ruff check .
 
-      - name: 5. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
+      - name: 5. Thực Thi Di Chuyển Lược Đồ CSDL Độc Lập (Alembic Migration Runner)
         working-directory: ./backend
         env:
           PYTHONPATH: .
-          DATABASE_URL: postgresql+asyncpg://clinic_user:clinic_password@localhost:5432/clinic_db
-          SECRET_KEY: test_secret_key_ci_pipeline_2026
-          DEBUG: "True"
+          DATABASE_URL: postgresql+asyncpg://clinic_ci_user:clinic_ci_test_password_2026@localhost:5432/clinic_ci_test_db
+          POSTGRES_SERVER: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: clinic_ci_user
+          POSTGRES_PASSWORD: clinic_ci_test_password_2026
+          POSTGRES_DB: clinic_ci_test_db
+          SECRET_KEY: test_secret_key_ci_pipeline_2026_at_least_32_chars
+          PAYMENT_WEBHOOK_SECRET: test_payment_webhook_secret_key_32bytes
+          ENVIRONMENT: test
+          DEBUG: "False"
+        run: |
+          python scripts/run_migrations.py --target-revision head
+          alembic upgrade head
+          alembic current
+
+      - name: 6. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
+        working-directory: ./backend
+        env:
+          PYTHONPATH: .
+          DATABASE_URL: postgresql+asyncpg://clinic_ci_user:clinic_ci_test_password_2026@localhost:5432/clinic_ci_test_db
+          POSTGRES_SERVER: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: clinic_ci_user
+          POSTGRES_PASSWORD: clinic_ci_test_password_2026
+          POSTGRES_DB: clinic_ci_test_db
+          SECRET_KEY: test_secret_key_ci_pipeline_2026_at_least_32_chars
+          PAYMENT_WEBHOOK_SECRET: test_payment_webhook_secret_key_32bytes
+          ENVIRONMENT: test
+          DEBUG: "False"
         run: |
           if [ -d tests ]; then
             python -m pytest tests -v
@@ -83,7 +109,17 @@ jobs:
         run: |
           npm ci
 
-      - name: 4. Kiểm tra Linter & Build Production (Vite)
+      - name: 4. Kiểm tra Linter Frontend (Oxlint)
+        working-directory: ./fe
+        run: |
+          npm run lint
+
+      - name: 5. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Node Test Runner)
+        working-directory: ./fe
+        run: |
+          npm test
+
+      - name: 6. Build Production (Vite)
         working-directory: ./fe
         env:
           VITE_API_URL: http://localhost:8000

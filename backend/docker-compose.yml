@@ -1,13 +1,12 @@
 services:
-  # 1. Database Tier: PostgreSQL 15
   db:
     image: postgres:15-alpine
     container_name: clinic_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: clinic_user
-      POSTGRES_PASSWORD: clinic_password
-      POSTGRES_DB: clinic_db
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_db}
     ports:
       - "5432:5432"
     volumes:
@@ -18,7 +17,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Application Tier: FastAPI Backend
   backend:
     build:
       context: .
@@ -29,14 +27,30 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://clinic_user:clinic_password@db:5432/clinic_db
-      - DEBUG=True
-      - SECRET_KEY=super_secret_clinic_jwt_key_project_1_change_in_production_2026
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - ENABLE_DEMO_SEED=${ENABLE_DEMO_SEED:-false}
+      - ENABLE_OUTBOUND_NOTIFICATIONS=${ENABLE_OUTBOUND_NOTIFICATIONS:-false}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-clinic_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-clinic_db}
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}
+      - CLS_UPLOAD_DIR=/app/uploads/cls
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     volumes:
       - .:/app
+      - cls_uploads:/app/uploads
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   postgres_data:
+    driver: local
+  cls_uploads:
+    driver: local

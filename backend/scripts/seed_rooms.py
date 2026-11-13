@@ -1,8 +1,16 @@
 import asyncio
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from sqlalchemy import text
 
-async def seed_rooms():
+async def seed_rooms(confirm_seed_demo: bool = False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
     async with AsyncSessionLocal() as s:
         # 1. Create table phong_kham if not exists
         await s.execute(text("""
@@ -73,4 +81,6 @@ async def seed_rooms():
             print(f" -> [{r[1]}] {r[2]} ({r[3]} - {r[4]})")
 
 if __name__ == "__main__":
-    asyncio.run(seed_rooms())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed_rooms(confirm_seed_demo=confirmed))

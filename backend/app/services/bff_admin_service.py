@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import ConflictException
 from app.models.appointment import HangDoiKham, LichKham, LichLamViec
 from app.models.bff_store import HeThongTrangThaiBff
@@ -267,8 +268,6 @@ class BffAdminService:
             "guideCategories": seed.get("guideCategories", []),
             "guides": seed.get("guides", []),
             "qaList": seed.get("qaList", []),
-            # Employee and doctor screens use relational records through dedicated
-            # endpoints. Never seed the old demo staff collection into bootstrap.
             "staffList": [],
             "roles": roles,
             "templates": seed.get("templates", []),
@@ -290,7 +289,27 @@ class BffAdminService:
         }
 
     async def get_bootstrap_data(self, db: AsyncSession) -> dict:
+        is_demo_mode = (
+            settings.ENVIRONMENT.lower() not in ("production", "prod")
+            and bool(settings.ENABLE_DEMO_SEED)
+        )
         data = self._load_clean_seed()
+
+        if not is_demo_mode:
+            data["patients"] = []
+            data["appointments"] = []
+            data["vouchers"] = []
+            data["registrations"] = []
+            data["paraclinicalTasks"] = []
+            data["corporateCheckups"] = []
+            data["treatmentCourses"] = []
+            data["servicePackageRegistrations"] = []
+            data["cashierClosings"] = []
+            data["nationalDrugSync"] = []
+            data["nationalEhrSync"] = []
+            data["systemNotifications"] = []
+            data["auditLogs"] = []
+            data["authSeed"] = {}
 
         if not hasattr(self, "_bff_collections"):
             self._bff_collections = {}
@@ -306,19 +325,17 @@ class BffAdminService:
                 data[key] = val
 
         data["inventoryBatches"] = []
-        if len(existing_keys) < 5:
-            await self.sync_all_collections_to_relational(db, data, existing_keys)
 
-        data["patients"] = await self._project_relational_patients(db, data.get("patients", []))
-        data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []))
+        data["patients"] = await self._project_relational_patients(db, data.get("patients", []), is_demo_mode=is_demo_mode)
+        data["appointments"] = await self._project_relational_appointments(db, data.get("appointments", []), is_demo_mode=is_demo_mode)
         data["staffList"] = await self._project_relational_staff(db)
-        data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}))
-        data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []))
-        data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []))
+        data["catalogs"] = await self._project_relational_catalogs(db, data.get("catalogs", {}), is_demo_mode=is_demo_mode)
+        data["vouchers"] = await self._project_relational_vouchers(db, data.get("vouchers", []), is_demo_mode=is_demo_mode)
+        data["registrations"] = await self._project_relational_registrations(db, data.get("registrations", []), is_demo_mode=is_demo_mode)
 
         return data
 
-    async def _project_relational_appointments(self, db: AsyncSession, base_appointments: list) -> list:
+    async def _project_relational_appointments(self, db: AsyncSession, base_appointments: list, is_demo_mode: bool = True) -> list:
         stmt = (
             select(LichKham)
             .options(
@@ -333,7 +350,7 @@ class BffAdminService:
         )
         db_appointments = (await db.execute(stmt)).scalars().all()
         if not db_appointments:
-            return base_appointments
+            return base_appointments if is_demo_mode else []
 
         base_map = {}
         for a in base_appointments or []:
@@ -412,15 +429,16 @@ class BffAdminService:
             result.append(item)
             seen_codes.add(code)
 
-        for a in base_appointments or []:
-            c = str(a.get("maLH") or a.get("id") or "").strip()
-            if c and c not in seen_codes:
-                result.append(a)
-                seen_codes.add(c)
+        if is_demo_mode:
+            for a in base_appointments or []:
+                c = str(a.get("maLH") or a.get("id") or "").strip()
+                if c and c not in seen_codes:
+                    result.append(a)
+                    seen_codes.add(c)
 
         return result
 
-    async def _project_relational_patients(self, db: AsyncSession, base_patients: list) -> list:
+    async def _project_relational_patients(self, db: AsyncSession, base_patients: list, is_demo_mode: bool = True) -> list:
         stmt = (
             select(BenhNhan)
             .options(selectinload(BenhNhan.nguoi_dung))
@@ -430,7 +448,7 @@ class BffAdminService:
         )
         db_patients = (await db.execute(stmt)).scalars().all()
         if not db_patients:
-            return base_patients
+            return base_patients if is_demo_mode else []
 
         merged_map = {}
         for p in base_patients or []:
@@ -479,15 +497,16 @@ class BffAdminService:
                 seen_codes.add(phone)
             result.append(item)
 
-        for p in base_patients or []:
-            code = str(p.get("maBN") or p.get("id") or "").strip()
-            phone = str(p.get("dienThoai") or "").strip()
-            if code not in seen_codes and (not phone or phone not in seen_codes):
-                result.append(p)
-                if code:
-                    seen_codes.add(code)
-                if phone:
-                    seen_codes.add(phone)
+        if is_demo_mode:
+            for p in base_patients or []:
+                code = str(p.get("maBN") or p.get("id") or "").strip()
+                phone = str(p.get("dienThoai") or "").strip()
+                if code not in seen_codes and (not phone or phone not in seen_codes):
+                    result.append(p)
+                    if code:
+                        seen_codes.add(code)
+                    if phone:
+                        seen_codes.add(phone)
 
         return result
 
@@ -536,7 +555,7 @@ class BffAdminService:
             })
         return result
 
-    async def _project_relational_catalogs(self, db: AsyncSession, base_catalogs: dict) -> dict:
+    async def _project_relational_catalogs(self, db: AsyncSession, base_catalogs: dict, is_demo_mode: bool = True) -> dict:
         catalogs = copy.deepcopy(base_catalogs or {})
 
         db_departments = (
@@ -569,11 +588,12 @@ class BffAdminService:
                             item[k] = v
                 projected_depts.append(item)
                 seen_dept_codes.add(code)
-            for bd in base_depts:
-                c = str(bd.get("maChuyenKhoa") or bd.get("id") or "").strip().upper()
-                if c and c not in seen_dept_codes:
-                    projected_depts.append(bd)
-                    seen_dept_codes.add(c)
+            if is_demo_mode:
+                for bd in base_depts:
+                    c = str(bd.get("maChuyenKhoa") or bd.get("id") or "").strip().upper()
+                    if c and c not in seen_dept_codes:
+                        projected_depts.append(bd)
+                        seen_dept_codes.add(c)
             catalogs["chuyenKhoa"] = projected_depts
 
         db_rooms = (
@@ -624,16 +644,17 @@ class BffAdminService:
                             item[k] = v
                 projected_rooms.append(item)
                 seen_room_codes.add(code)
-            for br in base_rooms:
-                c = str(br.get("maPhong") or br.get("id") or "").strip()
-                if c and c not in seen_room_codes:
-                    bid = str(br.get("id") or f"ROOM-{c}").strip()
-                    if bid in seen_room_ids:
-                        bid = f"ROOM-SEED-{c}"
-                    seen_room_ids.add(bid)
-                    br["id"] = bid
-                    projected_rooms.append(br)
-                    seen_room_codes.add(c)
+            if is_demo_mode:
+                for br in base_rooms:
+                    c = str(br.get("maPhong") or br.get("id") or "").strip()
+                    if c and c not in seen_room_codes:
+                        bid = str(br.get("id") or f"ROOM-{c}").strip()
+                        if bid in seen_room_ids:
+                            bid = f"ROOM-SEED-{c}"
+                        seen_room_ids.add(bid)
+                        br["id"] = bid
+                        projected_rooms.append(br)
+                        seen_room_codes.add(c)
             saved_room_order = {
                 str(r.get("maPhong") or r.get("id") or "").strip(): index for index, r in enumerate(base_rooms)
             }
@@ -671,11 +692,12 @@ class BffAdminService:
                             item[k] = v
                 projected_services.append(item)
                 seen_srv_codes.add(code)
-            for bsrv in base_services:
-                c = str(bsrv.get("maDV") or bsrv.get("id") or "").strip()
-                if c and c not in seen_srv_codes:
-                    projected_services.append(bsrv)
-                    seen_srv_codes.add(c)
+            if is_demo_mode:
+                for bsrv in base_services:
+                    c = str(bsrv.get("maDV") or bsrv.get("id") or "").strip()
+                    if c and c not in seen_srv_codes:
+                        projected_services.append(bsrv)
+                        seen_srv_codes.add(c)
             saved_service_order = {
                 str(s.get("maDV") or s.get("id") or "").strip(): index for index, s in enumerate(base_services)
             }
@@ -882,7 +904,7 @@ class BffAdminService:
 
         return catalogs
 
-    async def _project_relational_vouchers(self, db: AsyncSession, base_vouchers: list) -> list:
+    async def _project_relational_vouchers(self, db: AsyncSession, base_vouchers: list, is_demo_mode: bool = True) -> list:
         stmt = (
             select(HoaDon)
             .options(
@@ -894,7 +916,7 @@ class BffAdminService:
         )
         db_invoices = (await db.execute(stmt)).scalars().all()
         if not db_invoices:
-            return base_vouchers
+            return base_vouchers if is_demo_mode else []
 
         base_map = {}
         for v in base_vouchers or []:
@@ -959,15 +981,16 @@ class BffAdminService:
             result.append(item)
             seen_codes.update({str(voucher_id), str(voucher_code), raw_code, short_code})
 
-        for bv in base_vouchers or []:
-            c = str(bv.get("maPhieu") or bv.get("id") or "").strip()
-            if c and c not in seen_codes and f"HD-{c}" not in seen_codes:
-                result.append(bv)
-                seen_codes.add(c)
+        if is_demo_mode:
+            for bv in base_vouchers or []:
+                c = str(bv.get("maPhieu") or bv.get("id") or "").strip()
+                if c and c not in seen_codes and f"HD-{c}" not in seen_codes:
+                    result.append(bv)
+                    seen_codes.add(c)
 
         return result
 
-    async def _project_relational_registrations(self, db: AsyncSession, base_registrations: list) -> list:
+    async def _project_relational_registrations(self, db: AsyncSession, base_registrations: list, is_demo_mode: bool = True) -> list:
         stmt_lk = (
             select(LuotKham)
             .options(
@@ -998,7 +1021,7 @@ class BffAdminService:
         db_tickets = (await db.execute(stmt_queue)).scalars().all()
 
         if not db_encounters and not db_tickets:
-            return base_registrations
+            return base_registrations if is_demo_mode else []
 
         base_map = {}
         for r in base_registrations or []:
@@ -1152,14 +1175,15 @@ class BffAdminService:
             seen_kcb.add(kcb_code)
             seen_ids.add(item["id"])
 
-        for br in base_registrations or []:
-            c = str(br.get("maKCB") or br.get("id") or "").strip()
-            if c and c not in seen_kcb and c not in seen_ids:
-                br_copy = copy.deepcopy(br)
-                br_copy["stt"] = len(result) + 1
-                result.append(br_copy)
-                seen_kcb.add(c)
-                seen_ids.add(c)
+        if is_demo_mode:
+            for br in base_registrations or []:
+                c = str(br.get("maKCB") or br.get("id") or "").strip()
+                if c and c not in seen_kcb and c not in seen_ids:
+                    br_copy = copy.deepcopy(br)
+                    br_copy["stt"] = len(result) + 1
+                    result.append(br_copy)
+                    seen_kcb.add(c)
+                    seen_ids.add(c)
 
         return result
 
@@ -2313,6 +2337,8 @@ class BffAdminService:
         return refreshed_data
 
     async def reset_demo_data(self, db: AsyncSession) -> dict:
+        if settings.ENVIRONMENT.lower() in ("production", "prod"):
+            raise PermissionError("THAO TÁC BỊ CHẶN: Không thể khôi phục dữ liệu demo trên môi trường PRODUCTION!")
         if hasattr(self, "_bff_collections"):
             self._bff_collections.clear()
         self._initial_relational_synced = False

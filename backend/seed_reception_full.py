@@ -3,6 +3,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from sqlalchemy import select, and_, delete
 from sqlalchemy.orm import selectinload
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.models.user import (
@@ -37,7 +38,14 @@ from app.models.specialized import (
 from app.models.medical import DichVu
 
 
-async def seed_reception_data():
+async def seed_reception_data(confirm_seed_demo: bool = False):
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Tuyệt đối không nạp dữ liệu demo trên môi trường PRODUCTION!")
+    if not confirm_seed_demo:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần truyền --confirm-seed-demo để xác nhận nạp dữ liệu mẫu!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
     async with AsyncSessionLocal() as session:
         print("--> Bắt đầu nạp dữ liệu kiểm thử nghiệp vụ Lễ tân...")
 
@@ -270,11 +278,11 @@ async def seed_reception_data():
 
             stmt_acc = select(TaiKhoan).where(TaiKhoan.email == p["email"])
             acc = (await session.execute(stmt_acc)).scalar_one_or_none()
-            if not acc:
+            if not acc and settings.INITIAL_ADMIN_PASSWORD:
                 acc = TaiKhoan(
                     nguoi_dung_id=user.id,
                     email=p["email"],
-                    mat_khau_hash=hash_password("Patient@123456"),
+                    mat_khau_hash=hash_password(settings.INITIAL_ADMIN_PASSWORD),
                     vai_tro=VaiTroEnum.BENH_NHAN.value,
                     is_active=True,
                 )
@@ -835,4 +843,6 @@ async def seed_reception_data():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_reception_data())
+    import sys
+    confirmed = "--confirm-seed-demo" in sys.argv
+    asyncio.run(seed_reception_data(confirm_seed_demo=confirmed))

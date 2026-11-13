@@ -353,6 +353,23 @@ export const INITIAL_CLINIC_DATA = {
     masterOptions: {},
     formDefaults: {},
     navigationConfig: DEFAULT_NAVIGATION_CONFIG,
+    servicePackageRegistrations: [],
+    treatmentCourses: [],
+    corporateCheckups: [],
+    healthCheckupClassifications: [],
+    inventoryBatches: [],
+    cashierClosings: [],
+    nationalDrugSync: [],
+    nationalEhrSync: [],
+    systemNotifications: [],
+    newsCategories: [],
+    newsArticles: [],
+    guideCategories: [],
+    guides: [],
+    qaList: [],
+    roleWorkbenches: {},
+    addressShortcuts: [],
+    referrers: [],
 }
 
 export function getNavigationConfig(clinicData) {
@@ -362,7 +379,6 @@ export function getNavigationConfig(clinicData) {
             ? rawNav
             : DEFAULT_NAVIGATION_CONFIG
 
-    // Đảm bảo "Danh mục Chuyên khoa" luôn luôn có mặt trong sidebarSections (Danh mục Nền tảng)
     const enrichedSections = (nav.sidebarSections || []).map((section) => {
         if (section.id === 'pillar-catalogs' || (section.title && section.title.includes('DANH MỤC Y TẾ'))) {
             const enrichedMenus = (section.menus || []).map((menu) => {

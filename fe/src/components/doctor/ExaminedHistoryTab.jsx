@@ -232,7 +232,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </div>
                             <div>
                                 <span className="text-slate-400 block text-[11px]">Bác sĩ điều trị:</span>
-                                <span className="font-bold text-[#00B5F1]">BS. CKI Nguyễn Văn An</span>
+                                <span className="font-bold text-[#00B5F1]">{selectedRecord.doctorName || 'BS. Mẫu Khám [DEMO]'}</span>
                             </div>
                         </div>
 

@@ -6,12 +6,12 @@ from app.core.config import settings
 from app.models.user import ChuyenKhoa, PhongKham, BacSi, TaiKhoan, VaiTroEnum
 from app.models.appointment import LichLamViec
 from app.models.medical import DichVu, Thuoc
-from seed_data import seed_database
+from seed_data import _execute_seeding
 
 
 @pytest.mark.asyncio
 async def test_seed_data_5_departments_5_rooms_and_sample_doctors(db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     stmt_ck = select(ChuyenKhoa).where(ChuyenKhoa.is_active.is_(True))
     departments = (await db_session.execute(stmt_ck)).scalars().all()
@@ -55,7 +55,7 @@ async def test_seed_data_5_departments_5_rooms_and_sample_doctors(db_session):
 
 @pytest.mark.asyncio
 async def test_admin_departments_and_rooms_api(api_client: AsyncClient, booking, db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
     admin_hdr = booking.tokens["admin"]
 
     res_depts = await api_client.get("/api/v1/admin/departments", headers=admin_hdr)
@@ -75,7 +75,7 @@ async def test_admin_departments_and_rooms_api(api_client: AsyncClient, booking,
 
 @pytest.mark.asyncio
 async def test_admin_doctors_api_returns_room_allocation(api_client: AsyncClient, booking, db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
     admin_hdr = booking.tokens["admin"]
 
     res = await api_client.get("/api/v1/admin/doctors", headers=admin_hdr)
@@ -88,7 +88,7 @@ async def test_admin_doctors_api_returns_room_allocation(api_client: AsyncClient
 
 @pytest.mark.asyncio
 async def test_admin_services_export_catalog(api_client: AsyncClient, booking, db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
     admin_hdr = booking.tokens["admin"]
 
     res = await api_client.get("/api/v1/admin/services/export", headers=admin_hdr)
@@ -124,7 +124,7 @@ async def test_admin_rbac_permission_protection(api_client: AsyncClient, booking
 
 @pytest.mark.asyncio
 async def test_seed_preserves_admin_modifications_across_restarts(db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     stmt_room1 = select(PhongKham).where(PhongKham.ma_phong == "P101")
     room1 = (await db_session.execute(stmt_room1)).scalar_one()
@@ -144,7 +144,7 @@ async def test_seed_preserves_admin_modifications_across_restarts(db_session):
 
     await db_session.flush()
 
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     stmt_check_r1 = select(PhongKham).where(PhongKham.ma_phong == "P101")
     r1_after = (await db_session.execute(stmt_check_r1)).scalar_one()
@@ -175,7 +175,7 @@ async def test_legacy_departments_are_deactivated(db_session):
     db_session.add(legacy_ck)
     await db_session.flush()
 
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     stmt_legacy = select(ChuyenKhoa).where(ChuyenKhoa.ma_chuyen_khoa == "KHOA_TIM_MACH")
     legacy_after = (await db_session.execute(stmt_legacy)).scalar_one()
@@ -189,7 +189,7 @@ async def test_legacy_departments_are_deactivated(db_session):
 
 @pytest.mark.asyncio
 async def test_legacy_shifts_backfill_missing_room(db_session):
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     today = date.today()
     stmt_shift = select(LichLamViec).where(LichLamViec.ngay_lam_viec == today).limit(1)
@@ -203,7 +203,7 @@ async def test_legacy_shifts_backfill_missing_room(db_session):
     shift.phong_kham_id = None
     await db_session.flush()
 
-    await seed_database(db_session)
+    await _execute_seeding(db_session)
 
     stmt_shift_after = select(LichLamViec).where(LichLamViec.id == shift.id)
     shift_after = (await db_session.execute(stmt_shift_after)).scalar_one()
@@ -229,7 +229,7 @@ async def test_production_environment_prevents_default_insecure_admin(db_session
             await db_session.delete(existing_admin)
             await db_session.flush()
 
-        await seed_database(db_session)
+        await _execute_seeding(db_session)
 
         admin_account = (await db_session.execute(stmt_admin)).scalar_one_or_none()
         assert admin_account is None

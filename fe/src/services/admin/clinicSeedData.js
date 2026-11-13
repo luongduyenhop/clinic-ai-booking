@@ -72,7 +72,24 @@ export function buildClinicSeedState(seedSource = rawSeed) {
     }
 }
 
-export const INITIAL_CLINIC_DATA = buildClinicSeedState(rawSeed)
+export const DEMO_CLINIC_DATA = buildClinicSeedState(rawSeed)
+
+export const INITIAL_CLINIC_DATA = buildClinicSeedState({
+    ...rawSeed,
+    patients: [],
+    appointments: [],
+    registrations: [],
+    paraclinicalTasks: [],
+    vouchers: [],
+    corporateCheckups: [],
+    treatmentCourses: [],
+    servicePackageRegistrations: [],
+    cashierClosings: [],
+    nationalDrugSync: [],
+    nationalEhrSync: [],
+    systemNotifications: [],
+    auditLogs: [],
+})
 
 export function getAuthSeed() {
     return rawSeed.authSeed

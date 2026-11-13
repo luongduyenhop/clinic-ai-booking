@@ -451,7 +451,7 @@ def upgrade() -> None:
             "phi_audit_logs",
             sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
             sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False),
-            sa.Column("patient_id", sa.Integer(), sa.ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False),
+            sa.Column("patient_id", sa.Integer(), sa.ForeignKey("patients.id", ondelete="RESTRICT"), nullable=True),
             sa.Column("encounter_id", sa.Integer(), sa.ForeignKey("encounters.id", ondelete="SET NULL"), nullable=True),
             sa.Column("action_type", sa.String(20), nullable=False),
             sa.Column("entity_name", sa.String(100), nullable=False),

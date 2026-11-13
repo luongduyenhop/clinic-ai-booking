@@ -1,17 +1,12 @@
 services:
-  # ==============================================================================
-  # 1. Database Tier: PostgreSQL 15 (OpenMRS Concept Dictionary & BCE Entity Schema)
-  # ==============================================================================
   db:
     image: postgres:15-alpine
     container_name: clinic_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: clinic_user
-      POSTGRES_PASSWORD: clinic_password
-      POSTGRES_DB: clinic_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-clinic_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-clinic_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,9 +17,6 @@ services:
     networks:
       - clinic_network
 
-  # ==============================================================================
-  # 2. Application Tier: FastAPI Backend (Multi-stage Build: builder -> runner)
-  # ==============================================================================
   backend:
     build:
       context: ./backend
@@ -35,19 +27,26 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql+asyncpg://clinic_user:clinic_password@db:5432/clinic_db
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - ENABLE_DEMO_SEED=${ENABLE_DEMO_SEED:-false}
+      - ENABLE_OUTBOUND_NOTIFICATIONS=${ENABLE_OUTBOUND_NOTIFICATIONS:-false}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-clinic_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-clinic_db}
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=5432
-      - DEBUG=True
-      - SECRET_KEY=super_secret_clinic_jwt_key_project_1_change_in_production_2026
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}
+      - CLS_UPLOAD_DIR=/app/uploads/cls
       - ACCESS_TOKEN_EXPIRE_MINUTES=120
       - REFRESH_TOKEN_EXPIRE_DAYS=7
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - cls_uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,16 +54,12 @@ services:
     networks:
       - clinic_network
 
-  # ==============================================================================
-  # 3. Presentation Tier: Next.js Frontend (Multi-stage Build: deps -> builder -> runner)
-  # ==============================================================================
   frontend:
     build:
       context: ./fe
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
-        - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
     container_name: clinic_frontend
     restart: unless-stopped
     depends_on:
@@ -72,8 +67,7 @@ services:
         condition: service_healthy
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_ENABLE_ROLE_SWITCHER=true
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     networks:
@@ -81,6 +75,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  cls_uploads:
     driver: local
 
 networks:

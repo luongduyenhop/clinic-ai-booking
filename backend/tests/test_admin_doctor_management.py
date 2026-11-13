@@ -36,7 +36,7 @@ async def test_create_doctor_with_assigned_physical_room(api_client, booking, db
         "ho_ten": "BS. Nguyễn Văn Nghiệm",
         "email": unique_email,
         "so_dien_thoai": unique_phone,
-        "mat_khau": "Doctor@123456",
+        "mat_khau": "DoctorSecurePass@2026",
         "chuyen_khoa_id": ck.id,
         "phong_kham_id": room.id,
         "hoc_vi": "BS.CKI",

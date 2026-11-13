@@ -1,14 +1,13 @@
 from datetime import date, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
-from app.core.dependencies import get_current_user, require_roles, get_current_user_flexible, security
-from app.core.exceptions import ForbiddenException, NotFoundException
+from app.core.dependencies import get_current_user, require_roles
+from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum, BenhNhan
 from app.models.medical import ChiDinh, LuotKham
@@ -237,6 +236,12 @@ async def list_subclinical_files(
     return ResponseEnvelope.success_response(data=result, message=f"Có {len(result.items)} ảnh kết quả")
 
 
+def reject_query_token(request: Request):
+    query_param_keys = {key.lower() for key in request.query_params.keys()}
+    if "token" in query_param_keys:
+        raise UnauthorizedException("Xác thực qua query parameter không được hỗ trợ. Vui lòng sử dụng Authorization Bearer header.")
+
+
 @router.get(
     "/orders/{order_id}/files/{file_id}",
     response_class=FileResponse,
@@ -245,11 +250,10 @@ async def list_subclinical_files(
 async def get_subclinical_file(
     order_id: int,
     file_id: str = Path(..., max_length=40),
-    token: Optional[str] = Query(None),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    _: None = Depends(reject_query_token),
+    current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    current_user = await get_current_user_flexible(token=token, credentials=credentials, db=db)
     if current_user.vai_tro in [VaiTroEnum.KY_THUAT_VIEN.value, VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value]:
         pass
     elif current_user.vai_tro == VaiTroEnum.BENH_NHAN.value:
@@ -281,6 +285,7 @@ async def get_subclinical_file(
 async def delete_subclinical_file(
     order_id: int,
     file_id: str = Path(..., max_length=40),
+    _: None = Depends(reject_query_token),
     current_user: TaiKhoan = Depends(require_roles(CLS_WORKBENCH_ROLES)),
     db: AsyncSession = Depends(get_db)
 ):

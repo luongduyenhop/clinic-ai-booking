@@ -1,12 +1,13 @@
 import logging
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.exceptions import setup_exception_handlers
+from app.core.logging_filter import install_phi_redaction_filter
 from app.core.response import ResponseEnvelope
 from app.routers.api_v1 import api_router
 import app.models
@@ -15,6 +16,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
+install_phi_redaction_filter()
 logger = logging.getLogger("clinic_backend")
 
 
@@ -22,15 +24,9 @@ logger = logging.getLogger("clinic_backend")
 async def lifespan(app: FastAPI):
     logger.info("🚀 [SYSTEM STARTING] Đang kết nối Cơ sở dữ liệu PostgreSQL...")
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ [DATABASE CONNECTED] Toàn bộ Entity Models đã được khởi tạo trên PostgreSQL.")
-
-        try:
-            from seed_data import seed_database
-            await seed_database()
-        except Exception as seed_err:
-            logger.warning(f"⚠️ [AUTO SEED] Bỏ qua nạp dữ liệu mẫu: {str(seed_err)}")
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            logger.info("✅ [DATABASE CONNECTED] Kết nối Cơ sở dữ liệu PostgreSQL thành công.")
     except Exception as e:
         logger.error(f"❌ [DATABASE ERROR] Không thể kết nối tới PostgreSQL: {str(e)}")
 
@@ -61,6 +57,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
+    debug=settings.DEBUG,
     description="""
     ## Hệ Thống Quản Lý & Đặt Lịch Khám Bệnh Trực Tuyến Tích Hợp AI
     * **Học phần:** Project 1 (IT1.241.3) - ĐH Giao Thông Vận Tải
@@ -83,7 +80,7 @@ app.state.limiter = limiter
 app.add_middleware(PhiAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -117,7 +114,7 @@ async def root():
 
 
 @app.get("/health", tags=["Health Check"], response_model=ResponseEnvelope[dict])
-async def health_check():
+async def health_check(response: Response):
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -126,6 +123,7 @@ async def health_check():
             message="Hệ thống Backend đang vận hành ổn định!"
         )
     except Exception as e:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return ResponseEnvelope.error_response(
             message=f"Lỗi kết nối CSDL: {str(e)}",
             code=status.HTTP_503_SERVICE_UNAVAILABLE

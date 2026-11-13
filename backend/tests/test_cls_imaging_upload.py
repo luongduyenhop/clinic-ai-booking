@@ -281,3 +281,43 @@ async def test_rang_buoc_trang_thai_va_nhom_dich_vu(api_client, booking, db_sess
     assert (await api_client.post(url_kq, json={"ket_luan": "x", "ket_qua_phan_loai": "LA"}, headers=ktv)).status_code == 422
     assert (await api_client.get("/api/v1/subclinical/orders/999999999/imaging-result", headers=ktv)).status_code == 404
     assert (await _upload(api_client, 999999999, ktv)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_chan_query_string_token_authentication(api_client, booking, db_session, upload_dir, caplog):
+    order_id, _ = await _tao_ca_cdha(api_client, booking, db_session)
+    ktv = booking.tokens["ktv"]
+    url = (await _upload(api_client, order_id, ktv)).json()["data"]["url"]
+    leak_attempt_token = "secret-leak-attempt-token-xyz"
+
+    res_no_auth_with_query = await api_client.get(f"{url}?token={leak_attempt_token}")
+    assert res_no_auth_with_query.status_code == 401
+
+    res_auth_with_query = await api_client.get(f"{url}?token={leak_attempt_token}", headers=ktv)
+    assert res_auth_with_query.status_code == 401
+
+    res_auth_with_query_upper = await api_client.get(f"{url}?TOKEN={leak_attempt_token}", headers=ktv)
+    assert res_auth_with_query_upper.status_code == 401
+
+    res_auth_with_query_empty = await api_client.get(f"{url}?token=", headers=ktv)
+    assert res_auth_with_query_empty.status_code == 401
+
+    res_del_with_query = await api_client.delete(f"{url}?token={leak_attempt_token}", headers=ktv)
+    assert res_del_with_query.status_code == 401
+
+    app_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "clinic_backend" or record.name.startswith("app.")
+    ]
+    assert not any(leak_attempt_token in msg for msg in app_messages)
+
+    res_patient_owner = await api_client.get(url, headers=booking.tokens["bn_a"])
+    assert res_patient_owner.status_code == 200
+    assert res_patient_owner.content == JPG
+
+    res_patient_other = await api_client.get(url, headers=booking.tokens["bn_b"])
+    assert res_patient_other.status_code == 403
+
+    res_success_header = await api_client.get(url, headers=ktv)
+    assert res_success_header.status_code == 200

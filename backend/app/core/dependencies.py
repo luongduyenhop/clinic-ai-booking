@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -46,17 +46,6 @@ async def get_current_user(
     if not credentials or not credentials.credentials:
         raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hợp lệ")
     return await get_user_by_token(credentials.credentials, db)
-
-
-async def get_current_user_flexible(
-    token: Optional[str] = Query(None),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> TaiKhoan:
-    raw_token = (credentials.credentials if credentials and credentials.credentials else None) or token
-    if not raw_token:
-        raise UnauthorizedException("Yêu cầu gửi kèm Authorization Bearer Token hoặc tham số token hợp lệ")
-    return await get_user_by_token(raw_token, db)
 
 
 async def get_optional_current_user(

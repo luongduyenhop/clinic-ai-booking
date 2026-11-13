@@ -123,14 +123,13 @@ export default function PrescriptionPrintAndCopyModal({
     if (!isOpen) return null
 
     const rxCode = `RX-${encounter?.id || 9102}-${new Date().getFullYear()}`
-    const patientName = patient?.ho_ten || encounter?.ten_benh_nhan || 'Nguyễn Văn Bệnh Nhân'
+    const patientName = patient?.ho_ten || encounter?.ten_benh_nhan || 'Bệnh Nhân Mẫu [SYNTHETIC]'
     const patientDob = patient?.ngay_sinh || encounter?.ngay_sinh || '15/05/1990'
     const patientGender = patient?.gioi_tinh || encounter?.gioi_tinh || 'Nam'
-    const patientPhone = patient?.so_dien_thoai || encounter?.so_dien_thoai || '0901 234 567'
+    const patientPhone = patient?.so_dien_thoai || encounter?.so_dien_thoai || '0000000000'
     const patientCode = patient?.ma || encounter?.ma_benh_nhan || `BN-${encounter?.id || '2026'}`
-    const doctorName = encounter?.ten_bac_si || 'BS.CKI Nguyễn Văn An'
+    const doctorName = encounter?.ten_bac_si || 'BS. Mẫu Khám [DEMO]'
 
-    // Tính tổng tiền ước tính chỉ dùng cho bản in khi bật hiển thị giá
     const estimatedTotal = prescriptionItems.reduce((sum, item) => {
         const qty = Number(item.so_luong) || 1
         const price = Number(item.don_gia) || 15000

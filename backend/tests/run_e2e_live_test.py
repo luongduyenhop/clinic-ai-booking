@@ -5,6 +5,7 @@ import time
 from datetime import date, timedelta, time as dt_time
 import httpx
 from sqlalchemy import select
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.user import TaiKhoan, BenhNhan
 from app.models.appointment import LichKham, TrangThaiLichEnum
@@ -91,15 +92,15 @@ async def run_e2e_tests():
         print(f"{Colors.CYAN}{Colors.BOLD}   BẮT ĐẦU CHẠY KIỂM THỬ THỰC TẾ HỆ THỐNG CLINIC AI (E2E TEST SUITE)  {Colors.RESET}")
         print(f"{Colors.CYAN}{Colors.BOLD}======================================================================{Colors.RESET}\n")
 
-        # 0. ĐĂNG NHẬP SẴN BÁC SĨ, ADMIN VÀ SEED BỆNH NHÂN (Trước khi kích hoạt Rate Limit)
+        auth_secret = settings.INITIAL_ADMIN_PASSWORD or ""
         print(f"{Colors.CYAN}[BƯỚC CHUẨN BỊ] Khởi tạo phiên đăng nhập Bác sĩ & Admin...{Colors.RESET}")
-        login_doc = await client.post("/auth/login", json={"email": "an.doctor@clinic.com", "mat_khau": "Doctor@123456"})
+        login_doc = await client.post("/auth/login", json={"email": "an.doctor@clinic.com", "mat_khau": auth_secret})
         doctor_tokens["access"] = (login_doc.json().get("data") or {}).get("access_token")
         
-        login_admin = await client.post("/auth/login", json={"email": "admin@clinic.com", "mat_khau": "Admin@123456"})
+        login_admin = await client.post("/auth/login", json={"email": "admin@clinic.com", "mat_khau": auth_secret})
         admin_tokens["access"] = (login_admin.json().get("data") or {}).get("access_token")
 
-        login_seed_pt = await client.post("/auth/login", json={"email": "patient@test.com", "mat_khau": "Patient@123456"})
+        login_seed_pt = await client.post("/auth/login", json={"email": "patient@test.com", "mat_khau": auth_secret})
         seed_patient_tokens["access"] = (login_seed_pt.json().get("data") or {}).get("access_token")
 
         # -------------------------------------------------------------

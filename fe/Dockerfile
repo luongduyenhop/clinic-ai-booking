@@ -14,8 +14,10 @@ COPY . .
 
 # Cấu hình biến môi trường build-time
 # VITE_API_URL="" kích hoạt tương đối qua Nginx reverse-proxy (không dính CORS)
-ENV VITE_API_URL="" \
-    VITE_USE_MOCK="false" \
+ARG VITE_API_URL=""
+ARG VITE_USE_MOCK="false"
+ENV VITE_API_URL=${VITE_API_URL} \
+    VITE_USE_MOCK=${VITE_USE_MOCK} \
     NODE_ENV=production
 
 RUN npm run build

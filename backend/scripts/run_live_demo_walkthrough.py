@@ -1,15 +1,26 @@
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 import hashlib
 import hmac
 import httpx
+from app.core.config import settings
 
 BASE_URL = "http://127.0.0.1:8000/api/v1"
-PAYMENT_SECRET = "0f9b6b7a8c3d2e1f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f"
 
 
 async def main():
+    if settings.ENVIRONMENT.lower() in ("production", "prod"):
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Không chạy demo walkthrough trên môi trường PRODUCTION!")
+    if not settings.ENABLE_DEMO_SEED:
+        raise RuntimeError("THAO TÁC BỊ CHẶN: Cần cấu hình ENABLE_DEMO_SEED=true trong môi trường demo/staging!")
+
+    auth_password = settings.INITIAL_ADMIN_PASSWORD
+    if not auth_password:
+        raise RuntimeError("Cần cấu hình INITIAL_ADMIN_PASSWORD để chạy walkthrough!")
+
+    payment_secret = settings.PAYMENT_WEBHOOK_SECRET
+
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=15.0) as client:
         print("\n" + "=" * 78)
         print("     CLINIC-AI PRODUCTION DEMO: LIVE WORKFLOW WALKTHROUGH (E2E)")
@@ -17,7 +28,7 @@ async def main():
 
         login_res = await client.post(
             "/auth/login",
-            json={"email": "tiepdon@clinic.com", "mat_khau": "Reception@2026"},
+            json={"email": "tiepdon@clinic.com", "mat_khau": auth_password},
         )
         assert login_res.status_code == 200, f"Login failed: {login_res.text}"
         reception_token = login_res.json()["data"]["access_token"]
@@ -25,7 +36,7 @@ async def main():
         print("[BUOC 1: TIEP DON - QUAY LE TAN]")
         print(" -> Dang nhap Le tan thanh cong: Hoang Lan (tiepdon@clinic.com)")
 
-        qr_raw = "001099008899|123456789|NGUYEN VAN AN|20051990|Nam|123 Pho Hue, Hoan Kiem, Ha Noi|15082021"
+        qr_raw = "000000000001|000000000|NGUYEN VAN DEMO|01011990|Nam|Dia chi Demo, Ha Noi|01012020"
         qr_parse_res = await client.post(
             "/reception/parse-cccd-qr",
             json={"qr_string": qr_raw},
@@ -41,7 +52,7 @@ async def main():
 
         dr_login_res = await client.post(
             "/auth/login",
-            json={"email": "doctor@clinic.com", "mat_khau": "Doctor@2026"},
+            json={"email": "doctor@clinic.com", "mat_khau": auth_password},
         )
         assert dr_login_res.status_code == 200
         doctor_token = dr_login_res.json()["data"]["access_token"]
@@ -92,7 +103,7 @@ async def main():
 
         cashier_login_res = await client.post(
             "/auth/login",
-            json={"email": "thungan@clinic.com", "mat_khau": "Cashier@2026"},
+            json={"email": "thungan@clinic.com", "mat_khau": auth_password},
         )
         assert cashier_login_res.status_code == 200
         cashier_token = cashier_login_res.json()["data"]["access_token"]
@@ -147,7 +158,7 @@ async def main():
         txn_code = f"TXN-NAPAS-DEMO-{invoice_id:04d}-{datetime.now().strftime('%H%M%S')}"
         raw_msg = f"{txn_code}|{invoice_id}|{final_amount}"
         sig = hmac.new(
-            PAYMENT_SECRET.encode("utf-8"),
+            payment_secret.encode("utf-8"),
             raw_msg.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
@@ -164,7 +175,6 @@ async def main():
             },
         )
         if webhook_res.status_code == 200:
-            w_data = webhook_res.json()["data"]
             print(f" -> Nhan Webhook tu Ngan hang Napas: Chu ky HMAC-SHA256 hop le!")
             print(f" -> Hoa don {invoice_code} duoc khoa so: status = PAID | is_locked = True")
 

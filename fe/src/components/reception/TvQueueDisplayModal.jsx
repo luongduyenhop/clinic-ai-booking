@@ -186,7 +186,7 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                         currentExam?.patientName ||
                         currentExam?.ho_ten ||
                         currentExam?.ten_benh_nhan ||
-                        'Nguyễn Văn An'
+                        'Bệnh Nhân Mẫu [SYNTHETIC]'
 
                     return (
                         <div

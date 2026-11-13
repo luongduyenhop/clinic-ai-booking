@@ -62,3 +62,22 @@ test('logout resets Redux and ignores an old in-flight bootstrap completion', ()
     authStorage.clearAuthStorage()
     assert.equal(storage.get(cacheKey), undefined)
 })
+
+test('initial store load does not write demo data to localStorage and has clean collections', async () => {
+    storage.clear()
+    const { INITIAL_CLINIC_DATA } = await server.ssrLoadModule('/src/utils/helpers/clinicConfigHelpers.js')
+    const { INITIAL_CLINIC_DATA: seedInitial, DEMO_CLINIC_DATA } = await server.ssrLoadModule('/src/services/admin/clinicSeedData.js')
+    assert.deepEqual(INITIAL_CLINIC_DATA.patients, [])
+    assert.deepEqual(INITIAL_CLINIC_DATA.appointments, [])
+    assert.deepEqual(INITIAL_CLINIC_DATA.vouchers, [])
+    assert.deepEqual(INITIAL_CLINIC_DATA.registrations, [])
+    assert.deepEqual(INITIAL_CLINIC_DATA.paraclinicalTasks, [])
+    assert.deepEqual(seedInitial.patients, [])
+    assert.equal(DEMO_CLINIC_DATA.patients.length > 0, true)
+
+    const service = new AdminService()
+    service.post = async () => { throw new Error('Offline') }
+    const suggestion = await service.suggestSpecialtyByAI('dau dau')
+    assert.ok(suggestion?.data?.chuyenKhoa)
+    assert.equal(storage.get(cacheKey), undefined)
+})

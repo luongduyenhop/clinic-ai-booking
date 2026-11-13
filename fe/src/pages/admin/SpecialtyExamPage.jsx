@@ -425,7 +425,7 @@ export default function SpecialtyExamPage() {
                                     <span>•</span>
                                     <span>ĐT: <strong className="font-mono text-[#003553]">{currentExam.dienThoai}</strong></span>
                                     <span>•</span>
-                                    <span>CCCD: <strong className="font-mono text-[#003553]">{currentExam.cccd || '001188012345'}</strong></span>
+                                    <span>CCCD: <strong className="font-mono text-[#003553]">{currentExam.cccd || '000000000000'}</strong></span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">

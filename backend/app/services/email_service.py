@@ -7,7 +7,6 @@ logger = logging.getLogger("clinic_backend")
 
 
 class EmailService:
-    """Service gửi email xác thực OTP qua SMTP (aiosmtplib)."""
 
     async def send_otp_email(
         self,
@@ -15,13 +14,15 @@ class EmailService:
         otp_code: str,
         expires_minutes: int = 5
     ) -> None:
-        """Gửi mã OTP xác thực đăng ký tài khoản tới email người dùng."""
+        if not settings.ENABLE_OUTBOUND_NOTIFICATIONS:
+            logger.info("[OUTBOUND BLACKHOLE] Outbound notifications disabled. Suppressed outbound email notification.")
+            return
+
         if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-            logger.warning("⚠️ [SMTP] Cấu hình SMTP chưa đầy đủ. Bỏ qua gửi email thực tế (OTP log ở console).")
+            logger.warning("[SMTP] Missing SMTP configuration. Email suppressed.")
             return
 
         message = EmailMessage()
-
         from_email = settings.EMAILS_FROM_EMAIL or settings.SMTP_USER
         from_name = settings.EMAILS_FROM_NAME
         message["From"] = f"{from_name} <{from_email}>"
@@ -50,9 +51,9 @@ Trân trọng,
                 password=settings.SMTP_PASSWORD,
                 start_tls=settings.SMTP_TLS
             )
-            logger.info(f"✉️ [SMTP SENT] Đã gửi mã OTP thành công tới: {recipient_email}")
+            logger.info(f"[SMTP SENT] Đã gửi mã OTP thành công tới: {recipient_email}")
         except Exception as exc:
-            logger.error(f"❌ [SMTP ERROR] Lỗi khi gửi email OTP tới {recipient_email}: {exc}")
+            logger.error(f"[SMTP ERROR] Lỗi khi gửi email OTP tới {recipient_email}: {exc}")
             raise exc
 
 

@@ -1,92 +1,253 @@
-name: Clinic AI Booking - Monorepo CI Pipeline
+name: Clinic AI Booking - CI/CD Pipeline
 
+# CI chạy cho mọi nhánh làm việc và PR vào develop/main.
+# CD (deploy demo VPS) chỉ chạy khi:
+#   - push vào develop VÀ toàn bộ CI xanh, hoặc
+#   - bấm "Run workflow" trên nhánh develop (có tuỳ chọn bỏ qua test backend đỏ).
 on:
   push:
     branches: [ "main", "develop", "fix/**", "feature/**" ]
   pull_request:
     branches: [ "main", "develop" ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: "Van deploy khi test backend do (chi dung khi da biet loi khong lien quan)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend-quality-and-test:
     name: Backend Linting & Automated Testing
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: clinic_db
-          POSTGRES_USER: clinic_user
-          POSTGRES_PASSWORD: clinic_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    timeout-minutes: 30
 
     steps:
       - name: 1. Checkout Mã Nguồn
         uses: actions/checkout@v4
 
-      - name: 2. Cài đặt môi trường Python 3.11
+      - name: 2. Khởi động PostgreSQL 15 cho kiểm thử
+        # Không dùng "services:" vì cần tăng max_connections: các test đồng thời
+        # (TS-APT-004/005) mở nhiều kết nối song song và vượt mặc định 100.
+        run: |
+          docker run -d --name ci-postgres \
+            -e POSTGRES_DB=clinic_db \
+            -e POSTGRES_USER=clinic_user \
+            -e POSTGRES_PASSWORD=clinic_password \
+            -p 5432:5432 \
+            postgres:15-alpine \
+            -c max_connections=400 -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+          for _ in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U clinic_user -d clinic_db >/dev/null 2>&1; then
+              echo "PostgreSQL san sang"; exit 0
+            fi
+            sleep 2
+          done
+          docker logs ci-postgres
+          exit 1
+
+      - name: 3. Cài đặt môi trường Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: "backend/requirements.txt"
 
-      - name: 3. Cài đặt Dependencies Backend
+      - name: 4. Cài đặt Dependencies Backend
         working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+          pip install -r requirements.txt
 
-      - name: 4. Kiểm tra Linter & Cú pháp (Ruff)
+      - name: 5. Kiểm tra Linter & Cú pháp (Ruff)
         working-directory: ./backend
-        run: |
-          python -m ruff check --fix .
-          python -m ruff check .
+        run: python -m ruff check .
 
-      - name: 5. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
+      - name: 6. Chạy Toàn Bộ Bộ Kiểm Thử Tự Động (Pytest)
         working-directory: ./backend
         env:
           PYTHONPATH: .
           DATABASE_URL: postgresql+asyncpg://clinic_user:clinic_password@localhost:5432/clinic_db
           SECRET_KEY: test_secret_key_ci_pipeline_2026
           DEBUG: "True"
-        run: |
-          if [ -d tests ]; then
-            python -m pytest tests -v
-          fi
+        run: python -m pytest tests -q -rfE --durations=10
 
   frontend-quality-and-build:
-    name: Frontend Linting & Build Verification
+    name: Frontend Linting, Test & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: 1. Checkout Mã Nguồn
         uses: actions/checkout@v4
 
-      - name: 2. Cài đặt môi trường Node.js 20
+      - name: 2. Cài đặt môi trường Node.js 24 (trùng fe/Dockerfile)
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "fe/package-lock.json"
 
       - name: 3. Cài đặt Dependencies Frontend
         working-directory: ./fe
-        run: |
-          npm ci
+        run: npm ci
 
-      - name: 4. Kiểm tra Linter & Build Production (Vite)
+      - name: 4. Kiểm tra Linter (oxlint)
+        working-directory: ./fe
+        run: npm run lint
+
+      - name: 5. Chạy Unit Test Frontend
+        working-directory: ./fe
+        run: npm test
+
+      - name: 6. Build Production (Vite)
         working-directory: ./fe
         env:
-          VITE_API_URL: http://localhost:8000
-          VITE_USE_MOCK: "false"
+          # Không đặt VITE_API_URL: bản build gọi API qua cùng tên miền (/api) do Nginx proxy.
+          VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'false' }}
+        run: npm run build
+
+      - name: 7. Lưu bundle frontend cho bước deploy
+        if: github.ref == 'refs/heads/develop' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-dist
+          path: fe/dist
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy-demo-vps:
+    name: CD - Deploy demo VPS
+    needs: [ backend-quality-and-test, frontend-quality-and-build ]
+    if: >-
+      !cancelled()
+      && github.ref == 'refs/heads/develop'
+      && needs.frontend-quality-and-build.result == 'success'
+      && (
+        (github.event_name == 'push' && needs.backend-quality-and-test.result == 'success')
+        || (github.event_name == 'workflow_dispatch'
+            && (needs.backend-quality-and-test.result == 'success' || inputs.force_deploy))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: deploy-demo-vps
+      cancel-in-progress: false
+    env:
+      APP_DIR: ${{ vars.VPS_APP_DIR || '/home/ubuntu/clinic-ai' }}
+
+    steps:
+      - name: 1. Checkout Mã Nguồn
+        uses: actions/checkout@v4
+
+      - name: 2. Tải bundle frontend đã build
+        uses: actions/download-artifact@v4
+        with:
+          name: fe-dist
+          path: fe/dist
+
+      - name: 3. Đóng gói bản phát hành
         run: |
-          npm run build
+          git archive --format=tar.gz -o release.tar.gz HEAD -- \
+            backend fe docker-compose.yml docker-compose.vps.yml .env.demo.example \
+            ':(exclude)backend/app/ml/training/training_data_5_specialties_v2.csv'
+          tar -czf fe-dist.tar.gz -C fe/dist .
+          ls -lh release.tar.gz fe-dist.tar.gz
+
+      - name: 4. Cấu hình SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST_SECRET: ${{ secrets.VPS_SSH_HOST }}
+          SSH_USER_SECRET: ${{ secrets.VPS_SSH_USER }}
+          SSH_PORT_VAR: ${{ vars.VPS_SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          FALLBACK_HOST: ${{ vars.VPS_HOST || '3.27.138.183' }}
+        run: |
+          set -euo pipefail
+          [ -n "$SSH_KEY" ] || { echo "::error::Thieu secret VPS_SSH_KEY"; exit 1; }
+
+          SSH_HOST=$(printf '%s' "$SSH_HOST_SECRET" | tr -d ' \r\n')
+          SSH_HOST=${SSH_HOST#*@}
+          if ! printf '%s' "$SSH_HOST" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$|^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$'; then
+            echo "::warning::Secret VPS_SSH_HOST rong hoac khong phai IP/ten mien hop le - dung dia chi du phong (vars.VPS_HOST)."
+            SSH_HOST="$FALLBACK_HOST"
+          fi
+          SSH_USER=$(printf '%s' "$SSH_USER_SECRET" | tr -d ' \r\n')
+          SSH_USER=${SSH_USER:-ubuntu}
+          SSH_PORT=${SSH_PORT_VAR:-22}
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null \
+            || { echo "::error::VPS_SSH_KEY khong phai private key hop le (can ca dong BEGIN/END)"; exit 1; }
+
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -T 15 "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null \
+              || { echo "::error::Khong ket noi duoc SSH toi $SSH_HOST:$SSH_PORT"; exit 1; }
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+          {
+            echo "SSH_TARGET=$SSH_USER@$SSH_HOST"
+            echo "SSH_PORT=$SSH_PORT"
+            echo "SSH_OPTS=-o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o StrictHostKeyChecking=yes -i $HOME/.ssh/deploy_key"
+          } >> "$GITHUB_ENV"
+
+      - name: 5. Chuẩn bị biến môi trường từ GitHub Secrets
+        # Chỉ ghi các giá trị có thật; script trên VPS không ghi đè mật khẩu đã có.
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          SEPAY_API_KEY: ${{ secrets.SEPAY_API_KEY }}
+          SEPAY_WEBHOOK_TOKEN: ${{ secrets.SEPAY_WEBHOOK_TOKEN }}
+          SEPAY_BANK_NAME: ${{ secrets.SEPAY_BANK_NAME }}
+          SEPAY_ACCOUNT_NUMBER: ${{ secrets.SEPAY_ACCOUNT_NUMBER }}
+          SEPAY_ACCOUNT_NAME: ${{ secrets.SEPAY_ACCOUNT_NAME }}
+        run: |
+          umask 077
+          : > deploy.env
+          for key in POSTGRES_PASSWORD SECRET_KEY PAYMENT_WEBHOOK_SECRET DEMO_PASSWORD \
+                     CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET \
+                     SEPAY_API_KEY SEPAY_WEBHOOK_TOKEN SEPAY_BANK_NAME SEPAY_ACCOUNT_NUMBER SEPAY_ACCOUNT_NAME; do
+            value=$(printenv "$key" | tr -d '\r\n' || true)
+            if [ -n "$value" ]; then
+              printf '%s=%s\n' "$key" "$value" >> deploy.env
+              echo "- co $key"
+            fi
+          done
+
+      - name: 6. Tải bản phát hành lên VPS
+        run: |
+          ssh $SSH_OPTS -p "$SSH_PORT" "$SSH_TARGET" "mkdir -p '$APP_DIR/.deploy-incoming' && chmod 700 '$APP_DIR/.deploy-incoming'"
+          scp $SSH_OPTS -P "$SSH_PORT" release.tar.gz fe-dist.tar.gz deploy.env deploy/vps-deploy.sh \
+            "$SSH_TARGET:$APP_DIR/.deploy-incoming/"
+
+      - name: 7. Build, khởi động lại stack & kiểm tra sức khỏe
+        run: |
+          ssh $SSH_OPTS -p "$SSH_PORT" "$SSH_TARGET" \
+            "bash '$APP_DIR/.deploy-incoming/vps-deploy.sh' '$APP_DIR' '$GITHUB_SHA'"
+
+      - name: 8. Tóm tắt
+        if: always()
+        run: |
+          rm -f deploy.env ~/.ssh/deploy_key
+          {
+            echo "### Deploy demo VPS"
+            echo "- Commit: \`${GITHUB_SHA::7}\`"
+            echo "- Ket qua: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"

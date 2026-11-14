@@ -22,9 +22,16 @@ x-backend-env: &backend-env
   SECRET_KEY: ${SECRET_KEY}
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
   CLS_UPLOAD_DIR: /var/lib/clinic/cls
-  CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-wnxp3aok}
-  CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-655712832393479}
-  CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-oD5z1slSBMh-Mknq6G35TA8Qcrk}
+  # Khóa dịch vụ ngoài lấy từ env file trên VPS (GitHub Secrets ghi vào khi deploy).
+  # Không đặt giá trị mặc định ở đây vì repo công khai.
+  CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+  CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+  CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+  SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+  SEPAY_WEBHOOK_TOKEN: ${SEPAY_WEBHOOK_TOKEN:-}
+  SEPAY_BANK_NAME: ${SEPAY_BANK_NAME:-}
+  SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
+  SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-}
 
 services:
   db:
@@ -72,7 +79,8 @@ services:
       bootstrap:
         condition: service_completed_successfully
     environment: *backend-env
-    mem_limit: 450m
+    # Model AI triage can ~1.8GB RAM khi nap; 450m lam backend bi OOM lap lai (502).
+    mem_limit: ${BACKEND_MEM_LIMIT:-2g}
     volumes:
       - cls_uploads:/var/lib/clinic
     healthcheck:

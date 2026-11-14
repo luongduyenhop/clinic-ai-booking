@@ -24,7 +24,6 @@ import {
     SwapOutlined,
     PlayCircleOutlined,
     CloseCircleOutlined,
-    AlertOutlined,
     HistoryOutlined,
     SoundOutlined,
     AudioMutedOutlined,
@@ -57,7 +56,6 @@ import { receptionService } from '../../services/reception/receptionService'
 import QueueActionModal from '../../components/reception/QueueActionModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import CheckInReceiptModal from '../../components/reception/CheckInReceiptModal'
-import EmergencyHandoverModal from '../../components/reception/EmergencyHandoverModal'
 import { QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
 import { audioAnnouncer } from '../../utils/audioAnnouncer'
@@ -123,7 +121,6 @@ export default function QueueManagementPage() {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
     const [isAudioEnabled, setIsAudioEnabled] = useState(() => audioAnnouncer.isEnabled())
     const [patientDrawerId, setPatientDrawerId] = useState(null)
-    const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false)
     const [receiptEntry, setReceiptEntry] = useState(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -163,8 +160,8 @@ export default function QueueManagementPage() {
                 id: r.id,
                 code: r.code || r.ma_phong || `PK-${r.id}`,
                 name: r.name || r.ten_phong || 'Buồng khám',
-                departmentId: r.departmentId || r.chuyen_khoa_id,
-                departmentName: r.departmentName || r.ten_chuyen_khoa || statusInfo?.chuyen_khoa || 'Chuyên khoa',
+                departmentId: r.departmentId || r.chuyen_khoa_id || null,
+                departmentName: r.departmentName || r.ten_chuyen_khoa || statusInfo?.chuyen_khoa || 'Phòng chung',
                 doctorId: doctorId || null,
                 doctorName: doctorName || 'Chưa phân công bác sĩ',
                 currentPatient: statusInfo?.benh_nhan_dang_kham || null,
@@ -199,17 +196,14 @@ export default function QueueManagementPage() {
     }, [departments])
 
     const getRoomsForTab = useCallback((tabId) => {
+        const knownDepIds = new Set(
+            departmentTabs.filter((d) => d.id !== 'CHUNG').map((d) => String(d.id))
+        )
         if (tabId === 'CHUNG') {
-            const knownDepIds = new Set(
-                departmentTabs.filter((d) => d.id !== 'CHUNG').map((d) => String(d.id))
-            )
             return displayRooms.filter((r) => !r.departmentId || !knownDepIds.has(String(r.departmentId)))
         }
-        const dep = departmentTabs.find((d) => d.id === tabId)
         return displayRooms.filter(
-            (r) =>
-                String(r.departmentId) === String(tabId) ||
-                (r.departmentName && dep?.name && r.departmentName.toLowerCase().includes(dep.name.toLowerCase()))
+            (r) => r.departmentId && String(r.departmentId) === String(tabId)
         )
     }, [departmentTabs, displayRooms])
 
@@ -1211,23 +1205,16 @@ export default function QueueManagementPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button
-                        size="middle"
-                        danger
-                        icon={<AlertOutlined />}
-                        onClick={() => setIsEmergencyModalOpen(true)}
-                        className="font-bold text-xs rounded-full"
-                    >
-                        Bàn giao cấp cứu
-                    </Button>
-                    <Button
-                        size="middle"
-                        icon={<SyncOutlined spin={isRefreshing} />}
-                        onClick={handleRefreshQueue}
-                        className="medpro-btn-outline font-bold text-xs !h-8 !px-3"
-                    >
-                        Đồng bộ hàng đợi
-                    </Button>
+                    <Tooltip title="Đồng bộ hàng đợi">
+                        <Button
+                            size="middle"
+                            shape="circle"
+                            icon={<SyncOutlined spin={isRefreshing} />}
+                            onClick={handleRefreshQueue}
+                            className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                            aria-label="Đồng bộ hàng đợi"
+                        />
+                    </Tooltip>
                 </div>
             </div>
 
@@ -1675,11 +1662,6 @@ export default function QueueManagementPage() {
                 patientId={patientDrawerId}
                 open={Boolean(patientDrawerId)}
                 onClose={() => setPatientDrawerId(null)}
-            />
-
-            <EmergencyHandoverModal
-                open={isEmergencyModalOpen}
-                onClose={() => setIsEmergencyModalOpen(false)}
             />
 
             <CheckInReceiptModal

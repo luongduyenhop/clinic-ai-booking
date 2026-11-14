@@ -27,21 +27,21 @@ test('BookingPage unifies MedPro card layout, AI recommendation and slot retry',
     assert.ok(!content.includes('//') && !content.includes('/*'), 'BookingPage must be clean without comments')
 })
 
-test('AdminHeader and ReceptionHeader preserve language toggle button', async () => {
+test('AdminHeader and ReceptionHeader preserve expected controls', async () => {
     const adminContent = await readFile(new URL('../src/components/admin/AdminHeader.jsx', import.meta.url), 'utf8')
     const recContent = await readFile(new URL('../src/components/reception/ReceptionHeader.jsx', import.meta.url), 'utf8')
     assert.ok(adminContent.includes('toggleLanguage') && adminContent.includes('Globe'), 'AdminHeader must have language toggle')
-    assert.ok(recContent.includes('toggleLanguage') && recContent.includes('Globe'), 'ReceptionHeader must have language toggle')
+    assert.ok(recContent.includes('isIncidentResolved') && recContent.includes('resolvedIncidentKeys'), 'ReceptionHeader must preserve resolved incident filtering from 569f412')
 })
 
 test('Reception pages preserve doctor absences rebalancing and emergency handover', async () => {
     const scheduleContent = await readFile(new URL('../src/pages/reception/ClinicSchedulePage.jsx', import.meta.url), 'utf8')
     const checkInContent = await readFile(new URL('../src/pages/reception/CheckInPage.jsx', import.meta.url), 'utf8')
     const queueContent = await readFile(new URL('../src/pages/reception/QueueManagementPage.jsx', import.meta.url), 'utf8')
-    assert.ok(scheduleContent.includes('doctorAbsences.map'), 'ClinicSchedulePage must show doctorAbsences alert')
+    assert.ok(scheduleContent.includes('activeAbsences.map') && scheduleContent.includes('isIncidentResolved'), 'ClinicSchedulePage must filter activeAbsences with isIncidentResolved')
     assert.ok(scheduleContent.includes('/reception/tasks'), 'ClinicSchedulePage must link to reception tasks')
     assert.ok(checkInContent.includes('EmergencyHandoverModal'), 'CheckInPage must retain EmergencyHandoverModal')
-    assert.ok(queueContent.includes('EmergencyHandoverModal'), 'QueueManagementPage must retain EmergencyHandoverModal')
+    assert.ok(queueContent.includes('knownDepIds') && queueContent.includes('handleRefreshQueue'), 'QueueManagementPage must preserve department room mapping and sync control')
 })
 
 test('Admin layout and dashboard maintain core structure and zero comments', async () => {

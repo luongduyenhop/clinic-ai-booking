@@ -16,7 +16,7 @@ const saveResolvedIncidents = (keys) => {
     try {
         localStorage.setItem(RESOLVED_INCIDENTS_STORAGE_KEY, JSON.stringify(keys))
     } catch {
-        // Ignore storage quota errors
+        return
     }
 }
 

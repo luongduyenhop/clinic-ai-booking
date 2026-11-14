@@ -41,6 +41,7 @@ import AmendmentModal from '../../components/doctor/exam/AmendmentModal'
 import PrescriptionPrintAndCopyModal from '../../components/doctor/PrescriptionPrintAndCopyModal'
 import { clinicalService } from '../../services/doctor/ClinicalService'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/clinical/StateBlocks'
+import { printHtmlDocument } from '../../utils/helpers/printUtils'
 
 const QUEUE_POLL_MS = 15000
 
@@ -520,6 +521,136 @@ export default function ExamWorkstationPage() {
         }
     }
 
+    const handlePrintMedicalRecord = () => {
+        if (!encounter) {
+            AppToast.warning('Chưa có ca khám nào được chọn.')
+            return
+        }
+        const bn = encounter.benh_nhan || {}
+        const vals = formik.values || {}
+        const vitals = {
+            mach: vals.mach_lan_phut || encounter.mach_lan_phut || '76',
+            nhiet_do: vals.nhiet_do_c || encounter.nhiet_do_c || '36.8',
+            huyet_ap: (vals.huyet_ap_tam_thu && vals.huyet_ap_tam_truong)
+                ? `${vals.huyet_ap_tam_thu}/${vals.huyet_ap_tam_truong}`
+                : ((encounter.huyet_ap_tam_thu && encounter.huyet_ap_tam_truong)
+                    ? `${encounter.huyet_ap_tam_thu}/${encounter.huyet_ap_tam_truong}`
+                    : '120/80'),
+            nhip_tho: vals.nhip_tho_lan_phut || encounter.nhip_tho_lan_phut || '18',
+            can_nang: vals.can_nang_kg || encounter.can_nang_kg || '60',
+            chieu_cao: vals.chieu_cao_cm || encounter.chieu_cao_cm || '165',
+        }
+
+        const labList = (encounter.danh_sach_chi_dinh || [])
+            .filter((o) => o.trang_thai !== 'da_huy')
+            .map((o) => o.ten_dich_vu)
+
+        const rawRx = vals.danh_sach_thuoc || encounter.danh_sach_thuoc || []
+        const rxList = rawRx.map((m, i) => `${i + 1}. <b>${m.ten_thuoc}</b> (${m.ham_luong || 'Chuẩn'}) — SL: ${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'} | <i>${m.cach_dung_day_du || m.cach_dung || 'Theo chỉ định'}</i>`)
+
+        const primaryDx = (vals.danh_sach_chan_doan || []).find((d) => d.loai_chan_doan === 'chinh') || (vals.danh_sach_chan_doan || [])[0]
+        const diagnosisText = primaryDx
+            ? `${primaryDx.ma_icd10} - ${primaryDx.ten_benh_chan_doan}`
+            : (vals.chan_doan_so_bo || encounter.chan_doan_so_bo || 'Khám nội tổng quát')
+
+        const doctorName = currentUser?.ho_ten || encounter.ten_bac_si || 'BS. CKI Nguyễn Văn An'
+
+        const html = `
+            <div style="font-family: 'Times New Roman', serif; padding: 10px; color: #111;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: bold;">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+                        <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI</div>
+                        <div style="font-size: 10px; color: #444;">Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức · Hotline: 1900 6868</div>
+                    </div>
+                    <div style="text-align: right; font-size: 11px;">
+                        <div>Mã bệnh án: <b>${bn.ma || 'BN-2026'}</b></div>
+                        <div>Ngày khám: <b>${new Date().toLocaleDateString('vi-VN')}</b></div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 14px;">
+                    <h2 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">BẢN TÓM TẮT BỆNH ÁN NGOẠI TRÚ</h2>
+                    <div style="font-size: 11px; font-style: italic;">(Lưu hồ sơ bệnh án & cấp cho người bệnh theo quy định)</div>
+                </div>
+
+                <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 8px; font-size: 12px; margin-bottom: 12px; line-height: 1.6;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                        <div>Họ và tên: <b style="text-transform: uppercase;">${bn.ho_ten || '—'}</b></div>
+                        <div>Mã định danh y tế: <b>${bn.ma || '—'}</b></div>
+                        <div>Tuổi: <b>${bn.tuoi || '—'} tuổi</b> · Giới tính: <b>${bn.gioi_tinh || '—'}</b></div>
+                        <div>Số điện thoại: <b>${bn.so_dien_thoai || '—'}</b></div>
+                        <div style="grid-column: 1 / -1;">Số BHYT: <b>${bn.so_bhyt || 'Không có'}</b></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">1. Dấu hiệu sinh tồn & Thể trạng:</div>
+                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid #333; padding: 4px 6px; text-align: center; font-size: 11px; background: #fff;">
+                        <div>Mạch: <b>${vitals.mach}</b> ck/p</div>
+                        <div>Nhiệt độ: <b>${vitals.nhiet_do}</b> °C</div>
+                        <div>Huyết áp: <b>${vitals.huyet_ap}</b> mmHg</div>
+                        <div>Nhịp thở: <b>${vitals.nhip_tho}</b> l/p</div>
+                        <div>Cân nặng: <b>${vitals.can_nang}</b> kg</div>
+                        <div>Chiều cao: <b>${vitals.chieu_cao}</b> cm</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">2. Chẩn đoán y khoa xác định (ICD-10):</div>
+                    <div style="border: 1px solid #333; padding: 6px 10px; background: #fafafa; font-weight: bold;">
+                        ${diagnosisText}
+                    </div>
+                </div>
+
+                ${labList.length > 0 ? `
+                    <div style="margin-bottom: 12px; font-size: 12px;">
+                        <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">3. Cận lâm sàng đã thực hiện:</div>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${labList.map(t => `<li>${t} — Đã có kết luận đối chiếu lâm sàng</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">4. Đơn thuốc & Hướng điều trị:</div>
+                    ${rxList.length > 0 ? `
+                        <div style="border: 1px solid #333; padding: 6px 10px;">
+                            ${rxList.map(line => `<div style="margin-bottom: 4px;">${line}</div>`).join('')}
+                        </div>
+                    ` : '<div style="font-style: italic; color: #555;">(Không dùng thuốc)</div>'}
+                </div>
+
+                <div style="margin-bottom: 14px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">5. Lời dặn dò của bác sĩ:</div>
+                    <div style="border: 1px dashed #444; padding: 6px 10px; font-style: italic; background: #fffbe8;">
+                        ${vals.loi_dan_bac_si || vals.ket_luan_dieu_tri || encounter.loi_dan_bac_si || 'Ăn uống hợp lý, nghỉ ngơi, uống thuốc đúng giờ. Tái khám theo hẹn.'}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 20px; text-align: center; font-size: 12px; page-break-inside: avoid;">
+                    <div>
+                        <div style="font-weight: bold; text-transform: uppercase;">Người bệnh / Thân nhân</div>
+                        <div style="font-size: 10px; font-style: italic;">(Ký và ghi rõ họ tên)</div>
+                    </div>
+                    <div>
+                        <div style="font-style: italic;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
+                        <div style="font-weight: bold; text-transform: uppercase; margin-top: 2px;">Bác sĩ khám bệnh</div>
+                        <div style="font-size: 10px; font-style: italic;">(Ký, ghi rõ họ tên & đóng dấu)</div>
+                        <div style="margin-top: 36px; font-weight: bold;">${doctorName}</div>
+                        <div style="font-size: 9px; color: #047857; font-weight: bold;">✓ CHỨNG TỪ Y TẾ ĐIỆN TỬ HỢP LỆ</div>
+                    </div>
+                </div>
+            </div>
+        `
+
+        printHtmlDocument({
+            title: `BenhAn_${bn.ma || 'BN'}`,
+            contentHtml: html,
+            paperSize: 'A4',
+        })
+    }
+
     const doComplete = async () => {
         const v = formik.values
         const payload = {
@@ -974,6 +1105,16 @@ export default function ExamWorkstationPage() {
                                     >
                                         <ClinicIcon name="Printer" size={15} />
                                         <span>In Đơn &amp; Mã QR</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handlePrintMedicalRecord}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition cursor-pointer"
+                                        title="In bản tóm tắt hồ sơ bệnh án ngoại trú (Khổ A4)"
+                                    >
+                                        <ClinicIcon name="FileText" size={15} />
+                                        <span>In Bệnh Án</span>
                                     </button>
 
                                     {!locked && (activeOrders.length > 0 || isWaitingCls) && (

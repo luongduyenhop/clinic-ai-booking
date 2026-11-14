@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
     Printer,
     Copy,
@@ -17,6 +17,7 @@ import {
 } from '@phosphor-icons/react'
 import { AppToast } from '../common/AppNotification'
 import { SAMPLE_PRESCRIPTION_TEMPLATES } from '../../utils/constants/clinicalTemplates'
+import { printHtmlDocument } from '../../utils/helpers/printUtils'
 
 const SAMPLE_OLD_PRESCRIPTIONS = [
     {
@@ -119,23 +120,67 @@ export default function PrescriptionPrintAndCopyModal({
     const [activeTab, setActiveTab] = useState(initialTab)
     const [showPriceOnPrint, setShowPriceOnPrint] = useState(false)
     const [paperSize, setPaperSize] = useState('a4') // 'a4' | 'k80'
+    const printRef = useRef(null)
 
     if (!isOpen) return null
 
-    const rxCode = `RX-${encounter?.id || 9102}-${new Date().getFullYear()}`
-    const patientName = patient?.ho_ten || encounter?.ten_benh_nhan || 'Nguyễn Văn Bệnh Nhân'
-    const patientDob = patient?.ngay_sinh || encounter?.ngay_sinh || '15/05/1990'
-    const patientGender = patient?.gioi_tinh || encounter?.gioi_tinh || 'Nam'
-    const patientPhone = patient?.so_dien_thoai || encounter?.so_dien_thoai || '0901 234 567'
-    const patientCode = patient?.ma || encounter?.ma_benh_nhan || `BN-${encounter?.id || '2026'}`
-    const doctorName = encounter?.ten_bac_si || 'BS.CKI Nguyễn Văn An'
+    const pData = encounter?.benh_nhan || patient || {}
+    const patientName = pData.ho_ten || encounter?.ten_benh_nhan || patient?.fullName || 'Bệnh nhân'
+    const patientDob = pData.ngay_sinh || encounter?.ngay_sinh || (pData.tuoi ? `${pData.tuoi} tuổi` : '—')
+    const patientGender = pData.gioi_tinh || encounter?.gioi_tinh || 'Nam'
+    const patientPhone = pData.so_dien_thoai || encounter?.so_dien_thoai || pData.phone || '—'
+    const patientAddress = pData.dia_chi || encounter?.dia_chi || '—'
+    const patientInsurance = pData.so_bhyt || encounter?.so_bhyt || pData.healthInsurance || ''
+    const patientCode = pData.ma || pData.ma_benh_nhan || encounter?.ma_benh_nhan || (encounter?.id ? `BN-2026-${String(encounter.id).padStart(4, '0')}` : 'BN-2026')
+    const doctorName = encounter?.ten_bac_si || encounter?.nguoi_ky || 'BS. Chuyên khoa'
+
+    const effectiveDiagnoses = (diagnoses && diagnoses.length > 0)
+        ? diagnoses
+        : (encounter?.danh_sach_chan_doan || [])
+
+    const effectiveItems = (prescriptionItems && prescriptionItems.length > 0)
+        ? prescriptionItems
+        : (encounter?.danh_sach_thuoc || encounter?.don_thuoc?.danh_sach_thuoc || [])
+
+    const effectiveNote = prescriptionNote || encounter?.loi_dan_bac_si || encounter?.loi_dan_uong_thuoc || encounter?.don_thuoc?.loi_dan_uong_thuoc || 'Uống thuốc đúng giờ theo chỉ dẫn. Tái khám theo hẹn.'
+
+    const rxCode = encounter?.don_thuoc?.ma_don || `RX-${encounter?.id || 9102}-${new Date().getFullYear()}`
 
     // Tính tổng tiền ước tính chỉ dùng cho bản in khi bật hiển thị giá
-    const estimatedTotal = prescriptionItems.reduce((sum, item) => {
+    const estimatedTotal = effectiveItems.reduce((sum, item) => {
         const qty = Number(item.so_luong) || 1
         const price = Number(item.don_gia) || 15000
         return sum + qty * price
     }, 0)
+
+    const handleExecutePrint = () => {
+        if (!printRef.current) return
+        const isK80 = paperSize === 'k80'
+        const customStyles = isK80
+            ? `
+                body { font-size: 11px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.35; color: #111; }
+                .k80-box { width: 74mm; margin: 0 auto; }
+                .k80-title { font-size: 13px; font-weight: bold; text-align: center; text-transform: uppercase; margin: 4px 0; }
+                .k80-divider { border-bottom: 1px dashed #555; margin: 6px 0; }
+                .k80-med-row { padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px dotted #aaa; }
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+            `
+            : `
+                body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #111; }
+                table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+                th, td { border: 1px solid #444; padding: 4px 6px; }
+                th { background-color: #f3f4f6; font-weight: bold; text-align: left; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+            `
+        printHtmlDocument({
+            title: `DonThuoc_${patientCode}_${rxCode}`,
+            contentHtml: printRef.current.innerHTML,
+            customStyles,
+            paperSize: isK80 ? 'K80' : 'A4',
+        })
+    }
 
     const handleCopyOld = (oldRx) => {
         if (onApplyOldPrescription) {
@@ -329,225 +374,353 @@ export default function PrescriptionPrintAndCopyModal({
                 {/* Body Content */}
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
                     {activeTab === 'print' ? (
-                        <div className="bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-sm max-w-3xl mx-auto text-slate-900 print:border-none print:shadow-none print:p-0">
-                            {/* Header Quốc hiệu & Mã vạch */}
-                            <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 mb-5">
-                                <div>
-                                    <div className="text-xs font-bold uppercase text-teal-800">
-                                        SỞ Y TẾ TP. HỒ CHÍ MINH
+                        paperSize === 'k80' ? (
+                            /* Bản xem trước & in nhiệt Khổ K80 (80mm Thermal Bill) */
+                            <div
+                                ref={printRef}
+                                className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-sm max-w-[360px] mx-auto text-slate-900"
+                            >
+                                <div className="text-center pb-2 border-b border-dashed border-slate-400">
+                                    <div className="text-xs font-bold uppercase text-slate-800">
+                                        PHÒNG KHÁM ĐA KHOA CLINIC-AI
                                     </div>
-                                    <div className="text-lg font-black uppercase tracking-tight text-slate-900">
-                                        PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI
+                                    <div className="text-[10px] text-slate-500 mt-0.5">
+                                        Khu Công Nghệ Cao, TP. Thủ Đức | Hotline: 1900 6868
                                     </div>
-                                    <div className="text-xs text-slate-600 mt-0.5">
-                                        Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức | Hotline: 1900 6868
+                                    <div className="text-sm font-black uppercase text-slate-900 mt-2">
+                                        ĐƠN THUỐC ĐIỆN TỬ
+                                    </div>
+                                    <div className="text-[10px] font-mono text-slate-600">
+                                        Mã ĐT: {rxCode}
                                     </div>
                                 </div>
 
-                                <div className="text-right flex items-center gap-4">
-                                    <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
-                                        <Barcode size={36} className="mx-auto text-slate-800" />
-                                        <div className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">
-                                            {rxCode}
-                                        </div>
+                                <div className="py-2 text-[11px] border-b border-dashed border-slate-300 space-y-1">
+                                    <div><strong>Bệnh nhân:</strong> <span className="uppercase">{patientName}</span></div>
+                                    <div className="flex justify-between">
+                                        <span><strong>Giới/Tuổi:</strong> {patientGender}, {patientDob}</span>
+                                        <span><strong>Mã BN:</strong> {patientCode}</span>
                                     </div>
-                                    <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
-                                        <QrCode size={42} className="mx-auto text-teal-800" />
-                                        <div className="text-[9px] font-mono text-slate-500">QR Đơn Thuốc</div>
+                                    {patientPhone && <div><strong>SĐT:</strong> {patientPhone}</div>}
+                                    {patientAddress && patientAddress !== '—' && (
+                                        <div><strong>Địa chỉ:</strong> {patientAddress}</div>
+                                    )}
+                                    <div>
+                                        <strong>Chẩn đoán:</strong>{' '}
+                                        {effectiveDiagnoses.length > 0
+                                            ? effectiveDiagnoses.map((d) => `${d.ma_icd10} - ${d.ten_benh_chan_doan}`).join('; ')
+                                            : 'Viêm họng cấp / Theo dõi điều trị'}
                                     </div>
+                                    <div><strong>Bác sĩ:</strong> {doctorName}</div>
+                                    <div><strong>Ngày kê:</strong> {new Date().toLocaleDateString('vi-VN')}</div>
                                 </div>
-                            </div>
 
-                            {/* Title */}
-                            <div className="text-center mb-5">
-                                <h2 className="text-2xl font-black uppercase tracking-wide text-slate-900">
-                                    ĐƠN THUỐC NGOẠI TRÚ ĐIỆN TỬ
-                                </h2>
-                                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                    Mã hồ sơ lượt khám: #{encounter?.id || 9102} — Ngày kê:{' '}
-                                    {new Date().toLocaleDateString('vi-VN')}
-                                </p>
-                            </div>
-
-                            {/* Thông tin hành chính & Chẩn đoán */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs mb-5">
-                                <div>
-                                    <span className="text-slate-500">Họ và tên bệnh nhân:</span>{' '}
-                                    <strong className="text-sm uppercase text-slate-900">{patientName}</strong>
-                                </div>
-                                <div>
-                                    <span className="text-slate-500">Mã định danh y tế:</span>{' '}
-                                    <strong className="font-mono text-teal-800">{patientCode}</strong>
-                                </div>
-                                <div>
-                                    <span className="text-slate-500">Ngày sinh / Giới tính:</span>{' '}
-                                    <strong>
-                                        {patientDob} ({patientGender})
-                                    </strong>
-                                </div>
-                                <div>
-                                    <span className="text-slate-500">Số điện thoại:</span>{' '}
-                                    <strong>{patientPhone}</strong>
-                                </div>
-                                <div className="md:col-span-2 pt-1 border-t border-slate-200/80">
-                                    <span className="text-slate-500">Chẩn đoán y khoa (ICD-10):</span>{' '}
-                                    <strong className="text-teal-800">
-                                        {diagnoses.length > 0
-                                            ? diagnoses
-                                                  .map((d) => `${d.ma_icd10} - ${d.ten_benh_chan_doan}`)
-                                                  .join('; ')
-                                            : 'J02.9 - Viêm họng cấp không đặc hiệu'}
-                                    </strong>
-                                </div>
-                            </div>
-
-                            {/* Bảng danh mục thuốc đã kê */}
-                            <div className="mb-5">
-                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-2">
-                                    Danh mục thuốc chỉ định điều trị ({prescriptionItems.length} khoản)
-                                </h4>
-                                <div className="overflow-x-auto border border-slate-300 rounded-xl">
-                                    <table className="w-full text-left border-collapse text-xs">
-                                        <thead>
-                                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold">
-                                                <th className="py-2.5 px-3 w-10 text-center">STT</th>
-                                                <th className="py-2.5 px-3">Tên thuốc / Hoạt chất / Hàm lượng</th>
-                                                <th className="py-2.5 px-3 text-center">Liều dùng & Cách uống</th>
-                                                <th className="py-2.5 px-3 text-center w-20">Số ngày</th>
-                                                <th className="py-2.5 px-3 text-center w-24">Số lượng</th>
-                                                {showPriceOnPrint && (
-                                                    <th className="py-2.5 px-3 text-right w-24">Đơn giá</th>
-                                                )}
-                                                {showPriceOnPrint && (
-                                                    <th className="py-2.5 px-3 text-right w-28">Thành tiền</th>
-                                                )}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-200">
-                                            {prescriptionItems.length > 0 ? (
-                                                prescriptionItems.map((item, idx) => {
-                                                    const qty = Number(item.so_luong) || 1
-                                                    const price = Number(item.don_gia) || 15000
-                                                    const lineTotal = qty * price
-                                                    return (
-                                                        <tr key={idx} className="hover:bg-slate-50/80">
-                                                            <td className="py-3 px-3 text-center font-bold text-slate-600">
-                                                                {idx + 1}
-                                                            </td>
-                                                            <td className="py-3 px-3">
-                                                                <div className="font-bold text-slate-900 text-sm">
-                                                                    {item.ten_thuoc}
-                                                                </div>
-                                                                <div className="text-[11px] text-slate-500">
-                                                                    Hoạt chất: {item.hoat_chat || 'Theo danh mục'} | Hàm
-                                                                    lượng: {item.ham_luong || 'Chuẩn'} | Đường dùng:{' '}
-                                                                    {item.duong_dung || 'Uống'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-3 px-3 text-center">
-                                                                <div className="font-bold text-teal-900 text-xs">
-                                                                    {item.lieu_dung
-                                                                        ? item.lieu_dung
-                                                                        : [
-                                                                              item.sang && Number(item.sang) > 0 ? `Sáng: ${item.sang}` : '',
-                                                                              item.trua && Number(item.trua) > 0 ? `Trưa: ${item.trua}` : '',
-                                                                              item.chieu && Number(item.chieu) > 0 ? `Chiều: ${item.chieu}` : '',
-                                                                              item.toi && Number(item.toi) > 0 ? `Tối: ${item.toi}` : '',
-                                                                          ]
-                                                                              .filter(Boolean)
-                                                                              .join(' · ') || 'Theo chỉ dẫn'}
-                                                                </div>
-                                                                <div className="text-[11px] text-slate-600 mt-0.5 italic">
-                                                                    {item.cach_dung || 'Uống sau ăn no'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-3 px-3 text-center font-semibold">
-                                                                {item.thoi_gian_dung_ngay || item.so_ngay_dung || 5} ngày
-                                                            </td>
-                                                            <td className="py-3 px-3 text-center font-black text-sm text-slate-900">
-                                                                {item.so_luong || 10} {item.don_vi_tinh || 'Viên'}
-                                                            </td>
-                                                            {showPriceOnPrint && (
-                                                                <td className="py-3 px-3 text-right font-medium text-slate-600">
-                                                                    {price.toLocaleString('vi-VN')} đ
-                                                                </td>
-                                                            )}
-                                                            {showPriceOnPrint && (
-                                                                <td className="py-3 px-3 text-right font-bold text-slate-900">
-                                                                    {lineTotal.toLocaleString('vi-VN')} đ
-                                                                </td>
-                                                            )}
-                                                        </tr>
-                                                    )
-                                                })
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan={showPriceOnPrint ? 7 : 5} className="py-6 text-center text-slate-400 italic">
-                                                        Chưa có thuốc trong đơn. Bạn có thể thêm thuốc hoặc bấm tab
-                                                        &ldquo;Toa Mẫu&rdquo; / &ldquo;Đơn Cũ&rdquo;.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                        {showPriceOnPrint && prescriptionItems.length > 0 && (
-                                            <tfoot>
-                                                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
-                                                    <td colSpan={6} className="py-2.5 px-3 text-right uppercase text-slate-700">
-                                                        Tổng tiền thuốc ước tính:
-                                                    </td>
-                                                    <td className="py-2.5 px-3 text-right text-sm font-black text-teal-800">
-                                                        {estimatedTotal.toLocaleString('vi-VN')} VNĐ
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
+                                <div className="py-2 border-b border-dashed border-slate-300">
+                                    <div className="text-[11px] font-bold uppercase mb-1">
+                                        Thuốc điều trị ({effectiveItems.length} khoản):
+                                    </div>
+                                    <div className="space-y-2 text-[11px]">
+                                        {effectiveItems.length > 0 ? (
+                                            effectiveItems.map((item, idx) => {
+                                                const qty = Number(item.so_luong) || 1
+                                                const price = Number(item.don_gia) || 15000
+                                                const lineTotal = qty * price
+                                                return (
+                                                    <div key={idx} className="border-b border-dotted border-slate-200 pb-1.5">
+                                                        <div className="flex justify-between font-bold text-slate-900">
+                                                            <span>{idx + 1}. {item.ten_thuoc}</span>
+                                                            <span className="shrink-0 font-black">{qty} {item.don_vi_tinh || 'Viên'}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-500">
+                                                            {item.hoat_chat ? `${item.hoat_chat} · ` : ''}{item.ham_luong || 'Chuẩn'}
+                                                        </div>
+                                                        <div className="text-[10px] text-teal-800 font-medium">
+                                                            Liều: {item.lieu_dung || [
+                                                                item.sang && Number(item.sang) > 0 ? `S:${item.sang}` : '',
+                                                                item.trua && Number(item.trua) > 0 ? `Tr:${item.trua}` : '',
+                                                                item.chieu && Number(item.chieu) > 0 ? `C:${item.chieu}` : '',
+                                                                item.toi && Number(item.toi) > 0 ? `T:${item.toi}` : '',
+                                                            ].filter(Boolean).join(' - ') || 'Theo chỉ dẫn'} ({item.cach_dung || 'Sau ăn no'})
+                                                        </div>
+                                                        {showPriceOnPrint && (
+                                                            <div className="text-[10px] text-right text-slate-600 font-semibold">
+                                                                {price.toLocaleString('vi-VN')}đ × {qty} = {lineTotal.toLocaleString('vi-VN')}đ
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })
+                                        ) : (
+                                            <div className="text-center text-slate-400 italic py-2">
+                                                Chưa có thuốc trong đơn.
+                                            </div>
                                         )}
-                                    </table>
-                                </div>
-                            </div>
+                                    </div>
 
-                            {/* Lời dặn & Chữ ký số Bác sĩ */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-slate-200 text-xs">
-                                <div className="space-y-1.5">
-                                    <div className="font-bold text-slate-800 uppercase">Lời dặn của Bác sĩ:</div>
-                                    <p className="text-slate-600 bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl leading-relaxed">
-                                        {prescriptionNote ||
-                                            encounter?.loi_dan_bac_si ||
-                                            'Uống thuốc đúng giờ theo chỉ dẫn. Nếu có biểu hiện dị ứng (nổi mẩn, khó thở) cần ngưng thuốc và đến cơ sở y tế gần nhất.'}
-                                    </p>
-                                    {encounter?.ngay_hen_tai_kham && (
-                                        <div className="flex items-center gap-1.5 font-bold text-teal-700 pt-1">
-                                            <CalendarCheck size={16} weight="bold" />
-                                            <span>Hẹn tái khám: {encounter.ngay_hen_tai_kham}</span>
+                                    {showPriceOnPrint && effectiveItems.length > 0 && (
+                                        <div className="flex justify-between font-bold text-xs pt-2 text-slate-900 border-t border-slate-200 mt-1">
+                                            <span>Tổng tiền thuốc:</span>
+                                            <span className="text-teal-800">{estimatedTotal.toLocaleString('vi-VN')} đ</span>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="text-center md:text-right flex flex-col items-center md:items-end justify-between">
-                                    <div>
-                                        <div className="italic text-slate-500">
-                                            Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm{' '}
-                                            {new Date().getFullYear()}
+                                <div className="py-2 text-[10px] text-slate-700 border-b border-dashed border-slate-300 space-y-1">
+                                    <div><strong>Lời dặn:</strong> {effectiveNote}</div>
+                                    {encounter?.ngay_hen_tai_kham && (
+                                        <div className="font-bold text-teal-700">
+                                            📅 Hẹn tái khám: {encounter.ngay_hen_tai_kham}
                                         </div>
-                                        <div className="font-bold uppercase text-slate-800 mt-1">
-                                            Bác sĩ khám bệnh
+                                    )}
+                                </div>
+
+                                <div className="pt-3 text-center text-[10px] space-y-1">
+                                    <div className="font-bold uppercase text-slate-800">Bác sĩ khám bệnh</div>
+                                    <div className="font-extrabold text-xs text-slate-900">{doctorName}</div>
+                                    <div className="text-[9px] text-emerald-700 font-semibold">
+                                        ✓ Đã ký số điện tử y tế (TT 04/2022/TT-BYT)
+                                    </div>
+                                    <div className="pt-2">
+                                        <QrCode size={48} className="mx-auto text-teal-900" />
+                                        <div className="text-[8px] font-mono text-slate-500 mt-0.5">Quét QR tra cứu đơn thuốc</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Bản xem trước & in Laser Khổ A4 / A5 */
+                            <div
+                                ref={printRef}
+                                className="bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-sm max-w-3xl mx-auto text-slate-900"
+                            >
+                                {/* Header Quốc hiệu & Mã vạch */}
+                                <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 mb-5">
+                                    <div>
+                                        <div className="text-xs font-bold uppercase text-teal-800">
+                                            SỞ Y TẾ TP. HỒ CHÍ MINH
+                                        </div>
+                                        <div className="text-lg font-black uppercase tracking-tight text-slate-900">
+                                            PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI
+                                        </div>
+                                        <div className="text-xs text-slate-600 mt-0.5">
+                                            Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức | Hotline: 1900 6868
                                         </div>
                                     </div>
 
-                                    <div className="my-2.5 px-3.5 py-2 rounded-xl border-2 border-dashed border-emerald-600 bg-emerald-50/80 text-emerald-900 inline-flex items-center gap-2 text-left">
-                                        <CheckCircle size={22} weight="fill" className="text-emerald-600 shrink-0" />
-                                        <div>
-                                            <div className="text-[9px] font-extrabold uppercase tracking-wide text-emerald-800">
-                                                CHỨNG THƯ SỐ Y TẾ HỢP LỆ (TT 04/2022/TT-BYT)
+                                    <div className="text-right flex items-center gap-4">
+                                        <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
+                                            <Barcode size={36} className="mx-auto text-slate-800" />
+                                            <div className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">
+                                                {rxCode}
                                             </div>
-                                            <div className="text-xs font-black text-slate-900">{doctorName}</div>
-                                            <div className="text-[9px] text-emerald-700 font-mono">
-                                                Ký lúc: {encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky ? new Date(encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}
+                                        </div>
+                                        <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
+                                            <QrCode size={42} className="mx-auto text-teal-800" />
+                                            <div className="text-[9px] font-mono text-slate-500">QR Đơn Thuốc</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Title */}
+                                <div className="text-center mb-5">
+                                    <h2 className="text-2xl font-black uppercase tracking-wide text-slate-900">
+                                        ĐƠN THUỐC NGOẠI TRÚ ĐIỆN TỬ
+                                    </h2>
+                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                        Mã hồ sơ lượt khám: #{encounter?.id || 9102} — Ngày kê:{' '}
+                                        {new Date().toLocaleDateString('vi-VN')}
+                                    </p>
+                                </div>
+
+                                {/* Thông tin hành chính & Chẩn đoán */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs mb-5">
+                                    <div>
+                                        <span className="text-slate-500">Họ và tên bệnh nhân:</span>{' '}
+                                        <strong className="text-sm uppercase text-slate-900">{patientName}</strong>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Mã định danh y tế:</span>{' '}
+                                        <strong className="font-mono text-teal-800">{patientCode}</strong>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Ngày sinh / Giới tính:</span>{' '}
+                                        <strong>
+                                            {patientDob} ({patientGender})
+                                        </strong>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Số điện thoại:</span>{' '}
+                                        <strong>{patientPhone}</strong>
+                                    </div>
+                                    {patientAddress && patientAddress !== '—' && (
+                                        <div className="md:col-span-2">
+                                            <span className="text-slate-500">Địa chỉ:</span>{' '}
+                                            <strong>{patientAddress}</strong>
+                                        </div>
+                                    )}
+                                    {patientInsurance && (
+                                        <div className="md:col-span-2">
+                                            <span className="text-slate-500">Số thẻ BHYT:</span>{' '}
+                                            <strong className="font-mono text-teal-800">{patientInsurance}</strong>
+                                        </div>
+                                    )}
+                                    <div className="md:col-span-2 pt-1 border-t border-slate-200/80">
+                                        <span className="text-slate-500">Chẩn đoán y khoa (ICD-10):</span>{' '}
+                                        <strong className="text-teal-800">
+                                            {effectiveDiagnoses.length > 0
+                                                ? effectiveDiagnoses
+                                                      .map((d) => `${d.ma_icd10} - ${d.ten_benh_chan_doan}`)
+                                                      .join('; ')
+                                                : 'J02.9 - Viêm họng cấp không đặc hiệu'}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                {/* Bảng danh mục thuốc đã kê */}
+                                <div className="mb-5">
+                                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-2">
+                                        Danh mục thuốc chỉ định điều trị ({effectiveItems.length} khoản)
+                                    </h4>
+                                    <div className="overflow-x-auto border border-slate-300 rounded-xl">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead>
+                                                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold">
+                                                    <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                                                    <th className="py-2.5 px-3">Tên thuốc / Hoạt chất / Hàm lượng</th>
+                                                    <th className="py-2.5 px-3 text-center">Liều dùng & Cách uống</th>
+                                                    <th className="py-2.5 px-3 text-center w-20">Số ngày</th>
+                                                    <th className="py-2.5 px-3 text-center w-24">Số lượng</th>
+                                                    {showPriceOnPrint && (
+                                                        <th className="py-2.5 px-3 text-right w-24">Đơn giá</th>
+                                                    )}
+                                                    {showPriceOnPrint && (
+                                                        <th className="py-2.5 px-3 text-right w-28">Thành tiền</th>
+                                                    )}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-200">
+                                                {effectiveItems.length > 0 ? (
+                                                    effectiveItems.map((item, idx) => {
+                                                        const qty = Number(item.so_luong) || 1
+                                                        const price = Number(item.don_gia) || 15000
+                                                        const lineTotal = qty * price
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-slate-50/80">
+                                                                <td className="py-3 px-3 text-center font-bold text-slate-600">
+                                                                    {idx + 1}
+                                                                </td>
+                                                                <td className="py-3 px-3">
+                                                                    <div className="font-bold text-slate-900 text-sm">
+                                                                        {item.ten_thuoc}
+                                                                    </div>
+                                                                    <div className="text-[11px] text-slate-500">
+                                                                        Hoạt chất: {item.hoat_chat || 'Theo danh mục'} | Hàm
+                                                                        lượng: {item.ham_luong || 'Chuẩn'} | Đường dùng:{' '}
+                                                                        {item.duong_dung || 'Uống'}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-3 px-3 text-center">
+                                                                    <div className="font-bold text-teal-900 text-xs">
+                                                                        {item.lieu_dung
+                                                                            ? item.lieu_dung
+                                                                            : [
+                                                                                  item.sang && Number(item.sang) > 0 ? `Sáng: ${item.sang}` : '',
+                                                                                  item.trua && Number(item.trua) > 0 ? `Trưa: ${item.trua}` : '',
+                                                                                  item.chieu && Number(item.chieu) > 0 ? `Chiều: ${item.chieu}` : '',
+                                                                                  item.toi && Number(item.toi) > 0 ? `Tối: ${item.toi}` : '',
+                                                                              ]
+                                                                                  .filter(Boolean)
+                                                                                  .join(' · ') || 'Theo chỉ dẫn'}
+                                                                    </div>
+                                                                    <div className="text-[11px] text-slate-600 mt-0.5 italic">
+                                                                        {item.cach_dung || 'Uống sau ăn no'}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-3 px-3 text-center font-semibold">
+                                                                    {item.thoi_gian_dung_ngay || item.so_ngay_dung || 5} ngày
+                                                                </td>
+                                                                <td className="py-3 px-3 text-center font-black text-sm text-slate-900">
+                                                                    {item.so_luong || 10} {item.don_vi_tinh || 'Viên'}
+                                                                </td>
+                                                                {showPriceOnPrint && (
+                                                                    <td className="py-3 px-3 text-right font-medium text-slate-600">
+                                                                        {price.toLocaleString('vi-VN')} đ
+                                                                    </td>
+                                                                )}
+                                                                {showPriceOnPrint && (
+                                                                    <td className="py-3 px-3 text-right font-bold text-slate-900">
+                                                                        {lineTotal.toLocaleString('vi-VN')} đ
+                                                                    </td>
+                                                                )}
+                                                            </tr>
+                                                        )
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={showPriceOnPrint ? 7 : 5} className="py-6 text-center text-slate-400 italic">
+                                                            Chưa có thuốc trong đơn. Bạn có thể thêm thuốc hoặc bấm tab
+                                                            &ldquo;Toa Mẫu&rdquo; / &ldquo;Đơn Cũ&rdquo;.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                            {showPriceOnPrint && effectiveItems.length > 0 && (
+                                                <tfoot>
+                                                    <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
+                                                        <td colSpan={6} className="py-2.5 px-3 text-right uppercase text-slate-700">
+                                                            Tổng tiền thuốc ước tính:
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-right text-sm font-black text-teal-800">
+                                                            {estimatedTotal.toLocaleString('vi-VN')} VNĐ
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Lời dặn & Chữ ký số Bác sĩ */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-slate-200 text-xs">
+                                    <div className="space-y-1.5">
+                                        <div className="font-bold text-slate-800 uppercase">Lời dặn của Bác sĩ:</div>
+                                        <p className="text-slate-600 bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl leading-relaxed">
+                                            {effectiveNote}
+                                        </p>
+                                        {encounter?.ngay_hen_tai_kham && (
+                                            <div className="flex items-center gap-1.5 font-bold text-teal-700 pt-1">
+                                                <CalendarCheck size={16} weight="bold" />
+                                                <span>Hẹn tái khám: {encounter.ngay_hen_tai_kham}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="text-center md:text-right flex flex-col items-center md:items-end justify-between">
+                                        <div>
+                                            <div className="italic text-slate-500">
+                                                Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm{' '}
+                                                {new Date().getFullYear()}
+                                            </div>
+                                            <div className="font-bold uppercase text-slate-800 mt-1">
+                                                Bác sĩ khám bệnh
+                                            </div>
+                                        </div>
+
+                                        <div className="my-2.5 px-3.5 py-2 rounded-xl border-2 border-dashed border-emerald-600 bg-emerald-50/80 text-emerald-900 inline-flex items-center gap-2 text-left">
+                                            <CheckCircle size={22} weight="fill" className="text-emerald-600 shrink-0" />
+                                            <div>
+                                                <div className="text-[9px] font-extrabold uppercase tracking-wide text-emerald-800">
+                                                    CHỨNG THƯ SỐ Y TẾ HỢP LỆ (TT 04/2022/TT-BYT)
+                                                </div>
+                                                <div className="text-xs font-black text-slate-900">{doctorName}</div>
+                                                <div className="text-[9px] text-emerald-700 font-mono">
+                                                    Ký lúc: {encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky ? new Date(encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )
                     ) : activeTab === 'templates' ? (
                         /* Tab: Danh mục Toa Mẫu có Kiểm Soát (Lát cắt E) */
                         <div className="space-y-4 max-w-3xl mx-auto">
@@ -734,11 +907,11 @@ export default function PrescriptionPrintAndCopyModal({
                         {activeTab === 'print' && (
                             <button
                                 type="button"
-                                onClick={() => window.print()}
-                                className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                                onClick={handleExecutePrint}
+                                className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
                             >
                                 <Printer size={16} weight="bold" />
-                                In Đơn Thuốc Ngay (A4 / A5)
+                                In Đơn Thuốc Ngay ({paperSize === 'k80' ? 'Khổ K80' : 'A4 / A5'})
                             </button>
                         )}
                         <button

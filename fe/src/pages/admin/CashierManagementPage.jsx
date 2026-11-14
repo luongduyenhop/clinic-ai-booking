@@ -285,6 +285,7 @@ export default function CashierManagementPage() {
         const liveItems = (livePendingBills || []).map((pb) => ({
             id: pb.id,
             invoiceId: pb.id,
+            luotKhamId: pb.luot_kham_id,
             maPhieu: pb.ma_hoa_don,
             maKCB: `KCB-${pb.luot_kham_id}`,
             maBN: pb.benh_nhan?.mabn || '',
@@ -707,15 +708,18 @@ export default function CashierManagementPage() {
             tongTien: calculatedTotal
         }
 
-        const matchIdx = vouchers.findIndex((v) => areVouchersMatching(v, payload))
+        const cleanedSource = vouchers.filter(
+            (v) => !(v?.maPhieu === 'DỰ KIẾN LẬP HÓA ĐƠN' && payload.luotKhamId && v.luotKhamId === payload.luotKhamId)
+        )
+        const matchIdx = cleanedSource.findIndex((v) => areVouchersMatching(v, payload))
         let updated
         if (matchIdx >= 0) {
-            updated = [...vouchers]
+            updated = [...cleanedSource]
             updated[matchIdx] = mergeVoucherData(updated[matchIdx], payload)
             setForm(updated[matchIdx])
         } else {
             const newVoucher = { ...payload, id: payload.id || payload.maPhieu || `PT-${Date.now().toString().slice(-5)}` }
-            updated = [newVoucher, ...vouchers]
+            updated = [newVoucher, ...cleanedSource]
             setForm(newVoucher)
         }
         updated = deduplicateVouchers(updated)
@@ -765,7 +769,7 @@ export default function CashierManagementPage() {
                         }`}
                     >
                         <Receipt size={15} weight="bold" />
-                        <span>1. Quản lý Thu viện phí & Hóa đơn ({vouchers.length})</span>
+                        <span>1. Quản lý Thu viện phí & Hóa đơn ({allVouchers.length})</span>
                     </button>
                     <button
                         type="button"
@@ -1089,7 +1093,7 @@ export default function CashierManagementPage() {
                                                             const isSelected = form.id === v.id || (form.maPhieu && form.maPhieu === v.maPhieu)
                                                             return (
                                                                 <div
-                                                                    key={v.id}
+                                                                    key={v.invoiceId ? `${v.invoiceId}-${v.maPhieu}` : (v.id || v.maPhieu)}
                                                                     onClick={() => handleSelectVoucher(v)}
                                                                     className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between border ${
                                                                         isSelected
@@ -1164,7 +1168,7 @@ export default function CashierManagementPage() {
                                     <tbody>
                                         {filteredVouchers.map((v, idx) => (
                                             <tr
-                                                key={v.id}
+                                                key={v.invoiceId ? `${v.invoiceId}-${v.maPhieu}` : (v.id || v.maPhieu)}
                                                 onClick={() => handleSelectVoucher(v)}
                                                 className={`cursor-pointer ${
                                                     form.id === v.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
@@ -1216,7 +1220,7 @@ export default function CashierManagementPage() {
                             </div>
                             <div className="p-2 rounded-lg bg-sky-50 text-sky-700 flex justify-between">
                                 <span>Đã thu tiền:</span>
-                                <span className="tabular-nums">{paidCount} / {vouchers.length} phiếu</span>
+                                <span className="tabular-nums">{paidCount} / {allVouchers.length} phiếu</span>
                             </div>
                         </div>
                     </div>

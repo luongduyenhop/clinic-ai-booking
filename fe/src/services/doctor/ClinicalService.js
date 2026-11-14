@@ -805,7 +805,14 @@ export class ClinicalService extends BaseServices {
             if (rawAdminStore) {
                 const adminStore = JSON.parse(rawAdminStore)
                 if (adminStore && Array.isArray(adminStore.vouchers)) {
-                    adminStore.vouchers.unshift(newVoucher)
+                    const existIdx = adminStore.vouchers.findIndex(
+                        (v) => v && ((enc?.id && v.encounterId === enc.id) || v.maPhieu === voucherCode)
+                    )
+                    if (existIdx >= 0) {
+                        adminStore.vouchers[existIdx] = { ...adminStore.vouchers[existIdx], ...newVoucher }
+                    } else {
+                        adminStore.vouchers.unshift(newVoucher)
+                    }
                     localStorage.setItem(ADMIN_STORE_KEY, JSON.stringify(adminStore))
                 }
             }

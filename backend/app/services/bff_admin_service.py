@@ -75,6 +75,13 @@ def _parse_decimal_safe(val: Any) -> Decimal:
         return Decimal("0")
 
 
+def _normalize_voucher_code(val: Any) -> str:
+    s = str(val or "").strip().upper()
+    while s.startswith("HD-"):
+        s = s[3:]
+    return s
+
+
 def _build_role_permissions(role_seed: dict, total_modules: int = 23) -> list[dict]:
     perms = role_seed.get("permissions")
     if isinstance(perms, list) and len(perms) == total_modules:
@@ -898,27 +905,68 @@ class BffAdminService:
                 selectinload(HoaDon.chi_tiet_hoa_don),
             )
             .order_by(HoaDon.id.desc())
-            .limit(100)
+            .limit(500)
         )
         db_invoices = (await db.execute(stmt)).scalars().all()
-        if not db_invoices:
-            return base_vouchers
 
         base_map = {}
-        for v in base_vouchers or []:
-            code = str(v.get("maPhieu") or v.get("id") or "").strip()
-            if code:
-                base_map[code] = v
-                base_map[f"HD-{code}"] = v
+        for idx, v in enumerate(base_vouchers or []):
+            if not isinstance(v, dict):
+                continue
+            raw_code = str(v.get("maPhieu") or v.get("id") or "").strip()
+            raw_id = str(v.get("id") or "").strip()
+            if raw_code == "DỰ KIẾN LẬP HÓA ĐƠN" or raw_code.startswith("GOP-"):
+                continue
+            for key in {
+                raw_code,
+                f"HD-{raw_code}" if raw_code else "",
+                _normalize_voucher_code(raw_code),
+                raw_id,
+                _normalize_voucher_code(raw_id),
+            }:
+                if key and key not in base_map:
+                    base_map[key] = (idx, v)
+
+        if not db_invoices:
+            deduped = []
+            seen_norms = set()
+            for v in base_vouchers or []:
+                if not isinstance(v, dict):
+                    continue
+                code = str(v.get("maPhieu") or v.get("id") or "").strip()
+                if not code or code == "DỰ KIẾN LẬP HÓA ĐƠN":
+                    continue
+                norm = _normalize_voucher_code(code)
+                if norm and norm in seen_norms:
+                    continue
+                if norm:
+                    seen_norms.add(norm)
+                deduped.append(v)
+            return deduped
 
         result = []
+        consumed_base_indices = set()
         seen_codes = set()
+        seen_norm_codes = set()
+        seen_invoice_ids = set()
         for hd in db_invoices:
             raw_code = str(hd.ma_hoa_don or f"HD-{hd.id}").strip()
             while raw_code.startswith("HD-HD-"):
                 raw_code = raw_code[3:]
+            norm_code = _normalize_voucher_code(raw_code)
+            if norm_code and norm_code in seen_norm_codes:
+                continue
             short_code = raw_code[3:] if raw_code.startswith("HD-PT") else raw_code
-            ex = base_map.get(raw_code) or base_map.get(short_code)
+
+            ex = None
+            for cand_key in (raw_code, short_code, norm_code):
+                if cand_key and cand_key in base_map:
+                    cand_idx, cand_val = base_map[cand_key]
+                    if cand_idx not in consumed_base_indices:
+                        ex = cand_val
+                        consumed_base_indices.add(cand_idx)
+                        break
+
             bn = hd.benh_nhan
             u = bn.nguoi_dung if bn else None
             bn_code = str(bn.ma_dinh_danh_y_te if bn and bn.ma_dinh_danh_y_te else (ex.get("maBN") if ex else f"BN{hd.benh_nhan_id:07d}")).strip()
@@ -957,7 +1005,7 @@ class BffAdminService:
                 "ngayThu": (hd.ngay_thanh_toan or hd.created_at or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M"),
                 "nguoiThu": ex.get("nguoiThu") if ex and ex.get("nguoiThu") else "Thu ngân Viện phí",
                 "hinhThuc": hinh_thuc,
-                "daThu": hd.trang_thai == "da_thu",
+                "daThu": hd.trang_thai in ("da_thu", "da_thanh_toan"),
                 "ghiChu": hd.ghi_chu or (ex.get("ghiChu") if ex else ""),
                 "items": lines,
                 "tongTien": amount_int,
@@ -967,13 +1015,46 @@ class BffAdminService:
                     if k not in item:
                         item[k] = v
             result.append(item)
-            seen_codes.update({str(voucher_id), str(voucher_code), raw_code, short_code})
+            seen_invoice_ids.add(hd.id)
+            for code_token in (voucher_id, voucher_code, raw_code, short_code):
+                s_tok = str(code_token or "").strip()
+                if s_tok:
+                    seen_codes.add(s_tok)
+                    n_tok = _normalize_voucher_code(s_tok)
+                    if n_tok:
+                        seen_norm_codes.add(n_tok)
 
-        for bv in base_vouchers or []:
+        for idx, bv in enumerate(base_vouchers or []):
+            if idx in consumed_base_indices or not isinstance(bv, dict):
+                continue
             c = str(bv.get("maPhieu") or bv.get("id") or "").strip()
-            if c and c not in seen_codes and f"HD-{c}" not in seen_codes:
-                result.append(bv)
-                seen_codes.add(c)
+            raw_id = str(bv.get("id") or "").strip()
+            if not c or c == "DỰ KIẾN LẬP HÓA ĐƠN" or c.startswith("GOP-") or bv.get("isCombined"):
+                continue
+            inv_id_val = bv.get("invoiceId")
+            try:
+                if inv_id_val is not None and int(inv_id_val) in seen_invoice_ids:
+                    continue
+            except (TypeError, ValueError):
+                pass
+            nc = _normalize_voucher_code(c)
+            nid = _normalize_voucher_code(raw_id)
+            if (
+                c in seen_codes
+                or f"HD-{c}" in seen_codes
+                or (raw_id and raw_id in seen_codes)
+                or (nc and nc in seen_norm_codes)
+                or (nid and nid in seen_norm_codes)
+            ):
+                continue
+            result.append(bv)
+            seen_codes.add(c)
+            if raw_id:
+                seen_codes.add(raw_id)
+            if nc:
+                seen_norm_codes.add(nc)
+            if nid:
+                seen_norm_codes.add(nid)
 
         return result
 
@@ -1562,72 +1643,149 @@ class BffAdminService:
         elif collection_key == "vouchers":
             first_user, first_bn, first_bs, first_lk = await self._ensure_default_entities(db)
             staff_id = first_user.id
+            seen_voucher_norms = set()
             for v in items:
-                code = str(v.get("maPhieu") or v.get("id") or "").strip()
-                if not code:
+                if not isinstance(v, dict):
                     continue
-                stmt = select(PhieuThuChi).where(PhieuThuChi.ma_phieu == code[:50])
-                existing = (await db.execute(stmt)).scalar_one_or_none()
+                code = str(v.get("maPhieu") or v.get("id") or "").strip()
+                if (
+                    not code
+                    or code == "DỰ KIẾN LẬP HÓA ĐƠN"
+                    or code.startswith("GOP-")
+                    or v.get("isCombined")
+                ):
+                    continue
+                norm_code = _normalize_voucher_code(code)
+                if norm_code and norm_code in seen_voucher_norms:
+                    continue
+                if norm_code:
+                    seen_voucher_norms.add(norm_code)
+
                 loai = "CHI" if "chi" in str(v.get("loaiPhieu") or "").lower() else "THU"
-                amount = _parse_decimal_safe(v.get("tongTien") or v.get("daThu") or 0)
-                if existing:
-                    existing.so_tien = amount
-                    existing.ly_do = str(v.get("tenPhieu") or v.get("ghiChu") or existing.ly_do)
-                else:
-                    hd_id = None
-                    if loai == "THU" and first_lk and first_bn:
-                        clean_code = code.strip()
-                        while clean_code.startswith("HD-HD-"):
-                            clean_code = clean_code[3:]
-                        hd_code = clean_code if clean_code.startswith("HD-") else f"HD-{clean_code[:40]}"
+                amount = _parse_decimal_safe(v.get("tongTien") or 0)
+                clean_code = code.strip()
+                while clean_code.startswith("HD-HD-"):
+                    clean_code = clean_code[3:]
+                hd_code = clean_code if clean_code.startswith("HD-") else f"HD-{clean_code[:40]}"
+
+                hd_id = None
+                existing_hd = None
+                created_new_hd = False
+                if loai == "THU" and first_lk and first_bn:
+                    raw_inv_id = v.get("invoiceId")
+                    if raw_inv_id is not None:
+                        try:
+                            inv_id_int = int(raw_inv_id)
+                            existing_hd = (
+                                await db.execute(select(HoaDon).where(HoaDon.id == inv_id_int))
+                            ).scalar_one_or_none()
+                        except (TypeError, ValueError):
+                            existing_hd = None
+
+                    if not existing_hd:
+                        candidate_codes = {
+                            c for c in (hd_code, clean_code, code, norm_code, f"HD-{norm_code}" if norm_code else "") if c
+                        }
+                        if candidate_codes:
+                            existing_hd = (
+                                await db.execute(
+                                    select(HoaDon).where(HoaDon.ma_hoa_don.in_(list(candidate_codes)))
+                                )
+                            ).scalars().first()
+
+                    lk_id_from_v = None
+                    if v.get("luotKhamId") is not None:
+                        try:
+                            lk_id_from_v = int(v.get("luotKhamId"))
+                        except (TypeError, ValueError):
+                            lk_id_from_v = None
+
+                    if not existing_hd and lk_id_from_v and not v.get("daThu"):
                         existing_hd = (
                             await db.execute(
                                 select(HoaDon).where(
-                                    or_(
-                                        HoaDon.ma_hoa_don == hd_code,
-                                        HoaDon.ma_hoa_don == clean_code,
-                                        HoaDon.ma_hoa_don == code.strip(),
-                                    )
+                                    HoaDon.luot_kham_id == lk_id_from_v,
+                                    HoaDon.trang_thai == "chua_thu",
                                 )
                             )
-                        ).scalar_one_or_none()
-                        if not existing_hd:
-                            active_lk_hd = (
+                        ).scalars().first()
+
+                    if existing_hd:
+                        if v.get("daThu") and existing_hd.trang_thai == "chua_thu":
+                            existing_hd.trang_thai = "da_thu"
+                            existing_hd.thuc_thu = amount if amount > 0 else existing_hd.tong_tien
+                            existing_hd.ngay_thanh_toan = existing_hd.ngay_thanh_toan or datetime.now(timezone.utc)
+                    else:
+                        bn_id_resolved = first_bn.id
+                        ma_bn = str(v.get("maBN") or "").strip()
+                        ho_ten_bn = str(v.get("hoTenBN") or "").strip()
+                        found_bn = None
+                        if ma_bn:
+                            found_bn = (
+                                await db.execute(select(BenhNhan).where(BenhNhan.ma_dinh_danh_y_te == ma_bn))
+                            ).scalars().first()
+                        if not found_bn and ho_ten_bn:
+                            found_bn = (
                                 await db.execute(
-                                    select(HoaDon.id).where(
-                                        HoaDon.luot_kham_id == first_lk.id,
-                                        HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
-                                    )
+                                    select(BenhNhan)
+                                    .join(NguoiDung, BenhNhan.nguoi_dung_id == NguoiDung.id)
+                                    .where(NguoiDung.ho_ten == ho_ten_bn)
                                 )
                             ).scalars().first()
-                            assigned_lk_id = None if active_lk_hd else first_lk.id
-                            existing_hd = HoaDon(
-                                ma_hoa_don=hd_code,
-                                luot_kham_id=assigned_lk_id,
-                                benh_nhan_id=first_bn.id,
-                                thu_ngan_id=staff_id,
-                                tong_tien=amount,
-                                mien_giam=Decimal("0"),
-                                thuc_thu=amount,
-                                phuong_thuc_thanh_toan=str(v.get("hinhThuc") or "tien_mat")[:30],
-                                trang_thai="da_thu" if v.get("daThu") else "chua_thu",
-                                ghi_chu=str(v.get("tenPhieu") or ""),
-                                ngay_thanh_toan=datetime.now(timezone.utc) if v.get("daThu") else None,
-                            )
-                            db.add(existing_hd)
-                            await db.flush()
-                            for item in (v.get("items") or [])[:3]:
-                                item_price = _parse_decimal_safe(item.get("donGia") or item.get("thanhTien") or amount)
-                                db.add(ChiTietHoaDon(
-                                    hoa_don_id=existing_hd.id,
-                                    loai_muc="can_lam_sang",
-                                    ten_khoan_thu=str(item.get("tenDV") or v.get("tenPhieu") or "Dịch vụ y tế")[:255],
-                                    so_luong=int(item.get("soLuong") or 1),
-                                    don_gia=item_price,
-                                    thanh_tien=item_price,
-                                ))
-                        hd_id = existing_hd.id
+                        if found_bn:
+                            bn_id_resolved = found_bn.id
 
+                        target_lk_id = lk_id_from_v or first_lk.id
+                        active_lk_hd = (
+                            await db.execute(
+                                select(HoaDon.id).where(
+                                    HoaDon.luot_kham_id == target_lk_id,
+                                    HoaDon.trang_thai.in_(["chua_thu", "da_thu"]),
+                                )
+                            )
+                        ).scalars().first()
+                        assigned_lk_id = None if active_lk_hd else target_lk_id
+                        existing_hd = HoaDon(
+                            ma_hoa_don=hd_code,
+                            luot_kham_id=assigned_lk_id,
+                            benh_nhan_id=bn_id_resolved,
+                            thu_ngan_id=staff_id,
+                            tong_tien=amount,
+                            mien_giam=Decimal("0"),
+                            thuc_thu=amount,
+                            phuong_thuc_thanh_toan=str(v.get("hinhThuc") or "tien_mat")[:30],
+                            trang_thai="da_thu" if v.get("daThu") else "chua_thu",
+                            ghi_chu=str(v.get("tenPhieu") or ""),
+                            ngay_thanh_toan=datetime.now(timezone.utc) if v.get("daThu") else None,
+                        )
+                        db.add(existing_hd)
+                        await db.flush()
+                        created_new_hd = True
+                        for item in (v.get("items") or [])[:3]:
+                            item_price = _parse_decimal_safe(item.get("donGia") or item.get("thanhTien") or amount)
+                            db.add(ChiTietHoaDon(
+                                hoa_don_id=existing_hd.id,
+                                loai_muc="can_lam_sang",
+                                ten_khoan_thu=str(item.get("tenDV") or v.get("tenPhieu") or "Dịch vụ y tế")[:255],
+                                so_luong=int(item.get("soLuong") or 1),
+                                don_gia=item_price,
+                                thanh_tien=item_price,
+                            ))
+                    hd_id = existing_hd.id
+
+                ptc_filters = [PhieuThuChi.ma_phieu == code[:50]]
+                if hd_id is not None:
+                    ptc_filters.append(
+                        and_(PhieuThuChi.hoa_don_id == hd_id, PhieuThuChi.loai_phieu == loai)
+                    )
+                existing_ptc = (
+                    await db.execute(select(PhieuThuChi).where(or_(*ptc_filters)))
+                ).scalars().first()
+
+                if existing_ptc:
+                    existing_ptc.so_tien = amount
+                    existing_ptc.ly_do = str(v.get("tenPhieu") or v.get("ghiChu") or existing_ptc.ly_do)[:500]
+                elif created_new_hd or v.get("daThu") or loai == "CHI":
                     db.add(PhieuThuChi(
                         ma_phieu=code[:50],
                         loai_phieu=loai,
@@ -1969,7 +2127,10 @@ class BffAdminService:
         await self._sync_relational_tables(db, collection_key, items)
 
         current_data = await self.get_bootstrap_data(db)
-        current_data[collection_key] = items
+        if collection_key == "vouchers":
+            await self._upsert_bff_key(db, collection_key, current_data.get(collection_key, []), user_id=user_id)
+        else:
+            current_data[collection_key] = items
         await self._append_audit_entry(db, current_data, audit_entry, default_target=collection_key, user_id=user_id)
 
         await db.commit()

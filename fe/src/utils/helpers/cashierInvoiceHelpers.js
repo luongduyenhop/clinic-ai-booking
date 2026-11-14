@@ -7,6 +7,24 @@ export const normalizeCode = (val) => {
     return s
 }
 
+export const canonicalCode = (val) => {
+    let s = normalizeCode(val)
+    while (s.startsWith('HD-')) {
+        s = s.slice(3)
+    }
+    return s
+}
+
+const extractEncounterId = (v) => {
+    if (!v) return ''
+    if (v.luotKhamId !== undefined && v.luotKhamId !== null && String(v.luotKhamId).trim() !== '') {
+        return String(v.luotKhamId).trim()
+    }
+    const kcb = String(v.maKCB || '').trim()
+    const m = /^KCB-(\d+)$/i.exec(kcb)
+    return m ? m[1] : ''
+}
+
 export const areVouchersMatching = (a, b) => {
     if (!a || !b) return false
     const aId = a.id !== undefined && a.id !== null ? String(a.id).trim() : ''
@@ -15,9 +33,14 @@ export const areVouchersMatching = (a, b) => {
     const bInvId = b.invoiceId !== undefined && b.invoiceId !== null ? String(b.invoiceId).trim() : ''
     const aCode = normalizeCode(a.maPhieu || a.ma_hoa_don)
     const bCode = normalizeCode(b.maPhieu || b.ma_hoa_don)
+    const aCanon = canonicalCode(a.maPhieu || a.ma_hoa_don)
+    const bCanon = canonicalCode(b.maPhieu || b.ma_hoa_don)
+    const isPlaceholder = (c) => c === 'DỰ KIẾN LẬP HÓA ĐƠN'
 
-    if (aCode && bCode && aCode === bCode && aCode !== 'DỰ KIẾN LẬP HÓA ĐƠN') {
-        return true
+    if (aCode && bCode && !isPlaceholder(aCode) && !isPlaceholder(bCode)) {
+        if (aCode === bCode || (aCanon && bCanon && aCanon === bCanon)) {
+            return true
+        }
     }
     if (aInvId && bInvId && aInvId === bInvId) {
         return true
@@ -31,6 +54,15 @@ export const areVouchersMatching = (a, b) => {
     if (aId && bInvId && aId === bInvId) {
         return true
     }
+
+    const aLk = extractEncounterId(a)
+    const bLk = extractEncounterId(b)
+    if (aLk && bLk && aLk === bLk && !a.daThu && !b.daThu) {
+        if (!aInvId || !bInvId || aInvId === bInvId || isPlaceholder(aCode) || isPlaceholder(bCode)) {
+            return true
+        }
+    }
+
     return false
 }
 
@@ -51,7 +83,10 @@ export const mergeVoucherData = (existing, incoming) => {
         ...incoming,
         id: incoming.id || existing.id,
         invoiceId: incoming.invoiceId || existing.invoiceId,
+        luotKhamId: incoming.luotKhamId ?? existing.luotKhamId,
+        maKCB: incoming.maKCB || existing.maKCB,
         maPhieu: resolvedCode,
+        ngayThu: incoming.ngayThu || existing.ngayThu,
         daThu: Boolean(incoming.daThu || existing.daThu),
         tongTien: Number(incoming.tongTien || existing.tongTien || 0),
         items: preferIncomingItems ? incoming.items : (hasExistingItems ? existing.items : (incoming.items || [])),
@@ -75,9 +110,15 @@ export const deduplicateVouchers = (list) => {
 
 export const groupVouchersByPatient = (vouchersList) => {
     const map = new Map()
+    const nameToKey = new Map()
     const cleanList = deduplicateVouchers(vouchersList)
     cleanList.forEach((v) => {
-        const rawKey = (v.maBN ? v.maBN.trim() : '') || (v.hoTenBN ? v.hoTenBN.trim().toLowerCase() : 'khach_vang_lai')
+        const normMa = v.maBN ? v.maBN.trim().toUpperCase() : ''
+        const normName = v.hoTenBN ? v.hoTenBN.trim().toLowerCase() : ''
+        let rawKey = normMa || normName || 'khach_vang_lai'
+        if (!map.has(rawKey) && normName && nameToKey.has(normName) && (!normMa || !map.get(nameToKey.get(normName))?.maBN)) {
+            rawKey = nameToKey.get(normName)
+        }
         if (!map.has(rawKey)) {
             map.set(rawKey, {
                 key: rawKey,
@@ -89,8 +130,13 @@ export const groupVouchersByPatient = (vouchersList) => {
                 unpaidCount: 0,
                 paidCount: 0,
             })
+            if (normName && !nameToKey.has(normName)) {
+                nameToKey.set(normName, rawKey)
+            }
         }
         const group = map.get(rawKey)
+        if (!group.maBN && v.maBN) group.maBN = v.maBN
+        if (!group.soDienThoai && v.soDienThoai) group.soDienThoai = v.soDienThoai
         const existsInGroup = group.vouchers.some((item) => areVouchersMatching(item, v))
         if (!existsInGroup) {
             group.vouchers.push(v)

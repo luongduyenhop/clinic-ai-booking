@@ -163,3 +163,37 @@ test('groupVouchersByPatient avoids duplicate cards and does not multiply invoic
     assert.equal(patientGroup.unpaidCount, 1)
     assert.equal(patientGroup.paidCount, 1)
 })
+
+test('deduplicateVouchers strips HD- prefix mismatch, collapses same-encounter drafts, and preserves split bills', () => {
+    assert.equal(
+        areVouchersMatching(
+            { id: 'PT260922003', maPhieu: 'PT260922003', tongTien: 150000, daThu: false },
+            { id: 15, invoiceId: 15, maPhieu: 'HD-PT260922003', tongTien: 150000, daThu: false }
+        ),
+        true
+    )
+
+    assert.equal(
+        areVouchersMatching(
+            { id: null, invoiceId: null, luotKhamId: 42, maPhieu: 'DỰ KIẾN LẬP HÓA ĐƠN', daThu: false },
+            { id: 99, invoiceId: 99, luotKhamId: 42, maKCB: 'KCB-42', maPhieu: 'HD-261114-ABC', daThu: false }
+        ),
+        true
+    )
+
+    assert.equal(
+        areVouchersMatching(
+            { id: 10, invoiceId: 10, luotKhamId: 42, maPhieu: 'HD-10', daThu: true },
+            { id: 11, invoiceId: 11, luotKhamId: 42, maPhieu: 'HD-11', daThu: false }
+        ),
+        false
+    )
+
+    const mergedList = deduplicateVouchers([
+        { id: 15, invoiceId: 15, luotKhamId: 42, maPhieu: 'HD-PT260922003', maBN: 'BN01', hoTenBN: 'Nguyễn Văn A', tongTien: 270000, daThu: false },
+        { id: 'PT260922003', maPhieu: 'PT260922003', maBN: 'BN01', hoTenBN: 'Nguyễn Văn A', tongTien: 270000, daThu: true },
+    ])
+    assert.equal(mergedList.length, 1)
+    assert.equal(mergedList[0].daThu, true)
+    assert.equal(mergedList[0].invoiceId, 15)
+})

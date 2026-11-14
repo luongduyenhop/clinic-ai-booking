@@ -1,9 +1,9 @@
 import asyncio
 import os
-import random
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-from sqlalchemy import select, text, delete
+from sqlalchemy import delete, select, text, update
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
 from app.core.security import hash_password
@@ -17,6 +17,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
 )
+from app.models.bff_store import HeThongTrangThaiBff
 from app.models.medical import (
     AmendmentEntityType,
     AmendmentStatus,
@@ -31,6 +32,7 @@ from app.models.medical import (
     HoaDon,
     KhaiNiem,
     LuotKham,
+    PhieuThuChi,
     Thuoc,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
@@ -227,6 +229,110 @@ async def seed_patients(session):
             await session.flush()
         patient_entities.append(patient)
     return patient_entities
+def _is_legacy_random_seed_code(code: str, prefix: str) -> bool:
+    m = re.match(rf"^{prefix}-20\d{{6}}-(\d{{4}})$", str(code or "").strip())
+    return bool(m and int(m.group(1)) >= 100)
+
+
+def _canonical_voucher_code(val) -> str:
+    s = str(val or "").strip().upper()
+    while s.startswith("HD-"):
+        s = s[3:]
+    return s
+
+
+async def _cleanup_duplicate_seed_invoices(session):
+    await session.execute(
+        update(HoaDon).where(HoaDon.trang_thai == "da_thanh_toan").values(trang_thai="da_thu")
+    )
+
+    all_invoices = (await session.scalars(select(HoaDon).order_by(HoaDon.id.asc()))).all()
+    legacy_hd_ids = []
+    legacy_hd_codes = []
+    seen_lk_groups = set()
+    for inv in all_invoices:
+        ma = str(inv.ma_hoa_don or "").strip()
+        is_legacy_hd = _is_legacy_random_seed_code(ma, "HD")
+        is_dup_seed_lk = False
+        if re.match(r"^HD-20\d{6}-\d{4}$", ma) and inv.luot_kham_id:
+            if inv.luot_kham_id in seen_lk_groups:
+                is_dup_seed_lk = True
+            else:
+                seen_lk_groups.add(inv.luot_kham_id)
+        if is_legacy_hd or is_dup_seed_lk:
+            legacy_hd_ids.append(inv.id)
+            legacy_hd_codes.append(ma)
+
+    if legacy_hd_ids:
+        await session.execute(
+            delete(PhieuThuChi).where(
+                (PhieuThuChi.hoa_don_id.in_(legacy_hd_ids))
+                | (PhieuThuChi.ma_phieu.in_(legacy_hd_codes))
+            )
+        )
+        await session.execute(delete(GiaoDichThanhToan).where(GiaoDichThanhToan.hoa_don_id.in_(legacy_hd_ids)))
+        await session.execute(delete(ChiTietHoaDon).where(ChiTietHoaDon.hoa_don_id.in_(legacy_hd_ids)))
+        await session.execute(delete(HoaDon).where(HoaDon.id.in_(legacy_hd_ids)))
+        await session.flush()
+
+    all_encounters = (await session.scalars(select(LuotKham).where(LuotKham.ma_kcb.like("KCB-20%")))).all()
+    legacy_kcb_ids = [
+        lk.id for lk in all_encounters if _is_legacy_random_seed_code(lk.ma_kcb, "KCB")
+    ]
+    if legacy_kcb_ids:
+        referenced_kcb_ids = set(
+            (await session.scalars(select(HoaDon.luot_kham_id).where(HoaDon.luot_kham_id.in_(legacy_kcb_ids)))).all()
+        )
+        safe_kcb_ids = [kid for kid in legacy_kcb_ids if kid not in referenced_kcb_ids]
+        if safe_kcb_ids:
+            await session.execute(delete(BienBanDinhChinh).where(BienBanDinhChinh.luot_kham_id.in_(safe_kcb_ids)))
+            rx_ids = list((await session.scalars(select(DonThuoc.id).where(DonThuoc.luot_kham_id.in_(safe_kcb_ids)))).all())
+            if rx_ids:
+                await session.execute(delete(ChiTietDonThuoc).where(ChiTietDonThuoc.don_thuoc_id.in_(rx_ids)))
+                await session.execute(delete(DonThuoc).where(DonThuoc.id.in_(rx_ids)))
+            cd_ids = list((await session.scalars(select(ChiDinh.id).where(ChiDinh.luot_kham_id.in_(safe_kcb_ids)))).all())
+            if cd_ids:
+                await session.execute(delete(ChiDinh).where(ChiDinh.id.in_(cd_ids)))
+            await session.execute(delete(ChanDoan).where(ChanDoan.luot_kham_id.in_(safe_kcb_ids)))
+            await session.execute(delete(LuotKham).where(LuotKham.id.in_(safe_kcb_ids)))
+            await session.flush()
+
+    all_appts = (await session.scalars(select(LichKham).where(LichKham.ma_lich_kham.like("LK-20%")))).all()
+    legacy_lk_ids = [
+        lk.id for lk in all_appts if _is_legacy_random_seed_code(lk.ma_lich_kham, "LK")
+    ]
+    if legacy_lk_ids:
+        referenced_lk_ids = set(
+            (await session.scalars(select(LuotKham.lich_kham_id).where(LuotKham.lich_kham_id.in_(legacy_lk_ids)))).all()
+        )
+        safe_lk_ids = [aid for aid in legacy_lk_ids if aid not in referenced_lk_ids]
+        if safe_lk_ids:
+            await session.execute(delete(HangDoiKham).where(HangDoiKham.lich_kham_id.in_(safe_lk_ids)))
+            await session.execute(delete(LichKham).where(LichKham.id.in_(safe_lk_ids)))
+            await session.flush()
+
+    bff_vouchers = await session.scalar(
+        select(HeThongTrangThaiBff).where(HeThongTrangThaiBff.collection_key == "vouchers")
+    )
+    if bff_vouchers and isinstance(bff_vouchers.data_json, list):
+        cleaned_bff = []
+        seen_norms = set()
+        for item in bff_vouchers.data_json:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("maPhieu") or item.get("id") or "").strip()
+            if _is_legacy_random_seed_code(code, "HD"):
+                continue
+            norm = _canonical_voucher_code(code)
+            if norm and norm != "DỰ KIẾN LẬP HÓA ĐƠN":
+                if norm in seen_norms:
+                    continue
+                seen_norms.add(norm)
+            cleaned_bff.append(item)
+        bff_vouchers.data_json = cleaned_bff
+        await session.flush()
+
+
 async def seed_one_week_realistic():
     password = os.environ.get("DEMO_PASSWORD", "Demo@12345678")
     async with AsyncSessionLocal.begin() as session:
@@ -234,6 +340,7 @@ async def seed_one_week_realistic():
         await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DEPLOYMENT_LOCK})
         connection = await session.connection()
         await connection.run_sync(require_demo_database)
+        await _cleanup_duplicate_seed_invoices(session)
         dept_map, room_map, service_map = await seed_catalogs(session)
         people, doctor_entities = await seed_all_doctors_and_staff(session, password, dept_map, room_map)
         now = datetime.now(timezone.utc)
@@ -250,9 +357,6 @@ async def seed_one_week_realistic():
         primary_doc = doctor_entities[0]
         cashier_person = people[VaiTroEnum.THU_NGAN]
         tech_person = people[VaiTroEnum.KY_THUAT_VIEN]
-        appointment_counter = 100
-        invoice_counter = 100
-        encounter_counter = 100
         clinical_templates = [
             ("I10", "Tăng huyết áp vô căn (nguyên phát)", "Tái khám định kỳ theo dõi huyết áp", 135, 85, 78, 36.6, 68.0, 168.0),
             ("E11", "Đái tháo đường không phụ thuộc insulin (Type 2)", "Khát nước nhiều, sụt cân nhẹ, mệt mỏi", 120, 80, 74, 36.5, 62.0, 162.0),
@@ -264,14 +368,13 @@ async def seed_one_week_realistic():
         ]
         for day_offset in range(-7, 0):
             target_date = today + timedelta(days=day_offset)
-            daily_patients_count = random.randint(3, 5)
+            daily_patients_count = 3
             for idx in range(daily_patients_count):
-                patient = patient_entities[(day_offset * 5 + idx) % len(patient_entities)]
+                patient = patient_entities[(abs(day_offset) * 3 + idx) % len(patient_entities)]
                 doctor = doctor_entities[idx % len(doctor_entities)]
                 template = clinical_templates[(day_offset + idx) % len(clinical_templates)]
                 icd_code, icd_name, reason, bp_sys, bp_dia, pulse, temp, weight, height = template
-                appt_code = f"LK-{target_date.strftime('%Y%m%d')}-{appointment_counter:04d}"
-                appointment_counter += 1
+                appt_code = f"LK-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
                 appt = await session.scalar(select(LichKham).where(LichKham.ma_lich_kham == appt_code))
                 if appt is None:
                     appt = LichKham(
@@ -313,8 +416,7 @@ async def seed_one_week_realistic():
                     )
                     session.add(queue_ticket)
                     await session.flush()
-                kcb_code = f"KCB-{target_date.strftime('%Y%m%d')}-{encounter_counter:04d}"
-                encounter_counter += 1
+                kcb_code = f"KCB-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
                 encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
                 if encounter is None:
                     start_dt = datetime.combine(target_date, time(8, 15), tzinfo=timezone.utc) + timedelta(minutes=idx * 25)
@@ -407,9 +509,10 @@ async def seed_one_week_realistic():
                             cach_dung="Uống 1 viên sau ăn sáng",
                             so_ngay_dung=7,
                         ))
-                inv_code = f"HD-{target_date.strftime('%Y%m%d')}-{invoice_counter:04d}"
-                invoice_counter += 1
-                existing_inv = await session.scalar(select(HoaDon).where(HoaDon.ma_hoa_don == inv_code))
+                inv_code = f"HD-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
+                existing_inv = await session.scalar(
+                    select(HoaDon).where((HoaDon.ma_hoa_don == inv_code) | (HoaDon.luot_kham_id == encounter.id))
+                )
                 if existing_inv is None:
                     consult_fee = Decimal(str(doctor.gia_kham_mac_dinh))
                     service_fee = Decimal(str(chosen_service.don_gia))
@@ -421,7 +524,7 @@ async def seed_one_week_realistic():
                         tong_tien=total_amount,
                         so_tien_phai_thu=total_amount,
                         thuc_thu=total_amount,
-                        trang_thai="da_thanh_toan",
+                        trang_thai="da_thu",
                         nguoi_lap_id=cashier_person.id,
                         thu_ngan_id=cashier_person.id,
                         ngay_thanh_toan=end_dt,

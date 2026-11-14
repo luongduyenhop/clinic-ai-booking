@@ -121,8 +121,8 @@ dump_diagnostics() {
 trap 'dump_diagnostics' ERR
 
 compose config --quiet
-log "Tam dung backend cu de giai phong RAM cho bootstrap va build"
-compose stop backend >/dev/null 2>&1 || true
+log "Tam dung frontend va backend cu de giai phong RAM cho bootstrap va build"
+compose stop frontend backend >/dev/null 2>&1 || true
 log "Build image va khoi dong stack (doi toi da ${WAIT_TIMEOUT}s)"
 compose up -d --build --wait --wait-timeout "$WAIT_TIMEOUT"
 

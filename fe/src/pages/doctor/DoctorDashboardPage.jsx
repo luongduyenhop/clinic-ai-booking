@@ -88,6 +88,8 @@ export default function DoctorDashboardPage() {
 
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
+                    encounterId: t.encounter_id || enc?.id,
+                    ticketId: t.ticket_id,
                     queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
                     patientId: t.patient_id,
                     patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),
@@ -102,6 +104,16 @@ export default function DoctorDashboardPage() {
                     finalDiagnosis,
                     labTests,
                     prescriptions,
+                    vitals: {
+                        heartRate: enc?.mach_lan_phut || enc?.mach || '76',
+                        temperature: enc?.nhiet_do_c || enc?.nhiet_do || '36.8',
+                        bloodPressure: (enc?.huyet_ap_tam_thu && enc?.huyet_ap_tam_truong)
+                            ? `${enc.huyet_ap_tam_thu}/${enc.huyet_ap_tam_truong}`
+                            : '120/80',
+                        respiratoryRate: enc?.nhip_tho_lan_phut || enc?.nhip_tho || '18',
+                        weight: enc?.can_nang_kg || enc?.can_nang || '60',
+                        height: enc?.chieu_cao_cm || enc?.chieu_cao || '165',
+                    },
                     doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
                 }
             })

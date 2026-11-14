@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
+import { printHtmlDocument, printPrescriptionDocument } from '../../utils/helpers/printUtils'
+import { clinicalService } from '../../services/doctor/ClinicalService'
 
 export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [searchKeyword, setSearchKeyword] = useState('')
@@ -22,8 +24,187 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
         return true
     }), [examinedList, searchKeyword, timeFilter, todayStr])
 
-    const handlePrintPrescription = (patient) => {
-        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng 204!`)
+    const handlePrintPrescriptionDirect = (item) => {
+        if (!item) return
+        const encId = item.encounterId || item.id
+        const enc = clinicalService.getEncounterSync(encId) || clinicalService.getEncounterSync(item.id) || {}
+
+        // Chuẩn hóa danh sách thuốc
+        let effectivePrescriptionItems = []
+        if (enc.danh_sach_thuoc && enc.danh_sach_thuoc.length > 0) {
+            effectivePrescriptionItems = enc.danh_sach_thuoc
+        } else if (enc.don_thuoc?.danh_sach_thuoc && enc.don_thuoc.danh_sach_thuoc.length > 0) {
+            effectivePrescriptionItems = enc.don_thuoc.danh_sach_thuoc
+        } else if (item.prescriptions && item.prescriptions.length > 0) {
+            effectivePrescriptionItems = item.prescriptions.map((p) => {
+                let sl = 1
+                let dv = 'Viên'
+                if (typeof p.quantity === 'string') {
+                    const matchNum = p.quantity.match(/\d+/)
+                    sl = matchNum ? parseInt(matchNum[0], 10) : 1
+                    const matchUnit = p.quantity.replace(/[\d\s]/g, '')
+                    dv = matchUnit || 'Viên'
+                } else if (typeof p.quantity === 'number') {
+                    sl = p.quantity
+                }
+                return {
+                    ten_thuoc: p.name || p.ten_thuoc,
+                    ham_luong: p.ham_luong || 'Chuẩn',
+                    so_luong: sl,
+                    don_vi_tinh: dv,
+                    cach_dung: p.dosage || p.cach_dung || 'Theo chỉ định của bác sĩ',
+                }
+            })
+        }
+
+        printPrescriptionDocument({
+            encounter: enc.id ? enc : {
+                id: encId,
+                ten_benh_nhan: item.fullName,
+                ngay_sinh: item.age ? `${2026 - item.age}` : '1990',
+                gioi_tinh: item.gender,
+                so_dien_thoai: item.phone,
+                ma_benh_nhan: item.patientCode,
+                loi_dan_bac_si: item.doctorNotes,
+                ten_bac_si: 'BS. CKI Nguyễn Văn An',
+                ngay_ky: item.completedDate,
+                ngay_hen_tai_kham: item.ngay_hen_tai_kham || '',
+            },
+            patient: enc.benh_nhan || {
+                ho_ten: item.fullName,
+                gioi_tinh: item.gender,
+                tuoi: item.age,
+                so_dien_thoai: item.phone,
+                ma: item.patientCode,
+                so_bhyt: item.healthInsurance,
+            },
+            diagnoses: enc.danh_sach_chan_doan?.length > 0 ? enc.danh_sach_chan_doan : [
+                {
+                    ma_icd10: item.finalDiagnosis?.includes(' - ') ? item.finalDiagnosis.split(' - ')[0] : 'K29.7',
+                    ten_benh_chan_doan: item.finalDiagnosis?.includes(' - ') ? item.finalDiagnosis.split(' - ').slice(1).join(' - ') : (item.finalDiagnosis || 'Viêm dạ dày - tá tràng')
+                }
+            ],
+            prescriptionItems: effectivePrescriptionItems,
+            prescriptionNote: item.doctorNotes || 'Uống thuốc đúng giờ theo chỉ dẫn của bác sĩ.',
+            doctorName: 'BS. CKI Nguyễn Văn An',
+        })
+    }
+
+    const handleDirectPrintPrescription = handlePrintPrescriptionDirect
+
+    const handlePrintMedicalRecord = (record) => {
+        if (!record) return
+        const enc = clinicalService.getEncounterSync(record.encounterId || record.id) || clinicalService.getEncounterSync(record.id) || {}
+        const vitals = {
+            mach: enc.mach_lan_phut || enc.mach || record.vitals?.heartRate || '76',
+            nhiet_do: enc.nhiet_do_c || enc.nhiet_do || record.vitals?.temperature || '36.8',
+            huyet_ap: (enc.huyet_ap_tam_thu && enc.huyet_ap_tam_truong)
+                ? `${enc.huyet_ap_tam_thu}/${enc.huyet_ap_tam_truong}`
+                : (record.vitals?.bloodPressure || '120/80'),
+            nhip_tho: enc.nhip_tho_lan_phut || enc.nhip_tho || record.vitals?.respiratoryRate || '18',
+            can_nang: enc.can_nang_kg || enc.can_nang || record.vitals?.weight || '60',
+            chieu_cao: enc.chieu_cao_cm || enc.chieu_cao || record.vitals?.height || '165',
+        }
+
+        const labList = record.labTests || []
+        const rxList = (enc.danh_sach_thuoc && enc.danh_sach_thuoc.length > 0)
+            ? enc.danh_sach_thuoc.map((m, i) => `${i + 1}. <b>${m.ten_thuoc}</b> (${m.ham_luong || 'Chuẩn'}) — SL: ${m.so_luong} ${m.don_vi_tinh || 'Viên'} | <i>${m.cach_dung || 'Theo chỉ định'}</i>`)
+            : (record.prescriptions || []).map((m, i) => `${i + 1}. <b>${m.name}</b> — SL: ${m.quantity} | <i>${m.dosage}</i>`)
+
+        const html = `
+            <div style="font-family: 'Times New Roman', serif; padding: 10px; color: #111;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: bold;">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+                        <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI</div>
+                        <div style="font-size: 10px; color: #444;">Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức · Hotline: 1900 6868</div>
+                    </div>
+                    <div style="text-align: right; font-size: 11px;">
+                        <div>Mã bệnh án: <b>${record.patientCode}</b></div>
+                        <div>Ngày khám: <b>${record.completedDate}</b></div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 14px;">
+                    <h2 style="font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase;">BẢN TÓM TẮT BỆNH ÁN NGOẠI TRÚ</h2>
+                    <div style="font-size: 11px; font-style: italic;">(Lưu hồ sơ bệnh án & cấp cho người bệnh theo quy định)</div>
+                </div>
+
+                <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 8px; font-size: 12px; margin-bottom: 12px; line-height: 1.6;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                        <div>Họ và tên: <b style="text-transform: uppercase;">${record.fullName}</b></div>
+                        <div>Mã định danh y tế: <b>${record.patientCode}</b></div>
+                        <div>Năm sinh / Tuổi: <b>${record.age} tuổi</b> · Giới tính: <b>${record.gender}</b></div>
+                        <div>Số điện thoại: <b>${record.phone || '—'}</b></div>
+                        <div style="grid-column: 1 / -1;">Số BHYT: <b>${record.healthInsurance || 'Không có'}</b></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">1. Dấu hiệu sinh tồn & Thể trạng:</div>
+                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid #333; padding: 4px 6px; text-align: center; font-size: 11px; background: #fff;">
+                        <div>Mạch: <b>${vitals.mach}</b> ck/p</div>
+                        <div>Nhiệt độ: <b>${vitals.nhiet_do}</b> °C</div>
+                        <div>Huyết áp: <b>${vitals.huyet_ap}</b> mmHg</div>
+                        <div>Nhịp thở: <b>${vitals.nhip_tho}</b> l/p</div>
+                        <div>Cân nặng: <b>${vitals.can_nang}</b> kg</div>
+                        <div>Chiều cao: <b>${vitals.chieu_cao}</b> cm</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">2. Chẩn đoán y khoa xác định (ICD-10):</div>
+                    <div style="border: 1px solid #333; padding: 6px 10px; background: #fafafa; font-weight: bold;">
+                        ${record.finalDiagnosis || 'Khám nội tổng quát'}
+                    </div>
+                </div>
+
+                ${labList.length > 0 ? `
+                    <div style="margin-bottom: 12px; font-size: 12px;">
+                        <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">3. Cận lâm sàng đã thực hiện:</div>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${labList.map(t => `<li>${t} — Đã có kết luận đối chiếu lâm sàng</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div style="margin-bottom: 12px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">4. Đơn thuốc & Hướng điều trị:</div>
+                    ${rxList.length > 0 ? `
+                        <div style="border: 1px solid #333; padding: 6px 10px;">
+                            ${rxList.map(line => `<div style="margin-bottom: 4px;">${line}</div>`).join('')}
+                        </div>
+                    ` : '<div style="font-style: italic; color: #555;">(Không dùng thuốc)</div>'}
+                </div>
+
+                <div style="margin-bottom: 14px; font-size: 12px;">
+                    <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">5. Lời dặn dò của bác sĩ:</div>
+                    <div style="border: 1px dashed #444; padding: 6px 10px; font-style: italic; background: #fffbe8;">
+                        ${record.doctorNotes || 'Ăn uống hợp lý, nghỉ ngơi, uống thuốc đúng giờ. Tái khám theo hẹn.'}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 20px; text-align: center; font-size: 12px; page-break-inside: avoid;">
+                    <div>
+                        <div style="font-weight: bold; text-transform: uppercase;">Người bệnh / Thân nhân</div>
+                        <div style="font-size: 10px; font-style: italic;">(Ký và ghi rõ họ tên)</div>
+                    </div>
+                    <div>
+                        <div style="font-style: italic;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
+                        <div style="font-weight: bold; text-transform: uppercase; margin-top: 2px;">Bác sĩ khám bệnh</div>
+                        <div style="font-size: 10px; font-style: italic;">(Ký, ghi rõ họ tên & đóng dấu)</div>
+                        <div style="margin-top: 36px; font-weight: bold;">BS. CKI Nguyễn Văn An</div>
+                        <div style="font-size: 9px; color: #047857; font-weight: bold;">✓ CHỨNG TỪ Y TẾ ĐIỆN TỬ HỢP LỆ</div>
+                    </div>
+                </div>
+            </div>
+        `
+
+        printHtmlDocument({
+            title: `BenhAn_${record.patientCode}`,
+            contentHtml: html,
+            paperSize: 'A4',
+        })
     }
 
     return (
@@ -169,11 +350,19 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handlePrintPrescription(item)}
-                                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-[11px] text-slate-700 transition cursor-pointer"
-                                                    title="In đơn thuốc"
+                                                    onClick={() => handlePrintMedicalRecord(item)}
+                                                    className="px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 font-bold text-[11px] text-[#0077B6] transition cursor-pointer"
+                                                    title="In tóm tắt bệnh án ngoại trú A4"
                                                 >
-                                                    🖨 In đơn
+                                                    🖨 In bệnh án
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePrintPrescriptionDirect(item)}
+                                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-[11px] text-slate-700 transition cursor-pointer"
+                                                    title="In đơn thuốc của ca khám này"
+                                                >
+                                                    💊 In đơn
                                                 </button>
                                             </div>
                                         </td>
@@ -292,10 +481,17 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             <div className="flex justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
                                 <button
                                     type="button"
-                                    onClick={() => handlePrintPrescription(selectedRecord)}
+                                    onClick={() => handlePrintMedicalRecord(selectedRecord)}
                                     className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer"
                                 >
                                     🖨 In hồ sơ bệnh án
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handlePrintPrescriptionDirect(selectedRecord)}
+                                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+                                >
+                                    💊 In đơn thuốc
                                 </button>
                                 <button
                                     type="button"

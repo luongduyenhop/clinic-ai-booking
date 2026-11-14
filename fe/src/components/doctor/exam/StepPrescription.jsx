@@ -261,15 +261,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             </div>
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={() => onOpenRxModal && onOpenRxModal('print')}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-                    >
-                        <ClinicIcon name="Printer" size={14} weight="bold" />
-                        <span>In Đơn Chuẩn A4/A5</span>
-                    </button>
                 </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
@@ -404,17 +395,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <span>Đã ký số</span>
                             </span>
                         )}
-
-                        <button
-                            type="button"
-                            onClick={() => onOpenRxModal('print')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
-                            title="In đơn thuốc & Xem mã QR (F9 / Ctrl+P)"
-                        >
-                            <ClinicIcon name="Printer" size={14} />
-                            <span>In đơn &amp; QR</span>
-                            <span className="text-[10px] bg-slate-200 px-1 rounded font-mono">F9</span>
-                        </button>
                     </div>
                 )}
             </div>

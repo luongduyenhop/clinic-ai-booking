@@ -3,6 +3,7 @@ import { SERVICE_GROUPS, SPECIALTY_PACKS, ORDER_STATUS } from '../../../utils/co
 import { formatCurrency } from '../../../utils/helpers/formatCurrency'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { EmptyBlock } from '../clinical/StateBlocks'
+import { printHtmlDocument } from '../../../utils/helpers/printUtils'
 
 export default function StepOrders({
     encounter,
@@ -54,6 +55,111 @@ export default function StepOrders({
             setPicked([])
             setPack(null)
         }
+    }
+
+    const handlePrintOrderSlip = () => {
+        if (orders.length === 0) return
+        const bn = encounter?.benh_nhan || {}
+        const patientName = bn.ho_ten || encounter?.ten_benh_nhan || 'Bệnh nhân'
+        const patientDob = bn.ngay_sinh || encounter?.ngay_sinh || (bn.tuoi ? `${bn.tuoi} tuổi` : '—')
+        const patientGender = bn.gioi_tinh || encounter?.gioi_tinh || 'Nam'
+        const patientCode = bn.ma || bn.ma_benh_nhan || encounter?.ma_benh_nhan || (encounter?.id ? `BN-2026-${String(encounter.id).padStart(4, '0')}` : 'BN-2026')
+        const patientPhone = bn.so_dien_thoai || encounter?.so_dien_thoai || '—'
+        const patientAddress = bn.dia_chi || encounter?.dia_chi || '—'
+        const doctorName = encounter?.ten_bac_si || 'BS. Chuyên khoa'
+        const reason = encounter?.ly_do_vao_kham || encounter?.chan_doan_so_bo || 'Khám kiểm tra sức khỏe'
+
+        const orderRows = orders.map((o, idx) => {
+            const svc = services.find((s) => String(s.id) === String(o.dich_vu_id))
+            const price = o.don_gia_tai_thoi_diem || svc?.don_gia || 0
+            const room = svc?.nhom_dich_vu === 'XET_NGHIEM' ? 'Phòng 102 (Xét nghiệm)'
+                : svc?.nhom_dich_vu === 'CDHA' ? 'Phòng 105 (X-Quang / Siêu âm)'
+                : svc?.nhom_dich_vu === 'NOI_SOI' ? 'Phòng 108 (Nội soi tiêu hóa)'
+                : 'Phòng Thăm dò chức năng'
+            return `
+                <tr>
+                    <td style="border: 1px solid #333; padding: 5px; text-align: center; font-weight: bold;">${idx + 1}</td>
+                    <td style="border: 1px solid #333; padding: 5px;"><b>${o.ten_dich_vu || svc?.ten_dich_vu || 'Dịch vụ CLS'}</b></td>
+                    <td style="border: 1px solid #333; padding: 5px; text-align: center;">${room}</td>
+                    <td style="border: 1px solid #333; padding: 5px; text-align: right; font-weight: bold;">${price > 0 ? price.toLocaleString('vi-VN') + ' đ' : 'Theo BHYT'}</td>
+                </tr>
+            `
+        }).join('')
+
+        const slipHtml = `
+            <div style="font-family: 'Times New Roman', serif; padding: 6px; color: #111;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px;">
+                    <div>
+                        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase;">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+                        <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI</div>
+                        <div style="font-size: 10px; color: #444;">Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức · Hotline: 1900 6868</div>
+                    </div>
+                    <div style="text-align: right; font-size: 10px;">
+                        <div>Mã hồ sơ: <b>#${encounter?.id || '—'}</b></div>
+                        <div>Mã BN: <b>${patientCode}</b></div>
+                        <div>Ngày chỉ định: <b>${new Date().toLocaleDateString('vi-VN')}</b></div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h2 style="font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase;">PHIẾU CHỈ ĐỊNH CẬN LÂM SÀNG</h2>
+                    <div style="font-size: 10px; font-style: italic;">(Bệnh nhân xuất trình phiếu này tại các phòng kỹ thuật để thực hiện)</div>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 11.5px; margin-bottom: 10px; line-height: 1.5;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                        <div>Họ và tên: <b style="text-transform: uppercase;">${patientName}</b></div>
+                        <div>Giới tính / Năm sinh: <b>${patientGender} · ${patientDob}</b></div>
+                        <div>Số điện thoại: <b>${patientPhone}</b></div>
+                        <div>Địa chỉ: <b>${patientAddress}</b></div>
+                        <div style="grid-column: 1 / -1;">Chẩn đoán sơ bộ / Lý do khám: <b>${reason}</b></div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 10px;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="border: 1px solid #333; padding: 5px; width: 35px; text-align: center;">STT</th>
+                            <th style="border: 1px solid #333; padding: 5px; text-align: left;">Tên dịch vụ kỹ thuật</th>
+                            <th style="border: 1px solid #333; padding: 5px; text-align: center; width: 180px;">Nơi thực hiện</th>
+                            <th style="border: 1px solid #333; padding: 5px; text-align: right; width: 95px;">Đơn giá</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orderRows}
+                    </tbody>
+                    <tfoot>
+                        <tr style="font-weight: bold; background: #f8fafc;">
+                            <td colspan="3" style="border: 1px solid #333; padding: 5px; text-align: right; text-transform: uppercase;">Tổng tiền dịch vụ ước tính:</td>
+                            <td style="border: 1px solid #333; padding: 5px; text-align: right; color: #003553;">${ordersTotal.toLocaleString('vi-VN')} đ</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div style="font-size: 10.5px; font-style: italic; color: #475569; margin-bottom: 8px;">
+                    * Lưu ý: Đối với xét nghiệm máu, người bệnh cần nhịn ăn sáng theo chỉ dẫn. Đối với siêu âm bụng, vui lòng uống nước và nhịn tiểu trước khi siêu âm.
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 14px; text-align: center; font-size: 11.5px; page-break-inside: avoid;">
+                    <div>
+                        <div style="font-weight: bold; text-transform: uppercase;">Bệnh nhân / Người nhà</div>
+                        <div style="font-size: 9.5px; font-style: italic;">(Ký và nhận phiếu)</div>
+                    </div>
+                    <div>
+                        <div style="font-style: italic; font-size: 10.5px;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
+                        <div style="font-weight: bold; text-transform: uppercase; margin-top: 2px;">Bác sĩ chỉ định</div>
+                        <div style="font-size: 9.5px; font-style: italic;">(Ký và ghi rõ họ tên)</div>
+                        <div style="margin-top: 32px; font-weight: bold;">${doctorName}</div>
+                    </div>
+                </div>
+            </div>
+        `
+
+        printHtmlDocument({
+            title: `PhieuChiDinh_${patientCode}`,
+            contentHtml: slipHtml,
+            paperSize: 'A5',
+        })
     }
 
     return (
@@ -225,6 +331,18 @@ export default function StepOrders({
                                 )
                             })}
                         </div>
+                    )}
+
+                    {orders.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={handlePrintOrderSlip}
+                            className="w-full mt-2 py-2 px-3 rounded-xl font-bold text-xs bg-white hover:bg-sky-50 text-[#0077B6] border border-sky-300 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                            title="In phiếu chỉ định xét nghiệm/CĐHA cho người bệnh"
+                        >
+                            <ClinicIcon name="Printer" size={15} />
+                            <span>In Phiếu Chỉ Định CLS ({orders.length} DV)</span>
+                        </button>
                     )}
                 </div>
             </div>

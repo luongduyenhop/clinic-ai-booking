@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { PRIORITY_TIERS } from '../../../utils/constants/clinical'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../clinical/StateBlocks'
 import { ClinicIcon } from '../../common/ClinicIcon'
@@ -32,6 +32,16 @@ export default function QueuePanel({
         onFilterChange?.(next)
     }
     const [voiceEnabled, setVoiceEnabled] = useState(audioAnnouncer.isEnabled())
+
+    // Ghi nhớ đã tải lần đầu thành công để các lần quét ngầm không gây nhấp nháy giao diện
+    const hasLoadedOnce = useRef(false)
+    useEffect(() => {
+        if (!loading && (queue.length > 0 || !error)) {
+            hasLoadedOnce.current = true
+        }
+    }, [loading, queue.length, error])
+
+    const isInitialLoading = loading && !hasLoadedOnce.current && queue.length === 0
 
     const handleToggleVoice = () => {
         const next = !voiceEnabled
@@ -189,9 +199,9 @@ export default function QueuePanel({
                 })}
             </div>
 
-            {loading && queue.length === 0 && <LoadingBlock text="Đang tải hàng đợi..." />}
-            {error && <ErrorBlock message={error} onRetry={onRetry} />}
-            {!loading && !error && visible.length === 0 && (
+            {isInitialLoading && <LoadingBlock text="Đang tải hàng đợi..." />}
+            {error && !hasLoadedOnce.current && <ErrorBlock message={error} onRetry={onRetry} />}
+            {!isInitialLoading && !error && visible.length === 0 && (
                 <EmptyBlock icon="UsersThree" title="Không có bệnh nhân" hint="Hàng đợi danh mục này hiện đang trống." />
             )}
 

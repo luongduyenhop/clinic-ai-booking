@@ -1,11 +1,25 @@
+import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
+import { printHtmlDocument } from '../../utils/helpers/printUtils'
 
 export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) {
+    const certRef = useRef(null)
     if (!isOpen) return null
 
     const handlePrint = () => {
-        AppToast.success('Đã gửi chứng chỉ hành nghề tới máy in tài liệu!')
+        if (!certRef.current) return
+        printHtmlDocument({
+            title: `ChungChiHanhNghe_${doctorInfo?.code || 'BS'}`,
+            contentHtml: certRef.current.innerHTML,
+            paperSize: 'A4',
+            customStyles: `
+                body { font-family: 'Times New Roman', Times, serif; padding: 15px; color: #111; }
+                .text-center { text-align: center; }
+                .border-amber-300 { border-color: #b45309 !important; }
+                .text-amber-700 { color: #b45309 !important; }
+            `
+        })
     }
 
     return createPortal(
@@ -41,7 +55,7 @@ export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) 
                 {/* ═══════════════════════════════════════════════════════════════════
                     KHUNG BẢN MÔ PHỎNG CHỨNG CHỈ HÀNH NGHỀ CHÍNH THỨC
                 ═══════════════════════════════════════════════════════════════════ */}
-                <div className="p-6 rounded-2xl bg-gradient-to-b from-amber-50/40 via-white to-amber-50/20 border-2 border-amber-300/80 shadow-md relative overflow-hidden">
+                <div ref={certRef} className="p-6 rounded-2xl bg-gradient-to-b from-amber-50/40 via-white to-amber-50/20 border-2 border-amber-300/80 shadow-md relative overflow-hidden">
                     {/* Viền hoa văn giấy chứng nhận */}
                     <div className="absolute inset-2 border border-amber-200/60 rounded-xl pointer-events-none" />
 

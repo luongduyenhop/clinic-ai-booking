@@ -309,6 +309,11 @@ class AmendmentResponse(BaseModel):
     ghi_chu: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    ten_benh_nhan: Optional[str] = None
+    ma_benh_nhan: Optional[str] = None
+    ma_kcb: Optional[str] = None
+    ten_bac_si_yeu_cau: Optional[str] = None
+    ten_nguoi_duyet: Optional[str] = None
 
 
 class AmendmentApproveRequest(BaseModel):

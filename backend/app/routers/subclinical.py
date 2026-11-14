@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile, 
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
@@ -170,8 +169,6 @@ async def create_orders_from_workspace(
     current_user: TaiKhoan = Depends(require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
-    if settings.is_hosted:
-        raise ForbiddenException("Tạo chỉ định từ API lượt khám đã phân công.")
     result = await subclinical_service.create_orders_from_workspace(payload, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,

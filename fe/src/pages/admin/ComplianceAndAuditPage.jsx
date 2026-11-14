@@ -5,6 +5,7 @@ import { useLocation, useSearchParams, Link } from 'react-router-dom'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { auditService } from '../../services/admin/AuditService'
+import AmendmentManagementTab from '../../components/admin/AmendmentManagementTab'
 import {
     StatusBadge,
     EmptyState,
@@ -70,13 +71,14 @@ export default function ComplianceAndAuditPage() {
         if (isDonThuocOnly) return 'DON_THUOC'
         if (isSettingOnly) return 'SETTING'
         const tabParam = searchParams.get('tab')
-        if (tabParam && ['OVERVIEW', 'DON_THUOC', 'HSSK', 'AUDIT', 'SETTING'].includes(tabParam)) {
+        if (tabParam && ['OVERVIEW', 'DON_THUOC', 'HSSK', 'AUDIT', 'SETTING', 'DINH_CHINH'].includes(tabParam)) {
             return tabParam
         }
         return 'OVERVIEW'
     }
 
     const [activeTab, setActiveTab] = useState(getInitialTab)
+    const [pendingAmendmentCount, setPendingAmendmentCount] = useState(0)
 
     useEffect(() => {
         const nextTab = getInitialTab()
@@ -418,6 +420,23 @@ export default function ComplianceAndAuditPage() {
                     >
                         <SlidersHorizontal size={15} weight="bold" />
                         <span>5. Cấu hình Cổng Liên thông</span>
+                    </Link>
+                    <Link
+                        to="/admin/tuan-thu?tab=DINH_CHINH"
+                        onClick={() => handleSwitchTab('DINH_CHINH')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                            activeTab === 'DINH_CHINH'
+                                ? 'bg-[#00B5F1] text-white shadow-xs'
+                                : 'text-[#003553] hover:bg-white/80'
+                        }`}
+                    >
+                        <ShieldCheck size={15} weight="bold" />
+                        <span>6. Duyệt đính chính EMR</span>
+                        {pendingAmendmentCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-black animate-pulse">
+                                {pendingAmendmentCount}
+                            </span>
+                        )}
                     </Link>
                 </div>
 
@@ -1274,6 +1293,10 @@ export default function ComplianceAndAuditPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'DINH_CHINH' && (
+                <AmendmentManagementTab onPendingCountChange={setPendingAmendmentCount} />
             )}
 
             {selectedRxRecord && (

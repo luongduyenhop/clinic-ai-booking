@@ -56,11 +56,14 @@ class ExamServiceResolver:
 def build_cls_lines(
     chi_dinh_list: Optional[Iterable[ChiDinh]],
     excluded_ids: Optional[Set[int]] = None,
+    included_ids: Optional[Set[int]] = None,
 ) -> List[BillingLine]:
     lines: List[BillingLine] = []
     excluded = excluded_ids or set()
     for cd in chi_dinh_list or []:
         if cd.trang_thai == "da_huy" or cd.id in excluded:
+            continue
+        if included_ids is not None and cd.id not in included_ids:
             continue
         so_luong = cd.so_luong or 1
         unit_price = cd.don_gia_tai_thoi_diem
@@ -117,12 +120,13 @@ async def estimate_encounter(
     db: AsyncSession,
     resolver: Optional[ExamServiceResolver] = None,
     excluded_chidinh_ids: Optional[Set[int]] = None,
+    included_chidinh_ids: Optional[Set[int]] = None,
     include_cong_kham: bool = True,
 ) -> BillingEstimate:
     lines: List[BillingLine] = []
     if include_cong_kham:
         lines.append(await resolve_exam_line(luot_kham, db, resolver))
-    lines.extend(build_cls_lines(luot_kham.danh_sach_chi_dinh, excluded_chidinh_ids))
+    lines.extend(build_cls_lines(luot_kham.danh_sach_chi_dinh, excluded_chidinh_ids, included_chidinh_ids))
     tong_tien = sum((line.thanh_tien for line in lines), ZERO)
     return BillingEstimate(lines=lines, tong_tien=tong_tien)
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     QrCode,
     Copy,
@@ -7,8 +7,11 @@ import {
     ShieldCheck,
     Bank,
     CurrencyCircleDollar,
+    Lightning,
+    Printer,
 } from '@phosphor-icons/react'
 import { AppToast } from './AppNotification'
+import { cashierService } from '../../services/cashierService'
 
 
 export default function VietQrModal({
@@ -24,8 +27,7 @@ export default function VietQrModal({
     const [copiedContent, setCopiedContent] = useState(false)
     const [copiedAccount, setCopiedAccount] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
-
-    if (!isOpen) return null
+    const [qrProvider, setQrProvider] = useState('SEPAY')
 
     const invoiceId = invoice.id || invoice.ma_hoa_don || invoice.maPhieu || '001'
     const patientCode = invoice.ma_benh_nhan || invoice.maBN || 'BN'
@@ -35,9 +37,38 @@ export default function VietQrModal({
 
     const transferContent = `CLINIC HD ${invoiceId} ${patientCode}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
 
-    const qrImageUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
+    const sepayBank = bankName.toLowerCase().includes('mb') ? 'MBBank' : 'MBBank'
+    const vietQrUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
         transferContent
     )}&accountName=${encodeURIComponent(accountName)}`
+    const sepayQrUrl = `https://qr.sepay.vn/img?acc=${accountNumber}&bank=${sepayBank}&amount=${amount}&des=${encodeURIComponent(
+        transferContent
+    )}&template=compact`
+    const activeQrUrl = qrProvider === 'SEPAY' ? sepayQrUrl : vietQrUrl
+
+    useEffect(() => {
+        if (!isOpen || !invoiceId || invoiceId === '001') return undefined
+        let active = true
+        const timer = setInterval(async () => {
+            try {
+                const detail = await cashierService.getInvoiceDetail(invoiceId)
+                if (active && (detail?.trang_thai === 'da_thu' || detail?.status === 'PAID')) {
+                    clearInterval(timer)
+                    AppToast.success('Cổng SePay: Đã nhận thanh toán trực tuyến thành công!')
+                    if (onConfirmPayment) {
+                        await onConfirmPayment(detail)
+                    }
+                    onClose()
+                }
+            } catch {}
+        }, 3000)
+        return () => {
+            active = false
+            clearInterval(timer)
+        }
+    }, [isOpen, invoiceId, onConfirmPayment, onClose])
+
+    if (!isOpen) return null
 
     const handleCopy = async (text, type) => {
         try {
@@ -78,8 +109,33 @@ export default function VietQrModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <style>{`
+                @media print {
+                    body * {
+                        visibility: hidden !important;
+                    }
+                    .vietqr-print-card, .vietqr-print-card * {
+                        visibility: visible !important;
+                    }
+                    .vietqr-print-card {
+                        position: fixed !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 32px !important;
+                        background: #ffffff !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        z-index: 999999 !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            `}</style>
             <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
-                <div className="bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white flex items-center justify-between">
+                <div className="bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white flex items-center justify-between no-print">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-teal-300">
                             <QrCode size={24} weight="bold" />
@@ -103,7 +159,7 @@ export default function VietQrModal({
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto space-y-4">
+                <div id="vietqr-print-card" className="vietqr-print-card p-6 overflow-y-auto space-y-4">
                     <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200/90 text-sky-950 text-xs flex items-start gap-3">
                         <ShieldCheck size={22} weight="fill" className="text-[#00B5F1] shrink-0 mt-0.5" />
                         <div className="space-y-1">
@@ -126,14 +182,44 @@ export default function VietQrModal({
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                            <div className="flex items-center justify-center gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setQrProvider('SEPAY')}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                        qrProvider === 'SEPAY'
+                                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <Lightning size={14} weight="fill" /> Cổng SePay Online
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setQrProvider('VIETQR')}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                        qrProvider === 'VIETQR'
+                                            ? 'bg-[#00B5F1] text-white shadow-xs'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <QrCode size={14} weight="bold" /> VietQR Napas 247
+                                </button>
+                            </div>
                             <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
                                 <img
-                                    src={qrImageUrl}
-                                    alt={`VietQR thanh toán hóa đơn #${invoiceId}`}
+                                    src={activeQrUrl}
+                                    alt={`Mã QR thanh toán hóa đơn #${invoiceId}`}
                                     className="w-56 h-56 object-contain rounded-lg"
                                     loading="lazy"
                                 />
                             </div>
+                            {qrProvider === 'SEPAY' && (
+                                <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full mt-2.5 border border-emerald-200">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>SePay Webhook tự động gạch nợ ngay khi nhận tiền</span>
+                                </div>
+                            )}
                             <div className="mt-3 text-center">
                                 <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Số tiền cần thanh toán</div>
                                 <div className="text-2xl font-black text-rose-600 font-mono mt-0.5">
@@ -196,7 +282,7 @@ export default function VietQrModal({
                     </div>
                 </div>
 
-                <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 no-print">
                     <button
                         type="button"
                         onClick={onClose}
@@ -204,15 +290,26 @@ export default function VietQrModal({
                     >
                         Đóng cửa sổ
                     </button>
-                    <button
-                        type="button"
-                        disabled={isConfirming}
-                        onClick={handleConfirm}
-                        className="px-4.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-50"
-                    >
-                        <Check size={16} weight="bold" />
-                        <span>{isConfirming ? 'Đang xác nhận...' : 'Xác nhận Đã nhận tiền (Gạch nợ)'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => window.print()}
+                            className="px-3.5 py-2 rounded-xl border border-teal-500 text-teal-700 hover:bg-teal-50 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                            title="In phiếu mã QR cho bệnh nhân cầm quét"
+                        >
+                            <Printer size={15} weight="bold" />
+                            <span>In phiếu QR</span>
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isConfirming}
+                            onClick={handleConfirm}
+                            className="px-4.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                            <Check size={16} weight="bold" />
+                            <span>{isConfirming ? 'Đang xác nhận...' : 'Xác nhận Đã nhận tiền (Gạch nợ)'}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

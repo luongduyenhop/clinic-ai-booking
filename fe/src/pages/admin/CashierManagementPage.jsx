@@ -19,7 +19,16 @@ import {
     Trash,
     MagnifyingGlass,
     Funnel,
+    CaretDown,
+    CaretRight,
+    User,
 } from '../../components/common/ClinicIcon'
+import {
+    areVouchersMatching,
+    mergeVoucherData,
+    deduplicateVouchers,
+    groupVouchersByPatient,
+} from '../../utils/helpers/cashierInvoiceHelpers'
 
 const getNextVoucherCode = (list) => {
     let max = 0
@@ -45,14 +54,14 @@ export default function CashierManagementPage() {
             if (raw) {
                 const parsed = JSON.parse(raw)
                 const storedVouchers = parsed?.vouchers || []
-                storedVouchers.forEach((sv) => {
-                    if (!list.some((v) => v.id === sv.id || v.maPhieu === sv.maPhieu)) {
-                        list.unshift(sv)
-                    }
-                })
+                list = [...list, ...storedVouchers]
+                if (Array.isArray(parsed?.vouchers)) {
+                    parsed.vouchers = deduplicateVouchers(parsed.vouchers)
+                    localStorage.setItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL', JSON.stringify(parsed))
+                }
             }
         } catch {}
-        return list.filter((v) => v.loaiPhieu !== 'Phiếu chi')
+        return deduplicateVouchers(list.filter((v) => v.loaiPhieu !== 'Phiếu chi'))
     }, [clinicData])
 
     const patients = clinicData?.patients || []
@@ -71,10 +80,9 @@ export default function CashierManagementPage() {
 
     const masterOptions = getMasterOptions(clinicData)
     const defaults = getFormDefaults(clinicData)
-    const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
-    const paymentMethods = demoMode ? [{ value: 'Tiền mặt', label: 'Tiền mặt thử nghiệm' }] : masterOptions.paymentMethods || [
+    const paymentMethods = [
         { value: 'Tiền mặt', label: 'Tiền mặt' },
-        { value: 'Chuyển khoản', label: 'Chuyển khoản (VietQR)' },
+        { value: 'Chuyển khoản', label: 'Chuyển khoản QR (SePay / VietQR)' },
         { value: 'Thẻ POS', label: 'Thẻ POS' },
     ]
 
@@ -129,6 +137,8 @@ export default function CashierManagementPage() {
                 const lines = preview.cac_khoan_thu || preview.items || []
                 const autoItems = lines.map((line, idx) => ({
                     id: `PREV-${idx}`,
+                    muc_tham_chieu_id: line.muc_tham_chieu_id,
+                    loai_muc: line.loai_muc,
                     tenKhoan: line.ten_khoan_thu,
                     soTien: Number(line.thanh_tien),
                     ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
@@ -146,12 +156,12 @@ export default function CashierManagementPage() {
                     items: autoItems,
                     tongTien: Number(preview.thuc_thu_du_kien ?? preview.tong_tien ?? preview.tong_tam_tinh ?? 0),
                     daThu: false,
-                    hinhThuc: demoMode ? 'Tiền mặt' : 'Chuyển khoản'
+                    hinhThuc: 'Tiền mặt'
                 })
                 if (preview.canh_bao_gia) {
                     AppToast.warning(preview.canh_bao_gia)
                 } else {
-                    AppToast.info(`Xem trước chi phí khám và CLS ca khám ${enc.ma_kcb}. Bấm "Lưu phiếu" để lập hóa đơn!`)
+                    AppToast.info(`Xem trước chi phí ca khám ${enc.ma_kcb}. Bấm "Lưu phiếu" để lập hóa đơn!`)
                 }
                 return
             }
@@ -165,9 +175,15 @@ export default function CashierManagementPage() {
         const target = voucher || form
         if (!target.invoiceId && target.luotKhamId) {
             try {
+                const congKhamItem = (target.items || []).some((it) => it.loai_muc === 'cong_kham')
+                const clsItemIds = (target.items || [])
+                    .filter((it) => it.loai_muc === 'can_lam_sang' && it.muc_tham_chieu_id)
+                    .map((it) => it.muc_tham_chieu_id)
                 const created = await cashierService.createInvoice({
                     luot_kham_id: target.luotKhamId,
-                    mien_giam: 0
+                    mien_giam: 0,
+                    include_cong_kham: congKhamItem,
+                    chi_dinh_ids: clsItemIds
                 })
                 const actualAmount = Number(created.thuc_thu ?? created.tong_tien ?? target.tongTien ?? 0)
                 const updatedTarget = {
@@ -266,31 +282,30 @@ export default function CashierManagementPage() {
     const [newItemNote, setNewItemNote] = useState('')
 
     const allVouchers = useMemo(() => {
-        const combined = [...vouchers]
-        livePendingBills.forEach((pb) => {
-            const alreadyExists = combined.some(
-                (v) => v.id === pb.id || v.invoiceId === pb.id || v.maPhieu === pb.ma_hoa_don
-            )
-            if (!alreadyExists) {
-                combined.unshift({
-                    id: pb.id,
-                    invoiceId: pb.id,
-                    maPhieu: pb.ma_hoa_don,
-                    maKCB: `KCB-${pb.luot_kham_id}`,
-                    maBN: pb.benh_nhan?.mabn || '',
-                    hoTenBN: pb.benh_nhan?.ho_ten || 'Chưa rõ',
-                    soDienThoai: pb.benh_nhan?.so_dien_thoai || '',
-                    tongTien: Number(pb.thuc_thu || pb.tong_tien || 0),
-                    daThu: false,
-                    ngayThu: pb.thoi_gian_tao ? new Date(pb.thoi_gian_tao).toLocaleString('vi-VN') : '',
-                    hinhThuc: 'Tiền mặt',
-                    tenPhieu: `Viện phí ca khám #${pb.luot_kham_id}`,
-                    items: [],
-                    daKhoaSo: false
-                })
-            }
-        })
-        return combined
+        const liveItems = (livePendingBills || []).map((pb) => ({
+            id: pb.id,
+            invoiceId: pb.id,
+            maPhieu: pb.ma_hoa_don,
+            maKCB: `KCB-${pb.luot_kham_id}`,
+            maBN: pb.benh_nhan?.mabn || '',
+            hoTenBN: pb.benh_nhan?.ho_ten || 'Chưa rõ',
+            soDienThoai: pb.benh_nhan?.so_dien_thoai || '',
+            tongTien: Number(pb.thuc_thu || pb.tong_tien || 0),
+            daThu: false,
+            ngayThu: pb.thoi_gian_tao ? new Date(pb.thoi_gian_tao).toLocaleString('vi-VN') : '',
+            hinhThuc: 'Tiền mặt',
+            tenPhieu: `Viện phí ca khám #${pb.luot_kham_id}`,
+            items: (pb.cac_khoan_thu || []).map((line) => ({
+                id: `LINE-${line.id}`,
+                muc_tham_chieu_id: line.muc_tham_chieu_id,
+                loai_muc: line.loai_muc,
+                tenKhoan: line.ten_khoan_thu,
+                soTien: Number(line.thanh_tien),
+                ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng',
+            })),
+            daKhoaSo: false
+        }))
+        return deduplicateVouchers([...liveItems, ...vouchers])
     }, [vouchers, livePendingBills])
 
     const filteredVouchers = useMemo(() => {
@@ -307,6 +322,184 @@ export default function CashierManagementPage() {
             return matchText && matchStatus
         })
     }, [allVouchers, searchText, statusFilter])
+
+    const [invoiceViewMode, setInvoiceViewMode] = useState('BY_PATIENT')
+
+    const groupedPatients = useMemo(() => {
+        return groupVouchersByPatient(filteredVouchers)
+    }, [filteredVouchers])
+
+    const [expandedPatients, setExpandedPatients] = useState(() => {
+        const initial = new Set()
+        if (form?.maBN || form?.hoTenBN) {
+            const key = (form.maBN ? form.maBN.trim() : '') || (form.hoTenBN ? form.hoTenBN.trim().toLowerCase() : '')
+            if (key) initial.add(key)
+        }
+        return initial
+    })
+
+    useEffect(() => {
+        if (!form?.maBN && !form?.hoTenBN) return
+        const key = (form.maBN ? form.maBN.trim() : '') || (form.hoTenBN ? form.hoTenBN.trim().toLowerCase() : '')
+        if (key) {
+            setExpandedPatients((prev) => new Set([...prev, key]))
+        }
+    }, [form?.id, form?.maBN, form?.hoTenBN])
+
+    useEffect(() => {
+        if (searchText.trim()) {
+            setExpandedPatients(new Set(groupedPatients.map((g) => g.key)))
+        }
+    }, [searchText, groupedPatients])
+
+    const togglePatient = (key) => {
+        setExpandedPatients((prev) => {
+            const next = new Set(prev)
+            if (next.has(key)) {
+                next.delete(key)
+            } else {
+                next.add(key)
+            }
+            return next
+        })
+    }
+
+    const isAllExpanded = groupedPatients.length > 0 && groupedPatients.every((g) => expandedPatients.has(g.key))
+
+    const toggleExpandAll = () => {
+        if (isAllExpanded) {
+            setExpandedPatients(new Set())
+        } else {
+            setExpandedPatients(new Set(groupedPatients.map((g) => g.key)))
+        }
+    }
+
+    const handleSelectVoucher = async (v) => {
+        setForm({ ...v })
+        if (v.invoiceId && (!v.items || v.items.length === 0)) {
+            try {
+                const detail = await cashierService.getInvoiceDetail(v.invoiceId)
+                if (detail?.chi_tiet_hoa_don) {
+                    const lines = detail.chi_tiet_hoa_don.map((line) => ({
+                        id: `LINE-${line.id}`,
+                        tenKhoan: line.ten_khoan_thu,
+                        soTien: Number(line.thanh_tien),
+                        ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
+                    }))
+                    setForm((prev) => ({ ...prev, items: lines }))
+                }
+            } catch {}
+        }
+    }
+
+    const handleSelectPatientCombined = async (group) => {
+        let combinedItems = []
+        let total = 0
+        const unpaidVouchers = group.vouchers.filter((v) => !v.daThu)
+        const targetList = unpaidVouchers.length > 0 ? unpaidVouchers : group.vouchers
+
+        for (const v of targetList) {
+            let lines = v.items || []
+            if (v.invoiceId && (!lines || lines.length === 0)) {
+                try {
+                    const detail = await cashierService.getInvoiceDetail(v.invoiceId)
+                    if (detail?.chi_tiet_hoa_don) {
+                        lines = detail.chi_tiet_hoa_don.map((line) => ({
+                            id: `LINE-${line.id}`,
+                            tenKhoan: line.ten_khoan_thu,
+                            soTien: Number(line.thanh_tien),
+                            ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
+                        }))
+                    }
+                } catch {}
+            }
+            if (lines.length > 0) {
+                combinedItems = [...combinedItems, ...lines]
+            } else {
+                combinedItems.push({
+                    id: `LINE-${v.id || v.maPhieu}`,
+                    tenKhoan: v.tenPhieu || 'Khoản thu dịch vụ',
+                    soTien: Number(v.tongTien || 0),
+                    ghiChu: 'Viện phí'
+                })
+            }
+            total += Number(v.tongTien || 0)
+        }
+
+        const combinedVoucher = {
+            id: `GOP-${group.key}`,
+            isCombined: true,
+            combinedVoucherIds: targetList.map((v) => v.id),
+            combinedInvoiceIds: targetList.map((v) => v.invoiceId || v.id).filter(Boolean),
+            maPhieu: targetList.length === 1 ? targetList[0].maPhieu : `GOP-${group.maBN || 'BN'}-${targetList.length}HD`,
+            maBN: group.maBN,
+            hoTenBN: group.hoTenBN,
+            soDienThoai: group.soDienThoai,
+            tenPhieu: `Thu gộp toàn bộ dịch vụ BN ${group.hoTenBN} (${targetList.length} phiếu)`,
+            items: combinedItems,
+            tongTien: total,
+            daThu: targetList.every((v) => v.daThu),
+            hinhThuc: 'Tiền mặt',
+            nguoiThu: defaults.defaultCashier || 'Trần Thu Ngân',
+            ngayThu: new Date().toISOString().replace('T', ' ').slice(0, 16),
+            ghiChu: `Gom thanh toán ${targetList.length} hóa đơn cho bệnh nhân ${group.hoTenBN}`
+        }
+        setForm(combinedVoucher)
+    }
+
+    const handlePayAllForPatient = async (group) => {
+        const unpaidVouchers = group.vouchers.filter((v) => !v.daThu)
+        if (unpaidVouchers.length === 0) {
+            AppToast.info(`Tất cả hóa đơn của BN ${group.hoTenBN} đều đã được thu tiền!`)
+            return
+        }
+        const methodMap = {
+            'Tiền mặt': 'tien_mat',
+            'Chuyển khoản': 'chuyen_khoan',
+            'Thẻ POS': 'the_pos'
+        }
+        const selectedMethod = methodMap[form?.hinhThuc] || 'tien_mat'
+
+        for (const v of unpaidVouchers) {
+            const targetRef = v.invoiceId || v.id || v.maPhieu
+            if (targetRef) {
+                try {
+                    await cashierService.payInvoice(targetRef, {
+                        phuong_thuc_thanh_toan: selectedMethod,
+                        so_tien_khach_tra: Number(v.tongTien || 0),
+                        ghi_chu: `Thu gộp tất cả viện phí BN ${group.hoTenBN}`
+                    })
+                } catch {}
+            }
+        }
+
+        const targetIds = new Set(unpaidVouchers.map((v) => String(v.id)))
+        const targetCodes = new Set(unpaidVouchers.map((v) => v.maPhieu))
+        const updated = vouchers.map((v) => {
+            if (targetIds.has(String(v.id)) || targetCodes.has(v.maPhieu)) {
+                return { ...v, daThu: true, hinhThuc: form?.hinhThuc || 'Tiền mặt' }
+            }
+            return v
+        })
+
+        await dispatch(
+            updateClinicCollectionAsync({
+                collectionKey: 'vouchers',
+                items: deduplicateVouchers(updated),
+                auditEntry: {
+                    hanhDong: 'BATCH_PAY_PATIENT_VOUCHERS',
+                    doiTuong: `${group.hoTenBN} - ${group.totalAmount.toLocaleString('vi-VN')} đ`,
+                    mucDich: 'Thu tất cả các dịch vụ cùng lúc cho bệnh nhân',
+                },
+            })
+        )
+
+        await fetchLiveCashierData()
+        AppToast.success(`Đã thu toàn bộ ${group.totalAmount.toLocaleString('vi-VN')} đ cho BN ${group.hoTenBN} thành công!`)
+        if (form.maBN === group.maBN || form.hoTenBN === group.hoTenBN) {
+            setForm((prev) => ({ ...prev, daThu: true }))
+        }
+    }
 
     const totalThu = allVouchers
         .filter((v) => v.daThu)
@@ -334,12 +527,16 @@ export default function CashierManagementPage() {
             matchedPending?.cac_khoan_thu?.length > 0
                 ? matchedPending.cac_khoan_thu.map((line) => ({
                       id: `LINE-${line.id}`,
+                      muc_tham_chieu_id: line.muc_tham_chieu_id,
+                      loai_muc: line.loai_muc,
                       tenKhoan: line.ten_khoan_thu,
                       soTien: Number(line.thanh_tien),
                       ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng',
                   }))
                 : reg?.services?.map((s, i) => ({
                       id: `VI-AUTO-${i + 1}`,
+                      muc_tham_chieu_id: s.id || s.chiDinhId || null,
+                      loai_muc: s.loai_muc || 'can_lam_sang',
                       tenKhoan: s.tenDV,
                       soTien: Number(s.thanhTien) || Number(s.donGia) || 0,
                       ghiChu: s.phongTH,
@@ -365,7 +562,7 @@ export default function CashierManagementPage() {
             daThu: false,
         })
         if (autoItems.length > 0) {
-            AppToast.info(`Đã tự động tổng hợp ${autoItems.length} dịch vụ chỉ định của BN ${nextName}!`)
+            AppToast.info(`Đã nạp thông tin dịch vụ của BN ${nextName}`)
         }
     }
 
@@ -394,15 +591,66 @@ export default function CashierManagementPage() {
             AppToast.error('Vui lòng nhập Tên phiếu thu viện phí!')
             return
         }
+
+        if (form.isCombined && Array.isArray(form.combinedInvoiceIds)) {
+            const methodMap = {
+                'Tiền mặt': 'tien_mat',
+                'Chuyển khoản': 'chuyen_khoan',
+                'Thẻ POS': 'the_pos'
+            }
+            if (form.daThu) {
+                for (const ref of form.combinedInvoiceIds) {
+                    try {
+                        await cashierService.payInvoice(ref, {
+                            phuong_thuc_thanh_toan: methodMap[form.hinhThuc] || 'tien_mat',
+                            so_tien_khach_tra: 0,
+                            ghi_chu: form.ghiChu || 'Thu gộp viện phí'
+                        })
+                    } catch {}
+                }
+            }
+            const targetIds = new Set((form.combinedVoucherIds || []).map(String))
+            const updatedVouchers = vouchers.map((v) => {
+                if (
+                    targetIds.has(String(v.id)) ||
+                    (form.combinedInvoiceIds || []).includes(v.invoiceId) ||
+                    (form.combinedInvoiceIds || []).includes(v.id)
+                ) {
+                    return { ...v, daThu: Boolean(form.daThu), hinhThuc: form.hinhThuc }
+                }
+                return v
+            })
+            await dispatch(
+                updateClinicCollectionAsync({
+                    collectionKey: 'vouchers',
+                    items: deduplicateVouchers(updatedVouchers),
+                    auditEntry: {
+                        hanhDong: 'BATCH_PAY_VOUCHERS',
+                        doiTuong: `${form.maPhieu} - ${Number(form.tongTien || 0).toLocaleString('vi-VN')} đ`,
+                        mucDich: 'Thu gộp tất cả dịch vụ cho bệnh nhân',
+                    },
+                })
+            )
+            AppToast.success(`Đã cập nhật thu gộp cho BN ${form.hoTenBN}!`)
+            await fetchLiveCashierData()
+            setForm((prev) => ({ ...prev, daThu: Boolean(form.daThu) }))
+            return
+        }
         let activeInvoiceId = form.invoiceId
         let activeMaPhieu = form.maPhieu
         let activeId = form.id
 
         if (!activeInvoiceId && form.luotKhamId) {
             try {
+                const congKhamItem = (form.items || []).some((it) => it.loai_muc === 'cong_kham')
+                const clsItemIds = (form.items || [])
+                    .filter((it) => it.loai_muc === 'can_lam_sang' && it.muc_tham_chieu_id)
+                    .map((it) => it.muc_tham_chieu_id)
                 const created = await cashierService.createInvoice({
                     luot_kham_id: form.luotKhamId,
-                    mien_giam: 0
+                    mien_giam: 0,
+                    include_cong_kham: congKhamItem,
+                    chi_dinh_ids: clsItemIds
                 })
                 activeInvoiceId = created.id
                 activeMaPhieu = created.ma_hoa_don
@@ -459,32 +707,35 @@ export default function CashierManagementPage() {
             tongTien: calculatedTotal
         }
 
-        const exists = vouchers.some((v) => (v.id === payload.id || v.maPhieu === payload.maPhieu) && payload.id)
+        const matchIdx = vouchers.findIndex((v) => areVouchersMatching(v, payload))
         let updated
-        if (exists) {
-            updated = vouchers.map((v) => (v.id === payload.id || v.maPhieu === payload.maPhieu ? payload : v))
+        if (matchIdx >= 0) {
+            updated = [...vouchers]
+            updated[matchIdx] = mergeVoucherData(updated[matchIdx], payload)
+            setForm(updated[matchIdx])
         } else {
             const newVoucher = { ...payload, id: payload.id || payload.maPhieu || `PT-${Date.now().toString().slice(-5)}` }
             updated = [newVoucher, ...vouchers]
             setForm(newVoucher)
         }
+        updated = deduplicateVouchers(updated)
         await dispatch(
             updateClinicCollectionAsync({
                 collectionKey: 'vouchers',
                 items: updated,
                 auditEntry: {
-                    hanhDong: exists ? 'UPDATE_VOUCHER' : 'CREATE_VOUCHER',
+                    hanhDong: matchIdx >= 0 ? 'UPDATE_VOUCHER' : 'CREATE_VOUCHER',
                     doiTuong: `${payload.maPhieu} - ${payload.tongTien.toLocaleString('vi-VN')} đ`,
                     mucDich: 'Quản lý thu viện phí & biên lai thanh toán',
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật phiếu thu viện phí!' : 'Đã lập phiếu thu viện phí mới thành công!')
+        AppToast.success(matchIdx >= 0 ? 'Đã cập nhật phiếu thu viện phí!' : 'Đã lập phiếu thu viện phí mới thành công!')
     }
 
     const handleDeleteVoucher = async () => {
-        if (!form.id) return
-        const updated = vouchers.filter((v) => v.id !== form.id)
+        if (!form.id && !form.maPhieu) return
+        const updated = deduplicateVouchers(vouchers.filter((v) => !areVouchersMatching(v, form)))
         await dispatch(
             updateClinicCollectionAsync({
                 collectionKey: 'vouchers',
@@ -603,9 +854,9 @@ export default function CashierManagementPage() {
                                 <div className="flex items-center justify-between text-xs font-bold text-sky-900 mb-1.5">
                                     <span className="flex items-center gap-1.5">
                                         <Receipt size={14} weight="bold" className="text-sky-600" />
-                                        <span>CA KHÁM CHỜ GOM CHI PHÍ ({liveUnbilled.length})</span>
+                                        <span>PHIẾU CHỈ ĐỊNH / DỊCH VỤ CHỜ THU ({liveUnbilled.length})</span>
                                     </span>
-                                    <span className="text-[10px] text-sky-600 font-semibold">Tự động gom</span>
+                                    <span className="text-[10px] text-sky-600 font-semibold">Tách riêng từng phiếu</span>
                                 </div>
                                 <div className="space-y-1 max-h-36 overflow-y-auto">
                                     {liveUnbilled.map((u) => (
@@ -691,78 +942,271 @@ export default function CashierManagementPage() {
                             </div>
                         </div>
 
+                        <div className="flex items-center justify-between gap-1 py-1 px-1 bg-slate-50 rounded-lg text-xs">
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceViewMode('BY_PATIENT')}
+                                    className={`px-2 py-1 rounded-md font-semibold transition ${
+                                        invoiceViewMode === 'BY_PATIENT'
+                                            ? 'bg-white text-[#00B5F1] shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                >
+                                    Theo bệnh nhân ({groupedPatients.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceViewMode('FLAT_LIST')}
+                                    className={`px-2 py-1 rounded-md font-semibold transition ${
+                                        invoiceViewMode === 'FLAT_LIST'
+                                            ? 'bg-white text-[#00B5F1] shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                >
+                                    Tất cả phiếu ({filteredVouchers.length})
+                                </button>
+                            </div>
+                            {invoiceViewMode === 'BY_PATIENT' && groupedPatients.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={toggleExpandAll}
+                                    className="text-[11px] text-slate-500 hover:text-[#00B5F1] font-medium px-1"
+                                >
+                                    {isAllExpanded ? 'Thu gọn' : 'Mở rộng'}
+                                </button>
+                            )}
+                        </div>
+
                         <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
-                            <table className="medpro-table">
-                                <thead>
-                                    <tr>
-                                        <th>STT</th>
-                                        <th>Mã phiếu</th>
-                                        <th>Bệnh nhân / Người nộp</th>
-                                        <th>Số tiền</th>
-                                        <th className="text-center">TT</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredVouchers.map((v, idx) => (
-                                        <tr
-                                            key={v.id}
-                                            onClick={async () => {
-                                                setForm({ ...v })
-                                                if (v.invoiceId && (!v.items || v.items.length === 0)) {
-                                                    try {
-                                                        const detail = await cashierService.getInvoiceDetail(v.invoiceId)
-                                                        if (detail?.chi_tiet_hoa_don) {
-                                                            const lines = detail.chi_tiet_hoa_don.map((line) => ({
-                                                                id: `LINE-${line.id}`,
-                                                                tenKhoan: line.ten_khoan_thu,
-                                                                soTien: Number(line.thanh_tien),
-                                                                ghiChu: line.loai_muc === 'cong_kham' ? 'Công khám' : 'Cận lâm sàng'
-                                                            }))
-                                                            setForm((prev) => ({ ...prev, items: lines }))
-                                                        }
-                                                    } catch {}
-                                                }
-                                            }}
-                                            className={`cursor-pointer ${
-                                                form.id === v.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
-                                            }`}
-                                        >
-                                            <td className="tabular-nums text-center font-bold">{idx + 1}</td>
-                                            <td className="font-mono text-[11px] font-bold text-[#00B5F1]">{v.maPhieu}</td>
-                                            <td className="font-semibold text-[#12263F]">{v.hoTenBN}</td>
-                                            <td className="tabular-nums font-bold text-[#003553]">
-                                                {Number(v.tongTien).toLocaleString('vi-VN')} đ
-                                            </td>
-                                            <td className="text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={false} />
-                                                    {!demoMode && <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleOpenQr(v)
-                                                        }}
-                                                        className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
-                                                        title="Mã VietQR"
-                                                    >
-                                                        <QrCode size={13} weight="bold" />
-                                                    </button>}
+                            {invoiceViewMode === 'BY_PATIENT' ? (
+                                <div className="divide-y divide-slate-100">
+                                    {groupedPatients.map((group) => {
+                                        const isExpanded = expandedPatients.has(group.key)
+                                        return (
+                                            <div key={group.key} className="bg-white">
+                                                <div
+                                                    onClick={() => handleSelectPatientCombined(group)}
+                                                    className={`p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition border-l-4 ${
+                                                        form?.maBN === group.maBN || form?.hoTenBN === group.hoTenBN
+                                                            ? 'bg-[#F0F9FF] border-l-[#00B5F1] font-semibold'
+                                                            : 'border-l-transparent hover:border-l-slate-300'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                togglePatient(group.key)
+                                                            }}
+                                                            className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+                                                        >
+                                                            {isExpanded ? (
+                                                                <CaretDown size={14} weight="bold" />
+                                                            ) : (
+                                                                <CaretRight size={14} weight="bold" />
+                                                            )}
+                                                        </button>
+                                                        <div className="w-7 h-7 rounded-full bg-sky-100 text-[#00B5F1] flex items-center justify-center shrink-0">
+                                                            <User size={15} weight="bold" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-bold text-xs text-[#003553] truncate">
+                                                                {group.hoTenBN}
+                                                            </div>
+                                                            <div className="text-[11px] text-slate-400 truncate">
+                                                                {group.maBN ? `Mã: ${group.maBN}` : 'Vãng lai'}
+                                                                {group.soDienThoai ? ` • ${group.soDienThoai}` : ''}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-xs font-bold tabular-nums text-[#003553]">
+                                                            {group.totalAmount.toLocaleString('vi-VN')} đ
+                                                        </div>
+                                                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                                                            <span className="text-[10px] text-slate-400 font-semibold">
+                                                                {group.vouchers.length} phiếu
+                                                            </span>
+                                                            {group.unpaidCount > 0 && (
+                                                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    {group.unpaidCount} chờ thu
+                                                                </span>
+                                                            )}
+                                                            {group.paidCount > 0 && (
+                                                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                    {group.paidCount} đã thu
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {group.unpaidCount > 0 && (
+                                                            <div className="mt-1 flex items-center justify-end gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleSelectPatientGroup(group)
+                                                                        const unpaid = group.vouchers.filter((v) => !v.daThu)
+                                                                        const combinedInv = {
+                                                                            id: `GOP-${group.key}`,
+                                                                            isCombined: true,
+                                                                            combinedVoucherIds: unpaid.map((v) => v.id),
+                                                                            combinedInvoiceIds: unpaid.map((v) => v.invoiceId || v.id).filter(Boolean),
+                                                                            maPhieu: `GOP-${group.maBN || 'BN'}-${unpaid.length}HD`,
+                                                                            maBN: group.maBN,
+                                                                            hoTenBN: group.hoTenBN,
+                                                                            tenPhieu: `Thu gộp toàn bộ dịch vụ BN ${group.hoTenBN}`,
+                                                                            tongTien: unpaid.reduce((sum, v) => sum + Number(v.tongTien || 0), 0)
+                                                                        }
+                                                                        handleOpenQr(combinedInv)
+                                                                    }}
+                                                                    className="px-2 py-0.5 rounded-md bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold cursor-pointer transition shadow-xs flex items-center gap-1"
+                                                                    title="Quét mã QR (SePay / VietQR) thu gộp toàn bộ"
+                                                                >
+                                                                    <QrCode size={11} weight="bold" />
+                                                                    <span>QR gộp</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handlePayAllForPatient(group)
+                                                                    }}
+                                                                    className="px-2 py-0.5 rounded-md bg-[#00B5F1] hover:bg-[#0095c8] text-white text-[10px] font-bold cursor-pointer transition shadow-xs"
+                                                                    title="Thu tiền toàn bộ các dịch vụ của bệnh nhân này cùng lúc"
+                                                                >
+                                                                    Thu tất cả ({group.unpaidCount})
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {filteredVouchers.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5}>
-                                                <EmptyState
-                                                    icon="Receipt"
-                                                    title="Không tìm thấy phiếu thu nào"
-                                                />
-                                            </td>
-                                        </tr>
+
+                                                {isExpanded && (
+                                                    <div className="bg-slate-50/70 pl-8 pr-2.5 py-1.5 space-y-1.5 border-t border-slate-100">
+                                                        {group.vouchers.map((v) => {
+                                                            const isSelected = form.id === v.id || (form.maPhieu && form.maPhieu === v.maPhieu)
+                                                            return (
+                                                                <div
+                                                                    key={v.id}
+                                                                    onClick={() => handleSelectVoucher(v)}
+                                                                    className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between border ${
+                                                                        isSelected
+                                                                            ? 'bg-[#E8F4FD] border-[#00B5F1] shadow-xs'
+                                                                            : 'bg-white border-slate-200 hover:border-sky-300'
+                                                                    }`}
+                                                                >
+                                                                    <div className="min-w-0 pr-2">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="font-mono text-[11px] font-bold text-[#00B5F1]">
+                                                                                {v.maPhieu}
+                                                                            </span>
+                                                                            <span className="text-xs font-medium text-slate-700 truncate max-w-[140px]">
+                                                                                {v.tenPhieu || 'Hóa đơn dịch vụ'}
+                                                                            </span>
+                                                                        </div>
+                                                                        {v.ngayThu && (
+                                                                            <div className="text-[10px] text-slate-400 mt-0.5">
+                                                                                {v.ngayThu}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-right shrink-0 flex items-center gap-1.5">
+                                                                        <div>
+                                                                            <div className="text-xs font-bold tabular-nums text-[#003553]">
+                                                                                {Number(v.tongTien).toLocaleString('vi-VN')} đ
+                                                                            </div>
+                                                                            <div className="mt-0.5 flex justify-end">
+                                                                                <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={true} />
+                                                                            </div>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                handleOpenQr(v)
+                                                                            }}
+                                                                            className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
+                                                                            title="Mã QR (SePay / VietQR)"
+                                                                        >
+                                                                            <QrCode size={14} weight="bold" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                    {groupedPatients.length === 0 && (
+                                        <div className="py-8">
+                                            <EmptyState
+                                                icon="Receipt"
+                                                title="Không tìm thấy bệnh nhân hoặc phiếu thu nào"
+                                            />
+                                        </div>
                                     )}
-                                </tbody>
-                            </table>
+                                </div>
+                            ) : (
+                                <table className="medpro-table">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã phiếu</th>
+                                            <th>Bệnh nhân / Người nộp</th>
+                                            <th>Số tiền</th>
+                                            <th className="text-center">TT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredVouchers.map((v, idx) => (
+                                            <tr
+                                                key={v.id}
+                                                onClick={() => handleSelectVoucher(v)}
+                                                className={`cursor-pointer ${
+                                                    form.id === v.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
+                                                }`}
+                                            >
+                                                <td className="tabular-nums text-center font-bold">{idx + 1}</td>
+                                                <td className="font-mono text-[11px] font-bold text-[#00B5F1]">{v.maPhieu}</td>
+                                                <td className="font-semibold text-[#12263F]">{v.hoTenBN}</td>
+                                                <td className="tabular-nums font-bold text-[#003553]">
+                                                    {Number(v.tongTien).toLocaleString('vi-VN')} đ
+                                                </td>
+                                                <td className="text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <StatusBadge status={v.daThu ? 'Đã thu' : 'Chờ thu'} showText={false} />
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleOpenQr(v)
+                                                            }}
+                                                            className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
+                                                            title="Mã QR (SePay / VietQR)"
+                                                        >
+                                                            <QrCode size={13} weight="bold" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {filteredVouchers.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5}>
+                                                    <EmptyState
+                                                        icon="Receipt"
+                                                        title="Không tìm thấy phiếu thu nào"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
 
                         <div className="pt-2.5 grid grid-cols-2 gap-2 text-xs font-bold border-t border-slate-100 mt-2">
@@ -800,15 +1244,15 @@ export default function CashierManagementPage() {
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu phiếu</span>
                                 </button>
-                                {!demoMode && <button
+                                <button
                                     type="button"
                                     onClick={() => handleOpenQr(form)}
                                     className="medpro-btn-outline text-xs font-bold border-teal-500 text-teal-700 hover:bg-teal-50 flex items-center gap-1.5 cursor-pointer"
-                                    title="Tạo mã QR thanh toán viện phí NAPAS 247"
+                                    title="Tạo mã QR thanh toán viện phí (SePay / VietQR)"
                                 >
                                     <QrCode size={15} weight="bold" />
-                                    <span>Mã VietQR</span>
-                                </button>}
+                                    <span>Mã QR SePay / VietQR</span>
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => setIsReceiptModalOpen(true)}
@@ -825,6 +1269,18 @@ export default function CashierManagementPage() {
                                 )}
                             </div>
                         </div>
+
+                        {form.isCombined && (
+                            <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="flex items-center gap-2 text-sky-800 font-semibold">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-[#00B5F1] animate-pulse"></span>
+                                    <span>Đang thu gộp toàn bộ {form.items?.length || 0} dịch vụ của BN {form.hoTenBN}. Bấm &quot;Lưu phiếu&quot; hoặc &quot;Mã VietQR&quot; để thanh toán tất cả cùng lúc!</span>
+                                </div>
+                                <div className="font-extrabold tabular-nums text-[#003553] text-sm bg-white px-2.5 py-1 rounded-lg border border-sky-100 shadow-xs">
+                                    Tổng thu gộp: {Number(form.tongTien || 0).toLocaleString('vi-VN')} đ
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
@@ -885,10 +1341,28 @@ export default function CashierManagementPage() {
                                 />
                             </div>
                             <div>
-                                <label className="medpro-label">Hình thức thanh toán</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="medpro-label">Hình thức thanh toán</label>
+                                    {(form.hinhThuc === 'Chuyển khoản' || form.hinhThuc === 'Chuyển khoản QR (SePay / VietQR)') && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleOpenQr(form)}
+                                            className="text-xs font-bold text-teal-600 hover:text-teal-800 flex items-center gap-1 cursor-pointer"
+                                        >
+                                            <QrCode size={14} weight="bold" />
+                                            <span>Mở mã QR</span>
+                                        </button>
+                                    )}
+                                </div>
                                 <select
                                     value={form.hinhThuc || paymentMethods[0]?.value}
-                                    onChange={(e) => setForm({ ...form, hinhThuc: e.target.value })}
+                                    onChange={(e) => {
+                                        const val = e.target.value
+                                        setForm({ ...form, hinhThuc: val })
+                                        if (val === 'Chuyển khoản') {
+                                            handleOpenQr({ ...form, hinhThuc: val })
+                                        }
+                                    }}
                                     className="medpro-input"
                                 >
                                     {paymentMethods.map((pm) => (
@@ -1033,7 +1507,7 @@ export default function CashierManagementPage() {
                 </div>
             )}
 
-            {!demoMode && <VietQrModal
+            <VietQrModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 invoice={qrInvoice || form}
@@ -1042,8 +1516,6 @@ export default function CashierManagementPage() {
                 accountNumber={clinicData?.clinicSettings?.bankInfo?.accountNumber || '0901234567'}
                 accountName={clinicData?.clinicSettings?.bankInfo?.accountName || clinicData?.clinicSettings?.tenPhongKham || 'PHONG KHAM CLINIC AI'}
                 onConfirmPayment={async (inv) => {
-                    const targetRef = inv?.invoiceId || inv?.maPhieu || inv?.id || form?.invoiceId || form?.maPhieu || form?.id
-                    if (!targetRef) return
                     const rawTargetAmount =
                         inv?.thuc_thu !== undefined
                             ? inv.thuc_thu
@@ -1053,6 +1525,43 @@ export default function CashierManagementPage() {
                                 ? inv.tong_tien
                                 : inv?.tongTien ?? form.tongTien ?? 0
                     const targetAmount = Math.max(0, Number(rawTargetAmount || 0))
+
+                    if (inv?.isCombined || form?.isCombined) {
+                        const targetInvoices = inv?.combinedInvoiceIds || form?.combinedInvoiceIds || []
+                        for (const ref of targetInvoices) {
+                            try {
+                                await cashierService.payInvoice(ref, {
+                                    phuong_thuc_thanh_toan: 'chuyen_khoan',
+                                    so_tien_khach_tra: 0,
+                                    ghi_chu: 'Thanh toán qua quét mã VietQR gộp'
+                                })
+                            } catch {}
+                        }
+                        const targetVoucherIds = new Set((inv?.combinedVoucherIds || form?.combinedVoucherIds || []).map(String))
+                        const nextVouchers = vouchers.map((v) => {
+                            if (targetVoucherIds.has(String(v.id)) || targetInvoices.includes(v.invoiceId) || targetInvoices.includes(v.id)) {
+                                return { ...v, daThu: true, hinhThuc: 'Chuyển khoản' }
+                            }
+                            return v
+                        })
+                        await dispatch(
+                            updateClinicCollectionAsync({
+                                collectionKey: 'vouchers',
+                                items: deduplicateVouchers(nextVouchers),
+                                auditEntry: {
+                                    hanhDong: 'VIETQR_BATCH_PAYMENT_CONFIRMED',
+                                    doiTuong: `${form.maPhieu} - ${targetAmount.toLocaleString('vi-VN')} đ`,
+                                    mucDich: 'Xác nhận gạch nợ chuyển khoản VietQR gộp',
+                                },
+                            })
+                        )
+                        await fetchLiveCashierData()
+                        setForm((prev) => ({ ...prev, daThu: true, hinhThuc: 'Chuyển khoản' }))
+                        return
+                    }
+
+                    const targetRef = inv?.invoiceId || inv?.maPhieu || inv?.id || form?.invoiceId || form?.maPhieu || form?.id
+                    if (!targetRef) return
                     const paid = await cashierService.payInvoice(targetRef, {
                         phuong_thuc_thanh_toan: 'chuyen_khoan',
                         so_tien_khach_tra: targetAmount,
@@ -1070,14 +1579,15 @@ export default function CashierManagementPage() {
                         tongTien: targetAmount,
                     }
                     setForm(updatedVoucher)
-                    const exists = vouchers.some(
-                        (v) => v.id === updatedVoucher.id || v.maPhieu === updatedVoucher.maPhieu
-                    )
-                    const nextVouchers = exists
-                        ? vouchers.map((v) =>
-                              v.id === updatedVoucher.id || v.maPhieu === updatedVoucher.maPhieu ? updatedVoucher : v
-                          )
-                        : [updatedVoucher, ...vouchers]
+                    const matchIdx = vouchers.findIndex((v) => areVouchersMatching(v, updatedVoucher))
+                    let nextVouchers
+                    if (matchIdx >= 0) {
+                        nextVouchers = [...vouchers]
+                        nextVouchers[matchIdx] = mergeVoucherData(nextVouchers[matchIdx], updatedVoucher)
+                    } else {
+                        nextVouchers = [updatedVoucher, ...vouchers]
+                    }
+                    nextVouchers = deduplicateVouchers(nextVouchers)
                     await dispatch(
                         updateClinicCollectionAsync({
                             collectionKey: 'vouchers',
@@ -1091,7 +1601,7 @@ export default function CashierManagementPage() {
                     )
                     await fetchLiveCashierData()
                 }}
-            />}
+            />
 
             <ReceiptModal
                 isOpen={isReceiptModalOpen}

@@ -601,6 +601,29 @@ export class AdminService extends BaseServices {
             return res.data?.data || res.data
         }
     }
+
+    getAmendments = async (trangThai) => {
+        const query = trangThai && trangThai !== 'ALL' ? `?trang_thai=${encodeURIComponent(trangThai)}` : ''
+        try {
+            const res = await this.get(`/api/v1/admin/amendments${query}`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
+    }
+
+    approveAmendment = async (id, payload) => {
+        const res = await this.post(`/api/v1/clinical/amendments/${id}/approve`, payload)
+        return res.data?.data || res.data
+    }
+
+    rejectAmendment = async (id, payload) => {
+        const res = await this.post(`/api/v1/clinical/amendments/${id}/reject`, payload)
+        return res.data?.data || res.data
+    }
 }
 
 export const adminService = new AdminService()

@@ -44,6 +44,23 @@ import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/cl
 
 const QUEUE_POLL_MS = 15000
 
+const loadPersistedNotifiedKeys = () => {
+    try {
+        const raw = localStorage.getItem('cls_notified_result_keys') || sessionStorage.getItem('cls_notified_result_keys')
+        return new Set(raw ? JSON.parse(raw) : [])
+    } catch {
+        return new Set()
+    }
+}
+
+const savePersistedNotifiedKeys = (setObj) => {
+    try {
+        const data = JSON.stringify(Array.from(setObj).slice(-500))
+        localStorage.setItem('cls_notified_result_keys', data)
+        sessionStorage.setItem('cls_notified_result_keys', data)
+    } catch {}
+}
+
 const CLS_RESULT_POLL_MS = 5000
 
 
@@ -136,47 +153,6 @@ export default function ExamWorkstationPage() {
         }
     }, [searchParams])
     const [queueFilter, setQueueFilter] = useState('cho_kham')
-    const [step, setStep] = useState(1)
-
-    const validateClinicalStep = () => {
-        if (isReadOnly) return true
-        const exam = formik.values.kham_chuyen_khoa || {}
-        const rawKhoa = resolvedSpecialty?.key || exam.khoa || encounter?.chuyen_khoa_kham
-        const spec = findSpecialtyExam(rawKhoa)
-        const items = exam.items || {}
-        const done = spec.items.filter((label) => items[label]?.status).length
-
-        if (done === 0) {
-            AppToast.warning('Bác sĩ chưa thực hiện khám chuyên khoa. Vui lòng chọn Bình thường hoặc Bất thường trước khi chuyển sang Cận lâm sàng!')
-            return false
-        }
-
-        if (done < spec.items.length) {
-            AppToast.warning(`Mục khám chuyên khoa chưa hoàn tất (đã khám ${done}/${spec.items.length} mục). Vui lòng đánh giá các mục còn lại trước khi chuyển sang Cận lâm sàng!`)
-            return false
-        }
-
-        const missingNotes = Object.entries(items).filter(
-            ([label, it]) => it?.status === 'BAT' && !String(it?.note || '').trim()
-        )
-        if (missingNotes.length > 0) {
-            AppToast.warning(`Cần mô tả mục bất thường: ${missingNotes.map(([label]) => label).join(', ')}`)
-            return false
-        }
-
-        return true
-    }
-
-    const handleStepChange = (targetStep) => {
-        if (step === 1 && targetStep > 1) {
-            if (!validateClinicalStep()) return
-        }
-        if (step === 2 && targetStep > 2 && pickedOrders.length > 0) {
-            AppToast.warning('Bạn đang có chỉ định CLS chưa gửi ở Bước 2. Vui lòng bấm gửi chỉ định trước khi tiếp tục!')
-            return
-        }
-        setStep(targetStep)
-    }
     const [savedAt, setSavedAt] = useState(null)
     const [orderSubmitting, setOrderSubmitting] = useState(false)
     const [pickedOrders, setPickedOrders] = useState([])
@@ -184,6 +160,7 @@ export default function ExamWorkstationPage() {
     const [historyOpen, setHistoryOpen] = useState(false)
     const [amendmentOpen, setAmendmentOpen] = useState(false)
     const [rxModalState, setRxModalState] = useState({ open: false, tab: 'print' })
+    const notifiedResultsRef = useRef(loadPersistedNotifiedKeys())
 
     const locked = Boolean(encounter?.is_locked)
     const currentTicket = queue.find((t) => t.trang_thai === 'dang_kham')
@@ -215,6 +192,11 @@ export default function ExamWorkstationPage() {
         [activeOrders]
     )
 
+    const hasCompletedCls = useMemo(
+        () => activeOrders.some((o) => o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'),
+        [activeOrders]
+    )
+
     const hasPendingCls = pendingClsOrders.length > 0
     const isWaitingCls = Boolean(
         activeTicket?.trang_thai === 'tam_hoan' || encounter?.trang_thai === 'tam_hoan' || hasPendingCls
@@ -225,8 +207,60 @@ export default function ExamWorkstationPage() {
                 activeTicket.ghi_chu.startsWith('⭐ CÓ KQ CLS') ||
                 activeTicket.ghi_chu.startsWith('🚨 KQ CLS') ||
                 activeTicket.ghi_chu.toLowerCase().includes('đã có kết quả')
-            ))
+            )) ||
+            hasCompletedCls
     )
+
+    const [step, setStep] = useState(1)
+
+    useEffect(() => {
+        if (!encounter) return
+        if (hasClsReady || hasCompletedCls) {
+            setStep(3)
+        } else {
+            setStep(1)
+        }
+    }, [encounter?.id, hasClsReady, hasCompletedCls])
+
+    const validateClinicalStep = () => {
+        if (isReadOnly || hasClsReady || hasCompletedCls) return true
+        const exam = formik.values.kham_chuyen_khoa || {}
+        const rawKhoa = resolvedSpecialty?.key || exam.khoa || encounter?.chuyen_khoa_kham
+        const spec = findSpecialtyExam(rawKhoa)
+        const items = exam.items || {}
+        const done = spec.items.filter((label) => items[label]?.status).length
+
+        if (done === 0) {
+            AppToast.warning('Bác sĩ chưa thực hiện khám chuyên khoa. Vui lòng chọn Bình thường hoặc Bất thường trước khi chuyển sang Cận lâm sàng!')
+            return false
+        }
+
+        if (done < spec.items.length) {
+            AppToast.warning(`Mục khám chuyên khoa chưa hoàn tất (đã khám ${done}/${spec.items.length} mục). Vui lòng đánh giá các mục còn lại trước khi chuyển sang Cận lâm sàng!`)
+            return false
+        }
+
+        const missingNotes = Object.entries(items).filter(
+            ([label, it]) => it?.status === 'BAT' && !String(it?.note || '').trim()
+        )
+        if (missingNotes.length > 0) {
+            AppToast.warning(`Cần mô tả mục bất thường: ${missingNotes.map(([label]) => label).join(', ')}`)
+            return false
+        }
+
+        return true
+    }
+
+    const handleStepChange = (targetStep) => {
+        if (step === 1 && targetStep > 1 && !hasClsReady && !hasCompletedCls) {
+            if (!validateClinicalStep()) return
+        }
+        if (step === 2 && targetStep > 2 && pickedOrders.length > 0) {
+            AppToast.warning('Bạn đang có chỉ định CLS chưa gửi ở Bước 2. Vui lòng bấm gửi chỉ định trước khi tiếp tục!')
+            return
+        }
+        setStep(targetStep)
+    }
 
     const loadQueue = useCallback(() => dispatch(fetchDoctorQueueAsync()), [dispatch])
 
@@ -261,23 +295,55 @@ export default function ExamWorkstationPage() {
         }
     }, [loadQueue])
 
-    const checkReturnedResults = useCallback(async () => {
+    const activeEncounterIdRef = useRef(encounter?.id ?? encounterId)
+    useEffect(() => {
+        activeEncounterIdRef.current = encounter?.id ?? encounterId
+    }, [encounter?.id, encounterId])
+
+    useEffect(() => {
+        if (!encounter?.danh_sach_chi_dinh) return
+        let updated = false
+        encounter.danh_sach_chi_dinh.forEach((o) => {
+            if (o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet') {
+                const id = String(o.server_order_id || o.chi_dinh_id || o.id || '')
+                if (id && !notifiedResultsRef.current.has(id)) {
+                    notifiedResultsRef.current.add(id)
+                    updated = true
+                }
+            }
+        })
+        if (updated) {
+            savePersistedNotifiedKeys(notifiedResultsRef.current)
+        }
+    }, [encounter?.danh_sach_chi_dinh])
+
+    const checkReturnedResults = useCallback(async (isInitial = false) => {
         const changed = await clinicalService.pollReturnedResults()
         if (changed.length === 0) return
         loadQueue()
-        const shownId = encounter?.id ?? encounterId
+        const shownId = activeEncounterIdRef.current
         if (shownId && changed.some((c) => c.encounterId === shownId)) dispatch(fetchEncounterAsync(shownId))
+        let hasNew = false
         changed.forEach(({ order, patientName }) => {
-            const text = `Đã có kết quả CLS: ${order.ten_dich_vu}${patientName ? ` — ${patientName}` : ''}`
-            if (order.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`${text} (NGUY KỊCH)`)
-            else AppToast.success(text)
+            const orderId = String(order.server_order_id || order.chi_dinh_id || order.id || '')
+            if (!orderId || notifiedResultsRef.current.has(orderId)) return
+            notifiedResultsRef.current.add(orderId)
+            hasNew = true
+            if (!isInitial) {
+                const text = `Đã có kết quả CLS: ${order.ten_dich_vu}${patientName ? ` — ${patientName}` : ''}`
+                if (order.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`${text} (NGUY KỊCH)`)
+                else AppToast.success(text)
+            }
         })
-    }, [dispatch, loadQueue, encounterId, encounter?.id])
+        if (hasNew) {
+            savePersistedNotifiedKeys(notifiedResultsRef.current)
+        }
+    }, [dispatch, loadQueue])
 
     useEffect(() => {
-        checkReturnedResults()
-        const timer = setInterval(checkReturnedResults, CLS_RESULT_POLL_MS)
-        const off = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_RESULT_RETURNED, checkReturnedResults)
+        checkReturnedResults(true)
+        const timer = setInterval(() => checkReturnedResults(false), CLS_RESULT_POLL_MS)
+        const off = clinicalEventBridge.on(CLINICAL_EVENTS.CLS_RESULT_RETURNED, () => checkReturnedResults(false))
         return () => {
             clearInterval(timer)
             off()
@@ -286,7 +352,6 @@ export default function ExamWorkstationPage() {
 
     const selectEncounter = (id) => {
         setPickedEncounterId(id)
-        setStep(1)
         setSavedAt(null)
         const nextParams = new URLSearchParams(searchParams)
         if (id) {

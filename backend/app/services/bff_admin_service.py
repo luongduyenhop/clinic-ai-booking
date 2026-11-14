@@ -915,6 +915,8 @@ class BffAdminService:
         seen_codes = set()
         for hd in db_invoices:
             raw_code = str(hd.ma_hoa_don or f"HD-{hd.id}").strip()
+            while raw_code.startswith("HD-HD-"):
+                raw_code = raw_code[3:]
             short_code = raw_code[3:] if raw_code.startswith("HD-PT") else raw_code
             ex = base_map.get(raw_code) or base_map.get(short_code)
             bn = hd.benh_nhan
@@ -1574,9 +1576,20 @@ class BffAdminService:
                 else:
                     hd_id = None
                     if loai == "THU" and first_lk and first_bn:
-                        hd_code = f"HD-{code[:40]}"
+                        clean_code = code.strip()
+                        while clean_code.startswith("HD-HD-"):
+                            clean_code = clean_code[3:]
+                        hd_code = clean_code if clean_code.startswith("HD-") else f"HD-{clean_code[:40]}"
                         existing_hd = (
-                            await db.execute(select(HoaDon).where(HoaDon.ma_hoa_don == hd_code))
+                            await db.execute(
+                                select(HoaDon).where(
+                                    or_(
+                                        HoaDon.ma_hoa_don == hd_code,
+                                        HoaDon.ma_hoa_don == clean_code,
+                                        HoaDon.ma_hoa_don == code.strip(),
+                                    )
+                                )
+                            )
                         ).scalar_one_or_none()
                         if not existing_hd:
                             active_lk_hd = (

@@ -4,12 +4,12 @@ from pydantic import BaseModel, Field
 
 
 class ClsFileResponse(BaseModel):
-    """Ảnh kết quả CLS đã lưu trên máy chủ; `url` là endpoint xem ảnh có xác thực"""
     file_id: str
     url: str
     content_type: str
     kich_thuoc: Optional[int] = None
     ten_goc: Optional[str] = None
+    cloudinary_url: Optional[str] = None
 
 
 class ClsFileListResponse(BaseModel):
@@ -19,7 +19,6 @@ class ClsFileListResponse(BaseModel):
 
 
 class ImagingResultRequest(BaseModel):
-    """Kết quả Chẩn đoán hình ảnh (siêu âm, X-quang...). Ảnh lấy từ danh sách đã tải lên, không nhận URL từ client"""
     mo_ta_hinh_anh: Optional[str] = Field(None, max_length=10000, description="Mô tả hình ảnh")
     ket_luan: Optional[str] = Field(None, max_length=5000)
     de_nghi: Optional[str] = Field(None, max_length=2000)

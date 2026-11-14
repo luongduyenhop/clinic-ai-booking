@@ -213,12 +213,15 @@ export class ClinicalService extends BaseServices {
     }
 
     hydrateFromPostgres = async (force = false) => {
+        const role = String(localStorage.getItem('userRole') || '').toUpperCase()
+        if (role && role !== 'BAC_SI' && role !== 'ADMIN' && role !== 'DOCTOR') return
         if (this._hydratedFromPg && !force) return
         this._hydratedFromPg = true
         try {
             const res = await this.get('/api/v1/clinical/workspace-state', {
                 params: { _t: Date.now() },
                 __skipGlobalLoading: true,
+                __skipGlobalError: true,
             })
             const remote = res?.data?.data
             if (demoMode) {
@@ -289,9 +292,11 @@ export class ClinicalService extends BaseServices {
     }
 
     persistToPostgres = async (changes = {}) => {
+        const role = String(localStorage.getItem('userRole') || '').toUpperCase()
+        if (role && role !== 'BAC_SI' && role !== 'ADMIN' && role !== 'DOCTOR') return
         if (demoMode) {
             if (!changes.queue?.length && !Object.keys(changes.encounters || {}).length) return
-            await this.put('/api/v1/clinical/workspace-state', changes, { __skipGlobalLoading: true })
+            await this.put('/api/v1/clinical/workspace-state', changes, { __skipGlobalLoading: true, __skipGlobalError: true })
             return
         }
         try {
@@ -299,7 +304,7 @@ export class ClinicalService extends BaseServices {
         } catch {
         }
         try {
-            await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true })
+            await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true, __skipGlobalError: true })
         } catch {
         }
     }
@@ -733,10 +738,34 @@ export class ClinicalService extends BaseServices {
     }
 
     createAmendment = async (encounterId, payload) => {
-        if (!db.encounters[encounterId]?.is_locked) return reject('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
-        const amendment = { id: db.nextId++, trang_thai: 'CHO_PHE_DUYET', ...payload }
-        await this.persistToPostgres()
-        return delay(amendment)
+        try {
+            const res = await this.post(`/api/v1/clinical/encounters/${encounterId}/amendments`, {
+                thuc_the_loai: payload.thuc_the_loai || 'CHAN_DOAN',
+                thuc_the_id: payload.thuc_the_id || 1,
+                ly_do_text: payload.ly_do_text,
+                noi_dung_moi_json: payload.noi_dung_moi_json || { noi_dung: payload.noi_dung_moi || '' },
+                muc_do_nghiem_trong: payload.muc_do_nghiem_trong || 'TRUNG_BINH',
+                ghi_chu: payload.ghi_chu || null,
+            })
+            return res.data?.data || res.data
+        } catch {
+            if (!db.encounters[encounterId]?.is_locked) return reject('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
+            const amendment = { id: db.nextId++, trang_thai: 'CHO_PHE_DUYET', ...payload }
+            await this.persistToPostgres()
+            return delay(amendment)
+        }
+    }
+
+    getEncounterAmendments = async (encounterId) => {
+        try {
+            const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/amendments`, {
+                __skipGlobalLoading: true,
+                __skipRefresh: true,
+            })
+            return res.data?.data || res.data || []
+        } catch {
+            return []
+        }
     }
 
     rateAiSuggestion = async (encounterId, payload) => {
@@ -848,31 +877,32 @@ export class ClinicalService extends BaseServices {
         const result = { ...payload, id: orderId, trang_thai: trangThai }
         if (final) result.thoi_gian_tra_ket_qua = new Date().toISOString()
 
-        if (!demoMode) await this.reloadFromPostgres()
-        const mirror = demoMode ? null : findMirrorOrder(orderId)
-        if (mirror) {
-            const patch = { ...result }
-            delete patch.id
-            Object.assign(mirror.order, patch)
-            const ticket = final ? db.queue.find((t) => t.encounter_id === mirror.enc.id) : null
-            if (ticket) {
-                ticket.trang_thai = 'co_ket_qua_cls'
-                ticket.muc_do_uu_tien = 0 
-                ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
+        let mirror = null
+        try {
+            if (!demoMode) await this.reloadFromPostgres()
+            mirror = demoMode ? null : findMirrorOrder(orderId)
+            if (mirror) {
+                const patch = { ...result }
+                delete patch.id
+                Object.assign(mirror.order, patch)
+                const ticket = final ? db.queue.find((t) => t.encounter_id === mirror.enc.id) : null
+                if (ticket) {
+                    ticket.trang_thai = 'co_ket_qua_cls'
+                    ticket.muc_do_uu_tien = 0
+                    ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
+                }
+                await this.persistToPostgres()
             }
-            await this.persistToPostgres()
-        }
+        } catch {}
 
         if (final) {
             try {
                 clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
                     orderId,
                     order: mirror?.order || result,
-                    encounterId: mirror?.enc.id,
+                    encounterId: mirror?.enc?.id,
                 })
-            } catch (e) {
-                console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
-            }
+            } catch {}
         }
 
         return result
@@ -906,7 +936,18 @@ export class ClinicalService extends BaseServices {
         })
     }
 
-    deleteClsImage = (url) => this.delete(url)
+    deleteClsImage = (url, orderId) => {
+        const raw = String(url || '')
+        const matchCloud = raw.match(/\/cls\/(\d+)\/([0-9a-f]{32}\.(?:jpg|png))/)
+        if (matchCloud) {
+            return this.delete(`/api/v1/subclinical/orders/${matchCloud[1]}/files/${matchCloud[2]}`)
+        }
+        const matchHex = raw.match(/([0-9a-f]{32}\.(?:jpg|png))/)
+        if (orderId && matchHex) {
+            return this.delete(`/api/v1/subclinical/orders/${orderId}/files/${matchHex[1]}`)
+        }
+        return this.delete(url)
+    }
 
     fetchClsImageBlob = async (url) => {
         const res = await this.get(url, { responseType: 'blob', __skipGlobalLoading: true })
@@ -1047,6 +1088,13 @@ export class ClinicalService extends BaseServices {
     _pollReturnedResultsOnce = async () => {
         let payload
         try {
+            if (!this._returnedSince) {
+                try {
+                    this._returnedSince = localStorage.getItem('cls_returned_since') || sessionStorage.getItem('cls_returned_since') || null
+                } catch {
+                    this._returnedSince = null
+                }
+            }
             const query = this._returnedSince ? `?since=${encodeURIComponent(this._returnedSince)}` : ''
             const res = await this.get(`/api/v1/subclinical/returned-results${query}`, {
                 __skipGlobalLoading: true,
@@ -1060,7 +1108,13 @@ export class ClinicalService extends BaseServices {
 
         const incomingItems = payload.items || []
         if (incomingItems.length === 0 && (!this._pendingReturnedItems || this._pendingReturnedItems.length === 0)) {
-            if (payload.server_time) this._returnedSince = payload.server_time
+            if (payload.server_time) {
+                this._returnedSince = payload.server_time
+                try {
+                    localStorage.setItem('cls_returned_since', payload.server_time)
+                    sessionStorage.setItem('cls_returned_since', payload.server_time)
+                } catch {}
+            }
             return []
         }
 
@@ -1078,13 +1132,25 @@ export class ClinicalService extends BaseServices {
         let dirty = false
         const remaining = []
 
+        if (!this._processedReturnedKeys) {
+            this._processedReturnedKeys = new Set()
+        }
+
         pool.forEach((it) => {
+            const itemKey = `${it.chi_dinh_id}:${it.thoi_gian_duyet || it.thoi_gian_tra_ket_qua || ''}`
+            if (this._processedReturnedKeys.has(itemKey)) {
+                return
+            }
             const mirror = findMirrorOrder(it.chi_dinh_id, it.luot_kham_id, it.dich_vu_id)
             if (!mirror) {
                 remaining.push(it)
                 return
             }
-            if (!sameInstant(mirror.order.thoi_gian_duyet, it.thoi_gian_duyet)) {
+            this._processedReturnedKeys.add(itemKey)
+            const mirrorTime = mirror.order.thoi_gian_duyet || mirror.order.thoi_gian_tra_ket_qua
+            const incomingTime = it.thoi_gian_duyet || it.thoi_gian_tra_ket_qua
+            const alreadyDone = (mirror.order.trang_thai === 'da_co_ket_qua' || mirror.order.trang_thai === 'da_duyet') && sameInstant(mirrorTime, incomingTime)
+            if (!alreadyDone) {
                 applyReturnedResult(mirror, toMirrorPatch(it))
                 dirty = true
                 changed.push({
@@ -1096,10 +1162,12 @@ export class ClinicalService extends BaseServices {
         })
 
         this._pendingReturnedItems = remaining.slice(-50)
-        if (payload.server_time && remaining.length === 0) {
+        if (payload.server_time) {
             this._returnedSince = payload.server_time
-        } else if (payload.server_time && !this._returnedSince) {
-            this._returnedSince = payload.server_time
+            try {
+                localStorage.setItem('cls_returned_since', payload.server_time)
+                sessionStorage.setItem('cls_returned_since', payload.server_time)
+            } catch {}
         }
 
         if (dirty) await this.persistToPostgres()
@@ -1107,23 +1175,27 @@ export class ClinicalService extends BaseServices {
     }
 
     syncReturnedResultToWorkspace = async (orderId, result) => {
-        await this.reloadFromPostgres()
-        const mirror = findMirrorOrder(orderId)
-        if (mirror) {
-            const patch = { ...result }
-            delete patch.id
-            applyReturnedResult(mirror, patch)
-            await this.persistToPostgres()
+        let mirror = null
+        const role = String(localStorage.getItem('userRole') || '').toUpperCase()
+        if (role === 'BAC_SI' || role === 'ADMIN' || role === 'DOCTOR') {
+            try {
+                await this.reloadFromPostgres()
+                mirror = findMirrorOrder(orderId)
+                if (mirror) {
+                    const patch = { ...result }
+                    delete patch.id
+                    applyReturnedResult(mirror, patch)
+                    await this.persistToPostgres()
+                }
+            } catch {}
         }
         try {
             clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_RESULT_RETURNED, {
                 orderId,
                 order: mirror?.order || result,
-                encounterId: mirror?.enc.id,
+                encounterId: mirror?.enc?.id,
             })
-        } catch (e) {
-            console.warn('Bridge emit CLS_RESULT_RETURNED error:', e)
-        }
+        } catch {}
     }
 }
 

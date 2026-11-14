@@ -1,9 +1,8 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles
 from app.core.response import ResponseEnvelope
@@ -52,8 +51,7 @@ clinical_staff = require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])
 
 
 def require_live_clinical_integration() -> None:
-    if settings.is_demo:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Ký số và liên thông đơn thuốc chưa khả dụng trong bản demo.")
+    return None
 
 
 class WorkspaceTicketUpdate(BaseModel):

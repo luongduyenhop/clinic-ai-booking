@@ -1,9 +1,3 @@
-"""Ảnh kết quả cận lâm sàng (siêu âm, X-quang, nội soi...) và phiếu kết quả Chẩn đoán hình ảnh.
-
-Ảnh lưu trên đĩa tại `<CLS_UPLOAD_DIR>/<chi_dinh_id>/<uuid>.<jpg|png>`, đường dẫn API của từng ảnh lưu trong
-`chi_dinh.file_dinh_kem_urls` (nguồn chuẩn) và được chép sang `phieu_ket_qua_cls` / `ket_qua_cls` khi nộp kết quả.
-Ảnh y tế không public bằng StaticFiles: chỉ xem được qua endpoint có xác thực.
-"""
 import logging
 import re
 import uuid
@@ -34,6 +28,7 @@ from app.schemas.cls_imaging import (
 )
 from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_NHAP, is_phieu_approved, latest_phieu
 from app.services.cls_service_group import CDHA, XET_NGHIEM, nhom_dich_vu_of
+from app.services.cloudinary_service import cloudinary_service
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +36,9 @@ MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_FILES_PER_ORDER = 10
 DEFAULT_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "cls"
 
-# Tên tệp trên đĩa do máy chủ tự sinh: chỉ chấp nhận đúng dạng này khi đọc/xóa, chặn mọi kiểu path traversal
 _FILE_ID_RE = re.compile(r"^[0-9a-f]{32}\.(jpg|png)$")
 _FILE_URL_RE = re.compile(r"^/api/v1/subclinical/orders/(\d+)/files/([0-9a-f]{32}\.(?:jpg|png))$")
+_CLOUDINARY_FILE_RE = re.compile(r"^https?://res\.cloudinary\.com/[^/]+/image/upload/.*(?:/|^)([0-9a-f]{32}\.(?:jpg|png))$")
 
 
 @dataclass(frozen=True)
@@ -64,7 +59,6 @@ _EDITABLE_STATES = ("dang_thuc_hien", "da_co_ket_qua")
 
 
 class ClsFileService:
-    """Tải lên / xem / xóa ảnh kết quả CLS và nộp kết quả Chẩn đoán hình ảnh"""
 
     @property
     def upload_root(self) -> Path:
@@ -74,10 +68,7 @@ class ClsFileService:
     def file_url(order_id: int, file_id: str) -> str:
         return f"{settings.API_V1_STR}/subclinical/orders/{order_id}/files/{file_id}"
 
-    # ── Ảnh kết quả ──────────────────────────────────────────────────────
-
     async def upload_file(self, order_id: int, file: UploadFile, db: AsyncSession) -> ClsFileResponse:
-        """Nhận 1 ảnh JPG/PNG: kiểm tra đuôi tệp, content-type, magic bytes và dung lượng trước khi ghi đĩa"""
         data = await file.read(MAX_FILE_BYTES + 1)
         if not data:
             raise BadRequestException("Tệp tải lên rỗng")
@@ -101,7 +92,19 @@ class ClsFileService:
         path = self._safe_path(order.id, file_id)
         await run_in_threadpool(self._write_file, path, data)
 
-        order.file_dinh_kem_urls = [*(order.file_dinh_kem_urls or []), self.file_url(order.id, file_id)]
+        cloud_url = None
+        if cloudinary_service.is_configured():
+            try:
+                cloud_url = await cloudinary_service.upload_bytes(
+                    data=data,
+                    filename=file_id,
+                    folder=f"clinic_ai/cls/{order.id}",
+                )
+            except Exception:
+                cloud_url = None
+
+        chosen_url = cloud_url or self.file_url(order.id, file_id)
+        order.file_dinh_kem_urls = [*(order.file_dinh_kem_urls or []), chosen_url]
         await self._sync_result_attachments(order, db)
         try:
             await db.commit()
@@ -111,10 +114,11 @@ class ClsFileService:
 
         return ClsFileResponse(
             file_id=file_id,
-            url=self.file_url(order.id, file_id),
+            url=chosen_url,
             content_type=kind.media_type,
             kich_thuoc=len(data),
             ten_goc=self._original_name(file.filename),
+            cloudinary_url=cloud_url,
         )
 
     async def list_files(self, order_id: int, db: AsyncSession) -> ClsFileListResponse:
@@ -124,12 +128,19 @@ class ClsFileService:
         items = []
         for file_id in self._file_ids(order):
             path = self._safe_path(order.id, file_id)
+            matched_url = None
+            for u in (order.file_dinh_kem_urls or []):
+                if str(u).endswith(f"/{file_id}"):
+                    matched_url = str(u)
+                    break
+            final_url = matched_url or self.file_url(order.id, file_id)
             items.append(
                 ClsFileResponse(
                     file_id=file_id,
-                    url=self.file_url(order.id, file_id),
+                    url=final_url,
                     content_type=self._media_type(file_id),
                     kich_thuoc=path.stat().st_size if path.is_file() else None,
+                    cloudinary_url=final_url if "cloudinary.com" in final_url else None,
                 )
             )
         return ClsFileListResponse(chi_dinh_id=order.id, items=items, toi_da=MAX_FILES_PER_ORDER)
@@ -167,14 +178,15 @@ class ClsFileService:
         await self._ensure_not_approved(order, db)
 
         url = self.file_url(order.id, file_id)
-        order.file_dinh_kem_urls = [u for u in (order.file_dinh_kem_urls or []) if u != url]
-        if order.tep_dinh_kem_url == url:
+        order.file_dinh_kem_urls = [
+            u for u in (order.file_dinh_kem_urls or [])
+            if u != url and not str(u).endswith(f"/{file_id}")
+        ]
+        if order.tep_dinh_kem_url == url or (order.tep_dinh_kem_url and str(order.tep_dinh_kem_url).endswith(f"/{file_id}")):
             order.tep_dinh_kem_url = order.file_dinh_kem_urls[0] if order.file_dinh_kem_urls else None
         await self._sync_result_attachments(order, db)
         await db.commit()
         self._safe_path(order.id, file_id).unlink(missing_ok=True)
-
-    # ── Kết quả Chẩn đoán hình ảnh ───────────────────────────────────────
 
     async def get_imaging_result(self, order_id: int, db: AsyncSession) -> ImagingResultResponse:
         stmt = (
@@ -194,10 +206,6 @@ class ClsFileService:
         technician_user_id: int,
         db: AsyncSession,
     ) -> ImagingResultResponse:
-        """Lưu nháp hoặc hoàn tất kết quả CĐHA vào phieu_ket_qua_cls (+ ket_qua_cls khi hoàn tất).
-
-        Chỉ định vẫn ở `dang_thuc_hien` cho tới khi KTV bấm "Duyệt & Trả kết quả" (cls_approval_service).
-        """
         order = await self._lock_order(order_id, db)
         group = self._ensure_imaging_order(order)
         self._ensure_editable(order)
@@ -208,7 +216,6 @@ class ClsFileService:
         mo_ta = (payload.mo_ta_hinh_anh or "").strip() or None
         ket_luan = (payload.ket_luan or "").strip() or None
         de_nghi = (payload.de_nghi or "").strip() or None
-        # Đã hoàn tất (chờ duyệt) thì mọi lần lưu sau đều là cập nhật kết quả hoàn tất, không quay về nháp
         final = payload.hoan_tat or bool(phieu and phieu.trang_thai == PHIEU_CHO_DUYET)
         if final and not (mo_ta and ket_luan):
             raise UnprocessableEntityException("Cần nhập mô tả hình ảnh và kết luận trước khi hoàn tất kết quả")
@@ -243,8 +250,6 @@ class ClsFileService:
 
         await db.commit()
         return self._to_response(order, phieu, ket_qua)
-
-    # ── Nội bộ ───────────────────────────────────────────────────────────
 
     @staticmethod
     def _detect_kind(filename: Optional[str], content_type: Optional[str], data: bytes) -> _ImageKind:
@@ -283,7 +288,6 @@ class ClsFileService:
             fh.write(data)
 
     def _file_ids(self, order: ChiDinh) -> List[str]:
-        """Ảnh do hệ thống quản lý của chính chỉ định này (bỏ qua URL ngoài từ luồng nhập kết quả cũ)"""
         ids = []
         source_urls = list(order.file_dinh_kem_urls or [])
         if order.tep_dinh_kem_url:
@@ -294,6 +298,10 @@ class ClsFileService:
             if match and int(match.group(1)) == order.id:
                 if match.group(2) not in ids:
                     ids.append(match.group(2))
+                continue
+            match_c = _CLOUDINARY_FILE_RE.fullmatch(raw)
+            if match_c and match_c.group(1) not in ids:
+                ids.append(match_c.group(1))
         return ids
 
     @staticmethod
@@ -344,7 +352,6 @@ class ClsFileService:
             raise ConflictException("Kết quả đã được duyệt, không thể thay đổi ảnh!")
 
     async def _sync_result_attachments(self, order: ChiDinh, db: AsyncSession) -> None:
-        """Giữ danh sách ảnh trên phiếu kết quả khớp với chi_dinh khi thêm/xóa ảnh sau lúc đã lưu kết quả"""
         attachments = list(order.file_dinh_kem_urls or [])
         phieu = await latest_phieu(order.id, db)
         if phieu is not None:
@@ -365,6 +372,15 @@ class ClsFileService:
     def _to_response(
         self, order: ChiDinh, phieu: Optional[PhieuKetQuaCLS], ket_qua: Optional[KetQuaCLS]
     ) -> ImagingResultResponse:
+        fids = self._file_ids(order)
+        res_urls = []
+        for fid in fids:
+            found = None
+            for u in (order.file_dinh_kem_urls or []):
+                if str(u).endswith(f"/{fid}"):
+                    found = str(u)
+                    break
+            res_urls.append(found or self.file_url(order.id, fid))
         return ImagingResultResponse(
             chi_dinh_id=order.id,
             trang_thai=order.trang_thai,
@@ -377,7 +393,7 @@ class ClsFileService:
             de_nghi=phieu.de_nghi if phieu else None,
             ket_qua_phan_loai=ket_qua.ket_qua_phan_loai if ket_qua else None,
             thiet_bi_thuc_hien=phieu.thiet_bi_thuc_hien if phieu else None,
-            tep_dinh_kem_urls=[self.file_url(order.id, fid) for fid in self._file_ids(order)],
+            tep_dinh_kem_urls=res_urls,
             da_duyet=is_phieu_approved(phieu),
             thoi_gian_duyet=phieu.thoi_gian_duyet if phieu else None,
             thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua,

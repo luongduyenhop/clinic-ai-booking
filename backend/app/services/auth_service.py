@@ -166,7 +166,10 @@ class AuthService:
             raise ConflictException("Tài khoản này đã được kích hoạt trước đó!")
 
         now_utc = datetime.now(timezone.utc)
-        if not tai_khoan.otp_expired_at or now_utc > tai_khoan.otp_expired_at:
+        otp_exp = tai_khoan.otp_expired_at
+        if otp_exp is not None and otp_exp.tzinfo is None:
+            otp_exp = otp_exp.replace(tzinfo=timezone.utc)
+        if not otp_exp or now_utc > otp_exp:
             raise UnauthorizedException("Mã OTP đã hết hạn hiệu lực (5 phút). Vui lòng yêu cầu mã mới!")
 
         if tai_khoan.otp_code != payload.otp_code:

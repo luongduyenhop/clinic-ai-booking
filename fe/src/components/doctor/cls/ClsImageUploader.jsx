@@ -12,7 +12,6 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 
 const apiError = (e) => e?.response?.data?.message || e?.message || 'Tải ảnh lên thất bại'
 
-// Kiểm tra sơ bộ trên trình duyệt; máy chủ vẫn kiểm tra lại cả đuôi tệp, content-type và magic bytes
 const validateFile = (file) => {
     const ext = `.${file.name.split('.').pop()}`.toLowerCase()
     if (!ACCEPTED[file.type]?.includes(ext)) return 'sai định dạng (chỉ nhận JPG, PNG; ảnh DICOM cần xuất sang JPG/PNG)'
@@ -21,11 +20,14 @@ const validateFile = (file) => {
     return null
 }
 
-// Ảnh y tế cần Bearer token: tải về dạng blob rồi hiển thị bằng object URL, thu hồi khi không dùng nữa
 function useAuthImage(url) {
     const [state, setState] = useState({ src: null, error: false })
     useEffect(() => {
         if (!url) return undefined
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            setState({ src: url, error: false })
+            return undefined
+        }
         let objectUrl = null
         let cancelled = false
         clinicalService
@@ -57,7 +59,6 @@ function AuthImage({ url, alt, className }) {
     return <img src={src} alt={alt} className={className} draggable={false} />
 }
 
-// Xem ảnh toàn màn hình: phóng to/thu nhỏ (nút, cuộn chuột, phím +/-), kéo để di chuyển, chuyển ảnh trước/sau
 function ImageLightbox({ urls, index, onIndex, onClose }) {
     const [zoom, setZoom] = useState(1)
     const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -105,7 +106,6 @@ function ImageLightbox({ urls, index, onIndex, onClose }) {
 
     const btn = 'flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/25 cursor-pointer disabled:opacity-40'
 
-    // Portal ra body để lớp phủ không bị transform/overflow của card cha giới hạn
     return createPortal(
         <div role="dialog" aria-modal="true" aria-label="Xem ảnh kết quả" className="fixed inset-0 z-[1000] flex flex-col bg-black/95">
             <div className="flex items-center gap-2 px-4 py-3 text-white">
@@ -159,7 +159,6 @@ function ImageLightbox({ urls, index, onIndex, onClose }) {
     )
 }
 
-// Lưới ảnh thu nhỏ, bấm để xem phóng to; dùng cả ở bàn KTV và màn xem kết quả của bác sĩ
 export function ClsImageGallery({ urls, onDelete, deleting, className = '' }) {
     const [viewing, setViewing] = useState(null)
     if (!urls?.length) return null
@@ -195,14 +194,12 @@ export function ClsImageGallery({ urls, onDelete, deleting, className = '' }) {
     )
 }
 
-// Kéo-thả / chọn nhiều ảnh JPG/PNG, tải lên ngay từng ảnh có thanh tiến trình
 export default function ClsImageUploader({ orderId, urls, onChange, disabled, disabledHint }) {
     const [dragOver, setDragOver] = useState(false)
     const [uploads, setUploads] = useState([])
     const [errors, setErrors] = useState([])
     const [deleting, setDeleting] = useState(null)
     const inputRef = useRef(null)
-    // Nhiều ảnh tải lên song song: giữ danh sách mới nhất để mỗi ảnh xong thì nối thêm, không ghi đè nhau
     const urlsRef = useRef(urls)
     useEffect(() => {
         urlsRef.current = urls
@@ -257,7 +254,7 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
         if (!window.confirm('Xóa ảnh này khỏi kết quả?')) return
         setDeleting(url)
         try {
-            await clinicalService.deleteClsImage(url)
+            await clinicalService.deleteClsImage(url, orderId)
             urlsRef.current = urlsRef.current.filter((u) => u !== url)
             if (typeof onChange === 'function') {
                 onChange((prev) => {

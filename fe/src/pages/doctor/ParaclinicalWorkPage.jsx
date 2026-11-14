@@ -113,6 +113,9 @@ export default function ParaclinicalWorkPage() {
     const handleSubmit = async (payload, final) => {
         setSubmitting(true)
         try {
+            if (isOrderNotStarted(selected)) {
+                await dispatch(startOrderAsync(selected.id)).unwrap()
+            }
             await dispatch(submitOrderResultAsync({ orderId: selected.id, payload })).unwrap()
             setSelectedId(selected.id)
             await load(true)
@@ -127,6 +130,9 @@ export default function ParaclinicalWorkPage() {
     const handleLabSubmit = async (body) => {
         setSubmitting(true)
         try {
+            if (isOrderNotStarted(selected)) {
+                await dispatch(startOrderAsync(selected.id)).unwrap()
+            }
             const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
             setSelectedId(selected.id)
             await load(true)

@@ -21,7 +21,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
     const [frames, setFrames] = useState([])
     const [merging, setMerging] = useState(false)
     const notStarted = isOrderNotStarted(order)
-    const locked = notStarted || order.trang_thai === 'da_co_ket_qua'
+    const locked = order.trang_thai === 'da_co_ket_qua'
 
     const previews = useMemo(() => frames.map((f) => URL.createObjectURL(f)), [frames])
     useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
@@ -168,7 +168,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
             <ResultFormFooter
                 submitting={submitting || merging}
                 alreadyReturned={order.trang_thai === 'da_co_ket_qua'}
-                disabled={notStarted}
+                disabled={false}
                 onDraft={() => submit(false)}
                 onSubmit={() => submit(true)}
             />

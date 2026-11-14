@@ -208,12 +208,38 @@ class AdminAnalyticsService:
         db: AsyncSession,
         trang_thai: Optional[str] = None
     ) -> List[AmendmentResponse]:
-        stmt = select(BienBanDinhChinh).order_by(BienBanDinhChinh.created_at.desc())
+        from app.models.medical import LuotKham
+        from app.models.user import BenhNhan
+        from sqlalchemy.orm import selectinload
+
+        stmt = (
+            select(BienBanDinhChinh)
+            .options(
+                selectinload(BienBanDinhChinh.luot_kham).selectinload(LuotKham.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(BienBanDinhChinh.requested_by),
+                selectinload(BienBanDinhChinh.approved_by),
+            )
+            .order_by(BienBanDinhChinh.created_at.desc())
+        )
         if trang_thai:
             stmt = stmt.where(BienBanDinhChinh.trang_thai == trang_thai)
         rows = (await db.execute(stmt)).scalars().all()
         from app.services.clinical_service import clinical_service
-        return [clinical_service._to_amendment_response(r) for r in rows]
+        results = []
+        for r in rows:
+            resp = clinical_service._to_amendment_response(r)
+            if r.luot_kham:
+                resp.ma_kcb = r.luot_kham.ma_kcb
+                if r.luot_kham.benh_nhan:
+                    resp.ma_benh_nhan = r.luot_kham.benh_nhan.ma_dinh_danh_y_te
+                    if r.luot_kham.benh_nhan.nguoi_dung:
+                        resp.ten_benh_nhan = r.luot_kham.benh_nhan.nguoi_dung.ho_ten
+            if r.requested_by:
+                resp.ten_bac_si_yeu_cau = r.requested_by.ho_ten
+            if r.approved_by:
+                resp.ten_nguoi_duyet = r.approved_by.ho_ten
+            results.append(resp)
+        return results
 
 
 

@@ -12,7 +12,6 @@ import {
     LAB_DANH_GIA,
     LAB_HUONG_ARROW,
     evaluateLabValue,
-    isOrderNotStarted,
 } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { LoadingBlock, ErrorBlock } from '../clinical/StateBlocks'
@@ -64,10 +63,9 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
     if (loadError) return <ErrorBlock message={loadError} onRetry={retry} />
     if (!template) return <LoadingBlock />
 
-    const notStarted = isOrderNotStarted(order)
     const approved = order.trang_thai === 'da_co_ket_qua'
     const completed = (order.trang_thai_ket_qua || template.ket_qua?.trang_thai_ket_qua) === 'DA_CO_KET_QUA'
-    const locked = notStarted || approved
+    const locked = approved
     const rows = template.chi_so.map((c) => ({ c, ev: evaluateLabValue(c, values[c.ma]) }))
     const evals = rows.map((r) => r.ev).filter((ev) => ev && !ev.invalid)
     const classification = classify(evals)
@@ -128,13 +126,6 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                     {template.gioi_tinh_ap_dung ? `theo giới ${GIOI_TINH_LABEL[template.gioi_tinh_ap_dung]}` : 'chung (chưa rõ giới tính)'}
                 </span>
             </div>
-
-            {notStarted && (
-                <div className="flex items-center gap-2 rounded-xl bg-[#E8F4FD] px-4 py-3 text-[13px] text-[#003553]">
-                    <ClinicIcon name="WarningCircle" size={16} />
-                    Bấm “Tiếp nhận &amp; bắt đầu” trước khi nhập kết quả.
-                </div>
-            )}
 
             {critical.length > 0 && (
                 <div role="alert" className="flex items-start gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-[13px] text-rose-800">
@@ -227,11 +218,11 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                         trên Bàn khám của bác sĩ.
                     </span>
                     {!completed && (
-                        <button type="button" className="medpro-btn-outline" disabled={submitting || notStarted} onClick={() => submit(false)}>
+                        <button type="button" className="medpro-btn-outline" disabled={submitting} onClick={() => submit(false)}>
                             Lưu nháp
                         </button>
                     )}
-                    <button type="button" className="medpro-btn-primary" disabled={submitting || notStarted} onClick={() => submit(true)}>
+                    <button type="button" className="medpro-btn-primary" disabled={submitting} onClick={() => submit(true)}>
                         {submitting ? 'Đang lưu…' : completed ? 'Cập nhật kết quả' : 'Hoàn tất kết quả'}
                         <ClinicIcon name="ArrowRight" size={16} weight="bold" />
                     </button>
@@ -246,9 +237,8 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
     const params = tpl?.params || []
     const presets = tpl?.presets
     const detail = order.ket_qua_chi_tiet || {}
-    const notStarted = isOrderNotStarted(order)
     const approved = order.trang_thai === 'da_co_ket_qua'
-    const locked = notStarted || approved
+    const locked = approved
 
     const formik = useFormik({
         initialValues: {
@@ -362,7 +352,7 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
             <ResultFormFooter
                 submitting={submitting}
                 alreadyReturned={order.trang_thai === 'da_co_ket_qua'}
-                disabled={notStarted}
+                disabled={false}
                 onDraft={() => submit(false)}
                 onSubmit={() => submit(true)}
             />

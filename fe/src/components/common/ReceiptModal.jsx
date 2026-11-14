@@ -1,4 +1,4 @@
-import { Printer, XCircle, CheckCircle, Receipt } from './ClinicIcon'
+import { Printer, XCircle, CheckCircle, Receipt, QrCode } from './ClinicIcon'
 
 export default function ReceiptModal({
     isOpen,
@@ -51,6 +51,12 @@ export default function ReceiptModal({
         : Math.max(0, totalAmount - discountAmount)
 
     const isPaid = voucher.daThu || voucher.trang_thai === 'da_thu'
+    const invoiceRef = voucher.invoiceId || voucher.id || voucher.maPhieu || '001'
+    const transferContent = `CLINIC HD ${invoiceRef} ${patientCode !== 'N/A' ? patientCode : ''}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
+    const bankAccount = clinicInfo.bankInfo?.accountNumber || '0901234567'
+    const bankName = clinicInfo.bankInfo?.bankName || 'MBBank (Ngân hàng TMCP Quân Đội)'
+    const bankAccountName = clinicInfo.bankInfo?.accountName || clinicName
+    const qrUrl = `https://qr.sepay.vn/img?acc=${bankAccount}&bank=MBBank&amount=${finalAmount}&des=${encodeURIComponent(transferContent)}&template=compact`
 
     const handlePrint = () => {
         window.print()
@@ -175,8 +181,34 @@ export default function ReceiptModal({
                         </table>
                     </div>
 
-                    <div className="flex justify-end mb-6">
-                        <div className="w-72 space-y-1.5 text-xs">
+                    <div className="flex items-start justify-between gap-6 mb-6">
+                        {!isPaid && finalAmount > 0 ? (
+                            <div className="flex items-center gap-3 p-3 rounded-2xl border border-teal-200 bg-teal-50/40 max-w-sm">
+                                <img
+                                    src={qrUrl}
+                                    alt="Mã QR SePay"
+                                    className="w-28 h-28 object-contain rounded-xl border border-slate-200 bg-white p-1 shrink-0"
+                                    crossOrigin="anonymous"
+                                />
+                                <div className="space-y-1 text-[11px] text-slate-700">
+                                    <div className="font-extrabold text-teal-800 uppercase tracking-wide flex items-center gap-1 text-xs">
+                                        <QrCode size={14} weight="bold" />
+                                        <span>Quét mã QR thanh toán</span>
+                                    </div>
+                                    <div>Ngân hàng: <span className="font-bold">{bankName}</span></div>
+                                    <div>Số tài khoản: <span className="font-mono font-bold text-slate-900">{bankAccount}</span></div>
+                                    <div>Chủ TK: <span className="font-bold text-slate-900">{bankAccountName}</span></div>
+                                    <div>Cú pháp: <span className="font-mono font-black text-teal-900">{transferContent}</span></div>
+                                    <div className="text-[10px] text-slate-500 italic">Quét bằng ứng dụng ngân hàng bất kỳ để tự động gạch nợ viện phí</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-xs text-slate-400 italic flex items-center gap-1.5 pt-4">
+                                {isPaid ? 'Biên lai đã được thanh toán và lưu vào hồ sơ tài chính phòng khám.' : ''}
+                            </div>
+                        )}
+
+                        <div className="w-72 space-y-1.5 text-xs shrink-0">
                             <div className="flex justify-between text-slate-600">
                                 <span>Tổng cộng chi phí:</span>
                                 <span className="font-mono font-bold text-slate-800">{totalAmount.toLocaleString('vi-VN')} đ</span>

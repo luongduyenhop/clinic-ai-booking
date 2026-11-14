@@ -81,7 +81,7 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
     }, [order.id])
 
     const pickPreset = (name) => setValues({ ...values, mo_ta: presets[name].mo_ta, ket_luan: presets[name].ket_luan })
-    const locked = approved || order.trang_thai === 'da_co_ket_qua' || notStarted
+    const locked = approved || order.trang_thai === 'da_co_ket_qua'
     const completed = order.trang_thai_ket_qua === 'DA_CO_KET_QUA'
 
     const submit = async (final) => {
@@ -150,7 +150,7 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
                 <ResultFormFooter
                     submitting={submitting}
                     needsApproval
-                    disabled={notStarted}
+                    disabled={false}
                     alreadyReturned={completed}
                     onDraft={() => submit(false)}
                     onSubmit={() => submit(true)}

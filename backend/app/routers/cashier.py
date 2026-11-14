@@ -4,11 +4,9 @@ from fastapi import APIRouter, Depends, Header, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user,require_roles
 from app.core.response import ResponseEnvelope
-from app.core.exceptions import ForbiddenException
 from app.models.production_models import UserProduction
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.routers.billing import require_bank_integration
@@ -210,8 +208,6 @@ async def pay_invoice(
     current_user: TaiKhoan = Depends(cashier_role_guard),
     db: AsyncSession = Depends(get_db)
 ):
-    if settings.is_demo and payload.phuong_thuc_thanh_toan != "tien_mat":
-        raise ForbiddenException("Bản demo chỉ ghi nhận thu tiền mặt thử nghiệm.")
     invoice = await cashier_service.pay_invoice(
         invoice_id=invoice_id,
         payload=payload,

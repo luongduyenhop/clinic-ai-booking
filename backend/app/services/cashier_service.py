@@ -230,12 +230,17 @@ class CashierService:
         luot_kham = await self._load_encounter_for_billing(payload.luot_kham_id, db, lock=True)
         try:
             has_cong_kham, billed_cd_ids, unbilled_cd = await self._ensure_not_billed(luot_kham, db)
+            should_include_cong_kham = (not has_cong_kham) if payload.include_cong_kham is None else (payload.include_cong_kham and not has_cong_kham)
+            included_cd_ids = set(payload.chi_dinh_ids) if payload.chi_dinh_ids is not None else None
             estimate = await estimate_encounter(
                 luot_kham,
                 db,
                 excluded_chidinh_ids=billed_cd_ids,
-                include_cong_kham=(not has_cong_kham),
+                included_chidinh_ids=included_cd_ids,
+                include_cong_kham=should_include_cong_kham,
             )
+            if not estimate.lines:
+                raise UnprocessableEntityException("Không có khoản thu hợp lệ nào được chọn để lập hóa đơn!")
         except Exception:
             await db.rollback()
             raise

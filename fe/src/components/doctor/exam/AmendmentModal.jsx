@@ -9,19 +9,28 @@ const TARGETS = [
     { value: 'KET_LUAN', label: 'Kết luận điều trị' },
 ]
 
+const SEVERITIES = [
+    { value: 'THAP', label: 'Thấp (Lỗi chính tả, định dạng)' },
+    { value: 'TRUNG_BINH', label: 'Trung bình (Chỉ định CLS, ghi chú kết luận)' },
+    { value: 'CAO', label: 'Cao (Chẩn đoán bệnh ICD-10, đơn thuốc điều trị)' },
+]
+
 const schema = Yup.object({
     thuc_the_loai: Yup.string().required('Chọn phần cần đính chính'),
+    muc_do_nghiem_trong: Yup.string().required('Chọn mức độ'),
     ly_do_text: Yup.string().trim().min(5, 'Lý do tối thiểu 5 ký tự').required('Nhập lý do đính chính'),
     noi_dung_moi: Yup.string().trim().required('Nhập nội dung đề xuất sửa'),
 })
 
 export default function AmendmentModal({ open, onClose, onSubmit }) {
     const formik = useFormik({
-        initialValues: { thuc_the_loai: 'CHAN_DOAN', ly_do_text: '', noi_dung_moi: '' },
+        initialValues: { thuc_the_loai: 'CHAN_DOAN', muc_do_nghiem_trong: 'TRUNG_BINH', ly_do_text: '', noi_dung_moi: '' },
         validationSchema: schema,
         onSubmit: async (values, { setSubmitting, resetForm }) => {
             const ok = await onSubmit({
                 thuc_the_loai: values.thuc_the_loai,
+                thuc_the_id: 1,
+                muc_do_nghiem_trong: values.muc_do_nghiem_trong,
                 ly_do_text: values.ly_do_text.trim(),
                 noi_dung_moi_json: { noi_dung: values.noi_dung_moi.trim() },
             })
@@ -59,6 +68,16 @@ export default function AmendmentModal({ open, onClose, onSubmit }) {
                         {TARGETS.map((t) => (
                             <option key={t.value} value={t.value}>
                                 {t.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    <span className="medpro-label">Mức độ lâm sàng</span>
+                    <select name="muc_do_nghiem_trong" className="medpro-input" value={values.muc_do_nghiem_trong} onChange={handleChange}>
+                        {SEVERITIES.map((s) => (
+                            <option key={s.value} value={s.value}>
+                                {s.label}
                             </option>
                         ))}
                     </select>

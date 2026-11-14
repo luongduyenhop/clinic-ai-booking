@@ -89,14 +89,6 @@ export const getStaffMenuForRole = (role) => {
                     { to: '/staff/paraclinical', label: 'Khoảng tham chiếu & Danh mục kỹ thuật', icon: ClipboardText },
                 ],
             },
-            {
-                group: 'Bệnh nhân & Báo cáo ca trực',
-                items: [
-                    { to: '/staff/appointments', label: 'Danh sách bệnh nhân hẹn', icon: CalendarCheck },
-                    { to: '/staff/patients', label: 'Đối soát hồ sơ bệnh nhân', icon: Users },
-                    { to: '/staff/reports', label: 'Thống kê xét nghiệm ca trực', icon: ChartBar },
-                ],
-            },
         ]
     }
 
@@ -145,6 +137,7 @@ export const getStaffMenuForRole = (role) => {
             group: '4. Tuân thủ & Cấu hình Hệ thống',
             items: [
                 { to: '/staff/compliance', label: 'Tuân thủ Pháp lý & Audit', icon: LockKey },
+                { to: '/staff/compliance?tab=DINH_CHINH', label: 'Duyệt đính chính EMR', icon: ShieldCheck },
                 { to: '/staff/settings', label: 'Cấu hình Phòng khám', icon: Buildings },
             ],
         },

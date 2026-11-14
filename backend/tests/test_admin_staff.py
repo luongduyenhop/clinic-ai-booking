@@ -222,8 +222,6 @@ async def test_admin_staff_roles_matrix_and_staff_list(api_client, booking):
     resp_put_roles = await api_client.put("/api/v1/admin/staff/roles", json=update_roles_payload, headers=headers)
     assert resp_put_roles.status_code == 200
 
-    # Hồ sơ nhân sự được quản lý qua API quan hệ (bác sĩ/nhân viên/tài khoản),
-    # không còn ghi staffList qua dữ liệu BFF (xem test_admin_command_center).
     update_staff_payload = {
         "items": staff,
     }

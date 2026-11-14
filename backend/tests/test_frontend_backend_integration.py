@@ -17,7 +17,6 @@ LOGIN_PASSWORD = "Admin@Contract2026"
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def real_admin_account(db_session):
-    """Tài khoản admin thật (mật khẩu băm) - backend không còn tài khoản mặc định cố định (TCK-002)."""
     suffix = uuid.uuid4().hex[:8]
     nguoi_dung = NguoiDung(ho_ten=f"Admin Contract {suffix}", email=f"admin.contract.{suffix}@test.local")
     db_session.add(nguoi_dung)
@@ -35,13 +34,6 @@ async def real_admin_account(db_session):
 
 @pytest.mark.asyncio
 async def test_frontend_login_contract_and_default_accounts(api_client, real_admin_account):
-    """
-    Kiểm tra hợp đồng đăng nhập giữa Frontend (LoginPage.jsx / AuthService.js) và Backend:
-    - Chấp nhận payload { usernameOrEmail, password }
-    - Hỗ trợ cả /api/v1/auth/login và alias /api/Auth/login
-    - Tài khoản mặc định cố định (admin@clinic-ai.vn, phongkham5) đã bị gỡ -> 401
-    - Trả về đầy đủ accessToken, refreshToken, role, user cho Redux authSlice
-    """
     resp1 = await api_client.post(
         "/api/v1/auth/login",
         json={"usernameOrEmail": real_admin_account, "password": LOGIN_PASSWORD},
@@ -72,11 +64,6 @@ async def test_frontend_login_contract_and_default_accounts(api_client, real_adm
 
 @pytest.mark.asyncio
 async def test_frontend_refresh_token_and_reject_demo_token(api_client, real_admin_account):
-    """
-    Kiểm tra cơ chế Refresh Token của BaseService.js và từ chối Demo Token:
-    - Gửi { accessToken, refreshToken } tới /api/v1/auth/refresh
-    - Gửi Bearer demo-clinic-ai-admin-token phải bị từ chối 401
-    """
     login_resp = await api_client.post(
         "/api/v1/auth/login",
         json={"usernameOrEmail": real_admin_account, "password": LOGIN_PASSWORD},
@@ -96,7 +83,6 @@ async def test_frontend_refresh_token_and_reject_demo_token(api_client, real_adm
     assert refreshed["accessToken"]
     assert refreshed["refreshToken"]
 
-    # Kiểm tra nút Quick Demo Login (demo-clinic-ai-admin-token)
     me_resp = await api_client.get(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer demo-clinic-ai-admin-token"},
@@ -106,11 +92,6 @@ async def test_frontend_refresh_token_and_reject_demo_token(api_client, real_adm
 
 @pytest.mark.asyncio
 async def test_admin_bootstrap_and_no_drug_inventory(api_client, admin_headers):
-    """
-    Kiểm tra endpoint GET /api/v1/admin/bootstrap phục vụ 19 trang Quản trị:
-    - Trả về đầy đủ các phân hệ dữ liệu (patients, registrations, appointments, vouchers, catalogs...)
-    - Đảm bảo tuyệt đối KHÔNG có quản lý kho thuốc (inventoryBatches == [])
-    """
     resp = await api_client.get(
         "/api/v1/admin/bootstrap",
         headers=admin_headers,
@@ -124,16 +105,11 @@ async def test_admin_bootstrap_and_no_drug_inventory(api_client, admin_headers):
     assert isinstance(clinic_data["vouchers"], list)
     assert isinstance(clinic_data["catalogs"], dict)
     assert isinstance(clinic_data["roles"], list)
-    # Ràng buộc bắt buộc: không có quản lý lô/kho thuốc
     assert clinic_data["inventoryBatches"] == []
 
 
 @pytest.mark.asyncio
 async def test_admin_collection_and_catalog_sync_persistence(api_client, admin_headers):
-    """
-    Kiểm tra đồng bộ thao tác CRUD từ Frontend (updateCollection & updateCatalogSubCollection)
-    xuống PostgreSQL và tự động ghi nhận Nhật ký kiểm toán (auditLogs).
-    """
     headers = admin_headers
 
     new_closings = [
@@ -164,7 +140,6 @@ async def test_admin_collection_and_catalog_sync_persistence(api_client, admin_h
     assert updated_store["cashierClosings"][0]["id"] == "CLS-TEST-99"
     assert updated_store["auditLogs"][0]["hanhDong"] == "CLOSE_SHIFT"
 
-    # Kiểm tra cập nhật danh mục con (catalogs.dichVu)
     new_services = [
         {
             "id": "DV-SYNC-01",
@@ -190,7 +165,6 @@ async def test_admin_collection_and_catalog_sync_persistence(api_client, admin_h
     cat_store = cat_resp.json()["data"]
     assert cat_store["catalogs"]["dichVu"][0]["maDV"] == "DV999"
 
-    # Gọi lại GET /api/v1/admin/bootstrap để xác nhận dữ liệu đã lưu bền vững trong PostgreSQL
     verify_resp = await api_client.get("/api/v1/admin/bootstrap", headers=headers)
     verify_data = verify_resp.json()["data"]
     assert verify_data["cashierClosings"][0]["id"] == "CLS-TEST-99"
@@ -199,9 +173,6 @@ async def test_admin_collection_and_catalog_sync_persistence(api_client, admin_h
 
 @pytest.mark.asyncio
 async def test_frontend_ai_triage_analyze_contract(api_client):
-    """
-    Kiểm tra endpoint POST /api/v1/ai-triage/analyze tương thích với AdminService.suggestSpecialtyByAI
-    """
     resp = await api_client.post(
         "/api/v1/ai-triage/analyze",
         json={"symptoms": "Bệnh nhân đau ngực dữ dội, khó thở cấp"},
@@ -218,10 +189,6 @@ async def test_frontend_ai_triage_analyze_contract(api_client):
 
 @pytest.mark.asyncio
 async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_session, admin_headers):
-    """
-    Kiểm thử toàn diện 17 phân hệ nghiệp vụ Quản lý (Admin HIS) và xác minh dữ liệu
-    được đồng bộ trực tiếp vào các bảng quan hệ trong Cơ sở dữ liệu.
-    """
     from sqlalchemy import func, select
     from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
     from app.models.content import BaiVietTinTuc, MauBieuYTe
@@ -231,7 +198,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
 
     headers = admin_headers
 
-    # 1. Quản lý Bệnh nhân (patients -> benh_nhan + nguoi_dung)
     r_pat = await api_client.put(
         "/api/v1/admin/collections/patients",
         json={
@@ -255,7 +221,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_pat.status_code == 200
 
-    # 2. Quản lý Mẫu biểu in (templates -> mau_bieu_y_te)
     r_tpl = await api_client.put(
         "/api/v1/admin/collections/templates",
         json={
@@ -275,7 +240,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_tpl.status_code == 200
 
-    # 3. Quản lý Tin tức y khoa (newsArticles -> bai_viet_tin_tuc)
     r_news = await api_client.put(
         "/api/v1/admin/collections/newsArticles",
         json={
@@ -297,7 +261,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_news.status_code == 200
 
-    # 4. Quản lý Thu chi & Hóa đơn (vouchers -> phieu_thu_chi + hoa_don)
     r_vch = await api_client.put(
         "/api/v1/admin/collections/vouchers",
         json={
@@ -320,7 +283,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_vch.status_code == 200
 
-    # 5. Quản lý Gói khám dịch vụ (servicePackageRegistrations -> goi_dich_vu + dang_ky_goi_kham)
     r_pkg = await api_client.put(
         "/api/v1/admin/collections/servicePackageRegistrations",
         json={
@@ -342,7 +304,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_pkg.status_code == 200
 
-    # 6. Quản lý Liệu trình điều trị (treatmentCourses -> lieu_trinh_dieu_tri)
     r_tc = await api_client.put(
         "/api/v1/admin/collections/treatmentCourses",
         json={
@@ -364,7 +325,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_tc.status_code == 200
 
-    # 7. Cấu hình phòng khám (clinicSettings -> giay_phep_co_so)
     r_set = await api_client.put(
         "/api/v1/admin/collections/clinicSettings",
         json={
@@ -380,7 +340,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_set.status_code == 200
 
-    # 8. Danh mục Khoa phòng, Bệnh ICD-10, Thuốc kê đơn (catalogs -> phong_kham, khai_niem)
     r_cat_room = await api_client.put(
         "/api/v1/admin/catalogs/khoaPhong",
         json={
@@ -404,7 +363,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     assert r_cat_drug.status_code == 200
     assert r_cat_drug.json()["data"]["inventoryBatches"] == []
 
-    # Danh mục dịch vụ kỹ thuật (catalogs.dichVu -> dich_vu): test tự tạo dữ liệu, không dựa vào seed
     r_cat_service = await api_client.put(
         "/api/v1/admin/catalogs/dichVu",
         json={
@@ -416,7 +374,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_cat_service.status_code == 200
 
-    # Danh mục bệnh ICD-10 (catalogs.danhMucBenh -> khai_niem); thuốc giờ lưu ở bảng thuoc
     r_cat_icd = await api_client.put(
         "/api/v1/admin/catalogs/danhMucBenh",
         json={
@@ -428,7 +385,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     )
     assert r_cat_icd.status_code == 200
 
-    # Xác minh trực tiếp trong các bảng quan hệ của Database
     assert (await db_session.execute(select(func.count()).select_from(BenhNhan))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(MauBieuYTe))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(BaiVietTinTuc))).scalar_one() >= 1

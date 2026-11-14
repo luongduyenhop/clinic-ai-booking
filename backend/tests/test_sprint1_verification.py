@@ -65,8 +65,6 @@ def test_secret_key_validation_enforces_secure_length():
 
 
 def test_he_thong_trang_thai_bff_table_is_kept_for_configuration():
-    # Bảng BFF được giữ lại để lưu cấu hình hệ thống (migration 019_align_demo_runtime);
-    # dữ liệu nghiệp vụ như staffList đã chuyển sang bảng quan hệ (xem test_admin_command_center).
     metadata = Base.metadata
     table_names = set(metadata.tables.keys())
     assert "he_thong_trang_thai_bff" in table_names

@@ -1,9 +1,5 @@
 name: Clinic AI Booking - CI/CD Pipeline
 
-# CI chạy cho mọi nhánh làm việc và PR vào develop/main.
-# CD (deploy demo VPS) chỉ chạy khi:
-#   - push vào develop VÀ toàn bộ CI xanh, hoặc
-#   - bấm "Run workflow" trên nhánh develop (có tuỳ chọn bỏ qua test backend đỏ).
 on:
   push:
     branches: [ "main", "develop", "fix/**", "feature/**" ]
@@ -34,8 +30,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 2. Khởi động PostgreSQL 15 cho kiểm thử
-        # Không dùng "services:" vì cần tăng max_connections: các test đồng thời
-        # (TS-APT-004/005) mở nhiều kết nối song song và vượt mặc định 100.
         run: |
           docker run -d --name ci-postgres \
             -e POSTGRES_DB=clinic_db \
@@ -110,7 +104,6 @@ jobs:
       - name: 6. Build Production (Vite)
         working-directory: ./fe
         env:
-          # Không đặt VITE_API_URL: bản build gọi API qua cùng tên miền (/api) do Nginx proxy.
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'false' }}
         run: npm run build
 
@@ -204,7 +197,6 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: 5. Chuẩn bị biến môi trường từ GitHub Secrets
-        # Chỉ ghi các giá trị có thật; script trên VPS không ghi đè mật khẩu đã có.
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}

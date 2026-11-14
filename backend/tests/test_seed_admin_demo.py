@@ -30,7 +30,6 @@ def test_environment_guard_allows_safe_environments():
 
 @pytest.mark.asyncio
 async def test_seed_admin_demo_idempotency_and_preservation():
-    # Engine dùng chung của app giữ kết nối từ event loop của test trước -> giải phóng trước khi dùng.
     await engine.dispose()
     first_run = await seed_admin_demo(mode="append", env="test")
     assert first_run["mode"] == "append"

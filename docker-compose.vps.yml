@@ -22,8 +22,6 @@ x-backend-env: &backend-env
   SECRET_KEY: ${SECRET_KEY}
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
   CLS_UPLOAD_DIR: /var/lib/clinic/cls
-  # Khóa dịch vụ ngoài lấy từ env file trên VPS (GitHub Secrets ghi vào khi deploy).
-  # Không đặt giá trị mặc định ở đây vì repo công khai.
   CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
   CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
   CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
@@ -79,16 +77,15 @@ services:
       bootstrap:
         condition: service_completed_successfully
     environment: *backend-env
-    # Model AI triage can ~1.8GB RAM khi nap; 450m lam backend bi OOM lap lai (502).
     mem_limit: ${BACKEND_MEM_LIMIT:-2g}
     volumes:
       - cls_uploads:/var/lib/clinic
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
       interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
     networks:
       - app
       - data
@@ -99,8 +96,7 @@ services:
       dockerfile: Dockerfile.vps
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "127.0.0.1:3000:3000"
     mem_limit: 128m

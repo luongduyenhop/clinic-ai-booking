@@ -1,22 +1,3 @@
-#!/usr/bin/env bash
-# ==============================================================================
-# Script deploy bản demo lên VPS - được GitHub Actions (job "deploy" trong
-# .github/workflows/ci.yml) tải lên VPS và chạy qua SSH.
-#
-#   bash vps-deploy.sh <APP_DIR> <GIT_SHA>
-#
-# Đầu vào nằm trong <APP_DIR>/.deploy-incoming/:
-#   release.tar.gz  - mã nguồn backend + fe + compose (git archive của commit)
-#   fe-dist.tar.gz  - bundle frontend đã build trên GitHub Actions
-#   deploy.env      - (tuỳ chọn) giá trị lấy từ GitHub Secrets, quyền 0600
-#
-# Nguyên tắc:
-#   - Không in giá trị bí mật ra log.
-#   - Không ghi đè POSTGRES_PASSWORD / SECRET_KEY / PAYMENT_WEBHOOK_SECRET /
-#     DEMO_PASSWORD đã có trên VPS (đổi mật khẩu Postgres sẽ làm hỏng volume).
-#   - Tự nhận diện project/compose file/env file từ container đang chạy để
-#     không tạo ra một stack thứ hai song song.
-# ==============================================================================
 set -Eeuo pipefail
 
 APP_DIR="${1:?Thieu tham so APP_DIR}"
@@ -33,9 +14,6 @@ docker compose version >/dev/null 2>&1 || fail "VPS chua co Docker Compose v2"
 [ -f "$INCOMING/release.tar.gz" ] || fail "Thieu $INCOMING/release.tar.gz"
 [ -f "$INCOMING/fe-dist.tar.gz" ] || fail "Thieu $INCOMING/fe-dist.tar.gz"
 
-# ------------------------------------------------------------------------------
-# 1. Nhận diện stack đang chạy (project name, compose file, env file)
-# ------------------------------------------------------------------------------
 running_label() {
   docker ps -a \
     --filter "label=com.docker.compose.project.working_dir=$APP_DIR" \
@@ -61,15 +39,11 @@ else
   done
 fi
 
-# ------------------------------------------------------------------------------
-# 2. Sao lưu cấu hình hiện tại rồi giải nén bản phát hành mới
-# ------------------------------------------------------------------------------
 BACKUP_DIR="$APP_DIR/.deploy-backup/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 for f in docker-compose.yml docker-compose.vps.yml fe/nginx.conf fe/Dockerfile.vps RELEASE; do
   if [ -f "$f" ]; then cp --parents "$f" "$BACKUP_DIR/"; fi
 done
-# Giữ 5 bản sao lưu gần nhất
 ls -1dt "$APP_DIR"/.deploy-backup/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf || true
 
 log "Giai nen ma nguon commit ${RELEASE_SHA:0:7}"
@@ -78,9 +52,10 @@ rm -rf "$APP_DIR/fe/dist"
 mkdir -p "$APP_DIR/fe/dist"
 tar -xzf "$INCOMING/fe-dist.tar.gz" -C "$APP_DIR/fe/dist"
 
-# ------------------------------------------------------------------------------
-# 3. Chuẩn bị env file (không in giá trị)
-# ------------------------------------------------------------------------------
+if [ -f "$APP_DIR/docker-compose.vps.yml" ]; then
+  COMPOSE_FILE_PATH="$APP_DIR/docker-compose.vps.yml"
+fi
+
 env_has() { grep -qE "^$1=.+" "$2" 2>/dev/null; }
 env_get() { { grep -E "^$1=" "$2" 2>/dev/null || true; } | tail -n 1 | cut -d= -f2- | tr -d '\r'; }
 env_set() {
@@ -105,7 +80,7 @@ DB_VOLUME_EXISTS=0
 if docker volume inspect "${PROJECT_NAME}_postgres_data" >/dev/null 2>&1; then DB_VOLUME_EXISTS=1; fi
 
 if [ -z "$ENV_FILE" ]; then
-  [ "$DB_VOLUME_EXISTS" -eq 0 ]     || fail "Khong tim thay .env.demo/.env nhung da co volume ${PROJECT_NAME}_postgres_data. Khoi phuc env file cu truoc khi deploy (khong tao mat khau moi)."
+  [ "$DB_VOLUME_EXISTS" -eq 0 ] || fail "Khong tim thay .env.demo/.env nhung da co volume ${PROJECT_NAME}_postgres_data. Khoi phuc env file cu truoc khi deploy (khong tao mat khau moi)."
   ENV_FILE="$APP_DIR/.env.demo"
   log "Lan dau trien khai: tao $(basename "$ENV_FILE") tu .env.demo.example"
   ( umask 077; grep -vE "^($(echo "$CORE_KEYS" | tr ' ' '|'))=" .env.demo.example | tr -d '\r' > "$ENV_FILE" )
@@ -137,9 +112,6 @@ compose() {
   docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE_PATH" --env-file "$ENV_FILE" "$@"
 }
 
-# ------------------------------------------------------------------------------
-# 4. Build + khởi động, đợi các service healthy
-# ------------------------------------------------------------------------------
 dump_diagnostics() {
   log "Trang thai container:"
   compose ps -a || true
@@ -149,17 +121,14 @@ dump_diagnostics() {
 trap 'dump_diagnostics' ERR
 
 compose config --quiet
+log "Tam dung backend cu de giai phong RAM cho bootstrap va build"
+compose stop backend >/dev/null 2>&1 || true
 log "Build image va khoi dong stack (doi toi da ${WAIT_TIMEOUT}s)"
 compose up -d --build --wait --wait-timeout "$WAIT_TIMEOUT"
 
-# Nginx chỉ phân giải "backend" lúc khởi động; backend được tạo lại sẽ đổi IP
-# và gây 502 nếu frontend không khởi động lại.
 log "Khoi dong lai frontend de nhan dia chi backend moi"
 compose restart frontend
 
-# ------------------------------------------------------------------------------
-# 5. Kiểm tra sức khỏe qua cổng frontend (proxy /healthz -> backend /health)
-# ------------------------------------------------------------------------------
 FRONT_ADDR="$(compose port frontend 3000 2>/dev/null | head -n 1)"
 FRONT_ADDR="${FRONT_ADDR:-127.0.0.1:3000}"
 FRONT_ADDR="${FRONT_ADDR/0.0.0.0/127.0.0.1}"

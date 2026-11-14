@@ -7,12 +7,6 @@ from app.models.medical import ChiTietDonThuoc, DonThuoc, LuotKham
 
 @pytest.mark.asyncio
 async def test_doctor_schedule_matrix_success(api_client: AsyncClient, booking):
-    """
-    Kiểm tra API Ma trận phân ca trực và slot khả dụng (tClinic Roster Matrix):
-    - Đếm chính xác hạn mức đặt trước, slot vãng lai, số lượng còn trống
-    - Nhận diện trạng thái ca (DANG_HOAT_DONG, DA_KHOA, NGHI_PHEP)
-    - Kèm danh sách bệnh nhân chi tiết
-    """
     headers = booking.tokens["admin"]
     d_start = date.today() - timedelta(days=7)
     d_end = date.today() + timedelta(days=7)
@@ -51,7 +45,6 @@ async def test_doctor_schedule_matrix_success(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_doctor_schedule_matrix_invalid_date_range(api_client: AsyncClient, booking):
-    """Kiểm tra validation khoảng ngày: den_ngay < tu_ngay phải trả về HTTP 400"""
     headers = booking.tokens["admin"]
     res = await api_client.get(
         "/api/v1/admin/shifts/schedule-matrix?tu_ngay=2026-10-20&den_ngay=2026-10-10",
@@ -62,11 +55,6 @@ async def test_doctor_schedule_matrix_invalid_date_range(api_client: AsyncClient
 
 @pytest.mark.asyncio
 async def test_doctor_timesheet_export_report(api_client: AsyncClient, booking):
-    """
-    Kiểm tra API Báo cáo chấm công ca trực toàn viện (tClinic xuatbaocao):
-    - Thống kê số ca đăng ký, hoàn thành, nghỉ phép, đột xuất
-    - Tính toán tỷ lệ lấp đầy ca khám
-    """
     headers = booking.tokens["admin"]
     d_start = date.today() - timedelta(days=30)
     d_end = date.today()
@@ -95,10 +83,6 @@ async def test_doctor_timesheet_export_report(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_services_catalog_export(api_client: AsyncClient, booking):
-    """
-    Kiểm tra API Xuất toàn bộ danh mục dịch vụ kỹ thuật & bảng giá niêm yết (Thông tư 22/2023/TT-BYT):
-    - Đơn giá, đơn vị tính, thời gian trả kết quả TAT, mã nhóm BYT
-    """
     headers = booking.tokens["admin"]
     res = await api_client.get("/api/v1/admin/services/export", headers=headers)
     assert res.status_code == 200
@@ -122,7 +106,6 @@ async def test_services_catalog_export(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_analytics_top_diseases(api_client: AsyncClient, booking):
-    """Kiểm tra Dashboard Top 10 bệnh ICD-10 (tClinic /dashboard/top-10-benh-icd10)"""
     headers = booking.tokens["admin"]
     res = await api_client.get("/api/v1/admin/analytics/top-diseases?limit=5", headers=headers)
     assert res.status_code == 200
@@ -143,7 +126,6 @@ async def test_analytics_top_diseases(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_analytics_top_services(api_client: AsyncClient, booking):
-    """Kiểm tra Dashboard Top dịch vụ kỹ thuật doanh thu cao nhất (tClinic /dashboard/top-10-dich-vu-doanh-thu)"""
     headers = booking.tokens["admin"]
     res = await api_client.get("/api/v1/admin/analytics/top-services?limit=5", headers=headers)
     assert res.status_code == 200
@@ -166,7 +148,6 @@ async def test_analytics_top_services(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_analytics_doctor_performance(api_client: AsyncClient, booking):
-    """Kiểm tra Dashboard Hiệu suất & Thời gian khám bác sĩ (tClinic /dashboard/khambenh/bacsi)"""
     headers = booking.tokens["admin"]
     res = await api_client.get("/api/v1/admin/analytics/doctor-performance", headers=headers)
     assert res.status_code == 200
@@ -189,7 +170,6 @@ async def test_analytics_doctor_performance(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_analytics_room_workload(api_client: AsyncClient, booking):
-    """Kiểm tra Dashboard Phụ tải buồng khám (tClinic /dashboard/dangky/phongkham)"""
     headers = booking.tokens["admin"]
     res = await api_client.get("/api/v1/admin/analytics/room-workload", headers=headers)
     assert res.status_code == 200
@@ -212,14 +192,11 @@ async def test_analytics_room_workload(api_client: AsyncClient, booking):
 
 @pytest.mark.asyncio
 async def test_admin_standardization_rbac_forbidden(api_client: AsyncClient, booking):
-    """Kiểm tra bảo mật RBAC: Bệnh nhân hoặc người dùng không có quyền Admin không thể truy xuất báo cáo nhạy cảm"""
     patient_headers = booking.tokens["bn_a"]
 
-    # 1. Thử xuất bảng giá với quyền bệnh nhân -> 403 Forbidden
     res1 = await api_client.get("/api/v1/admin/services/export", headers=patient_headers)
     assert res1.status_code == 403
 
-    # 2. Thử xuất báo cáo chấm công với quyền bệnh nhân -> 403 Forbidden
     res2 = await api_client.get(
         "/api/v1/admin/shifts/export-report?tu_ngay=2026-10-01&den_ngay=2026-10-10",
         headers=patient_headers,
@@ -230,8 +207,6 @@ async def test_admin_standardization_rbac_forbidden(api_client: AsyncClient, boo
 
 @pytest.mark.asyncio
 async def test_analytics_top_medicines(api_client: AsyncClient, booking, db_session):
-    """Kiểm tra API thống kê Top thuốc kê đơn nhiều nhất (/analytics/top-medicines)"""
-    # Tự tạo đơn thuốc trong transaction của test thay vì dựa vào dữ liệu test khác để lại.
     now_utc = datetime.now(timezone.utc)
     lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now_utc)
     luot_kham = LuotKham(

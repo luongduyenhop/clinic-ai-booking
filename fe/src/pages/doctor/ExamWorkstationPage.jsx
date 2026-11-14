@@ -188,7 +188,7 @@ export default function ExamWorkstationPage() {
     )
 
     const pendingClsOrders = useMemo(
-        () => activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua'),
+        () => activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet'),
         [activeOrders]
     )
 

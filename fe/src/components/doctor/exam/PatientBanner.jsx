@@ -22,7 +22,7 @@ export default function PatientBanner({
     const bn = encounter?.benh_nhan || {}
 
     const pendingOrders = (encounter?.danh_sach_chi_dinh || []).filter(
-        (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua'
+        (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet'
     )
     const isWaitingCls =
         externalIsWaitingCls !== undefined
@@ -107,7 +107,7 @@ export default function PatientBanner({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {!encounter?.is_locked && !isExamining && !isWaitingCls && onStartExam && (
+                    {!encounter?.is_locked && !isExamining && !isWaitingCls && !hasClsReady && onStartExam && (
                         <button
                             type="button"
                             onClick={onStartExam}

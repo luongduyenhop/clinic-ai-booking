@@ -88,7 +88,12 @@ function formatResultSummary(detail) {
         }
         if (detail.chi_so && typeof detail.chi_so === 'object') {
             return Object.entries(detail.chi_so)
-                .map(([k, v]) => `${k}: ${v}`)
+                .map(([k, v]) => {
+                    if (v && typeof v === 'object') {
+                        return `${v.ten_chi_so || v.ten || k}: ${v.gia_tri ?? ''} ${v.don_vi || ''}`.trim()
+                    }
+                    return `${k}: ${v}`
+                })
                 .join(', ')
         }
         try {
@@ -359,8 +364,9 @@ export default function StepDiagnosis({
                     ) : clsOrders.length > 0 && (
                         <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-0.5">
                             {clsOrders.map((o) => {
-                                const isDone = o.trang_thai === 'da_co_ket_qua'
+                                const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
+                                const resultDetail = o.ket_qua_chi_tiet || o.tri_so_chi_tiet
                                 const imageList = (o.tep_dinh_kem_urls && o.tep_dinh_kem_urls.length > 0)
                                     ? o.tep_dinh_kem_urls
                                     : (o.tep_dinh_kem_url ? [o.tep_dinh_kem_url] : [])
@@ -377,9 +383,9 @@ export default function StepDiagnosis({
                                                 {isDone ? 'Đã có KQ' : isDoing ? 'Đang làm' : 'Chờ làm'}
                                             </span>
                                         </div>
-                                        {isDone && o.ket_qua_chi_tiet && (
+                                        {isDone && resultDetail && (
                                             <div className="text-[11px] text-emerald-900 bg-emerald-50 rounded-lg p-2 border border-emerald-100 leading-relaxed font-medium">
-                                                {formatResultSummary(o.ket_qua_chi_tiet)}
+                                                {formatResultSummary(resultDetail)}
                                             </div>
                                         )}
                                         {isDone && imageList.length > 0 && (

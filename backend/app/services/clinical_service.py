@@ -179,6 +179,7 @@ class ClinicalService:
         tickets = (await db.execute(self._build_hang_doi_query(today, doctor_id))).scalars().all()
         queue = []
         encounters = {}
+        merged_any = False
         for ticket in tickets:
             patient = ticket.benh_nhan
             person = patient.nguoi_dung
@@ -196,7 +197,8 @@ class ClinicalService:
                 "so_dien_thoai": person.so_dien_thoai,
                 "di_ung_thuoc": patient.di_ung_thuoc,
             }
-            encounter = await self._get_ticket_encounter(ticket, db)
+            encounter, did_merge = await self._resolve_and_heal_ticket_encounter(ticket, db)
+            merged_any = merged_any or did_merge
             if doctor and encounter and doctor.id not in (encounter.bac_si_id, encounter.tiep_quan_boi_id):
                 continue
 
@@ -208,13 +210,25 @@ class ClinicalService:
                 status = TrangThaiHangDoiEnum.CHO_KHAM.value
             order_rows = encounter.danh_sach_chi_dinh if encounter else []
             active_orders = [order for order in order_rows if order.trang_thai != "da_huy"]
-            orders_returned = active_orders and all(
-                order.trang_thai in ("da_co_ket_qua", "da_duyet") for order in active_orders
+            orders_returned = bool(active_orders) and all(
+                self._is_order_done(order) for order in active_orders
             )
             if encounter and encounter.is_locked:
                 status = TrangThaiHangDoiEnum.DA_KHAM.value
-            elif status == TrangThaiHangDoiEnum.TAM_HOAN.value and orders_returned:
+            elif orders_returned and status in (
+                TrangThaiHangDoiEnum.TAM_HOAN.value,
+                TrangThaiHangDoiEnum.CHO_KHAM.value,
+            ):
                 status = "co_ket_qua_cls"
+            elif active_orders and not orders_returned and status == TrangThaiHangDoiEnum.CHO_KHAM.value:
+                status = TrangThaiHangDoiEnum.TAM_HOAN.value
+            elif (
+                encounter
+                and encounter.thoi_gian_bat_dau
+                and status == TrangThaiHangDoiEnum.CHO_KHAM.value
+                and not active_orders
+            ):
+                status = TrangThaiHangDoiEnum.DANG_KHAM.value
 
             queue.append({
                 "ticket_id": ticket.id,
@@ -244,6 +258,48 @@ class ClinicalService:
                     "danh_sach_chan_doan": [],
                 }
             )
+            serialized_orders = []
+            for order, order_data in zip(order_rows, encounter_data.get("danh_sach_chi_dinh", [])):
+                is_done = self._is_order_done(order)
+                kq = getattr(order, "ket_qua", None)
+                phieu = getattr(order, "phieu_ket_qua", None)
+                tri_so_obj = order.tri_so_chi_tiet or (kq.tri_so_chi_tiet if kq else None)
+                ket_qua_text = (
+                    order.ket_qua_chi_tiet
+                    or (kq.ket_qua_chi_tiet if kq else None)
+                    or (phieu.ket_luan if phieu else None)
+                    or (phieu.mo_ta_hinh_anh if phieu else None)
+                )
+                attachments = self._extract_order_attachments(order)
+                returned_at = (
+                    order.thoi_gian_tra_ket_qua
+                    or (kq.thoi_gian_duyet if kq else None)
+                    or (phieu.thoi_gian_duyet if phieu else None)
+                    or (phieu.thoi_gian_tra_ket_qua if phieu else None)
+                )
+                phan_loai = (
+                    order.ket_qua_phan_loai
+                    or (kq.ket_qua_phan_loai if kq else None)
+                    or ("BINH_THUONG" if is_done else None)
+                )
+                serialized_orders.append({
+                    **order_data,
+                    "server_order_id": order.id,
+                    "ma_dich_vu": order.dich_vu.ma_dich_vu if order.dich_vu else None,
+                    "nhom_dich_vu": order.dich_vu.ma_nhom_byt if order.dich_vu else None,
+                    "trang_thai": "da_co_ket_qua" if is_done else order.trang_thai,
+                    "ket_qua_chi_tiet": tri_so_obj or ket_qua_text,
+                    "tri_so_chi_tiet": tri_so_obj,
+                    "ket_qua_phan_loai": phan_loai,
+                    "tep_dinh_kem_url": order.tep_dinh_kem_url or (attachments[0] if attachments else None),
+                    "tep_dinh_kem_urls": attachments,
+                    "thoi_gian_tra_ket_qua": returned_at.isoformat() if returned_at else order_data.get("thoi_gian_tra_ket_qua"),
+                })
+
+            dept_slug = self._resolve_specialty_slug(
+                department.ma_chuyen_khoa if department else None,
+                department.ten_chuyen_khoa if department else None,
+            )
             encounter_data.update({
                 "id": workspace_id,
                 "ticket_id": ticket.id,
@@ -253,16 +309,8 @@ class ClinicalService:
                 "benh_nhan": patient_data,
                 "chuyen_khoa_kham": department.ma_chuyen_khoa if department else None,
                 "ten_chuyen_khoa": department.ten_chuyen_khoa if department else None,
-                "danh_sach_chi_dinh": [
-                    {
-                        **order_data,
-                        "server_order_id": order.id,
-                        "ma_dich_vu": order.dich_vu.ma_dich_vu if order.dich_vu else None,
-                        "nhom_dich_vu": order.dich_vu.ma_nhom_byt if order.dich_vu else None,
-                        "trang_thai": "da_co_ket_qua" if order.trang_thai == "da_duyet" else order.trang_thai,
-                    }
-                    for order, order_data in zip(order_rows, encounter_data.get("danh_sach_chi_dinh", []))
-                ],
+                "danh_sach_chi_dinh": serialized_orders,
+                "kham_chuyen_khoa": self._reconstruct_specialty_exam(encounter, dept_slug, active_orders),
             })
             if encounter and encounter.don_thuoc:
                 prescription = encounter_data["don_thuoc"]
@@ -270,17 +318,194 @@ class ClinicalService:
                 encounter_data["danh_sach_thuoc"] = prescription["danh_sach_chi_tiet"]
             encounters[workspace_id] = encounter_data
 
+        if merged_any:
+            await db.commit()
+
         return await self.enrich_workspace_ai({"queue": queue, "encounters": encounters}, db)
+
+    @staticmethod
+    def _is_order_done(order: ChiDinh) -> bool:
+        if order.trang_thai in ("da_co_ket_qua", "da_duyet"):
+            return True
+        if order.phieu_ket_qua is not None and order.phieu_ket_qua.trang_thai in ("DA_DUYET", "DA_CO_KET_QUA"):
+            return True
+        kq = getattr(order, "ket_qua", None)
+        if order.phieu_ket_qua is None and kq is not None and kq.thoi_gian_duyet is not None:
+            return True
+        return False
+
+    @staticmethod
+    def _resolve_specialty_slug(ma_chuyen_khoa: Optional[str], ten_chuyen_khoa: Optional[str]) -> str:
+        raw = f"{ma_chuyen_khoa or ''} {ten_chuyen_khoa or ''}".lower()
+        if "ngoai" in raw or "ngoại" in raw:
+            return "ngoai-khoa"
+        if "mat" in raw or "mắt" in raw or "nhãn" in raw:
+            return "mat"
+        if "tmh" in raw or "tai" in raw or "họng" in raw:
+            return "tai-mui-hong"
+        if "rhm" in raw or "rang" in raw or "răng" in raw:
+            return "rang-ham-mat"
+        return "noi-khoa"
+
+    @classmethod
+    def _reconstruct_specialty_exam(
+        cls,
+        encounter: Optional[LuotKham],
+        dept_slug: str,
+        active_orders: List[ChiDinh],
+    ) -> dict:
+        templates = {
+            "noi-khoa": [
+                "Tuần hoàn (Tim mạch)",
+                "Hô hấp",
+                "Tiêu hóa",
+                "Thận – Tiết niệu",
+                "Thần kinh",
+                "Cơ xương khớp",
+            ],
+            "ngoai-khoa": [
+                "Khám ngoại tổng quát",
+                "Vết thương / Vết mổ",
+                "Khối u / Thoát vị",
+                "Dị tật / Tầm vận động",
+            ],
+            "mat": [
+                "Thị lực mắt phải (Snellen)",
+                "Thị lực mắt trái (Snellen)",
+                "Nhãn áp mắt phải (mmHg)",
+                "Nhãn áp mắt trái (mmHg)",
+                "Bán phần trước",
+                "Đáy mắt",
+            ],
+            "tai-mui-hong": [
+                "Tai phải",
+                "Tai trái",
+                "Mũi – xoang",
+                "Họng – thanh quản",
+                "Hạch cổ",
+                "Thính lực 2 tai",
+            ],
+            "rang-ham-mat": [
+                "Cung hàm trên",
+                "Cung hàm dưới",
+                "Nha chu & nướu lợi",
+                "Khớp thái dương hàm",
+                "Niêm mạc miệng",
+            ],
+        }
+        labels = templates.get(dept_slug, templates["noi-khoa"])
+        items_map = {}
+        extras_map = {}
+        if encounter is not None:
+            phieu_list = getattr(encounter, "danh_sach_phieu_chuyen_khoa", None) or []
+            phieu = sorted(phieu_list, key=lambda p: p.id or 0)[-1] if phieu_list else None
+            if phieu and phieu.noi_dung_kham:
+                extra_label_map = {
+                    "chi_dinh_phau_thuat_thu_thuat": "chi_dinh_phau_thuat_thu_thuat",
+                    "chi_dinh_tieu_phau": "chi_dinh_tieu_phau",
+                    "vi_tri_rang": "vi_tri_rang",
+                    "tinh_trang_rang": "tinh_trang_rang",
+                }
+                for raw_line in phieu.noi_dung_kham.splitlines():
+                    if ":" not in raw_line:
+                        continue
+                    label, _, rest = raw_line.partition(":")
+                    label = label.strip()
+                    rest = rest.strip()
+                    if label in extra_label_map and rest:
+                        extras_map[extra_label_map[label]] = rest
+                        continue
+                    if label in labels:
+                        if rest.startswith("Bất thường"):
+                            note = ""
+                            if "(" in rest and rest.endswith(")"):
+                                note = rest[rest.index("(") + 1:-1].strip()
+                            items_map[label] = {"status": "BAT", "note": note}
+                        elif rest:
+                            items_map[label] = {"status": "BT", "note": ""}
+            if not items_map and (
+                bool(encounter.kham_lam_sang_bo_phan)
+                or bool(active_orders)
+                or bool(encounter.danh_sach_chan_doan)
+                or bool(encounter.is_locked)
+            ):
+                items_map = {lbl: {"status": "BT", "note": ""} for lbl in labels}
+        return {"khoa": dept_slug, "items": items_map, "extras": extras_map}
+
+    async def _resolve_and_heal_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, *, for_update: bool = False
+    ) -> tuple[Optional[LuotKham], bool]:
+        conditions = [
+            LuotKham.hang_doi_kham_id == ticket.id,
+            LuotKham.ma_kcb.like(f"WS-ticket-{ticket.id}-%"),
+        ]
+        if ticket.lich_kham_id is not None:
+            conditions.append(LuotKham.lich_kham_id == ticket.lich_kham_id)
+        stmt = (
+            select(LuotKham)
+            .options(
+                selectinload(LuotKham.danh_sach_chan_doan),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.ket_qua),
+                selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
+                selectinload(LuotKham.danh_sach_phieu_chuyen_khoa),
+            )
+            .where(or_(*conditions) & (LuotKham.benh_nhan_id == ticket.benh_nhan_id))
+            .order_by(LuotKham.hang_doi_kham_id.is_(None).asc(), LuotKham.id.asc())
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        rows = (await db.execute(stmt)).scalars().all()
+        if not rows:
+            return None, False
+
+        primary = rows[0]
+        did_merge = False
+        if primary.hang_doi_kham_id is None:
+            primary.hang_doi_kham_id = ticket.id
+            did_merge = True
+        if primary.lich_kham_id is None and ticket.lich_kham_id is not None:
+            primary.lich_kham_id = ticket.lich_kham_id
+            did_merge = True
+
+        if len(rows) > 1:
+            clinical_attrs = (
+                "ly_do_vao_kham",
+                "benh_su",
+                "kham_lam_sang_bo_phan",
+                "chan_doan_so_bo",
+                "ket_luan_dieu_tri",
+                "mach_lan_phut",
+                "nhiet_do_c",
+                "huyet_ap_tam_thu",
+                "huyet_ap_tam_truong",
+                "nhip_tho_lan_phut",
+                "can_nang_kg",
+                "chieu_cao_cm",
+                "spo2",
+            )
+            existing_order_ids = {o.id for o in (primary.danh_sach_chi_dinh or [])}
+            for dup in rows[1:]:
+                for attr in clinical_attrs:
+                    if getattr(primary, attr, None) is None and getattr(dup, attr, None) is not None:
+                        setattr(primary, attr, getattr(dup, attr))
+                        did_merge = True
+                for dup_order in list(dup.danh_sach_chi_dinh or []):
+                    if dup_order.id not in existing_order_ids:
+                        dup_order.luot_kham = primary
+                        existing_order_ids.add(dup_order.id)
+                        did_merge = True
+            if did_merge:
+                await db.flush()
+
+        return primary, did_merge
 
     async def _get_ticket_encounter(
         self, ticket: HangDoiKham, db: AsyncSession, *, for_update: bool = False
-    ) -> LuotKham | None:
-        condition = LuotKham.hang_doi_kham_id == ticket.id
-        if ticket.lich_kham_id is not None:
-            condition = or_(condition, LuotKham.lich_kham_id == ticket.lich_kham_id)
-        return await self._get_encounter_matching(
-            condition & (LuotKham.benh_nhan_id == ticket.benh_nhan_id), db, for_update
-        )
+    ) -> Optional[LuotKham]:
+        encounter, _ = await self._resolve_and_heal_ticket_encounter(ticket, db, for_update=for_update)
+        return encounter
 
     @staticmethod
     def _assert_completion_diagnosis_invariant(luot_kham: LuotKham) -> None:
@@ -327,13 +552,16 @@ class ClinicalService:
                 selectinload(LuotKham.danh_sach_chan_doan),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.dich_vu),
                 selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.phieu_ket_qua),
-                selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet)
+                selectinload(LuotKham.danh_sach_chi_dinh).selectinload(ChiDinh.ket_qua),
+                selectinload(LuotKham.don_thuoc).selectinload(DonThuoc.danh_sach_chi_tiet),
+                selectinload(LuotKham.danh_sach_phieu_chuyen_khoa),
             )
             .where(condition)
+            .order_by(LuotKham.hang_doi_kham_id.is_(None).asc(), LuotKham.id.asc())
         )
         if for_update:
             stmt = stmt.with_for_update()
-        return (await db.execute(stmt)).scalar_one_or_none()
+        return (await db.execute(stmt)).scalars().first()
 
     async def assert_encounter_access(self, encounter: LuotKham, user: TaiKhoan, db: AsyncSession) -> None:
         if user.vai_tro == VaiTroEnum.ADMIN.value:
@@ -415,8 +643,12 @@ class ClinicalService:
             urls.extend(order.file_dinh_kem_urls)
         if order.tep_dinh_kem_url:
             urls.append(order.tep_dinh_kem_url)
-        if getattr(order, "phieu_ket_qua", None) and order.phieu_ket_qua.tep_dinh_kem_urls:
-            urls.extend(order.phieu_ket_qua.tep_dinh_kem_urls)
+        phieu = order.__dict__.get("phieu_ket_qua")
+        if phieu is not None and phieu.tep_dinh_kem_urls:
+            urls.extend(phieu.tep_dinh_kem_urls)
+        kq = order.__dict__.get("ket_qua")
+        if kq is not None and kq.file_dinh_kem_urls:
+            urls.extend(kq.file_dinh_kem_urls)
         return list(dict.fromkeys(str(u) for u in urls if u))
 
     def _to_encounter_response(self, lk: LuotKham) -> EncounterResponse:
@@ -432,25 +664,40 @@ class ClinicalService:
             )
             for cd in (lk.danh_sach_chan_doan or [])
         ]
-        orders = [
-            OrderResponse(
-                id=order.id,
-                luot_kham_id=order.luot_kham_id,
-                dich_vu_id=order.dich_vu_id,
-                ten_dich_vu=order.dich_vu.ten_dich_vu if order.dich_vu else None,
-                so_luong=order.so_luong,
-                don_gia_tai_thoi_diem=float(order.don_gia_tai_thoi_diem),
-                trang_thai=order.trang_thai,
-                bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
-                ket_qua_chi_tiet=order.ket_qua_chi_tiet,
-                tep_dinh_kem_url=order.tep_dinh_kem_url,
-                tep_dinh_kem_urls=self._extract_order_attachments(order),
-                thoi_gian_tra_ket_qua=order.thoi_gian_tra_ket_qua,
-                ket_qua_phan_loai=order.ket_qua_phan_loai or "BINH_THUONG",
-                created_at=order.created_at
+        orders = []
+        for order in (lk.danh_sach_chi_dinh or []):
+            kq = order.__dict__.get("ket_qua")
+            phieu = order.__dict__.get("phieu_ket_qua")
+            orders.append(
+                OrderResponse(
+                    id=order.id,
+                    luot_kham_id=order.luot_kham_id,
+                    dich_vu_id=order.dich_vu_id,
+                    ten_dich_vu=order.dich_vu.ten_dich_vu if order.dich_vu else None,
+                    so_luong=order.so_luong,
+                    don_gia_tai_thoi_diem=float(order.don_gia_tai_thoi_diem),
+                    trang_thai=order.trang_thai,
+                    bac_si_chi_dinh_id=order.bac_si_chi_dinh_id,
+                    ket_qua_chi_tiet=(
+                        order.ket_qua_chi_tiet
+                        or (kq.ket_qua_chi_tiet if kq else None)
+                        or (phieu.ket_luan if phieu else None)
+                    ),
+                    tep_dinh_kem_url=order.tep_dinh_kem_url,
+                    tep_dinh_kem_urls=self._extract_order_attachments(order),
+                    thoi_gian_tra_ket_qua=(
+                        order.thoi_gian_tra_ket_qua
+                        or (kq.thoi_gian_duyet if kq else None)
+                        or (phieu.thoi_gian_duyet if phieu else None)
+                    ),
+                    ket_qua_phan_loai=(
+                        order.ket_qua_phan_loai
+                        or (kq.ket_qua_phan_loai if kq else None)
+                        or "BINH_THUONG"
+                    ),
+                    created_at=order.created_at
+                )
             )
-            for order in (lk.danh_sach_chi_dinh or [])
-        ]
         prescription_dto = self._to_prescription_response(lk.don_thuoc) if lk.don_thuoc else None
         dt_str = lk.thoi_gian_bat_dau.strftime('%y%m%d') if lk.thoi_gian_bat_dau else date.today().strftime('%y%m%d')
         ma_kcb = f"KCB-{dt_str}-{lk.id:04d}"

@@ -393,39 +393,89 @@ class SubclinicalService:
             if user.vai_tro == VaiTroEnum.BAC_SI.value:
                 await credential_service.check_doctor_scope_of_practice(db, bac_si.id, dv.id)
 
-        ma = (payload.benh_nhan.ma or "").strip() or f"WS-BN-{payload.workspace_encounter_id}"
-        stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.ma_dinh_danh_y_te == ma)
-        benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
-        if benh_nhan:
-            existing_name = benh_nhan.nguoi_dung.ho_ten if benh_nhan.nguoi_dung else ""
-            if _normalize_name(existing_name) != _normalize_name(payload.benh_nhan.ho_ten):
-                raise ConflictException(f"Mã bệnh nhân {ma} đã thuộc về bệnh nhân khác, không thể gửi chỉ định!")
+        ws_id = (payload.workspace_encounter_id or "").strip()
+        ticket = None
+        if ws_id.startswith("ticket-") and ws_id[7:].isdigit():
+            stmt_ticket = (
+                select(HangDoiKham)
+                .options(selectinload(HangDoiKham.benh_nhan).selectinload(BenhNhan.nguoi_dung))
+                .where(HangDoiKham.id == int(ws_id[7:]))
+                .with_for_update()
+            )
+            ticket = (await db.execute(stmt_ticket)).scalar_one_or_none()
+
+        benh_nhan = ticket.benh_nhan if ticket and ticket.benh_nhan is not None else None
         if not benh_nhan:
-            nguoi_dung = NguoiDung(
-                ho_ten=payload.benh_nhan.ho_ten.strip(),
-                so_dien_thoai=payload.benh_nhan.so_dien_thoai,
-                gioi_tinh=payload.benh_nhan.gioi_tinh or "Khác",
-                ngay_sinh=date(date.today().year - payload.benh_nhan.tuoi, 1, 1) if payload.benh_nhan.tuoi else None,
-            )
-            db.add(nguoi_dung)
-            await db.flush()
-            benh_nhan = BenhNhan(
-                nguoi_dung_id=nguoi_dung.id,
-                ma_dinh_danh_y_te=ma,
-                di_ung_thuoc=payload.benh_nhan.di_ung_thuoc or "Không",
-            )
-            db.add(benh_nhan)
-            await db.flush()
+            ma = (payload.benh_nhan.ma or "").strip() or f"WS-BN-{payload.workspace_encounter_id}"
+            stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.ma_dinh_danh_y_te == ma)
+            benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+            if benh_nhan:
+                existing_name = benh_nhan.nguoi_dung.ho_ten if benh_nhan.nguoi_dung else ""
+                if _normalize_name(existing_name) != _normalize_name(payload.benh_nhan.ho_ten):
+                    raise ConflictException(f"Mã bệnh nhân {ma} đã thuộc về bệnh nhân khác, không thể gửi chỉ định!")
+            if not benh_nhan:
+                nguoi_dung = NguoiDung(
+                    ho_ten=payload.benh_nhan.ho_ten.strip(),
+                    so_dien_thoai=payload.benh_nhan.so_dien_thoai,
+                    gioi_tinh=payload.benh_nhan.gioi_tinh or "Khác",
+                    ngay_sinh=date(date.today().year - payload.benh_nhan.tuoi, 1, 1) if payload.benh_nhan.tuoi else None,
+                )
+                db.add(nguoi_dung)
+                await db.flush()
+                benh_nhan = BenhNhan(
+                    nguoi_dung_id=nguoi_dung.id,
+                    ma_dinh_danh_y_te=ma,
+                    di_ung_thuoc=payload.benh_nhan.di_ung_thuoc or "Không",
+                )
+                db.add(benh_nhan)
+                await db.flush()
 
         ma_kcb = f"WS-{payload.workspace_encounter_id}-{benh_nhan.id}"
-        stmt_lk = select(LuotKham).where(LuotKham.ma_kcb == ma_kcb).with_for_update()
-        luot_kham = (await db.execute(stmt_lk)).scalar_one_or_none()
+        luot_kham = None
+        if ticket is not None:
+            lk_conditions = [
+                LuotKham.hang_doi_kham_id == ticket.id,
+                LuotKham.ma_kcb == ma_kcb,
+                LuotKham.ma_kcb.like(f"WS-ticket-{ticket.id}-%"),
+            ]
+            if ticket.lich_kham_id is not None:
+                lk_conditions.append(LuotKham.lich_kham_id == ticket.lich_kham_id)
+            stmt_lk = (
+                select(LuotKham)
+                .where(or_(*lk_conditions), LuotKham.benh_nhan_id == benh_nhan.id)
+                .order_by(LuotKham.hang_doi_kham_id.is_(None).asc(), LuotKham.id.asc())
+                .with_for_update()
+            )
+            matched_lks = (await db.execute(stmt_lk)).scalars().all()
+            if matched_lks:
+                luot_kham = matched_lks[0]
+                if len(matched_lks) > 1:
+                    dup_ids = [dup.id for dup in matched_lks[1:]]
+                    dup_orders = (
+                        await db.execute(select(ChiDinh).where(ChiDinh.luot_kham_id.in_(dup_ids)).with_for_update())
+                    ).scalars().all()
+                    for dup_order in dup_orders:
+                        dup_order.luot_kham_id = luot_kham.id
+        elif ws_id.isdigit():
+            stmt_lk = (
+                select(LuotKham)
+                .where(or_(LuotKham.id == int(ws_id), LuotKham.ma_kcb == ma_kcb))
+                .order_by((LuotKham.id == int(ws_id)).desc(), LuotKham.id.asc())
+                .with_for_update()
+            )
+            luot_kham = (await db.execute(stmt_lk)).scalars().first()
+        else:
+            stmt_lk = select(LuotKham).where(LuotKham.ma_kcb == ma_kcb).with_for_update()
+            luot_kham = (await db.execute(stmt_lk)).scalars().first()
+
         if luot_kham is None:
             if user.vai_tro == VaiTroEnum.BAC_SI.value:
                 await credential_service.check_doctor_license_valid(db, bac_si.id)
             luot_kham = LuotKham(
                 ma_kcb=ma_kcb,
-                bac_si_id=bac_si.id,
+                hang_doi_kham_id=ticket.id if ticket else None,
+                lich_kham_id=ticket.lich_kham_id if ticket else None,
+                bac_si_id=ticket.bac_si_id if (ticket and ticket.bac_si_id) else bac_si.id,
                 benh_nhan_id=benh_nhan.id,
                 thoi_gian_bat_dau=datetime.now(timezone.utc),
                 ly_do_vao_kham=payload.ly_do_vao_kham,
@@ -436,6 +486,16 @@ class SubclinicalService:
             await db.flush()
         elif luot_kham.is_locked:
             raise ConflictException("Hồ sơ bệnh án đã bị khóa, không thể kê thêm chỉ định dịch vụ!")
+        else:
+            if ticket is not None:
+                if luot_kham.hang_doi_kham_id is None:
+                    luot_kham.hang_doi_kham_id = ticket.id
+                if ticket.lich_kham_id is not None and luot_kham.lich_kham_id is None:
+                    luot_kham.lich_kham_id = ticket.lich_kham_id
+            if payload.ly_do_vao_kham and not luot_kham.ly_do_vao_kham:
+                luot_kham.ly_do_vao_kham = payload.ly_do_vao_kham
+            if payload.chan_doan_so_bo:
+                luot_kham.chan_doan_so_bo = payload.chan_doan_so_bo
 
         stmt_orders = select(ChiDinh).where(
             ChiDinh.luot_kham_id == luot_kham.id,
@@ -461,14 +521,24 @@ class SubclinicalService:
                 db.add(order)
             orders.append(order)
 
-        stmt_active_t = select(HangDoiKham).where(
-            HangDoiKham.benh_nhan_id == benh_nhan.id,
-            HangDoiKham.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value,
-        )
-        active_t = (await db.execute(stmt_active_t)).scalars().first()
-        if active_t:
-            active_t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
-            active_t.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
+        if ticket is not None:
+            if ticket.trang_thai != TrangThaiHangDoiEnum.DA_KHAM.value:
+                ticket.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+                ticket.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
+        else:
+            stmt_active_t = select(HangDoiKham).where(
+                HangDoiKham.benh_nhan_id == benh_nhan.id,
+                HangDoiKham.trang_thai.in_([
+                    TrangThaiHangDoiEnum.DANG_KHAM.value,
+                    TrangThaiHangDoiEnum.CHO_KHAM.value,
+                    TrangThaiHangDoiEnum.CHO_GOI.value,
+                    TrangThaiHangDoiEnum.DANG_GOI.value,
+                ]),
+            )
+            active_t = (await db.execute(stmt_active_t)).scalars().first()
+            if active_t:
+                active_t.trang_thai = TrangThaiHangDoiEnum.TAM_HOAN.value
+                active_t.ghi_chu_dieu_phoi = "Chờ kết quả Cận lâm sàng"
 
         await db.commit()
         for order in orders:

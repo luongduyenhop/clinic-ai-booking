@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
-import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync } from '../../redux/actions/doctor/clinicalAction'
+import { fetchClsWorklistAsync, startOrderAsync, submitOrderResultAsync, submitLabResultAsync, approveOrderAsync } from '../../redux/actions/doctor/clinicalAction'
 import { SERVICE_GROUPS, ORDER_STATUS, clsDisplayStatus, isOrderNotStarted } from '../../utils/constants/clinical'
 import { formatDateTime } from '../../utils/helpers/formatDate'
 import { AppToast } from '../../components/common/AppNotification'
@@ -134,10 +134,18 @@ export default function ParaclinicalWorkPage() {
                 await dispatch(startOrderAsync(selected.id)).unwrap()
             }
             const res = await dispatch(submitLabResultAsync({ orderId: selected.id, body })).unwrap()
+            let autoApproved = false
+            if (!body.luu_nhap) {
+                try {
+                    await dispatch(approveOrderAsync(selected.id)).unwrap()
+                    autoApproved = true
+                } catch {}
+            }
             setSelectedId(selected.id)
             await load(true)
             if (body.luu_nhap) AppToast.success('Đã lưu nháp kết quả xét nghiệm')
-            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã hoàn tất ${selected.ten_dich_vu} — có chỉ số nguy hiểm, kiểm tra kỹ trước khi duyệt`)
+            else if (res.ket_qua_phan_loai === 'NGUY_KICH') AppToast.warning(`Đã hoàn tất ${selected.ten_dich_vu} — có chỉ số nguy hiểm${autoApproved ? ', đã trả cho bác sĩ' : ', kiểm tra kỹ trước khi duyệt'}`)
+            else if (autoApproved) AppToast.success(`Đã hoàn tất & trả kết quả ${selected.ten_dich_vu} cho bác sĩ`)
             else AppToast.success(`Đã hoàn tất kết quả ${selected.ten_dich_vu} — chờ duyệt & trả`)
         } catch (msg) {
             AppToast.error(msg)

@@ -206,7 +206,7 @@ export default function StepOrders({
                         <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto pr-0.5">
                             {orders.map((o) => {
                                 const st = ORDER_STATUS[o.trang_thai] || { label: 'Chờ thực hiện', badge: 'medpro-badge' }
-                                const isDone = o.trang_thai === 'da_co_ket_qua'
+                                const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
                                 return (
                                     <div key={o.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-2xs border border-slate-200">

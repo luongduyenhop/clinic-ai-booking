@@ -75,7 +75,7 @@ const ticketToQueueItem = (t) => {
             ghiChu = 'Đã khám xong'
         } else {
             const activeOrders = (enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-            const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
+            const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet')
             if (activeOrders.length > 0 && pendingOrders.length === 0) {
                 trangThai = 'co_ket_qua_cls'
                 if (!ghiChu || !ghiChu.includes('CÓ KQ CLS')) {
@@ -202,6 +202,105 @@ const applyReturnedResult = (mirror, patch) => {
     }
 }
 
+const DRAFT_MERGE_FIELDS = [
+    'ly_do_vao_kham',
+    'benh_su',
+    'kham_lam_sang_bo_phan',
+    'ket_luan_dieu_tri',
+    'loi_dan_bac_si',
+    'ngay_hen_tai_kham',
+    'mach_lan_phut',
+    'nhiet_do_c',
+    'huyet_ap_tam_thu',
+    'huyet_ap_tam_truong',
+    'nhip_tho_lan_phut',
+    'can_nang_kg',
+    'chieu_cao_cm',
+    'spo2',
+]
+
+const hasFilledValue = (val) => val !== null && val !== undefined && String(val).trim() !== ''
+
+const mergeOrderLists = (rOrders = [], lOrders = []) => {
+    const merged = rOrders.map((rOrder) => {
+        const match = lOrders.find(
+            (lOrder) =>
+                (lOrder.server_order_id &&
+                    rOrder.server_order_id &&
+                    String(lOrder.server_order_id) === String(rOrder.server_order_id)) ||
+                (lOrder.dich_vu_id && String(lOrder.dich_vu_id) === String(rOrder.dich_vu_id))
+        )
+        return { ...(match || {}), ...rOrder }
+    })
+    lOrders.forEach((lOrder) => {
+        if (lOrder.server_order_id) return
+        const exists = merged.some(
+            (m) => m.dich_vu_id && String(m.dich_vu_id) === String(lOrder.dich_vu_id) && m.trang_thai !== 'da_huy'
+        )
+        if (!exists) merged.push(lOrder)
+    })
+    return merged
+}
+
+const mergeRemoteAndLocalEncounter = (rEnc, lEnc, preferLocalDraft = false) => {
+    if (!lEnc) return rEnc
+    if (!rEnc) return lEnc
+    if (lEnc.is_locked) return { ...rEnc, ...lEnc }
+
+    const merged = {
+        ...rEnc,
+        thoi_gian_bat_dau: lEnc.thoi_gian_bat_dau || rEnc.thoi_gian_bat_dau || null,
+        danh_sach_chi_dinh: mergeOrderLists(rEnc.danh_sach_chi_dinh || [], lEnc.danh_sach_chi_dinh || []),
+    }
+
+    DRAFT_MERGE_FIELDS.forEach((field) => {
+        const hasR = hasFilledValue(rEnc[field])
+        const hasL = hasFilledValue(lEnc[field])
+        if (preferLocalDraft && hasL) {
+            merged[field] = lEnc[field]
+        } else {
+            merged[field] = hasR ? rEnc[field] : lEnc[field]
+        }
+    })
+
+    const rSpecItems = Object.keys(rEnc?.kham_chuyen_khoa?.items || {})
+    const lSpecItems = Object.keys(lEnc?.kham_chuyen_khoa?.items || {})
+    if (lSpecItems.length > 0 && (preferLocalDraft || rSpecItems.length === 0)) {
+        merged.kham_chuyen_khoa = lEnc.kham_chuyen_khoa
+    } else if (rSpecItems.length > 0) {
+        merged.kham_chuyen_khoa = rEnc.kham_chuyen_khoa
+    } else {
+        merged.kham_chuyen_khoa = lEnc.kham_chuyen_khoa || rEnc.kham_chuyen_khoa
+    }
+
+    if (preferLocalDraft && lEnc.danh_sach_chan_doan?.length) {
+        merged.danh_sach_chan_doan = lEnc.danh_sach_chan_doan
+    } else {
+        merged.danh_sach_chan_doan = rEnc.danh_sach_chan_doan?.length ? rEnc.danh_sach_chan_doan : (lEnc.danh_sach_chan_doan || [])
+    }
+
+    if (preferLocalDraft && lEnc.danh_sach_thuoc?.length) {
+        merged.danh_sach_thuoc = lEnc.danh_sach_thuoc
+    } else {
+        merged.danh_sach_thuoc = rEnc.danh_sach_thuoc?.length ? rEnc.danh_sach_thuoc : (lEnc.danh_sach_thuoc || [])
+    }
+
+    return merged
+}
+
+const filterSyncableEncounters = (encountersMap = {}, queueList = []) => {
+    const queueStatusByEncId = new Map(queueList.map((t) => [String(t.encounter_id), t.trang_thai]))
+    return Object.fromEntries(
+        Object.entries(encountersMap || {}).filter(([k, enc]) => {
+            if (!enc) return false
+            if (enc.luot_kham_server_id || enc.thoi_gian_bat_dau || enc.is_locked) return true
+            if ((enc.danh_sach_chi_dinh || []).length > 0) return true
+            const qStatus = queueStatusByEncId.get(String(k))
+            return Boolean(qStatus && qStatus !== 'cho_kham')
+        })
+    )
+}
+
 export class ClinicalService extends BaseServices {
     _hydratedFromPg = false
     _returnedSince = null
@@ -234,26 +333,18 @@ export class ClinicalService extends BaseServices {
                 return
             }
             if (remote && remote.encounters && Array.isArray(remote.queue)) {
-                const activeDangKham = db.queue.filter((t) => t.trang_thai === 'dang_kham')
+                const activeDangKhamIds = new Set(
+                    db.queue.filter((t) => t.trang_thai === 'dang_kham').map((t) => String(t.encounter_id))
+                )
                 const localEncounters = db.encounters || {}
 
                 const mergedEncounters = { ...remote.encounters }
-                Object.entries(localEncounters).forEach(([k, lEnc]) => {
-                    if (remote.encounters?.[k] && lEnc?.is_locked) {
-                        mergedEncounters[k] = { ...mergedEncounters[k], ...lEnc }
-                    }
-                })
-                activeDangKham.forEach((act) => {
-                    const lEnc = localEncounters[act.encounter_id] || localEncounters[String(act.encounter_id)]
-                    const rEnc = mergedEncounters[act.encounter_id] || mergedEncounters[String(act.encounter_id)]
-                    if (rEnc && lEnc && !lEnc.is_locked) {
-                        const updatedEnc = {
-                            ...rEnc,
-                            ...lEnc,
-                            thoi_gian_bat_dau: lEnc.thoi_gian_bat_dau || rEnc?.thoi_gian_bat_dau || new Date().toISOString(),
-                        }
-                        mergedEncounters[act.encounter_id] = updatedEnc
-                        mergedEncounters[String(act.encounter_id)] = updatedEnc
+                Object.keys(mergedEncounters).forEach((k) => {
+                    const rEnc = mergedEncounters[k]
+                    const lEnc = localEncounters[k] || localEncounters[String(k)]
+                    if (lEnc) {
+                        const updatedEnc = mergeRemoteAndLocalEncounter(rEnc, lEnc, activeDangKhamIds.has(String(k)))
+                        mergedEncounters[k] = updatedEnc
                     }
                 })
                 db.encounters = mergedEncounters
@@ -264,7 +355,7 @@ export class ClinicalService extends BaseServices {
                         return { ...rem, trang_thai: 'da_kham', ghi_chu: 'Đã khám xong' }
                     }
                     const activeOrders = (enc?.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
+                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet')
                     const hasReadyOrders = activeOrders.length > 0 && pendingOrders.length === 0
 
                     if (hasReadyOrders) {
@@ -303,8 +394,12 @@ export class ClinicalService extends BaseServices {
             localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
         } catch {
         }
+        const payload = {
+            ...db,
+            encounters: filterSyncableEncounters(db.encounters, db.queue),
+        }
         try {
-            await this.put('/api/v1/clinical/workspace-state', db, { __skipGlobalLoading: true, __skipGlobalError: true })
+            await this.put('/api/v1/clinical/workspace-state', payload, { __skipGlobalLoading: true, __skipGlobalError: true })
         } catch {
         }
     }
@@ -378,7 +473,7 @@ export class ClinicalService extends BaseServices {
                     t.ghi_chu = 'Đã khám xong'
                 } else {
                     const activeOrders = (enc.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
-                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua')
+                    const pendingOrders = activeOrders.filter((o) => o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet')
                     if (activeOrders.length > 0 && pendingOrders.length === 0) {
                         t.trang_thai = 'co_ket_qua_cls'
                         if (!t.ghi_chu || !t.ghi_chu.includes('CÓ KQ CLS')) {
@@ -606,7 +701,7 @@ export class ClinicalService extends BaseServices {
         const primary = (payload.danh_sach_chan_doan || []).filter((d) => d.loai_chan_doan === 'chinh')
         if (primary.length !== 1) return reject('Cần đúng 1 chẩn đoán chính (ICD-10) trước khi hoàn tất khám.')
         const pendingOrders = (enc.danh_sach_chi_dinh || []).filter(
-            (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua'
+            (o) => o.trang_thai !== 'da_huy' && o.trang_thai !== 'da_co_ket_qua' && o.trang_thai !== 'da_duyet'
         )
         const ticket = db.queue.find(
             (t) =>

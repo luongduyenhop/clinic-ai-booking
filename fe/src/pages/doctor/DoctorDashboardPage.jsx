@@ -88,6 +88,8 @@ export default function DoctorDashboardPage() {
 
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
+                    encounterId: t.encounter_id || enc?.id,
+                    ticketId: t.ticket_id,
                     queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
                     patientId: t.patient_id,
                     patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),

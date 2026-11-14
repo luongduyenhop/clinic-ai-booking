@@ -41,7 +41,7 @@ import AmendmentModal from '../../components/doctor/exam/AmendmentModal'
 import PrescriptionPrintAndCopyModal from '../../components/doctor/PrescriptionPrintAndCopyModal'
 import { clinicalService } from '../../services/doctor/ClinicalService'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/clinical/StateBlocks'
-import { printHtmlDocument } from '../../utils/helpers/printUtils'
+import { printHtmlDocument, printPrescriptionDocument } from '../../utils/helpers/printUtils'
 
 const QUEUE_POLL_MS = 15000
 
@@ -651,6 +651,25 @@ export default function ExamWorkstationPage() {
         })
     }
 
+    const handlePrintPrescriptionDirect = () => {
+        if (!encounter) {
+            AppToast.warning('Chưa có ca khám nào được chọn.')
+            return
+        }
+        const v = formik.values || {}
+        printPrescriptionDocument({
+            encounter: {
+                ...encounter,
+                ngay_hen_tai_kham: v.ngay_hen_tai_kham || encounter.ngay_hen_tai_kham,
+            },
+            patient: encounter.benh_nhan || {},
+            diagnoses: v.danh_sach_chan_doan || encounter.danh_sach_chan_doan || [],
+            prescriptionItems: v.danh_sach_thuoc || encounter.danh_sach_thuoc || [],
+            prescriptionNote: v.loi_dan_uong_thuoc || v.loi_dan_bac_si || encounter.loi_dan_bac_si,
+            doctorName: currentUser?.ho_ten || encounter.ten_bac_si || 'BS. CKI Nguyễn Văn An',
+        })
+    }
+
     const doComplete = async () => {
         const v = formik.values
         const payload = {
@@ -834,7 +853,7 @@ export default function ExamWorkstationPage() {
         },
         onJumpToOrders: () => setStep(2),
         onOpenHistory: () => setHistoryOpen(true),
-        onPrint: () => setRxModalState({ open: true, tab: 'print' }),
+        onPrint: handlePrintPrescriptionDirect,
         onEscape: () => {
             if (rxModalState.open || historyOpen || amendmentOpen) {
                 setRxModalState((prev) => ({ ...prev, open: false }))
@@ -1064,7 +1083,13 @@ export default function ExamWorkstationPage() {
                                         formik={formik}
                                         encounter={encounter}
                                         locked={isReadOnly}
-                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab })}
+                                        onOpenRxModal={(tab) => {
+                                            if (tab === 'print') {
+                                                handlePrintPrescriptionDirect()
+                                            } else {
+                                                setRxModalState({ open: true, tab })
+                                            }
+                                        }}
                                     />
                                 )}
                             </div>
@@ -1100,8 +1125,9 @@ export default function ExamWorkstationPage() {
 
                                     <button
                                         type="button"
-                                        onClick={() => setRxModalState({ open: true, tab: 'print' })}
+                                        onClick={handlePrintPrescriptionDirect}
                                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 text-[#0077B6] text-xs font-bold hover:bg-sky-100 transition cursor-pointer"
+                                        title="In đơn thuốc điện tử (Khổ A4/A5)"
                                     >
                                         <ClinicIcon name="Printer" size={15} />
                                         <span>In Đơn &amp; Mã QR</span>

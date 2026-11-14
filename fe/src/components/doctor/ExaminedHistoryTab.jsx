@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
-import PrescriptionPrintAndCopyModal from './PrescriptionPrintAndCopyModal'
-import { printHtmlDocument } from '../../utils/helpers/printUtils'
+import { printHtmlDocument, printPrescriptionDocument } from '../../utils/helpers/printUtils'
 import { clinicalService } from '../../services/doctor/ClinicalService'
 
 export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [searchKeyword, setSearchKeyword] = useState('')
     const [timeFilter, setTimeFilter] = useState('ALL') 
     const [selectedRecord, setSelectedRecord] = useState(null)
-    const [printRxModalData, setPrintRxModalData] = useState(null)
 
     const todayStr = useMemo(() => new Date().toLocaleDateString('vi-VN'), [])
     const filteredList = useMemo(() => examinedList.filter((item) => {
@@ -26,11 +24,42 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
         return true
     }), [examinedList, searchKeyword, timeFilter, todayStr])
 
-    const handleOpenPrintRx = (item) => {
-        const enc = clinicalService.getEncounterSync(item.id) || {}
-        setPrintRxModalData({
+    const handlePrintPrescriptionDirect = (item) => {
+        if (!item) return
+        const encId = item.encounterId || item.id
+        const enc = clinicalService.getEncounterSync(encId) || clinicalService.getEncounterSync(item.id) || {}
+
+        // Chuẩn hóa danh sách thuốc
+        let effectivePrescriptionItems = []
+        if (enc.danh_sach_thuoc && enc.danh_sach_thuoc.length > 0) {
+            effectivePrescriptionItems = enc.danh_sach_thuoc
+        } else if (enc.don_thuoc?.danh_sach_thuoc && enc.don_thuoc.danh_sach_thuoc.length > 0) {
+            effectivePrescriptionItems = enc.don_thuoc.danh_sach_thuoc
+        } else if (item.prescriptions && item.prescriptions.length > 0) {
+            effectivePrescriptionItems = item.prescriptions.map((p) => {
+                let sl = 1
+                let dv = 'Viên'
+                if (typeof p.quantity === 'string') {
+                    const matchNum = p.quantity.match(/\d+/)
+                    sl = matchNum ? parseInt(matchNum[0], 10) : 1
+                    const matchUnit = p.quantity.replace(/[\d\s]/g, '')
+                    dv = matchUnit || 'Viên'
+                } else if (typeof p.quantity === 'number') {
+                    sl = p.quantity
+                }
+                return {
+                    ten_thuoc: p.name || p.ten_thuoc,
+                    ham_luong: p.ham_luong || 'Chuẩn',
+                    so_luong: sl,
+                    don_vi_tinh: dv,
+                    cach_dung: p.dosage || p.cach_dung || 'Theo chỉ định của bác sĩ',
+                }
+            })
+        }
+
+        printPrescriptionDocument({
             encounter: enc.id ? enc : {
-                id: item.id,
+                id: encId,
                 ten_benh_nhan: item.fullName,
                 ngay_sinh: item.age ? `${2026 - item.age}` : '1990',
                 gioi_tinh: item.gender,
@@ -39,6 +68,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 loi_dan_bac_si: item.doctorNotes,
                 ten_bac_si: 'BS. CKI Nguyễn Văn An',
                 ngay_ky: item.completedDate,
+                ngay_hen_tai_kham: item.ngay_hen_tai_kham || '',
             },
             patient: enc.benh_nhan || {
                 ho_ten: item.fullName,
@@ -49,24 +79,22 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 so_bhyt: item.healthInsurance,
             },
             diagnoses: enc.danh_sach_chan_doan?.length > 0 ? enc.danh_sach_chan_doan : [
-                { ma_icd10: item.finalDiagnosis?.split(' - ')[0] || 'K29', ten_benh_chan_doan: item.finalDiagnosis?.split(' - ')[1] || item.finalDiagnosis || 'Khám bệnh nội khoa' }
+                {
+                    ma_icd10: item.finalDiagnosis?.includes(' - ') ? item.finalDiagnosis.split(' - ')[0] : 'K29.7',
+                    ten_benh_chan_doan: item.finalDiagnosis?.includes(' - ') ? item.finalDiagnosis.split(' - ').slice(1).join(' - ') : (item.finalDiagnosis || 'Viêm dạ dày - tá tràng')
+                }
             ],
-            prescriptionItems: enc.danh_sach_thuoc?.length > 0
-                ? enc.danh_sach_thuoc
-                : (item.prescriptions || []).map((p) => ({
-                    ten_thuoc: p.name,
-                    ham_luong: 'Chuẩn',
-                    so_luong: p.quantity?.replace(/\D/g, '') || 1,
-                    don_vi_tinh: p.quantity?.replace(/[^a-zA-ZÀ-ỹ]/g, '') || 'Viên',
-                    cach_dung: p.dosage,
-                })),
-            prescriptionNote: item.doctorNotes || 'Uống thuốc đúng giờ theo chỉ dẫn.',
+            prescriptionItems: effectivePrescriptionItems,
+            prescriptionNote: item.doctorNotes || 'Uống thuốc đúng giờ theo chỉ dẫn của bác sĩ.',
+            doctorName: 'BS. CKI Nguyễn Văn An',
         })
     }
 
+    const handleDirectPrintPrescription = handlePrintPrescriptionDirect
+
     const handlePrintMedicalRecord = (record) => {
         if (!record) return
-        const enc = clinicalService.getEncounterSync(record.id) || {}
+        const enc = clinicalService.getEncounterSync(record.encounterId || record.id) || clinicalService.getEncounterSync(record.id) || {}
         const vitals = {
             mach: enc.mach_lan_phut || enc.mach || record.vitals?.heartRate || '76',
             nhiet_do: enc.nhiet_do_c || enc.nhiet_do || record.vitals?.temperature || '36.8',
@@ -330,7 +358,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleOpenPrintRx(item)}
+                                                    onClick={() => handlePrintPrescriptionDirect(item)}
                                                     className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-[11px] text-slate-700 transition cursor-pointer"
                                                     title="In đơn thuốc của ca khám này"
                                                 >
@@ -460,6 +488,13 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                 </button>
                                 <button
                                     type="button"
+                                    onClick={() => handlePrintPrescriptionDirect(selectedRecord)}
+                                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+                                >
+                                    💊 In đơn thuốc
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => setSelectedRecord(null)}
                                     className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
                                 >
@@ -470,18 +505,6 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                     </div>,
                     document.body
                 )}
-
-            {printRxModalData && (
-                <PrescriptionPrintAndCopyModal
-                    isOpen={Boolean(printRxModalData)}
-                    onClose={() => setPrintRxModalData(null)}
-                    encounter={printRxModalData.encounter}
-                    patient={printRxModalData.patient}
-                    diagnoses={printRxModalData.diagnoses}
-                    prescriptionItems={printRxModalData.prescriptionItems}
-                    prescriptionNote={printRxModalData.prescriptionNote}
-                />
-            )}
         </div>
     )
 }

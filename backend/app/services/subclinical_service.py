@@ -48,6 +48,10 @@ from app.services.credential_service import credential_service
 logger = logging.getLogger(__name__)
 
 
+def _normalize_name(name: str) -> str:
+    return " ".join((name or "").split()).casefold()
+
+
 class SubclinicalService:
 
     async def get_subclinical_queue(
@@ -392,6 +396,10 @@ class SubclinicalService:
         ma = (payload.benh_nhan.ma or "").strip() or f"WS-BN-{payload.workspace_encounter_id}"
         stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.ma_dinh_danh_y_te == ma)
         benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+        if benh_nhan:
+            existing_name = benh_nhan.nguoi_dung.ho_ten if benh_nhan.nguoi_dung else ""
+            if _normalize_name(existing_name) != _normalize_name(payload.benh_nhan.ho_ten):
+                raise ConflictException(f"Mã bệnh nhân {ma} đã thuộc về bệnh nhân khác, không thể gửi chỉ định!")
         if not benh_nhan:
             nguoi_dung = NguoiDung(
                 ho_ten=payload.benh_nhan.ho_ten.strip(),

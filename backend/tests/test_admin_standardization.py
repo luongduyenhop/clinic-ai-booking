@@ -1,6 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 import pytest
 from httpx import AsyncClient
+
+from app.models.medical import ChiTietDonThuoc, DonThuoc, LuotKham
 
 
 @pytest.mark.asyncio
@@ -227,11 +229,42 @@ async def test_admin_standardization_rbac_forbidden(api_client: AsyncClient, boo
 
 
 @pytest.mark.asyncio
-async def test_analytics_top_medicines(api_client: AsyncClient, booking):
+async def test_analytics_top_medicines(api_client: AsyncClient, booking, db_session):
     """Kiểm tra API thống kê Top thuốc kê đơn nhiều nhất (/analytics/top-medicines)"""
+    # Tự tạo đơn thuốc trong transaction của test thay vì dựa vào dữ liệu test khác để lại.
+    now_utc = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now_utc)
+    luot_kham = LuotKham(
+        lich_kham_id=lich.id,
+        benh_nhan_id=booking.bn_a.id,
+        bac_si_id=booking.bs_x.id,
+        thoi_gian_bat_dau=now_utc,
+    )
+    db_session.add(luot_kham)
+    await db_session.flush()
+    don = DonThuoc(
+        ma_don_thuoc=f"DT-TOP-{booking.suffix}",
+        luot_kham_id=luot_kham.id,
+        bac_si_ke_don_id=booking.bs_x.id,
+        ngay_ke_don=now_utc,
+    )
+    db_session.add(don)
+    await db_session.flush()
+    ten_thuoc = f"Thuoc Top Test {booking.suffix}"
+    for _ in range(5):
+        db_session.add(ChiTietDonThuoc(
+            don_thuoc_id=don.id,
+            ten_thuoc=ten_thuoc,
+            hoat_chat="Paracetamol",
+            don_vi_tinh="Viên",
+            so_luong=10,
+            cach_dung="Uống sau ăn",
+        ))
+    await db_session.flush()
+
     admin_headers = booking.tokens["admin"]
     res = await api_client.get(
-        "/api/v1/admin/analytics/top-medicines?limit=5",
+        "/api/v1/admin/analytics/top-medicines?limit=50",
         headers=admin_headers,
     )
     assert res.status_code == 200
@@ -243,3 +276,6 @@ async def test_analytics_top_medicines(api_client: AsyncClient, booking):
     assert "ten_thuoc" in data["items"][0]
     assert "so_luot_ke" in data["items"][0]
     assert "tong_so_luong" in data["items"][0]
+    item = next(i for i in data["items"] if i["ten_thuoc"] == ten_thuoc)
+    assert item["so_luot_ke"] == 5
+    assert item["tong_so_luong"] == 50

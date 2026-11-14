@@ -263,7 +263,8 @@ async def test_task3_safety_guard_no_first_lk_fallback(api_client, booking, db_s
         json=tamper_payload,
         headers=token_bs,
     )
-    assert res_tamper.status_code == 200
+    # Lượt khám không tồn tại bị từ chối rõ ràng (404) thay vì âm thầm ghi vào lượt khám khác
+    assert res_tamper.status_code == 404
 
     # Xác minh: Ca khám hợp lệ ban đầu KHÔNG bị ghi đè chẩn đoán hay chỉ định của ID 999999
     cd_valid = (

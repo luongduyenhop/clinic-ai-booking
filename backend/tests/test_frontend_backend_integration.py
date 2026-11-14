@@ -1,5 +1,10 @@
+import uuid
+
 import pytest
 import pytest_asyncio
+
+from app.core.security import hash_password
+from app.models.user import NguoiDung, TaiKhoan, VaiTroEnum
 
 
 @pytest_asyncio.fixture(loop_scope="function")
@@ -7,39 +12,66 @@ async def admin_headers(booking):
     return booking.tokens["admin"]
 
 
+LOGIN_PASSWORD = "Admin@Contract2026"
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def real_admin_account(db_session):
+    """Tài khoản admin thật (mật khẩu băm) - backend không còn tài khoản mặc định cố định (TCK-002)."""
+    suffix = uuid.uuid4().hex[:8]
+    nguoi_dung = NguoiDung(ho_ten=f"Admin Contract {suffix}", email=f"admin.contract.{suffix}@test.local")
+    db_session.add(nguoi_dung)
+    await db_session.flush()
+    db_session.add(TaiKhoan(
+        nguoi_dung_id=nguoi_dung.id,
+        email=nguoi_dung.email,
+        mat_khau_hash=hash_password(LOGIN_PASSWORD),
+        vai_tro=VaiTroEnum.ADMIN.value,
+        is_active=True,
+    ))
+    await db_session.flush()
+    return nguoi_dung.email
+
+
 @pytest.mark.asyncio
-async def test_frontend_login_contract_and_default_accounts(api_client):
+async def test_frontend_login_contract_and_default_accounts(api_client, real_admin_account):
     """
     Kiểm tra hợp đồng đăng nhập giữa Frontend (LoginPage.jsx / AuthService.js) và Backend:
     - Chấp nhận payload { usernameOrEmail, password }
     - Hỗ trợ cả /api/v1/auth/login và alias /api/Auth/login
-    - Hỗ trợ tài khoản mặc định admin@clinic-ai.vn / password123 và phongkham5 / admin@123
+    - Tài khoản mặc định cố định (admin@clinic-ai.vn, phongkham5) đã bị gỡ -> 401
     - Trả về đầy đủ accessToken, refreshToken, role, user cho Redux authSlice
     """
     resp1 = await api_client.post(
         "/api/v1/auth/login",
-        json={"usernameOrEmail": "admin@clinic-ai.vn", "password": "password123"},
+        json={"usernameOrEmail": real_admin_account, "password": LOGIN_PASSWORD},
     )
     assert resp1.status_code == 200
     data1 = resp1.json()["data"]
     assert data1["accessToken"]
     assert data1["refreshToken"]
     assert data1["role"] == "ADMIN"
-    assert data1["user"]["email"] == "admin@clinic-ai.vn"
+    assert data1["user"]["email"] == real_admin_account
 
-    # Kiểm tra đường dẫn cũ /api/Auth/login với tài khoản phongkham5
     resp2 = await api_client.post(
         "/api/Auth/login",
-        json={"usernameOrEmail": "phongkham5", "password": "admin@123"},
+        json={"usernameOrEmail": real_admin_account, "password": LOGIN_PASSWORD},
     )
     assert resp2.status_code == 200
     data2 = resp2.json()["data"]
     assert data2["accessToken"]
     assert data2["role"] == "ADMIN"
 
+    for username, password in (("admin@clinic-ai.vn", "password123"), ("phongkham5", "admin@123")):
+        resp_default = await api_client.post(
+            "/api/v1/auth/login",
+            json={"usernameOrEmail": username, "password": password},
+        )
+        assert resp_default.status_code == 401
+
 
 @pytest.mark.asyncio
-async def test_frontend_refresh_token_and_reject_demo_token(api_client):
+async def test_frontend_refresh_token_and_reject_demo_token(api_client, real_admin_account):
     """
     Kiểm tra cơ chế Refresh Token của BaseService.js và từ chối Demo Token:
     - Gửi { accessToken, refreshToken } tới /api/v1/auth/refresh
@@ -47,8 +79,9 @@ async def test_frontend_refresh_token_and_reject_demo_token(api_client):
     """
     login_resp = await api_client.post(
         "/api/v1/auth/login",
-        json={"usernameOrEmail": "admin@clinic-ai.vn", "password": "password123"},
+        json={"usernameOrEmail": real_admin_account, "password": LOGIN_PASSWORD},
     )
+    assert login_resp.status_code == 200
     tokens = login_resp.json()["data"]
 
     refresh_resp = await api_client.post(
@@ -192,7 +225,7 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     from sqlalchemy import func, select
     from app.models.compliance import GiayPhepCoSo, NhatKyTruyCapDuLieuYTe
     from app.models.content import BaiVietTinTuc, MauBieuYTe
-    from app.models.medical import DichVu, HoaDon, KhaiNiem, PhieuThuChi
+    from app.models.medical import DichVu, HoaDon, KhaiNiem, PhieuThuChi, Thuoc
     from app.models.specialized import DangKyGoiKham, GoiDichVu, LieuTrinhDieuTri
     from app.models.user import BenhNhan, PhongKham
 
@@ -371,6 +404,30 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     assert r_cat_drug.status_code == 200
     assert r_cat_drug.json()["data"]["inventoryBatches"] == []
 
+    # Danh mục dịch vụ kỹ thuật (catalogs.dichVu -> dich_vu): test tự tạo dữ liệu, không dựa vào seed
+    r_cat_service = await api_client.put(
+        "/api/v1/admin/catalogs/dichVu",
+        json={
+            "subKey": "dichVu",
+            "items": [{"id": "DV-E2E-01", "maDV": "DV-E2E-01", "tenDV": "Siêu âm ổ bụng E2E", "donGia": 250000, "loaiDV": "CDHA"}],
+            "auditEntry": {"hanhDong": "UPDATE_SERVICE", "mucDich": "Cập nhật danh mục dịch vụ"},
+        },
+        headers=headers,
+    )
+    assert r_cat_service.status_code == 200
+
+    # Danh mục bệnh ICD-10 (catalogs.danhMucBenh -> khai_niem); thuốc giờ lưu ở bảng thuoc
+    r_cat_icd = await api_client.put(
+        "/api/v1/admin/catalogs/danhMucBenh",
+        json={
+            "subKey": "danhMucBenh",
+            "items": [{"id": "I10-E2E", "maICD": "I10-E2E", "tenBenh": "Tăng huyết áp vô căn (E2E)", "chuongBenh": "Chương IX"}],
+            "auditEntry": {"hanhDong": "UPDATE_ICD10", "mucDich": "Cập nhật danh mục bệnh"},
+        },
+        headers=headers,
+    )
+    assert r_cat_icd.status_code == 200
+
     # Xác minh trực tiếp trong các bảng quan hệ của Database
     assert (await db_session.execute(select(func.count()).select_from(BenhNhan))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(MauBieuYTe))).scalar_one() >= 1
@@ -384,5 +441,6 @@ async def test_all_17_admin_modules_and_relational_db_sync(api_client, db_sessio
     assert (await db_session.execute(select(func.count()).select_from(PhongKham))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(DichVu))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(KhaiNiem))).scalar_one() >= 1
+    assert (await db_session.execute(select(func.count()).select_from(Thuoc))).scalar_one() >= 1
     assert (await db_session.execute(select(func.count()).select_from(NhatKyTruyCapDuLieuYTe))).scalar_one() >= 1
 

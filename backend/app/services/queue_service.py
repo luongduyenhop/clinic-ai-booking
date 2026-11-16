@@ -1,8 +1,9 @@
 import logging
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import List, Optional, Union, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.appointment_service import clinic_now
 from app.models.appointment import HangDoiKham
 from app.models.user import TaiKhoan
 from app.schemas.queue import (

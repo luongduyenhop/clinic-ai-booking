@@ -27,7 +27,7 @@ from app.models.appointment import (
     LyDoUuTienEnum,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
-from app.services.appointment_service import clinic_now
+import app.services.queue_service as queue_service_module
 from app.models.specialized import DangKyGoiKham, GoiDichVu
 from app.models.medical import KhoaSoCaTruc
 from app.schemas.queue import (
@@ -452,7 +452,7 @@ async def check_in_patient(
 
         raise BadRequestException("Lịch hẹn này đã bị hủy, không thể thực hiện check-in!")
 
-    today_date = clinic_now().date()
+    today_date = queue_service_module.clinic_now().date()
 
     if lich.ngay_kham != today_date:
 
@@ -504,7 +504,7 @@ async def check_in_patient(
 
     if lich.bac_si_id is None:
 
-        ca_kham = lich.ca_kham or self._determine_shift(clinic_now().time())
+        ca_kham = lich.ca_kham or self._determine_shift(queue_service_module.clinic_now().time())
 
         if not lich.chuyen_khoa_id:
 
@@ -528,7 +528,7 @@ async def check_in_patient(
 
         if lich.gio_kham is None:
 
-            lich.gio_kham = clinic_now().time()
+            lich.gio_kham = queue_service_module.clinic_now().time()
 
         stmt_bs = (
 
@@ -544,7 +544,7 @@ async def check_in_patient(
 
     else:
 
-        ca_kham = self._determine_shift(lich.gio_kham) if lich.gio_kham else (lich.ca_kham or self._determine_shift(clinic_now().time()))
+        ca_kham = self._determine_shift(lich.gio_kham) if lich.gio_kham else (lich.ca_kham or self._determine_shift(queue_service_module.clinic_now().time()))
 
     if payload.ly_do_uu_tien:
 
@@ -562,11 +562,11 @@ async def check_in_patient(
 
         clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
 
-        now_clinic = datetime.now(clinic_tz).replace(tzinfo=None)
+        now_clinic = queue_service_module.datetime.now(clinic_tz).replace(tzinfo=None)
 
         gio_hen = lich.gio_kham or now_clinic.time()
 
-        appointment_dt = datetime.combine(lich.ngay_kham, gio_hen)
+        appointment_dt = queue_service_module.datetime.combine(lich.ngay_kham, gio_hen)
 
         diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
 
@@ -676,9 +676,9 @@ async def check_in_walk_in(
     if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
         raise ForbiddenException("Chức năng tiếp nhận bệnh nhân vãng lai chỉ dành cho Lễ tân hoặc Admin!")
 
-    today = clinic_now().date()
+    today = queue_service_module.clinic_now().date()
     now = datetime.now(timezone.utc)
-    effective_ca = payload.ca_kham or self._determine_shift(clinic_now().time())
+    effective_ca = payload.ca_kham or self._determine_shift(queue_service_module.clinic_now().time())
 
     bn = None
     if payload.benh_nhan_id:
@@ -919,7 +919,7 @@ async def check_in_walk_in(
     if payload.ghi_chu:
         ghi_chu = f"{ghi_chu} | {payload.ghi_chu}"
 
-    base_time = clinic_now().time()
+    base_time = queue_service_module.clinic_now().time()
     gio_kham_tai_cho = time(
         base_time.hour,
         base_time.minute,

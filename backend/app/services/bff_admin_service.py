@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.exceptions import BadRequestException
 from app.models.bff_store import HeThongTrangThaiBff
 from app.services.bff_admin_modules.admin_catalog_sync_service import AdminCatalogSyncService
 from app.services.bff_admin_modules.admin_helpers import (
@@ -227,10 +228,17 @@ class BffAdminService:
         audit_entry: Optional[dict] = None,
         user_id: Optional[int] = None,
     ) -> dict:
-        current_data = await self.get_bootstrap_data(db)
+        if collection_key == "inventoryBatches":
+            items = []
+        if collection_key == "staffList":
+            raise BadRequestException("staffList không còn được lưu qua dữ liệu BFF. Hãy dùng API hồ sơ nhân sự và bác sĩ chuyên dụng.")
+
+        await self._upsert_bff_key(db, collection_key, items, user_id=user_id)
         await self._sync_relational_tables(db, collection_key, items)
+
+        current_data = await self.get_bootstrap_data(db)
         if collection_key == "vouchers":
-            await self._upsert_bff_key(db, collection_key, current_data.get(collection_key, []), user_id=user_id)
+            current_data["vouchers"] = await self._project_relational_vouchers(db, current_data.get("vouchers", []))
         else:
             current_data[collection_key] = items
         await self._append_audit_entry(db, current_data, audit_entry, default_target=collection_key, user_id=user_id)

@@ -89,7 +89,7 @@ const DEMO_OLD_PRESCRIPTIONS = [
 ]
 
 export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrderSection, locked }) {
-    const [activeTab, setActiveTab] = useState('cls') // 'cls' | 'history' | 'templates'
+    const [activeTab, setActiveTab] = useState('cls')
     const [viewingOrder, setViewingOrder] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
 
@@ -97,7 +97,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
     const doneOrders = orders.filter((o) => o.trang_thai === 'da_co_ket_qua')
     const hasUnreadResults = doneOrders.length > 0
 
-    // Kết hợp lịch sử từ encounter và demo
     const rawHistory = encounter?.lich_su || []
     const displayHistory = rawHistory.length > 0 ? rawHistory : DEMO_OLD_PRESCRIPTIONS
 
@@ -128,7 +127,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
             aria-label="Trợ lý lâm sàng và kết quả cận lâm sàng"
             className="flex flex-col gap-3 w-full lg:w-[330px] lg:shrink-0 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden h-fit"
         >
-            {/* Header Tabs Navigation */}
             <div className="flex border-b border-slate-200 bg-slate-50/70 p-1 gap-1">
                 <button
                     type="button"
@@ -170,7 +168,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
                 </button>
             </div>
 
-            {/* TAB 1: KẾT QUẢ CẬN LÂM SÀNG */}
             {activeTab === 'cls' && (
                 <div className="p-3.5 flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
                     <div className="flex items-center justify-between">
@@ -258,7 +255,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
                 </div>
             )}
 
-            {/* TAB 2: LỊCH SỬ KHÁM CŨ & SAO CHÉP ĐƠN THUỐC */}
             {activeTab === 'history' && (
                 <div className="p-3.5 flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
                     <span className="text-xs font-bold text-[#003553] uppercase tracking-wider">
@@ -315,7 +311,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
                 </div>
             )}
 
-            {/* TAB 3: TOA THUỐC MẪU LÂM SÀNG (7 MẶT BỆNH PHỔ BIẾN - Ý TƯỞNG SIMPLECLINIC) */}
             {activeTab === 'templates' && (
                 <div className="p-3.5 flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
                     <div className="flex flex-col gap-1.5">
@@ -378,7 +373,6 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
                 </div>
             )}
 
-            {/* Modal xem chi tiết kết quả CLS */}
             <Drawer
                 title={`Kết quả: ${viewingOrder?.ten_dich_vu}`}
                 open={Boolean(viewingOrder)}

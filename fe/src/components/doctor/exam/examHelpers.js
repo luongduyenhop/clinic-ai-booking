@@ -1,5 +1,3 @@
-// Hằng số & hàm tính toán dùng chung cho các bước khám (tách khỏi file component để giữ Fast Refresh)
-
 export const EXAM_STEPS = ['Khám lâm sàng', 'Chỉ định CLS', 'Chẩn đoán', 'Đơn thuốc & hẹn']
 
 export const VITAL_FIELDS = [
@@ -19,7 +17,6 @@ export const computeBmi = (kg, cm) => {
     return (w / (h * h)).toFixed(1)
 }
 
-// Phân loại thể trạng BMI theo chuẩn IDI & WPRO / Bộ Y Tế dành cho người Châu Á
 export const getBmiClassification = (bmiVal) => {
     const val = Number(bmiVal)
     if (!val || Number.isNaN(val) || val <= 0) return null
@@ -45,13 +42,11 @@ export const DOSE_SLOTS = [
     { key: 'toi', label: 'Tối' },
 ]
 
-// Số lượng = tổng liều trong ngày × số ngày dùng
 export const computeQuantity = (row) => {
     const perDay = DOSE_SLOTS.reduce((sum, s) => sum + (Number(row[s.key]) || 0), 0)
     return perDay * (Number(row.so_ngay_dung) || 0)
 }
 
-// Ghép liều S/T/C/T thành chuỗi "Sáng 1, Chiều 1" cho trường cach_dung của backend
 export const doseText = (row) =>
     DOSE_SLOTS.filter((s) => Number(row[s.key]) > 0)
         .map((s) => `${s.label} ${row[s.key]}`)

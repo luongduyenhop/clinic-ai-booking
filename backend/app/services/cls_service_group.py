@@ -68,5 +68,5 @@ def nhom_dich_vu_condition(group: str):
 
 def clinic_day_range(day: Optional[date] = None) -> Tuple[datetime, datetime]:
     day = day or datetime.now(CLINIC_TZ).date()
-    start = datetime.combine(day, time.min, tzinfo=CLINIC_TZ)
+    start = datetime.combine(day, time.min, tzinfo=CLINIC_TZ).astimezone(timezone.utc)
     return start, start + timedelta(days=1)

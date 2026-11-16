@@ -135,7 +135,7 @@ export default function QueuePanel({
                     </button>
                     {currentTicket && (
                         <span className="text-[11px] font-bold bg-[#E8F4FD] text-[#0077B6] px-2 py-0.5 rounded-full">
-                            #{currentTicket.so_thu_tu_kham}
+                            {`#${currentTicket.so_thu_tu_kham}`}
                         </span>
                     )}
                 </div>
@@ -233,7 +233,7 @@ export default function QueuePanel({
                                         : 'bg-slate-100 text-[#003553]'
                                 }`}
                             >
-                                #{String(t.so_thu_tu_kham).padStart(2, '0')}
+                                {`#${String(t.so_thu_tu_kham).padStart(2, '0')}`}
                             </span>
 
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">

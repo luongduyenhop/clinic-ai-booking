@@ -570,10 +570,8 @@
     text-transform: uppercase !important;
     letter-spacing: 0.03em !important;
     border-bottom: 1px solid var(--color-clinic-border) !important;
-    padding: 10px 12px !important;
   }
   .ant-table-wrapper .ant-table-tbody > tr > td {
-    padding: 10px 12px !important;
     border-bottom: 1px solid var(--color-clinic-bg-muted) !important;
     color: var(--color-clinic-text) !important;
     font-size: 12.5px !important;
@@ -599,6 +597,11 @@
   .ant-picker-focused {
     border-color: var(--color-clinic-cta) !important;
     box-shadow: var(--focus-ring-clinic) !important;
+  }
+  .ant-input-affix-wrapper .ant-input:focus,
+  .ant-input-affix-wrapper .ant-input-focused {
+    border-color: transparent !important;
+    box-shadow: none !important;
   }
 
   .ant-descriptions-bordered {

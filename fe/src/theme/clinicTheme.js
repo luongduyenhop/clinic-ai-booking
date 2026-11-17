@@ -122,7 +122,8 @@ export const CLINICAL_ANTD_THEME = buildAntdTheme({
 export const CLINICAL_WORKBENCH_PREFIXES = ['/admin', '/doctor', '/reception', '/staff']
 
 export function isClinicalWorkbenchPath(pathname = '') {
+    const normalizedPath = typeof pathname === 'string' ? pathname : ''
     return CLINICAL_WORKBENCH_PREFIXES.some(
-        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+        (prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
     )
 }

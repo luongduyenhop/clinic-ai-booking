@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import ReceptionSidebar from '../components/reception/ReceptionSidebar'
@@ -28,7 +28,7 @@ export default function ReceptionLayout() {
         dispatch(loadClinicDataAsync())
     }, [dispatch])
 
-    const currentHour = new Date().getHours()
+    const [currentHour] = useState(() => new Date().getHours())
     const shiftLabel = currentHour >= 12 ? 'Ca chiều (13:00 - 17:30)' : 'Ca sáng (07:30 - 12:00)'
 
     return (

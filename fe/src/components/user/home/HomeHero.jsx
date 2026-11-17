@@ -1,20 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
+import { buildQuickBookingPath, getTodayIsoDate } from '../../../utils/helpers/quickBookingHelpers'
 import { ArrowRight, CalendarCheck, CheckCircle, Stethoscope } from '../../common/ClinicIcon'
-
-function getTodayIsoDate() {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-}
 
 export default function HomeHero() {
     const navigate = useNavigate()
     const { specialties, doctors, loading, error } = useMedicalCatalog()
-    const [todayDate] = useState(getTodayIsoDate)
+    const [todayDate] = useState(() => getTodayIsoDate())
     const [specialtyId, setSpecialtyId] = useState('')
     const [doctorId, setDoctorId] = useState('')
     const [appointmentDate, setAppointmentDate] = useState(todayDate)
@@ -48,12 +41,14 @@ export default function HomeHero() {
 
     const handleQuickBookSubmit = (event) => {
         event.preventDefault()
-        const params = new URLSearchParams()
-        if (specialtyId) params.set('specialty', specialtyId)
-        if (doctorId) params.set('doctor', doctorId)
-        if (appointmentDate) params.set('date', appointmentDate)
-        const query = params.toString()
-        navigate(query ? `/dat-lich?${query}` : '/dat-lich')
+        navigate(
+            buildQuickBookingPath({
+                specialtyId,
+                doctorId,
+                appointmentDate,
+                doctors,
+            })
+        )
     }
 
     return (

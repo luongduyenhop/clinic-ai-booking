@@ -12,7 +12,8 @@ import BookingSuccess from '../../components/user/booking/BookingSuccess'
 import { useMedicalCatalog } from '../../services/user/MedicalCatalogService'
 import { createPatientBookingAsync, fetchAvailableSlotsAsync } from '../../redux/actions/user/bookingAction'
 import { clearLatestBooking } from '../../redux/slices/user/userSlice'
-import { ShieldCheck } from '../../components/common/ClinicIcon'
+import { resolveBookingPrefill } from '../../utils/helpers/quickBookingHelpers'
+import { ArrowLeft, ArrowRight, ShieldCheck } from '../../components/common/ClinicIcon'
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams()
@@ -22,27 +23,26 @@ export default function BookingPage() {
     const dispatch = useDispatch()
     const { user, isAuthenticated } = useSelector((state) => state.app.auth)
     const { availableSlots, slotsLoading, loading, bookingError, latestBooking } = useSelector((state) => state.user.user)
-    const requestedSpecialty = searchParams.get('specialty')
-    const requestedDoctor = searchParams.get('doctor')
-    const requestedDate = searchParams.get('date')
-    const requestedSlot = searchParams.get('slot')
+    const requestedSpecialty = searchParams.get('specialty') || ''
+    const requestedDoctor = searchParams.get('doctor') || ''
+    const requestedDate = searchParams.get('date') || ''
+    const requestedSlot = searchParams.get('slot') || ''
     const [step, setStep] = useState(1)
     const [booking, setBooking] = useState({ specialtyId: '', doctorId: '', appointmentDate: '', timeSlot: '' })
     const [slotConflict, setSlotConflict] = useState(null)
 
     useEffect(() => {
         if (catalogLoading || catalogError) return
-        const specialty = specialties.find((item) => item.id === requestedSpecialty)
-        const doctor = doctors.find((item) => item.id === requestedDoctor && item.specialtyId === specialty?.id)
-        const hasSuggestedSlot = Boolean(doctor && requestedDate && requestedSlot)
-        setBooking((prev) => ({
-            ...prev,
-            specialtyId: specialty?.id || '',
-            doctorId: doctor?.id || '',
-            appointmentDate: hasSuggestedSlot ? requestedDate : '',
-            timeSlot: hasSuggestedSlot ? requestedSlot : '',
-        }))
-        if (hasSuggestedSlot) setStep(2)
+        const resolved = resolveBookingPrefill({
+            specialties,
+            doctors,
+            requestedSpecialty,
+            requestedDoctor,
+            requestedDate,
+            requestedSlot,
+        })
+        setBooking(resolved.booking)
+        setStep(resolved.initialStep)
     }, [catalogLoading, catalogError, specialties, doctors, requestedSpecialty, requestedDoctor, requestedDate, requestedSlot])
 
     useEffect(() => () => { dispatch(clearLatestBooking()) }, [dispatch])
@@ -73,9 +73,12 @@ export default function BookingPage() {
 
     const updateBooking = (patch) => setBooking((current) => {
         const next = { ...current, ...patch }
-        if (('specialtyId' in patch && patch.specialtyId !== current.specialtyId) ||
-            ('doctorId' in patch && patch.doctorId !== current.doctorId)) {
-            next.appointmentDate = ''
+        const specialtyChanged = 'specialtyId' in patch && patch.specialtyId !== current.specialtyId
+        const doctorChanged = 'doctorId' in patch && patch.doctorId !== current.doctorId
+        if (specialtyChanged || doctorChanged) {
+            if (current.timeSlot || (doctorChanged && current.doctorId)) {
+                next.appointmentDate = ''
+            }
             next.timeSlot = ''
         }
         return next
@@ -85,7 +88,7 @@ export default function BookingPage() {
     const canContinueToPatient = Boolean(booking.appointmentDate && booking.timeSlot && validSlot)
 
     if (latestBooking) return (
-        <section className="bg-[#F7FBFE] py-10 sm:py-16 px-4 min-h-[calc(100vh-72px)]">
+        <section className="bg-clinic-bg py-10 sm:py-16 px-4 min-h-[calc(100vh-72px)]">
             <BookingSuccess
                 booking={latestBooking}
                 specialties={specialties}
@@ -100,18 +103,18 @@ export default function BookingPage() {
         </section>
     )
 
-    if (catalogLoading) return <p className="public-container py-12 text-slate-500">Đang tải bác sĩ và chuyên khoa từ phòng khám...</p>
-    if (catalogError) return <p role="alert" className="public-container py-12 text-rose-600">{catalogError}</p>
+    if (catalogLoading) return <p className="public-container py-12 text-clinic-text-secondary">Đang tải bác sĩ và chuyên khoa từ phòng khám...</p>
+    if (catalogError) return <p role="alert" className="public-container py-12 text-clinic-danger">{catalogError}</p>
 
     return (
-        <section className="bg-[#F7FBFE] py-8 sm:py-12 min-h-[calc(100vh-72px)]">
+        <section className="bg-clinic-bg py-8 sm:py-12 min-h-[calc(100vh-72px)]">
             <div className="public-container">
                 <div className="max-w-2xl">
-                    <span className="text-xs font-extrabold uppercase tracking-[.14em] text-[#008EC2]">Đặt lịch trực tuyến</span>
-                    <h1 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold text-[#003553]">Đặt lịch khám trong 3 bước</h1>
-                    <p className="mt-2 text-sm text-slate-500">Chọn lịch phù hợp và nhận mã hẹn ngay sau khi hoàn tất.</p>
+                    <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-clinic-cta">Đặt lịch trực tuyến</span>
+                    <h1 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold text-clinic-navy">Đặt lịch khám trong 3 bước</h1>
+                    <p className="mt-2 text-sm text-clinic-text-secondary">Chọn lịch phù hợp và nhận mã hẹn ngay sau khi hoàn tất.</p>
                     {aiRecommendation && (
-                        <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-800">
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-[8px] border border-clinic-info-border bg-clinic-surface-alt px-3 py-1.5 text-xs text-clinic-navy">
                             <span>Đã áp dụng kết quả gợi ý AI: <strong>{aiRecommendation.specialtyName}</strong></span>
                         </div>
                     )}
@@ -120,7 +123,7 @@ export default function BookingPage() {
                 <div className="mt-7 grid lg:grid-cols-[1fr_310px] gap-6 items-start">
                     <main className="medpro-card p-5 sm:p-7">
                         <BookingStepper currentStep={step} />
-                        <div className="my-7 border-t border-slate-100" />
+                        <div className="my-7 border-t border-clinic-border" />
 
                         {step === 1 && (
                             <>
@@ -132,14 +135,15 @@ export default function BookingPage() {
                                     loading={catalogLoading}
                                     error={catalogError}
                                 />
-                                <div className="flex justify-end border-t border-slate-100 pt-5">
+                                <div className="flex justify-end border-t border-clinic-border pt-5">
                                     <button
                                         type="button"
                                         className="medpro-btn-primary"
                                         disabled={!canContinueToSlots || catalogLoading}
                                         onClick={() => setStep(2)}
                                     >
-                                        Tiếp tục chọn ngày giờ →
+                                        <span>Tiếp tục chọn ngày giờ</span>
+                                        <ArrowRight size={15} weight="bold" />
                                     </button>
                                 </div>
                             </>
@@ -161,7 +165,7 @@ export default function BookingPage() {
                                     onSlotChange={(timeSlot) => updateBooking({ timeSlot })}
                                 />
                                 {bookingError && (
-                                    <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                                    <p role="alert" className="mt-5 rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg p-3 text-xs text-clinic-danger">
                                         {bookingError}
                                         <button
                                             type="button"
@@ -175,9 +179,10 @@ export default function BookingPage() {
                                         </button>
                                     </p>
                                 )}
-                                <div className="flex justify-between border-t border-slate-100 pt-5">
+                                <div className="flex justify-between border-t border-clinic-border pt-5">
                                     <button type="button" className="medpro-btn-outline" onClick={() => setStep(1)}>
-                                        ← Quay lại
+                                        <ArrowLeft size={15} weight="bold" />
+                                        <span>Quay lại</span>
                                     </button>
                                     <button
                                         type="button"
@@ -185,7 +190,8 @@ export default function BookingPage() {
                                         disabled={!canContinueToPatient}
                                         onClick={() => setStep(3)}
                                     >
-                                        Tiếp tục xác nhận →
+                                        <span>Tiếp tục xác nhận</span>
+                                        <ArrowRight size={15} weight="bold" />
                                     </button>
                                 </div>
                             </>
@@ -205,7 +211,7 @@ export default function BookingPage() {
 
                     <div className="space-y-4">
                         <BookingSummary booking={booking} specialties={specialties} doctors={doctors} />
-                        <div className="mt-4 flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] leading-5 text-emerald-800">
+                        <div className="mt-4 flex gap-2 rounded-[8px] border border-clinic-success-border bg-clinic-success-bg p-3 text-[11px] leading-5 text-clinic-success">
                             <ShieldCheck size={18} weight="fill" className="shrink-0" />
                             Thông tin người khám được dùng để xác nhận và phục vụ lịch hẹn.
                         </div>

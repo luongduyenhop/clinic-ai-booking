@@ -128,7 +128,7 @@ export default function AdminTemplate() {
             >
                 <div className="h-14 px-3 flex items-center justify-between border-b border-[color:var(--clinic-nav-divider)] bg-clinic-navy-dark">
                     <Link to="/admin" className="flex items-center gap-2.5 overflow-hidden">
-                        <span className="w-8 h-8 rounded-[6px] bg-clinic-cta text-clinic-surface flex items-center justify-center shrink-0">
+                        <span className="w-8 h-8 rounded-[6px] bg-clinic-navy border border-[color:var(--clinic-nav-divider)] text-clinic-surface flex items-center justify-center shrink-0">
                             <Hospital size={18} weight="fill" />
                         </span>
                         {!isCollapsed && (

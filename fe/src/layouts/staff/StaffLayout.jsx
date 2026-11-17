@@ -40,7 +40,7 @@ export default function StaffLayout() {
     const { user, role: authRole, isLoggingOut } = useSelector((state) => state.app.auth)
 
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const [currentTime, setCurrentTime] = useState(new Date())
+    const [currentTime, setCurrentTime] = useState(() => new Date())
 
     useEffect(() => {
         dispatch(loadClinicDataAsync())

@@ -1,16 +1,23 @@
+import { useState } from 'react'
 import { Outlet, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
 import { CalendarCheck, Stethoscope } from '../components/common/ClinicIcon'
 
-export default function DoctorTemplate() {
-    const { user } = useSelector((state) => state.app.auth)
-    const todayFormatted = new Intl.DateTimeFormat('vi-VN', {
+const CURRENT_YEAR = new Date().getFullYear()
+
+function formatTodayLabel() {
+    return new Intl.DateTimeFormat('vi-VN', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
     }).format(new Date())
+}
+
+export default function DoctorTemplate() {
+    const { user } = useSelector((state) => state.app.auth)
+    const [todayFormatted] = useState(formatTodayLabel)
 
     return (
         <div className="min-h-screen min-h-[100dvh] flex flex-col bg-clinic-bg text-clinic-text antialiased">
@@ -60,7 +67,7 @@ export default function DoctorTemplate() {
             <footer className="bg-clinic-surface border-t border-clinic-border py-3 text-center text-xs text-clinic-text-muted">
                 <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
                     <p className="font-medium">
-                        Hệ Thống ClinicAI Booking &copy; {new Date().getFullYear()} - Cổng làm việc chuyên biệt dành cho Bác sĩ.
+                        Hệ Thống ClinicAI Booking &copy; {CURRENT_YEAR} - Cổng làm việc chuyên biệt dành cho Bác sĩ.
                     </p>
                     <div className="flex items-center gap-4 text-[11px] text-clinic-text-secondary">
                         <span>Hỗ trợ y tế: <strong className="tabular-nums">1900-6868</strong></span>

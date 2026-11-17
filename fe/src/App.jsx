@@ -1,6 +1,13 @@
-import { Route, Routes, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import {
+    CLINICAL_ANTD_THEME,
+    PATIENT_ANTD_THEME,
+    isClinicalWorkbenchPath,
+} from './theme/clinicTheme'
 import Loading from './components/loading/Loading'
 import ApiErrorModal from './components/error/ApiErrorModal'
 import RealtimeNotificationHandler from './components/notification/RealtimeNotificationHandler'
@@ -74,8 +81,15 @@ import ReportsPage from './pages/reception/ReportsPage'
 
 function App() {
     const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
+    const { pathname } = useLocation()
+    const isClinicalWorkbench = isClinicalWorkbenchPath(pathname)
+
+    useEffect(() => {
+        document.documentElement.dataset.density = isClinicalWorkbench ? 'clinical' : 'patient'
+    }, [isClinicalWorkbench])
+
     return (
-        <>
+        <ConfigProvider theme={isClinicalWorkbench ? CLINICAL_ANTD_THEME : PATIENT_ANTD_THEME}>
             <ToastContainer position="top-right" autoClose={3500} />
             <RealtimeNotificationHandler />
             <Loading />
@@ -234,7 +248,7 @@ function App() {
                     </Route>
                 </Route>
             </Routes>
-        </>
+        </ConfigProvider>
     )
 }
 

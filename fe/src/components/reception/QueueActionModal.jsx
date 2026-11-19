@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Modal, Input, Select, Button, message, Alert } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
+import { MapPin, Stethoscope } from '../common/ClinicIcon'
 import {
     deferQueueEntryAsync,
     transferRoomAsync,
@@ -129,7 +130,7 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
 
     return (
         <Modal
-            title={<span className="font-bold text-slate-800">{titles[mode] || 'Thao tác hàng đợi'}</span>}
+            title={<span className="font-bold text-clinic-navy">{titles[mode] || 'Thao tác hàng đợi'}</span>}
             open={open}
             onCancel={() => {
                 setReason('')
@@ -145,7 +146,7 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                         onClick={handleSubmit}
                         loading={isSubmitting}
                         danger={mode === 'CANCEL'}
-                        className={mode !== 'CANCEL' ? 'bg-sky-600' : ''}
+                        className={mode !== 'CANCEL' ? 'medpro-btn-primary' : ''}
                     >
                         Xác nhận thực hiện
                     </Button>
@@ -154,16 +155,16 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
         >
             <div className="space-y-4 py-2 text-xs">
                 {mode === 'DEFER' && (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800">
-                        Lượt khám sẽ được chuyển sang trạng thái <strong>TẠM HOÃN</strong> trong hệ thống. Khi bệnh nhân quay lại, lễ tân có thể bấm nút <strong>"Tiếp tục"</strong> để phục hồi lượt khám vào hàng đợi.
+                    <div className="p-3 bg-clinic-warning-bg rounded-[6px] border border-clinic-warning-border text-clinic-warning">
+                        Lượt khám sẽ được chuyển sang trạng thái <strong>TẠM HOÃN</strong> trong hệ thống. Khi bệnh nhân quay lại, lễ tân có thể bấm nút <strong>&quot;Tiếp tục&quot;</strong> để phục hồi lượt khám vào hàng đợi.
                     </div>
                 )}
 
                 {mode === 'TRANSFER' && (
                     <div className="space-y-3">
                         <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1">
-                                Chọn phòng khám chuyển đến <span className="text-red-500">*</span>
+                            <label className="medpro-label mb-1">
+                                Chọn phòng khám chuyển đến <span className="text-clinic-danger">*</span>
                             </label>
                             <Select
                                 className="w-full"
@@ -184,25 +185,31 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
 
                                     return (
                                         <Select.Option key={r.id} value={r.id} label={shortLabel}>
-                                            <div className="py-1 flex items-center justify-between gap-2 border-b border-slate-50 last:border-0">
+                                            <div className="py-1 flex items-center justify-between gap-2 border-b border-clinic-border last:border-0">
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                                    <div className="font-bold text-clinic-navy text-xs flex items-center gap-1.5">
                                                         {r.code && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-sky-100 text-sky-800 font-mono text-[11px]">
+                                                            <span className="px-1.5 py-0.5 rounded-[4px] bg-clinic-surface-alt text-clinic-navy border border-clinic-info-border font-mono text-[11px]">
                                                                 {r.code}
                                                             </span>
                                                         )}
                                                         <span className="truncate">{r.name}</span>
                                                     </div>
-                                                    <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
-                                                        <span>🩺 {docName || 'Chưa phân công BS'}</span>
+                                                    <div className="text-[11px] text-clinic-text-secondary mt-0.5 flex items-center gap-2">
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <Stethoscope size={12} />
+                                                            <span>{docName || 'Chưa phân công BS'}</span>
+                                                        </span>
                                                         <span>•</span>
-                                                        <span>📍 {floor}</span>
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <MapPin size={12} />
+                                                            <span>{floor}</span>
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="shrink-0 text-right">
-                                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                        wait > 3 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                                                    <span className={`inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-bold tabular-nums ${
+                                                        wait > 3 ? 'bg-clinic-warning-bg text-clinic-warning' : 'bg-clinic-bg-muted text-clinic-text-secondary'
                                                     }`}>
                                                         Chờ: {wait}
                                                     </span>
@@ -215,21 +222,22 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                         </div>
 
                         <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1">
+                            <label className="medpro-label mb-1">
                                 Bác sĩ tiếp nhận tại buồng khám
                             </label>
                             {targetRoomInfo ? (
-                                <div className="p-3 bg-sky-50 rounded-xl border border-sky-200 text-sky-900">
+                                <div className="p-3 bg-clinic-surface-alt rounded-[6px] border border-clinic-info-border text-clinic-navy">
                                     <div className="font-bold flex items-center gap-1.5 text-xs">
-                                        <span>🩺 Bác sĩ phụ trách:</span>
-                                        <span className="text-sky-800 font-extrabold">{targetRoomInfo.doctorName}</span>
+                                        <Stethoscope size={14} className="text-clinic-cta" />
+                                        <span>Bác sĩ phụ trách:</span>
+                                        <span className="text-clinic-cta font-extrabold">{targetRoomInfo.doctorName}</span>
                                     </div>
-                                    <div className="text-[11px] text-slate-500 mt-1">
+                                    <div className="text-[11px] text-clinic-text-secondary mt-1 tabular-nums">
                                         {targetRoomInfo.room?.name} • Vị trí: {targetRoomInfo.floor} • Số ca đang chờ: {targetRoomInfo.waiting} người
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-400 text-xs italic">
+                                <div className="p-2.5 bg-clinic-bg rounded-[6px] border border-clinic-border text-clinic-text-muted text-xs">
                                     Vui lòng chọn phòng khám đích ở trên để xem Bác sĩ phụ trách tiếp nhận
                                 </div>
                             )}
@@ -248,7 +256,7 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                             />
                         )}
                         <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1">Mức ưu tiên mới:</label>
+                            <label className="medpro-label mb-1">Mức ưu tiên mới:</label>
                             <Select
                                 className="w-full"
                                 value={selectedPriority}
@@ -263,14 +271,14 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                 )}
 
                 {mode === 'CANCEL' && (
-                    <div className="p-3 bg-red-50 rounded-xl border border-red-200 text-red-800">
+                    <div className="p-3 bg-clinic-danger-bg rounded-[6px] border border-clinic-danger-border text-clinic-danger">
                         Lượt khám này sẽ bị hủy khỏi hàng đợi của phòng khám. Số lượng người chờ tại phòng sẽ tự động giảm đi 1.
                     </div>
                 )}
 
                 <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                        Lý do thực hiện <span className="text-red-500">*</span>
+                    <label className="medpro-label mb-1">
+                        Lý do thực hiện <span className="text-clinic-danger">*</span>
                     </label>
                     <Input.TextArea
                         rows={3}

@@ -19,11 +19,11 @@ export default function QueueWaitlistTable({
             key: 'stt',
             width: 130,
             render: (_, record, index) => (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 tabular-nums">
                     <Tag color="gold" className="font-mono font-bold text-xs m-0">
                         {`#${record.thu_tu_uu_tien || index + 1}`}
                     </Tag>
-                    <span className="font-mono font-bold text-sky-800 text-xs">
+                    <span className="font-mono font-bold text-clinic-navy text-xs">
                         WAIT-{String(record.id).padStart(2, '0')}
                     </span>
                 </div>
@@ -34,8 +34,8 @@ export default function QueueWaitlistTable({
             key: 'patient',
             render: (_, record) => (
                 <div>
-                    <div className="font-bold text-slate-900 text-xs">{record.ten_benh_nhan}</div>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                    <div className="font-bold text-clinic-navy text-xs">{record.ten_benh_nhan}</div>
+                    <div className="text-[11px] text-clinic-text-secondary flex items-center gap-1.5 mt-0.5 tabular-nums">
                         <span><PhoneOutlined /> {record.so_dien_thoai || 'N/A'}</span>
                         <span>•</span>
                         <span>{record.gioi_tinh || 'Khác'}</span>
@@ -49,16 +49,16 @@ export default function QueueWaitlistTable({
             key: 'doctor',
             render: (_, record) => (
                 <div>
-                    <div className="font-semibold text-slate-800 text-xs">
+                    <div className="font-semibold text-clinic-navy text-xs">
                         {record.ten_chuyen_khoa || 'Chuyên khoa chung'}
                     </div>
                     <div className="text-[11px] mt-0.5">
                         {record.co_bac_si_chi_dinh && record.ten_bac_si ? (
-                            <span className="text-sky-700 font-medium">{formatDoctorName(record.ten_bac_si)}</span>
+                            <span className="text-clinic-cta font-medium">{formatDoctorName(record.ten_bac_si)}</span>
                         ) : (
-                            <Tag color="cyan" className="text-[10px] m-0">
-                                ⚡ Tự động phân bổ (ít chờ nhất)
-                            </Tag>
+                            <span className="medpro-badge-info text-[10px]">
+                                Tự động phân bổ (ít chờ nhất)
+                            </span>
                         )}
                     </div>
                 </div>
@@ -68,7 +68,7 @@ export default function QueueWaitlistTable({
             title: 'Buồng khám dự kiến',
             key: 'room',
             render: (_, record) => (
-                <span className="text-xs text-slate-700 font-medium">
+                <span className="text-xs text-clinic-text-secondary font-medium">
                     {record.ten_phong || 'Theo phân bổ tối ưu'}
                 </span>
             ),
@@ -78,9 +78,9 @@ export default function QueueWaitlistTable({
             key: 'time',
             width: 140,
             render: (_, record) => (
-                <div className="text-xs text-slate-600">
+                <div className="text-xs text-clinic-text-secondary tabular-nums">
                     <div>{record.thoi_gian_dang_ky ? dayjs(record.thoi_gian_dang_ky).format('HH:mm') : 'N/A'}</div>
-                    <div className="text-[10px] text-slate-400">
+                    <div className="text-[10px] text-clinic-text-muted">
                         {record.thoi_gian_dang_ky ? dayjs(record.thoi_gian_dang_ky).format('DD/MM/YYYY') : ''}
                     </div>
                 </div>
@@ -156,10 +156,10 @@ export default function QueueWaitlistTable({
                         <Empty
                             description={
                                 <div className="space-y-1">
-                                    <p className="font-semibold text-slate-700 text-sm">
+                                    <p className="font-semibold text-clinic-navy text-sm">
                                         Không có bệnh nhân nào trong Danh sách chờ (Waitlist)
                                     </p>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-clinic-text-muted">
                                         {selectedRoomId !== null
                                             ? `Buồng khám ${selectedRoomObject?.name} hiện chưa có ai trong danh sách chờ.`
                                             : 'Tất cả ca khám và bác sĩ hiện tại đều đang tiếp nhận bình thường.'}
@@ -172,7 +172,7 @@ export default function QueueWaitlistTable({
                                     type="primary"
                                     size="small"
                                     onClick={onSelectAllRooms}
-                                    className="bg-amber-600 text-xs font-semibold mt-2"
+                                    className="medpro-btn-amber text-xs font-semibold mt-2"
                                 >
                                     Xem Danh sách chờ tất cả các buồng
                                 </Button>

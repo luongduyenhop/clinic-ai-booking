@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import StaffSidebar from './StaffSidebar'
 import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import { loadClinicDataAsync } from '../../redux/actions/admin/adminAction'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
-import { SignOut } from '../../components/common/ClinicIcon'
+import { Clock, SignOut } from '../../components/common/ClinicIcon'
 
 const ROUTE_TITLES = {
     '/staff': 'Tổng quan Cổng Nhân Viên',
@@ -63,21 +63,20 @@ export default function StaffLayout() {
     const handleLogout = async () => {
         const result = await dispatch(logoutUserAsync())
         if (result.payload?.sessionChanged || result.meta.condition) return
-        navigate('/login')
+        navigate('/staff/login')
     }
 
     const formattedTime = new Intl.DateTimeFormat('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
         weekday: 'short',
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
     }).format(currentTime)
 
     return (
-        <div className="min-h-screen min-h-[100dvh] flex bg-clinic-bg font-sans text-clinic-text antialiased">
+        <div className="h-screen h-[100dvh] flex bg-clinic-bg text-clinic-text overflow-hidden antialiased">
             <StaffSidebar
                 activeRole={effectiveRole}
                 realRole={realRole}
@@ -85,45 +84,37 @@ export default function StaffLayout() {
                 onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
             />
 
-            <div className="flex-1 flex flex-col min-w-0 h-screen h-[100dvh] overflow-hidden">
-                <header className="h-14 bg-clinic-surface border-b border-clinic-border px-4 md:px-6 flex items-center justify-between gap-4 shrink-0 z-10">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 text-[11px] text-clinic-text-muted font-medium">
-                                <Link to="/staff/dashboard" className="hover:text-clinic-cta transition-colors">
-                                    Cổng nhân viên
-                                </Link>
-                                <span>/</span>
-                                <span className="text-clinic-text-secondary font-semibold truncate">{currentTitle}</span>
-                            </div>
-                            <h1 className="font-display text-sm md:text-base font-extrabold text-clinic-navy tracking-tight truncate">
-                                {currentTitle}
-                            </h1>
-                        </div>
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <header className="h-14 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-5 flex items-center justify-between gap-4 shrink-0 sticky top-0 z-30 select-none">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
+                        <h1 className="text-sm lg:text-base font-extrabold text-clinic-navy tracking-tight truncate font-display">
+                            {currentTitle}
+                        </h1>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                        <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-clinic-text-secondary bg-clinic-bg-muted px-2.5 py-1.5 rounded-[6px] border border-clinic-border">
-                            <span className="w-2 h-2 rounded-full bg-clinic-success shrink-0" />
+                    <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold shrink-0 whitespace-nowrap">
+                            <Clock size={13} weight="bold" className="text-clinic-cta" />
                             <span className="font-mono tabular-nums">{formattedTime}</span>
                         </div>
 
                         <div
-                            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${currentRoleConfig.color}`}
+                            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-bold border ${currentRoleConfig.color}`}
                         >
                             <span className={`w-1.5 h-1.5 rounded-full ${currentRoleConfig.dotColor}`} />
                             <span>{currentRoleConfig.label}</span>
                         </div>
 
-                        <div className="flex items-center gap-2.5 pl-2 border-l border-clinic-border">
-                            <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface font-extrabold text-xs flex items-center justify-center shrink-0">
+                        <div className="flex items-center gap-2 pl-2 border-l border-clinic-border">
+                            <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface font-black text-xs flex items-center justify-center shrink-0">
                                 {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'NV'}
                             </div>
-                            <div className="hidden md:block text-left min-w-0">
-                                <span className="block text-xs font-bold text-clinic-text leading-tight truncate max-w-[130px]">
+                            <div className="hidden md:block text-left min-w-0 leading-tight">
+                                <span className="block text-[11.5px] font-bold text-clinic-navy truncate max-w-[220px]">
                                     {user?.fullName || user?.username || 'Nhân viên'}
                                 </span>
-                                <span className="block text-[10px] text-clinic-text-muted font-medium leading-tight truncate">
+                                <span className="block text-[10px] text-clinic-cta font-semibold truncate">
                                     {user?.email || realRole}
                                 </span>
                             </div>
@@ -135,16 +126,14 @@ export default function StaffLayout() {
                                 title="Đăng xuất khỏi hệ thống"
                                 className="p-2 rounded-[6px] text-clinic-text-muted hover:text-clinic-danger hover:bg-clinic-danger-bg transition-colors cursor-pointer ml-1"
                             >
-                                <SignOut size={18} />
+                                <SignOut size={17} weight="bold" />
                             </button>
                         </div>
                     </div>
                 </header>
 
-                <main className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar bg-clinic-bg">
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        <Outlet />
-                    </div>
+                <main className="flex-1 p-3 sm:p-4 overflow-y-auto bg-clinic-bg">
+                    <Outlet />
                 </main>
             </div>
         </div>

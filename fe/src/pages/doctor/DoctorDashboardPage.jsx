@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import ExamWorkstationPage from './ExamWorkstationPage'
@@ -9,46 +9,16 @@ import { clinicalService } from '../../services/doctor/ClinicalService'
 
 export default function DoctorDashboardPage() {
     const dispatch = useDispatch()
-    const [searchParams, setSearchParams] = useSearchParams()
+    const [searchParams] = useSearchParams()
     const { user } = useSelector((state) => state.app.auth)
-    const { queue = [] } = useSelector((state) => state.doctor.clinical)
+    const { queue = [] } = useSelector((state) => state.doctor?.clinical || {})
 
     const tabParam = (searchParams.get('tab') || '').toUpperCase()
-    const initialTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
-    const [activeTab, setActiveTab] = useState(initialTab)
+    const activeTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
 
     useEffect(() => {
         dispatch(fetchDoctorQueueAsync())
-    }, [dispatch])
-
-    useEffect(() => {
-        if (tabParam === 'SCHEDULE' || tabParam === 'HISTORY' || tabParam === 'EXAM') {
-            setActiveTab(tabParam)
-        }
-    }, [tabParam])
-
-    const handleTabChange = (newTab) => {
-        setActiveTab(newTab)
-        if (newTab === 'HISTORY' || newTab === 'EXAM') {
-            dispatch(fetchDoctorQueueAsync())
-        }
-        const nextParams = new URLSearchParams(searchParams)
-        if (newTab === 'EXAM') {
-            nextParams.delete('tab')
-        } else {
-            nextParams.set('tab', newTab.toLowerCase())
-        }
-        setSearchParams(nextParams, { replace: true })
-    }
-
-    const activeQueueCount = useMemo(() => {
-        const allEncounters = clinicalService.getAllEncountersSync()
-        return queue.filter((t) => {
-            if (t.trang_thai === 'da_kham') return false
-            const enc = allEncounters[t.encounter_id] || allEncounters[String(t.encounter_id)]
-            return !enc?.is_locked
-        }).length
-    }, [queue])
+    }, [dispatch, activeTab])
 
     const examinedList = useMemo(() => {
         const allEncounters = clinicalService.getAllEncountersSync()
@@ -86,6 +56,11 @@ export default function DoctorDashboardPage() {
                     quantity: `${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'}`,
                 }))
 
+                const bpSys = enc?.huyet_ap_tam_thu ?? enc?.sinh_hieu?.huyet_ap_tam_thu
+                const bpDia = enc?.huyet_ap_tam_truong ?? enc?.sinh_hieu?.huyet_ap_tam_truong
+                const heartRate = enc?.mach_lan_phut ?? enc?.sinh_hieu?.mach_lan_phut ?? enc?.mach ?? ''
+                const bloodPressure = bpSys && bpDia ? `${bpSys}/${bpDia}` : enc?.huyet_ap || ''
+
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
                     queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
@@ -102,89 +77,20 @@ export default function DoctorDashboardPage() {
                     finalDiagnosis,
                     labTests,
                     prescriptions,
+                    doctorName: t.ten_bac_si || enc?.ten_bac_si || user?.fullName || '',
+                    vitals: { bloodPressure, heartRate },
                     doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
                 }
             })
 
         return completedFromQueue
-    }, [queue])
+    }, [queue, user?.fullName])
 
     return (
         <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-1.5 w-fit">
-                <nav className="flex items-center gap-1.5" aria-label="Doctor Workstation Tabs">
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('EXAM')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'EXAM'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>🩺</span>
-                        <span>Khám Bệnh</span>
-                        <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                activeTab === 'EXAM'
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                            {activeQueueCount}
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('SCHEDULE')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'SCHEDULE'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>📅</span>
-                        <span>Lịch Làm Việc &amp; Ca Trực</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('HISTORY')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'HISTORY'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>📋</span>
-                        <span>Bệnh Nhân Đã Khám</span>
-                        <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                activeTab === 'HISTORY'
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                            {examinedList.length}
-                        </span>
-                    </button>
-                </nav>
-            </div>
-
-            <div>
-                {activeTab === 'EXAM' && (
-                    <ExamWorkstationPage />
-                )}
-
-                {activeTab === 'SCHEDULE' && (
-                    <DoctorScheduleTab doctorInfo={user} />
-                )}
-
-                {activeTab === 'HISTORY' && (
-                    <ExaminedHistoryTab examinedList={examinedList} />
-                )}
-            </div>
+            {activeTab === 'EXAM' && <ExamWorkstationPage />}
+            {activeTab === 'SCHEDULE' && <DoctorScheduleTab doctorInfo={user} />}
+            {activeTab === 'HISTORY' && <ExaminedHistoryTab examinedList={examinedList} doctorInfo={user} />}
         </div>
     )
 }

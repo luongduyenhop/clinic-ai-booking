@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
@@ -11,49 +11,43 @@ import { AppToast } from '../../components/common/AppNotification'
 import {
     ClinicIcon,
     StatusBadge,
-    Stethoscope,
     Scales,
     ShieldCheck,
     ArrowRight,
     Clock,
     Receipt,
     ChartBar,
-    Sparkle,
     DownloadSimple,
 } from '../../components/common/ClinicIcon'
 
 const OPERATIONAL_PORTAL_LINKS = [
     {
-        role: 'LỄ TÂN & TIẾP ĐÓN',
+        role: 'Lễ tân & Tiếp đón',
         title: 'Cổng Tiếp Đón & Điều Phối Hàng Chờ',
         desc: 'Tra cứu SĐT/CCCD, check-in lịch hẹn & quản lý hàng chờ realtime',
         path: '/reception/dashboard',
         icon: 'ClipboardText',
-        accent: 'border-l-sky-500',
     },
     {
-        role: 'BÁC SĨ KHÁM BỆNH',
+        role: 'Bác sĩ khám bệnh',
         title: 'Cổng Khám Lâm Sàng & Kê Đơn Điện Tử',
         desc: 'Bàn khám chuyên khoa, sinh hiệu, chẩn đoán ICD-10 & chỉ định CLS',
         path: '/doctor',
         icon: 'Stethoscope',
-        accent: 'border-l-emerald-500',
     },
     {
-        role: 'KỸ THUẬT VIÊN CLS',
+        role: 'Kỹ thuật viên CLS',
         title: 'Cổng Xét Nghiệm & Chẩn Đoán Hình Ảnh',
         desc: 'Tiếp nhận phiếu chỉ định, nhập kết quả xét nghiệm, siêu âm, X-quang',
         path: '/staff/paraclinical-work',
         icon: 'Microscope',
-        accent: 'border-l-indigo-500',
     },
     {
-        role: 'THU NGÂN VIỆN PHÍ',
+        role: 'Thu ngân viện phí',
         title: 'Cổng Thu Viện Phí & Đối Soát Ca',
         desc: 'Thanh toán khép kín VietQR/Tiền mặt, xuất biên lai & khóa sổ ca',
         path: '/staff/cashier',
         icon: 'Receipt',
-        accent: 'border-l-amber-500',
     },
 ]
 
@@ -79,6 +73,18 @@ const ACTION_LABEL_MAP = {
     UPDATE_STAFF_CREDENTIAL: 'Cập nhật CCHN',
     LOCK_EMR_RECORD: 'Khóa bệnh án điện tử',
     AMEND_EMR_RECORD: 'Lập biên bản đính chính',
+}
+
+const formatDoctorDisplayName = (degree, name) => {
+    const cleanName = String(name || '').trim()
+    const cleanDegree = String(degree || '').trim()
+    if (!cleanName) return cleanDegree
+    if (!cleanDegree) return cleanName
+    const normalize = (value) => value.toLowerCase().replace(/[\s.]+/g, '')
+    if (normalize(cleanName).startsWith(normalize(cleanDegree))) {
+        return cleanName
+    }
+    return `${cleanDegree} ${cleanName}`
 }
 
 export default function DashboardAdminPage() {
@@ -213,11 +219,55 @@ export default function DashboardAdminPage() {
     const roleWorkbenches = clinicData?.roleWorkbenches || {}
     const accountantSummary = roleWorkbenches.accountantSummary || {}
 
-    const multiplier = timeFilter === 'today' ? 0.35 : timeFilter === 'month' ? 4.2 : 1.0
-    const paidVouchersRevenue = vouchers
-        .filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi'))
-        .reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
+    const paidVouchers = useMemo(
+        () => vouchers.filter((v) => v.daThu && !String(v.loaiPhieu || '').toLowerCase().includes('chi')),
+        [vouchers]
+    )
+
+    const paidVouchersRevenue = useMemo(
+        () => paidVouchers.reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0),
+        [paidVouchers]
+    )
+
     const liveRevenue = Number(stats?.tong_doanh_thu_trong_ngay ?? paidVouchersRevenue)
+
+    const paymentBreakdown = useMemo(() => {
+        if (paidVouchers.length > 0) {
+            const total = paidVouchers.reduce((sum, v) => sum + (Number(v.tongTien) || 0), 0)
+            const grouped = new Map()
+            paidVouchers.forEach((v) => {
+                const method = v.hinhThuc || 'Tiền mặt tại quầy'
+                grouped.set(method, (grouped.get(method) || 0) + (Number(v.tongTien) || 0))
+            })
+            return Array.from(grouped.entries()).map(([hinhThuc, soTien]) => ({
+                hinhThuc,
+                soTien,
+                tyLe: total > 0 ? Math.round((soTien / total) * 100) : 0,
+            }))
+        }
+        if (Array.isArray(accountantSummary.hinhThucThu) && accountantSummary.hinhThucThu.length > 0) {
+            return accountantSummary.hinhThucThu
+        }
+        return []
+    }, [paidVouchers, accountantSummary.hinhThucThu])
+
+    const specialtyDistribution = useMemo(() => {
+        if (registrations.length === 0) return []
+        const counts = new Map()
+        registrations.forEach((reg) => {
+            const label = reg.chuyenKhoa || reg.tenChuyenKhoa || 'Khám đa khoa'
+            counts.set(label, (counts.get(label) || 0) + 1)
+        })
+        const total = registrations.length
+        return Array.from(counts.entries())
+            .map(([name, count]) => ({
+                name,
+                count,
+                percent: Math.round((count / total) * 100),
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5)
+    }, [registrations])
 
     const expiredOrSoonLicenses = staffList.filter(
         (s) => s.trangThaiCCHN === 'EXPIRED' || s.trangThaiCCHN === 'EXPIRING_SOON'
@@ -226,17 +276,17 @@ export default function DashboardAdminPage() {
     const executiveTabs = [
         {
             id: 'DIEU_HANH',
-            label: '1. ĐIỀU HÀNH & CÔNG SUẤT KHOA PHÒNG',
+            label: '1. Điều hành & Công suất',
             icon: ShieldCheck,
         },
         {
             id: 'TAI_CHINH_DUOC',
-            label: '2. PHÂN TÍCH DOANH THU, DỊCH VỤ & DƯỢC',
+            label: '2. Doanh thu, Dịch vụ & Dược',
             icon: Receipt,
         },
         {
             id: 'DICH_TE_TUAN_THU',
-            label: '3. DỊCH TỄ ICD-10, AI TRIAGE & TUÂN THỦ',
+            label: '3. Dịch tễ ICD-10 & Tuân thủ',
             icon: ChartBar,
         },
     ]
@@ -247,41 +297,46 @@ export default function DashboardAdminPage() {
         { id: 'month', label: 'Tháng này' },
     ]
 
+    const getWorkloadBarClass = (percent) => {
+        if (percent >= 75) return 'bg-clinic-success'
+        if (percent >= 50) return 'bg-clinic-cta'
+        return 'bg-clinic-amber'
+    }
+
     return (
         <div className="space-y-4">
-            <div className="rounded-2xl bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-5 text-white shadow-md flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="medpro-card p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-white/15 text-[11px] font-bold uppercase tracking-wider border border-white/20">
-                        <ShieldCheck size={14} weight="fill" className="text-[#FFB54A]" />
-                        <span>QUẢN TRỊ HỆ THỐNG, DANH MỤC Y TẾ &amp; PHÂN QUYỀN TRUNG TÂM</span>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-clinic-cta">
+                        Điều hành tổng thể phòng khám &amp; Danh mục trung tâm
                     </div>
-                    <h1 className="font-display text-xl sm:text-2xl font-extrabold tracking-tight">
-                        TRUNG TÂM ĐIỀU HÀNH &amp; THỐNG KÊ QUẢN TRỊ
-                    </h1>
-                    <p className="text-xs text-sky-100 max-w-3xl">
-                        Tập trung quản trị 4 trụ cột nền tảng: Báo cáo Điều hành, Danh mục Y tế chuẩn hóa, Quản lý Nhân sự &amp; Phân quyền, và Tuân thủ Pháp lý Y tế. Các tác nghiệp hàng ngày được phân tách sang 4 cổng chuyên biệt.
+                    <h2 className="font-display text-base lg:text-lg font-extrabold text-clinic-navy">
+                        Trung tâm Điều hành &amp; Thống kê Quản trị (BI)
+                    </h2>
+                    <p className="text-xs text-clinic-text-secondary max-w-3xl">
+                        Tổng hợp công suất khám chữa bệnh, doanh thu viện phí, hiệu suất bác sĩ và giám sát tuân thủ pháp lý y tế theo thời gian thực.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
                     <Link
                         to="/admin/danh-muc/khoa-phong"
-                        className="px-4 py-2 rounded-full bg-[#FFB54A] hover:bg-[#FBA342] text-[#003553] font-extrabold text-xs shadow-sm transition inline-flex items-center gap-1.5"
+                        className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                     >
-                        <ClinicIcon name="Folders" size={16} weight="bold" />
+                        <ClinicIcon name="Folders" size={15} weight="bold" className="text-clinic-cta" />
                         <span>Danh mục Y tế</span>
                     </Link>
                     <Link
                         to="/admin/phan-quyen"
-                        className="px-4 py-2 rounded-full bg-white text-[#003553] hover:bg-[#E8F4FD] font-extrabold text-xs shadow-sm transition inline-flex items-center gap-1.5"
+                        className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                     >
-                        <ShieldCheck size={16} weight="duotone" className="text-[#00B5F1]" />
+                        <ShieldCheck size={15} weight="duotone" className="text-clinic-cta" />
                         <span>Nhân sự &amp; Phân quyền</span>
                     </Link>
                 </div>
             </div>
 
-            <div className="medpro-card p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-xl">
+            <div className="medpro-card p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     {executiveTabs.map((tab) => {
                         const Icon = tab.icon
                         const isActive = activeViewTab === tab.id
@@ -290,13 +345,13 @@ export default function DashboardAdminPage() {
                                 key={tab.id}
                                 type="button"
                                 onClick={() => setActiveViewTab(tab.id)}
-                                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                                className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                                     isActive
-                                        ? 'bg-[#00B5F1] text-white shadow-sm'
-                                        : 'text-[#003553] hover:bg-white/80'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
-                                <Icon size={16} weight={isActive ? 'fill' : 'bold'} />
+                                <Icon size={15} weight={isActive ? 'fill' : 'bold'} />
                                 <span>{tab.label}</span>
                             </button>
                         )
@@ -304,7 +359,7 @@ export default function DashboardAdminPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                    <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
+                    <span className="text-xs font-semibold text-clinic-text-secondary mr-1 flex items-center gap-1">
                         <Clock size={13} />
                         <span>Kỳ thống kê:</span>
                     </span>
@@ -313,10 +368,10 @@ export default function DashboardAdminPage() {
                             key={tf.id}
                             type="button"
                             onClick={() => setTimeFilter(tf.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            className={`px-2.5 py-1.5 rounded-[6px] text-xs font-semibold transition-colors cursor-pointer ${
                                 timeFilter === tf.id
-                                    ? 'bg-[#003553] text-white shadow-xs'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:border-[#00B5F1]'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-clinic-surface border border-clinic-border text-clinic-text-secondary hover:border-clinic-cta hover:text-clinic-navy'
                             }`}
                         >
                             {tf.label}
@@ -326,79 +381,80 @@ export default function DashboardAdminPage() {
                         type="button"
                         onClick={handleExportBiExcel}
                         disabled={exportingExcel}
-                        className="ml-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                        className="medpro-btn-primary !py-1.5 !px-3 text-xs ml-1"
                     >
                         <DownloadSimple size={14} weight="bold" />
-                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel Báo Cáo BI'}</span>
+                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel BI'}</span>
                     </button>
                 </div>
             </div>
 
             {activeViewTab === 'DIEU_HANH' && (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-[#00B5F1]">
-                            <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng lượt tiếp nhận</div>
-                                <div className="font-display text-2xl font-extrabold text-[#003553] mt-1">
-                                    {stats?.so_ca_da_check_in ?? registrations.length}
-                                </div>
-                                <Link to="/admin/bao-cao" className="text-[11px] font-bold text-[#00B5F1] hover:underline mt-1 inline-block">
-                                    Báo cáo lưu lượng &rarr;
-                                </Link>
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border tabular-nums">
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                Tổng lượt tiếp nhận
+                            </span>
+                            <div className="font-display text-2xl font-extrabold text-clinic-navy mt-1">
+                                {stats?.so_ca_da_check_in ?? registrations.length}
                             </div>
-                            <div className="w-11 h-11 rounded-xl bg-[#E8F4FD] text-[#00B5F1] font-extrabold flex items-center justify-center text-xs border border-[#CBE9FA]">
-                                KCB
-                            </div>
+                            <Link
+                                to="/admin/bao-cao"
+                                className="text-[11px] font-bold text-clinic-cta hover:underline mt-1 inline-flex items-center gap-1"
+                            >
+                                <span>Xem báo cáo lưu lượng</span>
+                                <ArrowRight size={11} weight="bold" />
+                            </Link>
                         </div>
 
-                        <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
-                            <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hoàn tất khám &amp; Kê đơn</div>
-                                <div className="font-display text-2xl font-extrabold text-emerald-600 mt-1">
-                                    {stats?.so_ca_hoan_tat_kham ?? registrations.filter((r) => r.trangThai === 'Đã khám').length}
-                                </div>
-                                <Link to="/admin/tuan-thu?tab=DON_THUOC" className="text-[11px] font-bold text-emerald-600 hover:underline mt-1 inline-block">
-                                    Đồng bộ ĐTQG &rarr;
-                                </Link>
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                Hoàn tất khám &amp; Kê đơn
+                            </span>
+                            <div className="font-display text-2xl font-extrabold text-clinic-success mt-1">
+                                {stats?.so_ca_hoan_tat_kham ?? registrations.filter((r) => r.trangThai === 'Đã khám').length}
                             </div>
-                            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 font-extrabold flex items-center justify-center text-xs border border-emerald-200">
-                                EMR
-                            </div>
+                            <Link
+                                to="/admin/tuan-thu?tab=DON_THUOC"
+                                className="text-[11px] font-bold text-clinic-success hover:underline mt-1 inline-flex items-center gap-1"
+                            >
+                                <span>Đồng bộ ĐTQG</span>
+                                <ArrowRight size={11} weight="bold" />
+                            </Link>
                         </div>
 
-                        <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-sky-500">
-                            <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Nhân sự &amp; Bác sĩ Active</div>
-                                <div className="font-display text-2xl font-extrabold text-sky-600 mt-1">
-                                    {stats?.tong_bac_si_hoat_dong ?? staffList.length}
-                                </div>
-                                <Link to="/admin/nhan-vien" className="text-[11px] font-bold text-sky-600 hover:underline mt-1 inline-block">
-                                    Kiểm soát CCHN &rarr;
-                                </Link>
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                Nhân sự &amp; Bác sĩ Active
+                            </span>
+                            <div className="font-display text-2xl font-extrabold text-clinic-cta mt-1">
+                                {stats?.tong_bac_si_hoat_dong ?? staffList.length}
                             </div>
-                            <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 font-extrabold flex items-center justify-center text-xs border border-sky-200">
-                                CCHN
-                            </div>
+                            <Link
+                                to="/admin/nhan-vien"
+                                className="text-[11px] font-bold text-clinic-cta hover:underline mt-1 inline-flex items-center gap-1"
+                            >
+                                <span>Kiểm soát CCHN</span>
+                                <ArrowRight size={11} weight="bold" />
+                            </Link>
                         </div>
 
-                        <div className="medpro-card p-4 flex items-center justify-between border-l-4 border-l-amber-500">
-                            <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Doanh thu kỳ báo cáo</div>
-                                <div className="font-display text-xl font-extrabold text-amber-600 mt-1">
-                                    {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveViewTab('TAI_CHINH_DUOC')}
-                                    className="text-[11px] font-bold text-amber-600 hover:underline mt-1 inline-block cursor-pointer"
-                                >
-                                    Phân tích tài chính &rarr;
-                                </button>
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                Doanh thu kỳ báo cáo
+                            </span>
+                            <div className="font-display text-2xl font-extrabold text-clinic-warning mt-1">
+                                {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 font-extrabold flex items-center justify-center text-xs border border-amber-200">
-                                VNĐ
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveViewTab('TAI_CHINH_DUOC')}
+                                className="text-[11px] font-bold text-clinic-warning hover:underline mt-1 inline-flex items-center gap-1 cursor-pointer"
+                            >
+                                <span>Phân tích tài chính</span>
+                                <ArrowRight size={11} weight="bold" />
+                            </button>
                         </div>
                     </div>
 
@@ -406,31 +462,36 @@ export default function DashboardAdminPage() {
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
                                 <span>HIỆU SUẤT BÁC SĨ &amp; NĂNG SUẤT LÂM SÀNG</span>
-                                <Link to="/admin/nhan-vien" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                <Link to="/admin/nhan-vien" className="text-xs font-bold text-clinic-cta hover:underline">
                                     Quản lý Bác sĩ
                                 </Link>
                             </div>
-                            <div className="space-y-2.5 mt-3">
+                            <div className="space-y-2 mt-3 tabular-nums">
                                 {doctorPerformance === null ? (
-                                    <div className="p-6 text-center text-sm text-slate-500">
+                                    <div className="p-6 text-center text-xs text-clinic-text-muted">
                                         {analyticsLoading ? 'Đang tải dữ liệu hiệu suất bác sĩ...' : 'Chưa có dữ liệu hiệu suất bác sĩ từ API.'}
                                     </div>
                                 ) : doctorPerformance.length === 0 ? (
-                                    <div className="p-6 text-center text-sm text-slate-500">
+                                    <div className="p-6 text-center text-xs text-clinic-text-muted">
                                         Chưa có dữ liệu hiệu suất bác sĩ trong kỳ thống kê này.
                                     </div>
                                 ) : (
                                     doctorPerformance.map((doc) => (
-                                        <div key={doc.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-                                            <div>
-                                                <div className="text-xs font-bold text-[#003553]">
-                                                    {doc.degree ? `${doc.degree} ` : ''}{doc.name || `Bác sĩ #${doc.id}`}
+                                        <div
+                                            key={doc.id}
+                                            className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border flex items-center justify-between gap-2"
+                                        >
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-bold text-clinic-navy truncate">
+                                                    {formatDoctorDisplayName(doc.degree, doc.name) || `Bác sĩ #${doc.id}`}
                                                 </div>
-                                                <div className="text-[11px] text-slate-500">{doc.specialty || 'Chuyên khoa khám bệnh'}</div>
+                                                <div className="text-[11px] text-clinic-text-secondary truncate">
+                                                    {doc.specialty || 'Chuyên khoa khám bệnh'}
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-xs font-extrabold text-[#00B5F1]">{doc.completedCases} ca hoàn tất</div>
-                                                <div className="text-[10px] text-emerald-600 font-bold">
+                                            <div className="text-right shrink-0">
+                                                <div className="text-xs font-bold text-clinic-cta">{doc.completedCases} ca hoàn tất</div>
+                                                <div className="text-[11px] text-clinic-success font-bold">
                                                     {doc.revenue.toLocaleString('vi-VN')} đ
                                                 </div>
                                             </div>
@@ -443,49 +504,47 @@ export default function DashboardAdminPage() {
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
                                 <span>TẢI TRỌNG CÔNG SUẤT BUỒNG KHÁM</span>
-                                <Link to="/admin/danh-muc/khoa-phong" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                <Link to="/admin/danh-muc/khoa-phong" className="text-xs font-bold text-clinic-cta hover:underline">
                                     Cấu hình Buồng khám
                                 </Link>
                             </div>
-                            <div className="space-y-3 mt-3">
+                            <div className="space-y-2.5 mt-3 tabular-nums">
                                 {roomWorkload.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 text-xs">
-                                        Chưa có dữ liệu tải trọng buồng khám
+                                    <div className="text-center py-8 text-clinic-text-muted text-xs">
+                                        Chưa phát sinh dữ liệu phân bổ phòng
                                     </div>
                                 ) : (
                                     roomWorkload.map((room, idx) => (
-                                    <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                                        <div className="flex justify-between text-xs font-bold text-[#003553]">
-                                            <span>{room.ma_phong} - {room.ten_phong}</span>
-                                            <span className="text-[#00B5F1] font-mono">{room.ty_le_su_dung_phan_tram}%</span>
+                                        <div
+                                            key={room.ma_phong || idx}
+                                            className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-1.5"
+                                        >
+                                            <div className="flex justify-between text-xs font-bold text-clinic-navy">
+                                                <span>{room.ma_phong} - {room.ten_phong}</span>
+                                                <span className="text-clinic-cta font-mono">{room.ty_le_su_dung_phan_tram}%</span>
+                                            </div>
+                                            <div className="flex justify-between text-[11px] text-clinic-text-secondary">
+                                                <span>Chuyên khoa: {room.chuyen_khoa || 'Đa khoa'}</span>
+                                                <span>{room.tong_ca_truc_phan_bo} ca trực/tuần</span>
+                                            </div>
+                                            <div className="w-full bg-clinic-bg-muted rounded-[4px] h-1.5 overflow-hidden">
+                                                <div
+                                                    className={`h-1.5 rounded-[4px] ${getWorkloadBarClass(room.ty_le_su_dung_phan_tram)}`}
+                                                    style={{ width: `${Math.min(100, room.ty_le_su_dung_phan_tram)}%` }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between text-[11px] text-slate-500">
-                                            <span>Chuyên khoa: {room.chuyen_khoa || 'Đa khoa'}</span>
-                                            <span>{room.tong_ca_truc_phan_bo} ca trực/tuần</span>
-                                        </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                                            <div
-                                                className={`h-1.5 rounded-full ${
-                                                    room.ty_le_su_dung_phan_tram >= 75
-                                                        ? 'bg-emerald-500'
-                                                        : room.ty_le_su_dung_phan_tram >= 50
-                                                        ? 'bg-[#00B5F1]'
-                                                        : 'bg-amber-500'
-                                                }`}
-                                                style={{ width: `${Math.min(100, room.ty_le_su_dung_phan_tram)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
 
                     <div className="medpro-card p-4">
                         <div className="medpro-section-title">
-                            <span>CỔNG GIÁM SÁT NHANH 4 PHÂN HỆ NGHIỆP VỤ CHUYÊN BIỆT</span>
-                            <span className="text-[11px] font-normal text-slate-500">
-                                Đã phân tách tác nghiệp khỏi Admin — nhấn để chuyển sang giao diện chuẩn của từng bộ phận
+                            <span>CỔNG GIÁM SÁT NHANH 4 PHÂN HỆ NGHIỆP VỤ</span>
+                            <span className="text-[11px] font-normal text-clinic-text-secondary">
+                                Chuyển nhanh sang giao diện tác nghiệp chuẩn của từng bộ phận
                             </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
@@ -493,24 +552,24 @@ export default function DashboardAdminPage() {
                                 <Link
                                     key={item.path}
                                     to={item.path}
-                                    className={`p-3.5 rounded-xl bg-slate-50/80 hover:bg-[#F0F8FE] border border-slate-200/80 hover:border-[#00B5F1] border-l-4 ${item.accent} transition group flex flex-col justify-between`}
+                                    className="p-3.5 rounded-[6px] bg-clinic-bg hover:bg-clinic-surface-tint border border-clinic-border hover:border-clinic-cta transition-colors group flex flex-col justify-between"
                                 >
                                     <div>
                                         <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00B5F1]">
+                                            <span className="text-[10.5px] font-bold uppercase tracking-wider text-clinic-cta">
                                                 {item.role}
                                             </span>
-                                            <ClinicIcon name={item.icon} size={16} weight="duotone" className="text-[#003553]" />
+                                            <ClinicIcon name={item.icon} size={16} weight="duotone" className="text-clinic-navy" />
                                         </div>
-                                        <div className="text-xs font-bold text-[#003553] group-hover:text-[#00B5F1] transition">
+                                        <div className="text-xs font-bold text-clinic-navy group-hover:text-clinic-cta transition-colors">
                                             {item.title}
                                         </div>
-                                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                                        <p className="text-[11px] text-clinic-text-secondary mt-1 leading-snug">
                                             {item.desc}
                                         </p>
                                     </div>
-                                    <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-bold text-[#003553] group-hover:text-[#00B5F1]">
-                                        <span>Mở cổng chuyên biệt</span>
+                                    <div className="mt-2.5 pt-2 border-t border-clinic-border flex items-center justify-between text-[11px] font-bold text-clinic-navy group-hover:text-clinic-cta">
+                                        <span>Mở phân hệ</span>
                                         <ArrowRight size={12} weight="bold" />
                                     </div>
                                 </Link>
@@ -522,34 +581,42 @@ export default function DashboardAdminPage() {
 
             {activeViewTab === 'TAI_CHINH_DUOC' && (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="medpro-card p-4 border-l-4 border-l-[#003553]">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">1. Doanh thu Khám Lâm Sàng</div>
-                            <div className="font-display text-xl font-black text-[#003553] mt-1">
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border tabular-nums">
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                1. Doanh thu Khám Lâm Sàng
+                            </span>
+                            <div className="font-display text-xl font-extrabold text-clinic-navy mt-1">
                                 {Number(stats?.doanh_thu_kham_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Công khám đa chuyên khoa</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Công khám đa chuyên khoa</div>
                         </div>
-                        <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">2. Cận Lâm Sàng &amp; DVKT</div>
-                            <div className="font-display text-xl font-black text-[#008EC2] mt-1">
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                2. Cận Lâm Sàng &amp; DVKT
+                            </span>
+                            <div className="font-display text-xl font-extrabold text-clinic-cta mt-1">
                                 {Number(stats?.doanh_thu_can_lam_sang ?? 0).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">X-Quang, Siêu âm, Xét nghiệm</div>
                         </div>
-                        <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                            <div className="text-[11px] font-bold uppercase text-slate-500">3. Dịch vụ Kỹ thuật Chuyên sâu</div>
-                            <div className="font-display text-xl font-black text-emerald-600 mt-1">
+                        <div className="p-4">
+                            <span className="text-xs font-semibold text-clinic-text-secondary block">
+                                3. Dịch vụ Kỹ thuật Chuyên sâu
+                            </span>
+                            <div className="font-display text-xl font-extrabold text-clinic-success mt-1">
                                 {Number(stats?.doanh_thu_goi_dich_vu ?? 0).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">Thủ thuật &amp; Tầm soát định kỳ</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Thủ thuật &amp; Tầm soát định kỳ</div>
                         </div>
-                        <div className="medpro-card p-4 border-l-4 border-l-amber-500 bg-amber-50/30">
-                            <div className="text-[11px] font-bold uppercase text-amber-800">Tổng Thực Thu Hệ Thống</div>
-                            <div className="font-display text-xl font-black text-amber-700 mt-1">
-                                {Number(stats?.tong_doanh_thu_trong_ngay ?? 0).toLocaleString('vi-VN')} đ
+                        <div className="p-4 bg-clinic-surface-tint">
+                            <span className="text-xs font-bold text-clinic-navy block">
+                                Tổng Thực Thu Hệ Thống
+                            </span>
+                            <div className="font-display text-xl font-extrabold text-clinic-warning mt-1">
+                                {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
                             </div>
-                            <div className="text-[11px] text-amber-600 mt-0.5">Đã quyết toán qua Thu ngân</div>
+                            <div className="text-[11px] text-clinic-text-secondary mt-0.5">Đã quyết toán qua Thu ngân</div>
                         </div>
                     </div>
 
@@ -557,38 +624,40 @@ export default function DashboardAdminPage() {
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
                                 <span>TỶ TRỌNG PHƯƠNG THỨC THANH TOÁN</span>
-                                <Link to="/staff/cashier" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                <Link to="/staff/cashier" className="text-xs font-bold text-clinic-cta hover:underline shrink-0 whitespace-nowrap">
                                     Cổng Thu ngân
                                 </Link>
                             </div>
-                            <div className="space-y-3 mt-3">
-                                {(accountantSummary.hinhThucThu || [
-                                    { hinhThuc: 'Chuyển khoản VietQR', tyLe: 58, soTien: 49375400 },
-                                    { hinhThuc: 'Tiền mặt tại quầy', tyLe: 27, soTien: 22985100 },
-                                    { hinhThuc: 'Thẻ POS / Khác', tyLe: 15, soTien: 12769500 },
-                                ]).map((ht, idx) => (
-                                    <div key={idx} className="space-y-1">
-                                        <div className="flex justify-between text-xs font-bold text-[#003553]">
-                                            <span>{ht.hinhThuc}</span>
-                                            <span>{ht.tyLe}% &bull; {Math.round(ht.soTien * multiplier).toLocaleString('vi-VN')} đ</span>
-                                        </div>
-                                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                            <div
-                                                className={`h-2 rounded-full ${
-                                                    idx === 0 ? 'bg-[#00B5F1]' : idx === 1 ? 'bg-amber-500' : 'bg-emerald-500'
-                                                }`}
-                                                style={{ width: `${ht.tyLe}%` }}
-                                            />
-                                        </div>
+                            <div className="space-y-3 mt-3 tabular-nums">
+                                {paymentBreakdown.length === 0 ? (
+                                    <div className="py-8 text-center text-xs text-clinic-text-muted">
+                                        Chưa có giao dịch thanh toán ghi nhận
                                     </div>
-                                ))}
+                                ) : (
+                                    paymentBreakdown.map((ht, idx) => (
+                                        <div key={ht.hinhThuc || idx} className="space-y-1">
+                                            <div className="flex justify-between text-xs font-bold text-clinic-navy">
+                                                <span>{ht.hinhThuc}</span>
+                                                <span>{ht.tyLe}% &bull; {Number(ht.soTien || 0).toLocaleString('vi-VN')} đ</span>
+                                            </div>
+                                            <div className="w-full bg-clinic-bg-muted rounded-[4px] h-2 overflow-hidden">
+                                                <div
+                                                    className={`h-2 rounded-[4px] ${
+                                                        idx === 0 ? 'bg-clinic-cta' : idx === 1 ? 'bg-clinic-amber' : 'bg-clinic-success'
+                                                    }`}
+                                                    style={{ width: `${ht.tyLe}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
 
                         <div className="lg:col-span-2 medpro-card p-4">
                             <div className="medpro-section-title">
                                 <span>TOP THUỐC KÊ ĐƠN NGOẠI TRÚ PHỔ BIẾN</span>
-                                <Link to="/admin/danh-muc/thuoc-vat-tu" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                <Link to="/admin/danh-muc/thuoc-vat-tu" className="text-xs font-bold text-clinic-cta hover:underline">
                                     Danh mục Thuốc BYT
                                 </Link>
                             </div>
@@ -606,18 +675,18 @@ export default function DashboardAdminPage() {
                                     <tbody>
                                         {topMedicines.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="text-center py-8 text-slate-400">
+                                                <td colSpan={5} className="text-center py-8 text-clinic-text-muted">
                                                     Chưa có dữ liệu thuốc được kê
                                                 </td>
                                             </tr>
                                         ) : (
                                             topMedicines.slice(0, 5).map((med, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="font-mono font-bold text-[#003553]">{med.ma_thuoc || `TH00${idx + 1}`}</td>
-                                                    <td className="font-bold text-[#12263F]">{med.ten_thuoc}</td>
+                                                <tr key={med.ma_thuoc || idx}>
+                                                    <td className="font-mono font-bold text-clinic-navy">{med.ma_thuoc || `TH00${idx + 1}`}</td>
+                                                    <td className="font-bold text-clinic-text">{med.ten_thuoc}</td>
                                                     <td>{med.don_vi_tinh || 'Viên'}</td>
-                                                    <td className="text-center font-bold text-[#00B5F1]">{med.so_don_ke || 0} đơn</td>
-                                                    <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                    <td className="text-center font-bold text-clinic-cta">{med.so_don_ke || 0} đơn</td>
+                                                    <td className="text-right font-mono font-bold text-clinic-success">
                                                         {Number(med.tong_so_luong || 0).toLocaleString('vi-VN')}
                                                     </td>
                                                 </tr>
@@ -632,7 +701,7 @@ export default function DashboardAdminPage() {
                     <div className="medpro-card p-4">
                         <div className="medpro-section-title">
                             <span>TOP DỊCH VỤ KỸ THUẬT &amp; CẬN LÂM SÀNG DOANH THU CAO NHẤT</span>
-                            <Link to="/admin/danh-muc/dich-vu" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                            <Link to="/admin/danh-muc/dich-vu" className="text-xs font-bold text-clinic-cta hover:underline">
                                 Quản lý Bảng giá Dịch vụ
                             </Link>
                         </div>
@@ -651,27 +720,27 @@ export default function DashboardAdminPage() {
                                 <tbody>
                                     {topServices.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8 text-slate-400">
+                                            <td colSpan={6} className="text-center py-8 text-clinic-text-muted">
                                                 Chưa có dữ liệu dịch vụ kỹ thuật
                                             </td>
                                         </tr>
                                     ) : (
                                         topServices.map((srv, sIdx) => (
-                                            <tr key={sIdx}>
-                                                <td className="font-mono font-bold text-[#003553]">{srv.ma_dich_vu}</td>
-                                                <td className="font-bold text-[#12263F]">{srv.ten_dich_vu}</td>
+                                            <tr key={srv.ma_dich_vu || sIdx}>
+                                                <td className="font-mono font-bold text-clinic-navy">{srv.ma_dich_vu}</td>
+                                                <td className="font-bold text-clinic-text">{srv.ten_dich_vu}</td>
                                                 <td>
-                                                    <span className="px-2 py-0.5 rounded bg-sky-50 text-[#00B5F1] font-semibold border border-sky-100 text-[11px]">
+                                                    <span className="medpro-badge-info">
                                                         {srv.nhom_dich_vu || 'Dịch vụ'}
                                                     </span>
                                                 </td>
-                                                <td className="text-right font-mono font-bold text-slate-700">
+                                                <td className="text-right font-mono font-bold text-clinic-text-secondary">
                                                     {Number(srv.don_gia || 0).toLocaleString('vi-VN')} đ
                                                 </td>
-                                                <td className="text-center font-bold text-[#003553]">
+                                                <td className="text-center font-bold text-clinic-navy">
                                                     {srv.so_luong_chi_dinh || 0} lượt
                                                 </td>
-                                                <td className="text-right font-mono font-extrabold text-emerald-600">
+                                                <td className="text-right font-mono font-bold text-clinic-success">
                                                     {Number(srv.tong_doanh_thu || 0).toLocaleString('vi-VN')} đ
                                                 </td>
                                             </tr>
@@ -686,74 +755,56 @@ export default function DashboardAdminPage() {
 
             {activeViewTab === 'DICH_TE_TUAN_THU' && (
                 <div className="space-y-4">
-                    <div className="medpro-card p-4 bg-gradient-to-r from-sky-50 to-indigo-50/50 border-[#00B5F1]/30">
-                        <div className="flex items-start gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#003553] to-[#00B5F1] text-white flex items-center justify-center shrink-0 shadow-sm">
-                                <Sparkle size={22} weight="fill" className="text-[#FFB54A]" />
-                            </span>
-                            <div className="space-y-1">
-                                <h3 className="font-display font-extrabold text-sm text-[#003553]">
-                                    GIÁM SÁT PHÂN LUỒNG AI TRIAGE &amp; MÔ HÌNH BỆNH TẬT ICD-10
-                                </h3>
-                                <p className="text-xs text-slate-600 leading-relaxed max-w-4xl">
-                                    Theo dõi tỷ lệ phân luồng chuyên khoa tự động từ cổng đặt lịch bệnh nhân và thống kê mặt bệnh ICD-10 phổ biến phục vụ báo cáo Sở Y tế.
-                                    <span className="text-rose-600 font-bold ml-1">
-                                        (AI Triage chỉ gợi ý chuyên khoa khám, tuyệt đối không chẩn đoán thay bác sĩ theo Luật KCB 15/2023/QH15).
-                                    </span>
-                                </p>
-                            </div>
+                    <div className="p-4 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border flex items-start gap-3">
+                        <span className="w-9 h-9 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center shrink-0">
+                            <ChartBar size={18} weight="bold" />
+                        </span>
+                        <div className="space-y-0.5">
+                            <h3 className="font-display font-bold text-sm text-clinic-navy">
+                                Giám sát Phân luồng Chuyên khoa &amp; Mô hình Bệnh tật ICD-10
+                            </h3>
+                            <p className="text-xs text-clinic-text-secondary leading-relaxed max-w-4xl">
+                                Theo dõi tỷ lệ phân luồng chuyên khoa từ cổng đặt lịch và thống kê mặt bệnh ICD-10 phục vụ báo cáo Sở Y tế.
+                                <span className="text-clinic-danger font-bold ml-1">
+                                    (Hệ thống chỉ hỗ trợ gợi ý chuyên khoa, bác sĩ chịu trách nhiệm chẩn đoán chuyên môn theo Luật KCB).
+                                </span>
+                            </p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="medpro-card p-4 space-y-3">
                             <div className="medpro-section-title">
-                                <span>TỶ LỆ PHÂN LUỒNG CHUYÊN KHOA (AI TRIAGE)</span>
+                                <span>PHÂN BỔ CHUYÊN KHOA TIẾP NHẬN</span>
                             </div>
-                            <div className="space-y-2.5">
-                                <div>
-                                    <div className="flex justify-between text-xs font-bold text-[#003553] mb-1">
-                                        <span>Nội tổng quát &amp; Tim mạch</span>
-                                        <span>45% (38 ca)</span>
+                            <div className="space-y-2.5 tabular-nums">
+                                {specialtyDistribution.length === 0 ? (
+                                    <div className="py-8 text-center text-xs text-clinic-text-muted">
+                                        Chưa có dữ liệu phân luồng chuyên khoa trong kỳ
                                     </div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                        <div className="h-2 rounded-full bg-[#00B5F1]" style={{ width: '45%' }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs font-bold text-[#003553] mb-1">
-                                        <span>Tai Mũi Họng</span>
-                                        <span>28% (24 ca)</span>
-                                    </div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                        <div className="h-2 rounded-full bg-amber-500" style={{ width: '28%' }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs font-bold text-[#003553] mb-1">
-                                        <span>Cơ Xương Khớp</span>
-                                        <span>18% (15 ca)</span>
-                                    </div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                        <div className="h-2 rounded-full bg-emerald-500" style={{ width: '18%' }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs font-bold text-[#003553] mb-1">
-                                        <span>Chẩn đoán hình ảnh &amp; Xét nghiệm</span>
-                                        <span>9% (8 ca)</span>
-                                    </div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                        <div className="h-2 rounded-full bg-indigo-500" style={{ width: '9%' }} />
-                                    </div>
-                                </div>
+                                ) : (
+                                    specialtyDistribution.map((item, idx) => (
+                                        <div key={item.name || idx}>
+                                            <div className="flex justify-between text-xs font-bold text-clinic-navy mb-1">
+                                                <span className="truncate">{item.name}</span>
+                                                <span className="shrink-0 ml-2">{item.percent}% ({item.count} ca)</span>
+                                            </div>
+                                            <div className="w-full bg-clinic-bg-muted rounded-[4px] h-2 overflow-hidden">
+                                                <div
+                                                    className={`h-2 rounded-[4px] ${idx === 0 ? 'bg-clinic-cta' : idx === 1 ? 'bg-clinic-navy' : 'bg-clinic-success'}`}
+                                                    style={{ width: `${item.percent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
 
                         <div className="lg:col-span-2 medpro-card p-4">
                             <div className="medpro-section-title">
                                 <span>MÔ HÌNH BỆNH TẬT ICD-10 PHỔ BIẾN</span>
-                                <Link to="/admin/danh-muc/benh" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                                <Link to="/admin/danh-muc/benh" className="text-xs font-bold text-clinic-cta hover:underline">
                                     Danh mục ICD-10
                                 </Link>
                             </div>
@@ -772,20 +823,20 @@ export default function DashboardAdminPage() {
                                     <tbody>
                                         {topDiseases.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="text-center py-8 text-slate-400">
+                                                <td colSpan={6} className="text-center py-8 text-clinic-text-muted">
                                                     Chưa có dữ liệu mô hình bệnh tật
                                                 </td>
                                             </tr>
                                         ) : (
                                             topDiseases.map((b, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="font-mono font-bold text-[#003553]">{b.ma_icd10}</td>
-                                                    <td className="font-bold text-[#12263F]">{b.ten_benh}</td>
-                                                    <td className="text-xs text-slate-500">{b.chuong_benh || 'Ngoại trú'}</td>
-                                                    <td className="font-mono font-extrabold text-[#00B5F1] text-center">
+                                                <tr key={b.ma_icd10 || idx}>
+                                                    <td className="font-mono font-bold text-clinic-navy">{b.ma_icd10}</td>
+                                                    <td className="font-bold text-clinic-text">{b.ten_benh}</td>
+                                                    <td className="text-xs text-clinic-text-secondary">{b.chuong_benh || 'Ngoại trú'}</td>
+                                                    <td className="font-mono font-bold text-clinic-cta text-center">
                                                         {b.so_ca || 0} ca
                                                     </td>
-                                                    <td className="text-center font-bold text-slate-700">
+                                                    <td className="text-center font-bold text-clinic-text-secondary">
                                                         {b.ty_le_phan_tram || 0}%
                                                     </td>
                                                     <td>
@@ -806,17 +857,17 @@ export default function DashboardAdminPage() {
                 </div>
             )}
 
-            <div className="medpro-card p-3.5 bg-[#E8F4FD]/65 border-[#00B5F1]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-3.5 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <span className="w-9 h-9 rounded-xl bg-[#003553] text-[#00B5F1] flex items-center justify-center shrink-0 shadow-2xs">
-                        <Scales size={19} weight="duotone" />
+                    <span className="w-9 h-9 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center shrink-0">
+                        <Scales size={18} weight="duotone" />
                     </span>
                     <div>
-                        <div className="text-xs font-bold text-[#003553]">
-                            Giám sát Tuân thủ Pháp lý Y tế (Thông tư 26/2025/TT-BYT, Thông tư 13/2025/TT-BYT &amp; NĐ 96/2023/NĐ-CP)
+                        <div className="text-xs font-bold text-clinic-navy">
+                            Giám sát Tuân thủ Pháp lý Y tế (TT 26/2025/TT-BYT, TT 13/2025/TT-BYT &amp; NĐ 96/2023/NĐ-CP)
                         </div>
-                        <div className="text-[11px] text-slate-600">
-                            Phát hiện <strong className="text-rose-600">{expiredOrSoonLicenses} nhân sự y tế</strong> có Chứng chỉ hành nghề hết hạn hoặc sắp hết hạn (&lt; 60 ngày) cần rà soát trước khi xếp lịch trực.
+                        <div className="text-[11px] text-clinic-text-secondary tabular-nums">
+                            Phát hiện <strong className="text-clinic-danger">{expiredOrSoonLicenses} nhân sự y tế</strong> có Chứng chỉ hành nghề hết hạn hoặc sắp hết hạn (&lt; 60 ngày) cần rà soát trước khi xếp lịch trực.
                         </div>
                     </div>
                 </div>
@@ -829,33 +880,33 @@ export default function DashboardAdminPage() {
             <div>
                 <div className="medpro-section-title">
                     <span>6 PHÂN HỆ QUẢN TRỊ HỆ THỐNG TRỌNG TÂM</span>
-                    <span className="text-[11px] font-normal text-slate-500">
-                        Truy cập nhanh các phân hệ quản trị danh mục, nhân sự, phân quyền và cấu hình phòng khám
+                    <span className="text-[11px] font-normal text-clinic-text-secondary">
+                        Truy cập nhanh các phân hệ danh mục, nhân sự, phân quyền và cấu hình phòng khám
                     </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {dashboardQuickModules.map((mod, idx) => (
                         <Link
-                            key={idx}
+                            key={mod.path || idx}
                             to={mod.path}
-                            className="medpro-card p-4 hover:border-[#00B5F1] hover:shadow-lg transition group flex flex-col justify-between"
+                            className="medpro-card p-4 hover:border-clinic-cta transition-colors group flex flex-col justify-between"
                         >
                             <div>
-                                <div className="flex items-center justify-between mb-2.5">
-                                    <span className="w-10 h-10 rounded-xl bg-[#E8F4FD] text-[#00B5F1] border border-[#CBE9FA] flex items-center justify-center group-hover:bg-[#00B5F1] group-hover:text-white transition">
-                                        <ClinicIcon name={mod.icon} size={20} weight="duotone" />
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="w-8 h-8 rounded-[6px] bg-clinic-surface-alt text-clinic-cta border border-clinic-info-border flex items-center justify-center group-hover:bg-clinic-cta group-hover:text-clinic-surface transition-colors">
+                                        <ClinicIcon name={mod.icon} size={18} weight="duotone" />
                                     </span>
                                     <span className="medpro-badge-info">{mod.step}</span>
                                 </div>
-                                <h3 className="font-display font-bold text-sm text-[#003553] group-hover:text-[#00B5F1] transition">
+                                <h3 className="font-display font-bold text-sm text-clinic-navy group-hover:text-clinic-cta transition-colors">
                                     {mod.title}
                                 </h3>
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{mod.desc}</p>
+                                <p className="text-xs text-clinic-text-secondary mt-1 leading-relaxed">{mod.desc}</p>
                             </div>
-                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-[#00B5F1]">
+                            <div className="mt-3 pt-2 border-t border-clinic-border flex items-center justify-between text-[11px] font-bold text-clinic-cta">
                                 <span>{mod.badge}</span>
-                                <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                <span className="inline-flex items-center gap-1">
                                     <span>Quản trị</span>
                                     <ArrowRight size={13} weight="bold" />
                                 </span>
@@ -868,7 +919,7 @@ export default function DashboardAdminPage() {
             <div className="medpro-card p-4">
                 <div className="medpro-section-title">
                     <span>NHẬT KÝ KIỂM TOÁN HOẠT ĐỘNG HỆ THỐNG</span>
-                    <Link to="/admin/lich-su-hoat-dong" className="text-xs font-bold text-[#00B5F1] hover:underline">
+                    <Link to="/admin/lich-su-hoat-dong" className="text-xs font-bold text-clinic-cta hover:underline">
                         Xem toàn bộ nhật ký
                     </Link>
                 </div>
@@ -888,13 +939,13 @@ export default function DashboardAdminPage() {
                         <tbody>
                             {(clinicData?.auditLogs || []).slice(0, 5).map((log) => (
                                 <tr key={log.id}>
-                                    <td className="font-mono font-bold text-[#003553]">{log.id}</td>
-                                    <td className="tabular-nums text-slate-600">{log.thoiGian}</td>
-                                    <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
+                                    <td className="font-mono font-bold text-clinic-navy">{log.id}</td>
+                                    <td className="tabular-nums text-clinic-text-secondary">{log.thoiGian}</td>
+                                    <td className="font-semibold text-clinic-text">{String(log.nguoiDung || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
                                     <td>
                                         <span className="medpro-badge-info">{ROLE_LABEL_MAP[log.vaiTro] || log.vaiTro}</span>
                                     </td>
-                                    <td className="font-semibold text-xs text-[#003553]">{ACTION_LABEL_MAP[log.hanhDong] || log.hanhDong}</td>
+                                    <td className="font-semibold text-xs text-clinic-navy">{ACTION_LABEL_MAP[log.hanhDong] || log.hanhDong}</td>
                                     <td>{log.doiTuong}</td>
                                     <td>
                                         <StatusBadge status={log.ketQua} compact />

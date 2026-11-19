@@ -23,6 +23,8 @@ const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan & Bàn làm việc Lễ tân',
     '/reception/check-in': 'Tiếp nhận bệnh nhân & Check-in',
     '/reception/queue': 'Quản lý hàng đợi phòng khám',
+    '/reception/cashier': 'Thu viện phí & Hóa đơn VietQR',
+    '/reception/billing-audit': 'Đối soát viện phí & Biên lai',
     '/reception/appointments': 'Quản lý lịch hẹn khám',
     '/reception/patients': 'Quản lý hồ sơ bệnh nhân',
     '/reception/schedule': 'Lịch trực bác sĩ & Sức chứa',
@@ -130,6 +132,17 @@ export default function ReceptionHeader() {
             ? currentUser.vai_tro
             : 'Lễ tân ca trực')
 
+    const staffInitials = (() => {
+        const normRole = String(role || '').toUpperCase()
+        if (normRole === 'THU_NGAN' || normRole === 'CASHIER') return 'TN'
+        const words = String(staffName || '').trim().split(/\s+/).filter(Boolean)
+        if (words.length >= 2) {
+            return `${words[words.length - 2][0] || ''}${words[words.length - 1][0] || ''}`.toUpperCase()
+        }
+        if (words.length === 1 && words[0]) return words[0].slice(0, 2).toUpperCase()
+        return 'LT'
+    })()
+
     const filteredPatients = searchQuery.trim()
         ? patients
               .filter(
@@ -144,12 +157,12 @@ export default function ReceptionHeader() {
     return (
         <header
             ref={headerRef}
-            className="h-14 bg-white border-b border-[#E2EDF5] px-3.5 lg:px-5 flex items-center justify-between shrink-0 sticky top-0 z-30 shadow-xs select-none"
+            className="h-14 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-5 flex items-center justify-between shrink-0 sticky top-0 z-30 select-none"
         >
             <div className="flex items-center gap-3 shrink-0">
                 <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#00B5F1] animate-pulse" />
-                    <h1 className="text-sm lg:text-base font-extrabold text-[#003553] tracking-tight whitespace-nowrap font-display">
+                    <span className="w-2 h-2 rounded-full bg-clinic-cta" />
+                    <h1 className="text-sm lg:text-base font-extrabold text-clinic-navy tracking-tight whitespace-nowrap font-display">
                         {pageTitle}
                     </h1>
                 </div>
@@ -160,10 +173,11 @@ export default function ReceptionHeader() {
                     <MagnifyingGlass
                         size={15}
                         weight="bold"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-clinic-text-muted"
                     />
                     <input
                         type="text"
+                        aria-label="Tìm nhanh bệnh nhân theo tên, số điện thoại hoặc mã"
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value)
@@ -171,17 +185,17 @@ export default function ReceptionHeader() {
                         }}
                         onFocus={() => setIsSearchOpen(true)}
                         placeholder="Tìm nhanh BN, Tên, SĐT, Mã..."
-                        className="w-full bg-[#F4F8FB] hover:bg-white focus:bg-white border border-[#CBD5E1] focus:border-[#00B5F1] rounded-full py-1.5 pl-9 pr-3 text-xs text-[#003553] outline-none transition shadow-2xs placeholder:text-slate-400"
+                        className="w-full bg-clinic-bg hover:bg-clinic-surface focus:bg-clinic-surface border border-clinic-border-strong focus:border-clinic-cta rounded-[6px] py-1.5 pl-9 pr-3 text-xs text-clinic-navy outline-none transition placeholder:text-clinic-text-muted"
                     />
                 </div>
 
                 {isSearchOpen && searchQuery.trim() && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in duration-150 max-h-72 overflow-y-auto">
-                        <div className="px-3 py-1 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-clinic-surface rounded-[6px] border border-clinic-border py-2 z-50 max-h-72 overflow-y-auto">
+                        <div className="px-3 py-1 text-[11px] font-bold text-clinic-text-secondary tabular-nums">
                             Kết quả tìm kiếm bệnh nhân ({filteredPatients.length})
                         </div>
                         {filteredPatients.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-slate-500 text-center">
+                            <div className="px-3 py-2 text-xs text-clinic-text-secondary text-center">
                                 Không tìm thấy bệnh nhân nào
                             </div>
                         ) : (
@@ -193,24 +207,24 @@ export default function ReceptionHeader() {
                                         setIsSearchOpen(false)
                                         setSearchQuery('')
                                     }}
-                                    className="flex items-center justify-between px-3 py-1.5 hover:bg-[#F0F7FC] transition text-xs"
+                                    className="flex items-center justify-between px-3 py-1.5 hover:bg-clinic-surface-tint transition text-xs"
                                 >
                                     <div>
-                                        <span className="font-bold text-[#003553]">{p.fullName}</span>
-                                        <span className="text-slate-400 ml-2 font-mono text-[11px]">{p.patientCode}</span>
+                                        <span className="font-bold text-clinic-navy">{p.fullName}</span>
+                                        <span className="text-clinic-text-muted ml-2 font-mono text-[11px] tabular-nums">{p.patientCode}</span>
                                     </div>
-                                    <span className="text-[11px] text-[#00B5F1] font-semibold">{p.phone}</span>
+                                    <span className="text-[11px] text-clinic-cta font-semibold tabular-nums">{p.phone}</span>
                                 </Link>
                             ))
                         )}
-                        <div className="border-t border-slate-100 mt-1 pt-1 px-3">
+                        <div className="border-t border-clinic-border mt-1 pt-1 px-3">
                             <Link
                                 to={`/reception/check-in?search=${encodeURIComponent(searchQuery)}`}
                                 onClick={() => {
                                     setIsSearchOpen(false)
                                     setSearchQuery('')
                                 }}
-                                className="text-[11px] font-bold text-[#00B5F1] hover:underline"
+                                className="text-[11px] font-bold text-clinic-cta hover:underline"
                             >
                                 Mở màn hình tiếp nhận với từ khóa này &rarr;
                             </Link>
@@ -220,15 +234,15 @@ export default function ReceptionHeader() {
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8F4FD] border border-[#CBE9FA] text-[#003553] text-[11.5px] font-bold shadow-2xs shrink-0 whitespace-nowrap">
-                    <Clock size={13} weight="bold" className="text-[#00B5F1]" />
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold shrink-0 whitespace-nowrap">
+                    <Clock size={13} weight="bold" className="text-clinic-cta" />
                     <span className="tabular-nums font-mono">{formattedTime}</span>
                 </div>
 
                 <button
                     type="button"
                     onClick={() => setIsCloseShiftOpen(true)}
-                    className="medpro-btn-danger text-xs !py-1 !px-3 font-bold cursor-pointer shrink-0"
+                    className="medpro-btn-danger rounded-[6px] text-xs !py-1 !px-3 font-bold cursor-pointer shrink-0"
                 >
                     <LockKey size={13} weight="bold" />
                     <span className="hidden xs:inline">Đóng ca trực</span>
@@ -236,16 +250,16 @@ export default function ReceptionHeader() {
 
                 <Link
                     to="/reception/tasks"
-                    className="relative w-8 h-8 rounded-full border border-slate-200 bg-white hover:border-[#00B5F1] hover:bg-[#E8F4FD] flex items-center justify-center text-[#003553] hover:text-[#00B5F1] transition shadow-2xs shrink-0"
+                    className="relative w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta hover:bg-clinic-surface-alt flex items-center justify-center text-clinic-navy hover:text-clinic-cta transition shrink-0"
                     title={`${pendingTasksCount} sự cố cần xử lý`}
                 >
                     <Bell size={16} weight="bold" />
                     {pendingIncidentsCount > 0 ? (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9.5px] font-extrabold flex items-center justify-center animate-pulse">
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-[4px] bg-clinic-danger-solid text-clinic-surface text-[10px] font-extrabold flex items-center justify-center tabular-nums">
                             {pendingIncidentsCount}
                         </span>
                     ) : pendingTasksCount > 0 ? (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[9.5px] font-extrabold flex items-center justify-center">
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-[4px] bg-clinic-amber text-clinic-navy text-[10px] font-extrabold flex items-center justify-center tabular-nums">
                             {pendingTasksCount}
                         </span>
                     ) : null}
@@ -253,48 +267,49 @@ export default function ReceptionHeader() {
 
                 <button
                     type="button"
+                    aria-label={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình'}
                     onClick={toggleFullscreen}
-                    className="w-8 h-8 rounded-full border border-slate-200 hover:border-[#00B5F1] hover:bg-[#E8F4FD] text-[#003553] hover:text-[#00B5F1] flex items-center justify-center transition shadow-2xs cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-[6px] border border-clinic-border hover:border-clinic-cta hover:bg-clinic-surface-alt text-clinic-navy hover:text-clinic-cta flex items-center justify-center transition cursor-pointer shrink-0"
                     title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình (F11)'}
                 >
                     {isFullscreen ? <ArrowsIn size={15} weight="bold" /> : <ArrowsOut size={15} weight="bold" />}
                 </button>
 
-                <div className="relative pl-1 border-l border-slate-200 shrink-0">
+                <div className="relative pl-1 border-l border-clinic-border shrink-0">
                     <button
                         type="button"
                         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer shrink-0 whitespace-nowrap"
+                        className="flex items-center gap-2 p-1 rounded-[6px] hover:bg-clinic-surface-tint transition cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003553] to-[#00B5F1] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/30 shrink-0">
-                            LT
+                        <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center font-black text-xs shrink-0">
+                            {staffInitials}
                         </div>
                         <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
-                            <div className="text-[11.5px] font-bold text-[#003553] max-w-[130px] truncate">
+                            <div className="text-[11.5px] font-bold text-clinic-navy max-w-[130px] truncate">
                                 {staffName}
                             </div>
-                            <div className="text-[10px] text-[#00B5F1] font-semibold">
+                            <div className="text-[10px] text-clinic-cta font-semibold">
                                 {staffRole}
                             </div>
                         </div>
                         <CaretDown
                             size={11}
                             weight="bold"
-                            className={`text-slate-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
+                            className={`text-clinic-text-muted transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
                         />
                     </button>
 
                     {isUserMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in duration-150">
-                            <div className="px-3.5 py-2 border-b border-slate-100">
-                                <div className="text-xs font-bold text-[#003553]">
+                        <div className="absolute right-0 top-full mt-2 w-64 bg-clinic-surface rounded-[6px] border border-clinic-border py-2 z-50">
+                            <div className="px-3.5 py-2 border-b border-clinic-border">
+                                <div className="text-xs font-bold text-clinic-navy">
                                     {staffName}
                                 </div>
-                                <div className="text-[10.5px] text-slate-500 font-medium mt-0.5">
-                                    Bàn Tiếp Đón & Lễ Tân &bull; {staffRole}
+                                <div className="text-[10.5px] text-clinic-text-secondary font-medium mt-0.5">
+                                    Bàn Tiếp Đón &amp; Lễ Tân · {staffRole}
                                 </div>
-                                <div className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <div className="text-[10px] text-clinic-success font-bold mt-1 inline-flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
                                     <span>Ca trực đang hoạt động</span>
                                 </div>
                             </div>
@@ -302,7 +317,7 @@ export default function ReceptionHeader() {
                                 <Link
                                     to="/reception/tasks"
                                     onClick={() => setIsUserMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
+                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-clinic-navy hover:bg-clinic-surface-tint hover:text-clinic-cta transition tabular-nums"
                                 >
                                     <ShieldCheck size={14} weight="bold" />
                                     <span>Sự cố cần giải quyết ({pendingTasksCount})</span>
@@ -313,17 +328,17 @@ export default function ReceptionHeader() {
                                         setIsUserMenuOpen(false)
                                         setIsCloseShiftOpen(true)
                                     }}
-                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition text-left"
+                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-clinic-danger hover:bg-clinic-danger-bg transition text-left cursor-pointer"
                                 >
                                     <LockKey size={14} weight="bold" />
-                                    <span>Đóng ca trực & Bàn giao</span>
+                                    <span>Đóng ca trực &amp; Bàn giao</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition text-left border-t border-slate-100"
+                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-clinic-text-secondary hover:bg-clinic-bg transition text-left border-t border-clinic-border cursor-pointer"
                                 >
-                                    <SignOut size={14} weight="bold" className="text-slate-400" />
+                                    <SignOut size={14} weight="bold" className="text-clinic-text-muted" />
                                     <span>Đăng xuất tài khoản</span>
                                 </button>
                             </div>

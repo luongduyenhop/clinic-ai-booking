@@ -98,11 +98,7 @@ export default function ExamWorkstationPage() {
 
                 <section aria-label="Hồ sơ lượt khám" className="flex min-w-0 flex-1 flex-col gap-4 w-full">
                     {!encounterId && (
-                        <WorkstationEmptyState
-                            queue={queue}
-                            calling={calling}
-                            onCallNext={handleCallNext}
-                        />
+                        <WorkstationEmptyState queue={queue} />
                     )}
 
                     {encounterId && encounterLoading && !encounter && (
@@ -122,46 +118,47 @@ export default function ExamWorkstationPage() {
 
                     {encounterId && encounter && !encounterError && (
                         <>
-                            <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                            <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface px-4 py-2.5 rounded-[6px] border border-clinic-border">
                                 <button
                                     type="button"
                                     onClick={() => selectEncounter(null)}
-                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:text-[#00A9E3] hover:border-[#00A9E3] hover:bg-sky-50 font-bold text-xs transition cursor-pointer group shadow-2xs"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] border border-clinic-border bg-clinic-bg text-clinic-navy hover:text-clinic-cta hover:border-clinic-cta font-bold text-xs transition-colors cursor-pointer"
                                     title="Đóng hồ sơ ca này và quay về Bàn khám trống (Phím tắt: Esc)"
                                 >
                                     <ClinicIcon
                                         name="ArrowLeft"
                                         size={15}
                                         weight="bold"
-                                        className="transition-transform group-hover:-translate-x-0.5 text-slate-500 group-hover:text-[#00A9E3]"
+                                        className="text-clinic-text-secondary"
                                     />
                                     <span>Quay lại Bàn khám</span>
                                 </button>
 
                                 <div className="flex items-center gap-2">
                                     {locked ? (
-                                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-white inline-flex items-center gap-1.5">
+                                        <span className="medpro-badge-neutral inline-flex items-center gap-1.5">
                                             <ClinicIcon name="LockKey" size={13} />
-                                            Bệnh án đã hoàn tất &amp; khóa
+                                            <span>Bệnh án đã hoàn tất &amp; khóa</span>
                                         </span>
                                     ) : isWaitingCls ? (
-                                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1.5">
+                                        <span className="medpro-badge-warning inline-flex items-center gap-1.5">
                                             <ClinicIcon name="Clock" size={13} />
-                                            Đang làm Cận lâm sàng (Chờ kết quả)
+                                            <span>Đang làm Cận lâm sàng (Chờ kết quả)</span>
                                         </span>
                                     ) : hasClsReady ? (
-                                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1.5 animate-pulse">
-                                            ⭐ Đã có kết quả CLS · Sẵn sàng chẩn đoán
+                                        <span className="medpro-badge-success inline-flex items-center gap-1.5">
+                                            <ClinicIcon name="CheckCircle" size={13} weight="fill" />
+                                            <span>Đã có kết quả CLS · Sẵn sàng chẩn đoán</span>
                                         </span>
                                     ) : (activeTicket?.trang_thai === 'dang_kham' || (encounter?.thoi_gian_bat_dau && !locked && !isWaitingCls && !hasClsReady)) ? (
-                                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                                            Đang trong phiên khám
+                                        <span className="medpro-badge-success inline-flex items-center gap-1.5">
+                                            <ClinicIcon name="Stethoscope" size={13} weight="bold" />
+                                            <span>Đang trong phiên khám</span>
                                         </span>
                                     ) : (
-                                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1.5">
+                                        <span className="medpro-badge-warning inline-flex items-center gap-1.5">
                                             <ClinicIcon name="Clock" size={13} />
-                                            Chờ khám
+                                            <span>Chờ khám</span>
                                         </span>
                                     )}
                                 </div>
@@ -179,8 +176,8 @@ export default function ExamWorkstationPage() {
                             />
 
                             {locked && (
-                                <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl bg-[#003553] px-5 py-3.5 text-white">
-                                    <ClinicIcon name="LockKey" size={22} className="text-[#00B5F1]" />
+                                <div role="status" className="flex flex-wrap items-center gap-3 rounded-[6px] bg-clinic-navy px-5 py-3.5 text-clinic-surface">
+                                    <ClinicIcon name="LockKey" size={20} className="text-clinic-surface" />
                                     <span className="min-w-[260px] flex-1 text-[13px] leading-relaxed">
                                         <strong>Bệnh án đã khóa lúc {formatDateTime(encounter.thoi_gian_khoa)}</strong> theo Thông tư 32/2023/TT-BYT. Hồ sơ chuyển sang chế độ chỉ đọc. Mọi thay đổi bắt buộc lập biên bản đính chính.
                                     </span>
@@ -288,12 +285,12 @@ export default function ExamWorkstationPage() {
                 ) : (
                     <div className="flex flex-col gap-3">
                         {encounter.lich_su.map((historyItem) => (
-                            <div key={historyItem.id} className="rounded-xl bg-[#F5F9FC] p-3 border border-slate-100">
-                                <div className="text-[12px] text-slate-500">
+                            <div key={historyItem.id} className="rounded-[6px] bg-clinic-bg p-3">
+                                <div className="text-xs text-clinic-text-secondary tabular-nums">
                                     {formatDate(historyItem.ngay)} · {historyItem.bac_si}
                                 </div>
-                                <div className="font-bold text-[#003553] mt-0.5">{historyItem.chan_doan}</div>
-                                {historyItem.ghi_chu && <p className="text-xs text-slate-600 mt-1">{historyItem.ghi_chu}</p>}
+                                <div className="font-bold text-clinic-navy mt-0.5">{historyItem.chan_doan}</div>
+                                {historyItem.ghi_chu && <p className="text-xs text-clinic-text-secondary mt-1">{historyItem.ghi_chu}</p>}
                             </div>
                         ))}
                     </div>

@@ -54,6 +54,10 @@
   --focus-ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.14);
   --clinic-nav-hover: rgba(255, 255, 255, 0.1);
   --clinic-nav-divider: rgba(255, 255, 255, 0.14);
+  --clinic-hero-scrim: linear-gradient(90deg, rgba(0, 38, 61, 0.92) 0%, rgba(0, 38, 61, 0.74) 48%, rgba(0, 38, 61, 0.22) 100%);
+  --clinic-hero-secondary-bg: rgba(0, 38, 61, 0.56);
+  --clinic-hero-secondary-border: rgba(255, 255, 255, 0.36);
+  --clinic-hero-secondary-border-hover: rgba(255, 255, 255, 0.72);
 }
 
 [data-density="clinical"] {
@@ -311,6 +315,59 @@
     .public-container {
       padding-inline: 24px;
     }
+  }
+
+  .hero-clinic-scrim {
+    background: var(--clinic-hero-scrim);
+  }
+  .hero-photo-position {
+    object-fit: cover;
+    object-position: center 28%;
+  }
+  .panel-photo-position {
+    object-fit: cover;
+    object-position: center 25%;
+  }
+  .hero-clinic-secondary {
+    background: var(--clinic-hero-secondary-bg);
+    border: 1px solid var(--clinic-hero-secondary-border);
+    color: var(--color-clinic-surface);
+    border-radius: var(--clinic-radius);
+    transition: border-color 0.16s ease, background-color 0.16s ease;
+  }
+  .hero-clinic-secondary:hover {
+    border-color: var(--clinic-hero-secondary-border-hover);
+  }
+
+  .clinical-slot-btn {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-clinic-border-strong);
+    border-radius: 6px;
+    background-color: var(--color-clinic-bg);
+    color: var(--color-clinic-navy);
+    font-size: 12.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+    cursor: pointer;
+  }
+  .clinical-slot-btn:hover {
+    border-color: var(--color-clinic-cta);
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-cta);
+  }
+  .clinical-slot-btn-featured {
+    border-color: var(--color-clinic-cta);
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-cta);
+  }
+  .clinical-slot-btn-featured:hover {
+    background-color: var(--color-clinic-cta);
+    color: var(--color-clinic-surface);
   }
 
   .medpro-section-title {
@@ -665,6 +722,30 @@
     border-radius: var(--clinic-radius) !important;
     border-color: var(--color-clinic-border) !important;
   }
+}
+
+.ant-select-dropdown,
+.ant-dropdown .ant-dropdown-menu,
+.ant-picker-dropdown .ant-picker-panel-container {
+  background-color: var(--color-clinic-surface) !important;
+  border: 1px solid var(--color-clinic-border) !important;
+  border-radius: var(--clinic-radius) !important;
+  box-shadow: var(--shadow-clinic-sm) !important;
+}
+
+.ant-select-dropdown .ant-select-item {
+  background-color: var(--color-clinic-surface);
+  color: var(--color-clinic-text);
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background-color: var(--color-clinic-surface-tint) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: var(--color-clinic-surface-alt) !important;
+  color: var(--color-clinic-navy) !important;
+  font-weight: 600;
 }
 
 @layer utilities {

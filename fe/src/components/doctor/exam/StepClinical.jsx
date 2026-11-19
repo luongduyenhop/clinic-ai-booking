@@ -7,6 +7,13 @@ export default function StepClinical({ formik, encounter, locked }) {
     const { values, errors, handleChange, handleBlur } = formik
     const bmi = computeBmi(values.can_nang_kg, values.chieu_cao_cm)
     const bmiInfo = getBmiClassification(bmi)
+    const bmiBadgeStyle = bmiInfo
+        ? Number(bmi) >= 25
+            ? 'bg-clinic-danger-bg text-clinic-danger border-clinic-danger-border'
+            : bmiInfo.alert
+              ? 'bg-clinic-warning-bg text-clinic-warning border-clinic-warning-border'
+              : 'bg-clinic-success-bg text-clinic-success border-clinic-success-border'
+        : ''
     const resolvedKhoa =
         currentUser?.chuyen_khoa_ma ||
         currentUser?.chuyen_khoa ||
@@ -27,15 +34,15 @@ export default function StepClinical({ formik, encounter, locked }) {
                         return (
                             <label
                                 key={f.name}
-                                className={`flex cursor-text flex-col gap-1 rounded-xl px-3 py-2.5 transition-all ${
+                                className={`flex cursor-text flex-col gap-1 rounded-[6px] border px-3 py-2 transition-colors ${
                                     err
-                                        ? 'bg-rose-50 ring-2 ring-rose-300'
+                                        ? 'bg-clinic-danger-bg border-clinic-danger-solid'
                                         : flag
-                                        ? 'bg-amber-50/70 ring-2 ring-amber-400'
-                                        : 'bg-[#E8F4FD]'
+                                          ? 'bg-clinic-warning-bg border-clinic-warning-border'
+                                          : 'bg-clinic-bg border-clinic-border focus-within:border-clinic-cta focus-within:bg-clinic-surface'
                                 }`}
                             >
-                                <span className="text-[12px] font-medium text-slate-600">{f.label}</span>
+                                <span className="text-[11.5px] font-semibold text-clinic-text-secondary">{f.label}</span>
                                 <span className="flex items-baseline gap-1.5">
                                     <input
                                         name={f.name}
@@ -47,16 +54,16 @@ export default function StepClinical({ formik, encounter, locked }) {
                                         disabled={locked}
                                         aria-invalid={Boolean(err)}
                                         placeholder="—"
-                                        className="w-full min-w-0 bg-transparent text-[20px] font-bold text-[#003553] outline-none disabled:text-slate-500 placeholder:text-slate-300"
+                                        className="w-full min-w-0 bg-transparent text-[20px] font-bold text-clinic-navy tabular-nums outline-none disabled:text-clinic-text-muted placeholder:text-clinic-text-subtle"
                                         style={{ backgroundColor: 'transparent' }}
                                     />
-                                    <span className="whitespace-nowrap text-[12px] text-slate-500">{f.unit}</span>
+                                    <span className="whitespace-nowrap text-[11.5px] text-clinic-text-muted">{f.unit}</span>
                                 </span>
                                 {err ? (
-                                    <span className="text-[11px] font-semibold text-rose-700">{err}</span>
+                                    <span className="text-[11px] font-semibold text-clinic-danger">{err}</span>
                                 ) : (
                                     flag && (
-                                        <span className="inline-flex w-fit items-center rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                                        <span className="inline-flex w-fit items-center rounded-[4px] border border-clinic-warning-border bg-clinic-surface px-1.5 py-0.5 text-[10.5px] font-bold text-clinic-warning">
                                             {flag}
                                         </span>
                                     )
@@ -65,21 +72,21 @@ export default function StepClinical({ formik, encounter, locked }) {
                         )
                     })}
                     <div
-                        className={`flex flex-col gap-1 rounded-xl px-3 py-2.5 transition-all ${
+                        className={`flex flex-col gap-1 rounded-[6px] border px-3 py-2 transition-colors ${
                             bmiInfo?.alert
-                                ? 'bg-amber-50/70 ring-2 ring-amber-400'
-                                : 'bg-white ring-1 ring-slate-200'
+                                ? 'bg-clinic-warning-bg border-clinic-warning-border'
+                                : 'bg-clinic-surface-alt border-clinic-info-border'
                         }`}
                     >
-                        <span className="text-[12px] font-medium text-slate-600">BMI · tự tính</span>
+                        <span className="text-[11.5px] font-semibold text-clinic-text-secondary">BMI · tự tính</span>
                         <div className="flex flex-wrap items-baseline justify-between gap-1">
                             <span className="flex items-baseline gap-1.5">
-                                <span className="text-[20px] font-bold text-[#003553]">{bmi || '—'}</span>
-                                <span className="text-[12px] text-slate-500">kg/m²</span>
+                                <span className="text-[20px] font-bold text-clinic-navy tabular-nums">{bmi || '—'}</span>
+                                <span className="text-[11.5px] text-clinic-text-muted">kg/m²</span>
                             </span>
                             {bmiInfo && (
                                 <span
-                                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-bold ${bmiInfo.badgeClass}`}
+                                    className={`inline-flex items-center rounded-[4px] border px-1.5 py-0.5 text-[10.5px] font-bold ${bmiBadgeStyle}`}
                                 >
                                     {bmiInfo.label}
                                 </span>

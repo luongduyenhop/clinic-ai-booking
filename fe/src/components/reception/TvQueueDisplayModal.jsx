@@ -12,13 +12,6 @@ import {
 } from '@phosphor-icons/react'
 import { AppToast } from '../common/AppNotification'
 
-/**
- * Màn hình TV Gọi Số Phòng Chờ (Kế thừa và nâng cấp từ QueueNumberPage.jsx của TheDuckHospital)
- * Hỗ trợ:
- * - Hiển thị số thứ tự ĐANG KHÁM & TIẾP THEO khổ lớn cho bệnh nhân tại sảnh chờ
- * - Phát âm thanh đọc số tự động bằng giọng nói Tiếng Việt (Web Speech API)
- * - Gọi số tiếp theo 1-chạm theo từng phòng khám
- */
 export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], rooms = [], onCallNextRoom }) {
     const [now, setNow] = useState(new Date())
     const [lastCalledTicket, setLastCalledTicket] = useState(null)
@@ -44,10 +37,10 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                 window.speechSynthesis.speak(msg)
             }
         } catch {
-            // Bỏ qua nếu trình duyệt chặn Speech API
+            setLastCalledTicket({ ticketNumber, patientName, roomName, time: new Date().toLocaleTimeString('vi-VN') })
         }
         setLastCalledTicket({ ticketNumber, patientName, roomName, time: new Date().toLocaleTimeString('vi-VN') })
-        AppToast.info(`🔊 Đang phát loa: Mời số ${ticketNumber} - ${patientName} vào ${roomName}`)
+        AppToast.info(`Đang phát loa: Mời số ${ticketNumber} - ${patientName} vào ${roomName}`)
     }
 
     const toggleBrowserFullscreen = () => {
@@ -62,7 +55,6 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
 
     const activeRooms = rooms || []
 
-    // Phân loại Tier ưu tiên cho Màn hình TV Gọi Số (Lát cắt C - Tiered Priority)
     const getQueueTier = (entry) => {
         if (entry.priority === 'EMERGENCY' || entry.muc_do_uu_tien === 1 || entry.isEmergency) return 1
         if (entry.priority === 'URGENT' || entry.muc_do_uu_tien === 2) return 2
@@ -89,77 +81,75 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
     }
 
     return (
-        <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col overflow-hidden select-none">
-            {/* Top TV Header */}
-            <div className="bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 border-b border-teal-700/50 px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="fixed inset-0 z-50 bg-clinic-navy-dark text-clinic-surface flex flex-col overflow-hidden select-none">
+            <div className="bg-clinic-navy border-b border-clinic-cta/30 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300">
-                        <Hospital size={28} weight="duotone" />
+                    <div className="w-11 h-11 rounded-[6px] bg-clinic-cta/20 border border-clinic-cta/40 flex items-center justify-center text-clinic-cyan">
+                        <Hospital size={26} weight="duotone" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-500 text-slate-950">
-                                LIVE QUEUE TV
+                            <span className="px-2 py-0.5 rounded-[4px] text-xs font-bold bg-clinic-amber text-clinic-navy">
+                                Trực tuyến
                             </span>
-                            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-white">
-                                HỆ THỐNG BẢNG ĐIỆN TỬ GỌI SỐ KHÁM BỆNH — CLINIC-AI HIS
+                            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-clinic-surface">
+                                Bảng điện tử gọi số khám bệnh — Clinic-AI HIS
                             </h2>
                         </div>
-                        <p className="text-xs md:text-sm text-teal-200/80 mt-0.5">
+                        <p className="text-xs md:text-sm text-clinic-on-navy-muted mt-0.5">
                             Quý khách vui lòng theo dõi số thứ tự trên màn hình và lắng nghe loa thông báo trước cửa phòng khám
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="text-right bg-slate-900/90 border border-slate-700 px-4 py-2 rounded-xl">
-                        <div className="flex items-center gap-1.5 text-teal-400 text-xs font-semibold">
+                <div className="flex items-center gap-3">
+                    <div className="text-right bg-clinic-navy-dark border border-clinic-on-navy-subtle/30 px-4 py-2 rounded-[6px] tabular-nums">
+                        <div className="flex items-center justify-end gap-1.5 text-clinic-cyan text-xs font-semibold">
                             <Clock size={14} weight="bold" />
                             <span>{now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         </div>
-                        <div className="text-2xl font-mono font-black text-white tracking-wider">
+                        <div className="text-2xl font-mono font-black text-clinic-surface tracking-wider">
                             {now.toLocaleTimeString('vi-VN')}
                         </div>
                     </div>
 
                     <button
                         type="button"
+                        aria-label="Toàn màn hình"
                         onClick={toggleBrowserFullscreen}
-                        className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+                        className="p-3 rounded-[6px] bg-clinic-navy-dark hover:bg-clinic-cta text-clinic-on-navy-muted hover:text-clinic-surface border border-clinic-on-navy-subtle/30 transition cursor-pointer"
                         title="Toàn màn hình TV"
                     >
-                        {isFullscreen ? <ArrowsInSimple size={22} /> : <ArrowsOutSimple size={22} />}
+                        {isFullscreen ? <ArrowsInSimple size={20} /> : <ArrowsOutSimple size={20} />}
                     </button>
 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center gap-1.5 transition cursor-pointer shadow-md"
+                        className="medpro-btn-danger px-4 py-2.5 rounded-[6px] font-bold text-sm flex items-center gap-1.5 cursor-pointer"
                     >
-                        <X size={18} weight="bold" />
-                        Đóng TV
+                        <X size={17} weight="bold" />
+                        <span>Đóng TV</span>
                     </button>
                 </div>
             </div>
 
-            {/* Banner thông báo ca vừa gọi loa */}
             {lastCalledTicket && (
-                <div className="bg-amber-500 text-slate-950 px-6 py-3 flex items-center justify-between font-bold animate-pulse">
+                <div className="bg-clinic-amber text-clinic-navy px-6 py-3 flex items-center justify-between font-bold tabular-nums border-b border-clinic-navy/20">
                     <div className="flex items-center gap-3 text-base md:text-lg">
-                        <SpeakerHigh size={26} weight="fill" />
+                        <SpeakerHigh size={24} weight="fill" />
                         <span>
                             ĐANG GỌI LOA: Xin mời bệnh nhân số{' '}
                             <strong className="text-2xl font-black underline mx-1">{lastCalledTicket.ticketNumber}</strong> (
                             {lastCalledTicket.patientName}) vào <strong>{lastCalledTicket.roomName}</strong>!
                         </span>
                     </div>
-                    <span className="text-xs font-mono bg-slate-950/20 px-2.5 py-1 rounded-lg">
+                    <span className="text-xs font-mono bg-clinic-navy text-clinic-surface px-2.5 py-1 rounded-[4px]">
                         Lúc {lastCalledTicket.time}
                     </span>
                 </div>
             )}
 
-            {/* Main Grid: Danh sách các Phòng Khám giống TheDuckHospital QueueNumberPage */}
             <div className="flex-1 p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {activeRooms.map((room, idx) => {
                     const roomItems = getRoomQueue(room)
@@ -191,81 +181,77 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                     return (
                         <div
                             key={room.id || idx}
-                            className="bg-slate-900/90 border-2 border-slate-800 rounded-3xl flex flex-col justify-between overflow-hidden shadow-xl hover:border-teal-600/60 transition"
+                            className="bg-clinic-navy border border-clinic-on-navy-subtle/30 rounded-[6px] flex flex-col justify-between overflow-hidden"
                         >
-                            {/* Room Header */}
-                            <div className="bg-slate-800/90 px-5 py-3.5 border-b border-slate-700 flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-lg font-extrabold text-teal-300 tracking-wide">
+                            <div className="bg-clinic-navy-dark px-5 py-3.5 border-b border-clinic-on-navy-subtle/30 flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <h3 className="text-base font-extrabold text-clinic-surface truncate">
                                         {room.name}
                                     </h3>
-                                    <p className="text-xs text-slate-400 font-medium">{room.doctor}</p>
+                                    <p className="text-xs text-clinic-on-navy-muted font-medium truncate">{room.doctor}</p>
                                 </div>
-                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                                    <CheckCircle size={14} weight="fill" />
-                                    Đang hoạt động
+                                <span className="px-2.5 py-1 rounded-[4px] text-xs font-bold bg-clinic-success text-clinic-surface flex items-center gap-1 shrink-0">
+                                    <CheckCircle size={13} weight="fill" />
+                                    <span>Đang hoạt động</span>
                                 </span>
                             </div>
 
-                            {/* Số thứ tự ĐANG KHÁM khổ lớn (36px+ chuẩn TheDuckHospital) */}
-                            <div className="p-5 text-center bg-gradient-to-b from-teal-950/50 to-slate-900 border-b border-slate-800">
-                                <div className="text-xs font-bold uppercase tracking-widest text-teal-400 mb-1">
-                                    SỐ THỨ TỰ ĐANG KHÁM
+                            <div className="p-5 text-center bg-clinic-navy border-b border-clinic-on-navy-subtle/30 tabular-nums">
+                                <div className="text-xs font-bold text-clinic-cyan mb-1">
+                                    Số thứ tự đang khám
                                 </div>
-                                <div className="text-5xl md:text-6xl font-black font-mono text-amber-400 tracking-tight my-2 drop-shadow">
+                                <div className="text-5xl md:text-6xl font-black font-mono text-clinic-amber tracking-tight my-2">
                                     {currentNumber}
                                 </div>
-                                <div className="text-lg font-bold text-white truncate px-2">
+                                <div className="text-lg font-bold text-clinic-surface truncate px-2">
                                     {currentName}
                                 </div>
                             </div>
 
-                            {/* Danh sách chuẩn bị tiếp theo */}
-                            <div className="p-4 flex-1 bg-slate-900/60">
-                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center justify-between">
-                                    <span>BỆNH NHÂN CHUẨN BỊ TIẾP THEO</span>
-                                    <span className="text-teal-400">{waitingItems.length} lượt chờ</span>
+                            <div className="p-4 flex-1 bg-clinic-navy-dark/50">
+                                <div className="text-xs font-bold text-clinic-on-navy-muted mb-2.5 flex items-center justify-between tabular-nums">
+                                    <span>Bệnh nhân chuẩn bị tiếp theo</span>
+                                    <span className="text-clinic-cyan">{waitingItems.length} lượt chờ</span>
                                 </div>
 
                                 {waitingItems.length > 0 ? (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 tabular-nums">
                                         {waitingItems.map((w, wIdx) => {
                                             const wNum = w.queueNumber || w.so_thu_tu || w.stt || `A${102 + idx * 5 + wIdx}`
                                             const wName = w.patientName || w.ho_ten || w.ten_benh_nhan || 'Bệnh nhân chờ'
                                             return (
                                                 <div
                                                     key={w.id || wIdx}
-                                                    className="flex items-center justify-between bg-slate-800/80 px-3.5 py-2 rounded-xl border border-slate-700/70"
+                                                    className="flex items-center justify-between bg-clinic-navy px-3.5 py-2 rounded-[6px] border border-clinic-on-navy-subtle/25"
                                                 >
                                                     <div className="flex items-center gap-2.5 min-w-0">
-                                                        <span className="px-2.5 py-0.5 rounded-lg bg-teal-500/20 text-teal-300 font-mono font-bold text-sm">
+                                                        <span className="px-2 py-0.5 rounded-[4px] bg-clinic-cta text-clinic-surface font-mono font-bold text-xs">
                                                             {wNum}
                                                         </span>
-                                                        <span className="text-sm font-semibold text-slate-200 truncate">
+                                                        <span className="text-sm font-semibold text-clinic-surface truncate">
                                                             {wName}
                                                         </span>
                                                     </div>
-                                                    <span className="text-xs text-slate-400 shrink-0">Chuẩn bị</span>
+                                                    <span className="text-xs text-clinic-on-navy-muted shrink-0">Chuẩn bị</span>
                                                 </div>
                                             )
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="text-xs text-slate-500 italic py-4 text-center">
+                                    <div className="text-xs text-clinic-on-navy-subtle py-4 text-center">
                                         Chưa có bệnh nhân tiếp theo trong hàng chờ phòng này
                                     </div>
                                 )}
                             </div>
 
-                            {/* Footer điều khiển gọi loa tại quầy */}
-                            <div className="px-4 py-3 bg-slate-950/80 border-t border-slate-800 flex items-center gap-2">
+                            <div className="px-4 py-3 bg-clinic-navy-dark border-t border-clinic-on-navy-subtle/30 flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => speakCallPatient(currentNumber, currentName, room.name)}
-                                    className="flex-1 py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                    className="medpro-btn-primary flex-1 py-2.5 px-3 rounded-[6px] font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer tabular-nums"
                                 >
                                     <SpeakerHigh size={16} weight="fill" />
-                                    Gọi Loa Số {currentNumber}
+                                    <span>Gọi loa số {currentNumber}</span>
                                 </button>
                                 {onCallNextRoom && (
                                     <button
@@ -274,10 +260,10 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                                             onCallNextRoom(room)
                                             speakCallPatient(currentNumber, currentName, room.name)
                                         }}
-                                        className="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 transition cursor-pointer"
+                                        className="medpro-btn-amber py-2.5 px-3 rounded-[6px] font-bold text-xs flex items-center justify-center gap-1 cursor-pointer"
                                     >
                                         <UserFocus size={16} weight="bold" />
-                                        Số kế tiếp
+                                        <span>Số kế tiếp</span>
                                     </button>
                                 )}
                             </div>
@@ -286,15 +272,14 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                 })}
             </div>
 
-            {/* Bottom Running Marquee Footer */}
-            <div className="bg-teal-950 border-t border-teal-800 px-6 py-2.5 flex items-center justify-between text-xs text-teal-200">
+            <div className="bg-clinic-navy border-t border-clinic-cta/30 px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-clinic-on-navy-muted">
                 <div className="flex items-center gap-2 font-semibold">
-                    <Television size={16} className="text-teal-400" />
+                    <Television size={16} className="text-clinic-cyan shrink-0" />
                     <span>
-                        Bệnh nhân có dấu hiệu Cờ đỏ Cấp cứu (Khó thở, Đau ngực cấp, Sốt cao co giật) được ưu tiên khám ngay theo quy trình AI Triage 3 Cổng.
+                        Bệnh nhân có dấu hiệu Cờ đỏ Cấp cứu (Khó thở, Đau ngực cấp, Sốt cao co giật) được ưu tiên khám ngay theo quy trình phân loại 3 cổng.
                     </span>
                 </div>
-                <span className="font-mono text-teal-400">Chuẩn Thông tư 32/2023/TT-BYT</span>
+                <span className="font-mono text-clinic-cyan">Chuẩn Thông tư 32/2023/TT-BYT</span>
             </div>
         </div>
     )

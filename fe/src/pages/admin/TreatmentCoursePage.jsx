@@ -8,12 +8,7 @@ import {
     ClipboardText,
     PlusCircle,
     MagnifyingGlass,
-    Receipt,
     CheckCircle,
-    Clock,
-    X,
-    CalendarCheck,
-    Pulse,
 } from '../../components/common/ClinicIcon'
 
 export default function TreatmentCoursePage() {
@@ -38,9 +33,7 @@ export default function TreatmentCoursePage() {
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [selectedCourse, setSelectedCourse] = useState(treatmentCourses[0] || null)
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
-    // Danh mục bài tập phục hồi chức năng & vật lý trị liệu chuẩn BYT
     const exercisesList = useMemo(() => [
         {
             id: 'BT-01',
@@ -88,7 +81,6 @@ export default function TreatmentCoursePage() {
         },
     ], [])
 
-    // Lịch trình chi tiết các buổi tập của ca đang chọn
     const courseSessions = useMemo(() => {
         if (!selectedCourse) return []
         const total = selectedCourse.tongSoBuoi || 10
@@ -120,7 +112,6 @@ export default function TreatmentCoursePage() {
         })
     }, [treatmentCourses, searchText, statusFilter])
 
-    // Điểm danh buổi tập
     const handleCheckInSession = (course) => {
         if (course.soBuoiDaTap >= course.tongSoBuoi) {
             AppToast.warning(`Liệu trình của BN ${course.tenBN} đã hoàn thành toàn bộ ${course.tongSoBuoi} buổi!`)
@@ -153,82 +144,92 @@ export default function TreatmentCoursePage() {
 
     return (
         <div className="space-y-4">
-            {/* Top Navigation & Operational Summary */}
-            <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="medpro-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
-                        <ClipboardText size={24} weight="fill" />
+                    <span className="w-10 h-10 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-cta flex items-center justify-center shrink-0">
+                        <ClipboardText size={22} weight="duotone" />
                     </span>
                     <div>
-                        <h1 className="text-lg font-black text-[#003553] tracking-wide flex items-center gap-2">
-                            LIỆU TRÌNH ĐIỀU TRỊ & PHỤC HỒI CHỨC NĂNG
-                            <span className="px-2 py-0.5 rounded-full bg-sky-100 text-[#00B5F1] text-[11px] font-bold">
+                        <h1 className="font-display text-base font-extrabold text-clinic-navy tracking-tight flex flex-wrap items-center gap-2">
+                            <span>Liệu trình Điều trị &amp; Phục hồi chức năng</span>
+                            <span className="medpro-badge-info">
                                 Vật lý trị liệu dài ngày
                             </span>
                         </h1>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
                             Quản lý phác đồ điều trị nhiều buổi, điểm danh ca tập, theo dõi lịch liệu trình và danh mục bài tập PHCN
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
                         onClick={() => AppToast.info('Vui lòng chọn bệnh nhân để chỉ định liệu trình!')}
-                        className="medpro-btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 cursor-pointer"
+                        className="medpro-btn-primary !py-2 !px-3.5 text-xs"
                     >
-                        <PlusCircle size={16} weight="bold" />
+                        <PlusCircle size={15} weight="bold" />
                         <span>Kê đơn liệu trình mới</span>
                     </button>
                 </div>
             </div>
 
-            {/* Sub-Tabs bar (Chuẩn tClinic) */}
-            <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
-                {[
-                    { id: 'LIEU_TRINH', label: '1. Danh sách liệu trình' },
-                    { id: 'LICH', label: '2. Lịch liệu trình theo buổi' },
-                    { id: 'BAI_TAP', label: '3. Danh mục bài tập PHCN' },
-                    { id: 'BAO_CAO', label: '4. Báo cáo tiến độ hồi phục' },
-                    { id: 'HOA_DON', label: '5. Hóa đơn liệu trình' },
-                ].map((t) => (
-                    <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setActiveTab(t.id)}
-                        className={`px-3.5 py-2 text-xs font-bold transition border-b-2 cursor-pointer ${
-                            activeTab === t.id
-                                ? 'border-[#00B5F1] text-[#00B5F1]'
-                                : 'border-transparent text-slate-500 hover:text-[#003553]'
-                        }`}
-                    >
-                        {t.label}
-                    </button>
-                ))}
+            <div className="medpro-card p-2.5">
+                <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
+                    {[
+                        { id: 'LIEU_TRINH', label: '1. Danh sách liệu trình' },
+                        { id: 'LICH', label: '2. Lịch liệu trình theo buổi' },
+                        { id: 'BAI_TAP', label: '3. Danh mục bài tập PHCN' },
+                        { id: 'BAO_CAO', label: '4. Báo cáo tiến độ hồi phục' },
+                        { id: 'HOA_DON', label: '5. Hóa đơn liệu trình' },
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setActiveTab(t.id)}
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 cursor-pointer whitespace-nowrap ${
+                                activeTab === t.id
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* TAB 1: DANH SÁCH LIỆU TRÌNH */}
             {activeTab === 'LIEU_TRINH' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
+                <div className="medpro-card p-4 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="text-xs font-black text-[#003553] uppercase">
+                        <div className="text-xs font-extrabold text-clinic-navy uppercase tabular-nums">
                             CÁC CA ĐIỀU TRỊ LIỆU TRÌNH HIỆN HỮU ({filteredCourses.length})
                         </div>
-                        <div className="relative w-72">
-                            <MagnifyingGlass size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                placeholder="Tìm bệnh nhân, mã liệu trình..."
-                                className="w-full text-xs pl-8 pr-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
-                            />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="medpro-input !py-1.5 h-9 !w-44 text-xs font-semibold truncate"
+                            >
+                                <option value="ALL">Tất cả trạng thái</option>
+                                <option value="Đang điều trị">Đang điều trị</option>
+                                <option value="Hoàn thành">Hoàn thành</option>
+                            </select>
+                            <div className="relative w-72">
+                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
+                                <input
+                                    type="text"
+                                    value={searchText}
+                                    onChange={(e) => setSearchText(e.target.value)}
+                                    placeholder="Tìm bệnh nhân, mã liệu trình..."
+                                    className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã ĐK</th>
@@ -248,57 +249,57 @@ export default function TreatmentCoursePage() {
                                     const percent = Math.round(((c.soBuoiDaTap || 0) / (c.tongSoBuoi || 1)) * 100)
                                     return (
                                         <tr key={c.id}>
-                                            <td className="font-mono font-bold text-[#00B5F1]">{c.maDangKy}</td>
+                                            <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{c.maDangKy}</td>
                                             <td>
-                                                <div className="font-bold text-[#003553]">{c.tenBN}</div>
-                                                <div className="text-[11px] text-slate-400 font-mono">
+                                                <div className="font-bold text-clinic-navy">{c.tenBN}</div>
+                                                <div className="text-[11px] text-clinic-text-muted font-mono">
                                                     {c.dienThoai} &bull; {c.tuoi}
                                                 </div>
                                             </td>
-                                            <td className="font-semibold text-slate-700">
+                                            <td className="font-semibold text-clinic-text">
                                                 <div>{c.tenLieuTrinh}</div>
-                                                <div className="text-[11px] text-slate-400 italic mt-0.5">{c.baiTap}</div>
+                                                <div className="text-[11px] text-clinic-text-secondary font-normal mt-0.5">{c.baiTap}</div>
                                             </td>
-                                            <td className="font-medium text-slate-600">{c.bacSi}</td>
+                                            <td className="font-medium text-clinic-text-secondary">{c.bacSi}</td>
                                             <td>
-                                                <div className="font-black text-xs text-[#003553]">
+                                                <div className="font-extrabold text-xs text-clinic-navy tabular-nums">
                                                     {c.soBuoiDaTap} / {c.tongSoBuoi} buổi ({percent}%)
                                                 </div>
-                                                <div className="w-28 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                                                <div className="w-28 bg-clinic-bg-muted rounded-[4px] h-1.5 mt-1 overflow-hidden border border-clinic-border">
                                                     <div
-                                                        className="h-1.5 bg-[#00B5F1] rounded-full transition-all"
+                                                        className="h-1.5 bg-clinic-cta rounded-[4px] transition-all"
                                                         style={{ width: `${percent}%` }}
                                                     />
                                                 </div>
                                             </td>
                                             <td>
-                                                <div className="flex gap-1">
+                                                <div className="flex flex-wrap gap-1">
                                                     {(c.lichLapLai || []).map((day) => (
                                                         <span
                                                             key={day}
-                                                            className="px-1.5 py-0.5 rounded bg-sky-50 text-[#003553] text-[10px] font-bold border border-sky-100"
+                                                            className="medpro-badge-info !px-1.5 !py-0.5 !text-[10px]"
                                                         >
                                                             {day}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="font-mono font-black text-[#003553]">
+                                            <td className="font-mono font-extrabold text-clinic-navy whitespace-nowrap">
                                                 {(c.thanhTien || 0).toLocaleString('vi-VN')} đ
                                             </td>
-                                            <td>
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <td className="whitespace-nowrap">
+                                                <span className="medpro-badge-success">
                                                     {c.thanhToan}
                                                 </span>
                                             </td>
                                             <td>
                                                 <StatusBadge status={c.trangThai} compact />
                                             </td>
-                                            <td>
+                                            <td className="whitespace-nowrap">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleCheckInSession(c)}
-                                                    className="medpro-btn-primary !py-1 !px-2.5 text-[11px] cursor-pointer"
+                                                    className="medpro-btn-primary !py-1 !px-2.5 text-[11px]"
                                                 >
                                                     Điểm danh buổi
                                                 </button>
@@ -312,32 +313,30 @@ export default function TreatmentCoursePage() {
                 </div>
             )}
 
-            {/* TAB 2: LỊCH LIỆU TRÌNH THEO BUỔI */}
             {activeTab === 'LICH' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    {/* Cột trái: Chọn ca bệnh nhân */}
-                    <div className="lg:col-span-4 bg-white rounded-xl border border-[#E5EEF5] p-3.5 space-y-3">
-                        <div className="text-xs font-black text-[#003553] uppercase pb-2 border-b border-slate-100">
+                    <div className="lg:col-span-4 medpro-card p-3.5 space-y-3">
+                        <div className="text-xs font-extrabold text-clinic-navy uppercase pb-2 border-b border-clinic-border">
                             CHỌN CA BỆNH NHÂN
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 tabular-nums">
                             {treatmentCourses.map((c) => {
                                 const isSel = selectedCourse?.id === c.id
                                 return (
                                     <div
                                         key={c.id}
                                         onClick={() => setSelectedCourse(c)}
-                                        className={`p-3 rounded-xl border transition cursor-pointer ${
+                                        className={`p-3 rounded-[6px] border transition-colors cursor-pointer ${
                                             isSel
-                                                ? 'bg-[#F0F8FE] border-[#00B5F1] ring-2 ring-[#00B5F1]/15'
-                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                                ? 'bg-clinic-surface-alt border-clinic-cta'
+                                                : 'bg-clinic-surface border-clinic-border hover:border-clinic-border-strong'
                                         }`}
                                     >
-                                        <div className="font-bold text-xs text-[#003553]">{c.tenBN}</div>
-                                        <div className="text-[11px] text-slate-500">{c.tenLieuTrinh}</div>
+                                        <div className="font-bold text-xs text-clinic-navy">{c.tenBN}</div>
+                                        <div className="text-[11px] text-clinic-text-secondary">{c.tenLieuTrinh}</div>
                                         <div className="mt-1 flex items-center justify-between text-[11px]">
-                                            <span className="font-mono text-[#00B5F1] font-bold">{c.maDangKy}</span>
-                                            <span className="font-extrabold text-slate-700">
+                                            <span className="font-mono text-clinic-cta font-bold">{c.maDangKy}</span>
+                                            <span className="font-extrabold text-clinic-navy">
                                                 {c.soBuoiDaTap}/{c.tongSoBuoi} buổi
                                             </span>
                                         </div>
@@ -347,31 +346,30 @@ export default function TreatmentCoursePage() {
                         </div>
                     </div>
 
-                    {/* Cột phải: Bảng lịch từng buổi tập */}
-                    <div className="lg:col-span-8 bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-3">
+                    <div className="lg:col-span-8 medpro-card p-4 space-y-3">
                         {selectedCourse ? (
                             <>
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-clinic-border">
                                     <div>
-                                        <div className="text-sm font-black text-[#003553]">
-                                            LỊCH TRÌNH 10 BUỔI: {selectedCourse.tenBN}
+                                        <div className="text-sm font-extrabold text-clinic-navy">
+                                            LỊCH TRÌNH {selectedCourse.tongSoBuoi || 10} BUỔI: {selectedCourse.tenBN}
                                         </div>
-                                        <div className="text-xs text-slate-500">
-                                            Phác đồ: <span className="font-bold text-slate-700">{selectedCourse.tenLieuTrinh}</span>
+                                        <div className="text-xs text-clinic-text-secondary">
+                                            Phác đồ: <span className="font-bold text-clinic-navy">{selectedCourse.tenLieuTrinh}</span>
                                         </div>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => handleCheckInSession(selectedCourse)}
-                                        className="medpro-btn-primary !py-1.5 !px-3 text-xs flex items-center gap-1 cursor-pointer"
+                                        className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                     >
                                         <CheckCircle size={14} weight="bold" />
                                         <span>Check-in buổi tiếp theo</span>
                                     </button>
                                 </div>
 
-                                <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                                    <table className="medpro-table text-xs">
+                                <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                                    <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                                         <thead>
                                             <tr>
                                                 <th>Buổi số</th>
@@ -385,24 +383,24 @@ export default function TreatmentCoursePage() {
                                         <tbody>
                                             {courseSessions.map((s) => (
                                                 <tr key={s.buoiSo}>
-                                                    <td className="font-bold text-center">Buổi {s.buoiSo}</td>
-                                                    <td className="font-semibold text-[#003553]">{s.ngayTap}</td>
-                                                    <td className="font-mono">{s.gioTap}</td>
+                                                    <td className="font-bold text-center whitespace-nowrap">Buổi {s.buoiSo}</td>
+                                                    <td className="font-semibold text-clinic-navy">{s.ngayTap}</td>
+                                                    <td className="font-mono whitespace-nowrap">{s.gioTap}</td>
                                                     <td>{s.ktv}</td>
-                                                    <td>
+                                                    <td className="whitespace-nowrap">
                                                         <span
-                                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                            className={
                                                                 s.trangThai === 'Đã hoàn thành'
-                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                                    ? 'medpro-badge-success'
                                                                     : s.trangThai === 'Sắp diễn ra'
-                                                                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                                                                    : 'bg-slate-50 text-slate-500'
-                                                            }`}
+                                                                    ? 'medpro-badge-info'
+                                                                    : 'medpro-badge-warning'
+                                                            }
                                                         >
                                                             {s.trangThai}
                                                         </span>
                                                     </td>
-                                                    <td className="italic text-slate-500">{s.danhGia}</td>
+                                                    <td className="text-clinic-text-secondary">{s.danhGia}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -410,7 +408,7 @@ export default function TreatmentCoursePage() {
                                 </div>
                             </>
                         ) : (
-                            <div className="py-12 text-center text-slate-400 text-xs">
+                            <div className="py-12 text-center text-clinic-text-muted text-xs">
                                 Vui lòng chọn ca bệnh nhân ở cột bên trái.
                             </div>
                         )}
@@ -418,46 +416,45 @@ export default function TreatmentCoursePage() {
                 </div>
             )}
 
-            {/* TAB 3: DANH MỤC BÀI TẬP PHCN */}
             {activeTab === 'BAI_TAP' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
+                <div className="medpro-card p-4 space-y-4">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-[#003553]">
-                            DANH MỤC BÀI TẬP VẬT LÝ TRỊ LIỆU & PHỤC HỒI CHỨC NĂNG CHUẨN
+                        <div className="text-sm font-extrabold text-clinic-navy uppercase">
+                            DANH MỤC BÀI TẬP VẬT LÝ TRỊ LIỆU &amp; PHỤC HỒI CHỨC NĂNG CHUẨN
                         </div>
-                        <span className="text-xs text-slate-500 font-semibold">{exercisesList.length} bài tập mẫu</span>
+                        <span className="medpro-badge-info tabular-nums">{exercisesList.length} bài tập mẫu</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {exercisesList.map((ex) => (
-                            <div key={ex.id} className="p-4 rounded-xl border border-slate-200 bg-[#FBFDFE] space-y-2">
+                            <div key={ex.id} className="p-4 rounded-[6px] border border-clinic-border bg-clinic-bg space-y-2.5">
                                 <div className="flex items-start justify-between gap-2">
                                     <div>
-                                        <span className="px-2 py-0.5 rounded bg-sky-100 text-[#00B5F1] font-mono text-[10px] font-bold">
+                                        <span className="medpro-badge-info font-mono !text-[10px]">
                                             {ex.maBT}
                                         </span>
-                                        <h4 className="font-black text-sm text-[#003553] mt-1">{ex.tenBaiTap}</h4>
+                                        <h4 className="font-bold text-sm text-clinic-navy mt-1">{ex.tenBaiTap}</h4>
                                     </div>
-                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                                    <span className="medpro-badge-success shrink-0">
                                         {ex.mucDo}
                                     </span>
                                 </div>
 
-                                <div className="text-xs text-slate-600 space-y-1">
+                                <div className="text-xs text-clinic-text-secondary space-y-1">
                                     <div>
-                                        Chuyên khoa: <span className="font-bold text-slate-800">{ex.chuyenKhoa}</span>
+                                        Chuyên khoa: <span className="font-bold text-clinic-navy">{ex.chuyenKhoa}</span>
                                     </div>
                                     <div>
-                                        Nhóm cơ tác động: <span className="font-medium text-slate-700">{ex.nhomCo}</span>
+                                        Nhóm cơ tác động: <span className="font-medium text-clinic-text">{ex.nhomCo}</span>
                                     </div>
-                                    <div className="flex gap-4 text-slate-500 font-mono text-[11px]">
-                                        <span>⏱ {ex.thoiGian}</span>
-                                        <span>🔁 {ex.soLanNgay}</span>
+                                    <div className="flex flex-wrap gap-4 text-clinic-text-secondary font-mono text-[11px] tabular-nums">
+                                        <span>Thời lượng: {ex.thoiGian}</span>
+                                        <span>Tần suất: {ex.soLanNgay}</span>
                                     </div>
                                 </div>
 
-                                <div className="pt-2 border-t border-slate-100 text-xs text-slate-500">
-                                    <span className="font-bold text-slate-700">Hướng dẫn kỹ thuật:</span> {ex.huongDan}
+                                <div className="pt-2 border-t border-clinic-border text-xs text-clinic-text-secondary">
+                                    <span className="font-bold text-clinic-navy">Hướng dẫn kỹ thuật:</span> {ex.huongDan}
                                 </div>
                             </div>
                         ))}
@@ -465,36 +462,34 @@ export default function TreatmentCoursePage() {
                 </div>
             )}
 
-            {/* TAB 4: BÁO CÁO */}
             {activeTab === 'BAO_CAO' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-3">
-                    <div className="text-sm font-bold text-[#003553]">BÁO CÁO HIỆU QUẢ ĐIỀU TRỊ PHỤC HỒI CHỨC NĂNG</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
-                            <div className="text-xs text-emerald-800 font-bold uppercase">Tỷ lệ giảm đau & hồi phục</div>
-                            <div className="text-2xl font-black text-emerald-700 mt-1">87.5%</div>
-                            <div className="text-[11px] text-emerald-600 mt-0.5">Dựa trên thang điểm đau VAS sau buổi 5</div>
+                <div className="medpro-card p-4 space-y-3">
+                    <div className="text-sm font-extrabold text-clinic-navy uppercase">BÁO CÁO HIỆU QUẢ ĐIỀU TRỊ PHỤC HỒI CHỨC NĂNG</div>
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-clinic-border tabular-nums">
+                        <div className="p-4">
+                            <div className="text-xs text-clinic-success font-bold uppercase">Tỷ lệ giảm đau &amp; hồi phục</div>
+                            <div className="text-2xl font-extrabold text-clinic-success mt-1">87.5%</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Dựa trên thang điểm đau VAS sau buổi 5</div>
                         </div>
-                        <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/50">
-                            <div className="text-xs text-sky-800 font-bold uppercase">Tỷ lệ tuân thủ đủ liệu trình</div>
-                            <div className="text-2xl font-black text-[#00B5F1] mt-1">92.0%</div>
-                            <div className="text-[11px] text-sky-600 mt-0.5">Bệnh nhân tham gia tối thiểu 8/10 buổi</div>
+                        <div className="p-4">
+                            <div className="text-xs text-clinic-cta font-bold uppercase">Tỷ lệ tuân thủ đủ liệu trình</div>
+                            <div className="text-2xl font-extrabold text-clinic-cta mt-1">92.0%</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Bệnh nhân tham gia tối thiểu 8/10 buổi</div>
                         </div>
-                        <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/50">
-                            <div className="text-xs text-amber-800 font-bold uppercase">Tổng số buổi tập trong tháng</div>
-                            <div className="text-2xl font-black text-amber-700 mt-1">146 ca</div>
-                            <div className="text-[11px] text-amber-600 mt-0.5">Tại phòng Vật lý trị liệu PK Medpro</div>
+                        <div className="p-4">
+                            <div className="text-xs text-clinic-warning font-bold uppercase">Tổng số buổi tập trong tháng</div>
+                            <div className="text-2xl font-extrabold text-clinic-warning mt-1">146 ca</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Tại phòng Vật lý trị liệu PK Clinic-AI</div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* TAB 5: HÓA ĐƠN */}
             {activeTab === 'HOA_DON' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
-                    <div className="text-sm font-bold text-[#003553]">HÓA ĐƠN VIỆN PHÍ LIỆU TRÌNH ĐIỀU TRỊ</div>
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
+                <div className="medpro-card p-4 space-y-4">
+                    <div className="text-sm font-extrabold text-clinic-navy uppercase">HÓA ĐƠN VIỆN PHÍ LIỆU TRÌNH ĐIỀU TRỊ</div>
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Số HĐ</th>
@@ -509,19 +504,19 @@ export default function TreatmentCoursePage() {
                             <tbody>
                                 {treatmentCourses.map((c, idx) => (
                                     <tr key={c.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">HD-LT-00{idx + 1}</td>
-                                        <td className="font-bold text-[#003553]">{c.tenBN}</td>
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">HD-LT-00{idx + 1}</td>
+                                        <td className="font-bold text-clinic-navy">{c.tenBN}</td>
                                         <td>{c.tenLieuTrinh}</td>
-                                        <td className="font-bold text-center">{c.tongSoBuoi} buổi</td>
-                                        <td className="font-mono font-black text-[#00B5F1]">
+                                        <td className="font-bold text-center whitespace-nowrap">{c.tongSoBuoi} buổi</td>
+                                        <td className="font-mono font-extrabold text-clinic-cta whitespace-nowrap">
                                             {(c.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td>
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <td className="whitespace-nowrap">
+                                            <span className="medpro-badge-success">
                                                 {c.thanhToan}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => AppToast.success(`In biên lai liệu trình của BN ${c.tenBN}`)}

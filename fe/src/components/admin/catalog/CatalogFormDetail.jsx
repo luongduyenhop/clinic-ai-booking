@@ -17,26 +17,26 @@ export default function CatalogFormDetail({
 }) {
     return (
         <div className="lg:col-span-6 medpro-card p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-3">
                 <div>
-                    <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                        CHI TIẾT BẢN GHI DANH MỤC
+                    <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
+                        Chi tiết bản ghi danh mục
                     </h2>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-clinic-text-secondary">
                         Chỉnh sửa hoặc thêm mới dữ liệu chuẩn hóa dùng chung toàn phòng khám
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <button type="button" onClick={handleNewItem} className="medpro-btn-outline text-xs">
-                        <Plus size={14} weight="bold" className="text-[#00B5F1]" />
-                        <span>Làm mới / Tạo mới</span>
+                <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={handleNewItem} className="medpro-btn-outline !py-1.5 !px-3 text-xs">
+                        <Plus size={14} weight="bold" className="text-clinic-cta" />
+                        <span>Tạo mới</span>
                     </button>
-                    <button type="button" onClick={handleSaveItem} className="medpro-btn-primary text-xs">
+                    <button type="button" onClick={handleSaveItem} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                         <FloppyDisk size={15} weight="bold" />
                         <span>Lưu danh mục</span>
                     </button>
                     {form.id && (
-                        <button type="button" onClick={handleDeleteItem} className="medpro-btn-danger text-xs">
+                        <button type="button" onClick={handleDeleteItem} className="medpro-btn-danger !py-1.5 !px-3 text-xs">
                             <Trash size={14} weight="bold" />
                             <span>Xóa</span>
                         </button>
@@ -52,7 +52,7 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.maTinh || ''}
                             onChange={(e) => setForm({ ...form, maTinh: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#00B5F1]"
+                            className="medpro-input font-mono font-bold text-clinic-cta"
                         />
                     </div>
                     <div>
@@ -89,8 +89,8 @@ export default function CatalogFormDetail({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <div className="flex items-center justify-between mb-1">
-                            <label className="medpro-label mb-0">Mã {activeKhoaPhongView === 'departments' ? 'chuyên khoa' : 'buồng khám'}</label>
-                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                            <label className="medpro-label !mb-0">Mã {activeKhoaPhongView === 'departments' ? 'chuyên khoa' : 'buồng khám'}</label>
+                            <span className="text-[10px] font-bold text-clinic-cta bg-clinic-surface-alt border border-clinic-info-border px-1.5 py-0.5 rounded-[4px]">
                                 Mã chuẩn hóa
                             </span>
                         </div>
@@ -98,7 +98,7 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.maPhong || ''}
                             onChange={(e) => setForm({ ...form, maPhong: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#003553]"
+                            className="medpro-input font-mono font-bold text-clinic-navy"
                         />
                     </div>
                     <div>
@@ -147,7 +147,7 @@ export default function CatalogFormDetail({
                                 type="text"
                                 value={form.thiet_bi_chinh || ''}
                                 onChange={(e) => setForm({ ...form, thiet_bi_chinh: e.target.value })}
-                                className="medpro-input font-semibold text-[#003553]"
+                                className="medpro-input font-semibold text-clinic-navy"
                                 placeholder="Ví dụ: Máy đo điện tim 12 cần, máy siêu âm màu 4D"
                             />
                         </div>
@@ -163,7 +163,7 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.maICD || ''}
                             onChange={(e) => setForm({ ...form, maICD: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#00B5F1]"
+                            className="medpro-input font-mono font-bold text-clinic-cta"
                         />
                     </div>
                     <div>
@@ -190,9 +190,9 @@ export default function CatalogFormDetail({
                             id="truyenNhiemCheckbox"
                             checked={Boolean(form.truyenNhiem)}
                             onChange={(e) => setForm({ ...form, truyenNhiem: e.target.checked })}
-                            className="rounded text-[#00B5F1] focus:ring-[#00B5F1]"
+                            className="rounded-[4px]"
                         />
-                        <label htmlFor="truyenNhiemCheckbox" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                        <label htmlFor="truyenNhiemCheckbox" className="text-xs font-semibold text-clinic-navy cursor-pointer">
                             Bệnh truyền nhiễm bắt buộc báo cáo dịch tễ
                         </label>
                     </div>
@@ -207,11 +207,11 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.maThuoc || ''}
                             onChange={(e) => setForm({ ...form, maThuoc: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#00B5F1]"
+                            className="medpro-input font-mono font-bold text-clinic-cta"
                         />
                     </div>
                     <div>
-                        <label className="medpro-label">Tên thuốc & Biệt dược *</label>
+                        <label className="medpro-label">Tên thuốc &amp; Biệt dược *</label>
                         <input
                             type="text"
                             value={form.tenThuoc || ''}
@@ -220,7 +220,7 @@ export default function CatalogFormDetail({
                         />
                     </div>
                     <div>
-                        <label className="medpro-label">Hoạt chất & Hàm lượng *</label>
+                        <label className="medpro-label">Hoạt chất &amp; Hàm lượng *</label>
                         <input
                             type="text"
                             value={form.hoatChat || ''}
@@ -233,7 +233,7 @@ export default function CatalogFormDetail({
                         <select
                             value={form.dvt || 'Viên'}
                             onChange={(e) => setForm({ ...form, dvt: e.target.value })}
-                            className="medpro-input"
+                            className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                         >
                             <option value="Viên">Viên</option>
                             <option value="Vỉ">Vỉ</option>
@@ -269,8 +269,8 @@ export default function CatalogFormDetail({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <div className="flex items-center justify-between mb-1">
-                            <label className="medpro-label mb-0">Mã dịch vụ kỹ thuật *</label>
-                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                            <label className="medpro-label !mb-0">Mã dịch vụ kỹ thuật *</label>
+                            <span className="text-[10px] font-bold text-clinic-cta bg-clinic-surface-alt border border-clinic-info-border px-1.5 py-0.5 rounded-[4px]">
                                 Mã chuẩn hóa
                             </span>
                         </div>
@@ -278,7 +278,7 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.maDV || ''}
                             onChange={(e) => setForm({ ...form, maDV: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#003553]"
+                            className="medpro-input font-mono font-bold text-clinic-navy"
                         />
                     </div>
                     <div>
@@ -304,7 +304,7 @@ export default function CatalogFormDetail({
                         <select
                             value={form.dvt || 'Lần'}
                             onChange={(e) => setForm({ ...form, dvt: e.target.value })}
-                            className="medpro-input"
+                            className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                         >
                             <option value="Lần">Lần</option>
                             <option value="Gói">Gói</option>
@@ -321,7 +321,7 @@ export default function CatalogFormDetail({
                             type="number"
                             value={form.donGia || 0}
                             onChange={(e) => setForm({ ...form, donGia: Number(e.target.value) })}
-                            className="medpro-input tabular-nums font-bold text-[#003553]"
+                            className="medpro-input tabular-nums font-bold text-clinic-navy"
                         />
                     </div>
                     <div>
@@ -329,7 +329,7 @@ export default function CatalogFormDetail({
                         <select
                             value={form.vat_percent !== undefined ? form.vat_percent : 0}
                             onChange={(e) => setForm({ ...form, vat_percent: Number(e.target.value) })}
-                            className="medpro-input"
+                            className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                         >
                             <option value={0}>0% (Dịch vụ KCB miễn thuế GTGT)</option>
                             <option value={5}>5%</option>
@@ -366,7 +366,7 @@ export default function CatalogFormDetail({
                             type="text"
                             value={form.ma || ''}
                             onChange={(e) => setForm({ ...form, ma: e.target.value })}
-                            className="medpro-input font-mono font-bold text-[#00B5F1]"
+                            className="medpro-input font-mono font-bold text-clinic-cta"
                         />
                     </div>
                     <div>

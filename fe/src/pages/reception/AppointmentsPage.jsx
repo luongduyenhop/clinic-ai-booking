@@ -15,7 +15,6 @@ import {
     Card,
     Empty,
     Spin,
-    Tooltip,
 } from 'antd'
 import {
     SearchOutlined,
@@ -201,9 +200,9 @@ export default function AppointmentsPage() {
     const handleProcessUnconfirmed = () => {
         Modal.confirm({
             title: 'Quét tự động hủy ca chưa xác nhận & Đôn Waitlist?',
-            icon: <ExclamationCircleOutlined className="text-amber-500" />,
+            icon: <ExclamationCircleOutlined className="text-clinic-warning" />,
             content: (
-                <div className="text-xs text-slate-600 space-y-1.5 mt-2">
+                <div className="text-xs text-clinic-text-secondary space-y-1.5 mt-2">
                     <p>
                         Hệ thống sẽ quét các lịch hẹn ở trạng thái <strong>Chờ xác nhận</strong> cách giờ khám <strong>dưới 02 tiếng</strong> mà người bệnh chưa phản hồi.
                     </p>
@@ -212,9 +211,9 @@ export default function AppointmentsPage() {
                     </p>
                 </div>
             ),
-            okText: '⚡ Kích hoạt quét tự động',
+            okText: 'Xác nhận quét tự động',
             cancelText: 'Bỏ qua',
-            okButtonProps: { className: 'bg-amber-600 hover:bg-amber-700 font-bold' },
+            okButtonProps: { className: '!bg-clinic-warning hover:!bg-clinic-navy !border-clinic-warning font-bold' },
             onOk: async () => {
                 setIsProcessingUnconfirmed(true)
                 try {
@@ -260,15 +259,15 @@ export default function AppointmentsPage() {
                 const isWalkIn = String(displayCode).toUpperCase().includes('WLK') || record.loai_hang_doi === 'vang_lai' || record.isWalkIn
                 return (
                     <div className="space-y-1">
-                        <span className="font-mono font-bold text-sky-700 block text-xs">{displayCode}</span>
+                        <span className="font-mono font-bold text-clinic-cta block text-xs tabular-nums">{displayCode}</span>
                         {isWalkIn ? (
-                            <Tag color="orange" className="text-[10.5px] font-semibold m-0 leading-tight">
+                            <span className="medpro-badge-warning text-[10.5px]">
                                 Vãng lai
-                            </Tag>
+                            </span>
                         ) : (
-                            <Tag color="blue" className="text-[10.5px] font-semibold m-0 leading-tight">
+                            <span className="medpro-badge-info text-[10.5px]">
                                 Đặt trước
-                            </Tag>
+                            </span>
                         )}
                     </div>
                 )
@@ -285,13 +284,13 @@ export default function AppointmentsPage() {
                 const code = pat?.patientCode || (record.benh_nhan_id ? `BN-${record.benh_nhan_id}` : '')
                 return (
                     <div>
-                        <div className="font-bold text-slate-900 text-xs">{fullName}</div>
-                        <div className="text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
+                        <div className="font-bold text-clinic-navy text-xs">{fullName}</div>
+                        <div className="text-clinic-text-muted text-[11px] flex items-center gap-1.5 mt-0.5 tabular-nums">
                             <span>{phone}</span>
                             {code && (
                                 <>
-                                    <span>•</span>
-                                    <span className="font-mono text-slate-500">{code}</span>
+                                    <span>·</span>
+                                    <span className="font-mono text-clinic-text-secondary">{code}</span>
                                 </>
                             )}
                         </div>
@@ -309,11 +308,11 @@ export default function AppointmentsPage() {
                 const dateStr = record.appointmentDate || record.ngay_kham || selectedDate
                 const shiftLabel = record.ca_kham === 'sang' ? 'Ca sáng' : (record.ca_kham === 'chieu' ? 'Ca chiều' : '')
                 return (
-                    <div>
-                        <span className="font-semibold text-slate-800 block text-xs">{timeStr}</span>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <div className="tabular-nums">
+                        <span className="font-semibold text-clinic-navy block text-xs">{timeStr}</span>
+                        <div className="text-[11px] text-clinic-text-muted flex items-center gap-1">
                             <span>{dateStr}</span>
-                            {shiftLabel && <span className="text-sky-600 font-medium">({shiftLabel})</span>}
+                            {shiftLabel && <span className="text-clinic-cta font-medium">({shiftLabel})</span>}
                         </div>
                     </div>
                 )
@@ -332,8 +331,8 @@ export default function AppointmentsPage() {
                 const roomName = record.phong_kham || room?.name || ''
                 return (
                     <div className="text-xs">
-                        <span className="font-semibold text-slate-800 block">{depName}</span>
-                        <span className="text-slate-500 text-[11px]">
+                        <span className="font-semibold text-clinic-navy block">{depName}</span>
+                        <span className="text-clinic-text-secondary text-[11px]">
                             {docName} {roomName && `(${roomName})`}
                         </span>
                     </div>
@@ -365,8 +364,8 @@ export default function AppointmentsPage() {
                     cho_kham: { label: 'Chờ khám', color: 'cyan' },
                     dang_kham: { label: 'Đang khám', color: 'processing' },
                     tam_hoan: { label: 'Tạm hoãn', color: 'gold' },
-                    da_dong_ve: { label: 'Đã đóng vé', color: 'purple' },
-                    hoan_thanh: { label: 'Đã khám', color: 'purple' },
+                    da_dong_ve: { label: 'Đã đóng vé', color: 'default' },
+                    hoan_thanh: { label: 'Đã khám', color: 'green' },
                     da_huy: { label: 'Hủy hàng đợi', color: 'default' },
                 }
                 const rawQueueSt = String(record.trang_thai_hang_doi || '').toLowerCase()
@@ -383,7 +382,7 @@ export default function AppointmentsPage() {
                             </Tag>
                         )}
                         {record.so_thu_tu_kham && (
-                            <span className="text-[11px] font-mono font-bold text-emerald-700">
+                            <span className="text-[11px] font-mono font-bold text-clinic-success tabular-nums">
                                 STT: #{record.so_thu_tu_kham}
                             </span>
                         )}
@@ -423,7 +422,7 @@ export default function AppointmentsPage() {
                                     type="primary"
                                     icon={<CheckCircleOutlined />}
                                     loading={checkingInId === record.id}
-                                    className="medpro-btn-primary text-xs font-bold shadow-xs"
+                                    className="medpro-btn-primary text-xs font-bold"
                                     onClick={() => handleOneTouchCheckIn(record)}
                                 >
                                     Check-in
@@ -431,7 +430,7 @@ export default function AppointmentsPage() {
                                 <Button
                                     size="small"
                                     icon={<UserDeleteOutlined />}
-                                    className="text-amber-700 border-amber-300 hover:bg-amber-50 text-xs"
+                                    className="text-clinic-warning border-clinic-warning-border hover:bg-clinic-warning-bg text-xs"
                                     onClick={() => setNoShowAppointment(record)}
                                 >
                                     No-show
@@ -453,47 +452,40 @@ export default function AppointmentsPage() {
     ]
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý Lịch hẹn Tiếp đón</h2>
-                            <span className="medpro-badge-info text-[10.5px]">Phân hệ Lễ tân</span>
-                        </div>
-                        <span className="text-xs text-slate-500">
-                            Quản lý vòng đời lịch khám → Tra cứu nhanh tại quầy, Xác nhận trước 24h, Check-in cấp STT và Xử lý vắng mặt (No-show).
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display">
+                            Quản lý lịch hẹn tiếp đón
+                        </h2>
+                        <span className="text-xs text-clinic-text-secondary">
+                            Quản lý vòng đời lịch khám: Tra cứu nhanh tại quầy, xác nhận lịch hẹn, check-in cấp số thứ tự và ghi nhận vắng mặt.
                         </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Tooltip title="Tra cứu nhanh tại quầy">
-                            <Button
-                                shape="circle"
-                                icon={<SearchOutlined className="text-sky-600" />}
-                                onClick={() => setIsQuickSearchOpen(true)}
-                                className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
-                                aria-label="Tra cứu nhanh tại quầy"
-                            />
-                        </Tooltip>
-                        <Tooltip title="Quét hủy chưa xác nhận & Đôn Waitlist">
-                            <Button
-                                shape="circle"
-                                icon={<ThunderboltOutlined className="text-amber-500" />}
-                                onClick={handleProcessUnconfirmed}
-                                loading={isProcessingUnconfirmed}
-                                className="medpro-btn-amber !w-8 !h-8 !p-0 flex items-center justify-center"
-                                aria-label="Quét hủy chưa xác nhận & Đôn Waitlist"
-                            />
-                        </Tooltip>
-                        <Tooltip title="Làm mới">
-                            <Button
-                                shape="circle"
-                                icon={<SyncOutlined spin={loading} />}
-                                onClick={loadAppointments}
-                                className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
-                                aria-label="Làm mới"
-                            />
-                        </Tooltip>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            icon={<SearchOutlined />}
+                            onClick={() => setIsQuickSearchOpen(true)}
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
+                        >
+                            Tra cứu nhanh
+                        </Button>
+                        <Button
+                            icon={<ThunderboltOutlined />}
+                            onClick={handleProcessUnconfirmed}
+                            loading={isProcessingUnconfirmed}
+                            className="medpro-btn-amber !h-8 !px-3 text-xs font-bold"
+                        >
+                            Quét lịch quá hạn
+                        </Button>
+                        <Button
+                            icon={<SyncOutlined spin={loading} />}
+                            onClick={loadAppointments}
+                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
+                        >
+                            Làm mới
+                        </Button>
                         <Segmented
                             value={viewMode}
                             onChange={setViewMode}
@@ -513,10 +505,10 @@ export default function AppointmentsPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-clinic-border text-xs">
                     <div>
                         <Input
-                            prefix={<SearchOutlined className="text-slate-400" />}
+                            prefix={<SearchOutlined className="text-clinic-text-muted" />}
                             placeholder="Mã hẹn, tên BN, SĐT..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -603,15 +595,16 @@ export default function AppointmentsPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                <div className="flex items-center justify-between text-xs text-clinic-text-secondary pt-1 tabular-nums">
                     <span>
-                        Tổng số: <strong>{appointmentsPagination?.totalItems ?? appointments.length}</strong> lịch hẹn
-                        {selectedDate && <span className="ml-1 text-slate-400">(Ngày: {dayjs(selectedDate).format('DD/MM/YYYY')})</span>}
+                        Tổng số: <strong className="text-clinic-navy">{appointmentsPagination?.totalItems ?? appointments.length}</strong> lịch hẹn
+                        {selectedDate && <span className="ml-1 text-clinic-text-muted">(Ngày: {dayjs(selectedDate).format('DD/MM/YYYY')})</span>}
                     </span>
                     {(searchQuery || selectedShift || selectedDep || selectedDoctor || selectedStatus || selectedDate !== dayjs().format('YYYY-MM-DD')) && (
                         <button
+                            type="button"
                             onClick={handleClearFilters}
-                            className="text-sky-600 hover:underline font-semibold cursor-pointer"
+                            className="text-clinic-cta hover:underline font-semibold cursor-pointer"
                         >
                             Đặt lại bộ lọc về hôm nay
                         </button>
@@ -638,7 +631,7 @@ export default function AppointmentsPage() {
                         }}
                         size="middle"
                         loading={loading}
-                        rowClassName={() => 'hover:bg-sky-50/30 transition-colors'}
+                        locale={{ emptyText: 'Không có lịch hẹn nào phù hợp với bộ lọc' }}
                     />
                 </div>
             ) : (
@@ -651,18 +644,18 @@ export default function AppointmentsPage() {
                             })
                             return (
                                 <div key={slotPrefix} className="medpro-card p-4 space-y-3">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                        <span className="font-bold text-sky-800 text-xs flex items-center gap-1.5">
+                                    <div className="flex items-center justify-between border-b border-clinic-border pb-2 tabular-nums">
+                                        <span className="font-bold text-clinic-navy text-xs flex items-center gap-1.5">
                                             <CalendarOutlined /> Khung giờ: {slotPrefix}
                                         </span>
-                                        <Tag color={appsInSlot.length > 2 ? 'red' : 'blue'} className="mr-0 text-[10px]">
+                                        <span className={appsInSlot.length > 2 ? 'medpro-badge-danger text-[10px]' : 'medpro-badge-info text-[10px]'}>
                                             {appsInSlot.length} lịch
-                                        </Tag>
+                                        </span>
                                     </div>
 
                                     <div className="space-y-2">
                                         {appsInSlot.length === 0 ? (
-                                            <div className="text-center py-4 text-slate-300 text-xs italic">
+                                            <div className="text-center py-4 text-clinic-text-subtle text-xs">
                                                 Khung giờ còn trống
                                             </div>
                                         ) : (
@@ -677,15 +670,15 @@ export default function AppointmentsPage() {
                                                 return (
                                                     <div
                                                         key={app.id}
-                                                        className="p-2.5 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-200/70 text-xs space-y-1.5 transition"
+                                                        className="p-2.5 rounded-[6px] bg-clinic-bg hover:bg-clinic-surface-tint border border-clinic-border text-xs space-y-1.5 transition"
                                                     >
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="font-bold text-slate-900">{patName}</span>
-                                                            <Tag color={isArrived ? 'green' : 'blue'} className="mr-0 text-[10px]">
+                                                        <div className="flex justify-between items-center gap-1.5">
+                                                            <span className="font-bold text-clinic-navy truncate">{patName}</span>
+                                                            <span className={isArrived ? 'medpro-badge-success text-[10px]' : 'medpro-badge-info text-[10px]'}>
                                                                 {isArrived ? 'Đã đến' : 'Đã xác nhận'}
-                                                            </Tag>
+                                                            </span>
                                                         </div>
-                                                        <div className="text-[11px] text-slate-500">
+                                                        <div className="text-[11px] text-clinic-text-secondary">
                                                             {formatDoctorName(app.ten_bac_si || doc?.name) || 'Theo phân bổ ca'}
                                                         </div>
                                                         {canCheckIn && (
@@ -717,7 +710,7 @@ export default function AppointmentsPage() {
 
             <Modal
                 title={
-                    <div className="flex items-center gap-2 text-amber-700 font-bold">
+                    <div className="flex items-center gap-2 text-clinic-warning font-bold">
                         <UserDeleteOutlined />
                         <span>Ghi nhận người bệnh Vắng mặt (No-Show)</span>
                     </div>
@@ -734,7 +727,7 @@ export default function AppointmentsPage() {
                     <Button
                         key="submit"
                         type="primary"
-                        className="bg-amber-600 hover:bg-amber-700 font-semibold text-white"
+                        className="!bg-clinic-warning hover:!bg-clinic-navy !border-clinic-warning font-semibold text-clinic-surface"
                         loading={isNoShowLoading}
                         onClick={handleConfirmNoShow}
                     >
@@ -744,18 +737,16 @@ export default function AppointmentsPage() {
             >
                 {noShowAppointment && (
                     <div className="space-y-3 py-2 text-xs">
-                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 space-y-1">
+                        <div className="p-3 bg-clinic-warning-bg rounded-[6px] border border-clinic-warning-border text-clinic-navy space-y-1 tabular-nums">
                             <p>
                                 <strong>Lịch khám:</strong> {noShowAppointment.ma_lich_kham || `APT-${noShowAppointment.id}`} - {noShowAppointment.gio_kham} ngày {noShowAppointment.ngay_kham}
                             </p>
                             <p>
                                 <strong>Bệnh nhân:</strong> {noShowAppointment.ten_benh_nhan} (SĐT: {noShowAppointment.so_dien_thoai || 'N/A'})
                             </p>
-                            <p className="text-[11px] text-amber-700 mt-1">
-                            </p>
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-700 mb-1">Ghi chú xác minh từ Lễ tân / Bác sĩ:</label>
+                            <label className="block font-semibold text-clinic-navy mb-1">Ghi chú xác minh từ Lễ tân / Bác sĩ:</label>
                             <Input.TextArea
                                 rows={3}
                                 placeholder="Ví dụ: Đã gọi điện 3 lần người bệnh không nhấc máy, ca trực đã kết thúc..."
@@ -770,8 +761,8 @@ export default function AppointmentsPage() {
             <Drawer
                 title={
                     <div className="flex items-center gap-2">
-                        <QrcodeOutlined className="text-sky-600" />
-                        <span className="font-bold text-slate-800">Tra cứu nhanh Lịch hẹn tại Quầy tiếp đón</span>
+                        <QrcodeOutlined className="text-clinic-cta" />
+                        <span className="font-bold text-clinic-navy">Tra cứu nhanh Lịch hẹn tại Quầy tiếp đón</span>
                     </div>
                 }
                 placement="right"
@@ -780,7 +771,7 @@ export default function AppointmentsPage() {
                 onClose={() => setIsQuickSearchOpen(false)}
             >
                 <div className="space-y-4 text-xs">
-                    <p className="text-slate-500">
+                    <p className="text-clinic-text-secondary">
                         Nhập Mã lịch hẹn (APT-...), Số điện thoại hoặc Họ tên người bệnh để tra cứu tức thì thông tin đăng ký khám trong ngày.
                     </p>
                     <div className="flex gap-2">
@@ -806,7 +797,7 @@ export default function AppointmentsPage() {
                         {isQuickSearching ? (
                             <div className="text-center py-8">
                                 <Spin />
-                                <p className="text-slate-400 mt-2">Đang tìm kiếm lịch hẹn...</p>
+                                <p className="text-clinic-text-muted mt-2">Đang tìm kiếm lịch hẹn...</p>
                             </div>
                         ) : quickSearchResults.length === 0 ? (
                             <Empty description="Chưa có kết quả tra cứu phù hợp" className="py-8" />
@@ -823,45 +814,48 @@ export default function AppointmentsPage() {
                                     const canCheckIn = !isAlreadyQueued && rawStatus !== 'da_huy' && rawStatus !== 'vang_mat'
 
                                     let badgeLabel = item.trang_thai || 'Đã xác nhận'
-                                    let badgeColor = 'blue'
+                                    let badgeClass = 'medpro-badge-info'
                                     if (isAlreadyQueued) {
                                         badgeLabel = 'Đã tiếp nhận'
-                                        badgeColor = 'green'
+                                        badgeClass = 'medpro-badge-success'
                                     } else if (rawStatus === 'da_huy') {
                                         badgeLabel = 'Đã hủy'
-                                        badgeColor = 'red'
+                                        badgeClass = 'medpro-badge-danger'
                                     } else if (rawStatus === 'vang_mat') {
                                         badgeLabel = 'Vắng mặt'
-                                        badgeColor = 'default'
+                                        badgeClass = 'medpro-badge-neutral'
                                     }
 
                                     return (
-                                        <Card key={item.lich_kham_id || item.id} size="small" className="border-sky-100 shadow-2xs hover:border-sky-300 transition">
-                                            <div className="flex justify-between items-start">
+                                        <Card key={item.lich_kham_id || item.id} size="small" className="border-clinic-border rounded-[6px] hover:border-clinic-cta transition">
+                                            <div className="flex justify-between items-start gap-2">
                                                 <div>
-                                                    <span className="font-mono font-bold text-sky-700 text-xs block">
+                                                    <span className="font-mono font-bold text-clinic-cta text-xs block tabular-nums">
                                                         {item.ma_lich_kham}
                                                     </span>
-                                                    <div className="font-bold text-slate-900 mt-0.5">{item.ten_benh_nhan}</div>
-                                                    <div className="text-slate-500 text-[11px]">SĐT: {item.so_dien_thoai}</div>
+                                                    <div className="font-bold text-clinic-navy mt-0.5">{item.ten_benh_nhan}</div>
+                                                    <div className="text-clinic-text-muted text-[11px] tabular-nums">SĐT: {item.so_dien_thoai}</div>
                                                 </div>
-                                                <Tag color={badgeColor} className="mr-0 font-semibold">
+                                                <span className={`${badgeClass} font-semibold`}>
                                                     {badgeLabel}
-                                                </Tag>
+                                                </span>
                                             </div>
 
-                                            <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1 text-slate-600 text-[11px]">
+                                            <div className="mt-2.5 pt-2 border-t border-clinic-border space-y-1 text-clinic-text-secondary text-[11px]">
                                                 <div><strong>Chuyên khoa:</strong> {item.ten_chuyen_khoa}</div>
                                                 <div><strong>Bác sĩ:</strong> {item.ten_bac_si}</div>
                                                 <div><strong>Phòng khám:</strong> {item.phong_kham || 'Theo điều phối'}</div>
-                                                <div><strong>Giờ khám:</strong> <span className="font-bold text-sky-800">{item.gio_kham}</span> ({item.ngay_kham})</div>
+                                                <div><strong>Giờ khám:</strong> <span className="font-bold text-clinic-navy tabular-nums">{item.gio_kham}</span> ({item.ngay_kham})</div>
                                             </div>
 
                                             {isAlreadyQueued ? (
-                                                <div className="mt-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-[11px] font-semibold flex items-center justify-between">
-                                                    <span>✓ Đã tiếp nhận vào hàng đợi</span>
+                                                <div className="mt-3 px-3 py-2 bg-clinic-success-bg border border-clinic-success-border rounded-[6px] text-clinic-success text-[11px] font-semibold flex items-center justify-between">
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <CheckCircleOutlined />
+                                                        <span>Đã tiếp nhận vào hàng đợi</span>
+                                                    </span>
                                                     {item.so_thu_tu_kham && (
-                                                        <span className="font-mono bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">
+                                                        <span className="font-mono bg-clinic-success text-clinic-surface px-2 py-0.5 rounded-[4px] text-[10px] tabular-nums">
                                                             STT: #{item.so_thu_tu_kham}
                                                         </span>
                                                     )}

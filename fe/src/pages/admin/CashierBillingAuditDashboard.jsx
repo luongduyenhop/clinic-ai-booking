@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react'
 import {
     CurrencyCircleDollar,
     QrCode,
-    CheckCircle,
-    Clock,
     ArrowsClockwise,
     Receipt,
-    CreditCard,
-    ShieldCheck,
 } from '@phosphor-icons/react'
 import apiClient from '../../services/api'
 import VietQrModal from '../../components/common/VietQrModal'
@@ -65,78 +61,80 @@ export default function CashierBillingAuditDashboard() {
         return code.includes(text) || name.includes(text)
     })
 
+    const totalNetReceivable = pendingBills.reduce(
+        (sum, bill) => sum + Number(bill.thuc_thu ?? bill.final_amount ?? bill.tong_tien ?? bill.total_service_amount ?? 0),
+        0
+    )
+    const totalDiscountAmount = pendingBills.reduce(
+        (sum, bill) => sum + Number(bill.mien_giam ?? bill.discount_amount ?? 0),
+        0
+    )
+
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-100">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
-                        <CurrencyCircleDollar size={28} weight="bold" />
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface border border-clinic-border rounded-[6px] px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-[6px] bg-clinic-surface-alt text-clinic-cta border border-clinic-info-border flex items-center justify-center shrink-0">
+                        <CurrencyCircleDollar size={20} weight="bold" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-800">Thu Ngân & Đối Soát Viện Phí VietQR</h1>
-                        <p className="text-sm text-slate-500">Giám sát bảng kê viện phí và xác nhận giao dịch thanh toán Napas 247</p>
+                        <h1 className="text-base font-extrabold text-clinic-navy">Thu Ngân &amp; Đối Soát Viện Phí VietQR</h1>
+                        <p className="text-xs text-clinic-text-secondary">Giám sát bảng kê viện phí chờ thu và đối soát thanh toán QR</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <input
+                        type="text"
+                        aria-label="Tìm theo mã hóa đơn hoặc tên bệnh nhân"
+                        placeholder="Tìm mã hóa đơn hoặc tên BN..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="medpro-input w-64 text-xs h-9"
+                    />
                     <button
+                        type="button"
                         onClick={fetchPendingBills}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                        className="medpro-btn-outline flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] h-9 cursor-pointer"
                     >
-                        <ArrowsClockwise size={18} className={loading ? 'animate-spin' : ''} />
-                        Làm mới
+                        <ArrowsClockwise size={15} className={loading ? 'animate-spin' : ''} />
+                        <span>Làm mới</span>
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                        <Clock size={22} weight="bold" />
-                    </div>
-                    <div>
-                        <div className="text-xs font-semibold text-slate-400 uppercase">Hóa đơn chờ thu</div>
-                        <div className="text-2xl font-bold text-slate-800">{pendingBills.length}</div>
+            <div className="medpro-card grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-clinic-border tabular-nums overflow-hidden">
+                <div className="p-4 bg-clinic-surface">
+                    <div className="text-xs font-semibold text-clinic-text-secondary">Số hóa đơn chờ thu</div>
+                    <div className="text-2xl font-display font-extrabold text-clinic-navy mt-1">
+                        {pendingBills.length} phiếu
                     </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
-                        <QrCode size={22} weight="bold" />
-                    </div>
-                    <div>
-                        <div className="text-xs font-semibold text-slate-400 uppercase">Cổng thanh toán</div>
-                        <div className="text-sm font-bold text-teal-700">VietQR Napas 247 Động</div>
+                <div className="p-4 bg-clinic-surface">
+                    <div className="text-xs font-semibold text-clinic-text-secondary">Tổng viện phí chờ thanh toán</div>
+                    <div className="text-2xl font-display font-extrabold text-clinic-cta mt-1">
+                        {totalNetReceivable.toLocaleString('vi-VN')} đ
                     </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <ShieldCheck size={22} weight="bold" />
-                    </div>
-                    <div>
-                        <div className="text-xs font-semibold text-slate-400 uppercase">Bảo mật giao dịch</div>
-                        <div className="text-sm font-bold text-emerald-700">HMAC-SHA256 Webhook</div>
+                <div className="p-4 bg-clinic-surface">
+                    <div className="text-xs font-semibold text-clinic-text-secondary">Tổng miễn giảm / BHYT</div>
+                    <div className="text-2xl font-display font-extrabold text-clinic-navy mt-1">
+                        {totalDiscountAmount.toLocaleString('vi-VN')} đ
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-                <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <Receipt size={20} />
-                        Danh sách phiếu thu chờ thanh toán
+            <div className="medpro-card bg-clinic-surface overflow-hidden">
+                <div className="px-4 py-3 border-b border-clinic-border flex items-center justify-between gap-4">
+                    <div className="text-sm font-bold text-clinic-navy flex items-center gap-2">
+                        <Receipt size={18} />
+                        <span>Danh sách phiếu thu chờ thanh toán ({filteredBills.length})</span>
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Tìm theo mã hóa đơn hoặc tên bệnh nhân..."
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
-                        className="w-full md:w-80 px-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-hidden focus:border-sky-500"
-                    />
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                    <table className="w-full text-left text-sm text-clinic-text-secondary">
+                        <thead className="bg-clinic-bg text-xs font-semibold text-clinic-navy border-b border-clinic-border">
                             <tr>
                                 <th className="px-5 py-3">Mã Hóa Đơn</th>
                                 <th className="px-5 py-3">Bệnh Nhân</th>
@@ -147,48 +145,49 @@ export default function CashierBillingAuditDashboard() {
                                 <th className="px-5 py-3 text-right">Thao Tác</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-clinic-border tabular-nums">
                             {filteredBills.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
+                                    <td colSpan={7} className="px-5 py-8 text-center text-clinic-text-muted">
                                         Không có hóa đơn nào đang chờ thu
                                     </td>
                                 </tr>
                             ) : (
                                 filteredBills.map((bill) => (
-                                    <tr key={bill.id} className="hover:bg-slate-50/80 transition">
-                                        <td className="px-5 py-3 font-semibold text-slate-800">
+                                    <tr key={bill.id} className="hover:bg-clinic-surface-tint transition">
+                                        <td className="px-5 py-3 font-semibold text-clinic-navy">
                                             {bill.ma_hoa_don || bill.invoice_code || `#${bill.id}`}
                                         </td>
                                         <td className="px-5 py-3">
-                                            <div className="font-medium text-slate-800">
+                                            <div className="font-medium text-clinic-navy">
                                                 {bill.benh_nhan?.ho_ten || 'N/A'}
                                             </div>
-                                            <div className="text-xs text-slate-400">
+                                            <div className="text-xs text-clinic-text-muted">
                                                 {bill.benh_nhan?.mabn || ''}
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3 font-medium text-slate-700">
+                                        <td className="px-5 py-3 font-medium text-clinic-text">
                                             {Number(bill.tong_tien || bill.total_service_amount || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td className="px-5 py-3 text-amber-600 font-medium">
+                                        <td className="px-5 py-3 text-clinic-warning font-medium">
                                             {Number(bill.mien_giam || bill.discount_amount || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td className="px-5 py-3 font-bold text-teal-600">
+                                        <td className="px-5 py-3 font-bold text-clinic-cta">
                                             {Number(bill.thuc_thu || bill.final_amount || 0).toLocaleString('vi-VN')} đ
                                         </td>
                                         <td className="px-5 py-3">
-                                            <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span className="medpro-badge-warning px-2.5 py-1 text-xs font-semibold">
                                                 {bill.trang_thai || bill.status || 'Chờ thu'}
                                             </span>
                                         </td>
                                         <td className="px-5 py-3 text-right">
                                             <button
+                                                type="button"
                                                 onClick={() => handleOpenVietQr(bill)}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs transition"
+                                                className="medpro-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] cursor-pointer"
                                             >
                                                 <QrCode size={16} />
-                                                VietQR
+                                                <span>VietQR</span>
                                             </button>
                                         </td>
                                     </tr>

@@ -35,14 +35,14 @@ export function FileAttachField({ label, value, onChange, accept = 'image/*,appl
             <span className="medpro-label !mb-0">{label}</span>
             {value?.url ? (
                 value.la_anh ? (
-                    <img src={value.url} alt={value.ten_tep} className="aspect-[4/3] w-full rounded-xl bg-slate-900 object-contain" />
+                    <img src={value.url} alt={value.ten_tep} className="aspect-[4/3] w-full rounded-[6px] bg-clinic-navy-dark object-contain" />
                 ) : (
-                    <a href={value.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#F5F9FC] p-3 text-[13px] font-semibold text-[#0077B6]">
+                    <a href={value.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border p-3 text-[13px] font-semibold text-clinic-cta">
                         <ClinicIcon name="FileText" size={18} /> {value.ten_tep}
                     </a>
                 )
             ) : (
-                <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-[12px] text-slate-500">
+                <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-[6px] border-2 border-dashed border-clinic-border-strong text-[12px] text-clinic-text-secondary">
                     <ClinicIcon name="UploadSimple" size={22} />
                     Chưa có tệp
                 </div>
@@ -51,7 +51,7 @@ export function FileAttachField({ label, value, onChange, accept = 'image/*,appl
                 {uploading ? 'Đang tải lên…' : value?.url ? 'Thay tệp' : 'Chọn tệp'}
                 <input type="file" accept={accept} className="sr-only" onChange={handleFile} disabled={disabled || uploading} />
             </label>
-            <span className="text-[11px] text-slate-500">JPG, PNG hoặc PDF · tối đa 10MB</span>
+            <span className="text-[11px] text-clinic-text-secondary">JPG, PNG hoặc PDF · tối đa 10MB</span>
         </div>
     )
 }
@@ -61,14 +61,14 @@ export function PresetChips({ label, presets, onPick, disabled }) {
     if (names.length === 0) return null
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-slate-500">{label}</span>
+            <span className="text-[12px] text-clinic-text-secondary">{label}</span>
             {names.map((name) => (
                 <button
                     key={name}
                     type="button"
                     disabled={disabled}
                     onClick={() => onPick(name)}
-                    className="rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#003553] ring-1 ring-slate-300 transition hover:ring-[#00B5F1] cursor-pointer disabled:cursor-not-allowed"
+                    className="rounded-[6px] bg-clinic-surface px-3 py-1.5 text-[12px] font-semibold text-clinic-navy border border-clinic-border transition hover:border-clinic-cta cursor-pointer disabled:cursor-not-allowed"
                 >
                     {name}
                 </button>
@@ -81,10 +81,10 @@ export function ClassificationBar({ value, abnormalCount }) {
     const cls = RESULT_CLASS[value]
     const abnormal = value !== 'BINH_THUONG'
     return (
-        <div className={`flex flex-wrap items-center gap-2 rounded-xl px-4 py-3 text-[13px] ${abnormal ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+        <div className={`flex flex-wrap items-center gap-2 rounded-[6px] border px-4 py-3 text-[13px] ${abnormal ? 'bg-clinic-danger-bg border-clinic-danger-border' : 'bg-clinic-success-bg border-clinic-success-border'}`}>
             <span>Phân loại kết quả (tự động):</span>
             <span className={cls.badge}>{cls.label}</span>
-            {abnormal && <span className="text-slate-600">· {abnormalCount} chỉ số ngoài khoảng tham chiếu, sẽ được đánh dấu trên Bàn khám.</span>}
+            {abnormal && <span className="text-clinic-text-secondary tabular-nums">· {abnormalCount} chỉ số ngoài khoảng tham chiếu, sẽ được đánh dấu trên Bàn khám.</span>}
         </div>
     )
 }
@@ -92,8 +92,8 @@ export function ClassificationBar({ value, abnormalCount }) {
 export function ResultFormFooter({ submitting, onDraft, onSubmit, alreadyReturned, needsApproval = false, disabled = false }) {
     const submitLabel = needsApproval ? 'Hoàn tất kết quả' : 'Trả kết quả'
     return (
-        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-            <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
+        <div className="flex flex-wrap items-center gap-3 border-t border-clinic-border pt-4">
+            <span className="min-w-[240px] flex-1 text-[12px] text-clinic-text-secondary">
                 {disabled
                     ? 'Vui lòng bấm “Tiếp nhận & bắt đầu” ở góc trên trước khi lưu hoặc hoàn tất kết quả.'
                     : needsApproval

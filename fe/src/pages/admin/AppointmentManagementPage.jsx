@@ -277,54 +277,54 @@ export default function AppointmentManagementPage() {
     return (
         <div className="space-y-4">
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl">
+                <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     <button
                         type="button"
                         onClick={() => setActiveServiceTab('LICH_HEN')}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                             activeServiceTab === 'LICH_HEN'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <CalendarCheck size={16} weight="bold" />
-                        <span>1. Lịch hẹn khám & Telemedicine ({appointments.length})</span>
+                        <CalendarCheck size={15} weight="bold" />
+                        <span>1. Lịch hẹn khám &amp; Telemedicine ({appointments.length})</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveServiceTab('GOI_DICH_VU')}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                             activeServiceTab === 'GOI_DICH_VU'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <Package size={16} weight="bold" />
-                        <span>2. Gói dịch vụ (/goidichvu) ({servicePackages.length})</span>
+                        <Package size={15} weight="bold" />
+                        <span>2. Gói dịch vụ ({servicePackages.length})</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveServiceTab('LIEU_TRINH')}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                             activeServiceTab === 'LIEU_TRINH'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <ClipboardText size={16} weight="bold" />
-                        <span>3. Liệu trình điều trị (/lieutrinh) ({treatmentCourses.length})</span>
+                        <ClipboardText size={15} weight="bold" />
+                        <span>3. Liệu trình điều trị ({treatmentCourses.length})</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveServiceTab('MA_TRAN_LICH_TRUC')}
-                        className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                             activeServiceTab === 'MA_TRAN_LICH_TRUC'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <CalendarPlus size={16} weight="bold" />
-                        <span>4. Ma trận Lịch trực & Slot (/shifts/schedule-matrix)</span>
+                        <CalendarPlus size={15} weight="bold" />
+                        <span>4. Ma trận Lịch trực &amp; Ca khám</span>
                     </button>
                 </div>
             </div>
@@ -334,33 +334,33 @@ export default function AppointmentManagementPage() {
                     <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-140px)]">
                         <div className="medpro-section-title">
                             <span className="inline-flex items-center gap-1.5">
-                                <CalendarCheck size={16} weight="duotone" className="text-[#00B5F1]" />
+                                <CalendarCheck size={16} weight="duotone" className="text-clinic-cta" />
                                 <span>DANH SÁCH LỊCH HẸN ({filteredAppointments.length})</span>
                             </span>
-                            <span className="text-xs font-semibold text-slate-400">Medpro Sync</span>
+                            <span className="text-xs font-semibold text-clinic-text-muted">Đồng bộ trực tuyến</span>
                         </div>
 
                         <div className="grid grid-cols-12 gap-2 mb-3">
                             <div className="col-span-7 relative">
-                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                                 <input
                                     type="text"
                                     value={searchText}
                                     onChange={(e) => setSearchText(e.target.value)}
                                     placeholder="Tìm tên, Mã LH, SĐT..."
-                                    className="medpro-input !pl-8 text-xs"
+                                    className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
                                 />
                             </div>
                             <div className="col-span-5 relative">
-                                <Funnel size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <Funnel size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                                 <select
                                     value={statusFilter}
                                     onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="medpro-input !pl-7 text-xs"
+                                    className="medpro-input !py-1.5 h-9 !pl-7 text-xs font-semibold truncate"
                                 >
                                     <option value="ALL">Tất cả</option>
                                     {appointmentStatuses.map((st) => (
-                                         <option key={st} value={st}>
+                                        <option key={st} value={st}>
                                             {st}
                                         </option>
                                     ))}
@@ -368,38 +368,46 @@ export default function AppointmentManagementPage() {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
-                            <table className="medpro-table">
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-1.5 [&_td]:!px-1.5 text-xs">
                                 <thead>
                                     <tr>
-                                        <th>STT</th>
+                                        <th className="w-7 text-center">#</th>
                                         <th>Mã LH</th>
                                         <th>Họ tên BN</th>
                                         <th>Giờ hẹn</th>
-                                        <th className="text-center">Trạng thái</th>
+                                        <th className="text-center">TT</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredAppointments.map((a, idx) => (
-                                        <tr
-                                            key={a.id || idx}
-                                            onClick={() => setForm({ ...a })}
-                                            className={`cursor-pointer transition ${
-                                                form.id === a.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : 'hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            <td className="tabular-nums text-center font-bold text-slate-500">{idx + 1}</td>
-                                            <td className="font-mono text-[11px] font-bold text-[#00B5F1]">{a.maLH}</td>
-                                            <td>
-                                                <div className="font-semibold text-[#12263F]">{a.hoTen}</div>
-                                                <div className="text-[10px] text-slate-400 font-mono">{a.dienThoai}</div>
-                                            </td>
-                                            <td className="tabular-nums text-[11px] text-slate-600">{a.ngayDatLich?.replace('T', ' ')}</td>
-                                            <td className="text-center">
-                                                <StatusBadge status={a.trangThai} compact />
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {filteredAppointments.map((a, idx) => {
+                                        const [apptDate, apptTime] = String(a.ngayDatLich || '').split('T')
+                                        return (
+                                            <tr
+                                                key={a.id || idx}
+                                                onClick={() => setForm({ ...buildEmptyAppointment(), ...a })}
+                                                className={`cursor-pointer transition-colors ${
+                                                    form.id === a.id ? '!bg-clinic-surface-alt font-semibold' : ''
+                                                }`}
+                                            >
+                                                <td className="tabular-nums text-center font-bold text-clinic-text-secondary w-7">{idx + 1}</td>
+                                                <td className="font-mono text-[10.5px] font-bold text-clinic-cta max-w-[78px] truncate" title={a.maLH}>
+                                                    {a.maLH}
+                                                </td>
+                                                <td className="min-w-0">
+                                                    <div className="font-semibold text-clinic-navy leading-tight">{a.hoTen}</div>
+                                                    <div className="text-[10px] text-clinic-text-muted font-mono">{a.dienThoai}</div>
+                                                </td>
+                                                <td className="tabular-nums text-[10.5px] leading-tight text-clinic-text-secondary whitespace-nowrap">
+                                                    <div>{apptDate}</div>
+                                                    {apptTime && <div className="text-clinic-text-muted">{apptTime}</div>}
+                                                </td>
+                                                <td className="text-center">
+                                                    <StatusBadge status={a.trangThai} compact />
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                     {filteredAppointments.length === 0 && (
                                         <tr>
                                             <td colSpan={5} className="py-8">
@@ -413,28 +421,28 @@ export default function AppointmentManagementPage() {
                     </div>
 
                     <div className="lg:col-span-8 medpro-card p-4 space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-clinic-border">
                             <div>
-                                <h2 className="font-display text-base font-extrabold text-[#003553] uppercase">
-                                    CHI TIẾT LỊCH HẸN & XÁC NHẬN CỦA LỄ TÂN
+                                <h2 className="font-display text-sm font-extrabold text-clinic-navy uppercase">
+                                    CHI TIẾT LỊCH HẸN &amp; XÁC NHẬN CỦA LỄ TÂN
                                 </h2>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-clinic-text-secondary">
                                     Xác nhận giờ hẹn với người bệnh và chuyển tiếp đón tại quầy
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                <button type="button" onClick={handleNew} className="medpro-btn-outline text-xs">
-                                    <CalendarPlus size={15} weight="bold" className="text-[#00B5F1]" />
+                                <button type="button" onClick={handleNew} className="medpro-btn-outline !py-1.5 !px-3 text-xs">
+                                    <CalendarPlus size={15} weight="bold" className="text-clinic-cta" />
                                     <span>Tạo mới</span>
                                 </button>
-                                <button type="button" onClick={handleSave} className="medpro-btn-primary text-xs">
+                                <button type="button" onClick={handleSave} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu lịch hẹn</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleConvertToRegistration}
-                                    className="medpro-btn-amber text-xs font-bold"
+                                    className="medpro-btn-amber !py-1.5 !px-3 text-xs font-bold"
                                 >
                                     <ClipboardText size={15} weight="bold" />
                                     <span>Chuyển sang Tiếp đón</span>
@@ -445,9 +453,9 @@ export default function AppointmentManagementPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="medpro-label mb-0">Mã lịch hẹn</label>
-                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
+                                    <label className="medpro-label !mb-0">Mã lịch hẹn</label>
+                                    <span className="medpro-badge-info !text-[10px]">
+                                        Tự sinh
                                     </span>
                                 </div>
                                 <input
@@ -455,15 +463,15 @@ export default function AppointmentManagementPage() {
                                     value={form.maLH || ''}
                                     readOnly
                                     disabled
-                                    className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    className="medpro-input font-mono font-bold bg-clinic-bg-muted text-clinic-text-muted cursor-not-allowed select-none"
                                     title="Mã lịch hẹn do hệ thống tự sinh, không thể chỉnh sửa"
                                 />
                             </div>
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="medpro-label mb-0">Mã bệnh nhân</label>
-                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                        Hệ thống tự sinh
+                                    <label className="medpro-label !mb-0">Mã bệnh nhân</label>
+                                    <span className="medpro-badge-info !text-[10px]">
+                                        Tự sinh
                                     </span>
                                 </div>
                                 <input
@@ -471,7 +479,7 @@ export default function AppointmentManagementPage() {
                                     value={form.maBN || ''}
                                     readOnly
                                     disabled
-                                    className="medpro-input font-mono bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                    className="medpro-input font-mono bg-clinic-bg-muted text-clinic-text-muted cursor-not-allowed select-none"
                                     title="Mã bệnh nhân liên kết từ hồ sơ bệnh nhân, không thể chỉnh sửa"
                                 />
                             </div>
@@ -497,9 +505,9 @@ export default function AppointmentManagementPage() {
                             <div>
                                 <label className="medpro-label">Giới tính</label>
                                 <select
-                                    value={form.gioiTinh || genders[0]}
+                                    value={form.gioiTinh || genders[0] || ''}
                                     onChange={(e) => setForm({ ...form, gioiTinh: e.target.value })}
-                                    className="medpro-input"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                 >
                                     {genders.map((g) => (
                                         <option key={g} value={g}>
@@ -514,7 +522,7 @@ export default function AppointmentManagementPage() {
                                     type="text"
                                     value={form.tuoi || ''}
                                     onChange={(e) => setForm({ ...form, tuoi: e.target.value })}
-                                    className="medpro-input"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
                             <div>
@@ -523,16 +531,16 @@ export default function AppointmentManagementPage() {
                                     type="datetime-local"
                                     value={form.ngayDatLich || ''}
                                     onChange={(e) => setForm({ ...form, ngayDatLich: e.target.value })}
-                                    className="medpro-input"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
 
                             <div className="sm:col-span-2">
                                 <label className="medpro-label">Chuyên khoa đăng ký</label>
                                 <select
-                                    value={form.chuyenKhoa || defaults.defaultSpecialty}
+                                    value={form.chuyenKhoa || defaults.defaultSpecialty || ''}
                                     onChange={(e) => setForm({ ...form, chuyenKhoa: e.target.value })}
-                                    className="medpro-input font-bold text-[#003553]"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-bold text-clinic-navy truncate"
                                 >
                                     {specialties.map((s) => (
                                         <option key={s} value={s}>
@@ -544,10 +552,16 @@ export default function AppointmentManagementPage() {
                             <div className="sm:col-span-2">
                                 <label className="medpro-label">Bác sĩ khám</label>
                                 <select
-                                    value={form.bacSi || defaults.defaultDoctor}
+                                    value={form.bacSi || defaults.defaultDoctor || ''}
                                     onChange={(e) => setForm({ ...form, bacSi: e.target.value })}
-                                    className="medpro-input"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                 >
+                                    {(form.bacSi || defaults.defaultDoctor) &&
+                                        !staffList.some((s) => s.vaiTro?.includes('Bác sĩ') && s.hoTen === (form.bacSi || defaults.defaultDoctor)) && (
+                                            <option value={form.bacSi || defaults.defaultDoctor}>
+                                                {String(form.bacSi || defaults.defaultDoctor).replace(/\b(PGS\.TS|GS\.TS|TS\.BS|BS\.CKII|BS\.CKI|ThS\.BS|BS)\s+\1\b/gi, '$1')}
+                                            </option>
+                                        )}
                                     {staffList
                                         .filter((s) => {
                                             if (!s.vaiTro || !s.vaiTro.includes('Bác sĩ')) return false
@@ -575,9 +589,9 @@ export default function AppointmentManagementPage() {
                             </div>
                         </div>
 
-                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
-                            <div className="text-xs font-bold text-[#003553] uppercase flex items-center gap-1.5">
-                                <CheckCircle size={16} weight="fill" className="text-[#00B5F1]" />
+                        <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-3">
+                            <div className="text-xs font-bold text-clinic-navy uppercase flex items-center gap-1.5">
+                                <CheckCircle size={16} weight="fill" className="text-clinic-cta" />
                                 <span>XÁC NHẬN CỦA NHÂN VIÊN LỄ TÂN</span>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -586,7 +600,7 @@ export default function AppointmentManagementPage() {
                                     <select
                                         value={form.trangThai || 'Chờ xác nhận'}
                                         onChange={(e) => setForm({ ...form, trangThai: e.target.value })}
-                                        className="medpro-input font-bold text-[#00B5F1]"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-bold text-clinic-cta truncate"
                                     >
                                         {confirmationActions.map((act) => (
                                             <option key={act} value={act}>
@@ -597,7 +611,7 @@ export default function AppointmentManagementPage() {
                                 </div>
                                 <div>
                                     <label className="medpro-label">Nhân viên tiếp đón</label>
-                                    <input type="text" value={form.nhanVienXacNhan || defaults.defaultReceptionist} readOnly className="medpro-input" />
+                                    <input type="text" value={form.nhanVienXacNhan || defaults.defaultReceptionist || ''} readOnly className="medpro-input" />
                                 </div>
                                 <div>
                                     <label className="medpro-label">Ngày xác nhận</label>
@@ -612,12 +626,12 @@ export default function AppointmentManagementPage() {
             {activeServiceTab === 'GOI_DICH_VU' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
-                        <span>DANH SÁCH ĐĂNG KÝ GÓI KHÁM SỨC KHỎE TỔNG QUÁT (/goidichvu)</span>
-                        <span className="text-xs font-semibold text-[#00B5F1]">{servicePackages.length} gói đăng ký</span>
+                        <span>DANH SÁCH ĐĂNG KÝ GÓI KHÁM SỨC KHỎE TỔNG QUÁT</span>
+                        <span className="medpro-badge-info tabular-nums">{servicePackages.length} gói đăng ký</span>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã LH</th>
@@ -637,26 +651,26 @@ export default function AppointmentManagementPage() {
                             <tbody>
                                 {servicePackages.map((pkg) => (
                                     <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{pkg.maLH}</td>
-                                        <td className="font-mono text-xs">{pkg.maBN}</td>
-                                        <td className="font-bold text-[#12263F]">{pkg.tenBN}</td>
-                                        <td className="font-semibold text-[#003553]">{pkg.tenGoi}</td>
-                                        <td className="text-xs text-slate-500 tabular-nums">{pkg.ngayTao}</td>
-                                        <td className="text-xs tabular-nums">{pkg.ngayKham}</td>
-                                        <td className="tabular-nums font-mono">{(pkg.tongTien || 0).toLocaleString('vi-VN')} đ</td>
-                                        <td className="tabular-nums text-emerald-600 font-bold">-{(pkg.giamGia || 0).toLocaleString('vi-VN')} đ</td>
-                                        <td className="tabular-nums font-mono font-extrabold text-[#00B5F1]">
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{pkg.maLH}</td>
+                                        <td className="font-mono text-xs whitespace-nowrap">{pkg.maBN}</td>
+                                        <td className="font-bold text-clinic-navy">{pkg.tenBN}</td>
+                                        <td className="font-semibold text-clinic-navy">{pkg.tenGoi}</td>
+                                        <td className="text-xs text-clinic-text-secondary tabular-nums whitespace-nowrap">{pkg.ngayTao}</td>
+                                        <td className="text-xs tabular-nums whitespace-nowrap">{pkg.ngayKham}</td>
+                                        <td className="tabular-nums font-mono whitespace-nowrap">{(pkg.tongTien || 0).toLocaleString('vi-VN')} đ</td>
+                                        <td className="tabular-nums text-clinic-success font-bold whitespace-nowrap">-{(pkg.giamGia || 0).toLocaleString('vi-VN')} đ</td>
+                                        <td className="tabular-nums font-mono font-extrabold text-clinic-cta whitespace-nowrap">
                                             {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
                                         <td>
                                             <StatusBadge status={pkg.trangThai} compact />
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <span className={pkg.thanhToan === 'Đã thu tiền' ? 'medpro-badge-success' : 'medpro-badge-warning'}>
                                                 {pkg.thanhToan}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => AppToast.success(`Đã cập nhật trạng thái gói cho BN ${pkg.tenBN}!`)}
@@ -676,12 +690,12 @@ export default function AppointmentManagementPage() {
             {activeServiceTab === 'LIEU_TRINH' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
-                        <span>QUẢN LÝ LIỆU TRÌNH ĐIỀU TRỊ DÀI NGÀY (/lieutrinh & /danhmucbaitap)</span>
-                        <span className="text-xs font-semibold text-[#00B5F1]">{treatmentCourses.length} liệu trình</span>
+                        <span>QUẢN LÝ LIỆU TRÌNH ĐIỀU TRỊ DÀI NGÀY</span>
+                        <span className="medpro-badge-info tabular-nums">{treatmentCourses.length} liệu trình</span>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã ĐK</th>
@@ -699,46 +713,46 @@ export default function AppointmentManagementPage() {
                             <tbody>
                                 {treatmentCourses.map((course) => (
                                     <tr key={course.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{course.maDangKy}</td>
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{course.maDangKy}</td>
                                         <td>
-                                            <div className="font-bold text-[#12263F]">{course.tenBN}</div>
-                                            <div className="text-[11px] text-slate-400 font-mono">{course.dienThoai} &bull; {course.tuoi}</div>
+                                            <div className="font-bold text-clinic-navy">{course.tenBN}</div>
+                                            <div className="text-[11px] text-clinic-text-muted font-mono">{course.dienThoai} &bull; {course.tuoi}</div>
                                         </td>
-                                        <td className="font-semibold text-[#003553]">
+                                        <td className="font-semibold text-clinic-navy">
                                             <div>{course.tenLieuTrinh}</div>
-                                            <div className="text-[11px] text-slate-500 italic mt-0.5">{course.baiTap}</div>
+                                            <div className="text-[11px] text-clinic-text-secondary font-normal mt-0.5">{course.baiTap}</div>
                                         </td>
                                         <td className="font-medium text-xs">{course.bacSi}</td>
                                         <td>
-                                            <div className="font-extrabold text-xs text-[#003553]">
+                                            <div className="font-extrabold text-xs text-clinic-navy tabular-nums">
                                                 {course.soBuoiDaTap} / {course.tongSoBuoi} buổi
                                             </div>
-                                            <div className="w-24 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                                            <div className="w-24 bg-clinic-bg-muted rounded-[4px] h-1.5 mt-1 overflow-hidden border border-clinic-border">
                                                 <div
-                                                    className="h-1.5 bg-[#00B5F1] rounded-full"
+                                                    className="h-1.5 bg-clinic-cta rounded-[4px]"
                                                     style={{ width: `${(course.soBuoiDaTap / course.tongSoBuoi) * 100}%` }}
                                                 />
                                             </div>
                                         </td>
                                         <td>
-                                            <div className="flex gap-1">
+                                            <div className="flex flex-wrap gap-1">
                                                 {(course.lichLapLai || []).map((day) => (
-                                                    <span key={day} className="px-1.5 py-0.5 rounded bg-sky-100 text-[#003553] text-[10px] font-bold">
+                                                    <span key={day} className="medpro-badge-info !px-1.5 !py-0.5 !text-[10px]">
                                                         {day}
                                                     </span>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="font-mono font-bold text-[#003553]">
+                                        <td className="font-mono font-bold text-clinic-navy whitespace-nowrap">
                                             {(course.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td>
-                                            <span className="medpro-badge-success text-[10px]">{course.thanhToan}</span>
+                                        <td className="whitespace-nowrap">
+                                            <span className="medpro-badge-success">{course.thanhToan}</span>
                                         </td>
                                         <td>
                                             <StatusBadge status={course.trangThai} compact />
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => handleSessionCheckIn(course)}
@@ -757,6 +771,7 @@ export default function AppointmentManagementPage() {
 
             {activeServiceTab === 'MA_TRAN_LICH_TRUC' && (
                 <DoctorScheduleManagementTab />
-            )}</div>
+            )}
+        </div>
     )
 }

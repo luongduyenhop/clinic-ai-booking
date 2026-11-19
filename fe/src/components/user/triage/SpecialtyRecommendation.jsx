@@ -1,11 +1,25 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Info, Robot, Stethoscope } from '../../common/ClinicIcon'
+import { Info, Stethoscope } from '../../common/ClinicIcon'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
+import { formatDoctorHeading } from '../../../utils/helpers/quickBookingHelpers'
 
-const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().replace(/\bkhoa\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
-const displayReason = (reason) => String(reason || '')
-    .replace(/\[(?:Định tuyến theo từ khóa|Độ tin cậy cao):\s*\d+%\]\s*/gi, '')
-    .replace(/Độ tin cậy chuyên khoa cao nhất là \d+% hoặc mô tả chưa có đủ 2 dấu hiệu đặc hiệu\.\s*/gi, 'Mô tả triệu chứng chưa có đủ dấu hiệu đặc hiệu. ')
+const normalize = (value) =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .toLowerCase()
+        .replace(/\bkhoa\b/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+
+const displayReason = (reason) =>
+    String(reason || '')
+        .replace(/\[(?:Định tuyến theo từ khóa|Độ tin cậy cao):\s*\d+%\]\s*/gi, '')
+        .replace(
+            /Độ tin cậy chuyên khoa cao nhất là \d+% hoặc mô tả chưa có đủ 2 dấu hiệu đặc hiệu\.\s*/gi,
+            'Mô tả triệu chứng chưa có đủ dấu hiệu đặc hiệu. '
+        )
 
 export default function SpecialtyRecommendation({ result, symptoms, onRestart }) {
     const { specialties, doctors, loading: catalogLoading, error: catalogError } = useMedicalCatalog()
@@ -21,88 +35,168 @@ export default function SpecialtyRecommendation({ result, symptoms, onRestart })
     })
 
     return (
-        <section className="max-w-3xl mx-auto medpro-card p-6 sm:p-9">
-            <div className="text-center">
-                <Robot size={34} className="text-[#00A9E3] mx-auto" />
-                <h1 className="mt-5 font-display text-2xl font-extrabold text-[#003553]">Gợi ý chuyên khoa phù hợp</h1>
-            </div>
-            {result.needsHumanSupport && (
-                <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 flex items-center gap-2">
-                    <Info size={18} /> Triệu chứng chưa đủ rõ; nên gặp nhân viên y tế để được tư vấn.
+        <section className="max-w-3xl mx-auto medpro-card overflow-hidden">
+            <div className="h-1 bg-clinic-navy" aria-hidden="true" />
+            <div className="p-6 sm:p-8">
+                <div className="flex items-start gap-3 pb-4 border-b border-clinic-border">
+                    <span className="w-10 h-10 rounded-[8px] bg-clinic-surface-alt text-clinic-cta flex items-center justify-center shrink-0">
+                        <Stethoscope size={20} weight="bold" />
+                    </span>
+                    <div>
+                        <p className="text-xs font-semibold text-clinic-text-secondary">
+                            Kết quả phân luồng triệu chứng trước khám
+                        </p>
+                        <h1 className="mt-1 font-display text-2xl font-extrabold text-clinic-navy">
+                            Phiếu Gợi ý Chuyên khoa Tiếp nhận
+                        </h1>
+                    </div>
                 </div>
-            )}
-            <div className="mt-6 grid gap-4">
-                {result.recommendations.map((recommendation, index) => {
-                    const name = normalize(recommendation.specialtyName)
-                    const match = specialties.find((item) => item.id === String(recommendation.specialtyId)) || specialties.find((item) => {
-                        const value = normalize(item.name)
-                        return value === name || value.includes(name) || name.includes(value)
-                    })
-                    const target = match ? `/dat-lich?specialty=${match.id}` : '/dat-lich'
-                    const suggestedDoctors = (recommendation.doctors || [])
-                        .map((suggestion) => {
-                            const doctor = doctors.find((item) => item.id === String(suggestion.id) && item.specialtyId === match?.id)
-                            return doctor ? { ...doctor, ...suggestion } : null
-                        })
-                        .filter(Boolean)
-                    return (
-                        <article key={`${recommendation.specialtyId}-${index}`} className="rounded-2xl border border-[#B8E5FA] bg-[#F7FCFF] p-5">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                                <Stethoscope size={25} className="text-[#00A9E3]" />
-                                <div className="flex-1">
-                                    <p className="text-xs font-semibold text-[#008EC2]">Gợi ý {index + 1}</p>
-                                    <h2 className="font-bold text-[#003553]">{recommendation.specialtyName}</h2>
-                                    <p className="text-xs text-slate-600">{displayReason(recommendation.reason)}</p>
-                                </div>
-                                <Link to={target} state={getRecommendationState(recommendation)} className="medpro-btn-primary min-h-11">
-                                    Đặt lịch theo khoa <ArrowRight size={15} />
-                                </Link>
-                            </div>
 
-                            <div className="mt-5 border-t border-[#D9EEF8] pt-4">
-                                <h3 className="text-sm font-bold text-[#003553]">Bác sĩ có giờ trống sớm nhất</h3>
-                                {catalogLoading ? (
-                                    <p role="status" className="mt-3 text-xs text-slate-500">Đang tải danh sách bác sĩ...</p>
-                                ) : catalogError ? (
-                                    <p role="alert" className="mt-3 text-xs text-rose-600">Không tải được danh sách bác sĩ: {catalogError}</p>
-                                ) : suggestedDoctors.length ? (
-                                    <ul className="mt-3 grid max-w-2xl gap-3">
-                                        {suggestedDoctors.map((doctor) => (
-                                            <li key={doctor.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E8F4FD] text-xs font-bold text-[#008EC2]" aria-hidden="true">
-                                                    {doctor.initials}
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-semibold text-[#003553]">{doctor.name}</p>
-                                                    <p className="text-xs text-slate-500">{doctor.degree || doctor.experience || recommendation.specialtyName}</p>
-                                                    <p className="mt-1 text-xs font-medium text-emerald-700">
-                                                        Trống gần nhất: {doctor.nextAvailableDate ? new Date(`${doctor.nextAvailableDate}T00:00:00`).toLocaleDateString('vi-VN') : 'Chưa có ngày'} lúc {doctor.nextAvailableTime || '--:--'}
-                                                    </p>
-                                                </div>
-                                                <Link
-                                                    to={`/dat-lich?${new URLSearchParams({ specialty: match.id, doctor: doctor.id, date: doctor.nextAvailableDate, slot: doctor.nextAvailableTime })}`}
-                                                    state={getRecommendationState(recommendation)}
-                                                    className="shrink-0 text-xs font-bold text-[#008EC2] hover:underline"
+                {result.needsHumanSupport && (
+                    <div className="mt-5 rounded-[8px] bg-clinic-warning-bg p-4 text-sm text-clinic-warning flex items-center gap-2.5">
+                        <Info size={18} className="shrink-0" />
+                        <span>
+                            Triệu chứng chưa đủ rõ; nên trao đổi trực tiếp với nhân viên y tế tại quầy tiếp nhận.
+                        </span>
+                    </div>
+                )}
+
+                <div className="mt-6 grid gap-4">
+                    {result.recommendations.map((recommendation, index) => {
+                        const name = normalize(recommendation.specialtyName)
+                        const match =
+                            specialties.find((item) => item.id === String(recommendation.specialtyId)) ||
+                            specialties.find((item) => {
+                                const value = normalize(item.name)
+                                return value === name || value.includes(name) || name.includes(value)
+                            })
+                        const target = match ? `/dat-lich?specialty=${match.id}` : '/dat-lich'
+                        const suggestedDoctors = (recommendation.doctors || [])
+                            .map((suggestion) => {
+                                const doctor = doctors.find(
+                                    (item) =>
+                                        item.id === String(suggestion.id) &&
+                                        item.specialtyId === match?.id
+                                )
+                                return doctor ? { ...doctor, ...suggestion } : null
+                            })
+                            .filter(Boolean)
+
+                        return (
+                            <article
+                                key={`${recommendation.specialtyId}-${index}`}
+                                className="rounded-[8px] bg-clinic-surface-tint p-5"
+                            >
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-clinic-cta tabular-nums">
+                                            Đề xuất {index + 1}
+                                        </p>
+                                        <h2 className="mt-0.5 font-display text-base font-extrabold text-clinic-navy">
+                                            {recommendation.specialtyName}
+                                        </h2>
+                                        <p className="mt-1 text-xs leading-5 text-clinic-text-secondary">
+                                            {displayReason(recommendation.reason)}
+                                        </p>
+                                    </div>
+                                    <Link
+                                        to={target}
+                                        state={getRecommendationState(recommendation)}
+                                        className="medpro-btn-primary min-h-10 shrink-0"
+                                    >
+                                        Đặt lịch theo khoa
+                                    </Link>
+                                </div>
+
+                                <div className="mt-5 border-t border-clinic-info-border pt-4">
+                                    <h3 className="text-sm font-bold text-clinic-navy">
+                                        Bác sĩ có giờ trống sớm nhất
+                                    </h3>
+                                    {catalogLoading ? (
+                                        <p role="status" className="mt-3 text-xs text-clinic-text-secondary">
+                                            Đang tải danh sách bác sĩ...
+                                        </p>
+                                    ) : catalogError ? (
+                                        <p role="alert" className="mt-3 text-xs text-clinic-danger">
+                                            Không tải được danh sách bác sĩ: {catalogError}
+                                        </p>
+                                    ) : suggestedDoctors.length ? (
+                                        <ul className="mt-3 grid max-w-2xl gap-2.5">
+                                            {suggestedDoctors.map((doctor) => (
+                                                <li
+                                                    key={doctor.id}
+                                                    className="flex items-center gap-3.5 rounded-[8px] bg-clinic-surface p-3.5"
                                                 >
-                                                    Chọn giờ này
-                                                </Link>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="mt-3 text-xs text-slate-500">Hiện chưa tìm thấy bác sĩ có slot trống trong 30 ngày tới.</p>
-                                )}
-                            </div>
-                        </article>
-                    )
-                })}
+                                                    <picture className="w-12 h-12 rounded-[8px] overflow-hidden shrink-0 bg-clinic-surface-alt block">
+                                                        <source
+                                                            srcSet="/images/doctor-portrait.webp"
+                                                            type="image/webp"
+                                                        />
+                                                        <img
+                                                            src="/images/doctor-portrait.jpg"
+                                                            width={1024}
+                                                            height={1024}
+                                                            alt={doctor.name}
+                                                            className="w-full h-full object-cover object-top"
+                                                        />
+                                                    </picture>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-bold text-clinic-navy">
+                                                            {formatDoctorHeading(doctor)}
+                                                        </p>
+                                                        <p className="text-xs text-clinic-text-secondary">
+                                                            {doctor.degree ||
+                                                                doctor.experience ||
+                                                                recommendation.specialtyName}
+                                                        </p>
+                                                        <p className="mt-1 text-xs font-semibold text-clinic-success tabular-nums">
+                                                            Trống gần nhất:{' '}
+                                                            {doctor.nextAvailableDate
+                                                                ? new Date(
+                                                                      `${doctor.nextAvailableDate}T00:00:00`
+                                                                  ).toLocaleDateString('vi-VN')
+                                                                : 'Chưa có ngày'}{' '}
+                                                            lúc {doctor.nextAvailableTime || '--:--'}
+                                                        </p>
+                                                    </div>
+                                                    <Link
+                                                        to={`/dat-lich?${new URLSearchParams({
+                                                            specialty: match.id,
+                                                            doctor: doctor.id,
+                                                            date: doctor.nextAvailableDate,
+                                                            slot: doctor.nextAvailableTime,
+                                                        })}`}
+                                                        state={getRecommendationState(recommendation)}
+                                                        className="shrink-0 text-xs font-bold text-clinic-cta hover:underline"
+                                                    >
+                                                        Chọn giờ này
+                                                    </Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-3 text-xs text-clinic-text-secondary">
+                                            Hiện chưa tìm thấy bác sĩ có khung giờ trống trong 30 ngày tới.
+                                        </p>
+                                    )}
+                                </div>
+                            </article>
+                        )
+                    })}
+                </div>
+
+                <p className="mt-6 rounded-[8px] bg-clinic-bg p-4 text-xs leading-5 text-clinic-text-secondary">
+                    <strong>Lưu ý:</strong> Đề xuất trên hỗ trợ định hướng chuyên khoa tiếp nhận, không thay thế kết luận thăm khám trực tiếp của bác sĩ.
+                </p>
+
+                <button
+                    type="button"
+                    onClick={onRestart}
+                    className="mt-5 text-sm font-semibold text-clinic-cta underline hover:text-clinic-navy cursor-pointer"
+                >
+                    Chỉnh sửa triệu chứng và phân tích lại
+                </button>
             </div>
-            <p className="mt-6 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">
-                <strong>Lưu ý:</strong> Kết quả AI chỉ hỗ trợ phân luồng chuyên khoa, không thay thế chẩn đoán và tư vấn bác sĩ.
-            </p>
-            <button type="button" onClick={onRestart} className="mt-5 text-sm text-[#008EC2] underline">
-                Chỉnh sửa triệu chứng và phân tích lại
-            </button>
         </section>
     )
 }

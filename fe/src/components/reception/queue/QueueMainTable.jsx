@@ -67,7 +67,7 @@ export default function QueueMainTable({
 
                 return (
                     <div className="flex flex-col gap-1 items-start">
-                        <span className="text-base font-black text-sky-700 tracking-tight font-mono">
+                        <span className="text-base font-black text-clinic-cta tracking-tight font-mono tabular-nums">
                             {number}
                         </span>
                         <div className="flex flex-wrap items-center gap-1">
@@ -107,11 +107,11 @@ export default function QueueMainTable({
                         <button
                             type="button"
                             onClick={() => onOpenPatientDrawer(record.patientId)}
-                            className="font-bold text-slate-900 hover:text-sky-600 hover:underline text-left cursor-pointer block"
+                            className="font-bold text-clinic-navy hover:text-clinic-cta hover:underline text-left cursor-pointer block"
                         >
                             {patientName}
                         </button>
-                        <div className="text-slate-400 text-xs flex items-center gap-1.5 mt-0.5">
+                        <div className="text-clinic-text-secondary text-xs flex items-center gap-1.5 mt-0.5 tabular-nums">
                             {patientPhone && (
                                 <span className="inline-flex items-center gap-0.5">
                                     <PhoneOutlined className="text-[10px]" />
@@ -119,7 +119,7 @@ export default function QueueMainTable({
                                 </span>
                             )}
                             {patientPhone && patientCode && <span>•</span>}
-                            {patientCode && <span className="font-mono text-slate-500">{patientCode}</span>}
+                            {patientCode && <span className="font-mono text-clinic-text-muted">{patientCode}</span>}
                         </div>
                     </div>
                 )
@@ -134,12 +134,12 @@ export default function QueueMainTable({
                 const doctorName = record.doctorName || 'Bác sĩ trực buồng'
                 return (
                     <div>
-                        <div className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
-                            <MedicineBoxOutlined className="text-sky-600 shrink-0" />
+                        <div className="font-semibold text-clinic-navy text-xs flex items-center gap-1.5">
+                            <MedicineBoxOutlined className="text-clinic-cta shrink-0" />
                             <span className="truncate">{roomName}</span>
                         </div>
-                        <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
-                            <UserOutlined className="text-[11px] text-slate-400 shrink-0" />
+                        <div className="text-clinic-text-secondary text-xs mt-0.5 flex items-center gap-1">
+                            <UserOutlined className="text-[11px] text-clinic-text-muted shrink-0" />
                             <span className="truncate">{doctorName}</span>
                         </div>
                     </div>
@@ -156,20 +156,20 @@ export default function QueueMainTable({
                 const isOverdue = record.waitTimeMinutes > 60
                 const isWarning = record.waitTimeMinutes > 30 && !isOverdue
                 return (
-                    <div>
-                        <div className="text-slate-600 text-xs flex items-center gap-1">
-                            <ClockCircleOutlined className="text-[11px] text-slate-400" />
-                            <span>Check-in: <strong>{record.checkInTime || '--:--'}</strong></span>
+                    <div className="tabular-nums">
+                        <div className="text-clinic-text-secondary text-xs flex items-center gap-1">
+                            <ClockCircleOutlined className="text-[11px] text-clinic-text-muted" />
+                            <span>Check-in: <strong className="text-clinic-navy">{record.checkInTime || '--:--'}</strong></span>
                         </div>
                         {isWaiting && (
                             <div className="mt-1">
                                 <span
-                                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md inline-block ${
+                                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-[4px] inline-block border ${
                                         isOverdue
-                                            ? 'bg-rose-100 text-rose-700 font-bold'
+                                            ? 'bg-clinic-danger-bg text-clinic-danger border-clinic-danger-border font-bold'
                                             : isWarning
-                                                ? 'bg-amber-100 text-amber-700'
-                                                : 'bg-slate-100 text-slate-600'
+                                                ? 'bg-clinic-warning-bg text-clinic-warning border-clinic-warning-border'
+                                                : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border'
                                     }`}
                                 >
                                     Đã chờ {record.waitTimeMinutes || 0} phút
@@ -203,7 +203,7 @@ export default function QueueMainTable({
                             ) : isCompleted ? (
                                 <Tag color="success">Đã khám</Tag>
                             ) : isAbsent ? (
-                                <Tag color="default" className="text-slate-600 font-semibold bg-slate-100 border-slate-300">Vắng mặt</Tag>
+                                <Tag color="default" className="text-clinic-text-secondary font-semibold bg-clinic-bg-muted border-clinic-border">Vắng mặt</Tag>
                             ) : isClosed ? (
                                 <Tag color="error" className="font-semibold">Đã đóng / Hủy</Tag>
                             ) : isCalled ? (
@@ -213,7 +213,7 @@ export default function QueueMainTable({
                             )}
                         </div>
                         {record.callCount > 0 && !isCompleted && !isAbsent && !isClosed && (
-                            <div className="text-[11px] text-slate-400 mt-0.5">
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5 tabular-nums">
                                 Đã gọi {record.callCount} lần
                             </div>
                         )}
@@ -303,7 +303,7 @@ export default function QueueMainTable({
                             <Button
                                 size="small"
                                 icon={<PrinterOutlined />}
-                                className="text-xs text-sky-700"
+                                className="text-xs text-clinic-cta"
                                 onClick={() => onPrintReceipt(record)}
                             />
                         </Tooltip>
@@ -321,7 +321,7 @@ export default function QueueMainTable({
                         )}
 
                         <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-                            <Button size="small" icon={<MoreOutlined />} className="text-xs text-slate-500" />
+                            <Button size="small" icon={<MoreOutlined />} className="text-xs text-clinic-text-secondary" />
                         </Dropdown>
                     </div>
                 )
@@ -348,10 +348,10 @@ export default function QueueMainTable({
                         <Empty
                             description={
                                 <div className="space-y-1">
-                                    <p className="font-semibold text-slate-700 text-sm">
+                                    <p className="font-semibold text-clinic-navy text-sm">
                                         Không có bệnh nhân nào trong hàng đợi
                                     </p>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-clinic-text-muted">
                                         {selectedRoomId !== null
                                             ? selectedRoomObject?.doctorId
                                                 ? `Buồng khám ${selectedRoomObject?.name} (${selectedRoomObject?.doctorName}) hiện chưa có bệnh nhân nào trong hàng đợi.`

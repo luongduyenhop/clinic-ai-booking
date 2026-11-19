@@ -12,8 +12,6 @@ import {
     CaretRight,
     Hospital,
     GlobeHemisphereWest,
-    HouseLine,
-    ShieldCheck,
 } from '../components/common/ClinicIcon'
 
 export default function AdminTemplate() {
@@ -123,7 +121,7 @@ export default function AdminTemplate() {
         <div className="h-screen h-[100dvh] flex bg-clinic-bg text-clinic-text overflow-hidden">
             <aside
                 className={`h-screen h-[100dvh] sticky top-0 bg-clinic-navy text-clinic-surface flex flex-col shrink-0 select-none border-r border-clinic-navy-dark transition-[width] duration-200 z-40 overflow-hidden ${
-                    isCollapsed ? 'w-[64px]' : 'w-[252px]'
+                    isCollapsed ? 'w-[64px]' : 'w-[244px]'
                 }`}
             >
                 <div className="h-14 px-3 flex items-center justify-between border-b border-[color:var(--clinic-nav-divider)] bg-clinic-navy-dark">
@@ -134,10 +132,10 @@ export default function AdminTemplate() {
                         {!isCollapsed && (
                             <div className="leading-tight truncate">
                                 <div className="font-display font-extrabold text-sm tracking-wide text-clinic-surface">
-                                    CLINIC-AI ADMIN
+                                    CLINIC-AI HIS
                                 </div>
                                 <div className="text-[10px] text-clinic-on-navy-muted font-medium truncate">
-                                    Quản Trị Hệ Thống HIS
+                                    Quản Trị Hệ Thống
                                 </div>
                             </div>
                         )}
@@ -165,7 +163,7 @@ export default function AdminTemplate() {
                                             key={item.id}
                                             to={item.path}
                                             title={isCollapsed ? item.title : undefined}
-                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] font-medium transition-colors group ${
+                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] font-medium transition-colors duration-75 group ${
                                                 active
                                                     ? 'bg-clinic-cta text-clinic-surface font-bold'
                                                     : 'text-clinic-on-navy-muted hover:bg-[color:var(--clinic-nav-hover)] hover:text-clinic-surface'
@@ -182,7 +180,7 @@ export default function AdminTemplate() {
                                                     <span className="truncate">{item.title}</span>
                                                     {item.badge && (
                                                         <span
-                                                            className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full text-clinic-surface shrink-0 ${
+                                                            className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-[4px] text-clinic-surface shrink-0 ${
                                                                 item.badgeColor || 'bg-clinic-cta'
                                                             }`}
                                                         >
@@ -202,7 +200,7 @@ export default function AdminTemplate() {
                                             type="button"
                                             onClick={() => toggleGroup(item.id)}
                                             title={isCollapsed ? item.title : undefined}
-                                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] font-semibold transition-colors cursor-pointer ${
+                                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] font-semibold transition-colors duration-75 cursor-pointer ${
                                                 active
                                                     ? 'bg-[color:var(--clinic-nav-hover)] text-clinic-surface'
                                                     : 'text-clinic-on-navy-muted hover:bg-[color:var(--clinic-nav-hover)] hover:text-clinic-surface'
@@ -221,7 +219,7 @@ export default function AdminTemplate() {
                                                 <CaretDown
                                                     size={12}
                                                     weight="bold"
-                                                    className={`text-clinic-on-navy-muted transition-transform duration-200 shrink-0 ${
+                                                    className={`text-clinic-on-navy-muted transition-transform duration-150 shrink-0 ${
                                                         isOpen ? 'rotate-180 text-clinic-surface' : ''
                                                     }`}
                                                 />
@@ -236,7 +234,7 @@ export default function AdminTemplate() {
                                                         <Link
                                                             key={sub.path}
                                                             to={sub.path}
-                                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] text-[11.5px] transition-colors ${
+                                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] text-[11.5px] transition-colors duration-75 ${
                                                                 subActive
                                                                     ? 'bg-clinic-cta text-clinic-surface font-bold'
                                                                     : 'text-clinic-on-navy-muted hover:bg-[color:var(--clinic-nav-hover)] hover:text-clinic-surface'
@@ -264,7 +262,7 @@ export default function AdminTemplate() {
                     <button
                         type="button"
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[color:var(--clinic-nav-hover)] hover:bg-clinic-cta text-clinic-surface font-semibold text-center transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[color:var(--clinic-nav-hover)] hover:bg-clinic-cta text-clinic-surface font-semibold text-center transition-colors duration-75 cursor-pointer"
                         title={isCollapsed ? 'Mở rộng thanh menu' : 'Thu gọn thanh menu'}
                     >
                         {isCollapsed ? (
@@ -281,14 +279,14 @@ export default function AdminTemplate() {
                         <>
                             <div className="flex items-center justify-between pt-1 text-[10px]">
                                 <span>Cổng ĐTQG (TT 26):</span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-clinic-success-bg text-clinic-success font-bold border border-clinic-success-border">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-success-bg text-clinic-success font-bold border border-clinic-success-border">
                                     <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
                                     Trực tuyến
                                 </span>
                             </div>
                             <Link
                                 to="/"
-                                className="flex items-center justify-center gap-1.5 w-full py-1 text-[10.5px] rounded-[6px] text-clinic-on-navy-muted hover:text-clinic-surface hover:bg-[color:var(--clinic-nav-hover)] transition-colors"
+                                className="flex items-center justify-center gap-1.5 w-full py-1 text-[10.5px] rounded-[6px] text-clinic-on-navy-muted hover:text-clinic-surface hover:bg-[color:var(--clinic-nav-hover)] transition-colors duration-75"
                             >
                                 <GlobeHemisphereWest size={13} weight="duotone" className="text-clinic-info-border" />
                                 <span>Cổng Đặt Lịch Bệnh Nhân</span>
@@ -299,32 +297,9 @@ export default function AdminTemplate() {
             </aside>
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <AdminHeader />
+                <AdminHeader pageTitle={getBreadcrumbTitle()} />
 
-                <div className="h-8 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-4 flex items-center justify-between text-xs text-clinic-text-secondary shrink-0">
-                    <div className="flex items-center gap-1.5 font-medium">
-                        <Link to="/admin" className="inline-flex items-center gap-1 hover:text-clinic-cta transition-colors">
-                            <HouseLine size={13} weight="duotone" className="text-clinic-cta" />
-                            <span>Quản trị HIS</span>
-                        </Link>
-                        <span>/</span>
-                        <span className="font-bold text-clinic-navy">{getBreadcrumbTitle()}</span>
-                    </div>
-
-                    <div className="hidden sm:flex items-center gap-3 text-[11px] text-clinic-text-secondary">
-                        <span className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
-                            <span className="font-medium text-clinic-text-secondary">Hệ thống Quản trị &amp; Danh mục Trung tâm</span>
-                        </span>
-                        <span>•</span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-clinic-navy">
-                            <ShieldCheck size={13} weight="fill" className="text-clinic-cta" />
-                            <span>Phân quyền theo vai trò (Đang kích hoạt)</span>
-                        </span>
-                    </div>
-                </div>
-
-                <main className="flex-1 p-3 sm:p-4 overflow-y-auto">
+                <main className="flex-1 p-3 sm:p-4 overflow-y-auto bg-clinic-bg">
                     <Outlet />
                 </main>
             </div>

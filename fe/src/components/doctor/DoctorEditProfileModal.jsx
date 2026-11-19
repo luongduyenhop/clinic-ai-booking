@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
+import { ClinicIcon } from '../common/ClinicIcon'
 
 export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, onSave }) {
     const [formData, setFormData] = useState({
@@ -33,172 +34,177 @@ export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, o
     }
 
     return createPortal(
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl max-w-lg w-full flex flex-col max-h-[85vh] border border-slate-200 shadow-2xl relative overflow-hidden">
-                {/* Header Modal */}
-                <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-clinic-navy/60 backdrop-blur-xs p-4 flex justify-center items-center py-6">
+            <div className="bg-clinic-surface rounded-[6px] max-w-lg w-full flex flex-col max-h-[85vh] border border-clinic-border relative overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-clinic-border shrink-0 bg-clinic-bg">
                     <div className="flex items-center gap-2.5">
-                        <span className="w-9 h-9 rounded-xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center text-lg font-bold">
-                            ✏️
+                        <span className="w-9 h-9 rounded-[6px] bg-clinic-surface-alt text-clinic-cta border border-clinic-info-border flex items-center justify-center">
+                            <ClinicIcon name="PencilSimple" size={18} weight="bold" />
                         </span>
                         <div>
-                            <h3 className="text-base font-extrabold text-[#003553]">
+                            <h3 className="text-base font-extrabold text-clinic-navy">
                                 Chỉnh Sửa Hồ Sơ Bác Sĩ
                             </h3>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-clinic-text-secondary">
                                 Cập nhật thông tin định danh và phòng làm việc
                             </p>
                         </div>
                     </div>
                     <button
                         type="button"
+                        aria-label="Đóng hộp thoại"
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm cursor-pointer transition"
+                        className="w-8 h-8 rounded-[6px] bg-clinic-bg-muted hover:bg-clinic-border text-clinic-text-secondary flex items-center justify-center cursor-pointer transition"
                     >
-                        ✕
+                        <ClinicIcon name="X" size={16} weight="bold" />
                     </button>
                 </div>
 
-                {/* Form cập nhật */}
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 text-xs">
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    <div>
-                        <label className="block font-bold text-slate-700 mb-1">
-                            Họ và tên Bác sĩ <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white focus:ring-2 focus:ring-[#00B5F1]/10 transition font-medium"
-                            placeholder="Ví dụ: BS. CKI Nguyễn Văn An"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Học vị / Học hàm
+                            <label htmlFor="doc-edit-name" className="medpro-label">
+                                Họ và tên Bác sĩ <span className="text-clinic-danger">*</span>
                             </label>
                             <input
+                                id="doc-edit-name"
                                 type="text"
-                                name="degree"
-                                value={formData.degree}
+                                name="name"
+                                value={formData.name}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                                placeholder="BS. CKI, ThS. BS..."
+                                className="medpro-input font-medium"
+                                placeholder="Ví dụ: BS. CKI Nguyễn Văn An"
                             />
                         </div>
-                        <div>
-                            <div className="flex items-center justify-between mb-1">
-                                <label className="block font-bold text-slate-700 mb-0">
-                                    Mã Bác sĩ
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="doc-edit-degree" className="medpro-label">
+                                    Học vị / Học hàm
                                 </label>
-                                <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                    Hệ thống tự sinh
-                                </span>
+                                <input
+                                    id="doc-edit-degree"
+                                    type="text"
+                                    name="degree"
+                                    value={formData.degree}
+                                    onChange={handleChange}
+                                    className="medpro-input"
+                                    placeholder="BS. CKI, ThS. BS..."
+                                />
                             </div>
-                            <input
-                                type="text"
-                                name="code"
-                                value={formData.code}
-                                readOnly
-                                disabled
-                                className="w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-500 font-mono font-bold px-3 py-2 text-xs cursor-not-allowed select-none"
-                                title="Mã Bác sĩ do hệ thống quản lý, không được phép chỉnh sửa"
-                            />
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label htmlFor="doc-edit-code" className="medpro-label !mb-0">
+                                        Mã Bác sĩ
+                                    </label>
+                                    <span className="medpro-badge-info text-[10px] font-bold">
+                                        Hệ thống tự sinh
+                                    </span>
+                                </div>
+                                <input
+                                    id="doc-edit-code"
+                                    type="text"
+                                    name="code"
+                                    value={formData.code}
+                                    readOnly
+                                    disabled
+                                    className="w-full rounded-[6px] border border-clinic-border bg-clinic-bg-muted text-clinic-text-muted font-mono font-bold px-3 py-2 text-xs cursor-not-allowed select-none tabular-nums"
+                                    title="Mã Bác sĩ do hệ thống quản lý, không được phép chỉnh sửa"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="doc-edit-specialty" className="medpro-label">
+                                    Chuyên khoa
+                                </label>
+                                <input
+                                    id="doc-edit-specialty"
+                                    type="text"
+                                    name="specialty"
+                                    value={formData.specialty}
+                                    onChange={handleChange}
+                                    className="medpro-input"
+                                    placeholder="Nội Tim Mạch & Đa Khoa"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="doc-edit-room" className="medpro-label">
+                                    Phòng khám trực
+                                </label>
+                                <input
+                                    id="doc-edit-room"
+                                    type="text"
+                                    name="room"
+                                    value={formData.room}
+                                    onChange={handleChange}
+                                    className="medpro-input"
+                                    placeholder="Phòng 204 - Tầng 2"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="doc-edit-phone" className="medpro-label">
+                                    Số điện thoại liên hệ
+                                </label>
+                                <input
+                                    id="doc-edit-phone"
+                                    type="text"
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    className="medpro-input tabular-nums"
+                                    placeholder="0903 888 999"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="doc-edit-email" className="medpro-label">
+                                    Email công tác
+                                </label>
+                                <input
+                                    id="doc-edit-email"
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    className="medpro-input"
+                                    placeholder="doctor@clinic.com"
+                                />
+                            </div>
+                        </div>
+
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Chuyên khoa
+                            <label htmlFor="doc-edit-experience" className="medpro-label">
+                                Giới thiệu kinh nghiệm &amp; chuyên môn
                             </label>
-                            <input
-                                type="text"
-                                name="specialty"
-                                value={formData.specialty}
+                            <textarea
+                                id="doc-edit-experience"
+                                rows="3"
+                                name="experience"
+                                value={formData.experience}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                                placeholder="Nội Tim Mạch & Đa Khoa"
-                            />
-                        </div>
-                        <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Phòng khám trực
-                            </label>
-                            <input
-                                type="text"
-                                name="room"
-                                value={formData.room}
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                                placeholder="Phòng 204 - Tầng 2"
+                                className="medpro-input"
+                                placeholder="Mô tả quá trình công tác, bệnh viện từng làm việc..."
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Số điện thoại liên hệ
-                            </label>
-                            <input
-                                type="text"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                                placeholder="0903 888 999"
-                            />
-                        </div>
-                        <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Email công tác
-                            </label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                                placeholder="doctor@clinic.com"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block font-bold text-slate-700 mb-1">
-                            Giới thiệu kinh nghiệm & chuyên môn
-                        </label>
-                        <textarea
-                            rows="3"
-                            name="experience"
-                            value={formData.experience}
-                            onChange={handleChange}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
-                            placeholder="Mô tả quá trình công tác, bệnh viện từng làm việc..."
-                        />
-                    </div>
-
-                    </div>
-
-                    {/* Footer Buttons */}
-                    <div className="flex items-center justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
+                    <div className="flex items-center justify-end gap-2 p-4 px-6 border-t border-clinic-border bg-clinic-bg shrink-0">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                            className="medpro-btn-outline px-4 py-2 rounded-[6px] font-bold text-xs cursor-pointer"
                         >
                             Hủy bỏ
                         </button>
                         <button
                             type="submit"
-                            className="px-5 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer active:scale-95 flex items-center gap-1.5"
+                            className="medpro-btn-primary px-5 py-2 rounded-[6px] font-bold text-xs cursor-pointer flex items-center gap-1.5"
                         >
-                            <span>💾</span>
+                            <ClinicIcon name="FloppyDisk" size={14} weight="bold" />
                             <span>Lưu thay đổi</span>
                         </button>
                     </div>

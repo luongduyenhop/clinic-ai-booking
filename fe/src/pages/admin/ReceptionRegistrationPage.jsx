@@ -331,13 +331,13 @@ export default function ReceptionRegistrationPage() {
             <div className="lg:col-span-4 medpro-card p-3.5 flex flex-col h-[calc(100vh-88px)]">
                 <div className="medpro-section-title">
                     <span className="inline-flex items-center gap-1.5">
-                        <ClipboardText size={16} weight="duotone" className="text-[#00B5F1]" />
+                        <ClipboardText size={16} weight="duotone" className="text-clinic-cta" />
                         <span>DANH SÁCH ĐĂNG KÝ ({filteredRegistrations.length})</span>
                     </span>
                     <button
                         type="button"
                         onClick={() => setShowAppointmentModal(true)}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00B5F1] hover:underline cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-clinic-cta hover:underline cursor-pointer shrink-0 whitespace-nowrap"
                     >
                         <CalendarCheck size={14} weight="duotone" />
                         <span>Lịch hẹn ({appointments.length})</span>
@@ -348,25 +348,25 @@ export default function ReceptionRegistrationPage() {
                     <div className="col-span-7 relative">
                         <MagnifyingGlass
                             size={14}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none"
                         />
                         <input
                             type="text"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                             placeholder="Tìm tên, Mã KCB, SĐT..."
-                            className="medpro-input !pl-8"
+                            className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
                         />
                     </div>
                     <div className="col-span-5 relative">
                         <Funnel
                             size={13}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none"
                         />
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="medpro-input !pl-7"
+                            className="medpro-input !py-1.5 h-9 !pl-7 text-xs font-semibold truncate"
                         >
                             <option value="ALL">Tất cả trạng thái</option>
                             {registrationStatuses.map((st) => (
@@ -378,15 +378,15 @@ export default function ReceptionRegistrationPage() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
-                    <table className="medpro-table">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden border border-clinic-border rounded-[6px]">
+                    <table className="medpro-table w-full [&_th]:!px-1.5 [&_td]:!px-1.5 text-xs tabular-nums">
                         <thead>
                             <tr>
-                                <th>STT</th>
+                                <th className="w-7 text-center">#</th>
                                 <th>Mã KCB</th>
                                 <th>Họ tên</th>
-                                <th>Ưu tiên</th>
-                                <th className="text-center">Trạng thái</th>
+                                <th className="text-center">UT</th>
+                                <th className="text-center">TT</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -396,21 +396,21 @@ export default function ReceptionRegistrationPage() {
                                     <tr
                                         key={r.id || index}
                                         onClick={() => handleSelectRegistration(r)}
-                                        className={`cursor-pointer transition ${
-                                            isSelected ? 'bg-[#E8F4FD] font-semibold' : 'hover:bg-slate-50'
+                                        className={`cursor-pointer transition-colors ${
+                                            isSelected ? '!bg-clinic-surface-alt font-semibold' : ''
                                         }`}
                                     >
-                                        <td className="font-bold text-slate-500">{r.stt || index + 1}</td>
-                                        <td className="font-mono text-xs text-[#003553]">{r.maKCB}</td>
-                                        <td>
-                                            <div className="font-bold text-[#12263F]">{r.hoTen}</div>
-                                            <div className="text-[11px] text-slate-400 font-mono">{r.dienThoai}</div>
+                                        <td className="font-bold text-clinic-text-secondary tabular-nums text-center w-7">{r.stt || index + 1}</td>
+                                        <td className="font-mono text-[10.5px] text-clinic-navy max-w-[78px] truncate" title={r.maKCB}>{r.maKCB}</td>
+                                        <td className="min-w-0">
+                                            <div className="font-bold text-clinic-navy leading-tight">{r.hoTen}</div>
+                                            <div className="text-[10.5px] text-clinic-text-muted font-mono">{r.dienThoai}</div>
                                         </td>
-                                        <td>
+                                        <td className="text-center">
                                             {r.uuTien ? (
-                                                <span className="medpro-badge-danger">UT</span>
+                                                <span className="medpro-badge-danger !px-1.5 !py-0.5 !text-[10px]">UT</span>
                                             ) : (
-                                                <span className="text-slate-300 text-xs">-</span>
+                                                <span className="text-clinic-text-subtle text-xs">-</span>
                                             )}
                                         </td>
                                         <td className="text-center">
@@ -434,23 +434,23 @@ export default function ReceptionRegistrationPage() {
                     </table>
                 </div>
 
-                <div className="pt-2.5 flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="font-bold text-[#003553]">Phím tắt: F2 Thêm | F5 Lưu | F7 Kê DV | F9 In</span>
+                <div className="pt-2.5 flex items-center justify-between text-[11px] text-clinic-text-secondary tabular-nums">
+                    <span className="font-bold text-clinic-navy">Phím tắt: F2 Thêm | F5 Lưu | F7 Kê DV | F9 In</span>
                     <span>Tổng: {filteredRegistrations.length}</span>
                 </div>
             </div>
 
             <div className="lg:col-span-8 medpro-card p-4 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-clinic-border">
+                        <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                             <button
                                 type="button"
                                 onClick={() => setActiveRightTab('THONG_TIN')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                                     activeRightTab === 'THONG_TIN'
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
                                 <ClipboardText size={15} weight="bold" />
@@ -459,10 +459,10 @@ export default function ReceptionRegistrationPage() {
                             <button
                                 type="button"
                                 onClick={() => setActiveRightTab('KE_DICH_VU')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                                     activeRightTab === 'KE_DICH_VU'
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
                                 <Package size={15} weight="bold" />
@@ -471,10 +471,10 @@ export default function ReceptionRegistrationPage() {
                             <button
                                 type="button"
                                 onClick={() => setActiveRightTab('LICH_SU')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 flex items-center gap-1.5 cursor-pointer ${
                                     activeRightTab === 'LICH_SU'
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
                                 <ClockCounterClockwise size={15} weight="bold" />
@@ -483,18 +483,18 @@ export default function ReceptionRegistrationPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={handleNewRegistration} className="medpro-btn-outline text-xs">
-                                <Plus size={14} weight="bold" className="text-[#00B5F1]" />
+                            <button type="button" onClick={handleNewRegistration} className="medpro-btn-outline !py-1.5 !px-3 text-xs">
+                                <Plus size={14} weight="bold" className="text-clinic-cta" />
                                 <span>Thêm (F2)</span>
                             </button>
-                            <button type="button" onClick={handleSaveRegistration} className="medpro-btn-primary text-xs">
+                            <button type="button" onClick={handleSaveRegistration} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                 <FloppyDisk size={14} weight="bold" />
                                 <span>Lưu (F5)</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate('/admin/kham-benh')}
-                                className="medpro-btn-amber text-xs font-bold"
+                                className="medpro-btn-amber !py-1.5 !px-3 text-xs font-bold"
                             >
                                 <Stethoscope size={14} weight="bold" />
                                 <span>Khám bệnh</span>
@@ -511,9 +511,9 @@ export default function ReceptionRegistrationPage() {
                                         <button
                                             type="button"
                                             onClick={() => setShowAppointmentModal(true)}
-                                            className="text-[11px] font-bold text-[#00B5F1] hover:underline"
+                                            className="text-xs font-bold text-clinic-cta hover:underline cursor-pointer shrink-0 whitespace-nowrap"
                                         >
-                                            Tìm theo Lịch hẹn &rarr;
+                                            Tìm theo Lịch hẹn
                                         </button>
                                     </div>
                                 </div>
@@ -521,9 +521,9 @@ export default function ReceptionRegistrationPage() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div>
                                         <div className="flex items-center justify-between mb-1">
-                                            <label className="medpro-label mb-0">Mã bệnh nhân</label>
-                                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                                Hệ thống tự sinh
+                                            <label className="medpro-label !mb-0">Mã bệnh nhân</label>
+                                            <span className="medpro-badge-info !text-[10px]">
+                                                Tự sinh
                                             </span>
                                         </div>
                                         <input
@@ -531,14 +531,14 @@ export default function ReceptionRegistrationPage() {
                                             value={form.maBN || ''}
                                             readOnly
                                             disabled
-                                            placeholder="Tự động sinh theo chuẩn BNxxxxxxx"
-                                            className="medpro-input font-mono bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                            placeholder="Tự động sinh"
+                                            className="medpro-input font-mono bg-clinic-bg-muted text-clinic-text-muted cursor-not-allowed select-none"
                                             title="Mã bệnh nhân do hệ thống tự sinh, không thể chỉnh sửa"
                                         />
                                     </div>
                                     <div className="sm:col-span-2">
                                         <label className="medpro-label">
-                                            Họ và tên bệnh nhân <span className="text-red-500">*</span>
+                                            Họ và tên bệnh nhân <span className="text-clinic-danger">*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -554,7 +554,7 @@ export default function ReceptionRegistrationPage() {
                                             type="date"
                                             value={form.ngaySinh || ''}
                                             onChange={(e) => setForm({ ...form, ngaySinh: e.target.value })}
-                                            className="medpro-input"
+                                            className="medpro-input tabular-nums"
                                         />
                                     </div>
 
@@ -564,7 +564,7 @@ export default function ReceptionRegistrationPage() {
                                             type="text"
                                             value={form.tuoi || ''}
                                             onChange={(e) => setForm({ ...form, tuoi: e.target.value })}
-                                            className="medpro-input"
+                                            className="medpro-input tabular-nums"
                                         />
                                     </div>
                                     <div>
@@ -572,7 +572,7 @@ export default function ReceptionRegistrationPage() {
                                         <select
                                             value={form.gioiTinh || genders[0]}
                                             onChange={(e) => setForm({ ...form, gioiTinh: e.target.value })}
-                                            className="medpro-input"
+                                            className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                         >
                                             {genders.map((g) => (
                                                 <option key={g} value={g}>
@@ -583,7 +583,7 @@ export default function ReceptionRegistrationPage() {
                                     </div>
                                     <div>
                                         <label className="medpro-label">
-                                            Số điện thoại <span className="text-red-500">*</span>
+                                            Số điện thoại <span className="text-clinic-danger">*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -605,11 +605,11 @@ export default function ReceptionRegistrationPage() {
                                     </div>
 
                                     <div className="sm:col-span-2">
-                                        <label className="medpro-label">Người giới thiệu (Hoa hồng & Nguồn BN)</label>
+                                        <label className="medpro-label">Người giới thiệu (Hoa hồng &amp; Nguồn BN)</label>
                                         <select
                                             value={form.nguoiGioiThieu || referrers[0]}
                                             onChange={(e) => setForm({ ...form, nguoiGioiThieu: e.target.value })}
-                                            className="medpro-input text-[#003553]"
+                                            className="medpro-input !py-1.5 h-9 text-xs font-semibold text-clinic-navy truncate"
                                         >
                                             {referrers.map((ref, idx) => (
                                                 <option key={idx} value={ref}>
@@ -619,8 +619,8 @@ export default function ReceptionRegistrationPage() {
                                         </select>
                                     </div>
                                     <div className="sm:col-span-2">
-                                        <label className="medpro-label text-amber-700 font-bold flex items-center gap-1">
-                                            <WarningCircle size={14} weight="fill" className="text-amber-500" />
+                                        <label className="medpro-label text-clinic-warning font-bold flex items-center gap-1">
+                                            <WarningCircle size={14} weight="fill" className="text-clinic-warning" />
                                             <span>Tiền sử dị ứng (Thuốc, thức ăn...)</span>
                                         </label>
                                         <input
@@ -628,19 +628,19 @@ export default function ReceptionRegistrationPage() {
                                             value={form.tienSuDiUng || ''}
                                             onChange={(e) => setForm({ ...form, tienSuDiUng: e.target.value })}
                                             placeholder="Dị ứng Penicillin, Aspirin, hải sản... (Để trống nếu không)"
-                                            className="medpro-input !bg-amber-50/70 !border-amber-300 !text-amber-900 font-semibold"
+                                            className="medpro-input !bg-clinic-warning-bg !border-clinic-warning-border !text-clinic-warning font-semibold"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="medpro-label text-[#00B5F1] font-bold flex items-center gap-1">
+                                        <label className="medpro-label text-clinic-cta font-bold flex items-center gap-1">
                                             <MapPin size={13} weight="fill" />
                                             <span>Gõ tắt địa chỉ</span>
                                         </label>
                                         <select
                                             value={form.goTatDiaChi || ''}
                                             onChange={(e) => handleSelectAddressShortcut(e.target.value)}
-                                            className="medpro-input !border-[#00B5F1]/60 !bg-[#E8F4FD]/50 font-bold text-[#003553]"
+                                            className="medpro-input !py-1.5 h-9 text-xs !border-clinic-cta !bg-clinic-surface-tint font-bold text-clinic-navy truncate"
                                         >
                                             <option value="">-- Chọn viết tắt --</option>
                                             {addressShortcuts.map((sc) => (
@@ -665,41 +665,41 @@ export default function ReceptionRegistrationPage() {
 
                             <div>
                                 <div className="medpro-section-title">
-                                    <span>2. THÔNG TIN TIẾP ĐÓN & PHÒNG KHÁM</span>
+                                    <span>2. THÔNG TIN TIẾP ĐÓN &amp; PHÒNG KHÁM</span>
                                     <button
                                         type="button"
                                         onClick={handleAISuggestSpecialty}
                                         disabled={aiLoading}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#003553] to-[#00B5F1] text-white text-[11px] font-bold shadow-xs hover:opacity-95 cursor-pointer"
+                                        className="medpro-btn-outline !py-1 !px-3 text-xs border-clinic-cta text-clinic-navy shrink-0 whitespace-nowrap"
                                     >
-                                        <Sparkle size={14} weight="fill" className="text-[#FFB54A]" />
-                                        <span>{aiLoading ? 'AI đang phân tích triệu chứng...' : 'AI Gợi ý Chuyên khoa (AI Triage)'}</span>
+                                        <Sparkle size={14} weight="fill" className="text-clinic-cta" />
+                                        <span>{aiLoading ? 'Đang phân tích triệu chứng...' : 'Gợi ý Chuyên khoa từ Triệu chứng'}</span>
                                     </button>
                                 </div>
 
                                 {aiSuggestion && (
-                                    <div className="mb-3 p-3 rounded-xl bg-[#E8F4FD] border border-[#00B5F1]/40 text-xs space-y-1">
-                                        <div className="flex items-center justify-between font-bold text-[#003553]">
+                                    <div className="mb-3 p-3 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-xs space-y-1">
+                                        <div className="flex items-center justify-between font-bold text-clinic-navy">
                                             <span className="inline-flex items-center gap-1.5">
-                                                <Sparkle size={15} weight="fill" className="text-[#00B5F1]" />
-                                                <span>GỢI Ý PHÂN LUỒNG CHUYÊN KHOA BỞI AI:</span>
+                                                <Sparkle size={14} weight="fill" className="text-clinic-cta" />
+                                                <span>GỢI Ý PHÂN LUỒNG CHUYÊN KHOA:</span>
                                             </span>
                                             <span className="medpro-badge-warning">{aiSuggestion.mucDoUuTien}</span>
                                         </div>
-                                        <div className="text-[#12263F]">
-                                            • Chuyên khoa: <strong className="text-[#00B5F1]">{aiSuggestion.chuyenKhoa}</strong> &bull; Phòng đề xuất:{' '}
+                                        <div className="text-clinic-text">
+                                            • Chuyên khoa: <strong className="text-clinic-cta">{aiSuggestion.chuyenKhoa}</strong> &bull; Phòng đề xuất:{' '}
                                             <strong>{aiSuggestion.phongKham}</strong> &bull; Bác sĩ: <strong>{aiSuggestion.bacSi}</strong>
                                         </div>
-                                        <div className="text-[11px] text-slate-600 italic">{aiSuggestion.lyDoGoiY}</div>
+                                        <div className="text-[11px] text-clinic-text-secondary">{aiSuggestion.lyDoGoiY}</div>
                                     </div>
                                 )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div>
                                         <div className="flex items-center justify-between mb-1">
-                                            <label className="medpro-label mb-0">Mã khám (Mã KCB)</label>
-                                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                                Hệ thống tự sinh
+                                            <label className="medpro-label !mb-0">Mã khám (Mã KCB)</label>
+                                            <span className="medpro-badge-info !text-[10px]">
+                                                Tự sinh
                                             </span>
                                         </div>
                                         <input
@@ -707,7 +707,7 @@ export default function ReceptionRegistrationPage() {
                                             value={form.maKCB || ''}
                                             readOnly
                                             disabled
-                                            className="medpro-input font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed select-none"
+                                            className="medpro-input font-mono font-bold bg-clinic-bg-muted text-clinic-text-muted cursor-not-allowed select-none"
                                             title="Mã khám bệnh do hệ thống tự sinh theo ngày tiếp đón, không thể chỉnh sửa"
                                         />
                                     </div>
@@ -717,7 +717,7 @@ export default function ReceptionRegistrationPage() {
                                             type="number"
                                             value={form.stt || 1}
                                             onChange={(e) => setForm({ ...form, stt: Number(e.target.value) })}
-                                            className="medpro-input font-bold"
+                                            className="medpro-input font-bold tabular-nums"
                                         />
                                     </div>
                                     <div>
@@ -733,7 +733,7 @@ export default function ReceptionRegistrationPage() {
                                                     bacSi: room?.bacSiPhuTrach || form.bacSi,
                                                 })
                                             }}
-                                            className="medpro-input font-semibold text-[#003553]"
+                                            className="medpro-input !py-1.5 h-9 text-xs font-semibold text-clinic-navy truncate"
                                         >
                                             {khoaPhongList.map((room) => (
                                                 <option key={room.id} value={room.tenPhong}>
@@ -763,12 +763,12 @@ export default function ReceptionRegistrationPage() {
                                         />
                                     </div>
                                     <div className="flex items-center pt-5">
-                                        <label className="inline-flex items-center gap-2 text-xs font-extrabold text-[#003553] cursor-pointer">
+                                        <label className="inline-flex items-center gap-2 text-xs font-extrabold text-clinic-navy cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={Boolean(form.uuTien)}
                                                 onChange={(e) => setForm({ ...form, uuTien: e.target.checked })}
-                                                className="w-4 h-4 accent-[#00B5F1]"
+                                                className="w-4 h-4 accent-clinic-cta"
                                             />
                                             <span>Khám Ưu Tiên (UT)</span>
                                         </label>
@@ -779,12 +779,12 @@ export default function ReceptionRegistrationPage() {
                             <div>
                                 <div className="medpro-section-title">
                                     <span className="flex items-center gap-1.5">
-                                        <Heartbeat size={16} weight="duotone" className="text-rose-500" />
-                                        <span>3. CHỈ SỐ CƠ THỂ & SINH HIỆU (VITALS)</span>
+                                        <Heartbeat size={16} weight="duotone" className="text-clinic-danger" />
+                                        <span>3. CHỈ SỐ CƠ THỂ &amp; SINH HIỆU (VITALS)</span>
                                     </span>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 tabular-nums">
                                     <div>
                                         <label className="medpro-label text-[11px]">Nhiệt độ (℃)</label>
                                         <input
@@ -809,7 +809,7 @@ export default function ReceptionRegistrationPage() {
                                             type="text"
                                             value={form.vitals?.huyetAp || ''}
                                             onChange={(e) => setForm({ ...form, vitals: { ...form.vitals, huyetAp: e.target.value } })}
-                                            className="medpro-input text-center font-bold text-[#00B5F1]"
+                                            className="medpro-input text-center font-bold text-clinic-cta"
                                         />
                                     </div>
                                     <div>
@@ -836,7 +836,7 @@ export default function ReceptionRegistrationPage() {
                                             type="text"
                                             value={form.vitals?.bmi || ''}
                                             readOnly
-                                            className="medpro-input text-center font-bold bg-slate-50"
+                                            className="medpro-input text-center font-bold bg-clinic-bg-muted"
                                         />
                                     </div>
                                     <div>
@@ -845,7 +845,7 @@ export default function ReceptionRegistrationPage() {
                                             type="text"
                                             value={form.vitals?.spo2 || ''}
                                             onChange={(e) => setForm({ ...form, vitals: { ...form.vitals, spo2: e.target.value } })}
-                                            className="medpro-input text-center font-bold text-emerald-600"
+                                            className="medpro-input text-center font-bold text-clinic-success"
                                         />
                                     </div>
                                 </div>
@@ -867,7 +867,7 @@ export default function ReceptionRegistrationPage() {
                                                 e.target.value = ''
                                             }
                                         }}
-                                        className="medpro-input !py-1 text-xs"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                         defaultValue=""
                                     >
                                         <option value="" disabled>+ Kê thêm dịch vụ nhanh...</option>
@@ -880,16 +880,16 @@ export default function ReceptionRegistrationPage() {
                                     <button
                                         type="button"
                                         onClick={() => setShowPackageModal(true)}
-                                        className="medpro-btn-outline text-xs !py-1"
+                                        className="medpro-btn-outline !py-1.5 !px-3 text-xs shrink-0 whitespace-nowrap"
                                     >
-                                        <Package size={14} weight="bold" className="text-[#00B5F1]" />
+                                        <Package size={14} weight="bold" className="text-clinic-cta" />
                                         <span>+ Kê gói dịch vụ</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                                <table className="medpro-table">
+                            <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                                <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                                     <thead>
                                         <tr>
                                             <th>STT</th>
@@ -907,12 +907,12 @@ export default function ReceptionRegistrationPage() {
                                         {(form.services || []).map((srv, idx) => (
                                             <tr key={srv.id || idx}>
                                                 <td className="font-bold">{idx + 1}</td>
-                                                <td className="font-mono text-xs text-[#003553]">{srv.maDV}</td>
-                                                <td className="font-bold text-[#12263F]">{srv.tenDV}</td>
+                                                <td className="font-mono text-xs text-clinic-navy whitespace-nowrap">{srv.maDV}</td>
+                                                <td className="font-bold text-clinic-navy">{srv.tenDV}</td>
                                                 <td>{srv.dvt}</td>
                                                 <td>{srv.soLuong || 1}</td>
-                                                <td className="tabular-nums font-mono">{(srv.donGia || 0).toLocaleString('vi-VN')} đ</td>
-                                                <td className="tabular-nums font-mono font-extrabold text-[#00B5F1]">
+                                                <td className="tabular-nums font-mono whitespace-nowrap">{(srv.donGia || 0).toLocaleString('vi-VN')} đ</td>
+                                                <td className="tabular-nums font-mono font-extrabold text-clinic-cta whitespace-nowrap">
                                                     {(srv.thanhTien || 0).toLocaleString('vi-VN')} đ
                                                 </td>
                                                 <td>{srv.phongTH}</td>
@@ -920,7 +920,7 @@ export default function ReceptionRegistrationPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemoveService(srv.id)}
-                                                        className="text-rose-600 hover:text-rose-800 p-1"
+                                                        className="text-clinic-danger hover:underline p-1 cursor-pointer"
                                                     >
                                                         <Trash size={14} />
                                                     </button>
@@ -942,13 +942,13 @@ export default function ReceptionRegistrationPage() {
                                 </table>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                                <div className="text-xs text-slate-500 font-semibold">
-                                    Tổng cộng: <strong>{form.services?.length || 0} dịch vụ kỹ thuật</strong>
+                            <div className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border flex items-center justify-between tabular-nums">
+                                <div className="text-xs text-clinic-text-secondary font-semibold">
+                                    Tổng cộng: <strong className="text-clinic-navy">{form.services?.length || 0} dịch vụ kỹ thuật</strong>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-xs text-slate-500 mr-2">Tổng chi phí:</span>
-                                    <span className="font-display text-lg font-black text-[#00B5F1]">
+                                    <span className="text-xs text-clinic-text-secondary mr-2">Tổng chi phí:</span>
+                                    <span className="font-display text-lg font-extrabold text-clinic-cta">
                                         {totalServiceCost.toLocaleString('vi-VN')} đ
                                     </span>
                                 </div>
@@ -961,17 +961,17 @@ export default function ReceptionRegistrationPage() {
                             <div className="medpro-section-title">
                                 <span>LỊCH SỬ KHÁM BỆNH CỦA BỆNH NHÂN: {form.hoTen || 'Chưa chọn BN'}</span>
                             </div>
-                            <div className="space-y-2">
-                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                                    <div className="flex justify-between font-bold text-[#003553]">
+                            <div className="space-y-2 tabular-nums">
+                                <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1">
+                                    <div className="flex justify-between font-bold text-clinic-navy">
                                         <span>Lượt khám 06/10/2026 (Mã KCB: 2610060001)</span>
                                         <span className="medpro-badge-success">Đã hoàn thành</span>
                                     </div>
-                                    <div className="text-slate-600">
-                                        Bác sĩ: <strong>BS.CKII Nguyễn Minh Hoàng</strong> &bull; Chẩn đoán: I10 - Tăng huyết áp vô căn
+                                    <div className="text-clinic-text-secondary">
+                                        Bác sĩ: <strong className="text-clinic-navy">BS.CKII Nguyễn Minh Hoàng</strong> &bull; Chẩn đoán: I10 - Tăng huyết áp vô căn
                                     </div>
-                                    <div className="text-[11px] text-slate-500">
-                                        Đơn thuốc: DTQG-2026-000150 (Đã ký số & liên thông Cổng Quốc gia)
+                                    <div className="text-[11px] text-clinic-text-muted">
+                                        Đơn thuốc: DTQG-2026-000150 (Đã ký số &amp; liên thông Cổng Quốc gia)
                                     </div>
                                 </div>
                             </div>
@@ -979,13 +979,13 @@ export default function ReceptionRegistrationPage() {
                     )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs text-slate-500">
-                        Chuyên khoa phân luồng: <strong className="text-[#003553]">{form.chuyenKhoa || defaults.defaultSpecialty}</strong> &bull; Bác sĩ: <strong>{form.bacSi}</strong>
+                <div className="pt-3 border-t border-clinic-border flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs text-clinic-text-secondary">
+                        Chuyên khoa phân luồng: <strong className="text-clinic-navy">{form.chuyenKhoa || defaults.defaultSpecialty}</strong> &bull; Bác sĩ: <strong className="text-clinic-navy">{form.bacSi}</strong>
                     </div>
                     <div className="flex items-center gap-2">
                         {form.id && (
-                            <button type="button" onClick={handleDeleteRegistration} className="medpro-btn-danger text-xs">
+                            <button type="button" onClick={handleDeleteRegistration} className="medpro-btn-danger !py-1.5 !px-3 text-xs">
                                 <Trash size={14} weight="bold" />
                                 <span>Xóa</span>
                             </button>
@@ -993,12 +993,12 @@ export default function ReceptionRegistrationPage() {
                         <button
                             type="button"
                             onClick={() => AppToast.success(`Đang in Phiếu tiếp đón (F9) cho BN ${form.hoTen}...`)}
-                            className="medpro-btn-outline text-xs"
+                            className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                         >
-                            <Printer size={15} weight="duotone" className="text-[#00B5F1]" />
+                            <Printer size={15} weight="duotone" className="text-clinic-cta" />
                             <span>In phiếu (F9)</span>
                         </button>
-                        <button type="button" onClick={handleSaveRegistration} className="medpro-btn-primary text-xs">
+                        <button type="button" onClick={handleSaveRegistration} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                             <FloppyDisk size={15} weight="bold" />
                             <span>Lưu (F5)</span>
                         </button>
@@ -1007,25 +1007,25 @@ export default function ReceptionRegistrationPage() {
             </div>
 
             {showAppointmentModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-clinic-navy/45 flex items-center justify-center p-4">
                     <div className="medpro-card max-w-4xl w-full p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                            <h3 className="font-display font-extrabold text-base text-[#003553] inline-flex items-center gap-2">
-                                <CalendarCheck size={18} weight="duotone" className="text-[#00B5F1]" />
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-3">
+                            <h3 className="font-display font-extrabold text-sm text-clinic-navy inline-flex items-center gap-2 uppercase">
+                                <CalendarCheck size={18} weight="duotone" className="text-clinic-cta" />
                                 <span>CHỌN BỆNH NHÂN TỪ DANH SÁCH LỊCH HẸN TRỰC TUYẾN</span>
                             </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowAppointmentModal(false)}
-                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                                className="medpro-btn-outline !py-1 !px-2.5 text-xs"
                             >
                                 <X size={13} weight="bold" />
                                 <span>Đóng</span>
                             </button>
                         </div>
 
-                        <div className="overflow-x-auto max-h-80">
-                            <table className="medpro-table">
+                        <div className="overflow-x-auto max-h-80 border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                                 <thead>
                                     <tr>
                                         <th>Mã LH</th>
@@ -1040,8 +1040,8 @@ export default function ReceptionRegistrationPage() {
                                 <tbody>
                                     {appointments.map((appt) => (
                                         <tr key={appt.id}>
-                                            <td className="font-mono font-bold text-[#00B5F1]">{appt.maLH}</td>
-                                            <td className="font-semibold">{appt.hoTen}</td>
+                                            <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{appt.maLH}</td>
+                                            <td className="font-semibold text-clinic-navy">{appt.hoTen}</td>
                                             <td className="tabular-nums font-mono">{appt.dienThoai}</td>
                                             <td className="tabular-nums">{appt.ngayDatLich?.replace('T', ' ')}</td>
                                             <td>{appt.phongKham}</td>
@@ -1067,42 +1067,42 @@ export default function ReceptionRegistrationPage() {
             )}
 
             {showPackageModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-clinic-navy/45 flex items-center justify-center p-4">
                     <div className="medpro-card max-w-3xl w-full p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                            <h3 className="font-display font-extrabold text-base text-[#003553] inline-flex items-center gap-2">
-                                <Package size={18} weight="duotone" className="text-[#00B5F1]" />
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-3">
+                            <h3 className="font-display font-extrabold text-sm text-clinic-navy inline-flex items-center gap-2 uppercase">
+                                <Package size={18} weight="duotone" className="text-clinic-cta" />
                                 <span>CHỌN GÓI KHÁM SỨC KHỎE (TỪ DANH MỤC MẪU GÓI)</span>
                             </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowPackageModal(false)}
-                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                                className="medpro-btn-outline !py-1 !px-2.5 text-xs"
                             >
                                 <X size={13} weight="bold" />
                                 <span>Đóng</span>
                             </button>
                         </div>
 
-                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                        <div className="space-y-2.5 max-h-96 overflow-y-auto">
                             {templates
                                 .filter((t) => t.loaiMau === 'ke-goi-dich-vu')
                                 .map((pkg) => (
                                     <div
                                         key={pkg.id}
-                                        className="p-4 rounded-xl border border-slate-200 hover:border-[#00B5F1] transition flex items-center justify-between"
+                                        className="p-4 rounded-[6px] border border-clinic-border hover:border-clinic-cta transition-colors flex items-center justify-between gap-3"
                                     >
                                         <div className="space-y-1">
-                                            <div className="text-sm font-bold text-[#003553]">{pkg.tenMau}</div>
-                                            <div className="text-xs text-slate-500">{pkg.noiDung}</div>
-                                            <div className="text-xs font-bold text-[#00B5F1]">
+                                            <div className="text-sm font-bold text-clinic-navy">{pkg.tenMau}</div>
+                                            <div className="text-xs text-clinic-text-secondary">{pkg.noiDung}</div>
+                                            <div className="text-xs font-bold text-clinic-cta tabular-nums">
                                                 Bao gồm: {pkg.services?.length || 0} dịch vụ chỉ định
                                             </div>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => handleApplyPackage(pkg)}
-                                            className="medpro-btn-primary text-xs shrink-0"
+                                            className="medpro-btn-primary !py-1.5 !px-3 text-xs shrink-0"
                                         >
                                             Kê gói này
                                         </button>

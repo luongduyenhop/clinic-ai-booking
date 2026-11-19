@@ -7,9 +7,8 @@ import {
     Eye,
     MagnifyingGlass,
     ArrowRight,
-    CheckCircle,
     WarningCircle,
-    Sparkle,
+    Check,
 } from '../../components/common/ClinicIcon'
 import {
     FUNCTIONAL_TEMPLATES,
@@ -119,118 +118,114 @@ export default function ParaclinicalPage() {
     }, [selectedGroup, searchTerm])
 
     return (
-        <div className="space-y-6 pb-12">
-            <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-[#003553] via-[#004B75] to-[#0088BA] p-6 text-white shadow-md">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1.5">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#8FE2FF] border border-white/15">
-                            <Microscope size={15} weight="duotone" />
-                            <span>LIS & PACS Kỹ Thuật Số</span>
-                        </div>
-                        <h1 className="text-2xl font-extrabold tracking-tight font-display">
-                            Danh Mục Kỹ Thuật & Khoảng Tham Chiếu Cận Lâm Sàng
-                        </h1>
-                        <p className="text-xs text-sky-100 max-w-2xl leading-relaxed">
-                            Quy chuẩn kỹ thuật xét nghiệm, thăm dò chức năng và chẩn đoán hình ảnh. Kỹ thuật viên truy cập Bàn làm việc để tiếp nhận mẫu, nhập kết quả và ký số duyệt trả.
+        <div className="space-y-4 pb-8">
+            <div className="medpro-card p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display">
+                            Danh mục kỹ thuật &amp; Khoảng tham chiếu Cận lâm sàng
+                        </h2>
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
+                            Quy chuẩn kỹ thuật xét nghiệm LIS, thăm dò chức năng, chẩn đoán hình ảnh PACS và nội soi.
                         </p>
                     </div>
 
                     <Link
                         to="/staff/paraclinical-work"
-                        className="inline-flex items-center gap-2 rounded-xl bg-[#00B5F1] px-5 py-3 text-xs font-extrabold text-[#002840] shadow-md transition hover:bg-[#009EDB] shrink-0"
+                        className="medpro-btn-primary text-xs font-bold shrink-0"
                     >
-                        <span>Đến Bàn làm việc CLS</span>
-                        <ArrowRight size={16} weight="bold" />
+                        <span>Mở bàn làm việc CLS</span>
+                        <ArrowRight size={15} weight="bold" />
                     </Link>
                 </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    {[
-                        { key: 'ALL', label: 'Tất cả danh mục' },
-                        { key: 'XET_NGHIEM', label: 'Xét nghiệm (LIS)' },
-                        { key: 'TDCN', label: 'Thăm dò chức năng' },
-                        { key: 'CDHA', label: 'Chẩn đoán hình ảnh' },
-                        { key: 'NOI_SOI', label: 'Nội soi' },
-                    ].map((tab) => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => setSelectedGroup(tab.key)}
-                            className={`rounded-xl px-3.5 py-2 text-xs font-bold transition cursor-pointer ${
-                                selectedGroup === tab.key
-                                    ? 'bg-[#003553] text-white shadow-xs'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-clinic-border">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {[
+                            { key: 'ALL', label: 'Tất cả danh mục' },
+                            { key: 'XET_NGHIEM', label: 'Xét nghiệm (LIS)' },
+                            { key: 'TDCN', label: 'Thăm dò chức năng' },
+                            { key: 'CDHA', label: 'Chẩn đoán hình ảnh' },
+                            { key: 'NOI_SOI', label: 'Nội soi' },
+                        ].map((tab) => (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setSelectedGroup(tab.key)}
+                                className={`rounded-[6px] px-3 py-1.5 text-xs font-bold transition cursor-pointer border ${
+                                    selectedGroup === tab.key
+                                        ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                                        : 'bg-clinic-bg border-clinic-border text-clinic-text-secondary hover:bg-clinic-surface-tint hover:text-clinic-navy'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
 
-                <div className="relative min-w-[260px]">
-                    <MagnifyingGlass size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Tìm chỉ số, mã hoặc tên kỹ thuật…"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-10 pl-9 pr-3.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-[#00B5F1] focus:outline-none transition shadow-2xs"
-                    />
+                    <div className="relative min-w-[260px]">
+                        <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-clinic-text-muted" />
+                        <input
+                            type="text"
+                            placeholder="Tìm chỉ số, mã hoặc tên kỹ thuật…"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="medpro-input !py-1.5 !pl-9 text-xs"
+                        />
+                    </div>
                 </div>
             </div>
 
             {(selectedGroup === 'ALL' || selectedGroup === 'XET_NGHIEM') && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                        <Microscope size={18} weight="duotone" className="text-[#0088BA]" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
-                            Bộ Chỉ Số Xét Nghiệm Chuẩn Hóa ({filteredCatalog.length} kỹ thuật)
-                        </h2>
+                        <Microscope size={17} weight="bold" className="text-clinic-cta" />
+                        <h3 className="text-sm font-bold text-clinic-navy tabular-nums">
+                            Bộ chỉ số xét nghiệm chuẩn hóa ({filteredCatalog.length} kỹ thuật)
+                        </h3>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
                         {filteredCatalog.map((service) => (
-                            <div key={service.code} className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
-                                <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5 flex flex-wrap items-center justify-between gap-2">
+                            <div key={service.code} className="rounded-[6px] border border-clinic-border bg-clinic-surface overflow-hidden">
+                                <div className="border-b border-clinic-border bg-clinic-bg px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2.5">
-                                        <span className="font-mono text-xs font-bold text-[#007EA8] bg-sky-50 px-2.5 py-1 rounded-md border border-sky-100">
+                                        <span className="font-mono text-xs font-bold text-clinic-cta bg-clinic-surface-alt px-2 py-0.5 rounded-[4px] border border-clinic-info-border">
                                             {service.code}
                                         </span>
-                                        <h3 className="text-sm font-bold text-[#003553]">{service.serviceName}</h3>
+                                        <h4 className="text-sm font-bold text-clinic-navy">{service.serviceName}</h4>
                                     </div>
-                                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                    <span className="text-[11px] font-semibold text-clinic-text-secondary bg-clinic-bg-muted px-2.5 py-0.5 rounded-[4px] border border-clinic-border">
                                         {service.categoryName}
                                     </span>
                                 </div>
 
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs border-collapse">
+                                    <table className="medpro-table">
                                         <thead>
-                                            <tr className="bg-slate-100/50 text-slate-600 border-b border-slate-200">
-                                                <th className="p-3 font-bold w-24">Mã</th>
-                                                <th className="p-3 font-bold">Tên chỉ số xét nghiệm</th>
-                                                <th className="p-3 font-bold text-center w-24">Đơn vị</th>
-                                                <th className="p-3 font-bold text-center">Khoảng tham chiếu chuẩn</th>
-                                                <th className="p-3 font-bold text-center w-36">Ngưỡng báo động</th>
+                                            <tr>
+                                                <th className="w-24">Mã</th>
+                                                <th>Tên chỉ số xét nghiệm</th>
+                                                <th className="text-center w-24">Đơn vị</th>
+                                                <th className="text-center">Khoảng tham chiếu chuẩn</th>
+                                                <th className="text-center w-40">Ngưỡng báo động</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody>
                                             {service.indicators.map((ind) => (
-                                                <tr key={ind.code} className="hover:bg-sky-50/30 transition">
-                                                    <td className="p-3 font-mono font-bold text-[#003553]">{ind.code}</td>
-                                                    <td className="p-3 font-semibold text-slate-800">{ind.name}</td>
-                                                    <td className="p-3 text-center text-slate-600 font-mono">{ind.unit || '—'}</td>
-                                                    <td className="p-3 text-center font-bold text-emerald-800 bg-emerald-50/30">{ind.normal}</td>
-                                                    <td className="p-3 text-center">
+                                                <tr key={ind.code}>
+                                                    <td className="font-mono font-bold text-clinic-navy">{ind.code}</td>
+                                                    <td className="font-semibold text-clinic-text">{ind.name}</td>
+                                                    <td className="text-center text-clinic-text-secondary font-mono">{ind.unit || '—'}</td>
+                                                    <td className="text-center font-bold text-clinic-success bg-clinic-success-bg/50">{ind.normal}</td>
+                                                    <td className="text-center">
                                                         {ind.critical !== '—' ? (
-                                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-clinic-danger bg-clinic-danger-bg px-2 py-0.5 rounded-[4px] border border-clinic-danger-border">
                                                                 <WarningCircle size={12} weight="bold" />
                                                                 {ind.critical}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-slate-400">—</span>
+                                                            <span className="text-clinic-text-subtle">—</span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -245,33 +240,34 @@ export default function ParaclinicalPage() {
             )}
 
             {(selectedGroup === 'ALL' || selectedGroup === 'TDCN') && (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-2">
-                        <Heartbeat size={18} weight="duotone" className="text-rose-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
-                            Thăm Dò Chức Năng (Điện tim ECG, Hô hấp ký, Điện não)
-                        </h2>
+                        <Heartbeat size={17} weight="bold" className="text-clinic-danger" />
+                        <h3 className="text-sm font-bold text-clinic-navy">
+                            Thăm dò chức năng (Điện tim ECG, Hô hấp ký, Điện não)
+                        </h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {Object.entries(FUNCTIONAL_TEMPLATES).filter(([k]) => k !== 'DV010').map(([k, tpl]) => (
-                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                                    <div className="font-bold text-sm text-[#003553] flex items-center gap-2">
-                                        <span className="font-mono text-xs text-[#0088BA] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
+                            <div key={k} className="rounded-[6px] border border-clinic-border bg-clinic-surface p-4 space-y-3">
+                                <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
+                                    <div className="font-bold text-sm text-clinic-navy flex items-center gap-2">
+                                        <span className="font-mono text-xs text-clinic-cta bg-clinic-surface-alt px-2 py-0.5 rounded-[4px] border border-clinic-info-border">{k}</span>
                                         <span>{k === 'DV_ECG' ? 'Điện tâm đồ (ECG) 12 chuyển đạo' : k === 'DV_HO_HAP_KY' ? 'Đo chức năng hô hấp' : k === 'DV_EEG' ? 'Điện não đồ (EEG)' : 'Đo thính lực'}</span>
                                     </div>
-                                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <span className="medpro-badge-success tabular-nums">
                                         {tpl.params?.length || 0} thông số
                                     </span>
                                 </div>
 
                                 <div className="space-y-1.5 text-xs">
-                                    <span className="font-semibold text-slate-500">Mẫu nhận định lâm sàng:</span>
+                                    <span className="font-semibold text-clinic-text-secondary">Mẫu nhận định lâm sàng:</span>
                                     <div className="flex flex-wrap gap-1.5">
                                         {Object.keys(tpl.presets || {}).map((presetKey) => (
-                                            <span key={presetKey} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium">
-                                                ✓ {presetKey}
+                                            <span key={presetKey} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] bg-clinic-bg border border-clinic-border text-clinic-text text-[11px] font-medium">
+                                                <Check size={11} weight="bold" className="text-clinic-success" />
+                                                <span>{presetKey}</span>
                                             </span>
                                         ))}
                                     </div>
@@ -283,20 +279,20 @@ export default function ParaclinicalPage() {
             )}
 
             {(selectedGroup === 'ALL' || selectedGroup === 'CDHA') && (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-2">
-                        <Scan size={18} weight="duotone" className="text-sky-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
-                            Chẩn Đoán Hình Ảnh (X-quang KTS & Siêu âm màu)
-                        </h2>
+                        <Scan size={17} weight="bold" className="text-clinic-cta" />
+                        <h3 className="text-sm font-bold text-clinic-navy">
+                            Chẩn đoán hình ảnh (X-quang KTS &amp; Siêu âm màu)
+                        </h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Object.entries(IMAGING_PRESETS).filter(([k]) => !['DV005', 'DV006', 'DV008'].includes(k)).map(([k, presets]) => (
-                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-                                <div className="border-b border-slate-100 pb-2">
-                                    <span className="font-mono text-[11px] font-bold text-[#007EA8] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
-                                    <h4 className="font-bold text-sm text-[#003553] mt-1">
+                            <div key={k} className="rounded-[6px] border border-clinic-border bg-clinic-surface p-4 space-y-3">
+                                <div className="border-b border-clinic-border pb-2">
+                                    <span className="font-mono text-[11px] font-bold text-clinic-cta bg-clinic-surface-alt px-2 py-0.5 rounded-[4px] border border-clinic-info-border">{k}</span>
+                                    <h4 className="font-bold text-sm text-clinic-navy mt-1.5">
                                         {k === 'DV_SA_BUNG' ? 'Siêu âm ổ bụng tổng quát'
                                             : k === 'DV_XQ_NGUC' ? 'X-quang tim phổi thẳng'
                                             : k === 'DV_SA_TIM' ? 'Siêu âm tim màu Doppler'
@@ -309,11 +305,11 @@ export default function ParaclinicalPage() {
                                             : 'Chụp Panorama toàn cảnh hàm răng'}
                                     </h4>
                                 </div>
-                                <div className="space-y-1 text-xs">
-                                    <span className="font-semibold text-slate-500">Mẫu mô tả có sẵn:</span>
+                                <div className="space-y-1.5 text-xs">
+                                    <span className="font-semibold text-clinic-text-secondary">Mẫu mô tả có sẵn:</span>
                                     <div className="flex flex-wrap gap-1">
                                         {Object.keys(presets).map((pKey) => (
-                                            <span key={pKey} className="text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-700">
+                                            <span key={pKey} className="text-[11px] bg-clinic-bg border border-clinic-border px-2 py-0.5 rounded-[4px] text-clinic-text">
                                                 {pKey}
                                             </span>
                                         ))}
@@ -326,28 +322,28 @@ export default function ParaclinicalPage() {
             )}
 
             {(selectedGroup === 'ALL' || selectedGroup === 'NOI_SOI') && (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-2">
-                        <Eye size={18} weight="duotone" className="text-amber-500" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#003553]">
-                            Nội Soi Tiêu Hóa & Tai Mũi Họng (NBI Kỹ Thuật Số)
-                        </h2>
+                        <Eye size={17} weight="bold" className="text-clinic-warning" />
+                        <h3 className="text-sm font-bold text-clinic-navy">
+                            Nội soi Tiêu hóa &amp; Tai Mũi Họng (NBI Kỹ thuật số)
+                        </h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {Object.entries(ENDOSCOPY_TEMPLATES).filter(([k]) => k !== 'DV009').map(([k, tpl]) => (
-                            <div key={k} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-                                <div className="border-b border-slate-100 pb-2">
-                                    <span className="font-mono text-[11px] font-bold text-[#007EA8] bg-sky-50 px-2 py-0.5 rounded border border-sky-100">{k}</span>
-                                    <h4 className="font-bold text-sm text-[#003553] mt-1">
+                            <div key={k} className="rounded-[6px] border border-clinic-border bg-clinic-surface p-4 space-y-3">
+                                <div className="border-b border-clinic-border pb-2">
+                                    <span className="font-mono text-[11px] font-bold text-clinic-cta bg-clinic-surface-alt px-2 py-0.5 rounded-[4px] border border-clinic-info-border">{k}</span>
+                                    <h4 className="font-bold text-sm text-clinic-navy mt-1.5">
                                         {k === 'DV_NS_TMH' ? 'Nội soi Tai Mũi Họng ống mềm' : 'Nội soi Thực quản – Dạ dày – Tá tràng'}
                                     </h4>
                                 </div>
-                                <div className="text-xs space-y-1">
-                                    <span className="font-semibold text-slate-500">Vị trí giải phẫu khảo sát:</span>
+                                <div className="text-xs space-y-1.5">
+                                    <span className="font-semibold text-clinic-text-secondary">Vị trí giải phẫu khảo sát:</span>
                                     <div className="flex flex-wrap gap-1.5">
                                         {tpl.sites.map((s) => (
-                                            <span key={s} className="px-2 py-0.5 rounded bg-sky-50 text-[#003553] font-semibold text-[11px] border border-sky-100">
+                                            <span key={s} className="px-2 py-0.5 rounded-[4px] bg-clinic-surface-alt text-clinic-navy font-semibold text-[11px] border border-clinic-info-border">
                                                 {s}
                                             </span>
                                         ))}

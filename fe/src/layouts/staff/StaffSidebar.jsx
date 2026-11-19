@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
+import { getRoleDefaultPath } from '../../utils/constants/System'
 import {
+    Hospital,
     HouseLine,
     Users,
     IdentificationCard,
@@ -154,75 +156,54 @@ export default function StaffSidebar({
 
     const effectiveRole = normalizeStaffRole(realRole || activeRole)
     const roleConfig = getStaffRoleConfig(effectiveRole)
+    const homePath = getRoleDefaultPath(realRole || activeRole)
 
     const menuSections = useMemo(() => getStaffMenuForRole(effectiveRole), [effectiveRole])
 
     const isPathActive = (to) => {
         if (!to) return false
-        if (to === '/staff/dashboard') {
+        const cleanTo = to.split('?')[0]
+        if (cleanTo === '/staff/dashboard') {
             return location.pathname === '/staff' || location.pathname === '/staff/' || location.pathname === '/staff/dashboard'
         }
-        return location.pathname.startsWith(to)
+        return location.pathname === cleanTo || location.pathname.startsWith(`${cleanTo}/`)
     }
 
     return (
         <aside
-            className={`h-screen sticky top-0 flex flex-col shrink-0 bg-white border-r border-slate-200/80 shadow-xs z-30 transition-all duration-300 ease-in-out ${
-                isCollapsed ? 'w-20' : 'w-72'
+            className={`h-screen sticky top-0 bg-clinic-navy text-clinic-surface flex flex-col shrink-0 select-none border-r border-clinic-navy-dark transition-all duration-200 z-40 overflow-hidden ${
+                isCollapsed ? 'w-[64px]' : 'w-[244px]'
             }`}
         >
-            <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
-                <Link
-                    to="/staff/dashboard"
-                    className={`flex items-center gap-3 transition-opacity ${isCollapsed ? 'justify-center w-full' : ''}`}
-                >
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#003553] via-[#005a8b] to-[#00B5F1] text-white flex items-center justify-center font-extrabold text-lg shadow-sm shrink-0">
-                        ✚
-                    </div>
+            <div className="h-14 px-3 flex items-center justify-between border-b border-clinic-on-navy-subtle/20 bg-clinic-navy-dark shrink-0">
+                <Link to={homePath} className="flex items-center gap-2.5 overflow-hidden">
+                    <span className="w-8 h-8 rounded-[6px] bg-clinic-cta text-clinic-surface flex items-center justify-center shrink-0">
+                        <Hospital size={18} weight="fill" />
+                    </span>
                     {!isCollapsed && (
-                        <div className="min-w-0">
-                            <span className="font-extrabold text-base tracking-tight text-[#003553] block truncate">
-                                ClinicAI <span className="text-[#00B5F1]">Staff</span>
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-                                Cổng Nhân Viên Phòng Khám
-                            </span>
+                        <div className="leading-tight truncate">
+                            <div className="font-display font-extrabold text-sm tracking-wide text-clinic-surface">
+                                CLINIC<span className="text-clinic-cyan">-AI</span> HIS
+                            </div>
+                            <div className="text-[10px] text-clinic-on-navy-muted font-medium truncate">
+                                {roleConfig.label} · Cổng Nghiệp Vụ
+                            </div>
                         </div>
                     )}
                 </Link>
-
-                {!isCollapsed && (
-                    <button
-                        type="button"
-                        onClick={onToggleCollapse}
-                        title="Thu gọn sidebar"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                    >
-                        <CaretLeft size={16} />
-                    </button>
-                )}
             </div>
 
-            {isCollapsed && (
-                <div className="p-2 flex justify-center border-b border-slate-100">
-                    <button
-                        type="button"
-                        onClick={onToggleCollapse}
-                        title="Mở rộng sidebar"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                    >
-                        <CaretRight size={16} />
-                    </button>
-                </div>
-            )}
-
-            <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar">
+            <nav className="flex-1 overflow-y-auto py-2.5 px-2 space-y-3 text-[12px] no-scrollbar">
                 {menuSections.map((section, sIdx) => (
                     <div key={sIdx} className="space-y-1">
-                        {!isCollapsed && (
-                            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                {section.group}
+                        {!isCollapsed && section.group && (
+                            <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-clinic-on-navy-subtle flex items-center gap-1.5">
+                                <span className="w-1 h-1 rounded-full bg-clinic-cyan" />
+                                <span className="truncate">{section.group}</span>
                             </div>
+                        )}
+                        {isCollapsed && section.group && (
+                            <div className="border-t border-clinic-on-navy-subtle/20 my-1 mx-2" />
                         )}
                         {section.items.map((item, iIdx) => {
                             const IconComponent = item.icon || HouseLine
@@ -233,31 +214,23 @@ export default function StaffSidebar({
                                     key={iIdx}
                                     to={item.to}
                                     title={isCollapsed ? item.label : undefined}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
+                                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] font-medium transition-colors duration-75 group ${
                                         active
-                                            ? 'bg-[#00B5F1]/15 text-[#003553] font-bold shadow-2xs border border-sky-200/60'
-                                            : 'text-slate-600 hover:text-[#003553] hover:bg-slate-100/80'
-                                    } ${isCollapsed ? 'justify-center px-2' : ''}`}
+                                            ? 'bg-clinic-cta text-clinic-surface font-bold'
+                                            : 'text-clinic-on-navy-muted hover:bg-clinic-navy-dark hover:text-clinic-surface'
+                                    }`}
                                 >
-                                    <span
-                                        className={`transition-colors shrink-0 ${
-                                            active ? 'text-[#00B5F1]' : 'text-slate-400 group-hover:text-[#003553]'
-                                        }`}
-                                    >
-                                        <IconComponent size={18} />
-                                    </span>
+                                    <IconComponent
+                                        size={17}
+                                        weight={active ? 'fill' : 'duotone'}
+                                        className={`shrink-0 ${active ? 'text-clinic-surface' : 'text-clinic-cyan'}`}
+                                    />
 
                                     {!isCollapsed && (
                                         <div className="flex-1 flex items-center justify-between min-w-0">
                                             <span className="truncate">{item.label}</span>
                                             {item.badge && (
-                                                <span
-                                                    className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                                        active
-                                                            ? 'bg-[#00B5F1] text-white'
-                                                            : 'bg-slate-100 text-slate-500'
-                                                    }`}
-                                                >
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] shrink-0 bg-clinic-navy-dark text-clinic-surface border border-clinic-on-navy-subtle/30">
                                                     {item.badge}
                                                 </span>
                                             )}
@@ -270,27 +243,30 @@ export default function StaffSidebar({
                 ))}
             </nav>
 
-            <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
-                {!isCollapsed ? (
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                                Vai trò hoạt động
-                            </span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={`w-2 h-2 rounded-full ${roleConfig.dotColor}`} />
-                                <span className="text-xs font-bold text-slate-700 truncate">
-                                    {roleConfig.label}
-                                </span>
-                            </div>
-                        </div>
-                        <span className="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0">
-                            v1.0-staff
+            <div className="p-2.5 border-t border-clinic-on-navy-subtle/20 bg-clinic-navy-dark text-[11px] text-clinic-on-navy-muted space-y-1.5 shrink-0">
+                <button
+                    type="button"
+                    onClick={onToggleCollapse}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-clinic-navy hover:bg-clinic-cta text-clinic-surface font-semibold text-center transition cursor-pointer"
+                    title={isCollapsed ? 'Mở rộng thanh menu' : 'Thu gọn thanh menu'}
+                >
+                    {isCollapsed ? (
+                        <CaretRight size={15} weight="bold" className="text-clinic-cyan" />
+                    ) : (
+                        <>
+                            <CaretLeft size={14} weight="bold" className="text-clinic-cyan" />
+                            <span>Thu gọn menu</span>
+                        </>
+                    )}
+                </button>
+
+                {!isCollapsed && (
+                    <div className="flex items-center justify-between pt-1 text-[10px]">
+                        <span>Vai trò:</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-navy text-clinic-surface font-bold truncate max-w-[140px]">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${roleConfig.dotColor}`} />
+                            <span className="truncate">{roleConfig.label}</span>
                         </span>
-                    </div>
-                ) : (
-                    <div className="flex justify-center">
-                        <span className={`w-2.5 h-2.5 rounded-full ${roleConfig.dotColor}`} title={roleConfig.label} />
                     </div>
                 )}
             </div>

@@ -107,7 +107,7 @@ const SAMPLE_OLD_PRESCRIPTIONS = [
 export default function PrescriptionPrintAndCopyModal({
     isOpen,
     onClose,
-    initialTab = 'print', // 'print' | 'copy' | 'templates'
+    initialTab = 'print',
     encounter = {},
     patient = {},
     diagnoses = [],
@@ -118,7 +118,7 @@ export default function PrescriptionPrintAndCopyModal({
 }) {
     const [activeTab, setActiveTab] = useState(initialTab)
     const [showPriceOnPrint, setShowPriceOnPrint] = useState(false)
-    const [paperSize, setPaperSize] = useState('a4') // 'a4' | 'k80'
+    const [paperSize, setPaperSize] = useState('a4')
 
     if (!isOpen) return null
 
@@ -130,7 +130,6 @@ export default function PrescriptionPrintAndCopyModal({
     const patientCode = patient?.ma || encounter?.ma_benh_nhan || `BN-${encounter?.id || '2026'}`
     const doctorName = encounter?.ten_bac_si || 'BS.CKI Nguyễn Văn An'
 
-    // Tính tổng tiền ước tính chỉ dùng cho bản in khi bật hiển thị giá
     const estimatedTotal = prescriptionItems.reduce((sum, item) => {
         const qty = Number(item.so_luong) || 1
         const price = Number(item.don_gia) || 15000
@@ -153,7 +152,6 @@ export default function PrescriptionPrintAndCopyModal({
         onClose()
     }
 
-    // 1-Click Copy Tóm tắt đơn thuốc dạng Text chuẩn gửi Zalo/SMS (Ý tưởng SimpleClinic)
     const handleCopySummaryText = async () => {
         const dxText = diagnoses.length > 0
             ? diagnoses.map((d) => `${d.ma_icd10} - ${d.ten_benh_chan_doan}`).join('; ')
@@ -167,20 +165,20 @@ export default function PrescriptionPrintAndCopyModal({
             : '(Chưa kê thuốc)'
 
         const summary = [
-            `🏥 [PHÒNG KHÁM ĐA KHOA CLINIC-AI] — TÓM TẮT ĐƠN THUỐC`,
+            `[PHÒNG KHÁM ĐA KHOA CLINIC-AI] — TÓM TẮT ĐƠN THUỐC`,
             `Mã hồ sơ: #${encounter?.id || 9102} | Mã ĐT: ${rxCode}`,
             `Bệnh nhân: ${patientName} (${patientGender}, ${patientDob})`,
             `Mã y tế: ${patientCode}`,
             `Ngày khám: ${new Date().toLocaleDateString('vi-VN')} | Bác sĩ: ${doctorName}`,
             `----------------------------------------`,
-            `📋 CHẨN ĐOÁN: ${dxText}`,
+            `CHẨN ĐOÁN: ${dxText}`,
             `----------------------------------------`,
-            `💊 DANH SÁCH THUỐC ĐIỀU TRỊ:`,
+            `DANH SÁCH THUỐC ĐIỀU TRỊ:`,
             medLines,
             `----------------------------------------`,
-            `📝 LỜI DẶN BÁC SĨ:`,
+            `LỜI DẶN BÁC SĨ:`,
             prescriptionNote || encounter?.loi_dan_bac_si || 'Uống thuốc đúng giờ theo chỉ dẫn. Tái khám theo hẹn.',
-            encounter?.ngay_hen_tai_kham ? `📅 HẸN TÁI KHÁM: ${encounter.ngay_hen_tai_kham}` : '',
+            encounter?.ngay_hen_tai_kham ? `HẸN TÁI KHÁM: ${encounter.ngay_hen_tai_kham}` : '',
             `----------------------------------------`,
             `Hotline tư vấn sức khỏe: 1900 6868`,
         ].filter(Boolean).join('\n')
@@ -204,18 +202,17 @@ export default function PrescriptionPrintAndCopyModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
-                {/* Top Modal Bar */}
-                <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-clinic-navy/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-clinic-surface rounded-[6px] border border-clinic-border w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
+                <div className="bg-clinic-navy text-clinic-surface px-6 py-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <Pill size={24} className="text-teal-400" weight="duotone" />
+                        <Pill size={22} className="text-clinic-cyan" weight="duotone" />
                         <div>
-                            <h3 className="text-base font-extrabold tracking-wide">
-                                QUẢN LÝ PHIẾU IN ĐƠN THUỐC, TOA MẪU & SAO CHÉP
+                            <h3 className="text-base font-extrabold">
+                                Quản lý phiếu in đơn thuốc, toa mẫu &amp; sao chép
                             </h3>
-                            <p className="text-xs text-slate-400">
-                                Kế thừa thiết kế từ SimpleClinic & TheDuckHospital · Chuẩn TT 52/2017 & TT 32/2023/TT-BYT
+                            <p className="text-xs text-clinic-on-navy-muted">
+                                Chuẩn TT 52/2017 &amp; TT 32/2023/TT-BYT
                             </p>
                         </div>
                     </div>
@@ -224,60 +221,59 @@ export default function PrescriptionPrintAndCopyModal({
                         <button
                             type="button"
                             onClick={() => setActiveTab('print')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer tabular-nums ${
                                 activeTab === 'print'
-                                    ? 'bg-teal-500 text-slate-950'
-                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                    ? 'bg-clinic-cta text-clinic-surface'
+                                    : 'bg-clinic-navy-dark text-clinic-on-navy-muted hover:text-clinic-surface'
                             }`}
                         >
-                            <Printer size={16} weight="bold" />
-                            Phiếu In ({prescriptionItems.length})
+                            <Printer size={15} weight="bold" />
+                            <span>Phiếu in ({prescriptionItems.length})</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('templates')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                                 activeTab === 'templates'
-                                    ? 'bg-indigo-500 text-white'
-                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                    ? 'bg-clinic-cta text-clinic-surface'
+                                    : 'bg-clinic-navy-dark text-clinic-on-navy-muted hover:text-clinic-surface'
                             }`}
                         >
-                            <BookmarkSimple size={16} weight="bold" />
-                            Phác Đồ Mẫu
+                            <BookmarkSimple size={15} weight="bold" />
+                            <span>Phác đồ mẫu</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('copy')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                                 activeTab === 'copy'
-                                    ? 'bg-amber-400 text-slate-950'
-                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                    ? 'bg-clinic-amber text-clinic-navy'
+                                    : 'bg-clinic-navy-dark text-clinic-on-navy-muted hover:text-clinic-surface'
                             }`}
                         >
-                            <ClockCounterClockwise size={16} weight="bold" />
-                            Đơn Cũ
+                            <ClockCounterClockwise size={15} weight="bold" />
+                            <span>Đơn cũ</span>
                         </button>
                         <button
                             type="button"
+                            aria-label="Đóng hộp thoại"
                             onClick={onClose}
-                            className="p-2 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white transition cursor-pointer ml-2"
+                            className="p-2 rounded-[6px] bg-clinic-navy-dark hover:bg-clinic-danger-solid text-clinic-on-navy-muted hover:text-clinic-surface transition cursor-pointer ml-1"
                         >
-                            <X size={18} weight="bold" />
+                            <X size={16} weight="bold" />
                         </button>
                     </div>
                 </div>
 
-                {/* Sub-bar for Controls & Quick Actions */}
-                <div className="bg-slate-100 border-b border-slate-200 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-4">
-
+                <div className="bg-clinic-bg border-b border-clinic-border px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-4">
                         {activeTab === 'print' && (
-                            <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-300">
+                            <div className="flex items-center gap-1 bg-clinic-surface p-0.5 rounded-[6px] border border-clinic-border">
                                 <button
                                     type="button"
                                     onClick={() => setPaperSize('a4')}
-                                    className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                                        paperSize === 'a4' ? 'bg-[#0077B6] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                    className={`px-2.5 py-1 rounded-[4px] text-xs font-bold transition cursor-pointer ${
+                                        paperSize === 'a4' ? 'bg-clinic-cta text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                     }`}
                                 >
                                     Khổ A4 / A5 (Laser)
@@ -285,8 +281,8 @@ export default function PrescriptionPrintAndCopyModal({
                                 <button
                                     type="button"
                                     onClick={() => setPaperSize('k80')}
-                                    className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                                        paperSize === 'k80' ? 'bg-[#0077B6] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                    className={`px-2.5 py-1 rounded-[4px] text-xs font-bold transition cursor-pointer ${
+                                        paperSize === 'k80' ? 'bg-clinic-cta text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                     }`}
                                 >
                                     In nhiệt K80 (Bill)
@@ -295,21 +291,21 @@ export default function PrescriptionPrintAndCopyModal({
                         )}
 
                         {activeTab === 'print' && (
-                            <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 select-none">
+                            <label className="flex items-center gap-2 cursor-pointer font-semibold text-clinic-navy select-none">
                                 <input
                                     type="checkbox"
                                     checked={showPriceOnPrint}
                                     onChange={(e) => setShowPriceOnPrint(e.target.checked)}
-                                    className="w-4 h-4 rounded text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                    className="w-4 h-4 rounded-[4px] border-clinic-border-strong cursor-pointer"
                                 />
                                 <span className="flex items-center gap-1">
-                                    <CurrencyCircleDollar size={16} className="text-teal-700" weight="bold" />
-                                    In kèm đơn giá & thành tiền
+                                    <CurrencyCircleDollar size={16} className="text-clinic-cta" weight="bold" />
+                                    In kèm đơn giá &amp; thành tiền
                                 </span>
                             </label>
                         )}
                         {activeTab === 'print' && (
-                            <span className="text-[11px] text-slate-500 italic">
+                            <span className="text-[11px] text-clinic-text-secondary">
                                 ({showPriceOnPrint ? 'Hiển thị giá tiền để thu ngân tính phí' : 'Ẩn giá tiền theo chuẩn đơn ngoại trú mang ngoài'})
                             </span>
                         )}
@@ -318,80 +314,76 @@ export default function PrescriptionPrintAndCopyModal({
                     <button
                         type="button"
                         onClick={handleCopySummaryText}
-                        className="px-3.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className="medpro-btn-primary px-3.5 py-1.5 rounded-[6px] font-bold flex items-center gap-1.5 cursor-pointer"
                         title="Sao chép toàn bộ tóm tắt đơn thuốc sang định dạng văn bản để gửi Zalo / SMS cho người bệnh"
                     >
-                        <ChatText size={16} weight="bold" />
-                        Sao Chép Text (Zalo / SMS)
+                        <ChatText size={15} weight="bold" />
+                        <span>Sao chép Text (Zalo / SMS)</span>
                     </button>
                 </div>
 
-                {/* Body Content */}
-                <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                <div className="flex-1 overflow-y-auto p-6 bg-clinic-bg-muted">
                     {activeTab === 'print' ? (
-                        <div className="bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-sm max-w-3xl mx-auto text-slate-900 print:border-none print:shadow-none print:p-0">
-                            {/* Header Quốc hiệu & Mã vạch */}
-                            <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 mb-5">
+                        <div className={`bg-clinic-surface border border-clinic-border-strong rounded-[6px] p-8 mx-auto text-clinic-text print:border-none print:p-0 ${paperSize === 'k80' ? 'max-w-md' : 'max-w-3xl'}`}>
+                            <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-clinic-navy pb-4 mb-5">
                                 <div>
-                                    <div className="text-xs font-bold uppercase text-teal-800">
+                                    <div className="text-xs font-bold uppercase text-clinic-cta">
                                         SỞ Y TẾ TP. HỒ CHÍ MINH
                                     </div>
-                                    <div className="text-lg font-black uppercase tracking-tight text-slate-900">
+                                    <div className="text-lg font-black uppercase text-clinic-navy">
                                         PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI
                                     </div>
-                                    <div className="text-xs text-slate-600 mt-0.5">
+                                    <div className="text-xs text-clinic-text-secondary mt-0.5 tabular-nums">
                                         Địa chỉ: Khu Công Nghệ Cao, TP. Thủ Đức | Hotline: 1900 6868
                                     </div>
                                 </div>
 
-                                <div className="text-right flex items-center gap-4">
-                                    <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
-                                        <Barcode size={36} className="mx-auto text-slate-800" />
-                                        <div className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">
+                                <div className="text-right flex items-center gap-3">
+                                    <div className="border border-clinic-border rounded-[6px] p-2 bg-clinic-bg text-center">
+                                        <Barcode size={34} className="mx-auto text-clinic-navy" />
+                                        <div className="text-[10px] font-mono font-bold text-clinic-navy mt-0.5 tabular-nums">
                                             {rxCode}
                                         </div>
                                     </div>
-                                    <div className="border border-slate-300 rounded-xl p-2 bg-slate-50 text-center">
-                                        <QrCode size={42} className="mx-auto text-teal-800" />
-                                        <div className="text-[9px] font-mono text-slate-500">QR Đơn Thuốc</div>
+                                    <div className="border border-clinic-border rounded-[6px] p-2 bg-clinic-bg text-center">
+                                        <QrCode size={40} className="mx-auto text-clinic-cta" />
+                                        <div className="text-[9px] font-mono text-clinic-text-secondary">QR Đơn Thuốc</div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Title */}
                             <div className="text-center mb-5">
-                                <h2 className="text-2xl font-black uppercase tracking-wide text-slate-900">
+                                <h2 className="text-xl font-black uppercase text-clinic-navy">
                                     ĐƠN THUỐC NGOẠI TRÚ ĐIỆN TỬ
                                 </h2>
-                                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                <p className="text-xs text-clinic-text-secondary font-medium mt-0.5 tabular-nums">
                                     Mã hồ sơ lượt khám: #{encounter?.id || 9102} — Ngày kê:{' '}
                                     {new Date().toLocaleDateString('vi-VN')}
                                 </p>
                             </div>
 
-                            {/* Thông tin hành chính & Chẩn đoán */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs mb-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-clinic-bg p-4 rounded-[6px] border border-clinic-border text-xs mb-5 tabular-nums">
                                 <div>
-                                    <span className="text-slate-500">Họ và tên bệnh nhân:</span>{' '}
-                                    <strong className="text-sm uppercase text-slate-900">{patientName}</strong>
+                                    <span className="text-clinic-text-secondary">Họ và tên bệnh nhân:</span>{' '}
+                                    <strong className="text-sm uppercase text-clinic-navy">{patientName}</strong>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500">Mã định danh y tế:</span>{' '}
-                                    <strong className="font-mono text-teal-800">{patientCode}</strong>
+                                    <span className="text-clinic-text-secondary">Mã định danh y tế:</span>{' '}
+                                    <strong className="font-mono text-clinic-cta">{patientCode}</strong>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500">Ngày sinh / Giới tính:</span>{' '}
-                                    <strong>
+                                    <span className="text-clinic-text-secondary">Ngày sinh / Giới tính:</span>{' '}
+                                    <strong className="text-clinic-navy">
                                         {patientDob} ({patientGender})
                                     </strong>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500">Số điện thoại:</span>{' '}
-                                    <strong>{patientPhone}</strong>
+                                    <span className="text-clinic-text-secondary">Số điện thoại:</span>{' '}
+                                    <strong className="text-clinic-navy">{patientPhone}</strong>
                                 </div>
-                                <div className="md:col-span-2 pt-1 border-t border-slate-200/80">
-                                    <span className="text-slate-500">Chẩn đoán y khoa (ICD-10):</span>{' '}
-                                    <strong className="text-teal-800">
+                                <div className="md:col-span-2 pt-1.5 border-t border-clinic-border">
+                                    <span className="text-clinic-text-secondary">Chẩn đoán y khoa (ICD-10):</span>{' '}
+                                    <strong className="text-clinic-navy">
                                         {diagnoses.length > 0
                                             ? diagnoses
                                                   .map((d) => `${d.ma_icd10} - ${d.ten_benh_chan_doan}`)
@@ -401,18 +393,17 @@ export default function PrescriptionPrintAndCopyModal({
                                 </div>
                             </div>
 
-                            {/* Bảng danh mục thuốc đã kê */}
                             <div className="mb-5">
-                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-2">
+                                <h4 className="text-xs font-extrabold text-clinic-navy mb-2 tabular-nums">
                                     Danh mục thuốc chỉ định điều trị ({prescriptionItems.length} khoản)
                                 </h4>
-                                <div className="overflow-x-auto border border-slate-300 rounded-xl">
+                                <div className="overflow-x-auto border border-clinic-border-strong rounded-[6px]">
                                     <table className="w-full text-left border-collapse text-xs">
                                         <thead>
-                                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold">
+                                            <tr className="bg-clinic-bg border-b border-clinic-border-strong text-clinic-navy font-bold">
                                                 <th className="py-2.5 px-3 w-10 text-center">STT</th>
                                                 <th className="py-2.5 px-3">Tên thuốc / Hoạt chất / Hàm lượng</th>
-                                                <th className="py-2.5 px-3 text-center">Liều dùng & Cách uống</th>
+                                                <th className="py-2.5 px-3 text-center">Liều dùng &amp; Cách uống</th>
                                                 <th className="py-2.5 px-3 text-center w-20">Số ngày</th>
                                                 <th className="py-2.5 px-3 text-center w-24">Số lượng</th>
                                                 {showPriceOnPrint && (
@@ -423,57 +414,57 @@ export default function PrescriptionPrintAndCopyModal({
                                                 )}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-200">
+                                        <tbody className="divide-y divide-clinic-border">
                                             {prescriptionItems.length > 0 ? (
                                                 prescriptionItems.map((item, idx) => {
                                                     const qty = Number(item.so_luong) || 1
                                                     const price = Number(item.don_gia) || 15000
                                                     const lineTotal = qty * price
                                                     return (
-                                                        <tr key={idx} className="hover:bg-slate-50/80">
-                                                            <td className="py-3 px-3 text-center font-bold text-slate-600">
+                                                        <tr key={idx} className="hover:bg-clinic-bg">
+                                                            <td className="py-3 px-3 text-center font-bold text-clinic-text-secondary tabular-nums">
                                                                 {idx + 1}
                                                             </td>
                                                             <td className="py-3 px-3">
-                                                                <div className="font-bold text-slate-900 text-sm">
+                                                                <div className="font-bold text-clinic-navy text-sm">
                                                                     {item.ten_thuoc}
                                                                 </div>
-                                                                <div className="text-[11px] text-slate-500">
+                                                                <div className="text-[11px] text-clinic-text-secondary">
                                                                     Hoạt chất: {item.hoat_chat || 'Theo danh mục'} | Hàm
                                                                     lượng: {item.ham_luong || 'Chuẩn'} | Đường dùng:{' '}
                                                                     {item.duong_dung || 'Uống'}
                                                                 </div>
                                                             </td>
-                                                            <td className="py-3 px-3 text-center">
-                                                                <div className="font-bold text-teal-900 text-xs">
+                                                            <td className="py-3 px-3 text-center tabular-nums">
+                                                                <div className="font-bold text-clinic-navy text-xs">
                                                                     {item.lieu_dung
                                                                         ? item.lieu_dung
                                                                         : [
-                                                                              item.sang && Number(item.sang) > 0 ? `Sáng: ${item.sang}` : '',
-                                                                              item.trua && Number(item.trua) > 0 ? `Trưa: ${item.trua}` : '',
-                                                                              item.chieu && Number(item.chieu) > 0 ? `Chiều: ${item.chieu}` : '',
-                                                                              item.toi && Number(item.toi) > 0 ? `Tối: ${item.toi}` : '',
+                                                                              item.sang && Number(item.sang) > 0 ? `Sáng: ${mVal(item.sang)}` : '',
+                                                                              item.trua && Number(item.trua) > 0 ? `Trưa: ${mVal(item.trua)}` : '',
+                                                                              item.chieu && Number(item.chieu) > 0 ? `Chiều: ${mVal(item.chieu)}` : '',
+                                                                              item.toi && Number(item.toi) > 0 ? `Tối: ${mVal(item.toi)}` : '',
                                                                           ]
                                                                               .filter(Boolean)
                                                                               .join(' · ') || 'Theo chỉ dẫn'}
                                                                 </div>
-                                                                <div className="text-[11px] text-slate-600 mt-0.5 italic">
+                                                                <div className="text-[11px] text-clinic-text-secondary mt-0.5">
                                                                     {item.cach_dung || 'Uống sau ăn no'}
                                                                 </div>
                                                             </td>
-                                                            <td className="py-3 px-3 text-center font-semibold">
+                                                            <td className="py-3 px-3 text-center font-semibold tabular-nums">
                                                                 {item.thoi_gian_dung_ngay || item.so_ngay_dung || 5} ngày
                                                             </td>
-                                                            <td className="py-3 px-3 text-center font-black text-sm text-slate-900">
+                                                            <td className="py-3 px-3 text-center font-black text-sm text-clinic-navy tabular-nums">
                                                                 {item.so_luong || 10} {item.don_vi_tinh || 'Viên'}
                                                             </td>
                                                             {showPriceOnPrint && (
-                                                                <td className="py-3 px-3 text-right font-medium text-slate-600">
+                                                                <td className="py-3 px-3 text-right font-medium text-clinic-text-secondary tabular-nums">
                                                                     {price.toLocaleString('vi-VN')} đ
                                                                 </td>
                                                             )}
                                                             {showPriceOnPrint && (
-                                                                <td className="py-3 px-3 text-right font-bold text-slate-900">
+                                                                <td className="py-3 px-3 text-right font-bold text-clinic-navy tabular-nums">
                                                                     {lineTotal.toLocaleString('vi-VN')} đ
                                                                 </td>
                                                             )}
@@ -482,20 +473,20 @@ export default function PrescriptionPrintAndCopyModal({
                                                 })
                                             ) : (
                                                 <tr>
-                                                    <td colSpan={showPriceOnPrint ? 7 : 5} className="py-6 text-center text-slate-400 italic">
+                                                    <td colSpan={showPriceOnPrint ? 7 : 5} className="py-6 text-center text-clinic-text-secondary">
                                                         Chưa có thuốc trong đơn. Bạn có thể thêm thuốc hoặc bấm tab
-                                                        &ldquo;Toa Mẫu&rdquo; / &ldquo;Đơn Cũ&rdquo;.
+                                                        &ldquo;Phác đồ mẫu&rdquo; / &ldquo;Đơn cũ&rdquo;.
                                                     </td>
                                                 </tr>
                                             )}
                                         </tbody>
                                         {showPriceOnPrint && prescriptionItems.length > 0 && (
                                             <tfoot>
-                                                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
-                                                    <td colSpan={6} className="py-2.5 px-3 text-right uppercase text-slate-700">
+                                                <tr className="bg-clinic-bg border-t-2 border-clinic-border-strong font-bold tabular-nums">
+                                                    <td colSpan={6} className="py-2.5 px-3 text-right uppercase text-clinic-navy">
                                                         Tổng tiền thuốc ước tính:
                                                     </td>
-                                                    <td className="py-2.5 px-3 text-right text-sm font-black text-teal-800">
+                                                    <td className="py-2.5 px-3 text-right text-sm font-black text-clinic-cta">
                                                         {estimatedTotal.toLocaleString('vi-VN')} VNĐ
                                                     </td>
                                                 </tr>
@@ -505,17 +496,16 @@ export default function PrescriptionPrintAndCopyModal({
                                 </div>
                             </div>
 
-                            {/* Lời dặn & Chữ ký số Bác sĩ */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-slate-200 text-xs">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-clinic-border text-xs">
                                 <div className="space-y-1.5">
-                                    <div className="font-bold text-slate-800 uppercase">Lời dặn của Bác sĩ:</div>
-                                    <p className="text-slate-600 bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl leading-relaxed">
+                                    <div className="font-bold text-clinic-navy">Lời dặn của Bác sĩ:</div>
+                                    <p className="text-clinic-warning bg-clinic-warning-bg border border-clinic-warning-border p-3 rounded-[6px] leading-relaxed">
                                         {prescriptionNote ||
                                             encounter?.loi_dan_bac_si ||
                                             'Uống thuốc đúng giờ theo chỉ dẫn. Nếu có biểu hiện dị ứng (nổi mẩn, khó thở) cần ngưng thuốc và đến cơ sở y tế gần nhất.'}
                                     </p>
                                     {encounter?.ngay_hen_tai_kham && (
-                                        <div className="flex items-center gap-1.5 font-bold text-teal-700 pt-1">
+                                        <div className="flex items-center gap-1.5 font-bold text-clinic-cta pt-1 tabular-nums">
                                             <CalendarCheck size={16} weight="bold" />
                                             <span>Hẹn tái khám: {encounter.ngay_hen_tai_kham}</span>
                                         </div>
@@ -523,24 +513,24 @@ export default function PrescriptionPrintAndCopyModal({
                                 </div>
 
                                 <div className="text-center md:text-right flex flex-col items-center md:items-end justify-between">
-                                    <div>
-                                        <div className="italic text-slate-500">
+                                    <div className="tabular-nums">
+                                        <div className="text-clinic-text-secondary">
                                             Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm{' '}
                                             {new Date().getFullYear()}
                                         </div>
-                                        <div className="font-bold uppercase text-slate-800 mt-1">
+                                        <div className="font-bold text-clinic-navy mt-1">
                                             Bác sĩ khám bệnh
                                         </div>
                                     </div>
 
-                                    <div className="my-2.5 px-3.5 py-2 rounded-xl border-2 border-dashed border-emerald-600 bg-emerald-50/80 text-emerald-900 inline-flex items-center gap-2 text-left">
-                                        <CheckCircle size={22} weight="fill" className="text-emerald-600 shrink-0" />
+                                    <div className="my-2.5 px-3.5 py-2 rounded-[6px] border border-dashed border-clinic-success-border bg-clinic-success-bg text-clinic-success inline-flex items-center gap-2 text-left">
+                                        <CheckCircle size={20} weight="fill" className="text-clinic-success shrink-0" />
                                         <div>
-                                            <div className="text-[9px] font-extrabold uppercase tracking-wide text-emerald-800">
+                                            <div className="text-[10px] font-extrabold text-clinic-success">
                                                 CHỨNG THƯ SỐ Y TẾ HỢP LỆ (TT 04/2022/TT-BYT)
                                             </div>
-                                            <div className="text-xs font-black text-slate-900">{doctorName}</div>
-                                            <div className="text-[9px] text-emerald-700 font-mono">
+                                            <div className="text-xs font-black text-clinic-navy">{doctorName}</div>
+                                            <div className="text-[10px] text-clinic-success font-mono tabular-nums">
                                                 Ký lúc: {encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky ? new Date(encounter?.ngay_ky || encounter?.don_thuoc?.ngay_ky).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN')}
                                             </div>
                                         </div>
@@ -549,15 +539,14 @@ export default function PrescriptionPrintAndCopyModal({
                             </div>
                         </div>
                     ) : activeTab === 'templates' ? (
-                        /* Tab: Danh mục Toa Mẫu có Kiểm Soát (Lát cắt E) */
                         <div className="space-y-4 max-w-3xl mx-auto">
-                            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
-                                <WarningCircle size={24} className="text-indigo-700 shrink-0 mt-0.5" weight="fill" />
-                                <div className="text-xs text-indigo-900 leading-relaxed">
-                                    <p className="font-bold uppercase text-indigo-950">
-                                        HƯỚNG DẪN LÂM SÀNG & AN TOÀN SỬ DỤNG THUỐC
+                            <div className="bg-clinic-surface-alt border border-clinic-info-border rounded-[6px] p-4 flex items-start gap-3">
+                                <WarningCircle size={22} className="text-clinic-cta shrink-0 mt-0.5" weight="fill" />
+                                <div className="text-xs text-clinic-navy leading-relaxed">
+                                    <p className="font-bold">
+                                        HƯỚNG DẪN LÂM SÀNG &amp; AN TOÀN SỬ DỤNG THUỐC
                                     </p>
-                                    <p className="mt-1">
+                                    <p className="mt-1 text-clinic-text-secondary">
                                         Các toa thuốc mẫu dưới đây chỉ mang tính chất minh họa cấu trúc kê đơn từ tài liệu thực hành lâm sàng, <strong>chưa được Hội đồng Y khoa phòng khám phê duyệt làm phác đồ áp dụng bắt buộc</strong>. Khi nạp vào đơn thuốc, bác sĩ bắt buộc phải kiểm tra lại thể trạng, tiền sử dị ứng, chức năng gan thận của người bệnh trước khi quyết định ký ban hành.
                                     </p>
                                 </div>
@@ -567,65 +556,65 @@ export default function PrescriptionPrintAndCopyModal({
                                 {SAMPLE_PRESCRIPTION_TEMPLATES.map((tmpl) => (
                                     <div
                                         key={tmpl.id}
-                                        className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden hover:border-indigo-300 transition"
+                                        className="bg-clinic-surface rounded-[6px] border border-clinic-border overflow-hidden hover:border-clinic-cta transition"
                                     >
-                                        <div className="bg-slate-100 px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                                        <div className="bg-clinic-bg px-5 py-3 border-b border-clinic-border flex flex-wrap items-center justify-between gap-2">
                                             <div>
-                                                <span className="px-2.5 py-0.5 rounded-lg bg-indigo-700 text-white text-xs font-mono font-bold mr-2">
+                                                <span className="px-2 py-0.5 rounded-[4px] bg-clinic-navy text-clinic-surface text-xs font-mono font-bold mr-2 tabular-nums">
                                                     {tmpl.id}
                                                 </span>
-                                                <span className="text-sm font-bold text-slate-800">
+                                                <span className="text-sm font-bold text-clinic-navy">
                                                     {tmpl.name}
                                                 </span>
-                                                <span className="text-xs text-indigo-700 font-semibold ml-2">
-                                                    • {tmpl.category}
+                                                <span className="text-xs text-clinic-cta font-semibold ml-2">
+                                                    · {tmpl.category}
                                                 </span>
                                             </div>
 
                                             <button
                                                 type="button"
                                                 onClick={() => handleApplyTemplate(tmpl)}
-                                                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                                                className="medpro-btn-primary px-3.5 py-1.5 rounded-[6px] text-xs font-bold flex items-center gap-1.5 cursor-pointer tabular-nums"
                                             >
-                                                <BookmarkSimple size={15} weight="bold" />
-                                                Nạp vào Đơn Nháp ({tmpl.items.length} thuốc)
+                                                <BookmarkSimple size={14} weight="bold" />
+                                                <span>Nạp vào đơn nháp ({tmpl.items.length} thuốc)</span>
                                             </button>
                                         </div>
 
                                         <div className="p-4 space-y-3 text-xs">
-                                            <p className="text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                                            <p className="text-clinic-text-secondary bg-clinic-bg p-2.5 rounded-[6px] border border-clinic-border">
                                                 Lời dặn mẫu: {tmpl.notes}
                                             </p>
 
-                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                            <div className="border border-clinic-border rounded-[6px] overflow-hidden">
                                                 <table className="w-full text-left border-collapse text-xs">
                                                     <thead>
-                                                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                                                        <tr className="bg-clinic-bg border-b border-clinic-border text-clinic-navy font-semibold">
                                                             <th className="py-2 px-3">#</th>
-                                                            <th className="py-2 px-3">Tên thuốc & Hoạt chất</th>
+                                                            <th className="py-2 px-3">Tên thuốc &amp; Hoạt chất</th>
                                                             <th className="py-2 px-3">Liều dùng đề xuất</th>
                                                             <th className="py-2 px-3 text-center">Thời gian</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-slate-100">
+                                                    <tbody className="divide-y divide-clinic-border">
                                                         {tmpl.items.map((med, mIdx) => (
                                                             <tr key={mIdx}>
-                                                                <td className="py-2 px-3 font-bold text-slate-500">
+                                                                <td className="py-2 px-3 font-bold text-clinic-text-secondary tabular-nums">
                                                                     {mIdx + 1}
                                                                 </td>
-                                                                <td className="py-2 px-3 font-bold text-slate-800">
+                                                                <td className="py-2 px-3 font-bold text-clinic-navy">
                                                                     {med.ten_thuoc}
-                                                                    <div className="text-[11px] text-slate-500 font-normal">
+                                                                    <div className="text-[11px] text-clinic-text-secondary font-normal">
                                                                         {med.hoat_chat} ({med.ham_luong})
                                                                     </div>
                                                                 </td>
-                                                                <td className="py-2 px-3 text-teal-700 font-medium">
+                                                                <td className="py-2 px-3 text-clinic-cta font-medium tabular-nums">
                                                                     Sáng {med.sang || 0} - Trưa {med.trua || 0} - Chiều {med.chieu || 0} - Tối {med.toi || 0}
-                                                                    <div className="text-[11px] text-slate-500">
+                                                                    <div className="text-[11px] text-clinic-text-secondary">
                                                                         {med.cach_dung}
                                                                     </div>
                                                                 </td>
-                                                                <td className="py-2 px-3 text-center font-bold text-slate-700">
+                                                                <td className="py-2 px-3 text-center font-bold text-clinic-navy tabular-nums">
                                                                     {med.so_ngay_dung} ngày
                                                                 </td>
                                                             </tr>
@@ -639,18 +628,16 @@ export default function PrescriptionPrintAndCopyModal({
                             </div>
                         </div>
                     ) : (
-                        /* Tab: Sao chép đơn thuốc cũ */
                         <div className="space-y-4 max-w-3xl mx-auto">
-                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
+                            <div className="bg-clinic-warning-bg border border-clinic-warning-border rounded-[6px] p-4 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <Stethoscope size={24} className="text-amber-700" weight="duotone" />
+                                    <Stethoscope size={22} className="text-clinic-warning" weight="duotone" />
                                     <div>
-                                        <h4 className="text-sm font-bold text-amber-950">
+                                        <h4 className="text-sm font-bold text-clinic-navy">
                                             Lịch sử Đơn thuốc cũ của bệnh nhân: {patientName}
                                         </h4>
-                                        <p className="text-xs text-amber-800">
-                                            Bác sĩ có thể xem lại các đơn thuốc lần trước và bấm &ldquo;Sao chép vào ca
-                                             khám hiện tại&rdquo; để kế thừa điều trị dài hạn.
+                                        <p className="text-xs text-clinic-text-secondary">
+                                            Bác sĩ có thể xem lại các đơn thuốc lần trước và bấm &ldquo;Sao chép đơn thuốc này&rdquo; để kế thừa điều trị dài hạn.
                                         </p>
                                     </div>
                                 </div>
@@ -659,58 +646,58 @@ export default function PrescriptionPrintAndCopyModal({
                             {SAMPLE_OLD_PRESCRIPTIONS.map((oldRx) => (
                                 <div
                                     key={oldRx.id}
-                                    className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
+                                    className="bg-clinic-surface rounded-[6px] border border-clinic-border overflow-hidden"
                                 >
-                                    <div className="bg-slate-100 px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                                        <div>
-                                            <span className="px-2.5 py-0.5 rounded-lg bg-teal-700 text-white text-xs font-mono font-bold mr-2">
+                                    <div className="bg-clinic-bg px-5 py-3 border-b border-clinic-border flex flex-wrap items-center justify-between gap-2">
+                                        <div className="tabular-nums">
+                                            <span className="px-2 py-0.5 rounded-[4px] bg-clinic-navy text-clinic-surface text-xs font-mono font-bold mr-2">
                                                 Đơn #{oldRx.id}
                                             </span>
-                                            <span className="text-sm font-bold text-slate-800">
+                                            <span className="text-sm font-bold text-clinic-navy">
                                                 Ngày kê: {oldRx.ngay_ke}
                                             </span>
-                                            <span className="text-xs text-slate-500 ml-2">({oldRx.bac_si})</span>
+                                            <span className="text-xs text-clinic-text-secondary ml-2">({oldRx.bac_si})</span>
                                         </div>
 
                                         <button
                                             type="button"
                                             onClick={() => handleCopyOld(oldRx)}
-                                            className="px-3.5 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                                            className="medpro-btn-primary px-3.5 py-1.5 rounded-[6px] text-xs font-bold flex items-center gap-1.5 cursor-pointer tabular-nums"
                                         >
-                                            <Copy size={15} weight="bold" />
-                                            Sao chép đơn thuốc này ({oldRx.items.length} thuốc)
+                                            <Copy size={14} weight="bold" />
+                                            <span>Sao chép đơn thuốc này ({oldRx.items.length} thuốc)</span>
                                         </button>
                                     </div>
 
                                     <div className="p-4 space-y-3 text-xs">
                                         <div>
-                                            <span className="font-semibold text-slate-500">Chẩn đoán lần trước:</span>{' '}
-                                            <strong className="text-slate-800">{oldRx.chan_doan}</strong>
+                                            <span className="font-semibold text-clinic-text-secondary">Chẩn đoán lần trước:</span>{' '}
+                                            <strong className="text-clinic-navy">{oldRx.chan_doan}</strong>
                                         </div>
 
-                                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                        <div className="border border-clinic-border rounded-[6px] overflow-hidden">
                                             <table className="w-full text-left border-collapse">
                                                 <thead>
-                                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                                                    <tr className="bg-clinic-bg border-b border-clinic-border text-clinic-navy font-semibold">
                                                         <th className="py-2 px-3">#</th>
-                                                        <th className="py-2 px-3">Tên thuốc & Hàm lượng</th>
+                                                        <th className="py-2 px-3">Tên thuốc &amp; Hàm lượng</th>
                                                         <th className="py-2 px-3">Liều dùng</th>
                                                         <th className="py-2 px-3 text-center">Số lượng</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-100">
+                                                <tbody className="divide-y divide-clinic-border">
                                                     {oldRx.items.map((med, mIdx) => (
                                                         <tr key={mIdx}>
-                                                            <td className="py-2 px-3 font-bold text-slate-500">
+                                                            <td className="py-2 px-3 font-bold text-clinic-text-secondary tabular-nums">
                                                                 {mIdx + 1}
                                                             </td>
-                                                            <td className="py-2 px-3 font-bold text-slate-800">
+                                                            <td className="py-2 px-3 font-bold text-clinic-navy">
                                                                 {med.ten_thuoc} ({med.ham_luong})
                                                             </td>
-                                                            <td className="py-2 px-3 text-teal-700 font-medium">
+                                                            <td className="py-2 px-3 text-clinic-cta font-medium">
                                                                 {med.lieu_dung}
                                                             </td>
-                                                            <td className="py-2 px-3 text-center font-bold">
+                                                            <td className="py-2 px-3 text-center font-bold tabular-nums">
                                                                 {med.so_luong} {med.don_vi_tinh}
                                                             </td>
                                                         </tr>
@@ -725,26 +712,25 @@ export default function PrescriptionPrintAndCopyModal({
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="bg-white border-t border-slate-200 px-6 py-3.5 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">
-                        Mã định danh đơn thuốc quốc gia: <strong>{rxCode}-VN</strong>
+                <div className="bg-clinic-surface border-t border-clinic-border px-6 py-3.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-clinic-text-secondary tabular-nums">
+                        Mã định danh đơn thuốc quốc gia: <strong className="text-clinic-navy">{rxCode}-VN</strong>
                     </span>
                     <div className="flex items-center gap-2.5">
                         {activeTab === 'print' && (
                             <button
                                 type="button"
                                 onClick={() => window.print()}
-                                className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                                className="medpro-btn-primary px-5 py-2 rounded-[6px] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                             >
-                                <Printer size={16} weight="bold" />
-                                In Đơn Thuốc Ngay (A4 / A5)
+                                <Printer size={15} weight="bold" />
+                                <span>In đơn thuốc ngay (A4 / A5)</span>
                             </button>
                         )}
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                            className="medpro-btn-outline px-4 py-2 rounded-[6px] text-xs font-semibold cursor-pointer"
                         >
                             Đóng
                         </button>
@@ -753,4 +739,8 @@ export default function PrescriptionPrintAndCopyModal({
             </div>
         </div>
     )
+}
+
+function mVal(value) {
+    return value
 }

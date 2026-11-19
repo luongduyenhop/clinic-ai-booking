@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { AppToast } from '../../components/common/AppNotification'
 import {
     DownloadSimple,
@@ -6,155 +5,141 @@ import {
     CheckCircle,
     Stethoscope,
     Users,
-    ShieldCheck,
-    Globe,
-    Lightning,
 } from '../../components/common/ClinicIcon'
 
 export default function DownloadAppPage() {
     return (
         <div className="space-y-4">
-            {/* Top Navigation & Operational Summary */}
-            <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="medpro-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
-                        <DownloadSimple size={24} weight="fill" />
+                    <span className="w-10 h-10 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-cta flex items-center justify-center shrink-0">
+                        <DownloadSimple size={22} weight="duotone" />
                     </span>
                     <div>
-                        <h1 className="text-lg font-black text-[#003553] tracking-wide flex items-center gap-2">
-                            TẢI ỨNG DỤNG DI ĐỘNG CLINIC-AI (/tai-ung-dung)
-                            <span className="px-2 py-0.5 rounded-full bg-sky-100 text-[#00B5F1] text-[11px] font-bold">
-                                Mobile App Ecosystem
-                            </span>
+                        <h1 className="font-display text-base font-extrabold text-clinic-navy tracking-tight">
+                            Ứng dụng Di động Hệ sinh thái Clinic-AI
                         </h1>
-                        <p className="text-xs text-slate-500">
-                            Hệ sinh thái di động hoàn chỉnh: Ứng dụng đặt khám cho người bệnh & Ứng dụng ký số bệnh án cho Bác sĩ
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
+                            Ứng dụng đặt khám dành cho người bệnh &amp; ứng dụng ký số bệnh án dành cho Bác sĩ nội bộ
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        iOS & Android v2.6 Ready
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="medpro-badge-success tabular-nums">
+                        iOS &amp; Android v2.6
                     </span>
                 </div>
             </div>
 
-            {/* 2 Main App Download Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* CARD 1: APP BỆNH NHÂN */}
-                <div className="bg-white rounded-2xl border border-[#E5EEF5] p-6 shadow-2xs hover:shadow-md transition flex flex-col justify-between space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="medpro-card p-5 flex flex-col justify-between space-y-5">
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-1 rounded-full bg-sky-100 text-[#00B5F1] text-xs font-bold flex items-center gap-1">
-                                <Users size={14} weight="bold" />
-                                DÀNH CHO BỆNH NHÂN
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="medpro-badge-info inline-flex items-center gap-1">
+                                <Users size={13} weight="bold" />
+                                <span>Dành cho Bệnh nhân</span>
                             </span>
-                            <span className="text-xs text-slate-400 font-medium">Miễn phí 100%</span>
+                            <span className="text-xs text-clinic-text-muted font-medium">Miễn phí phát hành</span>
                         </div>
 
                         <div>
-                            <h2 className="text-xl font-black text-[#003553]">Clinic-AI Booking</h2>
-                            <p className="text-xs text-slate-500 mt-1">
-                                Ứng dụng đặt lịch khám bệnh 1-chạm, tra cứu hồ sơ sức khỏe và nhận kết quả cận lâm sàng trực tuyến
+                            <h2 className="font-display text-lg font-extrabold text-clinic-navy">Clinic-AI Booking</h2>
+                            <p className="text-xs text-clinic-text-secondary mt-1">
+                                Đặt lịch khám theo khung giờ, tra cứu hồ sơ sức khỏe và nhận kết quả cận lâm sàng trực tuyến
                             </p>
                         </div>
 
-                        {/* QR Code and Badges */}
-                        <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-xl bg-[#F8FCFF] border border-sky-100">
-                            <div className="w-36 h-36 bg-white p-2.5 rounded-xl shadow-xs border border-slate-200 flex items-center justify-center shrink-0">
-                                <QrCode size={115} className="text-[#003553]" />
+                        <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border">
+                            <div className="w-32 h-32 bg-clinic-surface p-2 rounded-[6px] border border-clinic-border flex items-center justify-center shrink-0">
+                                <QrCode size={104} className="text-clinic-navy" />
                             </div>
                             <div className="space-y-2 text-xs">
-                                <div className="font-bold text-[#003553]">Quét mã QR để tải ứng dụng ngay:</div>
-                                <div className="text-slate-500 text-[11px]">
-                                    Hỗ trợ điện thoại iPhone (iOS 14.0+) và các dòng máy Android (Samsung, Xiaomi, Oppo...).
+                                <div className="font-bold text-clinic-navy">Quét mã QR để tải ứng dụng:</div>
+                                <div className="text-clinic-text-secondary text-[11px]">
+                                    Hỗ trợ thiết bị iPhone (iOS 14.0+) và điện thoại Android phổ biến.
                                 </div>
-                                <div className="pt-2 flex flex-wrap gap-2">
+                                <div className="pt-1.5 flex flex-wrap gap-2">
                                     <button
                                         type="button"
                                         onClick={() => AppToast.info('Đang mở liên kết Apple App Store...')}
-                                        className="px-3 py-1.5 rounded-lg bg-black text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                        className="px-3 py-1.5 rounded-[6px] bg-clinic-navy hover:bg-clinic-navy-dark text-clinic-surface text-xs font-semibold cursor-pointer transition-colors"
                                     >
-                                        <span>App Store</span>
+                                        App Store
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => AppToast.info('Đang mở liên kết Google Play Store...')}
-                                        className="px-3 py-1.5 rounded-lg bg-[#0088BA] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                        className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                     >
-                                        <span>Google Play</span>
+                                        Google Play
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Feature highlights */}
                         <div className="space-y-2 text-xs">
-                            <div className="font-bold text-[#003553] uppercase text-[11px]">TÍNH NĂNG NỔI BẬT DÀNH CHO NGƯỜI BỆNH:</div>
-                            <ul className="space-y-1.5 text-slate-600">
+                            <div className="font-bold text-clinic-navy uppercase text-[11px]">Tính năng nổi bật cho Người bệnh:</div>
+                            <ul className="space-y-1.5 text-clinic-text-secondary">
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
-                                    <span>Đặt lịch hẹn khám theo giờ chính xác, giảm 70% thời gian chờ đợi</span>
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
+                                    <span>Đặt lịch hẹn khám theo giờ chính xác, chủ động tiếp đón tại quầy</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
-                                    <span>Xem kết quả xét nghiệm máu, siêu âm và hình ảnh X-Quang độ phân giải cao</span>
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
+                                    <span>Xem kết quả xét nghiệm, siêu âm và hình ảnh X-Quang độ phân giải cao</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
                                     <span>Nhận đơn thuốc điện tử đồng bộ trực tiếp từ Cổng Đơn thuốc Quốc gia BYT</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
-                                    <span>Thanh toán viện phí không tiền mặt tiện lợi qua chuẩn VietQR</span>
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
+                                    <span>Thanh toán viện phí không tiền mặt qua chuẩn VietQR</span>
                                 </li>
                             </ul>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                        <span>Đánh giá 4.9 ★ (12,500+ lượt tải)</span>
-                        <span className="font-mono">Phiên bản: 2.6.4</span>
+                    <div className="pt-3.5 border-t border-clinic-border flex items-center justify-between text-xs text-clinic-text-muted tabular-nums">
+                        <span>Kênh phát hành công khai cho người bệnh</span>
+                        <span className="font-mono font-semibold text-clinic-navy">Phiên bản: 2.6.4</span>
                     </div>
                 </div>
 
-                {/* CARD 2: APP BÁC SĨ */}
-                <div className="bg-white rounded-2xl border border-[#E5EEF5] p-6 shadow-2xs hover:shadow-md transition flex flex-col justify-between space-y-5">
+                <div className="medpro-card p-5 flex flex-col justify-between space-y-5">
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1">
-                                <Stethoscope size={14} weight="bold" />
-                                DÀNH CHO BÁC SĨ & KTV
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="medpro-badge-success inline-flex items-center gap-1">
+                                <Stethoscope size={13} weight="bold" />
+                                <span>Dành cho Bác sĩ &amp; KTV</span>
                             </span>
-                            <span className="text-xs text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                            <span className="medpro-badge-warning">
                                 Ký số HSM SmartCA
                             </span>
                         </div>
 
                         <div>
-                            <h2 className="text-xl font-black text-[#003553]">Clinic-AI Doctor</h2>
-                            <p className="text-xs text-slate-500 mt-1">
+                            <h2 className="font-display text-lg font-extrabold text-clinic-navy">Clinic-AI Doctor</h2>
+                            <p className="text-xs text-clinic-text-secondary mt-1">
                                 Ứng dụng nghiệp vụ di động cho phép Bác sĩ xem bệnh án, ký số đơn thuốc từ xa và quản lý ca trực
                             </p>
                         </div>
 
-                        {/* QR Code and Badges */}
-                        <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-xl bg-[#F6FDF9] border border-emerald-100">
-                            <div className="w-36 h-36 bg-white p-2.5 rounded-xl shadow-xs border border-slate-200 flex items-center justify-center shrink-0">
-                                <QrCode size={115} className="text-emerald-800" />
+                        <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-[6px] bg-clinic-success-bg border border-clinic-success-border">
+                            <div className="w-32 h-32 bg-clinic-surface p-2 rounded-[6px] border border-clinic-border flex items-center justify-center shrink-0">
+                                <QrCode size={104} className="text-clinic-success" />
                             </div>
                             <div className="space-y-2 text-xs">
-                                <div className="font-bold text-[#003553]">Quét mã tải ứng dụng Bác sĩ:</div>
-                                <div className="text-slate-500 text-[11px]">
+                                <div className="font-bold text-clinic-navy">Quét mã tải ứng dụng Bác sĩ:</div>
+                                <div className="text-clinic-text-secondary text-[11px]">
                                     Cài đặt nội bộ bảo mật cho nhân sự y tế có Chứng chỉ Hành nghề (CCHN) được cấp quyền.
                                 </div>
-                                <div className="pt-2 flex flex-wrap gap-2">
+                                <div className="pt-1.5 flex flex-wrap gap-2">
                                     <button
                                         type="button"
                                         onClick={() => AppToast.success('Đang tạo liên kết tải file APK bảo mật nội bộ...')}
-                                        className="px-3 py-1.5 rounded-lg bg-[#003553] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                        className="px-3 py-1.5 rounded-[6px] bg-clinic-navy hover:bg-clinic-navy-dark text-clinic-surface text-xs font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
                                     >
                                         <DownloadSimple size={13} weight="bold" />
                                         <span>Tải file APK nội bộ</span>
@@ -162,41 +147,40 @@ export default function DownloadAppPage() {
                                     <button
                                         type="button"
                                         onClick={() => AppToast.info('Đang mở cổng chứng thực Mobile MDM...')}
-                                        className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-[11px] font-bold hover:bg-slate-50 cursor-pointer"
+                                        className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                     >
-                                        <span>TestFlight iOS</span>
+                                        TestFlight iOS
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Feature highlights */}
                         <div className="space-y-2 text-xs">
-                            <div className="font-bold text-[#003553] uppercase text-[11px]">TÍNH NĂNG CHUYÊN MÔN DÀNH CHO BÁC SĨ:</div>
-                            <ul className="space-y-1.5 text-slate-600">
+                            <div className="font-bold text-clinic-navy uppercase text-[11px]">Tính năng chuyên môn cho Bác sĩ:</div>
+                            <ul className="space-y-1.5 text-clinic-text-secondary">
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
-                                    <span>Ký số từ xa hồ sơ bệnh án & đơn thuốc qua VNPT SmartCA HSM (Nghị định 130)</span>
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
+                                    <span>Ký số từ xa hồ sơ bệnh án &amp; đơn thuốc qua VNPT SmartCA HSM (Nghị định 130)</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
                                     <span>Tra cứu tiền sử bệnh án, dị ứng thuốc và tương tác thuốc thời gian thực</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
                                     <span>Xem danh sách bệnh nhân chờ khám theo từng phòng chức năng và số thứ tự</span>
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle size={14} weight="fill" className="text-emerald-500 shrink-0" />
-                                    <span>Nhận cảnh báo kết quả Cận lâm sàng khẩn (Panic Alert) tức thì qua Push Notification</span>
+                                    <CheckCircle size={14} weight="fill" className="text-clinic-success shrink-0" />
+                                    <span>Nhận cảnh báo kết quả Cận lâm sàng khẩn (Panic Alert) tức thì qua thông báo đẩy</span>
                                 </li>
                             </ul>
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                        <span>Bảo mật cấp độ 3 y tế</span>
-                        <span className="font-mono">Phiên bản: 1.8.2</span>
+                    <div className="pt-3.5 border-t border-clinic-border flex items-center justify-between text-xs text-clinic-text-muted tabular-nums">
+                        <span>Bảo mật truy cập nội bộ y tế</span>
+                        <span className="font-mono font-semibold text-clinic-navy">Phiên bản: 1.8.2</span>
                     </div>
                 </div>
             </div>

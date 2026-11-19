@@ -49,7 +49,7 @@ export default function ReceptionSidebar() {
                     label: 'Thu viện phí & VietQR',
                     icon: Receipt,
                     badge: 'VietQR',
-                    badgeColor: 'bg-emerald-400 text-[#003553]',
+                    badgeColor: 'bg-clinic-success text-clinic-surface',
                 },
                 {
                     to: '/reception/appointments',
@@ -83,7 +83,7 @@ export default function ReceptionSidebar() {
                     label: 'Sự cố cần xử lý',
                     icon: WarningCircle,
                     badge: pendingTasksCount > 0 ? `${pendingTasksCount} vụ` : null,
-                    badgeColor: 'bg-rose-500 text-white',
+                    badgeColor: 'bg-clinic-danger-solid text-clinic-surface',
                 },
                 {
                     to: '/reception/reports',
@@ -96,22 +96,22 @@ export default function ReceptionSidebar() {
 
     return (
         <aside
-            className={`h-screen sticky top-0 bg-[#003553] text-white flex flex-col shrink-0 shadow-xl select-none border-r border-white/10 transition-all duration-200 z-40 overflow-hidden ${
+            className={`h-screen sticky top-0 bg-clinic-navy text-clinic-surface flex flex-col shrink-0 select-none border-r border-clinic-navy-dark transition-all duration-200 z-40 overflow-hidden ${
                 isCollapsed ? 'w-[64px]' : 'w-[244px]'
             }`}
         >
-            <div className="h-14 px-3 flex items-center justify-between border-b border-white/10 bg-[#002840]">
+            <div className="h-14 px-3 flex items-center justify-between border-b border-clinic-on-navy-subtle/20 bg-clinic-navy-dark">
                 <Link to="/reception/dashboard" className="flex items-center gap-2.5 group overflow-hidden">
-                    <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md ring-2 ring-white/15 shrink-0 group-hover:scale-105 transition-transform">
+                    <span className="w-8 h-8 rounded-[6px] bg-clinic-cta text-clinic-surface flex items-center justify-center shrink-0">
                         <Hospital size={18} weight="fill" />
                     </span>
                     {!isCollapsed && (
                         <div className="leading-tight truncate">
-                            <div className="font-display font-extrabold text-sm tracking-wide text-white">
-                                CLINIC<span className="text-[#00B5F1]">-AI</span> HIS
+                            <div className="font-display font-extrabold text-sm tracking-wide text-clinic-surface">
+                                CLINIC<span className="text-clinic-cyan">-AI</span> HIS
                             </div>
-                            <div className="text-[10px] text-sky-200/80 font-medium truncate">
-                                Lễ Tân · Tiếp Đón & Thu Ngân
+                            <div className="text-[10px] text-clinic-on-navy-muted font-medium truncate">
+                                Lễ Tân · Tiếp Đón &amp; Thu Ngân
                             </div>
                         </div>
                     )}
@@ -122,13 +122,13 @@ export default function ReceptionSidebar() {
                 {sections.map((section) => (
                     <div key={section.id} className="space-y-1">
                         {!isCollapsed && section.title && (
-                            <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-sky-300/60 flex items-center gap-1.5">
-                                <span className="w-1 h-1 rounded-full bg-[#00B5F1]" />
+                            <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-clinic-on-navy-subtle flex items-center gap-1.5">
+                                <span className="w-1 h-1 rounded-full bg-clinic-cyan" />
                                 <span className="truncate">{section.title}</span>
                             </div>
                         )}
                         {isCollapsed && section.title && (
-                            <div className="border-t border-white/10 my-1 mx-2" />
+                            <div className="border-t border-clinic-on-navy-subtle/20 my-1 mx-2" />
                         )}
 
                         {section.items.map((item) => {
@@ -139,10 +139,10 @@ export default function ReceptionSidebar() {
                                     to={item.to}
                                     title={isCollapsed ? item.label : undefined}
                                     className={({ isActive }) =>
-                                        `flex items-center gap-2.5 px-2.5 py-2 rounded-xl font-medium transition-all group ${
+                                        `flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] font-medium transition-colors duration-75 group ${
                                             isActive
-                                                ? 'bg-[#00B5F1] text-white font-bold shadow-xs'
-                                                : 'text-sky-100/85 hover:bg-white/10 hover:text-white'
+                                                ? 'bg-clinic-cta text-clinic-surface font-bold'
+                                                : 'text-clinic-on-navy-muted hover:bg-clinic-navy-dark hover:text-clinic-surface'
                                         }`
                                     }
                                 >
@@ -151,15 +151,15 @@ export default function ReceptionSidebar() {
                                             <IconComponent
                                                 size={17}
                                                 weight={isActive ? 'fill' : 'duotone'}
-                                                className={`shrink-0 ${isActive ? 'text-white' : 'text-[#00B5F1]'}`}
+                                                className={`shrink-0 ${isActive ? 'text-clinic-surface' : 'text-clinic-cyan'}`}
                                             />
                                             {!isCollapsed && (
                                                 <div className="flex-1 flex items-center justify-between min-w-0">
                                                     <span className="truncate">{item.label}</span>
                                                     {item.badge && (
                                                         <span
-                                                            className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-full shrink-0 shadow-2xs ${
-                                                                item.badgeColor || 'bg-sky-500 text-white'
+                                                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] shrink-0 tabular-nums ${
+                                                                item.badgeColor || 'bg-clinic-cta text-clinic-surface'
                                                             }`}
                                                         >
                                                             {item.badge}
@@ -176,18 +176,18 @@ export default function ReceptionSidebar() {
                 ))}
             </nav>
 
-            <div className="p-2.5 border-t border-white/10 bg-[#002840] text-[11px] text-sky-200/80 space-y-1.5">
+            <div className="p-2.5 border-t border-clinic-on-navy-subtle/20 bg-clinic-navy-dark text-[11px] text-clinic-on-navy-muted space-y-1.5">
                 <button
                     type="button"
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-semibold text-center transition cursor-pointer"
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-clinic-navy hover:bg-clinic-cta text-clinic-surface font-semibold text-center transition cursor-pointer"
                     title={isCollapsed ? 'Mở rộng thanh menu' : 'Thu gọn thanh menu'}
                 >
                     {isCollapsed ? (
-                        <CaretRight size={15} weight="bold" className="text-[#00B5F1]" />
+                        <CaretRight size={15} weight="bold" className="text-clinic-cyan" />
                     ) : (
                         <>
-                            <CaretLeft size={14} weight="bold" className="text-[#00B5F1]" />
+                            <CaretLeft size={14} weight="bold" className="text-clinic-cyan" />
                             <span>Thu gọn menu</span>
                         </>
                     )}
@@ -197,16 +197,16 @@ export default function ReceptionSidebar() {
                     <>
                         <div className="flex items-center justify-between pt-1 text-[10px]">
                             <span>Cổng ĐTQG (TT 26):</span>
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-400/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-success text-clinic-surface font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-clinic-surface" />
                                 ONLINE
                             </span>
                         </div>
                         <Link
                             to="/"
-                            className="flex items-center justify-center gap-1.5 w-full py-1 text-[10.5px] rounded-lg text-sky-200/80 hover:text-white hover:bg-white/5 transition"
+                            className="flex items-center justify-center gap-1.5 w-full py-1 text-[10.5px] rounded-[6px] text-clinic-on-navy-muted hover:text-clinic-surface hover:bg-clinic-navy transition"
                         >
-                            <GlobeHemisphereWest size={13} weight="duotone" className="text-[#00B5F1]" />
+                            <GlobeHemisphereWest size={13} weight="duotone" className="text-clinic-cyan" />
                             <span>Cổng Đặt Lịch Bệnh Nhân</span>
                         </Link>
                     </>

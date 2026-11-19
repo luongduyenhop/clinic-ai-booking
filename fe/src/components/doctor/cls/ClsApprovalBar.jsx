@@ -47,7 +47,7 @@ export default function ClsApprovalBar({ order }) {
                             </>
                         )}
                     </p>
-                    <p className="text-slate-600">
+                    <p className="text-clinic-text-secondary">
                         Sau khi duyệt, kết quả hiện ngay trên Bàn khám của {order.bac_si_chi_dinh} và <strong>không thể sửa</strong> kết quả hay
                         thay đổi ảnh.
                     </p>
@@ -61,8 +61,10 @@ export default function ClsApprovalBar({ order }) {
 
     return (
         <div
-            className={`flex flex-wrap items-center gap-3 rounded-xl px-4 py-3 text-[13px] ${
-                approved ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'
+            className={`flex flex-wrap items-center gap-3 rounded-[6px] border px-4 py-3 text-[13px] ${
+                approved
+                    ? 'bg-clinic-success-bg border-clinic-success-border text-clinic-navy'
+                    : 'bg-clinic-warning-bg border-clinic-warning-border text-clinic-navy'
             }`}
         >
             <ClinicIcon name={approved ? 'SealCheck' : 'WarningCircle'} size={20} weight="fill" className="shrink-0" />

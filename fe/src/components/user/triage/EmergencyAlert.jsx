@@ -3,5 +3,48 @@ import { redFlagOptions } from '../../../data/user/triageQuestionData'
 
 export default function EmergencyAlert({ reasons, onReview }) {
     const labels = reasons?.map((reason) => redFlagOptions.find((item) => item.id === reason)?.label || reason)
-    return <div className="max-w-2xl mx-auto rounded-[24px] border-2 border-rose-300 bg-white p-6 sm:p-10 text-center shadow-[4px_8px_30px_rgba(190,24,93,.14)]"><span className="mx-auto w-20 h-20 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center"><WarningCircle size={44} weight="fill"/></span><span className="mt-5 inline-flex rounded-full bg-rose-600 px-4 py-1.5 text-xs font-extrabold uppercase tracking-wider text-white">Cảnh báo cấp cứu</span><h1 className="mt-4 font-display text-2xl sm:text-3xl font-extrabold text-rose-800">Bạn có dấu hiệu cần được hỗ trợ y tế ngay</h1><p className="mt-4 text-sm leading-6 text-slate-600">Không tiếp tục đặt lịch thông thường. Hãy gọi cấp cứu hoặc đến cơ sở y tế gần nhất ngay bây giờ.</p>{labels?.length > 0 && <div className="mt-5 rounded-xl bg-rose-50 p-4 text-left text-xs leading-5 text-rose-800"><strong>Dấu hiệu được ghi nhận:</strong> {labels.join(', ')}</div>}<a href="tel:115" className="mt-6 inline-flex min-h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-rose-600 px-9 text-base font-extrabold text-white hover:bg-rose-700"><PhoneCall size={22} weight="fill"/>Gọi 115 ngay</a><p className="mt-5 text-xs text-slate-500">Nếu bạn nhập nhầm thông tin, có thể quay lại kiểm tra câu trả lời.</p><button type="button" onClick={onReview} className="mt-3 text-sm font-bold text-[#008EC2] hover:underline">Kiểm tra lại câu trả lời</button></div>
+
+    return (
+        <div className="max-w-2xl mx-auto medpro-card border-2 border-clinic-danger p-6 sm:p-9 text-center">
+            <span className="mx-auto w-16 h-16 rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg text-clinic-danger flex items-center justify-center">
+                <WarningCircle size={36} weight="fill" />
+            </span>
+
+            <div className="mt-4">
+                <span className="medpro-badge-danger uppercase tracking-wider">Cảnh báo cấp cứu</span>
+            </div>
+
+            <h1 className="mt-3 font-display text-2xl sm:text-3xl font-extrabold text-clinic-danger">
+                Dấu hiệu cần được xử trí y tế khẩn cấp
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-clinic-text-secondary">
+                Không tiếp tục đặt lịch khám thông thường. Vui lòng gọi cấp cứu hoặc đến cơ sở y tế gần nhất ngay lúc này.
+            </p>
+
+            {labels?.length > 0 && (
+                <div className="mt-5 rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg p-4 text-left text-xs leading-5 text-clinic-danger">
+                    <strong>Dấu hiệu được ghi nhận:</strong> {labels.join(', ')}
+                </div>
+            )}
+
+            <a
+                href="tel:115"
+                className="mt-6 inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-[8px] bg-clinic-danger px-8 text-base font-extrabold text-clinic-surface hover:opacity-90 tabular-nums"
+            >
+                <PhoneCall size={20} weight="fill" />
+                <span>Gọi 115 ngay</span>
+            </a>
+
+            <p className="mt-5 text-xs text-clinic-text-muted">
+                Nếu thông tin vừa chọn có nhầm lẫn, bạn có thể quay lại kiểm tra biểu mẫu khai báo.
+            </p>
+            <button
+                type="button"
+                onClick={onReview}
+                className="mt-2.5 text-sm font-bold text-clinic-cta hover:underline cursor-pointer"
+            >
+                Kiểm tra lại câu trả lời
+            </button>
+        </div>
+    )
 }

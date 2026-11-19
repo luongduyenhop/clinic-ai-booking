@@ -2,9 +2,9 @@ export default function CashierClosingTab({ cashierClosings }) {
     return (
         <div className="medpro-card p-4 space-y-4">
             <div className="medpro-section-title">
-                <span>NHẬT KÝ KHÓA SỔ TỰ ĐỘNG & DOANH THU VIỆN PHÍ (/khoaso)</span>
+                <span>NHẬT KÝ KHÓA SỔ &amp; ĐỐI SOÁT DOANH THU CA TRỰC</span>
             </div>
-            <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
+            <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
                 <table className="medpro-table">
                     <thead>
                         <tr>
@@ -17,19 +17,19 @@ export default function CashierClosingTab({ cashierClosings }) {
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="tabular-nums">
                         {cashierClosings.map((closing) => (
                             <tr key={closing.id}>
-                                <td className="font-mono font-bold text-[#00B5F1]">{closing.maKyKhoaSo}</td>
-                                <td className="tabular-nums text-xs font-semibold">{closing.ngayKhoaSo}</td>
-                                <td className="font-bold text-[#003553]">{closing.nguoiKhoaSo}</td>
-                                <td className="tabular-nums font-mono">
+                                <td className="font-mono font-bold text-clinic-cta">{closing.maKyKhoaSo}</td>
+                                <td className="text-xs font-semibold text-clinic-text">{closing.ngayKhoaSo}</td>
+                                <td className="font-bold text-clinic-navy">{closing.nguoiKhoaSo}</td>
+                                <td className="font-medium text-clinic-text">
                                     {(closing.tongThuDichVu || 0).toLocaleString('vi-VN')} đ
                                 </td>
-                                <td className="tabular-nums font-mono font-black text-[#003553]">
+                                <td className="font-extrabold text-clinic-navy">
                                     {(closing.tonQuyCuoiNgay ?? closing.tongThuDichVu ?? 0).toLocaleString('vi-VN')} đ
                                 </td>
-                                <td className="text-xs text-slate-500">{closing.cheDo}</td>
+                                <td className="text-xs text-clinic-text-secondary">{closing.cheDo}</td>
                                 <td>
                                     <span
                                         className={

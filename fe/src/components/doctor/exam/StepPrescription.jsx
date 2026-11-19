@@ -127,10 +127,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         label: (
                             <div className="flex items-center justify-between py-0.5">
                                 <div>
-                                    <strong className="text-[#003553] text-[13px]">{d.ten_thuoc}</strong>
-                                    <span className="ml-2 text-slate-500 text-xs">{d.hoat_chat} ({d.ham_luong || 'Chuẩn'})</span>
+                                    <strong className="text-clinic-navy text-[13px]">{d.ten_thuoc}</strong>
+                                    <span className="ml-2 text-clinic-text-secondary text-xs">{d.hoat_chat} ({d.ham_luong || 'Chuẩn'})</span>
                                 </div>
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-[#0077B6]">
+                                <span className="medpro-badge-info text-[11px] font-semibold px-2 py-0.5">
                                     {d.nhom_thuoc || d.don_vi_tinh || 'Kê đơn'}
                                 </span>
                             </div>
@@ -231,23 +231,23 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     return (
         <div className="flex flex-col gap-4">
             {isSigned && (
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 shadow-xs animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-[6px] bg-clinic-success-bg border border-clinic-success-border text-clinic-navy">
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-2xs">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-clinic-success text-clinic-surface">
                             <ClinicIcon name="CheckCircle" size={18} weight="bold" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
+                                <span className="font-extrabold text-xs text-clinic-success">
                                     ĐÃ KÝ SỐ ĐIỆN TỬ — DỮ LIỆU ĐÃ KHÓA BẤT BIẾN
                                 </span>
-                                <span className="bg-emerald-200/90 text-emerald-900 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                                <span className="medpro-badge-success text-[10px] font-mono font-bold">
                                     TT 04/2022/TT-BYT
                                 </span>
                             </div>
-                            <div className="text-[11px] text-emerald-800 mt-0.5">
+                            <div className="text-[11px] text-clinic-text-secondary mt-0.5 tabular-nums">
                                 Bác sĩ ký:{' '}
-                                <strong>
+                                <strong className="text-clinic-navy">
                                     {values.nguoi_ky ||
                                         encounter?.don_thuoc?.nguoi_ky ||
                                         encounter?.ten_bac_si ||
@@ -265,32 +265,32 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     <button
                         type="button"
                         onClick={() => onOpenRxModal && onOpenRxModal('print')}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                        className="px-3.5 py-1.5 rounded-[6px] bg-clinic-success hover:bg-clinic-navy text-clinic-surface text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                     >
                         <ClinicIcon name="Printer" size={14} weight="bold" />
                         <span>In Đơn Chuẩn A4/A5</span>
                     </button>
                 </div>
             )}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0077B6] text-white">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-clinic-cta text-clinic-surface">
                         <ClinicIcon name="QrCode" size={16} />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-extrabold text-[#003553]">Cổng Đơn Thuốc Quốc Gia:</span>
-                            <span className="font-mono text-xs font-bold text-[#0077B6] bg-white px-2 py-0.5 rounded border border-sky-200">
+                            <span className="text-xs font-extrabold text-clinic-navy">Cổng Đơn Thuốc Quốc Gia:</span>
+                            <span className="font-mono text-xs font-bold text-clinic-cta bg-clinic-surface px-2 py-0.5 rounded-[4px] border border-clinic-info-border tabular-nums">
                                 {nationalRxCode}
                             </span>
                         </div>
-                        <span className="text-[11px] text-slate-500">Chuẩn liên thông TT 27/2021 &amp; TT 04/2022/TT-BYT · donthuocquocgia.vn</span>
+                        <span className="text-[11px] text-clinic-text-secondary">Chuẩn liên thông TT 27/2021 &amp; TT 04/2022/TT-BYT · donthuocquocgia.vn</span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                     {nationalSyncStatus === 'synced' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
+                        <span className="medpro-badge-success inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold">
                             <ClinicIcon name="CheckCircle" size={14} weight="bold" />
                             <span>Đã liên thông Cổng QG</span>
                         </span>
@@ -299,7 +299,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             type="button"
                             onClick={handleSyncNationalRx}
                             disabled={rows.length === 0}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition cursor-pointer disabled:opacity-50"
+                            className="medpro-btn-primary inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-xs font-bold cursor-pointer disabled:opacity-50"
                             title="Đồng bộ dữ liệu đơn thuốc điện tử lên Cổng Đơn thuốc Quốc gia"
                         >
                             <ClinicIcon name="CloudArrowUp" size={14} weight="bold" />
@@ -326,10 +326,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                    <span className="text-[11px] font-bold text-clinic-text-secondary">
                         Số ngày dùng chung toàn đơn
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 tabular-nums">
                         <input
                             type="number"
                             min="1"
@@ -337,20 +337,20 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             disabled={isReadOnly}
                             value={batchDays}
                             onChange={(e) => applyBatchDays(e.target.value)}
-                            className="w-14 text-center font-bold text-xs py-1.5 px-1 rounded-lg border border-slate-300 bg-white text-[#003553]"
+                            className="w-14 text-center font-bold text-xs py-1.5 px-1 rounded-[6px] border border-clinic-border bg-clinic-surface text-clinic-navy tabular-nums"
                             title="Số ngày dùng thuốc chung cho cả đơn"
                         />
-                        <span className="text-xs text-slate-500 mr-1">ngày</span>
+                        <span className="text-xs text-clinic-text-secondary mr-1">ngày</span>
                         {[3, 5, 7, 10, 14, 30].map((d) => (
                             <button
                                 key={d}
                                 type="button"
                                 disabled={isReadOnly}
                                 onClick={() => applyBatchDays(d)}
-                                className={`text-xs font-semibold px-2 py-1 rounded-md border transition cursor-pointer ${
+                                className={`text-xs font-semibold px-2 py-1 rounded-[6px] border transition cursor-pointer tabular-nums ${
                                     Number(batchDays) === d
-                                        ? 'bg-[#0077B6] text-white border-[#0077B6]'
-                                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                        ? 'bg-clinic-cta text-clinic-surface border-clinic-cta'
+                                        : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border hover:bg-clinic-surface-tint'
                                 }`}
                             >
                                 {d}n
@@ -365,42 +365,42 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             <button
                                 type="button"
                                 onClick={() => onOpenRxModal('templates')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition-colors shadow-2xs cursor-pointer"
+                                className="medpro-btn-outline inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] cursor-pointer"
                                 title="Phác đồ điều trị mẫu khuyến nghị (F4)"
                             >
                                 <ClinicIcon name="BookmarkSimple" size={14} />
                                 <span>Phác đồ mẫu</span>
-                                <span className="text-[10px] bg-teal-200/60 px-1 rounded font-mono">F4</span>
+                                <span className="text-[10px] bg-clinic-bg-muted border border-clinic-border px-1 rounded-[4px] font-mono">F4</span>
                             </button>
                         )}
                         {!isReadOnly && (
                             <button
                                 type="button"
                                 onClick={() => onOpenRxModal('copy')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
+                                className="medpro-btn-outline inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] cursor-pointer"
                                 title="Tái sử dụng từ đơn thuốc cũ (F8)"
                             >
                                 <ClinicIcon name="ClockCounterClockwise" size={14} />
                                 <span>Đơn cũ</span>
-                                <span className="text-[10px] bg-blue-200/60 px-1 rounded font-mono">F8</span>
+                                <span className="text-[10px] bg-clinic-bg-muted border border-clinic-border px-1 rounded-[4px] font-mono">F8</span>
                             </button>
                         )}
                         {demoMode ? (
-                            <span className="text-xs text-slate-600">Bản demo lưu đơn thuốc nháp.</span>
+                            <span className="text-xs text-clinic-text-secondary">Bản demo lưu đơn thuốc nháp.</span>
                         ) : !isSigned ? (
                             <button
                                 type="button"
                                 disabled={rows.length === 0 || signingLoading || isReadOnly}
                                 onClick={() => setShowSignConfirm(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[6px] border border-clinic-success bg-clinic-success hover:bg-clinic-navy text-clinic-surface transition-colors cursor-pointer disabled:opacity-50"
                                 title="Ký số đơn thuốc điện tử và khóa dữ liệu"
                             >
                                 <ClinicIcon name="Pen" size={14} weight="bold" />
                                 <span>{signingLoading ? 'Đang ký số…' : 'Ký số đơn thuốc'}</span>
                             </button>
                         ) : (
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                <ClinicIcon name="CheckCircle" size={14} weight="fill" className="text-emerald-600" />
+                            <span className="medpro-badge-success inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold">
+                                <ClinicIcon name="CheckCircle" size={14} weight="fill" />
                                 <span>Đã ký số</span>
                             </span>
                         )}
@@ -408,20 +408,20 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         <button
                             type="button"
                             onClick={() => onOpenRxModal('print')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                            className="medpro-btn-outline inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] cursor-pointer"
                             title="In đơn thuốc & Xem mã QR (F9 / Ctrl+P)"
                         >
                             <ClinicIcon name="Printer" size={14} />
                             <span>In đơn &amp; QR</span>
-                            <span className="text-[10px] bg-slate-200 px-1 rounded font-mono">F9</span>
+                            <span className="text-[10px] bg-clinic-bg-muted border border-clinic-border px-1 rounded-[4px] font-mono">F9</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200 bg-white shadow-2xs">
+            <div className="overflow-x-auto rounded-[6px] border border-clinic-border bg-clinic-surface">
                 <div className="min-w-[920px]">
-                    <div className={`${GRID} rounded-t-xl bg-[#F0F7FC] px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#003553]`}>
+                    <div className={`${GRID} bg-clinic-surface-tint border-b border-clinic-border px-3 py-2.5 text-xs font-bold text-clinic-navy`}>
                         <span className="text-center">#</span>
                         <span>Thuốc · Hoạt chất · Hàm lượng</span>
                         {DOSE_SLOTS.map((s) => (
@@ -436,8 +436,8 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     </div>
 
                     {rows.length === 0 && (
-                        <div className="px-4 py-8 text-center text-slate-500">
-                            <ClinicIcon name="Pill" size={28} className="mx-auto text-slate-300 mb-1" />
+                        <div className="px-4 py-8 text-center text-clinic-text-secondary">
+                            <ClinicIcon name="Pill" size={28} className="mx-auto text-clinic-text-subtle mb-1" />
                             <p className="text-xs">Chưa có thuốc trong đơn. Gõ tên thuốc ở trên hoặc nạp từ Phác đồ mẫu / Đơn cũ.</p>
                         </div>
                     )}
@@ -446,24 +446,24 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         const conflict = findAllergyConflict(r.hoat_chat, allergy)
                         const totalQty = computeQuantity(r)
                         return (
-                            <div key={`${r.ten_thuoc}-${i}`} className={`border-t border-slate-100 ${conflict ? 'bg-rose-50/50' : i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
+                            <div key={`${r.ten_thuoc}-${i}`} className={`border-t border-clinic-border ${conflict ? 'bg-clinic-danger-bg' : i % 2 === 1 ? 'bg-clinic-bg' : 'bg-clinic-surface'}`}>
                                 <div className={`${GRID} px-3 py-2.5`}>
-                                    <div className="flex flex-col items-center justify-center gap-0.5 text-slate-400">
+                                    <div className="flex flex-col items-center justify-center gap-0.5 text-clinic-text-muted">
                                         <button
                                             type="button"
                                             disabled={locked || i === 0}
                                             onClick={() => moveRow(i, -1)}
-                                            className="text-[10px] hover:text-[#0077B6] disabled:opacity-20 cursor-pointer"
+                                            className="text-[10px] hover:text-clinic-cta disabled:opacity-20 cursor-pointer"
                                             title="Chuyển lên trên"
                                         >
                                             ▲
                                         </button>
-                                        <span className="text-xs font-bold text-slate-600 font-mono">{i + 1}</span>
+                                        <span className="text-xs font-bold text-clinic-text-secondary font-mono tabular-nums">{i + 1}</span>
                                         <button
                                             type="button"
                                             disabled={locked || i === rows.length - 1}
                                             onClick={() => moveRow(i, 1)}
-                                            className="text-[10px] hover:text-[#0077B6] disabled:opacity-20 cursor-pointer"
+                                            className="text-[10px] hover:text-clinic-cta disabled:opacity-20 cursor-pointer"
                                             title="Chuyển xuống dưới"
                                         >
                                             ▼
@@ -471,13 +471,13 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     </div>
 
                                     <div className="min-w-0 pr-2">
-                                        <div className="font-bold text-[#003553] text-[13px] truncate">{r.ten_thuoc}</div>
-                                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                        <div className="font-bold text-clinic-navy text-[13px] truncate">{r.ten_thuoc}</div>
+                                        <div className="flex items-center gap-2 text-[11px] text-clinic-text-secondary">
                                             <span>{r.hoat_chat} ({r.ham_luong || 'Chuẩn'})</span>
-                                            <span className="text-slate-300">·</span>
-                                            <span className="font-semibold text-teal-700">{r.don_vi_tinh || 'Viên'}</span>
+                                            <span className="text-clinic-text-subtle">·</span>
+                                            <span className="font-semibold text-clinic-cta">{r.don_vi_tinh || 'Viên'}</span>
                                             {r.duong_dung && (
-                                                <span className="text-[10px] text-slate-400">({r.duong_dung})</span>
+                                                <span className="text-[10px] text-clinic-text-muted">({r.duong_dung})</span>
                                             )}
                                         </div>
                                     </div>
@@ -487,7 +487,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                             key={s.key}
                                             aria-label={`${s.label} — ${r.ten_thuoc}`}
                                             inputMode="decimal"
-                                            className="medpro-input !px-0.5 text-center font-bold text-xs"
+                                            className="medpro-input !px-0.5 text-center font-bold text-xs tabular-nums"
                                             value={r[s.key] || ''}
                                             placeholder="—"
                                             onChange={(e) => updateRow(i, { [s.key]: e.target.value })}
@@ -498,15 +498,15 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     <input
                                         aria-label={`Số ngày — ${r.ten_thuoc}`}
                                         inputMode="numeric"
-                                        className="medpro-input !px-1 text-center font-bold text-xs"
+                                        className="medpro-input !px-1 text-center font-bold text-xs tabular-nums"
                                         value={r.so_ngay_dung || ''}
                                         onChange={(e) => updateRow(i, { so_ngay_dung: e.target.value })}
                                         disabled={isReadOnly}
                                     />
 
-                                    <div className="text-center">
-                                        <span className="font-extrabold text-[#003553] text-sm">{totalQty}</span>
-                                        <span className="block text-[10px] text-slate-400">{r.don_vi_tinh || 'viên'}</span>
+                                    <div className="text-center tabular-nums">
+                                        <span className="font-extrabold text-clinic-navy text-sm">{totalQty}</span>
+                                        <span className="block text-[10px] text-clinic-text-muted">{r.don_vi_tinh || 'viên'}</span>
                                     </div>
 
                                     <div className="flex flex-col gap-1 min-w-0">
@@ -525,7 +525,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                                         key={tag}
                                                         type="button"
                                                         onClick={() => appendUsageTag(i, tag)}
-                                                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+                                                        className="text-[10px] px-1.5 py-0.5 rounded-[4px] bg-clinic-bg-muted border border-clinic-border hover:bg-clinic-surface-alt text-clinic-text-secondary transition cursor-pointer"
                                                     >
                                                         +{tag}
                                                     </button>
@@ -540,7 +540,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                                 type="button"
                                                 aria-label={`Xóa ${r.ten_thuoc}`}
                                                 onClick={() => removeRow(i)}
-                                                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                                                className="flex h-7 w-7 items-center justify-center rounded-[6px] text-clinic-text-muted hover:bg-clinic-danger-bg hover:text-clinic-danger transition cursor-pointer"
                                                 title="Xóa thuốc này khỏi đơn"
                                             >
                                                 <ClinicIcon name="Trash" size={15} />
@@ -552,13 +552,13 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 </div>
 
                                 {conflict && (
-                                    <div className="mx-3 mb-2 flex flex-wrap items-center gap-3 rounded-lg bg-rose-100/80 px-3 py-2 text-[12px] font-medium text-rose-900 border border-rose-300">
-                                        <ClinicIcon name="Warning" size={16} weight="bold" className="text-rose-600" />
+                                    <div className="mx-3 mb-2 flex flex-wrap items-center gap-3 rounded-[6px] bg-clinic-danger-bg px-3 py-2 text-[12px] font-medium text-clinic-danger border border-clinic-danger-border">
+                                        <ClinicIcon name="Warning" size={16} weight="bold" className="text-clinic-danger" />
                                         <span className="flex-1">
                                             <strong>Cảnh báo dị ứng:</strong> Thuốc {r.hoat_chat} thuộc nhóm {conflict} — Hồ sơ bệnh nhân ghi nhận “{allergy}”.
                                         </span>
                                         {!isReadOnly && conflict === 'NSAID' && (
-                                            <button type="button" className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold border border-rose-300 hover:bg-rose-50 transition cursor-pointer" onClick={() => replaceWithParacetamol(i)}>
+                                            <button type="button" className="px-2.5 py-1 rounded-[4px] bg-clinic-surface text-clinic-danger font-bold border border-clinic-danger-border hover:bg-clinic-danger-bg transition cursor-pointer" onClick={() => replaceWithParacetamol(i)}>
                                                 Đổi sang Paracetamol 500mg
                                             </button>
                                         )}
@@ -580,7 +580,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                     key={idx}
                                     type="button"
                                     onClick={() => setFieldValue('loi_dan_uong_thuoc', note)}
-                                    className="text-[11px] text-[#0077B6] hover:underline cursor-pointer"
+                                    className="text-[11px] text-clinic-cta hover:underline cursor-pointer"
                                 >
                                     +Gợi ý {idx + 1}
                                 </button>
@@ -598,20 +598,20 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 />
             </div>
 
-            <section className="rounded-xl bg-[#E8F4FD]/80 border border-sky-200 p-4 flex flex-col gap-3">
+            <section className="medpro-card rounded-[6px] bg-clinic-surface-alt border-clinic-info-border p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#003553] flex items-center gap-1.5">
-                        <ClinicIcon name="CalendarCheck" size={16} className="text-[#0077B6]" />
-                        <span>Hẹn Tái Khám Thông Minh</span>
+                    <h3 className="text-xs font-extrabold text-clinic-navy flex items-center gap-1.5">
+                        <ClinicIcon name="CalendarCheck" size={16} className="text-clinic-cta" />
+                        <span>Hẹn tái khám</span>
                     </h3>
-                    <span className="text-[11px] text-slate-500">Tự động tính ngày và thứ theo số ngày hẹn</span>
+                    <span className="text-[11px] text-clinic-text-secondary">Tự động tính ngày và thứ theo số ngày hẹn</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 items-end">
                     <div>
                         <div className="flex items-center justify-between mb-1">
                             <span className="medpro-label !mb-0">Ngày hẹn tái khám</span>
-                            <span className="text-[11px] font-bold text-[#0077B6]">
+                            <span className="text-[11px] font-bold text-clinic-cta tabular-nums">
                                 {values.ngay_hen_tai_kham
                                     ? new Date(values.ngay_hen_tai_kham).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
                                     : 'Chưa hẹn'}
@@ -620,7 +620,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         <input
                             type="date"
                             name="ngay_hen_tai_kham"
-                            className="medpro-input font-semibold"
+                            className="medpro-input font-semibold tabular-nums"
                             value={values.ngay_hen_tai_kham || ''}
                             onChange={handleChange}
                             disabled={isReadOnly}
@@ -628,18 +628,18 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     </div>
 
                     <div>
-                        <span className="medpro-label !mb-1">Chọn nhanh số ngày tái khám (tClinic)</span>
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="medpro-label !mb-1">Chọn nhanh số ngày tái khám</span>
+                        <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
                             {FOLLOW_UP_PRESETS.map((p) => (
                                 <button
                                     key={p.days}
                                     type="button"
                                     disabled={isReadOnly}
                                     onClick={() => handleSetFollowUpDays(p.days)}
-                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition cursor-pointer ${
+                                    className={`px-2.5 py-1 text-xs font-semibold rounded-[6px] border transition cursor-pointer ${
                                         followUpDays === p.days
-                                            ? 'bg-[#0077B6] text-white border-[#0077B6] shadow-2xs'
-                                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                                            ? 'bg-clinic-cta text-clinic-surface border-clinic-cta'
+                                            : 'bg-clinic-surface text-clinic-text border-clinic-border hover:bg-clinic-surface-tint'
                                     }`}
                                 >
                                     +{p.label}
@@ -663,32 +663,35 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             </section>
 
             {showSignConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
-                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
-                        <div className="flex items-center gap-3 text-emerald-700 mb-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-clinic-navy/60 backdrop-blur-xs p-4">
+                    <div className="w-full max-w-md rounded-[6px] bg-clinic-surface p-6 border border-clinic-border">
+                        <div className="flex items-center gap-3 text-clinic-success mb-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-[6px] bg-clinic-success-bg text-clinic-success border border-clinic-success-border">
                                 <ClinicIcon name="ShieldCheck" size={24} weight="bold" />
                             </div>
                             <div>
-                                <h4 className="text-base font-extrabold text-[#003553]">
-                                    Xác nhận Ký số Đơn thuốc
+                                <h4 className="text-base font-extrabold text-clinic-navy">
+                                    Xác nhận ký số đơn thuốc
                                 </h4>
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-clinic-text-secondary">
                                     Theo Thông tư 04/2022/TT-BYT
                                 </span>
                             </div>
                         </div>
 
-                        <div className="text-xs text-slate-600 space-y-2 mb-5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="text-xs text-clinic-text-secondary space-y-2 mb-5 bg-clinic-bg p-3.5 rounded-[6px] border border-clinic-border tabular-nums">
                             <p>
                                 Bạn đang tiến hành ký số cho đơn thuốc gồm{' '}
-                                <strong>{rows.length} loại thuốc</strong> của người bệnh{' '}
-                                <strong>{encounter?.benh_nhan?.ho_ten || 'bệnh nhân'}</strong>.
+                                <strong className="text-clinic-navy">{rows.length} loại thuốc</strong> của người bệnh{' '}
+                                <strong className="text-clinic-navy">{encounter?.benh_nhan?.ho_ten || 'bệnh nhân'}</strong>.
                             </p>
-                            <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-medium leading-relaxed">
-                                ⚠️ <strong>Lưu ý quan trọng:</strong> Sau khi ký số, trạng thái đơn thuốc sẽ chuyển sang{' '}
-                                <span className="font-bold text-emerald-700">Đã ký số</span>. Toàn bộ thông tin thuốc, liều dùng sẽ bị{' '}
-                                <strong>KHÓA BẤT BIẾN</strong>, không thể chỉnh sửa trực tiếp theo quy định y tế!
+                            <div className="p-2.5 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-clinic-warning text-[11px] font-medium leading-relaxed flex items-start gap-2">
+                                <ClinicIcon name="Warning" size={15} weight="bold" className="shrink-0 mt-0.5" />
+                                <span>
+                                    <strong>Lưu ý quan trọng:</strong> Sau khi ký số, trạng thái đơn thuốc sẽ chuyển sang{' '}
+                                    <span className="font-bold text-clinic-success">Đã ký số</span>. Toàn bộ thông tin thuốc, liều dùng sẽ bị{' '}
+                                    <strong>KHÓA BẤT BIẾN</strong>, không thể chỉnh sửa trực tiếp theo quy định y tế.
+                                </span>
                             </div>
                         </div>
 
@@ -697,7 +700,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 type="button"
                                 disabled={signingLoading}
                                 onClick={() => setShowSignConfirm(false)}
-                                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                className="medpro-btn-outline px-4 py-2 text-xs font-semibold rounded-[6px] cursor-pointer"
                             >
                                 Hủy bỏ
                             </button>
@@ -705,10 +708,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 type="button"
                                 disabled={signingLoading}
                                 onClick={handleSignPrescription}
-                                className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                                className="px-4 py-2 text-xs font-bold rounded-[6px] bg-clinic-success text-clinic-surface hover:bg-clinic-navy transition cursor-pointer flex items-center gap-1.5"
                             >
                                 <ClinicIcon name="Pen" size={14} weight="bold" />
-                                <span>{signingLoading ? 'Đang xác thực chữ ký…' : 'Xác nhận Ký số (SIGNED)'}</span>
+                                <span>{signingLoading ? 'Đang xác thực chữ ký…' : 'Xác nhận ký số (SIGNED)'}</span>
                             </button>
                         </div>
                     </div>

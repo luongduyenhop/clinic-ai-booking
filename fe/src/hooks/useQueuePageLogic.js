@@ -18,6 +18,8 @@ import { setQueueEntries } from '../redux/slices/reception/receptionSlice'
 import { receptionService } from '../services/reception/receptionService'
 import { audioAnnouncer } from '../utils/audioAnnouncer'
 
+const isDemoQueueEntity = (value) => /\(demo\)|^demo_/i.test(String(value || '').trim())
+
 const getDefaultShift = () => {
     const now = dayjs()
     const hour = now.hour()
@@ -60,8 +62,12 @@ export function useQueuePageLogic() {
 
     const displayRooms = useMemo(() => {
         const rawRooms = rooms && rooms.length > 0 ? rooms : []
+        const nonDemoRooms = rawRooms.filter(
+            (room) => !isDemoQueueEntity(room.code || room.ma_phong) && !isDemoQueueEntity(room.name || room.ten_phong)
+        )
+        const sourceRooms = nonDemoRooms.length > 0 ? nonDemoRooms : rawRooms
 
-        return rawRooms.map((room) => {
+        return sourceRooms.map((room) => {
             const statusInfo = (roomStatus || []).find(
                 (item) => item.phong_kham_id === room.id || item.ma_phong === room.code
             )
@@ -110,7 +116,14 @@ export function useQueuePageLogic() {
         const list = []
         const seen = new Set()
         const sourceDepartments = departments || []
-        sourceDepartments.forEach((department) => {
+        const nonDemoDepartments = sourceDepartments.filter(
+            (department) =>
+                !isDemoQueueEntity(department.name || department.ten_chuyen_khoa) &&
+                !isDemoQueueEntity(department.code || department.prefix)
+        )
+        const effectiveDepartments = nonDemoDepartments.length > 0 ? nonDemoDepartments : sourceDepartments
+
+        effectiveDepartments.forEach((department) => {
             const departmentId = String(department.id)
             if (!seen.has(departmentId)) {
                 seen.add(departmentId)
@@ -178,7 +191,9 @@ export function useQueuePageLogic() {
             queryDate: initialDate,
             caKham: initialShift,
         }
+        dispatch(fetchFlowBoardAsync(initialParameters)).unwrap().catch(() => {})
         dispatch(fetchShiftDashboardAsync(initialParameters))
+        dispatch(fetchReceptionWaitlistAsync({ query_date: initialDate, ca_kham: initialShift }))
         if (!rooms || rooms.length === 0) {
             dispatch(fetchReceptionDataAsync())
         }
@@ -205,70 +220,11 @@ export function useQueuePageLogic() {
         }
     }
 
-    const hasInitialFocusedRef = useRef(false)
-
-    useEffect(() => {
-        if (hasInitialFocusedRef.current) return
-        if (displayRooms.length === 0 || departmentTabs.length === 0) return
-
-        const internalDepartment = departmentTabs.find((dep) => /nội/i.test(dep.name)) || departmentTabs[0]
-        if (!internalDepartment) return
-
-        const internalRooms = getRoomsForTab(internalDepartment.id)
-        const targetRoom = internalRooms[0] || displayRooms[0]
-
-        if (targetRoom) {
-            if (!targetRoom.doctorId) {
-                return
-            }
-
-            hasInitialFocusedRef.current = true
-            setSelectedDepartmentTab(internalDepartment.id)
-            setSelectedRoomId(targetRoom.id)
-
-            const queryParameters = {
-                queryDate: selectedDate,
-                caKham: selectedShift === 'all' ? undefined : selectedShift,
-            }
-            dispatch(fetchDoctorQueueAsync({ doctorId: targetRoom.doctorId, ...queryParameters }))
-            dispatch(fetchReceptionWaitlistAsync({
-                query_date: selectedDate,
-                ca_kham: selectedShift === 'all' ? undefined : selectedShift,
-                bac_si_id: targetRoom.doctorId,
-            }))
-        }
-    }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (!hasInitialFocusedRef.current && displayRooms.length > 0 && departmentTabs.length > 0) {
-                const internalDepartment = departmentTabs.find((dep) => /nội/i.test(dep.name)) || departmentTabs[0]
-                const internalRooms = internalDepartment ? getRoomsForTab(internalDepartment.id) : []
-                const targetRoom = internalRooms[0] || displayRooms[0]
-                if (targetRoom) {
-                    hasInitialFocusedRef.current = true
-                    setSelectedDepartmentTab(internalDepartment?.id || departmentTabs[0].id)
-                    setSelectedRoomId(targetRoom.id)
-                    const queryParameters = {
-                        queryDate: selectedDate,
-                        caKham: selectedShift === 'all' ? undefined : selectedShift,
-                    }
-                    if (targetRoom.doctorId) {
-                        dispatch(fetchDoctorQueueAsync({ doctorId: targetRoom.doctorId, ...queryParameters }))
-                    } else {
-                        dispatch(setQueueEntries([]))
-                    }
-                }
-            }
-        }, 1500)
-        return () => clearTimeout(timer)
-    }, [displayRooms, departmentTabs, getRoomsForTab, dispatch, selectedDate, selectedShift])
-
     useEffect(() => {
         if (departmentTabs.length > 0 && selectedDepartmentTab) {
             const exists = departmentTabs.some((department) => department.id === selectedDepartmentTab)
             if (!exists) {
-                setSelectedDepartmentTab(departmentTabs[0].id)
+                setSelectedDepartmentTab('')
             }
         }
     }, [departmentTabs, selectedDepartmentTab])
@@ -607,7 +563,7 @@ export function useQueuePageLogic() {
 
     const handleResetAllFilters = () => {
         setSelectedRoomId(null)
-        setSelectedDepartmentTab(departmentTabs[0]?.id || '')
+        setSelectedDepartmentTab('')
         setActiveTab('WAITING')
         setSearchQuery('')
         setSelectedDate(dayjs().format('YYYY-MM-DD'))

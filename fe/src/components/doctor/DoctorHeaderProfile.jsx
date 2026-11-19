@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { AppToast } from '../common/AppNotification'
+import { ClinicIcon } from '../common/ClinicIcon'
 import DoctorEditProfileModal from './DoctorEditProfileModal'
 import DoctorCertificateModal from './DoctorCertificateModal'
 
@@ -16,7 +17,6 @@ export default function DoctorHeaderProfile() {
     const [isCertificateOpen, setIsCertificateOpen] = useState(false)
     const menuRef = useRef(null)
 
-    // Dữ liệu bác sĩ hiển thị (đồng bộ từ thông tin tài khoản đăng nhập)
     const [doctorInfo, setDoctorInfo] = useState({
         name: user?.fullName || 'Bác sĩ',
         specialty: user?.specialty || 'Khoa Khám Bệnh',
@@ -45,7 +45,6 @@ export default function DoctorHeaderProfile() {
         }
     }, [user])
 
-    // Đóng dropdown khi click ra ngoài
     useEffect(() => {
         function handleClickOutside(event) {
             if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -60,7 +59,7 @@ export default function DoctorHeaderProfile() {
         const result = await dispatch(logoutUserAsync())
         if (result.payload?.sessionChanged || result.meta.condition) return
         AppToast.info('Đã đăng xuất khỏi phiên làm việc của Bác sĩ')
-        navigate('/login')
+        navigate('/staff/login')
     }
 
     const toggleDutyStatus = () => {
@@ -82,152 +81,140 @@ export default function DoctorHeaderProfile() {
     return (
         <>
             <div className="relative" ref={menuRef}>
-                {/* Header Profile Trigger Button */}
                 <button
                     type="button"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/90 transition shadow-2xs cursor-pointer text-left shrink-0 select-none"
+                    className="flex items-center gap-2.5 p-1.5 pr-3 rounded-[6px] border border-clinic-border bg-clinic-surface hover:bg-clinic-bg transition cursor-pointer text-left shrink-0 select-none"
                     aria-expanded={isMenuOpen}
                 >
-                    {/* Doctor Avatar */}
                     <div className="relative shrink-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00B5F1] to-[#003553] text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                            🩺
+                        <div className="w-9 h-9 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center">
+                            <ClinicIcon name="Stethoscope" size={18} weight="bold" />
                         </div>
-                        {/* Status dot */}
                         <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                                isOnDuty ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-clinic-surface ${
+                                isOnDuty ? 'bg-clinic-success' : 'bg-clinic-amber'
                             }`}
                             title={isOnDuty ? 'Đang trực khám' : 'Tạm nghỉ'}
                         />
                     </div>
 
-                    {/* Name & Specialty Info */}
                     <div className="hidden sm:block text-left shrink-0">
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            <span className="text-xs font-bold text-[#003553] tracking-tight whitespace-nowrap">
+                            <span className="text-xs font-bold text-clinic-navy tracking-tight whitespace-nowrap">
                                 {doctorInfo.name}
                             </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#E8F4FD] text-[#00B5F1] font-bold border border-sky-100 shrink-0">
+                            <span className="medpro-badge-info text-[10px] font-bold shrink-0 tabular-nums">
                                 {doctorInfo.code}
                             </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                        <p className="text-[11px] text-clinic-text-secondary font-medium whitespace-nowrap">
                             {doctorInfo.specialty}
                         </p>
                     </div>
 
-                    {/* Dropdown chevron */}
-                    <svg
-                        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <ClinicIcon
+                        name="CaretDown"
+                        size={14}
+                        className={`text-clinic-text-muted shrink-0 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`}
+                    />
                 </button>
 
-                {/* Dropdown Menu Modal / Popover */}
                 {isMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-3xl border border-slate-200/90 shadow-xl py-3 z-50 text-slate-700 animate-in fade-in slide-in-from-top-2 duration-150">
-                        {/* Header in dropdown (Có thể click để sửa hồ sơ) */}
-                        <div
+                    <div className="absolute right-0 mt-2 w-80 bg-clinic-surface rounded-[6px] border border-clinic-border py-2 z-50 text-clinic-text">
+                        <button
+                            type="button"
                             onClick={() => {
                                 setIsMenuOpen(false)
                                 setIsEditProfileOpen(true)
                             }}
-                            className="px-5 py-3 border-b border-slate-100 hover:bg-[#E8F4FD]/40 transition cursor-pointer group"
+                            className="w-full text-left px-4 py-3 border-b border-clinic-border hover:bg-clinic-surface-tint transition cursor-pointer group"
                             title="Bấm để chỉnh sửa thông tin hồ sơ"
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center text-xl font-bold border border-sky-100 group-hover:scale-105 transition">
-                                    👨‍⚕️
+                                <div className="w-11 h-11 rounded-[6px] bg-clinic-surface-alt text-clinic-cta flex items-center justify-center border border-clinic-info-border shrink-0">
+                                    <ClinicIcon name="UserCircle" size={22} weight="bold" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-sm font-extrabold text-[#003553] truncate group-hover:text-[#00B5F1] transition">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h4 className="text-sm font-extrabold text-clinic-navy truncate group-hover:text-clinic-cta transition">
                                             {doctorInfo.name}
                                         </h4>
-                                        <span className="text-[10px] text-[#00B5F1] font-bold opacity-0 group-hover:opacity-100 transition">
-                                            Sửa ✎
+                                        <span className="inline-flex items-center gap-0.5 text-[11px] text-clinic-cta font-bold shrink-0">
+                                            <ClinicIcon name="PencilSimple" size={12} />
+                                            <span>Sửa</span>
                                         </span>
                                     </div>
-                                    <p className="text-xs text-slate-500 truncate">{doctorInfo.specialty}</p>
-                                    <span className="inline-block mt-1 text-[11px] font-semibold text-[#00B5F1]">
-                                        📍 {doctorInfo.room}
+                                    <p className="text-xs text-clinic-text-secondary truncate">{doctorInfo.specialty}</p>
+                                    <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-semibold text-clinic-cta">
+                                        <ClinicIcon name="MapPin" size={12} />
+                                        <span>{doctorInfo.room}</span>
                                     </span>
                                 </div>
                             </div>
-                        </div>
+                        </button>
 
-                        {/* Ca làm việc & Thống kê nhanh */}
-                        <div className="p-4 bg-slate-50/80 mx-3 my-2 rounded-2xl border border-slate-100 space-y-2 text-xs">
-                            <div className="flex justify-between items-center text-slate-600">
-                                <span className="text-slate-500">Ca hiện tại:</span>
-                                <span className="font-semibold text-slate-800">{doctorInfo.shift}</span>
+                        <div className="p-3 bg-clinic-bg mx-3 my-2 rounded-[6px] border border-clinic-border space-y-2 text-xs">
+                            <div className="flex justify-between items-center text-clinic-text-secondary">
+                                <span>Ca hiện tại:</span>
+                                <span className="font-semibold text-clinic-navy tabular-nums">{doctorInfo.shift}</span>
                             </div>
-                            <div className="flex justify-between items-center text-slate-600">
-                                <span className="text-slate-500">Đã khám hôm nay:</span>
-                                <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <div className="flex justify-between items-center text-clinic-text-secondary">
+                                <span>Đã khám hôm nay:</span>
+                                <span className="medpro-badge-success font-bold tabular-nums">
                                     {doctorInfo.examinedToday} bệnh nhân
                                 </span>
                             </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
-                                <span className="text-slate-500">Trạng thái nhận bệnh:</span>
+                            <div className="flex justify-between items-center pt-2 border-t border-clinic-border">
+                                <span className="text-clinic-text-secondary">Trạng thái nhận bệnh:</span>
                                 <button
                                     type="button"
                                     onClick={toggleDutyStatus}
-                                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition cursor-pointer ${
+                                    className={`text-[11px] font-bold px-2.5 py-1 rounded-[6px] border transition cursor-pointer ${
                                         isOnDuty
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                                            : 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                            ? 'bg-clinic-success-bg text-clinic-success border-clinic-success-border'
+                                            : 'bg-clinic-warning-bg text-clinic-warning border-clinic-warning-border'
                                     }`}
                                 >
-                                    {isOnDuty ? '● Đang nhận bệnh' : '○ Tạm nghỉ'}
+                                    {isOnDuty ? 'Đang nhận bệnh' : 'Tạm nghỉ'}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Quick navigation links */}
                         <div className="px-2 py-1 space-y-0.5 text-xs font-semibold">
-                            {/* 1. Chỉnh sửa thông tin hồ sơ */}
                             <button
                                 type="button"
                                 onClick={() => {
                                     setIsMenuOpen(false)
                                     setIsEditProfileOpen(true)
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-[#E8F4FD] hover:text-[#00B5F1] transition cursor-pointer"
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[6px] text-clinic-text hover:bg-clinic-surface-tint hover:text-clinic-cta transition cursor-pointer"
                             >
-                                <span>✏️</span>
+                                <ClinicIcon name="PencilSimple" size={15} />
                                 <span>Chỉnh sửa hồ sơ cá nhân</span>
                             </button>
 
-                            {/* 2. Chứng chỉ hành nghề & Bằng cấp */}
                             <button
                                 type="button"
                                 onClick={() => {
                                     setIsMenuOpen(false)
                                     setIsCertificateOpen(true)
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition cursor-pointer"
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[6px] text-clinic-text hover:bg-clinic-warning-bg hover:text-clinic-warning transition cursor-pointer"
                             >
-                                <span>📜</span>
-                                <span>Chứng chỉ hành nghề & Bằng cấp</span>
+                                <ClinicIcon name="Certificate" size={15} />
+                                <span>Chứng chỉ hành nghề &amp; Bằng cấp</span>
                             </button>
                         </div>
 
-                        {/* Logout Button */}
-                        <div className="p-2 pt-2 border-t border-slate-100">
+                        <div className="p-2 pt-2 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs transition cursor-pointer border border-red-100"
+                                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-[6px] bg-clinic-danger-bg text-clinic-danger hover:bg-clinic-danger-border/40 font-bold text-xs transition cursor-pointer border border-clinic-danger-border"
                             >
-                                <span>🚪</span>
+                                <ClinicIcon name="SignOut" size={15} weight="bold" />
                                 <span>Đăng xuất phiên làm việc</span>
                             </button>
                         </div>
@@ -235,7 +222,6 @@ export default function DoctorHeaderProfile() {
                 )}
             </div>
 
-            {/* Modal Chỉnh Sửa Thông Tin Bác Sĩ */}
             <DoctorEditProfileModal
                 isOpen={isEditProfileOpen}
                 onClose={() => setIsEditProfileOpen(false)}
@@ -243,7 +229,6 @@ export default function DoctorHeaderProfile() {
                 onSave={handleSaveProfile}
             />
 
-            {/* Modal Chứng Chỉ Hành Nghề */}
             <DoctorCertificateModal
                 isOpen={isCertificateOpen}
                 onClose={() => setIsCertificateOpen(false)}

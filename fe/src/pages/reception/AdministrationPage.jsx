@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Table, Input, Select, Button, Tag, Space, Card, Modal, message, Alert } from 'antd'
+import { Table, Input, Select, Button, Tag, Space, Modal, message } from 'antd'
 import {
     SearchOutlined,
     PrinterOutlined,
-    CheckCircleOutlined,
-    ClockCircleOutlined,
     DollarCircleOutlined,
-    WarningOutlined,
 } from '@ant-design/icons'
 import PrintReceiptModal from '../../components/reception/PrintReceiptModal'
+import { QrCode } from '../../components/common/ClinicIcon'
 import { PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
 import { updateInvoiceStatusAsync } from '../../redux/actions/reception/receptionAction'
@@ -98,9 +96,9 @@ export default function AdministrationPage() {
             key: 'invoiceCode',
             width: 170,
             render: (code, record) => (
-                <div>
-                    <span className="font-mono font-bold text-sky-700 block">{code}</span>
-                    <span className="text-[11px] text-slate-400">{record.createdAt}</span>
+                <div className="tabular-nums">
+                    <span className="font-mono font-bold text-clinic-cta block">{code}</span>
+                    <span className="text-[11px] text-clinic-text-muted">{record.createdAt}</span>
                 </div>
             ),
         },
@@ -112,9 +110,9 @@ export default function AdministrationPage() {
                 const pat = patients.find((p) => p.id === record.patientId)
                 return (
                     <div>
-                        <span className="font-bold text-slate-900 block">{pat?.fullName}</span>
-                        <div className="text-slate-400 text-xs">
-                            {pat?.phone} • {pat?.patientCode}
+                        <span className="font-bold text-clinic-navy block">{pat?.fullName}</span>
+                        <div className="text-clinic-text-muted text-xs tabular-nums">
+                            {pat?.phone} · {pat?.patientCode}
                         </div>
                     </div>
                 )
@@ -124,10 +122,10 @@ export default function AdministrationPage() {
             title: 'Dịch vụ chỉ định',
             key: 'services',
             render: (_, record) => (
-                <div className="text-xs space-y-0.5">
+                <div className="text-xs space-y-0.5 tabular-nums">
                     {record.services?.map((s, idx) => (
-                        <div key={idx} className="text-slate-700">
-                            • {s.name} ({formatCurrency(s.price)})
+                        <div key={idx} className="text-clinic-text">
+                            · {s.name} ({formatCurrency(s.price)})
                         </div>
                     ))}
                 </div>
@@ -138,10 +136,9 @@ export default function AdministrationPage() {
             dataIndex: 'amountToPay',
             key: 'amountToPay',
             width: 150,
-            render: (amount, record) => (
-                <div>
-                    <span className="font-bold text-slate-900 text-sm block">{formatCurrency(amount)}</span>
-
+            render: (amount) => (
+                <div className="tabular-nums">
+                    <span className="font-bold text-clinic-navy text-sm block">{formatCurrency(amount)}</span>
                 </div>
             ),
         },
@@ -198,37 +195,39 @@ export default function AdministrationPage() {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Doanh thu thu tại quầy hôm nay</span>
-                    <div className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(totalRevenue)}</div>
-                    <span className="text-[11px] text-emerald-700 font-medium">Đã thanh toán đầy đủ</span>
+            <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-clinic-border">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Doanh thu thu tại quầy hôm nay</span>
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">{formatCurrency(totalRevenue)}</div>
+                    <span className="text-[11px] text-clinic-success font-medium">Đã thanh toán đầy đủ</span>
                 </div>
-                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Hóa đơn chờ thanh toán</span>
-                    <div className="text-2xl font-black text-amber-600 mt-2">{unpaidCount} ca</div>
-                    <span className="text-[11px] text-amber-700 font-medium">Bệnh nhân chưa nộp phí khám</span>
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Hóa đơn chờ thanh toán</span>
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">{unpaidCount} ca</div>
+                    <span className="text-[11px] text-clinic-warning font-medium">Bệnh nhân chưa nộp phí khám</span>
                 </div>
-                <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Yêu cầu hoàn phí</span>
-                    <div className="text-2xl font-black text-red-600 mt-2">{refundPendingCount} yêu cầu</div>
-                    <span className="text-[11px] text-red-700 font-medium">Do hủy lịch đã đóng tiền trước</span>
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Yêu cầu hoàn phí</span>
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">{refundPendingCount} yêu cầu</div>
+                    <span className="text-[11px] text-clinic-danger font-medium">Do hủy lịch đã đóng tiền trước</span>
                 </div>
             </div>
 
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Thủ tục hành chính & Thanh toán viện phí</h2>
-                        <span className="text-xs text-slate-500">
-                            Theo dõi biên nhận, hướng dẫn người bệnh sang thu ngân hoặc xác nhận thu tiền mặt
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display">
+                            Thủ tục hành chính &amp; Thanh toán viện phí
+                        </h2>
+                        <span className="text-xs text-clinic-text-secondary">
+                            Theo dõi biên nhận, hướng dẫn người bệnh sang thu ngân hoặc xác nhận thu tiền mặt tại quầy
                         </span>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-clinic-border text-xs">
                     <Input
-                        prefix={<SearchOutlined className="text-slate-400" />}
+                        prefix={<SearchOutlined className="text-clinic-text-muted" />}
                         placeholder="Tìm theo mã hóa đơn, tên bệnh nhân, SĐT..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -259,9 +258,9 @@ export default function AdministrationPage() {
 
             <Modal
                 title={
-                    <div className="flex items-center gap-2 text-[#003553]">
-                        <DollarCircleOutlined className="text-emerald-600 text-lg" />
-                        <span className="font-extrabold text-base">Xác Nhận Thu Viện Phí Tại Quầy</span>
+                    <div className="flex items-center gap-2 text-clinic-navy">
+                        <DollarCircleOutlined className="text-clinic-success text-lg" />
+                        <span className="font-extrabold text-base">Xác nhận thu viện phí tại quầy</span>
                     </div>
                 }
                 open={paymentModal.open}
@@ -286,67 +285,68 @@ export default function AdministrationPage() {
             >
                 {paymentModal.invoice && (
                     <div className="space-y-4 py-2 text-xs">
-                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2 tabular-nums">
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-500">Mã hóa đơn:</span>
-                                <span className="font-mono font-bold text-sky-700">{paymentModal.invoice.invoiceCode}</span>
+                                <span className="text-clinic-text-secondary">Mã hóa đơn:</span>
+                                <span className="font-mono font-bold text-clinic-cta">{paymentModal.invoice.invoiceCode}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-500">Bệnh nhân:</span>
-                                <span className="font-bold text-slate-800">
+                                <span className="text-clinic-text-secondary">Bệnh nhân:</span>
+                                <span className="font-bold text-clinic-navy">
                                     {patients.find((p) => p.id === paymentModal.invoice.patientId)?.fullName || 'N/A'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-500">Dịch vụ:</span>
-                                <span className="text-slate-700">
+                                <span className="text-clinic-text-secondary">Dịch vụ:</span>
+                                <span className="text-clinic-text">
                                     {paymentModal.invoice.services?.map((s) => s.name).join(', ')}
                                 </span>
                             </div>
-                            <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                                <span className="font-bold text-slate-700">Số tiền cần thu:</span>
-                                <span className="text-base font-black text-emerald-600">
+                            <div className="pt-2 border-t border-clinic-border flex justify-between items-center">
+                                <span className="font-bold text-clinic-navy">Số tiền cần thu:</span>
+                                <span className="text-base font-black text-clinic-success">
                                     {formatCurrency(paymentModal.invoice.amountToPay)}
                                 </span>
                             </div>
                         </div>
 
                         <div>
-                            <label className="font-bold text-slate-700 block mb-1.5">Hình thức thanh toán:</label>
+                            <label className="font-bold text-clinic-navy block mb-1.5">Hình thức thanh toán:</label>
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setPaymentModal((prev) => ({ ...prev, method: 'CASH' }))}
-                                    className={`p-3 rounded-xl border text-center font-bold transition cursor-pointer ${
+                                    className={`p-3 rounded-[6px] border text-center font-bold transition cursor-pointer ${
                                         paymentModal.method === 'CASH'
-                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20'
-                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                            ? 'border-clinic-success bg-clinic-success-bg text-clinic-success'
+                                            : 'border-clinic-border bg-clinic-surface text-clinic-text hover:bg-clinic-bg'
                                     }`}
                                 >
-                                    💵 Tiền mặt tại quầy
+                                    Tiền mặt tại quầy
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setPaymentModal((prev) => ({ ...prev, method: 'VIETQR' }))}
-                                    className={`p-3 rounded-xl border text-center font-bold transition cursor-pointer ${
+                                    className={`p-3 rounded-[6px] border text-center font-bold transition cursor-pointer ${
                                         paymentModal.method === 'VIETQR'
-                                            ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-500/20'
-                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                            ? 'border-clinic-cta bg-clinic-surface-alt text-clinic-navy'
+                                            : 'border-clinic-border bg-clinic-surface text-clinic-text hover:bg-clinic-bg'
                                     }`}
                                 >
-                                    📱 Chuyển khoản VietQR
+                                    Chuyển khoản VietQR
                                 </button>
                             </div>
                         </div>
 
                         {paymentModal.method === 'VIETQR' && (
-                            <div className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-center space-y-1">
-                                <span className="text-[11px] font-bold text-sky-800 block">Quét mã VietQR chuẩn NAPAS 247</span>
-                                <div className="w-24 h-24 bg-white rounded-lg border border-slate-200 mx-auto flex items-center justify-center font-bold text-slate-400 text-xs shadow-inner">
-                                    [QR Code]
+                            <div className="p-3 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-center space-y-1.5">
+                                <span className="text-[11px] font-bold text-clinic-navy block">Quét mã VietQR chuẩn NAPAS 247</span>
+                                <div className="w-24 h-24 bg-clinic-surface rounded-[6px] border border-clinic-border mx-auto flex flex-col items-center justify-center text-clinic-navy">
+                                    <QrCode size={42} weight="regular" />
+                                    <span className="text-[10px] font-mono text-clinic-text-muted mt-0.5">NAPAS 247</span>
                                 </div>
-                                <span className="text-[10px] text-slate-500 block">
-                                    Nội dung CK: <strong className="font-mono text-sky-900">{paymentModal.invoice.invoiceCode}</strong>
+                                <span className="text-[10.5px] text-clinic-text-secondary block">
+                                    Nội dung CK: <strong className="font-mono text-clinic-navy">{paymentModal.invoice.invoiceCode}</strong>
                                 </span>
                             </div>
                         )}

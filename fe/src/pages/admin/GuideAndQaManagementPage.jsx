@@ -135,15 +135,14 @@ export default function GuideAndQaManagementPage() {
 
     return (
         <div className="space-y-3.5">
-            {}
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     <Link
                         to="/admin/huong-dan"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 ${
                             !isCategoryMode && !isQaMode
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
                         <BookOpenText size={15} weight={!isCategoryMode && !isQaMode ? 'fill' : 'duotone'} />
@@ -151,10 +150,10 @@ export default function GuideAndQaManagementPage() {
                     </Link>
                     <Link
                         to="/admin/danh-muc-huong-dan"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 ${
                             isCategoryMode
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
                         <Folders size={15} weight={isCategoryMode ? 'fill' : 'duotone'} />
@@ -162,73 +161,74 @@ export default function GuideAndQaManagementPage() {
                     </Link>
                     <Link
                         to="/admin/hoi-dap"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 ${
                             isQaMode
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
                         <ChatCircleDots size={15} weight={isQaMode ? 'fill' : 'duotone'} />
                         <span>3. Tư vấn &amp; Hỏi đáp Bệnh nhân ({qaList.length})</span>
                     </Link>
                 </div>
-                <span className="text-xs text-slate-500">
-                    Phân hệ Video 08: Hướng dẫn quy trình khám &amp; Hỏi đáp y khoa
+                <span className="text-xs text-clinic-text-secondary">
+                    Quản trị hướng dẫn quy trình khám &amp; Hỏi đáp chuyên môn
                 </span>
             </div>
 
             {isCategoryMode ? (
-                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
                             <span>DANH SÁCH DANH MỤC HƯỚNG DẪN</span>
                         </div>
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tên danh mục</th>
-                                    <th>Thứ tự</th>
-                                    <th>TT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {guideCategories.map((c, idx) => (
-                                    <tr
-                                        key={c.id}
-                                        onClick={() => setCatForm({ ...c })}
-                                        className={`cursor-pointer ${
-                                            catForm.id === c.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
-                                        }`}
-                                    >
-                                        <td>{idx + 1}</td>
-                                        <td className="font-semibold">{c.tenDanhMuc}</td>
-                                        <td>{c.thuTu}</td>
-                                        <td>
-                                            <StatusBadge status={c.trangThai ? 'Hiển thị' : 'Ẩn'} compact />
-                                        </td>
+                        <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Tên danh mục</th>
+                                        <th>Thứ tự</th>
+                                        <th>TT</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {guideCategories.map((c, idx) => (
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => setCatForm({ ...c })}
+                                            className={`cursor-pointer transition-colors ${
+                                                catForm.id === c.id ? '!bg-clinic-surface-alt font-semibold' : ''
+                                            }`}
+                                        >
+                                            <td className="tabular-nums font-bold">{idx + 1}</td>
+                                            <td className="font-semibold text-clinic-navy">{c.tenDanhMuc}</td>
+                                            <td className="tabular-nums">{c.thuTu}</td>
+                                            <td>
+                                                <StatusBadge status={c.trangThai ? 'Hiển thị' : 'Ẩn'} compact />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-7 medpro-card p-4 space-y-4">
-                        <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-3">
-                            <h2 className="font-display font-extrabold text-base text-[#003553]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-3">
+                            <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
                                 CHI TIẾT DANH MỤC HƯỚNG DẪN
                             </h2>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setCatForm({ id: '', tenDanhMuc: '', moTa: '', thuTu: 1, trangThai: true })}
-                                    className="medpro-btn-outline text-xs"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
-                                    <Plus size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <Plus size={14} weight="bold" className="text-clinic-cta" />
                                     <span>Thêm mới</span>
                                 </button>
-                                <button type="button" onClick={handleSaveGuideCategory} className="medpro-btn-primary text-xs">
+                                <button type="button" onClick={handleSaveGuideCategory} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu danh mục</span>
                                 </button>
@@ -257,46 +257,47 @@ export default function GuideAndQaManagementPage() {
                     </div>
                 </div>
             ) : isQaMode ? (
-                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
                             <span>DANH SÁCH CÂU HỎI TƯ VẤN TỪ BỆNH NHÂN</span>
                         </div>
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>Người hỏi</th>
-                                    <th>Chuyên khoa</th>
-                                    <th>Trạng thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {qaList.map((q) => (
-                                    <tr
-                                        key={q.id}
-                                        onClick={() => setQaForm({ ...q })}
-                                        className={`cursor-pointer ${
-                                            qaForm.id === q.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
-                                        }`}
-                                    >
-                                        <td className="font-semibold">{q.nguoiHoi}</td>
-                                        <td>{q.chuyenKhoa}</td>
-                                        <td>
-                                            <StatusBadge status={q.trangThai} compact />
-                                        </td>
+                        <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
+                                <thead>
+                                    <tr>
+                                        <th>Người hỏi</th>
+                                        <th>Chuyên khoa</th>
+                                        <th>Trạng thái</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {qaList.map((q) => (
+                                        <tr
+                                            key={q.id}
+                                            onClick={() => setQaForm({ ...q })}
+                                            className={`cursor-pointer transition-colors ${
+                                                qaForm.id === q.id ? '!bg-clinic-surface-alt font-semibold' : ''
+                                            }`}
+                                        >
+                                            <td className="font-semibold text-clinic-navy">{q.nguoiHoi}</td>
+                                            <td className="text-clinic-text-secondary">{q.chuyenKhoa}</td>
+                                            <td>
+                                                <StatusBadge status={q.trangThai} compact />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-7 medpro-card p-4 space-y-4">
-                        <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-3">
-                            <h2 className="font-display font-extrabold text-base text-[#003553]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-3">
+                            <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
                                 PHẢN HỒI CÂU HỎI TƯ VẤN BỆNH NHÂN
                             </h2>
-                            <button type="button" onClick={handleSaveQa} className="medpro-btn-primary text-xs">
+                            <button type="button" onClick={handleSaveQa} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                 <CheckCircle size={15} weight="fill" />
                                 <span>Gửi phản hồi tư vấn</span>
                             </button>
@@ -316,7 +317,7 @@ export default function GuideAndQaManagementPage() {
                                 <select
                                     value={qaForm.chuyenKhoa || specialties[0]}
                                     onChange={(e) => setQaForm({ ...qaForm, chuyenKhoa: e.target.value })}
-                                    className="medpro-input"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                 >
                                     {specialties.map((sp) => (
                                         <option key={sp} value={sp}>
@@ -348,52 +349,53 @@ export default function GuideAndQaManagementPage() {
                     </div>
                 </div>
             ) : (
-                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     <div className="lg:col-span-5 medpro-card p-3.5">
                         <div className="medpro-section-title">
                             <span>DANH SÁCH BÀI VIẾT HƯỚNG DẪN ({guides.length})</span>
                         </div>
-                        <table className="medpro-table">
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tiêu đề hướng dẫn</th>
-                                    <th>Danh mục</th>
-                                    <th>Trang chủ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {guides.map((g, idx) => (
-                                    <tr
-                                        key={g.id}
-                                        onClick={() => setGuideForm({ ...g })}
-                                        className={`cursor-pointer ${
-                                            guideForm.id === g.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
-                                        }`}
-                                    >
-                                        <td>{idx + 1}</td>
-                                        <td className="font-semibold text-[#12263F]">{g.tieuDe}</td>
-                                        <td className="text-xs text-[#00B5F1] font-bold">{g.danhMuc}</td>
-                                        <td>
-                                            <StatusBadge status={g.hienThiTrangChu ? 'Hiển thị' : 'Ẩn'} compact />
-                                        </td>
-                                    </tr>
-                                ))}
-                                {guides.length === 0 && (
+                        <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
+                                <thead>
                                     <tr>
-                                        <td colSpan={4}>
-                                            <EmptyState icon="BookOpenText" title="Chưa có bài viết hướng dẫn" />
-                                        </td>
+                                        <th>STT</th>
+                                        <th>Tiêu đề hướng dẫn</th>
+                                        <th>Danh mục</th>
+                                        <th>Trang chủ</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {guides.map((g, idx) => (
+                                        <tr
+                                            key={g.id}
+                                            onClick={() => setGuideForm({ ...g })}
+                                            className={`cursor-pointer transition-colors ${
+                                                guideForm.id === g.id ? '!bg-clinic-surface-alt font-semibold' : ''
+                                            }`}
+                                        >
+                                            <td className="tabular-nums font-bold">{idx + 1}</td>
+                                            <td className="font-semibold text-clinic-navy">{g.tieuDe}</td>
+                                            <td className="text-xs text-clinic-cta font-bold">{g.danhMuc}</td>
+                                            <td>
+                                                <StatusBadge status={g.hienThiTrangChu ? 'Hiển thị' : 'Ẩn'} compact />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {guides.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4}>
+                                                <EmptyState icon="BookOpenText" title="Chưa có bài viết hướng dẫn" />
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="lg:col-span-7 medpro-card p-4 space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
-                            <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-3">
+                            <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
                                 THÔNG TIN BÀI VIẾT HƯỚNG DẪN QUY TRÌNH KHÁM
                             </h2>
                             <div className="flex gap-2">
@@ -412,12 +414,12 @@ export default function GuideAndQaManagementPage() {
                                             trangThai: true,
                                         })
                                     }
-                                    className="medpro-btn-outline text-xs"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
-                                    <Plus size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <Plus size={14} weight="bold" className="text-clinic-cta" />
                                     <span>Làm mới</span>
                                 </button>
-                                <button type="button" onClick={handleSaveGuide} className="medpro-btn-primary text-xs">
+                                <button type="button" onClick={handleSaveGuide} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu hướng dẫn</span>
                                 </button>
@@ -430,7 +432,7 @@ export default function GuideAndQaManagementPage() {
                                             setGuideForm(updated[0] || {})
                                             AppToast.info('Đã xóa bài hướng dẫn!')
                                         }}
-                                        className="medpro-btn-danger text-xs"
+                                        className="medpro-btn-danger !py-1.5 !px-3 text-xs"
                                     >
                                         <Trash size={14} weight="bold" />
                                         <span>Xóa</span>
@@ -440,17 +442,17 @@ export default function GuideAndQaManagementPage() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                            <div className="sm:col-span-4 flex flex-col items-center justify-center p-3 rounded-xl bg-[#F8FBFE] border border-[#CBE9FA]">
-                                <div className="w-full h-28 rounded-xl bg-[#E8F4FD] flex flex-col items-center justify-center text-[#003553] mb-2 border border-dashed border-[#00B5F1]">
-                                    <Camera size={26} weight="duotone" className="text-[#00B5F1]" />
+                            <div className="sm:col-span-4 flex flex-col items-center justify-center p-3 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border">
+                                <div className="w-full h-28 rounded-[6px] bg-clinic-surface-alt flex flex-col items-center justify-center text-clinic-navy mb-2 border border-dashed border-clinic-cta">
+                                    <Camera size={26} weight="duotone" className="text-clinic-cta" />
                                     <span className="text-[11px] font-bold mt-1">Ảnh minh họa hướng dẫn</span>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => AppToast.info('Đã chọn ảnh minh họa cho bài hướng dẫn!')}
-                                    className="medpro-btn-outline !py-1 !px-3 text-xs w-full"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs w-full"
                                 >
-                                    <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <UploadSimple size={14} weight="bold" className="text-clinic-cta" />
                                     <span>Chọn ảnh</span>
                                 </button>
                             </div>
@@ -461,7 +463,7 @@ export default function GuideAndQaManagementPage() {
                                     <select
                                         value={guideForm.danhMuc || ''}
                                         onChange={(e) => setGuideForm({ ...guideForm, danhMuc: e.target.value })}
-                                        className="medpro-input font-semibold"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                     >
                                         {guideCategories.map((c) => (
                                             <option key={c.id} value={c.tenDanhMuc}>
@@ -476,7 +478,7 @@ export default function GuideAndQaManagementPage() {
                                         type="text"
                                         value={guideForm.tieuDe || ''}
                                         onChange={(e) => setGuideForm({ ...guideForm, tieuDe: e.target.value })}
-                                        className="medpro-input font-bold text-[#003553]"
+                                        className="medpro-input font-bold text-clinic-navy"
                                     />
                                 </div>
                                 <div>
@@ -510,21 +512,21 @@ export default function GuideAndQaManagementPage() {
                                     />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-6 pt-1">
-                                    <label className="inline-flex items-center gap-2 text-xs font-bold text-[#003553] cursor-pointer">
+                                    <label className="inline-flex items-center gap-2 text-xs font-bold text-clinic-navy cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={Boolean(guideForm.hienThiTrangChu)}
                                             onChange={(e) => setGuideForm({ ...guideForm, hienThiTrangChu: e.target.checked })}
-                                            className="w-4 h-4 accent-[#00B5F1]"
+                                            className="w-4 h-4 accent-clinic-cta"
                                         />
                                         Hiển thị trên Trang chủ Cổng bệnh nhân
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-xs font-bold text-[#003553] cursor-pointer">
+                                    <label className="inline-flex items-center gap-2 text-xs font-bold text-clinic-navy cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={Boolean(guideForm.guiThongBao)}
                                             onChange={(e) => setGuideForm({ ...guideForm, guiThongBao: e.target.checked })}
-                                            className="w-4 h-4 accent-[#00B5F1]"
+                                            className="w-4 h-4 accent-clinic-cta"
                                         />
                                         Gửi thông báo tự động khi bệnh nhân đặt lịch thành công
                                     </label>

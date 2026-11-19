@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import DoctorShiftRequestModal from './DoctorShiftRequestModal'
 import { doctorScheduleService } from '../../services/doctor/DoctorScheduleService'
+import { ClinicIcon } from '../common/ClinicIcon'
 
 const DAY_NAMES = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
 
@@ -195,72 +196,97 @@ export default function DoctorScheduleTab({ doctorInfo }) {
 
     const weekInfo = getWeekBoundaries(selectedWeek === 'CURRENT' ? 0 : 1)
 
+    const renderShiftCell = (shift) => {
+        if (!shift) {
+            return <span className="text-xs text-clinic-text-subtle">Nghỉ / Chưa phân ca</span>
+        }
+        const statusBadge =
+            shift.status === 'IN_PROGRESS' ? (
+                <span className="medpro-badge-info text-[10px] font-bold">Đang trực</span>
+            ) : shift.status === 'UPCOMING' ? (
+                <span className="medpro-badge-neutral text-[10px] font-bold">Sắp tới</span>
+            ) : shift.status === 'COMPLETED' ? (
+                <span className="medpro-badge-neutral text-[10px]">Đã xong</span>
+            ) : (
+                <span className="medpro-badge-warning text-[10px] font-semibold">Nghỉ ca</span>
+            )
+
+        return (
+            <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                    <span className="font-bold text-clinic-navy text-xs tabular-nums">{shift.time}</span>
+                    {statusBadge}
+                </div>
+                <div className="text-[11px] text-clinic-text-secondary">{shift.note}</div>
+            </div>
+        )
+    }
+
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng số ca trực tuần</span>
-                    <p className="text-2xl font-extrabold text-[#003553] mt-2">
+        <div className="space-y-4">
+            <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Tổng số ca trực tuần</span>
+                    <p className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {loading ? '...' : `${scheduleStats.totalShifts} ca`}
                     </p>
-                    <span className="text-xs text-sky-600 font-semibold mt-1 inline-block">Theo lịch phân công</span>
+                    <span className="text-[11px] text-clinic-cta font-semibold mt-0.5 inline-block">Theo lịch phân công</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bệnh nhân đã hẹn trước</span>
-                    <p className="text-2xl font-extrabold text-[#00A9E3] mt-2">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Bệnh nhân đã hẹn trước</span>
+                    <p className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {loading ? '...' : `${scheduleStats.totalBooked} BN`}
                     </p>
-                    <span className="text-xs text-emerald-600 font-semibold mt-1 inline-block">Đã đồng bộ từ hệ thống</span>
+                    <span className="text-[11px] text-clinic-success font-semibold mt-0.5 inline-block">Đã đồng bộ từ hệ thống</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phòng trực</span>
-                    <p className="text-lg font-extrabold text-slate-800 mt-2 truncate" title={scheduleStats.roomName}>
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary">Buồng khám phụ trách</span>
+                    <p className="text-sm font-extrabold text-clinic-navy mt-1.5 truncate" title={scheduleStats.roomName}>
                         {scheduleStats.roomName}
                     </p>
-                    <span className="text-xs text-slate-500 font-semibold mt-1 inline-block">{scheduleStats.deptName}</span>
+                    <span className="text-[11px] text-clinic-text-secondary font-medium mt-0.5 inline-block">{scheduleStats.deptName}</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+                <div className="p-4 flex flex-col justify-between gap-2">
                     <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quy chế đổi ca</span>
-                        <p className="text-xs text-slate-600 mt-1">Báo trước ít nhất 24 giờ làm việc</p>
+                        <span className="text-xs font-semibold text-clinic-text-secondary">Quy chế đổi ca</span>
+                        <p className="text-[11px] text-clinic-text-muted mt-0.5">Báo trước ít nhất 24 giờ làm việc</p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setIsRequestModalOpen(true)}
-                        className="w-full mt-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer"
+                        className="medpro-btn-outline w-full py-1.5 px-3 rounded-[6px] font-bold text-xs cursor-pointer inline-flex items-center justify-center gap-1.5"
                     >
-                        🔄 Yêu cầu đổi ca trực
+                        <ClinicIcon name="ArrowsClockwise" size={14} weight="bold" />
+                        <span>Yêu cầu đổi ca trực</span>
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <span className="w-10 h-10 rounded-2xl bg-[#E8F4FD] text-[#00A9E3] flex items-center justify-center text-xl font-bold">
-                            📅
-                        </span>
+            <div className="medpro-card bg-clinic-surface overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5 border-b border-clinic-border bg-clinic-surface">
+                    <div className="flex items-center gap-2.5">
+                        <ClinicIcon name="Calendar" size={18} weight="bold" className="text-clinic-cta" />
                         <div>
-                            <h3 className="font-extrabold text-[#003553] text-base">
-                                Lịch Phân Ca & Công Tác Bác Sĩ
+                            <h3 className="font-extrabold text-clinic-navy text-sm lg:text-base font-display">
+                                Lịch phân ca &amp; Công tác bác sĩ trong tuần
                             </h3>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-clinic-text-secondary tabular-nums">
                                 {weekInfo.label} ({selectedWeek === 'CURRENT' ? 'Tuần hiện tại' : 'Tuần tiếp theo'})
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-clinic-bg-muted border border-clinic-border p-1 rounded-[6px]">
                         <button
                             type="button"
                             onClick={() => setSelectedWeek('CURRENT')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition cursor-pointer ${
                                 selectedWeek === 'CURRENT'
-                                    ? 'bg-[#003553] text-white shadow-2xs'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'text-clinic-text-secondary hover:text-clinic-navy'
                             }`}
                         >
                             Tuần hiện tại
@@ -268,10 +294,10 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                         <button
                             type="button"
                             onClick={() => setSelectedWeek('NEXT')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition cursor-pointer ${
                                 selectedWeek === 'NEXT'
-                                    ? 'bg-[#003553] text-white shadow-2xs'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'text-clinic-text-secondary hover:text-clinic-navy'
                             }`}
                         >
                             Tuần tiếp theo
@@ -280,104 +306,82 @@ export default function DoctorScheduleTab({ doctorInfo }) {
                 </div>
 
                 {loading ? (
-                    <div className="py-16 text-center text-slate-400 text-xs">
+                    <div className="py-14 text-center text-clinic-text-secondary text-xs">
                         Đang đồng bộ dữ liệu ca trực từ máy chủ...
                     </div>
                 ) : scheduleDays.length === 0 ? (
-                    <div className="py-16 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-3xl bg-slate-50/50 space-y-2">
-                        <span className="text-3xl block">📅</span>
-                        <p className="font-bold text-slate-700 text-sm">Chưa có lịch trực trong tuần</p>
-                        <p className="text-slate-400 max-w-sm mx-auto">
+                    <div className="py-14 text-center text-clinic-text-secondary text-xs space-y-2">
+                        <ClinicIcon name="Calendar" size={28} className="mx-auto text-clinic-text-subtle" />
+                        <p className="font-bold text-clinic-navy text-sm">Chưa có lịch trực trong tuần</p>
+                        <p className="text-clinic-text-secondary max-w-sm mx-auto">
                             Dữ liệu phân ca của bác sĩ sẽ được đồng bộ tự động từ hệ thống quản lý phòng khám khi có lịch mới.
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {scheduleDays.map((item, index) => (
-                            <div
-                                key={index}
-                                className={`rounded-2xl border p-4.5 transition flex flex-col justify-between ${
-                                    item.isToday
-                                        ? 'border-[#00B5F1] bg-[#E8F4FD]/40 ring-2 ring-[#00B5F1]/20 shadow-sm'
-                                        : 'border-slate-200/90 bg-white hover:border-slate-300'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-extrabold text-sm text-[#003553]">
-                                            {item.dayOfWeek}
-                                        </span>
-                                        <span className="text-xs text-slate-400">({item.date})</span>
-                                    </div>
-                                    {item.isToday && (
-                                        <span className="px-2 py-0.5 rounded-full bg-[#00A9E3] text-white text-[10px] font-bold shadow-2xs">
-                                            Hôm nay
-                                        </span>
-                                    )}
-                                </div>
+                    <div className="overflow-x-auto">
+                        <table className="medpro-table min-w-[780px]">
+                            <thead>
+                                <tr>
+                                    <th className="w-44">Thứ / Ngày</th>
+                                    <th>Ca sáng (07:30 - 11:30)</th>
+                                    <th>Ca chiều (13:30 - 17:00)</th>
+                                    <th className="w-56">Buồng khám phụ trách</th>
+                                    <th className="w-44">Bệnh nhân đặt hẹn</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {scheduleDays.map((item, index) => {
+                                    const morningShift = item.shifts.find((s) => s.type === 'MORNING')
+                                    const afternoonShift = item.shifts.find((s) => s.type === 'AFTERNOON')
+                                    const roomLabel = morningShift?.room || afternoonShift?.room || scheduleStats.roomName
 
-                                <div className="space-y-3">
-                                    {item.shifts.map((shift) => (
-                                        <div
-                                            key={shift.id}
-                                            className={`p-3 rounded-xl border text-xs ${
-                                                shift.status === 'IN_PROGRESS'
-                                                    ? 'bg-sky-50/90 border-[#00B5F1]/60 text-slate-800'
-                                                    : shift.status === 'OFF'
-                                                    ? 'bg-slate-50 border-slate-200/70 text-slate-400'
-                                                    : shift.status === 'COMPLETED'
-                                                    ? 'bg-slate-50/50 border-slate-200/60 text-slate-500'
-                                                    : 'bg-slate-50/70 border-slate-200 text-slate-700'
-                                            }`}
+                                    return (
+                                        <tr
+                                            key={index}
+                                            className={item.isToday ? 'bg-clinic-surface-alt/50' : ''}
                                         >
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="font-bold text-[#003553] flex items-center gap-1.5">
-                                                    <span>{shift.type === 'MORNING' ? '☀️' : '⛅'}</span>
-                                                    <span>{shift.name} ({shift.time})</span>
-                                                </span>
-                                                {shift.status === 'IN_PROGRESS' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-200 text-[#003553] font-bold animate-pulse">
-                                                        Đang trực
-                                                    </span>
-                                                )}
-                                                {shift.status === 'UPCOMING' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 font-bold">
-                                                        Sắp tới
-                                                    </span>
-                                                )}
-                                                {shift.status === 'COMPLETED' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 font-medium">
-                                                        Đã xong
-                                                    </span>
-                                                )}
-                                                {shift.status === 'OFF' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-400 font-semibold">
-                                                        Nghỉ ca
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <p className="text-[11px] font-semibold text-slate-600">
-                                                📍 {shift.room}
-                                            </p>
-
-                                            {shift.maxCapacity > 0 && (
-                                                <div className="flex items-center justify-between text-[11px] mt-1 pt-1 border-t border-slate-200/60">
-                                                    <span className="text-slate-500">Bệnh nhân đặt trước:</span>
-                                                    <span className="font-bold text-[#00A9E3]">
-                                                        {shift.bookedPatients}/{shift.maxCapacity} BN
-                                                    </span>
+                                            <td>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-extrabold text-clinic-navy">{item.dayOfWeek}</span>
+                                                    {item.isToday && (
+                                                        <span className="medpro-badge-info text-[10px] font-bold">
+                                                            Hôm nay
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
-
-                                            <p className="text-[10px] text-slate-400 mt-1 italic">
-                                                {shift.note}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                                                <div className="text-[11px] text-clinic-text-secondary tabular-nums mt-0.5">
+                                                    {item.date}
+                                                </div>
+                                            </td>
+                                            <td>{renderShiftCell(morningShift)}</td>
+                                            <td>{renderShiftCell(afternoonShift)}</td>
+                                            <td>
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-clinic-navy">
+                                                    <ClinicIcon name="MapPin" size={13} className="text-clinic-cta" />
+                                                    <span>{roomLabel}</span>
+                                                </span>
+                                            </td>
+                                            <td className="tabular-nums">
+                                                <div className="space-y-0.5 text-xs">
+                                                    <div>
+                                                        Sáng:{' '}
+                                                        <strong className="text-clinic-navy">
+                                                            {morningShift ? `${morningShift.bookedPatients}/${morningShift.maxCapacity} BN` : '—'}
+                                                        </strong>
+                                                    </div>
+                                                    <div>
+                                                        Chiều:{' '}
+                                                        <strong className="text-clinic-navy">
+                                                            {afternoonShift ? `${afternoonShift.bookedPatients}/${afternoonShift.maxCapacity} BN` : '—'}
+                                                        </strong>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>

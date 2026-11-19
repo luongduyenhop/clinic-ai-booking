@@ -2,36 +2,36 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
-    Heartbeat,
-    Stethoscope,
-    Pill,
-    Clock,
     CalendarCheck,
+    Clock,
+    Heartbeat,
+    Microscope,
+    Pill,
     Printer,
-    Sparkle,
-    ArrowRight,
-    CaretRight,
-    WarningCircle,
+    Star,
     User,
     Users,
-    Microscope,
-    Eye,
-    Scan
+    WarningCircle,
 } from '../../components/common/ClinicIcon'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchMedicalRecordsAsync, submitPatientFeedbackAsync } from '../../redux/actions/user/patientPortalAction'
+import {
+    fetchMedicalRecordsAsync,
+    submitPatientFeedbackAsync,
+} from '../../redux/actions/user/patientPortalAction'
 import ResultAttachments from '../../components/user/patient/ResultAttachments'
 
 export default function PatientMedicalRecordsPage() {
     const dispatch = useDispatch()
-    const { items: records, loading: isLoading, error: loadError } = useSelector((state) => state.user.user.medicalRecords)
+    const {
+        items: records,
+        loading: isLoading,
+        error: loadError,
+    } = useSelector((state) => state.user.user.medicalRecords)
     const feedback = useSelector((state) => state.user.user.feedbackMutation)
     const currentUser = useSelector((state) => state.app.auth.user)
     const familyList = useSelector((state) => state.user.user.portalData?.familyMembers || [])
     const [selectedRecordId, setSelectedRecordId] = useState(null)
     const [activeTab, setActiveTab] = useState('tong_quan')
-
-
     const [ratingModalOpen, setRatingModalOpen] = useState(false)
     const [ratingScore, setRatingScore] = useState(5)
     const [ratingComment, setRatingComment] = useState('')
@@ -39,7 +39,9 @@ export default function PatientMedicalRecordsPage() {
 
     const currentRecord = records.find((r) => r.id === selectedRecordId) || records[0]
 
-    useEffect(() => { dispatch(fetchMedicalRecordsAsync()) }, [dispatch])
+    useEffect(() => {
+        dispatch(fetchMedicalRecordsAsync())
+    }, [dispatch])
 
     const handleOpenRating = () => {
         if (currentRecord.danhGia) {
@@ -54,14 +56,20 @@ export default function PatientMedicalRecordsPage() {
     const handleSubmitRating = async (e) => {
         e.preventDefault()
         if (feedback.loading) return
-        const result = await dispatch(submitPatientFeedbackAsync({
-            luot_kham_id: Number(currentRecord.id), so_sao_bac_si: ratingScore,
-            so_sao_phong_kham: ratingScore, nhan_xet: ratingComment,
-        }))
+        const result = await dispatch(
+            submitPatientFeedbackAsync({
+                luot_kham_id: Number(currentRecord.id),
+                so_sao_bac_si: ratingScore,
+                so_sao_phong_kham: ratingScore,
+                nhan_xet: ratingComment,
+            })
+        )
         if (submitPatientFeedbackAsync.fulfilled.match(result)) {
             setRatingModalOpen(false)
             toast.success('Cảm ơn bạn đã đánh giá dịch vụ khám chữa bệnh!')
-        } else toast.error(result.payload || 'Không thể lưu đánh giá. Vui lòng thử lại.')
+        } else {
+            toast.error(result.payload || 'Không thể lưu đánh giá. Vui lòng thử lại.')
+        }
     }
 
     const handlePrintRecord = () => {
@@ -69,504 +77,534 @@ export default function PatientMedicalRecordsPage() {
     }
 
     if (isLoading) {
-        return <div className="medpro-card p-10 text-center text-sm font-semibold text-slate-500">Đang tải timeline hồ sơ sức khỏe…</div>
+        return (
+            <div className="medpro-card p-10 text-center text-sm font-semibold text-clinic-text-secondary">
+                Đang tải hồ sơ bệnh án điện tử...
+            </div>
+        )
     }
 
     if (loadError) {
-        return <div className="medpro-card border-rose-200 p-10 text-center text-sm font-semibold text-rose-700">{loadError}</div>
+        return (
+            <div className="medpro-card border-clinic-danger-border bg-clinic-danger-bg p-10 text-center text-sm font-semibold text-clinic-danger">
+                {loadError}
+            </div>
+        )
     }
 
     if (!currentRecord) {
-        return <div className="medpro-card p-10 text-center text-sm font-semibold text-slate-500">Bạn chưa có lượt khám nào trong hồ sơ sức khỏe.</div>
+        return (
+            <div className="medpro-card p-10 text-center text-sm font-semibold text-clinic-text-secondary">
+                Bạn chưa có lượt khám nào trong hồ sơ sức khỏe.
+            </div>
+        )
     }
 
+    const vitalCards = [
+        { label: 'Huyết áp', value: currentRecord.sinhHieu.huyetAp },
+        { label: 'Mạch', value: currentRecord.sinhHieu.mach },
+        { label: 'Nhiệt độ', value: currentRecord.sinhHieu.nhietDo },
+        { label: 'SpO2', value: currentRecord.sinhHieu.spo2 },
+        { label: 'Cân nặng', value: currentRecord.sinhHieu.canNang },
+        { label: 'BMI', value: currentRecord.sinhHieu.bmi },
+    ]
+
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-16">
-            {}
-            <div className="bg-gradient-to-r from-[#003553] via-[#004B75] to-[#0088BA] text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-[#002840]">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6 pb-8">
+            <header className="medpro-card p-5 bg-clinic-surface">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-xs font-semibold text-[#8FE2FF] mb-2 border border-white/15">
-                            <Stethoscope size={15} weight="duotone" />
-                            <span>Hồ Sơ Sức Khỏe Cá Nhân (PHR / EMR)</span>
-                        </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold font-display tracking-tight">
-                            Sổ Bệnh Án & Đơn Thuốc Điện Tử
+                        <h1 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
+                            Sổ Bệnh Án &amp; Đơn Thuốc Điện Tử
                         </h1>
-                        <p className="text-sm text-cyan-100/90 mt-1">
+                        <p className="text-[13.5px] text-clinic-text-secondary mt-1">
                             Tra cứu chi tiết kết quả khám, đơn thuốc 4 cữ trong ngày, xét nghiệm cận lâm sàng và lịch tái khám.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <Link
-                            to="/dat-lich"
-                            className="inline-flex items-center gap-2 bg-[#00B5F1] hover:bg-[#009fd4] text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-md transition"
-                        >
-                            <CalendarCheck size={18} weight="bold" />
+                    <div className="flex items-center gap-3 shrink-0">
+                        <Link to="/dat-lich" className="medpro-btn-primary text-xs px-4 py-2.5">
+                            <CalendarCheck size={17} weight="bold" />
                             <span>Đặt khám mới</span>
                         </Link>
                         <button
+                            type="button"
                             onClick={handlePrintRecord}
-                            className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer"
+                            className="medpro-btn-outline text-xs px-3.5 py-2.5 cursor-pointer"
                             title="In sổ khám bệnh"
                         >
-                            <Printer size={18} weight="duotone" />
+                            <Printer size={17} />
                             <span className="hidden sm:inline">In hồ sơ</span>
                         </button>
                     </div>
                 </div>
 
-                {}
-                <div className="max-w-7xl mx-auto mt-6 pt-4 border-t border-white/15 flex items-center gap-3 overflow-x-auto pb-1">
-                    <span className="text-xs text-cyan-200 font-semibold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-                        <Users size={15} /> Người bệnh:
+                <div className="mt-4 pt-3.5 border-t border-clinic-border flex items-center gap-2 overflow-x-auto">
+                    <span className="text-xs font-semibold text-clinic-text-secondary shrink-0 flex items-center gap-1.5">
+                        <Users size={15} />
+                        <span>Người bệnh:</span>
                     </span>
                     <button
+                        type="button"
                         onClick={() => setActiveFamilyMember('self')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
                             activeFamilyMember === 'self'
-                                ? 'bg-[#00B5F1] text-white shadow-sm'
-                                : 'bg-white/10 text-white/90 hover:bg-white/20'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-clinic-bg-muted text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <User size={13} /> {currentUser?.fullName || currentUser?.ho_ten || 'Bản thân'} (Bản thân)
+                        <User size={13} />
+                        <span>{currentUser?.fullName || currentUser?.ho_ten || 'Bản thân'} (Bản thân)</span>
                     </button>
                     {familyList.map((m) => (
                         <button
+                            type="button"
                             key={m.id}
                             onClick={() => {
                                 setActiveFamilyMember(String(m.id))
-                                toast.info(`Hồ sơ người thân ${m.ho_ten} đang hiển thị theo sổ sức khỏe gia đình.`)
+                                toast.info(
+                                    `Hồ sơ thành viên ${m.ho_ten} đang hiển thị theo sổ sức khỏe gia đình.`
+                                )
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors shrink-0 cursor-pointer ${
                                 activeFamilyMember === String(m.id)
-                                    ? 'bg-[#00B5F1] text-white shadow-sm'
-                                    : 'bg-white/10 text-white/90 hover:bg-white/20'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-clinic-bg-muted text-clinic-text-secondary hover:text-clinic-navy'
                             }`}
                         >
                             {m.ho_ten} ({m.quan_he || m.moi_quan_he || 'Người thân'})
                         </button>
                     ))}
                 </div>
-            </div>
+            </header>
 
-            {}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {}
-                    <div className="lg:col-span-4 space-y-4">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
-                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                                <h2 className="font-bold text-[#003553] text-sm flex items-center gap-2">
-                                    <Clock size={16} className="text-[#00B5F1]" />
-                                    <span>Lịch sử Khám bệnh ({records.length})</span>
-                                </h2>
-                                <span className="text-[11px] font-semibold text-slate-500">Mới nhất trước</span>
-                            </div>
-
-                            <div className="space-y-3">
-                                {records.map((rec) => {
-                                    const isSelected = rec.id === currentRecord.id
-                                    return (
-                                        <div
-                                            key={rec.id}
-                                            onClick={() => setSelectedRecordId(rec.id)}
-                                            className={`p-3.5 rounded-xl border transition cursor-pointer text-left ${
-                                                isSelected
-                                                    ? 'border-[#00B5F1] bg-[#F0F9FF] shadow-xs'
-                                                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 bg-white'
-                                            }`}
-                                        >
-                                            <div className="flex items-center justify-between text-xs mb-1.5">
-                                                <span className="font-extrabold text-[#003553]">{rec.ngayKham}</span>
-                                                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                    Đã hoàn thành
-                                                </span>
-                                            </div>
-                                            <div className="font-bold text-sm text-[#003553] truncate">
-                                                {rec.chuyenKhoa}
-                                            </div>
-                                            <div className="text-xs text-slate-500 truncate mt-0.5">
-                                                {rec.bacSi} • {rec.phongKham}
-                                            </div>
-                                            <div className="text-[11px] text-[#007CA8] font-mono mt-1.5 flex items-center justify-between">
-                                                <span>Mã KCB: {rec.maKcb}</span>
-                                                <CaretRight size={13} className={isSelected ? 'text-[#00B5F1]' : 'text-slate-400'} />
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-4 space-y-4">
+                    <div className="medpro-card p-4 bg-clinic-surface">
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-clinic-border">
+                            <h2 className="font-bold text-clinic-navy text-sm flex items-center gap-2 tabular-nums">
+                                <Clock size={16} className="text-clinic-cta" />
+                                <span>Lịch sử Khám bệnh ({records.length})</span>
+                            </h2>
+                            <span className="text-[11px] font-semibold text-clinic-text-secondary">
+                                Mới nhất trước
+                            </span>
                         </div>
 
-                        {}
-                        <div className="bg-gradient-to-br from-[#E8F4FD] to-[#F0F9FF] border border-[#B8E5FA] rounded-2xl p-4 text-xs text-[#003553] space-y-2">
-                            <div className="font-bold flex items-center gap-1.5 text-[#0088BA]">
-                                <Sparkle size={15} weight="fill" />
-                                <span>Lời khuyên Bác sĩ số hóa</span>
-                            </div>
-                            <p className="text-slate-600 leading-relaxed">
-                                Đơn thuốc điện tử tại Clinic-AI đồng bộ trực tiếp với Cổng Đơn thuốc Quốc gia. Bạn có thể xuất trình mã đơn thuốc khi mua tại bất kỳ nhà thuốc nào trên toàn quốc.
-                            </p>
+                        <div className="divide-y divide-clinic-border">
+                            {records.map((rec) => {
+                                const isSelected = rec.id === currentRecord.id
+                                return (
+                                    <button
+                                        type="button"
+                                        key={rec.id}
+                                        onClick={() => setSelectedRecordId(rec.id)}
+                                        className={`w-full p-3 text-left transition-colors cursor-pointer ${
+                                            isSelected ? 'bg-clinic-surface-alt' : 'hover:bg-clinic-bg'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between text-xs mb-1">
+                                            <span className="font-extrabold text-clinic-navy tabular-nums">
+                                                {rec.ngayKham}
+                                            </span>
+                                            <span className="medpro-badge-success">Đã hoàn thành</span>
+                                        </div>
+                                        <div className="font-bold text-sm text-clinic-navy truncate">
+                                            {rec.chuyenKhoa}
+                                        </div>
+                                        <div className="text-xs text-clinic-text-secondary truncate mt-0.5">
+                                            {rec.bacSi} • {rec.phongKham}
+                                        </div>
+                                        <div className="text-[11px] text-clinic-cta font-mono mt-1 tabular-nums">
+                                            Mã KCB: {rec.maKcb}
+                                        </div>
+                                    </button>
+                                )
+                            })}
                         </div>
                     </div>
 
-                    {}
-                    <div className="lg:col-span-8 space-y-5">
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-                            {}
-                            <div className="p-5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="medpro-card p-4 bg-clinic-surface-tint text-xs space-y-1.5">
+                        <div className="font-bold text-clinic-navy">
+                            Liên thông Đơn thuốc Điện tử Quốc gia
+                        </div>
+                        <p className="text-clinic-text-secondary leading-5">
+                            Đơn thuốc ký số tại Clinic-AI tuân thủ chuẩn dữ liệu Bộ Y tế. Người bệnh có thể xuất trình mã đơn khi nhận thuốc tại quầy dược nội viện hoặc nhà thuốc liên kết.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-8">
+                    <div className="medpro-card bg-clinic-surface overflow-hidden">
+                        <div className="p-5 bg-clinic-surface-tint border-b border-clinic-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="inline-block rounded-[6px] bg-clinic-surface-alt px-2.5 py-1 text-xs font-mono font-bold text-clinic-cta tabular-nums">
+                                        {currentRecord.maKcb}
+                                    </span>
+                                    <span className="text-xs text-clinic-text-secondary font-medium tabular-nums">
+                                        Khám ngày {currentRecord.ngayKham} lúc {currentRecord.gioKham}
+                                    </span>
+                                </div>
+                                <h2 className="text-lg font-bold text-clinic-navy mt-1.5 flex flex-wrap items-center gap-2">
+                                    <span>{currentRecord.chuyenKhoa}</span>
+                                    <span className="text-xs font-normal text-clinic-text-secondary">
+                                        ({currentRecord.phongKham})
+                                    </span>
+                                </h2>
+                                <p className="text-xs text-clinic-text-secondary mt-0.5">
+                                    Bác sĩ điều trị:{' '}
+                                    <strong className="text-clinic-navy">{currentRecord.bacSi}</strong>
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                                {currentRecord.danhGia ? (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-clinic-warning-bg text-clinic-warning text-xs font-bold tabular-nums">
+                                        <Star size={14} weight="fill" className="text-clinic-amber" />
+                                        <span>{currentRecord.danhGia.diemSo}/5 sao</span>
+                                        <span className="text-[11px] font-normal">(Đã gửi)</span>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenRating}
+                                        className="medpro-btn-outline text-xs px-3.5 py-2 cursor-pointer"
+                                    >
+                                        <Star size={14} weight="fill" className="text-clinic-amber" />
+                                        <span>Gửi đánh giá dịch vụ</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap bg-clinic-bg-muted px-3 gap-1 text-xs font-bold">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('tong_quan')}
+                                className={`py-2.5 px-2.5 border-b-2 transition-colors shrink-0 cursor-pointer ${
+                                    activeTab === 'tong_quan'
+                                        ? 'border-clinic-cta text-clinic-cta'
+                                        : 'border-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                                }`}
+                            >
+                                Chẩn đoán &amp; Sinh hiệu
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('don_thuoc')}
+                                className={`py-2.5 px-2.5 border-b-2 transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 tabular-nums ${
+                                    activeTab === 'don_thuoc'
+                                        ? 'border-clinic-cta text-clinic-cta'
+                                        : 'border-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                                }`}
+                            >
+                                <Pill size={15} />
+                                <span>Đơn thuốc 4 cữ ({currentRecord.donThuoc.danhSachThuoc.length})</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('can_lam_sang')}
+                                className={`py-2.5 px-2.5 border-b-2 transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 tabular-nums ${
+                                    activeTab === 'can_lam_sang'
+                                        ? 'border-clinic-cta text-clinic-cta'
+                                        : 'border-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                                }`}
+                            >
+                                <Microscope size={15} />
+                                <span>Cận lâm sàng ({currentRecord.canLamSang.length})</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('tai_kham')}
+                                className={`py-2.5 px-2.5 border-b-2 transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                    activeTab === 'tai_kham'
+                                        ? 'border-clinic-cta text-clinic-cta'
+                                        : 'border-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                                }`}
+                            >
+                                <CalendarCheck size={15} />
+                                <span>Hẹn tái khám</span>
+                            </button>
+                        </div>
+
+                        {activeTab === 'tong_quan' && (
+                            <div className="p-5 space-y-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="p-3.5 rounded-[6px] bg-clinic-bg">
+                                        <span className="text-xs font-semibold text-clinic-text-secondary">
+                                            Lý do vào viện
+                                        </span>
+                                        <p className="text-sm font-semibold text-clinic-navy mt-1">
+                                            {currentRecord.lyDoKham}
+                                        </p>
+                                    </div>
+                                    <div className="p-3.5 rounded-[6px] bg-clinic-bg">
+                                        <span className="text-xs font-semibold text-clinic-text-secondary">
+                                            Tiền sử bệnh
+                                        </span>
+                                        <p className="text-sm font-semibold text-clinic-navy mt-1">
+                                            {currentRecord.tienSu}
+                                        </p>
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-mono font-bold bg-[#E8F4FD] text-[#007CA8] px-2.5 py-1 rounded-md border border-[#B8E5FA]">
-                                            {currentRecord.maKcb}
-                                        </span>
-                                        <span className="text-xs text-slate-500 font-medium">
-                                            Khám ngày {currentRecord.ngayKham} lúc {currentRecord.gioKham}
-                                        </span>
+                                    <h3 className="text-sm font-bold text-clinic-navy mb-2.5 flex items-center gap-1.5">
+                                        <Heartbeat size={16} className="text-clinic-danger" />
+                                        <span>Chỉ số Sinh hiệu lúc tiếp đón</span>
+                                    </h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-center">
+                                        {vitalCards.map((vital) => (
+                                            <div key={vital.label} className="p-2.5 rounded-[6px] bg-clinic-bg">
+                                                <div className="text-[11px] font-semibold text-clinic-text-secondary">
+                                                    {vital.label}
+                                                </div>
+                                                <div className="text-sm font-extrabold text-clinic-navy tabular-nums mt-0.5">
+                                                    {vital.value}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <h2 className="text-lg font-bold text-[#003553] mt-1.5 flex items-center gap-2">
-                                        <span>{currentRecord.chuyenKhoa}</span>
-                                        <span className="text-xs font-normal text-slate-500">({currentRecord.phongKham})</span>
-                                    </h2>
-                                    <p className="text-xs text-slate-600 mt-0.5">
-                                        Bác sĩ điều trị: <strong className="text-[#003553]">{currentRecord.bacSi}</strong>
-                                    </p>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    {currentRecord.danhGia ? (
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-                                            <span>⭐ {currentRecord.danhGia.diemSo}/5 sao</span>
-                                            <span className="text-[10px] text-amber-600 font-normal">(Đã đánh giá)</span>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={handleOpenRating}
-                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-amber-950 text-xs font-bold shadow-xs transition cursor-pointer"
-                                        >
-                                            <span>⭐ Đánh giá lượt khám</span>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {}
-                            <div className="flex border-b border-slate-200 bg-slate-50/50 px-4 gap-2 text-xs font-bold overflow-x-auto">
-                                <button
-                                    onClick={() => setActiveTab('tong_quan')}
-                                    className={`py-3 px-3.5 border-b-2 transition shrink-0 cursor-pointer ${
-                                        activeTab === 'tong_quan'
-                                            ? 'border-[#00B5F1] text-[#0088BA]'
-                                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                                    }`}
-                                >
-                                    Chẩn đoán & Sinh hiệu
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('don_thuoc')}
-                                    className={`py-3 px-3.5 border-b-2 transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                                        activeTab === 'don_thuoc'
-                                            ? 'border-[#00B5F1] text-[#0088BA]'
-                                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                                    }`}
-                                >
-                                    <Pill size={15} />
-                                    <span>Đơn thuốc 4 cữ ({currentRecord.donThuoc.danhSachThuoc.length})</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('can_lam_sang')}
-                                    className={`py-3 px-3.5 border-b-2 transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                                        activeTab === 'can_lam_sang'
-                                            ? 'border-[#00B5F1] text-[#0088BA]'
-                                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                                    }`}
-                                >
-                                    <Microscope size={15} />
-                                    <span>Cận lâm sàng & Xét nghiệm ({currentRecord.canLamSang.length})</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('tai_kham')}
-                                    className={`py-3 px-3.5 border-b-2 transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                                        activeTab === 'tai_kham'
-                                            ? 'border-[#00B5F1] text-[#0088BA]'
-                                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                                    }`}
-                                >
-                                    <CalendarCheck size={15} />
-                                    <span>Hẹn tái khám</span>
-                                </button>
-                            </div>
-
-                            {}
-                            {activeTab === 'tong_quan' && (
-                                <div className="p-5 space-y-6">
-                                    {}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Lý do vào viện</span>
-                                            <p className="text-sm font-semibold text-[#003553] mt-1">{currentRecord.lyDoKham}</p>
-                                        </div>
-                                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Tiền sử bệnh</span>
-                                            <p className="text-sm font-semibold text-[#003553] mt-1">{currentRecord.tienSu}</p>
-                                        </div>
+                                <div className="p-4 rounded-[6px] bg-clinic-surface-alt space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded-[6px] bg-clinic-navy text-clinic-surface text-[11px] font-bold">
+                                            ICD-10 Chính
+                                        </span>
+                                        <span className="font-bold text-sm text-clinic-navy">
+                                            {currentRecord.chanDoan.icd10Chinh}
+                                        </span>
                                     </div>
-
-                                    {}
-                                    <div>
-                                        <h3 className="text-xs font-bold text-[#003553] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                                            <Heartbeat size={15} className="text-rose-500" />
-                                            <span>Chỉ số Sinh hiệu lúc tiếp đón</span>
-                                        </h3>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-center">
-                                            <div className="p-2.5 rounded-xl bg-rose-50/60 border border-rose-100">
-                                                <div className="text-[10px] text-rose-700 font-bold">Huyết áp</div>
-                                                <div className="text-sm font-extrabold text-rose-900 mt-0.5">{currentRecord.sinhHieu.huyetAp}</div>
-                                            </div>
-                                            <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-100">
-                                                <div className="text-[10px] text-sky-700 font-bold">Mạch</div>
-                                                <div className="text-sm font-extrabold text-sky-900 mt-0.5">{currentRecord.sinhHieu.mach}</div>
-                                            </div>
-                                            <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-100">
-                                                <div className="text-[10px] text-amber-700 font-bold">Nhiệt độ</div>
-                                                <div className="text-sm font-extrabold text-amber-900 mt-0.5">{currentRecord.sinhHieu.nhietDo}</div>
-                                            </div>
-                                            <div className="p-2.5 rounded-xl bg-teal-50/60 border border-teal-100">
-                                                <div className="text-[10px] text-teal-700 font-bold">SpO2</div>
-                                                <div className="text-sm font-extrabold text-teal-900 mt-0.5">{currentRecord.sinhHieu.spo2}</div>
-                                            </div>
-                                            <div className="p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-100">
-                                                <div className="text-[10px] text-indigo-700 font-bold">Cân nặng</div>
-                                                <div className="text-sm font-extrabold text-indigo-900 mt-0.5">{currentRecord.sinhHieu.canNang}</div>
-                                            </div>
-                                            <div className="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-100">
-                                                <div className="text-[10px] text-emerald-700 font-bold">BMI</div>
-                                                <div className="text-sm font-extrabold text-emerald-900 mt-0.5">{currentRecord.sinhHieu.bmi}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {}
-                                    <div className="p-4 rounded-xl bg-[#E8F4FD]/50 border border-[#B8E5FA] space-y-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded-md bg-[#00B5F1] text-white text-[11px] font-extrabold">
-                                                ICD-10 Chính
+                                    {currentRecord.chanDoan.icd10Phu && (
+                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                            <span className="px-2 py-0.5 rounded-[6px] bg-clinic-bg-muted text-clinic-text-secondary font-bold">
+                                                Kèm theo
                                             </span>
-                                            <span className="font-bold text-sm text-[#003553]">{currentRecord.chanDoan.icd10Chinh}</span>
+                                            <span className="text-clinic-text">{currentRecord.chanDoan.icd10Phu}</span>
                                         </div>
-                                        {currentRecord.chanDoan.icd10Phu && (
-                                            <div className="flex items-center gap-2 text-xs">
-                                                <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[10px] font-bold">
-                                                    Kèm theo
-                                                </span>
-                                                <span className="text-slate-700">{currentRecord.chanDoan.icd10Phu}</span>
+                                    )}
+                                    <div className="pt-2 text-xs text-clinic-text-secondary">
+                                        <strong className="text-clinic-navy">Kết luận điều trị: </strong>
+                                        {currentRecord.chanDoan.ketLuan}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'don_thuoc' && (
+                            <div className="p-5 space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+                                    <div>
+                                        <span className="text-xs font-mono font-bold text-clinic-cta tabular-nums">
+                                            Mã đơn thuốc: {currentRecord.donThuoc.maDon}
+                                        </span>
+                                        <span className="ml-2 text-xs text-clinic-text-secondary tabular-nums">
+                                            (Số ngày điều trị: <strong>{currentRecord.donThuoc.soNgayDung} ngày</strong>)
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-clinic-warning bg-clinic-warning-bg px-3 py-2 rounded-[6px] flex items-center gap-1.5">
+                                        <WarningCircle size={15} weight="fill" className="shrink-0" />
+                                        <span>
+                                            <strong>Lời dặn:</strong> {currentRecord.donThuoc.loiDanChung}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-clinic-bg-muted text-clinic-navy">
+                                                <th className="p-2.5 font-bold">Tên thuốc &amp; Hàm lượng</th>
+                                                <th className="p-2.5 font-bold text-center">ĐVT</th>
+                                                <th className="p-2.5 font-bold text-center">SL</th>
+                                                <th className="p-2.5 font-bold text-center">Sáng</th>
+                                                <th className="p-2.5 font-bold text-center">Trưa</th>
+                                                <th className="p-2.5 font-bold text-center">Chiều</th>
+                                                <th className="p-2.5 font-bold text-center">Tối</th>
+                                                <th className="p-2.5 font-bold">Cách dùng chi tiết</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-clinic-border">
+                                            {currentRecord.donThuoc.danhSachThuoc.map((med, idx) => (
+                                                <tr key={idx} className="hover:bg-clinic-bg transition-colors">
+                                                    <td className="p-2.5 font-bold text-clinic-navy">{med[0]}</td>
+                                                    <td className="p-2.5 text-center text-clinic-text-secondary">{med[1]}</td>
+                                                    <td className="p-2.5 text-center font-bold text-clinic-cta tabular-nums">
+                                                        {med[2]}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-bold text-clinic-navy tabular-nums">
+                                                        {med[3]}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-bold text-clinic-navy tabular-nums">
+                                                        {med[4]}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-bold text-clinic-navy tabular-nums">
+                                                        {med[5]}
+                                                    </td>
+                                                    <td className="p-2.5 text-center font-bold text-clinic-navy tabular-nums">
+                                                        {med[6]}
+                                                    </td>
+                                                    <td className="p-2.5 text-clinic-text-secondary font-medium">{med[7]}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'can_lam_sang' && (
+                            <div className="p-5 divide-y divide-clinic-border">
+                                {currentRecord.canLamSang.map((cls) => (
+                                    <div key={cls.id} className="py-4 first:pt-0 last:pb-0 space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div>
+                                                <div className="text-xs font-mono text-clinic-cta font-bold tabular-nums">
+                                                    {cls.id}
+                                                </div>
+                                                <h4 className="text-sm font-bold text-clinic-navy">{cls.tenDichVu}</h4>
+                                            </div>
+                                            <span className="text-[11px] text-clinic-text-secondary font-medium tabular-nums">
+                                                Kết quả lúc: {cls.ngayCoKetQua}
+                                            </span>
+                                        </div>
+
+                                        {cls.chiTiet && (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-xs text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-clinic-bg-muted text-clinic-navy">
+                                                            <th className="p-2 font-bold">Chỉ số xét nghiệm</th>
+                                                            <th className="p-2 font-bold text-center">Kết quả</th>
+                                                            <th className="p-2 font-bold text-center">Đơn vị</th>
+                                                            <th className="p-2 font-bold text-center">Khoảng tham chiếu</th>
+                                                            <th className="p-2 font-bold text-center">Đánh giá</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-clinic-border">
+                                                        {cls.chiTiet.map((item, idx) => (
+                                                            <tr key={idx}>
+                                                                <td className="p-2 font-semibold text-clinic-navy">
+                                                                    {item.chiSo || (Array.isArray(item) ? item[0] : '')}
+                                                                </td>
+                                                                <td className="p-2 text-center font-bold text-clinic-navy tabular-nums">
+                                                                    {item.ketQua || (Array.isArray(item) ? item[1] : '')}
+                                                                </td>
+                                                                <td className="p-2 text-center text-clinic-text-secondary">
+                                                                    {item.donVi || ''}
+                                                                </td>
+                                                                <td className="p-2 text-center text-clinic-text-secondary tabular-nums">
+                                                                    {item.thamChieu || (Array.isArray(item) ? item[2] : '')}
+                                                                </td>
+                                                                <td className="p-2 text-center">
+                                                                    {item.trangThai === 'high' ? (
+                                                                        <span className="medpro-badge-danger">Vượt ngưỡng</span>
+                                                                    ) : (
+                                                                        <span className="medpro-badge-success">Bình thường</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         )}
-                                        <div className="pt-2 border-t border-[#B8E5FA] text-xs text-slate-700">
-                                            <strong className="text-[#003553]">Kết luận điều trị: </strong>
-                                            {currentRecord.chanDoan.ketLuan}
+
+                                        {cls.hinhAnhUrl && (
+                                            <ResultAttachments
+                                                files={cls.hinhAnhUrls?.length ? cls.hinhAnhUrls : [cls.hinhAnhUrl]}
+                                                serviceName={cls.tenDichVu}
+                                            />
+                                        )}
+
+                                        <div className="text-xs bg-clinic-bg p-3 rounded-[6px]">
+                                            <strong className="text-clinic-navy">Kết luận chuyên môn: </strong>
+                                            <span className="text-clinic-text">{cls.ketLuan}</span>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'tai_kham' && (
+                            <div className="p-5 space-y-4">
+                                <div className="p-5 rounded-[8px] bg-clinic-surface-alt flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <span className="text-xs font-bold text-clinic-cta">
+                                            Lịch hẹn tái khám theo chỉ định
+                                        </span>
+                                        <h4 className="font-display text-2xl font-extrabold text-clinic-navy flex items-center gap-2 tabular-nums">
+                                            <CalendarCheck size={24} className="text-clinic-cta" />
+                                            <span>{currentRecord.taiKham.ngayHen}</span>
+                                        </h4>
+                                        <p className="text-xs text-clinic-text-secondary">
+                                            Khoa: <strong className="text-clinic-navy">{currentRecord.chuyenKhoa}</strong> •
+                                            Bác sĩ: <strong className="text-clinic-navy">{currentRecord.bacSi}</strong>
+                                        </p>
+                                    </div>
+
+                                    <Link to="/dat-lich" className="medpro-btn-primary text-xs px-4 py-2.5 shrink-0">
+                                        Đặt lịch đúng ngày hẹn này
+                                    </Link>
                                 </div>
-                            )}
 
-                            {}
-                            {activeTab === 'don_thuoc' && (
-                                <div className="p-5 space-y-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
-                                        <div>
-                                            <span className="text-xs font-mono font-bold text-[#0088BA]">
-                                                Mã đơn thuốc: {currentRecord.donThuoc.maDon}
-                                            </span>
-                                            <span className="ml-2 text-xs text-slate-500">
-                                                (Số ngày điều trị: <strong>{currentRecord.donThuoc.soNgayDung} ngày</strong>)
-                                            </span>
-                                        </div>
-                                        <div className="text-xs text-slate-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                                            ⚠️ <strong>Lời dặn:</strong> {currentRecord.donThuoc.loiDanChung}
-                                        </div>
-                                    </div>
-
-                                    {}
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-xs text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-slate-100 text-[#003553] border-b border-slate-200">
-                                                    <th className="p-2.5 font-bold">Tên thuốc & Hàm lượng</th>
-                                                    <th className="p-2.5 font-bold text-center">ĐVT</th>
-                                                    <th className="p-2.5 font-bold text-center">SL</th>
-                                                    <th className="p-2.5 font-bold text-center bg-amber-50 text-amber-900">Sáng</th>
-                                                    <th className="p-2.5 font-bold text-center bg-amber-50 text-amber-900">Trưa</th>
-                                                    <th className="p-2.5 font-bold text-center bg-orange-50 text-orange-900">Chiều</th>
-                                                    <th className="p-2.5 font-bold text-center bg-indigo-50 text-indigo-900">Tối</th>
-                                                    <th className="p-2.5 font-bold">Cách dùng chi tiết</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {currentRecord.donThuoc.danhSachThuoc.map((med, idx) => (
-                                                    <tr key={idx} className="hover:bg-slate-50/70 transition">
-                                                        <td className="p-2.5 font-bold text-[#003553]">{med[0]}</td>
-                                                        <td className="p-2.5 text-center text-slate-600">{med[1]}</td>
-                                                        <td className="p-2.5 text-center font-bold text-[#0088BA]">{med[2]}</td>
-                                                        <td className="p-2.5 text-center font-bold bg-amber-50/50">{med[3]}</td>
-                                                        <td className="p-2.5 text-center font-bold bg-amber-50/50">{med[4]}</td>
-                                                        <td className="p-2.5 text-center font-bold bg-orange-50/50">{med[5]}</td>
-                                                        <td className="p-2.5 text-center font-bold bg-indigo-50/50">{med[6]}</td>
-                                                        <td className="p-2.5 text-slate-600 font-medium">{med[7]}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <div className="p-4 rounded-[6px] bg-clinic-warning-bg text-xs text-clinic-warning space-y-1">
+                                    <strong className="font-bold flex items-center gap-1.5">
+                                        <WarningCircle size={15} weight="fill" />
+                                        <span>Lời dặn dò chuyên biệt từ Bác sĩ:</span>
+                                    </strong>
+                                    <p className="leading-5">{currentRecord.taiKham.loiDanTaiKham}</p>
                                 </div>
-                            )}
-
-                            {}
-                            {activeTab === 'can_lam_sang' && (
-                                <div className="p-5 space-y-4">
-                                    {currentRecord.canLamSang.map((cls) => (
-                                        <div key={cls.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                                                <div>
-                                                    <div className="text-xs font-mono text-[#0088BA] font-bold">{cls.id}</div>
-                                                    <h4 className="text-sm font-bold text-[#003553]">{cls.tenDichVu}</h4>
-                                                </div>
-                                                <span className="text-[11px] text-slate-500 font-medium">
-                                                    Kết quả lúc: {cls.ngayCoKetQua}
-                                                </span>
-                                            </div>
-
-                                            {}
-                                            {cls.chiTiet && (
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-xs text-left border-collapse">
-                                                        <thead>
-                                                            <tr className="bg-slate-50 text-slate-600">
-                                                                <th className="p-2 font-bold">Chỉ số xét nghiệm</th>
-                                                                <th className="p-2 font-bold text-center">Kết quả</th>
-                                                                <th className="p-2 font-bold text-center">Đơn vị</th>
-                                                                <th className="p-2 font-bold text-center">Khoảng tham chiếu</th>
-                                                                <th className="p-2 font-bold text-center">Đánh giá</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-100">
-                                                            {cls.chiTiet.map((item, idx) => (
-                                                                <tr key={idx}>
-                                                                    <td className="p-2 font-semibold text-[#003553]">{item.chiSo || (Array.isArray(item) ? item[0] : '')}</td>
-                                                                    <td className="p-2 text-center font-bold text-[#003553]">{item.ketQua || (Array.isArray(item) ? item[1] : '')}</td>
-                                                                    <td className="p-2 text-center text-slate-500">{item.donVi || ''}</td>
-                                                                    <td className="p-2 text-center text-slate-500">{item.thamChieu || (Array.isArray(item) ? item[2] : '')}</td>
-                                                                    <td className="p-2 text-center">
-                                                                        {item.trangThai === 'high' ? (
-                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
-                                                                                Cao ↑
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                                                                                Bình thường
-                                                                            </span>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            )}
-
-                                            {}
-                                            {cls.hinhAnhUrl && (
-                                                <ResultAttachments
-                                                    files={cls.hinhAnhUrls?.length ? cls.hinhAnhUrls : [cls.hinhAnhUrl]}
-                                                    serviceName={cls.tenDichVu}
-                                                />
-                                            )}
-
-                                            <div className="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                                                <strong className="text-[#003553]">Kết luận chuyên môn: </strong>
-                                                <span className="text-slate-700">{cls.ketLuan}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {}
-                            {activeTab === 'tai_kham' && (
-                                <div className="p-5 space-y-5">
-                                    <div className="p-5 rounded-2xl bg-gradient-to-br from-[#E8F4FD] to-white border border-[#B8E5FA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div className="space-y-1">
-                                            <span className="text-xs font-bold text-[#0088BA] uppercase tracking-wider">
-                                                Lịch hẹn tái khám theo chỉ định
-                                            </span>
-                                            <h4 className="text-2xl font-extrabold text-[#003553] flex items-center gap-2">
-                                                <CalendarCheck size={26} className="text-[#00B5F1]" />
-                                                <span>{currentRecord.taiKham.ngayHen}</span>
-                                            </h4>
-                                            <p className="text-xs text-slate-600">
-                                                Khoa: <strong>{currentRecord.chuyenKhoa}</strong> • Bác sĩ: <strong>{currentRecord.bacSi}</strong>
-                                            </p>
-                                        </div>
-
-                                        <Link
-                                            to="/dat-lich"
-                                            className="inline-flex items-center gap-2 bg-[#00B5F1] hover:bg-[#009fd4] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition"
-                                        >
-                                            <span>Đặt lịch đúng ngày hẹn này</span>
-                                            <ArrowRight size={14} weight="bold" />
-                                        </Link>
-                                    </div>
-
-                                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-                                        <strong className="font-bold flex items-center gap-1.5 text-amber-800">
-                                            <WarningCircle size={15} weight="fill" />
-                                            <span>Lời dặn dò chuyên biệt từ Bác sĩ:</span>
-                                        </strong>
-                                        <p className="leading-relaxed">{currentRecord.taiKham.loiDanTaiKham}</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {}
             {ratingModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                <div className="fixed inset-0 z-50 bg-clinic-navy-dark/60 flex items-center justify-center p-4">
+                    <div className="medpro-card bg-clinic-surface max-w-md w-full p-6">
                         <div className="text-center space-y-2 mb-5">
-                            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-2xl">
-                                ⭐
+                            <div className="w-11 h-11 rounded-[8px] bg-clinic-warning-bg text-clinic-amber flex items-center justify-center mx-auto">
+                                <Star size={24} weight="fill" />
                             </div>
-                            <h3 className="text-lg font-bold text-[#003553]">Đánh Giá Lượt Khám</h3>
-                            <p className="text-xs text-slate-500">
+                            <h3 className="text-lg font-bold text-clinic-navy">
+                                Đánh giá chất lượng buổi khám
+                            </h3>
+                            <p className="text-xs text-clinic-text-secondary">
                                 Bác sĩ {currentRecord.bacSi} • {currentRecord.chuyenKhoa}
                             </p>
                         </div>
 
                         <form onSubmit={handleSubmitRating} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-2 text-center">
+                                <label className="block text-xs font-bold text-clinic-navy mb-2 text-center">
                                     Mức độ hài lòng của bạn
                                 </label>
-                                <div className="flex items-center justify-center gap-2 text-3xl">
+                                <div className="flex items-center justify-center gap-2">
                                     {[1, 2, 3, 4, 5].map((star) => (
                                         <button
                                             type="button"
                                             key={star}
                                             onClick={() => setRatingScore(star)}
-                                            className={`transition transform hover:scale-110 cursor-pointer ${
-                                                star <= ratingScore ? 'opacity-100' : 'opacity-25 grayscale'
-                                            }`}
+                                            aria-label={`${star} sao`}
+                                            className="p-1 cursor-pointer"
                                         >
-                                            ⭐
+                                            <Star
+                                                size={28}
+                                                weight="fill"
+                                                className={
+                                                    star <= ratingScore
+                                                        ? 'text-clinic-amber'
+                                                        : 'text-clinic-border-strong'
+                                                }
+                                            />
                                         </button>
                                     ))}
                                 </div>
-                                <div className="text-center text-xs font-bold text-amber-600 mt-1">
+                                <div className="text-center text-xs font-bold text-clinic-warning mt-1">
                                     {ratingScore === 5 && 'Tuyệt vời, rất hài lòng'}
                                     {ratingScore === 4 && 'Hài lòng, dịch vụ tốt'}
                                     {ratingScore === 3 && 'Bình thường'}
@@ -576,7 +614,7 @@ export default function PatientMedicalRecordsPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                <label className="block text-xs font-bold text-clinic-navy mb-1">
                                     Ý kiến đóng góp (tùy chọn)
                                 </label>
                                 <textarea
@@ -584,7 +622,7 @@ export default function PatientMedicalRecordsPage() {
                                     onChange={(e) => setRatingComment(e.target.value)}
                                     rows={3}
                                     placeholder="Chia sẻ trải nghiệm về thái độ bác sĩ, thời gian chờ hoặc cơ sở phòng khám..."
-                                    className="w-full text-xs rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-[#00B5F1]"
+                                    className="medpro-input text-xs resize-none"
                                 />
                             </div>
 
@@ -592,13 +630,14 @@ export default function PatientMedicalRecordsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setRatingModalOpen(false)}
-                                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                                    className="medpro-btn-outline text-xs px-4 py-2 cursor-pointer"
                                 >
                                     Để sau
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#00B5F1] hover:bg-[#009fd4] text-white shadow-sm transition cursor-pointer"
+                                    disabled={feedback.loading}
+                                    className="medpro-btn-primary text-xs px-5 py-2 cursor-pointer"
                                 >
                                     Gửi đánh giá
                                 </button>

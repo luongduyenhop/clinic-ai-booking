@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import {
-    Stethoscope,
     Eye,
     Ear,
     Tooth,
@@ -12,15 +11,11 @@ import {
     Signature,
     FileText,
     Pill,
-    CheckCircle,
-    Warning,
-    ArrowsClockwise,
     ArrowLeft,
     CaretLeft,
     CaretRight,
     MagnifyingGlass,
     Funnel,
-    Check,
 } from '@phosphor-icons/react'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
@@ -32,45 +27,45 @@ const SPECIALTY_META = {
         title: 'KHÁM NỘI KHOA',
         deptCode: 'NOI',
         icon: Heartbeat,
-        color: 'text-rose-600',
-        bg: 'bg-rose-50',
-        borderColor: 'border-rose-200',
+        color: 'text-clinic-danger',
+        bg: 'bg-clinic-danger-bg',
+        borderColor: 'border-clinic-danger-border',
         desc: 'Khám tuần hoàn, hô hấp, tiêu hóa, thần kinh, cơ xương khớp theo chuẩn Bộ Y tế',
     },
     'ngoai-khoa': {
         title: 'KHÁM NGOẠI KHOA',
         deptCode: 'NGOAI',
         icon: FirstAidKit,
-        color: 'text-teal-600',
-        bg: 'bg-teal-50',
-        borderColor: 'border-teal-200',
+        color: 'text-clinic-success',
+        bg: 'bg-clinic-success-bg',
+        borderColor: 'border-clinic-success-border',
         desc: 'Khám ngoại tổng quát, vết mổ, khối u, thoát vị & chỉ định tiểu phẫu / thủ thuật',
     },
-    'mat': {
+    mat: {
         title: 'KHÁM MẮT (NHÃN KHOA)',
         deptCode: 'MAT',
         icon: Eye,
-        color: 'text-sky-600',
-        bg: 'bg-sky-50',
-        borderColor: 'border-sky-200',
+        color: 'text-clinic-cta',
+        bg: 'bg-clinic-surface-alt',
+        borderColor: 'border-clinic-info-border',
         desc: 'Đo thị lực Snellen OD/OS, nhãn áp kế, khám bán phần trước và đáy mắt',
     },
     'tai-mui-hong': {
         title: 'KHÁM TAI MŨI HỌNG',
         deptCode: 'TMH',
         icon: Ear,
-        color: 'text-amber-600',
-        bg: 'bg-amber-50',
-        borderColor: 'border-amber-200',
+        color: 'text-clinic-warning',
+        bg: 'bg-clinic-warning-bg',
+        borderColor: 'border-clinic-warning-border',
         desc: 'Nội soi ống tai, màng nhĩ, hốc mũi, cuốn mũi, amidan phân độ & dây thanh âm',
     },
     'rang-ham-mat': {
         title: 'KHÁM RĂNG HÀM MẶT',
         deptCode: 'RHM',
         icon: Tooth,
-        color: 'text-indigo-600',
-        bg: 'bg-indigo-50',
-        borderColor: 'border-indigo-200',
+        color: 'text-clinic-navy',
+        bg: 'bg-clinic-bg-muted',
+        borderColor: 'border-clinic-border-strong',
         desc: 'Sơ đồ 32 răng nha khoa Odontogram, nha chu, nướu lợi, vôi răng & khớp thái dương hàm',
     },
 }
@@ -202,36 +197,35 @@ export default function SpecialtyExamPage() {
 
     return (
         <div className="space-y-4">
-            
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="medpro-card p-3.5 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
                         onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/kham-benh')}
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+                        className="p-2 rounded-[6px] bg-clinic-bg-muted border border-clinic-border hover:border-clinic-cta text-clinic-navy transition-colors cursor-pointer"
                         title="Quay lại Bàn khám chung"
                     >
                         <ArrowLeft size={16} weight="bold" />
                     </button>
-                    <div className={`w-10 h-10 rounded-xl ${currentMeta.bg} ${currentMeta.color} flex items-center justify-center font-bold`}>
+                    <div className={`w-10 h-10 rounded-[6px] border ${currentMeta.borderColor} ${currentMeta.bg} ${currentMeta.color} flex items-center justify-center shrink-0`}>
                         <DeptIcon size={22} weight="duotone" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-base font-extrabold text-[#003553] uppercase">{currentMeta.title}</h1>
-                            <span className="medpro-badge-cyan text-[11px] font-bold">Chuẩn Bộ Y tế</span>
+                            <h1 className="font-display text-base font-extrabold text-clinic-navy uppercase">{currentMeta.title}</h1>
+                            <span className="medpro-badge-info text-[11px] font-bold">Chuẩn Bộ Y tế</span>
                         </div>
-                        <p className="text-xs text-slate-500">{currentMeta.desc}</p>
+                        <p className="text-xs text-clinic-text-secondary">{currentMeta.desc}</p>
                     </div>
                 </div>
 
                 {isDoctor ? (
-                    <div className="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3.5 py-2 rounded-xl text-xs font-bold text-[#003553]">
-                        <DeptIcon size={16} weight="duotone" className="text-[#00B5F1]" />
+                    <div className="flex items-center gap-2 bg-clinic-surface-tint border border-clinic-info-border px-3.5 py-2 rounded-[6px] text-xs font-bold text-clinic-navy">
+                        <DeptIcon size={16} weight="duotone" className="text-clinic-cta" />
                         <span>Chuyên khoa phụ trách: {currentMeta.title.replace('KHÁM ', 'KHOA ')}</span>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                    <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border text-xs font-bold">
                         {Object.entries(SPECIALTY_META).map(([key, meta]) => {
                             const Icon = meta.icon
                             const isActive = key === deptKey
@@ -239,10 +233,10 @@ export default function SpecialtyExamPage() {
                                 <Link
                                     key={key}
                                     to={`/admin/kham-chuyen-khoa/${key}`}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] ${
                                         isActive
-                                            ? 'bg-white text-[#00B5F1] shadow-2xs'
-                                            : 'text-slate-600 hover:text-[#00B5F1] hover:bg-white/60'
+                                            ? 'bg-clinic-navy text-clinic-surface'
+                                            : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                     }`}
                                 >
                                     <Icon size={14} weight={isActive ? 'fill' : 'regular'} />
@@ -254,46 +248,40 @@ export default function SpecialtyExamPage() {
                 )}
             </div>
 
-            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                
-                
-                
                 <div className="lg:col-span-4 xl:col-span-3 space-y-3">
-                    <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-3 shadow-2xs">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <div className="flex items-center gap-2 font-extrabold text-xs text-[#003553]">
-                                <Funnel size={14} weight="bold" className="text-[#00B5F1]" />
+                    <div className="medpro-card p-3.5 space-y-3">
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-2 tabular-nums">
+                            <div className="flex items-center gap-2 font-extrabold text-xs text-clinic-navy">
+                                <Funnel size={14} weight="bold" className="text-clinic-cta" />
                                 <span>HÀNG ĐỢI KHÁM ({filteredRegistrations.length})</span>
                             </div>
-                            <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
+                            <span className="medpro-badge-success !text-[10px]">
                                 Phòng mở
                             </span>
                         </div>
 
-                        
                         <div className="relative">
-                            <MagnifyingGlass size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                            <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                             <input
                                 type="text"
                                 placeholder="Mã KCB, Tên, SĐT..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="medpro-input pl-8 text-xs"
+                                className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
                             />
                         </div>
 
-                        
-                        <div className="grid grid-cols-3 gap-1 text-[11px]">
+                        <div className="grid grid-cols-3 gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border text-[11px]">
                             {['ALL', 'Đang khám', 'Chờ khám'].map((st) => (
                                 <button
                                     key={st}
                                     type="button"
                                     onClick={() => setStatusFilter(st)}
-                                    className={`py-1 rounded-lg font-bold border transition text-center cursor-pointer ${
+                                    className={`py-1 rounded-[6px] font-bold transition-colors duration-75 text-center cursor-pointer ${
                                         statusFilter === st
-                                            ? 'bg-[#00B5F1] text-white border-[#00B5F1]'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                            ? 'bg-clinic-navy text-clinic-surface'
+                                            : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
                                     }`}
                                 >
                                     {st === 'ALL' ? 'Tất cả' : st}
@@ -301,34 +289,33 @@ export default function SpecialtyExamPage() {
                             ))}
                         </div>
 
-                        
-                        <div className="space-y-1.5 max-h-[calc(100vh-320px)] overflow-y-auto pr-0.5">
-                            {filteredRegistrations.map((item, idx) => {
+                        <div className="space-y-1.5 max-h-[calc(100vh-320px)] overflow-y-auto pr-0.5 tabular-nums">
+                            {filteredRegistrations.map((item) => {
                                 const isSelected = item.id === currentExam?.id
                                 return (
                                     <div
                                         key={item.id}
                                         onClick={() => setSelectedRegId(item.id)}
-                                        className={`p-2.5 rounded-xl border text-xs transition cursor-pointer ${
+                                        className={`p-2.5 rounded-[6px] border text-xs transition-colors cursor-pointer ${
                                             isSelected
-                                                ? 'bg-[#E8F4FD] border-[#00B5F1] shadow-2xs ring-1 ring-[#00B5F1]'
-                                                : 'bg-white border-slate-200 hover:border-sky-300 hover:bg-slate-50'
+                                                ? 'bg-clinic-surface-alt border-clinic-cta'
+                                                : 'bg-clinic-surface border-clinic-border hover:border-clinic-border-strong'
                                         }`}
                                     >
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className="font-mono font-bold text-[#00B5F1]">{item.maKCB}</span>
+                                            <span className="font-mono font-bold text-clinic-cta">{item.maKCB}</span>
                                             <span
-                                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                className={
                                                     item.trangThai === 'Đang khám'
-                                                        ? 'bg-amber-100 text-amber-800'
-                                                        : 'bg-slate-100 text-slate-600'
-                                                }`}
+                                                        ? 'medpro-badge-warning !text-[10px]'
+                                                        : 'medpro-badge-info !text-[10px]'
+                                                }
                                             >
                                                 {item.trangThai}
                                             </span>
                                         </div>
-                                        <div className="font-bold text-[#12263F]">{item.hoTen}</div>
-                                        <div className="text-[11px] text-slate-500 flex items-center justify-between mt-1">
+                                        <div className="font-bold text-clinic-navy">{item.hoTen}</div>
+                                        <div className="text-[11px] text-clinic-text-secondary flex items-center justify-between mt-1">
                                             <span>{item.tuoi} • {item.gioiTinh}</span>
                                             <span className="font-mono">{item.dienThoai}</span>
                                         </div>
@@ -339,37 +326,33 @@ export default function SpecialtyExamPage() {
                     </div>
                 </div>
 
-                
-                
-                
                 <div className="lg:col-span-8 xl:col-span-9 space-y-3.5">
-                    
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-xs">
+                    <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                            <div className="flex items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border tabular-nums">
                                 <button
                                     type="button"
                                     disabled={!hasPrev}
                                     onClick={() => hasPrev && setSelectedRegId(filteredRegistrations[currentIndex - 1]?.id)}
-                                    className="p-1 rounded hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
+                                    className="p-1 rounded-[4px] hover:bg-clinic-surface text-clinic-text-secondary disabled:opacity-30 cursor-pointer"
                                     title="Bệnh nhân trước"
                                 >
                                     <CaretLeft size={14} weight="bold" />
                                 </button>
-                                <span className="px-2 font-mono font-bold text-[#003553]">
+                                <span className="px-2 font-mono font-bold text-clinic-navy">
                                     {filteredRegistrations.length > 0 ? currentIndex + 1 : 0} / {filteredRegistrations.length}
                                 </span>
                                 <button
                                     type="button"
                                     disabled={!hasNext}
                                     onClick={() => hasNext && setSelectedRegId(filteredRegistrations[currentIndex + 1]?.id)}
-                                    className="p-1 rounded hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
+                                    className="p-1 rounded-[4px] hover:bg-clinic-surface text-clinic-text-secondary disabled:opacity-30 cursor-pointer"
                                     title="Bệnh nhân kế tiếp"
                                 >
                                     <CaretRight size={14} weight="bold" />
                                 </button>
                             </div>
-                            <span className="font-extrabold text-[#003553] text-sm uppercase">{currentMeta.title}</span>
+                            <span className="font-extrabold text-clinic-navy text-sm uppercase">{currentMeta.title}</span>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -386,7 +369,7 @@ export default function SpecialtyExamPage() {
                                 onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/can-lam-sang')}
                                 className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
-                                <FileText size={14} weight="duotone" className="text-[#00B5F1]" />
+                                <FileText size={14} weight="duotone" className="text-clinic-cta" />
                                 <span>Kết quả CLS</span>
                             </button>
                             <button
@@ -394,7 +377,7 @@ export default function SpecialtyExamPage() {
                                 onClick={() => navigate(isDoctor ? '/staff/exam-workstation' : '/admin/kham-benh')}
                                 className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
-                                <Pill size={14} weight="duotone" className="text-[#00B5F1]" />
+                                <Pill size={14} weight="duotone" className="text-clinic-cta" />
                                 <span>Đơn thuốc</span>
                             </button>
                             <button
@@ -408,32 +391,31 @@ export default function SpecialtyExamPage() {
                         </div>
                     </div>
 
-                    
                     {currentExam && (
-                        <div className="bg-[#E8F4FD] border border-[#BCE1F9] p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-[#003553]">
+                        <div className="bg-clinic-surface-alt border border-clinic-info-border p-3 rounded-[6px] flex flex-wrap items-center justify-between gap-3 text-xs text-clinic-navy tabular-nums">
                             <div className="space-y-0.5">
-                                <div className="font-extrabold text-sm text-[#003553]">
+                                <div className="font-extrabold text-sm text-clinic-navy">
                                     {currentExam.hoTen}
-                                    <span className="font-mono text-xs ml-2 text-slate-500 font-semibold">
+                                    <span className="font-mono text-xs ml-2 text-clinic-text-secondary font-semibold">
                                         Mã KCB: {currentExam.maKCB}
                                     </span>
                                 </div>
-                                <div className="text-[11px] text-slate-600 flex flex-wrap items-center gap-2">
+                                <div className="text-[11px] text-clinic-text-secondary flex flex-wrap items-center gap-2">
                                     <span>{currentExam.gioiTinh}</span>
                                     <span>•</span>
                                     <span>{currentExam.ngaySinh} ({currentExam.tuoi})</span>
                                     <span>•</span>
-                                    <span>ĐT: <strong className="font-mono text-[#003553]">{currentExam.dienThoai}</strong></span>
+                                    <span>ĐT: <strong className="font-mono text-clinic-navy">{currentExam.dienThoai}</strong></span>
                                     <span>•</span>
-                                    <span>CCCD: <strong className="font-mono text-[#003553]">{currentExam.cccd || '001188012345'}</strong></span>
+                                    <span>CCCD: <strong className="font-mono text-clinic-navy">{currentExam.cccd || '001188012345'}</strong></span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <label className="text-[11px] font-bold text-slate-500">Loại phiếu khám:</label>
+                                <label className="text-[11px] font-bold text-clinic-text-secondary whitespace-nowrap">Loại phiếu khám:</label>
                                 <select
                                     value={examSheetType}
                                     onChange={(e) => setExamSheetType(e.target.value)}
-                                    className="medpro-input !py-1 text-xs bg-white font-semibold"
+                                    className="medpro-input !py-1.5 h-9 text-xs bg-clinic-surface font-semibold truncate"
                                 >
                                     <option value="Phiếu khám chuyên khoa tiêu chuẩn">Phiếu khám chuyên khoa tiêu chuẩn</option>
                                     <option value="Khám sức khỏe định kỳ (TT 32/2023)">Khám sức khỏe định kỳ (TT 32/2023)</option>
@@ -443,15 +425,17 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    
-                    <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="medpro-card p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         <div>
                             <label className="medpro-label">Bác sĩ khám</label>
                             <select
-                                value={selectedDoctor}
+                                value={selectedDoctor || ''}
                                 onChange={(e) => setSelectedDoctor(e.target.value)}
-                                className="medpro-input font-semibold"
+                                className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                             >
+                                {!doctors.some((d) => d.hoTen === selectedDoctor) && selectedDoctor && (
+                                    <option value={selectedDoctor}>{selectedDoctor}</option>
+                                )}
                                 {doctors.map((d) => (
                                     <option key={d.id} value={d.hoTen}>
                                         {d.hoTen} ({d.chucVu})
@@ -465,7 +449,7 @@ export default function SpecialtyExamPage() {
                                 type="text"
                                 value={recorderName}
                                 onChange={(e) => setRecorderName(e.target.value)}
-                                className="medpro-input"
+                                className="medpro-input !py-1.5 h-9 text-xs"
                             />
                         </div>
                         <div>
@@ -474,49 +458,43 @@ export default function SpecialtyExamPage() {
                                 type="date"
                                 value={recordDate}
                                 onChange={(e) => setRecordDate(e.target.value)}
-                                className="medpro-input font-bold text-[#003553]"
+                                className="medpro-input !py-1.5 h-9 text-xs font-bold text-clinic-navy tabular-nums"
                             />
                         </div>
                     </div>
 
-                    
-                    
-                    
-
-                    
                     {deptKey === 'noi-khoa' && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
-                            <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
+                        <div className="medpro-card p-4 space-y-4 text-xs">
+                            <h2 className="font-extrabold text-sm text-clinic-navy uppercase border-b border-clinic-border pb-2">
                                 NỘI DUNG KHÁM NỘI KHOA (TIM MẠCH - HÔ HẤP - TIÊU HÓA - THẦN KINH - CƠ XƯƠNG KHỚP)
                             </h2>
 
-                            
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
-                                        <strong className="text-slate-800 text-xs">a) Tuần hoàn</strong>
-                                        <label className="inline-flex items-center gap-1.5 text-slate-700 cursor-pointer font-bold ml-3">
-                                            <input type="checkbox" defaultChecked className="accent-[#00B5F1] rounded" />
+                                        <strong className="text-clinic-navy text-xs">a) Tuần hoàn</strong>
+                                        <label className="inline-flex items-center gap-1.5 text-clinic-text cursor-pointer font-bold ml-3">
+                                            <input type="checkbox" defaultChecked className="accent-clinic-cta rounded" />
                                             <span>Bình thường</span>
                                         </label>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] text-slate-500 font-bold">Phân loại:</span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] text-clinic-text-secondary font-bold">Phân loại:</span>
                                         {['Loại I', 'Loại II', 'Loại III', 'Loại IV', 'Loại V'].map((p, idx) => (
                                             <label key={p} className="inline-flex items-center gap-1 cursor-pointer">
-                                                <input type="radio" name="pl_tuanhoan" defaultChecked={idx === 0} className="accent-[#00B5F1]" />
+                                                <input type="radio" name="pl_tuanhoan" defaultChecked={idx === 0} className="accent-clinic-cta" />
                                                 <span>{p}</span>
                                             </label>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>I97.8 - Rối loạn hệ tuần hoàn khác sau phẫu thuật</span>
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>I97.9 - Rối loạn hệ tuần hoàn sau phẫu thuật không đặc hiệu</span>
                                     </label>
                                 </div>
@@ -529,33 +507,32 @@ export default function SpecialtyExamPage() {
                                 />
                             </div>
 
-                            
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
-                                        <strong className="text-slate-800 text-xs">b) Hô hấp</strong>
-                                        <label className="inline-flex items-center gap-1.5 text-slate-700 cursor-pointer font-bold ml-3">
-                                            <input type="checkbox" defaultChecked className="accent-[#00B5F1] rounded" />
+                                        <strong className="text-clinic-navy text-xs">b) Hô hấp</strong>
+                                        <label className="inline-flex items-center gap-1.5 text-clinic-text cursor-pointer font-bold ml-3">
+                                            <input type="checkbox" defaultChecked className="accent-clinic-cta rounded" />
                                             <span>Bình thường</span>
                                         </label>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] text-slate-500 font-bold">Phân loại:</span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] text-clinic-text-secondary font-bold">Phân loại:</span>
                                         {['Loại I', 'Loại II', 'Loại III', 'Loại IV', 'Loại V'].map((p, idx) => (
                                             <label key={p} className="inline-flex items-center gap-1 cursor-pointer">
-                                                <input type="radio" name="pl_hohap" defaultChecked={idx === 0} className="accent-[#00B5F1]" />
+                                                <input type="radio" name="pl_hohap" defaultChecked={idx === 0} className="accent-clinic-cta" />
                                                 <span>{p}</span>
                                             </label>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>R07 - Đau họng và ngực</span>
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>J06 - Nhiễm khuẩn hô hấp trên cấp</span>
                                     </label>
                                 </div>
@@ -568,21 +545,20 @@ export default function SpecialtyExamPage() {
                                 />
                             </div>
 
-                            
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                                <div className="flex items-center justify-between">
+                            <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
-                                        <strong className="text-slate-800 text-xs">c) Tiêu hóa</strong>
-                                        <label className="inline-flex items-center gap-1.5 text-slate-700 cursor-pointer font-bold ml-3">
-                                            <input type="checkbox" defaultChecked className="accent-[#00B5F1] rounded" />
+                                        <strong className="text-clinic-navy text-xs">c) Tiêu hóa</strong>
+                                        <label className="inline-flex items-center gap-1.5 text-clinic-text cursor-pointer font-bold ml-3">
+                                            <input type="checkbox" defaultChecked className="accent-clinic-cta rounded" />
                                             <span>Bình thường</span>
                                         </label>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] text-slate-500 font-bold">Phân loại:</span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] text-clinic-text-secondary font-bold">Phân loại:</span>
                                         {['Loại I', 'Loại II', 'Loại III', 'Loại IV', 'Loại V'].map((p, idx) => (
                                             <label key={p} className="inline-flex items-center gap-1 cursor-pointer">
-                                                <input type="radio" name="pl_tieuhoa" defaultChecked={idx === 0} className="accent-[#00B5F1]" />
+                                                <input type="radio" name="pl_tieuhoa" defaultChecked={idx === 0} className="accent-clinic-cta" />
                                                 <span>{p}</span>
                                             </label>
                                         ))}
@@ -599,24 +575,22 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    
                     {deptKey === 'mat' && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
-                            <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
+                        <div className="medpro-card p-4 space-y-4 text-xs">
+                            <h2 className="font-extrabold text-sm text-clinic-navy uppercase border-b border-clinic-border pb-2">
                                 BỆNH ÁN NHÃN KHOA (ĐO THỊ LỰC - NHÃN ÁP - BÁN PHẦN TRƯỚC - ĐÁY MẮT)
                             </h2>
 
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200 space-y-2.5">
-                                    <div className="font-bold text-sky-900 uppercase">Mắt Phải (OD)</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 tabular-nums">
+                                <div className="p-3.5 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border space-y-2.5">
+                                    <div className="font-bold text-clinic-navy uppercase">Mắt Phải (OD)</div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="medpro-label">Thị lực không kính:</label>
                                             <select
                                                 value={specialtyData?.mat?.thiLucKhongKinhP || '10/10'}
                                                 onChange={(e) => setSpecialtyData({ ...specialtyData, mat: { ...specialtyData.mat, thiLucKhongKinhP: e.target.value } })}
-                                                className="medpro-input font-mono font-bold"
+                                                className="medpro-input !py-1.5 h-9 text-xs font-mono font-bold truncate"
                                             >
                                                 {['10/10', '9/10', '8/10', '7/10', '6/10', '5/10', '4/10', '3/10', '2/10', '1/10', 'ĐNT'].map((v) => (
                                                     <option key={v} value={v}>{v}</option>
@@ -628,7 +602,7 @@ export default function SpecialtyExamPage() {
                                             <select
                                                 value={specialtyData?.mat?.thiLucCoKinhP || '10/10'}
                                                 onChange={(e) => setSpecialtyData({ ...specialtyData, mat: { ...specialtyData.mat, thiLucCoKinhP: e.target.value } })}
-                                                className="medpro-input font-mono font-bold"
+                                                className="medpro-input !py-1.5 h-9 text-xs font-mono font-bold truncate"
                                             >
                                                 {['10/10', '9/10', '8/10', '7/10', '6/10', '5/10', '4/10', '3/10', '2/10', '1/10'].map((v) => (
                                                     <option key={v} value={v}>{v}</option>
@@ -647,15 +621,15 @@ export default function SpecialtyExamPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200 space-y-2.5">
-                                    <div className="font-bold text-sky-900 uppercase">Mắt Trái (OS)</div>
+                                <div className="p-3.5 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border space-y-2.5">
+                                    <div className="font-bold text-clinic-navy uppercase">Mắt Trái (OS)</div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="medpro-label">Thị lực không kính:</label>
                                             <select
                                                 value={specialtyData?.mat?.thiLucKhongKinhT || '10/10'}
                                                 onChange={(e) => setSpecialtyData({ ...specialtyData, mat: { ...specialtyData.mat, thiLucKhongKinhT: e.target.value } })}
-                                                className="medpro-input font-mono font-bold"
+                                                className="medpro-input !py-1.5 h-9 text-xs font-mono font-bold truncate"
                                             >
                                                 {['10/10', '9/10', '8/10', '7/10', '6/10', '5/10', '4/10', '3/10', '2/10', '1/10', 'ĐNT'].map((v) => (
                                                     <option key={v} value={v}>{v}</option>
@@ -667,7 +641,7 @@ export default function SpecialtyExamPage() {
                                             <select
                                                 value={specialtyData?.mat?.thiLucCoKinhT || '10/10'}
                                                 onChange={(e) => setSpecialtyData({ ...specialtyData, mat: { ...specialtyData.mat, thiLucCoKinhT: e.target.value } })}
-                                                className="medpro-input font-mono font-bold"
+                                                className="medpro-input !py-1.5 h-9 text-xs font-mono font-bold truncate"
                                             >
                                                 {['10/10', '9/10', '8/10', '7/10', '6/10', '5/10', '4/10', '3/10', '2/10', '1/10'].map((v) => (
                                                     <option key={v} value={v}>{v}</option>
@@ -687,36 +661,34 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <div className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2">
                                 <div className="flex items-center gap-3">
-                                    <strong className="text-slate-800">Các bệnh về mắt (nếu có):</strong>
-                                    <label className="inline-flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" defaultChecked className="accent-[#00B5F1]" />
+                                    <strong className="text-clinic-navy">Các bệnh về mắt (nếu có):</strong>
+                                    <label className="inline-flex items-center gap-1.5 font-bold text-clinic-text cursor-pointer">
+                                        <input type="checkbox" defaultChecked className="accent-clinic-cta" />
                                         <span>Bình thường</span>
                                     </label>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>H52.0 - Viễn thị</span>
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>H52.1 - Cận thị</span>
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>H52.2 - Loạn thị</span>
                                     </label>
-                                    <label className="inline-flex items-center gap-2 text-slate-600">
-                                        <input type="checkbox" className="accent-[#00B5F1]" />
+                                    <label className="inline-flex items-center gap-2 text-clinic-text-secondary">
+                                        <input type="checkbox" className="accent-clinic-cta" />
                                         <span>H44.2 - Cận thị thoái hóa</span>
                                     </label>
                                 </div>
                             </div>
 
-                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="medpro-label">Bán phần trước (Kết mạc, Giác mạc, Tiền phòng)</label>
@@ -728,7 +700,7 @@ export default function SpecialtyExamPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Đáy mắt (Gai thị & Võng mạc)</label>
+                                    <label className="medpro-label">Đáy mắt (Gai thị &amp; Võng mạc)</label>
                                     <input
                                         type="text"
                                         value={specialtyData?.mat?.dayMat || 'Gai thị hồng, bờ rõ, tỷ lệ C/D 0.3'}
@@ -740,16 +712,15 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    
                     {deptKey === 'tai-mui-hong' && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
-                            <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
+                        <div className="medpro-card p-4 space-y-4 text-xs">
+                            <h2 className="font-extrabold text-sm text-clinic-navy uppercase border-b border-clinic-border pb-2">
                                 BỆNH ÁN TAI MŨI HỌNG (NỘI SOI MÀNG NHĨ - HỐC MŨI - AMIDAN - THANH QUẢN)
                             </h2>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label className="medpro-label">Tai Phải (Ống tai & Màng nhĩ P)</label>
+                                    <label className="medpro-label">Tai Phải (Ống tai &amp; Màng nhĩ P)</label>
                                     <textarea
                                         rows={2}
                                         value={specialtyData?.tmh?.taiPhai || 'Màng nhĩ sáng bóng, nón sáng rõ'}
@@ -758,7 +729,7 @@ export default function SpecialtyExamPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Tai Trái (Ống tai & Màng nhĩ T)</label>
+                                    <label className="medpro-label">Tai Trái (Ống tai &amp; Màng nhĩ T)</label>
                                     <textarea
                                         rows={2}
                                         value={specialtyData?.tmh?.taiTrai || 'Màng nhĩ sáng bóng, nón sáng rõ, không thủng'}
@@ -767,7 +738,7 @@ export default function SpecialtyExamPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Hốc Mũi & Cuốn mũi, Vách ngăn</label>
+                                    <label className="medpro-label">Hốc Mũi &amp; Cuốn mũi, Vách ngăn</label>
                                     <textarea
                                         rows={2}
                                         value={specialtyData?.tmh?.mui || 'Hốc mũi thoáng, niêm mạc hồng, cuốn mũi dưới không phì đại'}
@@ -776,7 +747,7 @@ export default function SpecialtyExamPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Họng, Amidan (Độ I - IV) & Dây thanh âm</label>
+                                    <label className="medpro-label">Họng, Amidan (Độ I - IV) &amp; Dây thanh âm</label>
                                     <textarea
                                         rows={2}
                                         value={specialtyData?.tmh?.amidan || 'Amidan Độ 0, không hốc mủ, dây thanh âm di động tốt'}
@@ -788,45 +759,43 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    
                     {deptKey === 'rang-ham-mat' && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                                <h2 className="font-extrabold text-sm text-[#003553] uppercase">
-                                    SƠ ĐỒ 32 RĂNG NHA KHOA TƯƠNG TÁC (ODONTOGRAM) & BỆNH HỌC MIỆNG
+                        <div className="medpro-card p-4 space-y-4 text-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-2 tabular-nums">
+                                <h2 className="font-extrabold text-sm text-clinic-navy uppercase">
+                                    SƠ ĐỒ 32 RĂNG NHA KHOA TƯƠNG TÁC (ODONTOGRAM) &amp; BỆNH HỌC MIỆNG
                                 </h2>
                                 <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-bold">
-                                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">BT: {toothCounts.BT}</span>
-                                    <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200">Sâu: {toothCounts.S}</span>
-                                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300">Mất: {toothCounts.M}</span>
-                                    <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">Trám: {toothCounts.T}</span>
-                                    <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200">Sứ: {toothCounts.B}</span>
-                                    <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-900 border border-orange-200">Khôn: {toothCounts.K}</span>
+                                    <span className="medpro-badge-success !text-[10px]">BT: {toothCounts.BT}</span>
+                                    <span className="medpro-badge-danger !text-[10px]">Sâu: {toothCounts.S}</span>
+                                    <span className="px-2 py-0.5 rounded bg-clinic-bg-muted text-clinic-text-secondary border border-clinic-border">Mất: {toothCounts.M}</span>
+                                    <span className="medpro-badge-warning !text-[10px]">Trám: {toothCounts.T}</span>
+                                    <span className="medpro-badge-info !text-[10px]">Sứ: {toothCounts.B}</span>
+                                    <span className="px-2 py-0.5 rounded bg-clinic-surface-tint text-clinic-navy border border-clinic-border-strong">Khôn: {toothCounts.K}</span>
                                 </div>
                             </div>
 
-                            
-                            <div className="flex flex-wrap items-center justify-between gap-2 bg-[#F8FBFE] p-3 rounded-xl border border-slate-200">
+                            <div className="flex flex-wrap items-center justify-between gap-2 bg-clinic-surface-tint p-3 rounded-[6px] border border-clinic-border tabular-nums">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-600 font-bold">Đang chọn:</span>
-                                    <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-mono font-bold text-xs">
+                                    <span className="text-clinic-text-secondary font-bold">Đang chọn:</span>
+                                    <span className="px-2.5 py-1 rounded-[6px] bg-clinic-navy text-clinic-surface font-mono font-bold text-xs">
                                         Răng số: {activeTooth}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5">
                                     {[
-                                        { code: 'BT', label: 'Bình thường', cls: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-300' },
-                                        { code: 'S', label: 'Sâu răng [S]', cls: 'bg-rose-50 text-rose-800 hover:bg-rose-100 border-rose-300' },
-                                        { code: 'M', label: 'Mất răng [M]', cls: 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-400' },
-                                        { code: 'T', label: 'Trám răng [T]', cls: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300' },
-                                        { code: 'B', label: 'Bọc sứ [B]', cls: 'bg-purple-50 text-purple-900 hover:bg-purple-100 border-purple-300' },
-                                        { code: 'K', label: 'Khôn lệch [K]', cls: 'bg-orange-50 text-orange-900 hover:bg-orange-100 border-orange-300' },
+                                        { code: 'BT', label: 'Bình thường', cls: 'bg-clinic-success-bg text-clinic-success border-clinic-success-border' },
+                                        { code: 'S', label: 'Sâu răng [S]', cls: 'bg-clinic-danger-bg text-clinic-danger border-clinic-danger-border' },
+                                        { code: 'M', label: 'Mất răng [M]', cls: 'bg-clinic-bg-muted text-clinic-text-secondary border-clinic-border-strong' },
+                                        { code: 'T', label: 'Trám răng [T]', cls: 'bg-clinic-warning-bg text-clinic-warning border-clinic-warning-border' },
+                                        { code: 'B', label: 'Bọc sứ [B]', cls: 'bg-clinic-surface-alt text-clinic-cta border-clinic-info-border' },
+                                        { code: 'K', label: 'Khôn lệch [K]', cls: 'bg-clinic-surface text-clinic-navy border-clinic-border-strong' },
                                     ].map((btn) => (
                                         <button
                                             key={btn.code}
                                             type="button"
                                             onClick={() => handleUpdateToothStatus(btn.code)}
-                                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] border transition cursor-pointer ${btn.cls}`}
+                                            className={`px-2.5 py-1 rounded-[6px] font-bold text-[11px] border transition-colors hover:opacity-85 cursor-pointer ${btn.cls}`}
                                         >
                                             {btn.label}
                                         </button>
@@ -834,11 +803,10 @@ export default function SpecialtyExamPage() {
                                 </div>
                             </div>
 
-                            
-                            <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-4">
+                            <div className="p-3 bg-clinic-surface rounded-[6px] border border-clinic-border space-y-4 tabular-nums">
                                 <div>
-                                    <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider mb-1 text-center">
-                                        &mdash; HÀM TRÊN (CUNG 1 & CUNG 2) &mdash;
+                                    <div className="text-[10px] font-extrabold uppercase text-clinic-text-muted tracking-wider mb-1 text-center">
+                                        HÀM TRÊN (CUNG 1 &amp; CUNG 2)
                                     </div>
                                     <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto py-1">
                                         <div className="flex items-center gap-1">
@@ -849,23 +817,23 @@ export default function SpecialtyExamPage() {
                                                     <div
                                                         key={tooth}
                                                         onClick={() => setActiveTooth(tooth)}
-                                                        className={`w-9 h-11 rounded-lg border flex flex-col items-center justify-between p-1 transition cursor-pointer select-none ${
-                                                            isSelected ? 'ring-2 ring-[#00B5F1] border-[#00B5F1] shadow-md scale-105' : 'border-slate-200 hover:border-indigo-300'
+                                                        className={`w-9 h-11 rounded-[6px] border flex flex-col items-center justify-between p-1 transition-colors cursor-pointer select-none ${
+                                                            isSelected ? 'ring-2 ring-clinic-cta border-clinic-cta' : 'border-clinic-border hover:border-clinic-cta'
                                                         } ${
-                                                            st === 'S' ? 'bg-rose-50 text-rose-800' :
-                                                            st === 'M' ? 'bg-slate-200 text-slate-500 opacity-60' :
-                                                            st === 'T' ? 'bg-amber-50 text-amber-900' :
-                                                            st === 'B' ? 'bg-purple-50 text-purple-900' :
-                                                            st === 'K' ? 'bg-orange-50 text-orange-900' : 'bg-white text-slate-700'
+                                                            st === 'S' ? 'bg-clinic-danger-bg text-clinic-danger' :
+                                                            st === 'M' ? 'bg-clinic-bg-muted text-clinic-text-muted opacity-60' :
+                                                            st === 'T' ? 'bg-clinic-warning-bg text-clinic-warning' :
+                                                            st === 'B' ? 'bg-clinic-surface-alt text-clinic-cta' :
+                                                            st === 'K' ? 'bg-clinic-surface-tint text-clinic-navy' : 'bg-clinic-surface text-clinic-text'
                                                         }`}
                                                     >
                                                         <span className="font-mono font-bold text-[10px]">{tooth}</span>
-                                                        <span className="font-black text-[9.5px] uppercase font-mono">{st}</span>
+                                                        <span className="font-extrabold text-[9.5px] uppercase font-mono">{st}</span>
                                                     </div>
                                                 )
                                             })}
                                         </div>
-                                        <div className="w-[1.5px] h-9 bg-indigo-200 mx-1 shrink-0" />
+                                        <div className="w-[1.5px] h-9 bg-clinic-border-strong mx-1 shrink-0" />
                                         <div className="flex items-center gap-1">
                                             {['21', '22', '23', '24', '25', '26', '27', '28'].map((tooth) => {
                                                 const st = specialtyData?.rhm?.teethStatus?.[tooth] || 'BT'
@@ -874,18 +842,18 @@ export default function SpecialtyExamPage() {
                                                     <div
                                                         key={tooth}
                                                         onClick={() => setActiveTooth(tooth)}
-                                                        className={`w-9 h-11 rounded-lg border flex flex-col items-center justify-between p-1 transition cursor-pointer select-none ${
-                                                            isSelected ? 'ring-2 ring-[#00B5F1] border-[#00B5F1] shadow-md scale-105' : 'border-slate-200 hover:border-indigo-300'
+                                                        className={`w-9 h-11 rounded-[6px] border flex flex-col items-center justify-between p-1 transition-colors cursor-pointer select-none ${
+                                                            isSelected ? 'ring-2 ring-clinic-cta border-clinic-cta' : 'border-clinic-border hover:border-clinic-cta'
                                                         } ${
-                                                            st === 'S' ? 'bg-rose-50 text-rose-800' :
-                                                            st === 'M' ? 'bg-slate-200 text-slate-500 opacity-60' :
-                                                            st === 'T' ? 'bg-amber-50 text-amber-900' :
-                                                            st === 'B' ? 'bg-purple-50 text-purple-900' :
-                                                            st === 'K' ? 'bg-orange-50 text-orange-900' : 'bg-white text-slate-700'
+                                                            st === 'S' ? 'bg-clinic-danger-bg text-clinic-danger' :
+                                                            st === 'M' ? 'bg-clinic-bg-muted text-clinic-text-muted opacity-60' :
+                                                            st === 'T' ? 'bg-clinic-warning-bg text-clinic-warning' :
+                                                            st === 'B' ? 'bg-clinic-surface-alt text-clinic-cta' :
+                                                            st === 'K' ? 'bg-clinic-surface-tint text-clinic-navy' : 'bg-clinic-surface text-clinic-text'
                                                         }`}
                                                     >
                                                         <span className="font-mono font-bold text-[10px]">{tooth}</span>
-                                                        <span className="font-black text-[9.5px] uppercase font-mono">{st}</span>
+                                                        <span className="font-extrabold text-[9.5px] uppercase font-mono">{st}</span>
                                                     </div>
                                                 )
                                             })}
@@ -893,7 +861,7 @@ export default function SpecialtyExamPage() {
                                     </div>
                                 </div>
 
-                                <div className="border-b border-dashed border-slate-200" />
+                                <div className="border-b border-dashed border-clinic-border" />
 
                                 <div>
                                     <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto py-1">
@@ -905,23 +873,23 @@ export default function SpecialtyExamPage() {
                                                     <div
                                                         key={tooth}
                                                         onClick={() => setActiveTooth(tooth)}
-                                                        className={`w-9 h-11 rounded-lg border flex flex-col items-center justify-between p-1 transition cursor-pointer select-none ${
-                                                            isSelected ? 'ring-2 ring-[#00B5F1] border-[#00B5F1] shadow-md scale-105' : 'border-slate-200 hover:border-indigo-300'
+                                                        className={`w-9 h-11 rounded-[6px] border flex flex-col items-center justify-between p-1 transition-colors cursor-pointer select-none ${
+                                                            isSelected ? 'ring-2 ring-clinic-cta border-clinic-cta' : 'border-clinic-border hover:border-clinic-cta'
                                                         } ${
-                                                            st === 'S' ? 'bg-rose-50 text-rose-800' :
-                                                            st === 'M' ? 'bg-slate-200 text-slate-500 opacity-60' :
-                                                            st === 'T' ? 'bg-amber-50 text-amber-900' :
-                                                            st === 'B' ? 'bg-purple-50 text-purple-900' :
-                                                            st === 'K' ? 'bg-orange-50 text-orange-900' : 'bg-white text-slate-700'
+                                                            st === 'S' ? 'bg-clinic-danger-bg text-clinic-danger' :
+                                                            st === 'M' ? 'bg-clinic-bg-muted text-clinic-text-muted opacity-60' :
+                                                            st === 'T' ? 'bg-clinic-warning-bg text-clinic-warning' :
+                                                            st === 'B' ? 'bg-clinic-surface-alt text-clinic-cta' :
+                                                            st === 'K' ? 'bg-clinic-surface-tint text-clinic-navy' : 'bg-clinic-surface text-clinic-text'
                                                         }`}
                                                     >
                                                         <span className="font-mono font-bold text-[10px]">{tooth}</span>
-                                                        <span className="font-black text-[9.5px] uppercase font-mono">{st}</span>
+                                                        <span className="font-extrabold text-[9.5px] uppercase font-mono">{st}</span>
                                                     </div>
                                                 )
                                             })}
                                         </div>
-                                        <div className="w-[1.5px] h-9 bg-indigo-200 mx-1 shrink-0" />
+                                        <div className="w-[1.5px] h-9 bg-clinic-border-strong mx-1 shrink-0" />
                                         <div className="flex items-center gap-1">
                                             {['31', '32', '33', '34', '35', '36', '37', '38'].map((tooth) => {
                                                 const st = specialtyData?.rhm?.teethStatus?.[tooth] || 'BT'
@@ -930,33 +898,32 @@ export default function SpecialtyExamPage() {
                                                     <div
                                                         key={tooth}
                                                         onClick={() => setActiveTooth(tooth)}
-                                                        className={`w-9 h-11 rounded-lg border flex flex-col items-center justify-between p-1 transition cursor-pointer select-none ${
-                                                            isSelected ? 'ring-2 ring-[#00B5F1] border-[#00B5F1] shadow-md scale-105' : 'border-slate-200 hover:border-indigo-300'
+                                                        className={`w-9 h-11 rounded-[6px] border flex flex-col items-center justify-between p-1 transition-colors cursor-pointer select-none ${
+                                                            isSelected ? 'ring-2 ring-clinic-cta border-clinic-cta' : 'border-clinic-border hover:border-clinic-cta'
                                                         } ${
-                                                            st === 'S' ? 'bg-rose-50 text-rose-800' :
-                                                            st === 'M' ? 'bg-slate-200 text-slate-500 opacity-60' :
-                                                            st === 'T' ? 'bg-amber-50 text-amber-900' :
-                                                            st === 'B' ? 'bg-purple-50 text-purple-900' :
-                                                            st === 'K' ? 'bg-orange-50 text-orange-900' : 'bg-white text-slate-700'
+                                                            st === 'S' ? 'bg-clinic-danger-bg text-clinic-danger' :
+                                                            st === 'M' ? 'bg-clinic-bg-muted text-clinic-text-muted opacity-60' :
+                                                            st === 'T' ? 'bg-clinic-warning-bg text-clinic-warning' :
+                                                            st === 'B' ? 'bg-clinic-surface-alt text-clinic-cta' :
+                                                            st === 'K' ? 'bg-clinic-surface-tint text-clinic-navy' : 'bg-clinic-surface text-clinic-text'
                                                         }`}
                                                     >
                                                         <span className="font-mono font-bold text-[10px]">{tooth}</span>
-                                                        <span className="font-black text-[9.5px] uppercase font-mono">{st}</span>
+                                                        <span className="font-extrabold text-[9.5px] uppercase font-mono">{st}</span>
                                                     </div>
                                                 )
                                             })}
                                         </div>
                                     </div>
-                                    <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider mt-1 text-center">
-                                        &mdash; HÀM DƯỚI (CUNG 4 & CUNG 3) &mdash;
+                                    <div className="text-[10px] font-extrabold uppercase text-clinic-text-muted tracking-wider mt-1 text-center">
+                                        HÀM DƯỚI (CUNG 4 &amp; CUNG 3)
                                     </div>
                                 </div>
                             </div>
 
-                            
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
-                                    <label className="medpro-label">Tình trạng Nướu / Lợi & BOP</label>
+                                    <label className="medpro-label">Tình trạng Nướu / Lợi &amp; BOP</label>
                                     <input
                                         type="text"
                                         value={specialtyData?.rhm?.nuouLoi || 'Nướu hồng hào, săn chắc'}
@@ -969,7 +936,7 @@ export default function SpecialtyExamPage() {
                                     <select
                                         value={specialtyData?.rhm?.caoRang || 'Độ 1 (Có ít mảng bám vôi răng mặt trong)'}
                                         onChange={(e) => setSpecialtyData({ ...specialtyData, rhm: { ...specialtyData.rhm, caoRang: e.target.value } })}
-                                        className="medpro-input"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                     >
                                         <option value="Độ 0 (Không có cao răng)">Độ 0 (Không có cao răng)</option>
                                         <option value="Độ 1 (Có ít mảng bám vôi răng mặt trong)">Độ 1 (Có ít mảng bám vôi răng mặt trong)</option>
@@ -978,7 +945,7 @@ export default function SpecialtyExamPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Khớp cắn & Khớp thái dương hàm</label>
+                                    <label className="medpro-label">Khớp cắn &amp; Khớp thái dương hàm</label>
                                     <input
                                         type="text"
                                         value={specialtyData?.rhm?.khopThaiDuongHam || 'Khớp cắn Loại I, há miệng 4cm, không lục cục'}
@@ -990,16 +957,15 @@ export default function SpecialtyExamPage() {
                         </div>
                     )}
 
-                    
                     {deptKey === 'ngoai-khoa' && (
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4 text-xs">
-                            <h2 className="font-extrabold text-sm text-[#003553] uppercase border-b border-slate-100 pb-2">
+                        <div className="medpro-card p-4 space-y-4 text-xs">
+                            <h2 className="font-extrabold text-sm text-clinic-navy uppercase border-b border-clinic-border pb-2">
                                 BỆNH ÁN NGOẠI KHOA (VẾT MỔ - KHỐI U - THOÁT VỊ - TIỂU PHẪU)
                             </h2>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label className="medpro-label">Khám ngoại tổng quát & Tư thế</label>
+                                    <label className="medpro-label">Khám ngoại tổng quát &amp; Tư thế</label>
                                     <input
                                         type="text"
                                         value={specialtyData?.ngoaiKhoa?.khamNgoaiTongQuat || 'Thể trạng trung bình, niêm mạc hồng'}
@@ -1026,7 +992,7 @@ export default function SpecialtyExamPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="medpro-label">Thoát vị thành bụng & Bẹn</label>
+                                    <label className="medpro-label">Thoát vị thành bụng &amp; Bẹn</label>
                                     <input
                                         type="text"
                                         value={specialtyData?.ngoaiKhoa?.thoatVi || 'Thành bụng chắc, lỗ bẹn nông 2 bên không phồng'}
@@ -1040,7 +1006,7 @@ export default function SpecialtyExamPage() {
                                         type="text"
                                         value={specialtyData?.ngoaiKhoa?.tieuPhauDeNghi || 'Chưa có chỉ định can thiệp ngoại khoa'}
                                         onChange={(e) => setSpecialtyData({ ...specialtyData, ngoaiKhoa: { ...specialtyData.ngoaiKhoa, tieuPhauDeNghi: e.target.value } })}
-                                        className="medpro-input font-bold text-[#003553]"
+                                        className="medpro-input font-bold text-clinic-navy"
                                     />
                                 </div>
                             </div>

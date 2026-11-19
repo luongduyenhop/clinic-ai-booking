@@ -72,7 +72,7 @@ export default function StepOrders({
                 </label>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[12px] text-slate-500">Gói theo khoa:</span>
+                    <span className="text-[12px] text-clinic-text-secondary">Gói theo khoa:</span>
                     {SPECIALTY_PACKS.map((p) => (
                         <button
                             key={p.key}
@@ -80,8 +80,10 @@ export default function StepOrders({
                             disabled={locked}
                             aria-pressed={pack === p.key}
                             onClick={() => applyPack(p)}
-                            className={`rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition cursor-pointer disabled:cursor-not-allowed ${
-                                pack === p.key ? 'bg-[#E8F4FD] text-[#003553] ring-2 ring-[#00B5F1]' : 'bg-white text-[#003553] ring-1 ring-slate-300 hover:ring-[#00B5F1]'
+                            className={`rounded-[6px] px-3 py-1.5 text-[12px] font-semibold transition cursor-pointer disabled:cursor-not-allowed border ${
+                                pack === p.key
+                                    ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                                    : 'bg-clinic-surface text-clinic-navy border-clinic-border hover:border-clinic-cta'
                             }`}
                         >
                             {p.label}
@@ -94,7 +96,7 @@ export default function StepOrders({
                     if (items.length === 0) return null
                     return (
                         <fieldset key={g.key} className="flex flex-col gap-2">
-                            <legend className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                            <legend className="mb-2 flex items-center gap-1.5 text-xs font-bold text-clinic-text-secondary">
                                 <ClinicIcon name={g.icon} size={14} /> {g.label}
                             </legend>
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
@@ -104,12 +106,12 @@ export default function StepOrders({
                                     return (
                                         <label
                                             key={s.id}
-                                            className={`flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[13px] transition ${
+                                            className={`flex min-h-11 items-center gap-2.5 rounded-[6px] border px-3 text-[13px] transition ${
                                                 already
-                                                    ? 'cursor-not-allowed bg-slate-100 text-slate-500'
+                                                    ? 'cursor-not-allowed bg-clinic-bg-muted border-clinic-border text-clinic-text-muted'
                                                     : checked
-                                                      ? 'cursor-pointer bg-[#E8F4FD] font-semibold text-[#003553] ring-2 ring-[#00B5F1]'
-                                                      : 'cursor-pointer bg-[#F5F9FC] hover:bg-[#EEF6FC]'
+                                                      ? 'cursor-pointer bg-clinic-surface-alt border-clinic-cta font-semibold text-clinic-navy'
+                                                      : 'cursor-pointer bg-clinic-surface border-clinic-border hover:border-clinic-info-border hover:bg-clinic-surface-tint'
                                             }`}
                                         >
                                             <input type="checkbox" checked={checked} disabled={already || locked} onChange={() => toggle(s.id)} />
@@ -125,17 +127,17 @@ export default function StepOrders({
                 {filtered.length === 0 && <EmptyBlock icon="MagnifyingGlass" title="Không tìm thấy dịch vụ phù hợp" />}
             </div>
 
-            <div className="flex flex-[1_1_280px] flex-col gap-3.5 self-start rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
+            <div className="medpro-card flex flex-[1_1_280px] flex-col gap-3.5 self-start rounded-[6px] bg-clinic-surface-alt p-4 border-clinic-info-border">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
+                        <span className="text-[12px] font-extrabold text-clinic-navy tabular-nums">
                             Đang chọn ({pickedServices.length})
                         </span>
                         {pickedServices.length > 0 && (
                             <button
                                 type="button"
                                 onClick={() => setPicked([])}
-                                className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
+                                className="text-[11px] text-clinic-danger hover:underline font-bold cursor-pointer"
                             >
                                 Bỏ chọn tất cả
                             </button>
@@ -143,21 +145,22 @@ export default function StepOrders({
                     </div>
 
                     {pickedServices.length === 0 ? (
-                        <p className="text-[11px] text-slate-500 italic py-1">
+                        <p className="text-[11px] text-clinic-text-secondary py-1">
                             Chưa chọn dịch vụ nào. Tick chọn các dịch vụ bên trái để thêm vào phiếu chỉ định.
                         </p>
                     ) : (
-                        <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+                        <div className="flex flex-col divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface max-h-52 overflow-y-auto">
                             {pickedServices.map((s) => (
-                                <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-2xs border border-sky-200">
+                                <div key={s.id} className="flex items-center justify-between gap-2 p-2.5 bg-clinic-surface">
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-[12px] font-bold text-[#003553] truncate">{s.ten_dich_vu}</span>
-                                        <span className="text-[11px] font-semibold text-slate-600">{formatCurrency(s.don_gia)}</span>
+                                        <span className="text-[12px] font-bold text-clinic-navy truncate">{s.ten_dich_vu}</span>
+                                        <span className="text-[11px] font-semibold text-clinic-text-secondary tabular-nums">{formatCurrency(s.don_gia)}</span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => toggle(s.id)}
-                                        className="shrink-0 p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                                        aria-label={`Bỏ ${s.ten_dich_vu}`}
+                                        className="shrink-0 p-1 text-clinic-text-muted hover:text-clinic-danger rounded-[6px] hover:bg-clinic-danger-bg transition cursor-pointer"
                                         title="Bỏ dịch vụ này"
                                     >
                                         <ClinicIcon name="X" size={14} />
@@ -168,56 +171,57 @@ export default function StepOrders({
                     )}
 
                     {pickedServices.length > 0 && (
-                        <div className="flex items-center justify-between text-xs pt-2 border-t border-sky-200">
-                            <span className="font-medium text-slate-600">Tạm tính ({pickedServices.length} DV):</span>
-                            <span className="font-extrabold text-[#003553]">{formatCurrency(pickedTotal)}</span>
+                        <div className="flex items-center justify-between text-xs pt-2 border-t border-clinic-info-border tabular-nums">
+                            <span className="font-medium text-clinic-text-secondary">Tạm tính ({pickedServices.length} DV):</span>
+                            <span className="font-extrabold text-clinic-navy">{formatCurrency(pickedTotal)}</span>
                         </div>
                     )}
 
                     <button
                         type="button"
-                        className={`w-full py-2.5 px-3 rounded-xl font-extrabold text-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`w-full py-2.5 px-3 rounded-[6px] font-extrabold text-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 tabular-nums ${
                             pickedServices.length > 0
-                                ? 'bg-[#00A9E3] hover:bg-[#0092c4] text-white shadow-md shadow-sky-500/25 animate-pulse'
-                                : 'bg-slate-200 text-slate-400'
+                                ? 'bg-clinic-cta hover:bg-clinic-cta-hover text-clinic-surface'
+                                : 'bg-clinic-bg-muted text-clinic-text-subtle border border-clinic-border'
                         }`}
                         disabled={locked || pickedServices.length === 0 || submitting}
                         onClick={handleSend}
                     >
-                        {submitting ? 'Đang gửi sang KTV…' : pickedServices.length > 0 ? `🚀 Gửi ${pickedServices.length} chỉ định sang phòng KTV` : 'Gửi chỉ định sang phòng KTV'}
+                        <ClinicIcon name="PaperPlaneTilt" size={14} weight="bold" />
+                        <span>{submitting ? 'Đang gửi sang KTV…' : pickedServices.length > 0 ? `Gửi ${pickedServices.length} chỉ định sang phòng KTV` : 'Gửi chỉ định sang phòng KTV'}</span>
                     </button>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-3 border-t border-sky-200">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
+                <div className="flex flex-col gap-2 pt-3 border-t border-clinic-info-border">
+                    <div className="flex items-center justify-between tabular-nums">
+                        <span className="text-[12px] font-extrabold text-clinic-navy">
                             Đã gửi chỉ định ({orders.length})
                         </span>
                         {orders.length > 0 && (
-                            <span className="text-[11px] text-slate-600 font-semibold">{formatCurrency(ordersTotal)}</span>
+                            <span className="text-[11px] text-clinic-text-secondary font-semibold">{formatCurrency(ordersTotal)}</span>
                         )}
                     </div>
 
                     {orders.length === 0 ? (
-                        <p className="text-[11px] text-slate-500 italic py-1">
+                        <p className="text-[11px] text-clinic-text-secondary py-1">
                             Chưa có chỉ định nào được gửi trong ca này.
                         </p>
                     ) : (
-                        <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto pr-0.5">
+                        <div className="flex flex-col divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface max-h-60 overflow-y-auto">
                             {orders.map((o) => {
-                                const st = ORDER_STATUS[o.trang_thai] || { label: 'Chờ thực hiện', badge: 'medpro-badge' }
+                                const st = ORDER_STATUS[o.trang_thai] || { label: 'Chờ thực hiện', badge: 'medpro-badge-neutral' }
                                 const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
                                 return (
-                                    <div key={o.id} className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-2xs border border-slate-200">
+                                    <div key={o.id} className="flex items-center justify-between gap-2 p-2.5 bg-clinic-surface">
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-[12px] font-bold text-[#003553] truncate">{o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || "Dịch vụ CLS"}</span>
-                                            <span className="text-[10px] text-slate-400">
+                                            <span className="text-[12px] font-bold text-clinic-navy truncate">{o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || 'Dịch vụ CLS'}</span>
+                                            <span className="text-[10px] text-clinic-text-secondary tabular-nums">
                                                 {o.don_gia_tai_thoi_diem ? formatCurrency(o.don_gia_tai_thoi_diem) : (services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia ? formatCurrency(services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia) : '')}
                                             </span>
                                         </div>
-                                        <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                            isDone ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : isDoing ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        <span className={`shrink-0 text-[10px] font-bold ${
+                                            isDone ? 'medpro-badge-success' : isDoing ? 'medpro-badge-info' : 'medpro-badge-warning'
                                         }`}>
                                             {st.label}
                                         </span>

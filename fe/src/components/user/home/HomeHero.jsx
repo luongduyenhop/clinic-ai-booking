@@ -1,16 +1,38 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
-import { buildQuickBookingPath, getTodayIsoDate } from '../../../utils/helpers/quickBookingHelpers'
-import { ArrowRight, CalendarCheck, CheckCircle, Stethoscope } from '../../common/ClinicIcon'
+import {
+    buildQuickBookingPath,
+    formatDoctorHeading,
+    getDefaultScheduleDate,
+    getTodayIsoDate,
+} from '../../../utils/helpers/quickBookingHelpers'
 
-export default function HomeHero() {
+export default function HomeHero({
+    selectedSpecialtyId,
+    onSpecialtySelect,
+    selectedDate,
+    onDateSelect,
+}) {
     const navigate = useNavigate()
     const { specialties, doctors, loading, error } = useMedicalCatalog()
     const [todayDate] = useState(() => getTodayIsoDate())
-    const [specialtyId, setSpecialtyId] = useState('')
+    const [localSpecialtyId, setLocalSpecialtyId] = useState('')
     const [doctorId, setDoctorId] = useState('')
-    const [appointmentDate, setAppointmentDate] = useState(todayDate)
+    const [localDate, setLocalDate] = useState(() => getDefaultScheduleDate())
+
+    const specialtyId = selectedSpecialtyId !== undefined ? selectedSpecialtyId : localSpecialtyId
+    const appointmentDate = selectedDate !== undefined ? selectedDate : localDate
+
+    const updateSpecialty = (nextId) => {
+        if (onSpecialtySelect) onSpecialtySelect(nextId)
+        else setLocalSpecialtyId(nextId)
+    }
+
+    const updateDate = (nextDate) => {
+        if (onDateSelect) onDateSelect(nextDate)
+        else setLocalDate(nextDate)
+    }
 
     const filteredDoctors = useMemo(() => {
         if (!specialtyId) return doctors
@@ -19,7 +41,7 @@ export default function HomeHero() {
 
     const handleSpecialtyChange = (event) => {
         const nextSpecialtyId = event.target.value
-        setSpecialtyId(nextSpecialtyId)
+        updateSpecialty(nextSpecialtyId)
         if (doctorId && nextSpecialtyId) {
             const currentDoctor = doctors.find((doc) => doc.id === doctorId)
             if (currentDoctor && currentDoctor.specialtyId !== nextSpecialtyId) {
@@ -34,7 +56,7 @@ export default function HomeHero() {
         if (nextDoctorId && !specialtyId) {
             const selectedDoctor = doctors.find((doc) => doc.id === nextDoctorId)
             if (selectedDoctor?.specialtyId) {
-                setSpecialtyId(selectedDoctor.specialtyId)
+                updateSpecialty(selectedDoctor.specialtyId)
             }
         }
     }
@@ -52,139 +74,123 @@ export default function HomeHero() {
     }
 
     return (
-        <section className="bg-clinic-bg border-b border-clinic-border">
-            <div className="public-container grid lg:grid-cols-[1.08fr_0.92fr] gap-8 lg:gap-12 items-center py-12 md:py-16 lg:py-20">
-                <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-clinic-cta">
-                        Hệ thống Phòng khám Đa khoa Tiêu chuẩn Quốc tế
-                    </p>
+        <section className="bg-clinic-bg">
+            <div className="relative bg-clinic-navy overflow-hidden">
+                <picture className="absolute inset-0 w-full h-full">
+                    <source srcSet="/images/hospital-corridor.webp" type="image/webp" />
+                    <img
+                        src="/images/hospital-corridor.jpg"
+                        width={1376}
+                        height={768}
+                        fetchPriority="high"
+                        alt="Hành lang phòng khám ngoại trú tiêu chuẩn quốc tế Clinic-AI"
+                        className="w-full h-full hero-photo-position"
+                    />
+                </picture>
+                <div className="hero-clinic-scrim absolute inset-0" aria-hidden="true" />
 
-                    <h1 className="mt-3 font-display text-[30px] sm:text-[38px] lg:text-[44px] leading-[1.16] font-extrabold tracking-[-0.025em] text-clinic-navy">
-                        Chăm sóc y khoa chuẩn mực, <span className="text-clinic-cta">chủ động thời gian</span>
-                    </h1>
+                <div className="public-container relative z-10">
+                    <div className="max-w-[610px] pt-14 pb-20 sm:pt-16 sm:pb-24 lg:pt-[76px] lg:pb-28 text-clinic-surface">
+                        <h1 className="font-display text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.18] font-extrabold tracking-[-0.02em] text-clinic-surface">
+                            Đặt lịch khám chuyên khoa &amp; Phân luồng triệu chứng trực tuyến
+                        </h1>
 
-                    <p className="mt-4 max-w-xl text-base leading-7 text-clinic-text-secondary">
-                        Tra cứu trực tiếp chuyên khoa, bác sĩ phụ trách và lịch khám trống theo thời gian thực. Toàn bộ hồ sơ khám và kết quả cận lâm sàng được đồng bộ bảo mật trên một cổng duy nhất.
-                    </p>
+                        <p className="mt-4 max-w-[540px] text-[15px] leading-[1.65] text-clinic-on-navy-muted">
+                            Sàng lọc triệu chứng AI để định hướng đúng chuyên khoa, giữ trước khung giờ bác sĩ 30 phút thực tế và lưu trữ trọn vẹn kết quả xét nghiệm, đơn thuốc điện tử cho bản thân cùng gia đình.
+                        </p>
 
-                    <div className="mt-7 flex flex-wrap items-center gap-3">
-                        <Link to="/khao-sat-trieu-chung" className="medpro-btn-outline min-h-11 !px-5">
-                            <Stethoscope size={17} weight="bold" className="text-clinic-cta" />
-                            <span>Phân luồng triệu chứng</span>
-                        </Link>
-                        <a
-                            href="#chuyen-khoa"
-                            className="inline-flex items-center gap-1.5 px-4 min-h-11 text-sm font-semibold text-clinic-navy hover:text-clinic-cta transition-colors"
-                        >
-                            <span>Xem danh mục chuyên khoa</span>
-                            <ArrowRight size={15} weight="bold" />
-                        </a>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t border-clinic-border grid sm:grid-cols-3 gap-4 text-xs font-semibold text-clinic-text-secondary">
-                        {['Đúng chuyên khoa & bác sĩ', 'Hiển thị giờ khám thực tế', 'Hồ sơ EMR bảo mật'].map((item) => (
-                            <span key={item} className="inline-flex items-center gap-2">
-                                <CheckCircle size={16} weight="fill" className="text-clinic-success shrink-0" />
-                                <span>{item}</span>
-                            </span>
-                        ))}
+                        <div className="mt-6">
+                            <Link
+                                to="/khao-sat-trieu-chung"
+                                className="hero-clinic-secondary inline-flex items-center px-4 py-2 text-[13px] font-semibold"
+                            >
+                                Kiểm tra triệu chứng để chọn đúng khoa
+                            </Link>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="medpro-card overflow-hidden">
-                    <div className="h-1 bg-clinic-cyan" aria-hidden="true" />
-                    <div className="p-6 sm:p-7">
-                        <div className="pb-4 border-b border-clinic-border">
-                            <h2 className="font-display text-lg font-extrabold text-clinic-navy">
-                                Đăng ký lịch khám
-                            </h2>
-                            <p className="mt-1 text-xs text-clinic-text-secondary">
-                                Chọn chuyên khoa, bác sĩ phụ trách và ngày khám mong muốn.
-                            </p>
+            <div className="public-container relative z-10 -mt-10 sm:-mt-12 pb-6">
+                <form
+                    onSubmit={handleQuickBookSubmit}
+                    aria-label="Thanh đặt lịch nhanh"
+                    className="medpro-card p-4 sm:p-5"
+                >
+                    {error && (
+                        <p
+                            role="alert"
+                            className="mb-3 rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg px-3 py-2 text-xs font-medium text-clinic-danger"
+                        >
+                            {error}
+                        </p>
+                    )}
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.15fr_1.25fr_0.9fr_auto] items-end">
+                        <div>
+                            <label htmlFor="hero-specialty" className="medpro-label">
+                                Chuyên khoa
+                            </label>
+                            <select
+                                id="hero-specialty"
+                                value={specialtyId}
+                                onChange={handleSpecialtyChange}
+                                disabled={loading}
+                                className="medpro-input min-h-[42px] py-0"
+                            >
+                                <option value="">
+                                    {loading ? 'Đang tải chuyên khoa...' : 'Tất cả chuyên khoa'}
+                                </option>
+                                {specialties.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}{item.room ? ` (${item.room})` : ''}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
-                        <form onSubmit={handleQuickBookSubmit} className="mt-5 space-y-4">
-                            {error && (
-                                <p
-                                    role="alert"
-                                    className="rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg px-3 py-2 text-xs font-medium text-clinic-danger"
-                                >
-                                    {error}
-                                </p>
-                            )}
-
-                            <div>
-                                <label htmlFor="hero-specialty" className="medpro-label">
-                                    Chuyên khoa
-                                </label>
-                                <select
-                                    id="hero-specialty"
-                                    value={specialtyId}
-                                    onChange={handleSpecialtyChange}
-                                    disabled={loading}
-                                    className="medpro-input"
-                                >
-                                    <option value="">
-                                        {loading ? 'Đang tải chuyên khoa...' : 'Tất cả chuyên khoa'}
+                        <div>
+                            <label htmlFor="hero-doctor" className="medpro-label">
+                                Bác sĩ phụ trách
+                            </label>
+                            <select
+                                id="hero-doctor"
+                                value={doctorId}
+                                onChange={handleDoctorChange}
+                                disabled={loading}
+                                className="medpro-input min-h-[42px] py-0"
+                            >
+                                <option value="">
+                                    {loading ? 'Đang tải danh sách bác sĩ...' : 'Bác sĩ có lịch trống phù hợp'}
+                                </option>
+                                {filteredDoctors.map((doc) => (
+                                    <option key={doc.id} value={doc.id}>
+                                        {formatDoctorHeading(doc)}
+                                        {!specialtyId && doc.specialty ? ` — ${doc.specialty}` : ''}
                                     </option>
-                                    {specialties.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                                ))}
+                            </select>
+                        </div>
 
-                            <div>
-                                <label htmlFor="hero-doctor" className="medpro-label">
-                                    Bác sĩ phụ trách
-                                </label>
-                                <select
-                                    id="hero-doctor"
-                                    value={doctorId}
-                                    onChange={handleDoctorChange}
-                                    disabled={loading}
-                                    className="medpro-input"
-                                >
-                                    <option value="">
-                                        {loading ? 'Đang tải danh sách bác sĩ...' : 'Chọn bác sĩ (tùy chọn)'}
-                                    </option>
-                                    {filteredDoctors.map((doc) => (
-                                        <option key={doc.id} value={doc.id}>
-                                            {doc.degree ? `${doc.degree} ` : ''}
-                                            {doc.name}
-                                            {!specialtyId && doc.specialty ? ` — ${doc.specialty}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div>
+                            <label htmlFor="hero-date" className="medpro-label">
+                                Ngày khám
+                            </label>
+                            <input
+                                id="hero-date"
+                                type="date"
+                                min={todayDate}
+                                value={appointmentDate}
+                                onChange={(event) => updateDate(event.target.value)}
+                                className="medpro-input min-h-[42px] py-0 tabular-nums"
+                            />
+                        </div>
 
-                            <div>
-                                <label htmlFor="hero-date" className="medpro-label">
-                                    Ngày khám dự kiến
-                                </label>
-                                <input
-                                    id="hero-date"
-                                    type="date"
-                                    min={todayDate}
-                                    value={appointmentDate}
-                                    onChange={(event) => setAppointmentDate(event.target.value)}
-                                    className="medpro-input tabular-nums"
-                                />
-                            </div>
-
-                            <button type="submit" className="medpro-btn-primary w-full min-h-11 text-sm">
-                                <CalendarCheck size={18} weight="bold" />
-                                <span>Tiếp tục đặt lịch</span>
-                                <ArrowRight size={16} weight="bold" />
-                            </button>
-
-                            <p className="text-[11px] text-clinic-text-muted text-center">
-                                Tiếp nhận trực tuyến và xác nhận mã hẹn ngay sau khi hoàn tất.
-                            </p>
-                        </form>
+                        <button type="submit" className="medpro-btn-primary min-h-[42px] px-5 text-sm sm:col-span-2 lg:col-span-1">
+                            Tìm giờ khám
+                        </button>
                     </div>
-                </div>
+                </form>
             </div>
         </section>
     )

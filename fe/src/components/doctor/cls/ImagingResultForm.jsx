@@ -112,12 +112,12 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
                     <label>
                         <span className="medpro-label">Mô tả</span>
                         <textarea name="mo_ta" rows={7} className="medpro-input" value={values.mo_ta} onChange={handleChange} />
-                        {touched.mo_ta && errors.mo_ta && <p className="mt-1 text-[12px] text-rose-600">{errors.mo_ta}</p>}
+                        {touched.mo_ta && errors.mo_ta && <p className="mt-1 text-[12px] text-clinic-danger">{errors.mo_ta}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Kết luận</span>
                         <textarea name="ket_luan" rows={2} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
-                        {touched.ket_luan && errors.ket_luan && <p className="mt-1 text-[12px] text-rose-600">{errors.ket_luan}</p>}
+                        {touched.ket_luan && errors.ket_luan && <p className="mt-1 text-[12px] text-clinic-danger">{errors.ket_luan}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Đề nghị</span>

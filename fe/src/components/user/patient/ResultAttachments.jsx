@@ -8,7 +8,10 @@ const stripQueryToken = (url) => {
     return String(url).split('?')[0]
 }
 
-export default function ResultAttachments({ files = [], serviceName = 'Chẩn đoán hình ảnh & Thăm dò chức năng' }) {
+export default function ResultAttachments({
+    files = [],
+    serviceName = 'Chẩn đoán hình ảnh & Thăm dò chức năng',
+}) {
     const list = (files || [])
         .map((f, idx) => {
             const rawUrl = typeof f === 'string' ? f : f?.url
@@ -86,10 +89,10 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                         fetchImageBlob(list[0].url)
                     }
                 }}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#00B5F1]/40 bg-[#F0F9FF] px-3.5 py-2 text-xs font-bold text-[#003553] shadow-2xs transition hover:bg-[#E0F2FE] hover:border-[#00B5F1] cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-[6px] border border-clinic-info-border bg-clinic-surface-alt px-3.5 py-2 text-xs font-bold text-clinic-navy transition-colors hover:bg-clinic-surface-tint cursor-pointer"
             >
-                <Eye size={16} weight="bold" className="text-[#00B5F1]" />
-                <span>Xem ảnh kết quả ({list.length})</span>
+                <Eye size={16} weight="bold" className="text-clinic-cta" />
+                <span className="tabular-nums">Xem ảnh kết quả ({list.length})</span>
             </button>
 
             <Modal
@@ -99,22 +102,26 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                 width={760}
                 centered
                 title={
-                    <div className="flex items-center gap-2 text-[#003553]">
-                        <Scan size={18} weight="duotone" className="text-[#00B5F1]" />
-                        <span className="font-bold text-sm">{serviceName} · {currentFile?.label}</span>
+                    <div className="flex items-center gap-2 text-clinic-navy">
+                        <Scan size={18} weight="duotone" className="text-clinic-cta" />
+                        <span className="font-bold text-sm tabular-nums">
+                            {serviceName} · {currentFile?.label}
+                        </span>
                     </div>
                 }
             >
                 <div className="space-y-4 pt-2">
-                    <div className="flex min-h-[340px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-950/95 p-4">
+                    <div className="flex min-h-[340px] items-center justify-center rounded-[8px] bg-clinic-navy-dark p-4">
                         {isLoading && (
-                            <div className="text-xs font-semibold text-sky-200 animate-pulse">
+                            <div className="text-xs font-semibold text-clinic-on-navy-muted">
                                 Đang tải hình ảnh chuẩn PACS...
                             </div>
                         )}
                         {!isLoading && hasError && (
                             <div className="text-center space-y-2">
-                                <p className="text-xs text-rose-300 font-semibold">Không thể tải hình ảnh kết quả.</p>
+                                <p className="text-xs text-clinic-danger font-semibold">
+                                    Không thể tải hình ảnh kết quả.
+                                </p>
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -123,7 +130,7 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                                             fetchImageBlob(currentFile.url)
                                         }
                                     }}
-                                    className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-bold text-white cursor-pointer"
+                                    className="medpro-btn-primary text-xs px-3 py-1.5 cursor-pointer"
                                 >
                                     Thử tải lại
                                 </button>
@@ -132,8 +139,10 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                         {!isLoading && !hasError && currentBlobUrl && (
                             <img
                                 src={currentBlobUrl}
+                                width={720}
+                                height={480}
                                 alt={serviceName}
-                                className="max-h-[480px] w-auto rounded-lg object-contain shadow-lg"
+                                className="max-h-[480px] w-auto rounded-[6px] object-contain"
                             />
                         )}
                     </div>
@@ -146,10 +155,10 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                                         key={item.url}
                                         type="button"
                                         onClick={() => setActiveIndex(idx)}
-                                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                                        className={`rounded-[6px] px-3 py-1.5 text-xs font-bold tabular-nums transition-colors cursor-pointer ${
                                             idx === activeIndex
-                                                ? 'bg-[#003553] text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                ? 'bg-clinic-navy text-clinic-surface'
+                                                : 'bg-clinic-bg-muted text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         {item.label}
@@ -162,7 +171,7 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                                 <button
                                     type="button"
                                     onClick={handleDownload}
-                                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#00B5F1] px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#009ED4] cursor-pointer"
+                                    className="medpro-btn-primary text-xs px-3.5 py-2 cursor-pointer"
                                 >
                                     <DownloadSimple size={15} weight="bold" />
                                     <span>Tải ảnh gốc</span>
@@ -171,7 +180,7 @@ export default function ResultAttachments({ files = [], serviceName = 'Chẩn đ
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                                className="medpro-btn-outline text-xs px-3.5 py-2 cursor-pointer"
                             >
                                 Đóng
                             </button>

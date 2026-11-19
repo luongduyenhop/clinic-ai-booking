@@ -103,58 +103,58 @@ export default function RolePermissionPage() {
     return (
         <div className="space-y-3.5">
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     <Link
                         to="/admin/phan-quyen"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors ${
                             !isStaffMode && !isLeaveMode && !isScheduleMode
-                                ? "bg-[#00B5F1] text-white shadow-xs"
-                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <ShieldCheck size={15} weight={!isStaffMode && !isLeaveMode && !isScheduleMode ? "fill" : "duotone"} />
-                        <span>1. Phân quyền Vai trò (Ma trận 23 Quyền hạn)</span>
+                        <ShieldCheck size={14} weight={!isStaffMode && !isLeaveMode && !isScheduleMode ? 'fill' : 'duotone'} />
+                        <span>1. Ma trận Phân quyền (23 Module)</span>
                     </Link>
                     <Link
                         to="/admin/nhan-vien"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors ${
                             isStaffMode
-                                ? "bg-[#00B5F1] text-white shadow-xs"
-                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <UserGear size={15} weight={isStaffMode ? "fill" : "duotone"} />
-                        <span>2. Quản trị Nhân sự &amp; Chứng chỉ Hành nghề</span>
+                        <UserGear size={14} weight={isStaffMode ? 'fill' : 'duotone'} />
+                        <span>2. Nhân sự &amp; Chứng chỉ CCHN</span>
                     </Link>
                     <Link
                         to="/admin/nhan-vien?tab=phan-lich"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors ${
                             isScheduleMode
-                                ? "bg-[#00B5F1] text-white shadow-xs"
-                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <CalendarPlus size={15} weight={isScheduleMode ? "fill" : "duotone"} />
-                        <span>3. Phân lịch trực &amp; Ma trận Ca khám</span>
+                        <CalendarPlus size={14} weight={isScheduleMode ? 'fill' : 'duotone'} />
+                        <span>3. Phân lịch trực &amp; Ca khám</span>
                     </Link>
                     <Link
                         to="/admin/nhan-vien?tab=nghi-phep"
-                        className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors ${
                             isLeaveMode
-                                ? "bg-[#00B5F1] text-white shadow-xs"
-                                : "bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15"
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <CalendarCheck size={15} weight={isLeaveMode ? "fill" : "duotone"} />
-                        <span>4. Phê duyệt Nghỉ phép &amp; Điều phối Ca trực</span>
+                        <CalendarCheck size={14} weight={isLeaveMode ? 'fill' : 'duotone'} />
+                        <span>4. Duyệt Nghỉ phép &amp; Điều phối</span>
                     </Link>
                 </div>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-clinic-text-secondary">
                     {isScheduleMode
-                        ? "Phân ca làm việc bác sĩ theo tuần, tính toán công suất slot trực tuyến & tại quầy và điều phối buồng khám"
+                        ? 'Phân ca làm việc bác sĩ theo tuần, công suất slot và buồng khám'
                         : isLeaveMode
-                        ? "Phê duyệt đơn nghỉ phép bác sĩ, tự động khóa lịch trực và điều chuyển lịch khám bị ảnh hưởng"
-                        : "Quản trị vai trò, ma trận phân quyền và kiểm soát điều kiện hành nghề bác sĩ"}
+                        ? 'Phê duyệt đơn nghỉ phép, tự động khóa lịch trực và điều chuyển lịch khám'
+                        : 'Quản trị vai trò, quyền hạn truy cập và kiểm soát điều kiện hành nghề'}
                 </span>
             </div>
 
@@ -165,66 +165,70 @@ export default function RolePermissionPage() {
             ) : isLeaveMode ? (
                 <DoctorLeaveManagementTab />
             ) : (
-                
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                    <div className="lg:col-span-4 medpro-card p-3.5 space-y-4">
+                    <div className="lg:col-span-4 medpro-card p-3.5 space-y-3">
                         <div className="medpro-section-title">
                             <span>DANH SÁCH VAI TRÒ ({roles.length})</span>
-                            <button type="button" onClick={loadRoles} className="text-xs text-sky-700">Làm mới</button>
+                            <button type="button" onClick={loadRoles} className="text-xs font-bold text-clinic-cta hover:underline cursor-pointer">
+                                Làm mới
+                            </button>
                         </div>
 
-                        {rbacError && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{rbacError}</div>}
-                        {rbacLoading && <div className="text-xs text-slate-500">Đang tải vai trò từ PostgreSQL…</div>}
+                        {rbacError && (
+                            <div role="alert" className="rounded-[6px] bg-clinic-danger-bg border border-clinic-danger-border p-3 text-xs font-medium text-clinic-danger">
+                                {rbacError}
+                            </div>
+                        )}
+                        {rbacLoading && <div className="text-xs text-clinic-text-muted">Đang tải vai trò từ hệ thống...</div>}
 
                         <div className="space-y-2">
                             {roles.map((r) => (
                                 <div
                                     key={r.id}
                                     onClick={() => setSelectedRole({ ...r })}
-                                    className={`p-3 rounded-xl border cursor-pointer transition ${
+                                    className={`p-3 rounded-[6px] border cursor-pointer transition-colors ${
                                         selectedRole.id === r.id
-                                            ? 'bg-[#E8F4FD] border-[#00B5F1] shadow-2xs'
-                                            : 'bg-white border-slate-200 hover:border-[#00B5F1]/50'
+                                            ? 'bg-clinic-surface-alt border-clinic-cta'
+                                            : 'bg-clinic-surface border-clinic-border hover:border-clinic-cta'
                                     }`}
                                 >
-                                    <div className="font-display font-bold text-xs text-[#003553]">{r.tenVaiTro}</div>
-                                    <div className="text-[11px] text-slate-500 mt-0.5">{r.moTa}</div>
+                                    <div className="font-display font-bold text-xs text-clinic-navy">{r.tenVaiTro}</div>
+                                    <div className="text-[11px] text-clinic-text-secondary mt-0.5">{r.moTa}</div>
                                 </div>
                             ))}
                         </div>
-
                     </div>
 
                     <div className="lg:col-span-8 medpro-card p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E8F4FD]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-clinic-border">
                             <div>
-                                <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
-                                    MA TRẬN PHÂN QUYỀN: {selectedRole.tenVaiTro}
+                                <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
+                                    Ma trận phân quyền: {selectedRole.tenVaiTro}
                                 </h2>
-                                <p className="text-xs text-slate-500">{selectedRole.moTa}</p>
+                                <p className="text-xs text-clinic-text-secondary">{selectedRole.moTa}</p>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
                                     onClick={() => handleCheckAll(true)}
-                                    className="medpro-btn-outline text-xs"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
-                                    <CheckCircle size={15} weight="duotone" className="text-[#00B5F1]" />
+                                    <CheckCircle size={14} weight="duotone" className="text-clinic-cta" />
                                     <span>Chọn tất cả</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleCheckAll(false)}
-                                    className="medpro-btn-outline text-xs"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
-                                    <Broom size={15} weight="duotone" className="text-slate-500" />
+                                    <Broom size={14} weight="duotone" className="text-clinic-text-muted" />
                                     <span>Bỏ chọn tất cả</span>
                                 </button>
-                            <button
+                                <button
                                     type="button"
                                     onClick={handleSaveRolePermissions}
-                                disabled={!selectedRole.id || selectedRole.maVaiTro === 'admin' || rbacLoading}
-                                    className="medpro-btn-primary text-xs"
+                                    disabled={!selectedRole.id || selectedRole.maVaiTro === 'admin' || rbacLoading}
+                                    className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                 >
                                     <FloppyDisk size={15} weight="bold" />
                                     <span>Lưu phân quyền vai trò</span>
@@ -232,7 +236,7 @@ export default function RolePermissionPage() {
                             </div>
                         </div>
 
-                        <div className="overflow-y-auto max-h-[calc(100vh-230px)] border border-[#E5EEF5] rounded-xl">
+                        <div className="overflow-y-auto max-h-[calc(100vh-230px)] border border-clinic-border rounded-[6px]">
                             <table className="medpro-table">
                                 <thead>
                                     <tr>
@@ -256,16 +260,16 @@ export default function RolePermissionPage() {
                                             inXuat: false,
                                         }
                                         return (
-                                            <tr key={idx}>
+                                            <tr key={modName.maPhanHe || idx}>
                                                 <td className="tabular-nums text-center font-bold">{idx + 1}</td>
-                                                <td className="font-semibold text-[#12263F]">{getPermissionModuleLabel(modName, idx)}</td>
+                                                <td className="font-semibold text-clinic-navy">{getPermissionModuleLabel(modName, idx)}</td>
                                                 {['xem', 'them', 'sua', 'xoa', 'inXuat'].map((field) => (
                                                     <td key={field} className="text-center">
                                                         <input
                                                             type="checkbox"
                                                             checked={Boolean(perm[field])}
                                                             onChange={() => handleTogglePermission(idx + 1, field)}
-                                                            className="w-4 h-4 accent-[#00B5F1] cursor-pointer"
+                                                            className="w-4 h-4 cursor-pointer"
                                                         />
                                                     </td>
                                                 ))}

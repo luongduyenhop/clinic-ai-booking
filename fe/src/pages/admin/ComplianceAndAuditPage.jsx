@@ -20,16 +20,13 @@ import {
     SlidersHorizontal,
     Key,
     CheckCircle,
-    WarningCircle,
     FloppyDisk,
     Heartbeat,
     Buildings,
     Eye,
     QrCode,
-    Printer,
     ArrowRight,
     X,
-    Check,
     Globe,
 } from '../../components/common/ClinicIcon'
 
@@ -360,80 +357,80 @@ export default function ComplianceAndAuditPage() {
     return (
         <div className="space-y-4">
             <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     <Link
                         to="/admin/tuan-thu?tab=OVERVIEW"
                         onClick={() => handleSwitchTab('OVERVIEW')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'OVERVIEW'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <Scales size={15} weight="bold" />
-                        <span>1. Tổng quan Tuân thủ Pháp lý</span>
+                        <Scales size={14} weight="bold" />
+                        <span>1. Tổng quan Pháp lý</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=DON_THUOC"
                         onClick={() => handleSwitchTab('DON_THUOC')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'DON_THUOC'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <Signature size={15} weight="bold" />
-                        <span>2. Cổng Đơn thuốc Quốc gia</span>
+                        <Signature size={14} weight="bold" />
+                        <span>2. Đơn thuốc Quốc gia</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=HSSK"
                         onClick={() => handleSwitchTab('HSSK')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'HSSK'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <Heartbeat size={15} weight="bold" />
-                        <span>3. Sổ Sức khỏe Điện tử (HSSK)</span>
+                        <Heartbeat size={14} weight="bold" />
+                        <span>3. Sổ Sức khỏe (HSSK)</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=AUDIT"
                         onClick={() => handleSwitchTab('AUDIT')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer tabular-nums ${
                             activeTab === 'AUDIT'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <ClipboardText size={15} weight="bold" />
+                        <ClipboardText size={14} weight="bold" />
                         <span>4. Nhật ký Kiểm toán ({auditPagination.total || liveAuditLogs.length || auditLogs.length})</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=SETTING"
                         onClick={() => handleSwitchTab('SETTING')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'SETTING'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <SlidersHorizontal size={15} weight="bold" />
-                        <span>5. Cấu hình Cổng Liên thông</span>
+                        <SlidersHorizontal size={14} weight="bold" />
+                        <span>5. Cổng Liên thông</span>
                     </Link>
                     <Link
                         to="/admin/tuan-thu?tab=DINH_CHINH"
                         onClick={() => handleSwitchTab('DINH_CHINH')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'DINH_CHINH'
-                                ? 'bg-[#00B5F1] text-white shadow-xs'
-                                : 'text-[#003553] hover:bg-white/80'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <ShieldCheck size={15} weight="bold" />
+                        <ShieldCheck size={14} weight="bold" />
                         <span>6. Duyệt đính chính EMR</span>
                         {pendingAmendmentCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-black animate-pulse">
+                            <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] bg-clinic-danger-solid text-clinic-surface font-bold tabular-nums">
                                 {pendingAmendmentCount}
                             </span>
                         )}
@@ -466,67 +463,67 @@ export default function ComplianceAndAuditPage() {
                         })
                         AppToast.success(`Đã trích xuất ${rows.length} nhật ký kiểm toán phục vụ đoàn thanh tra y tế!`)
                     }}
-                    className="medpro-btn-amber text-xs font-bold"
+                    className="medpro-btn-amber !py-1.5 !px-3 text-xs font-bold"
                 >
-                    <DownloadSimple size={15} weight="bold" />
-                    <span>Trích xuất Hồ sơ Thanh tra Y tế</span>
+                    <DownloadSimple size={14} weight="bold" />
+                    <span>Xuất hồ sơ Thanh tra</span>
                 </button>
             </div>
 
             {activeTab === 'OVERVIEW' && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                        <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-clinic-border tabular-nums">
+                        <div className="p-4">
                             <div className="flex items-center justify-between">
-                                <div className="text-xs font-extrabold text-[#003553] uppercase">
-                                    CHỨNG CHỈ HÀNH NGHỀ (NĐ 96/2023/NĐ-CP)
-                                </div>
-                                <ShieldCheck size={20} weight="duotone" className="text-[#00B5F1]" />
+                                <span className="text-xs font-bold text-clinic-navy uppercase">
+                                    Chứng chỉ hành nghề (NĐ 96/2023)
+                                </span>
+                                <ShieldCheck size={18} weight="duotone" className="text-clinic-cta shrink-0" />
                             </div>
                             <div className="mt-2 flex items-baseline gap-2">
-                                <span className="font-display text-2xl font-extrabold text-[#00B5F1] tabular-nums">
+                                <span className="font-display text-2xl font-extrabold text-clinic-cta">
                                     {staffList.filter((s) => s.trangThaiCCHN === 'ACTIVE').length}/{staffList.length}
                                 </span>
-                                <span className="text-xs text-slate-500">nhân sự đủ điều kiện hành nghề</span>
+                                <span className="text-xs text-clinic-text-secondary">nhân sự đủ điều kiện</span>
                             </div>
-                            <div className="mt-2 text-[11px] text-rose-600 font-semibold">
-                                • Tự động chặn phân công ca khám khi CCHN hết hạn • Cảnh báo trước 60 ngày
+                            <div className="mt-1.5 text-[11px] text-clinic-danger font-semibold">
+                                Tự động chặn phân công khi hết hạn &bull; Cảnh báo trước 60 ngày
                             </div>
                         </div>
 
-                        <div className="medpro-card p-4 border-l-4 border-l-emerald-500">
+                        <div className="p-4">
                             <div className="flex items-center justify-between">
-                                <div className="text-xs font-extrabold text-[#003553] uppercase">
-                                    LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (TT 26/2025/TT-BYT)
-                                </div>
-                                <Signature size={20} weight="duotone" className="text-emerald-600" />
+                                <span className="text-xs font-bold text-clinic-navy uppercase">
+                                    Liên thông ĐTQG (TT 26/2025)
+                                </span>
+                                <Signature size={18} weight="duotone" className="text-clinic-success shrink-0" />
                             </div>
                             <div className="mt-2 flex items-baseline gap-2">
-                                <span className="font-display text-2xl font-extrabold text-emerald-600 tabular-nums">
+                                <span className="font-display text-2xl font-extrabold text-clinic-success">
                                     {acceptedPrescriptions}/{totalPrescriptions}
                                 </span>
-                                <span className="text-xs text-slate-500">đơn thuốc đã liên thông & cấp mã QG</span>
+                                <span className="text-xs text-clinic-text-secondary">đơn đã liên thông &amp; cấp mã QG</span>
                             </div>
-                            <div className="mt-2 text-[11px] text-slate-600 font-semibold">
-                                • Chặn sửa thuốc sau khi ký số • Hỗ trợ thử lại an toàn chống trùng lặp
+                            <div className="mt-1.5 text-[11px] text-clinic-text-secondary font-medium">
+                                Khóa chỉnh sửa sau ký số &bull; Hỗ trợ thử lại chống trùng lặp
                             </div>
                         </div>
 
-                        <div className="medpro-card p-4 border-l-4 border-l-[#FFB54A]">
+                        <div className="p-4">
                             <div className="flex items-center justify-between">
-                                <div className="text-xs font-extrabold text-[#003553] uppercase">
-                                    HỒ SƠ BỆNH ÁN ĐIỆN TỬ (TT 13/2025/TT-BYT)
-                                </div>
-                                <LockKey size={20} weight="duotone" className="text-[#D97706]" />
+                                <span className="text-xs font-bold text-clinic-navy uppercase">
+                                    Hồ sơ bệnh án điện tử (TT 13/2025)
+                                </span>
+                                <LockKey size={18} weight="duotone" className="text-clinic-warning shrink-0" />
                             </div>
                             <div className="mt-2 flex items-baseline gap-2">
-                                <span className="font-display text-2xl font-extrabold text-[#003553] tabular-nums">
+                                <span className="font-display text-2xl font-extrabold text-clinic-navy">
                                     {registrations.filter((r) => r.emrLocked).length}/{registrations.length}
                                 </span>
-                                <span className="text-xs text-slate-500">hồ sơ bệnh án đã khóa bất biến</span>
+                                <span className="text-xs text-clinic-text-secondary">hồ sơ bệnh án đã khóa</span>
                             </div>
-                            <div className="mt-2 text-[11px] text-slate-600 font-semibold">
-                                • Bệnh án đã khóa bắt buộc đính chính qua Biên bản có lưu bản gốc
+                            <div className="mt-1.5 text-[11px] text-clinic-text-secondary font-medium">
+                                Bệnh án đã khóa bắt buộc đính chính qua Biên bản lưu bản gốc
                             </div>
                         </div>
                     </div>
@@ -535,91 +532,88 @@ export default function ComplianceAndAuditPage() {
                         <div className="medpro-section-title">
                             <span>TRẠNG THÁI KẾT NỐI HỆ THỐNG CỔNG Y TẾ QUỐC GIA</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <div className="text-xs font-extrabold text-emerald-900">Cổng Đơn thuốc Quốc gia</div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 tabular-nums">
+                            <div className="p-3.5 rounded-[6px] border border-clinic-success-border bg-clinic-success-bg flex items-center justify-between gap-2">
+                                <div className="space-y-1 min-w-0">
+                                    <div className="text-xs font-bold text-clinic-navy">Cổng Đơn thuốc Quốc gia</div>
                                     <div className="text-[11px]">
                                         <a
                                             href="https://donthuocquocgia.vn"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Đơn thuốc Quốc gia (BYT)"
+                                            className="text-clinic-cta font-bold hover:underline inline-flex items-center gap-1"
                                         >
                                             <span>donthuocquocgia.vn</span>
                                             <Globe size={12} />
                                         </a>
-                                        <span className="text-slate-400"> • API v1</span>
+                                        <span className="text-clinic-text-muted"> &bull; API v1</span>
                                     </div>
-                                    <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                                        <CheckCircle size={14} weight="fill" />
-                                        <span>Đang kết nối bình thường (Độ trễ 42ms)</span>
+                                    <div className="text-[11px] text-clinic-success font-bold flex items-center gap-1">
+                                        <CheckCircle size={13} weight="fill" />
+                                        <span>Hoạt động bình thường (42ms)</span>
                                     </div>
                                 </div>
                                 <Link
                                     to="/admin/tuan-thu?tab=DON_THUOC"
                                     onClick={() => handleSwitchTab('DON_THUOC')}
-                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs shrink-0"
                                 >
                                     Xem đơn
                                 </Link>
                             </div>
 
-                            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <div className="text-xs font-extrabold text-emerald-900">Sổ Sức Khỏe Điện Tử (HSSK)</div>
+                            <div className="p-3.5 rounded-[6px] border border-clinic-success-border bg-clinic-success-bg flex items-center justify-between gap-2">
+                                <div className="space-y-1 min-w-0">
+                                    <div className="text-xs font-bold text-clinic-navy">Sổ Sức khỏe Điện tử (HSSK)</div>
                                     <div className="text-[11px]">
                                         <a
                                             href="https://hssk.kcb.vn"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Sổ Sức Khỏe Điện Tử"
+                                            className="text-clinic-cta font-bold hover:underline inline-flex items-center gap-1"
                                         >
                                             <span>hssk.kcb.vn</span>
                                             <Globe size={12} />
                                         </a>
-                                        <span className="text-slate-400"> • TT 32/2023/TT-BYT</span>
+                                        <span className="text-clinic-text-muted"> &bull; TT 32/2023/TT-BYT</span>
                                     </div>
-                                    <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                                        <CheckCircle size={14} weight="fill" />
-                                        <span>Đang kết nối bình thường (Độ trễ 38ms)</span>
+                                    <div className="text-[11px] text-clinic-success font-bold flex items-center gap-1">
+                                        <CheckCircle size={13} weight="fill" />
+                                        <span>Hoạt động bình thường (38ms)</span>
                                     </div>
                                 </div>
                                 <Link
                                     to="/admin/tuan-thu?tab=HSSK"
                                     onClick={() => handleSwitchTab('HSSK')}
-                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs shrink-0"
                                 >
                                     Xem HSSK
                                 </Link>
                             </div>
 
-                            <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/50 flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <div className="text-xs font-extrabold text-blue-900">Cổng Giám định BHYT Quốc gia</div>
+                            <div className="p-3.5 rounded-[6px] border border-clinic-info-border bg-clinic-surface-tint flex items-center justify-between gap-2">
+                                <div className="space-y-1 min-w-0">
+                                    <div className="text-xs font-bold text-clinic-navy">Cổng Giám định BHYT Quốc gia</div>
                                     <div className="text-[11px]">
                                         <a
                                             href="https://gdbhyt.baohiemxahoi.gov.vn"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Giám định BHYT"
+                                            className="text-clinic-cta font-bold hover:underline inline-flex items-center gap-1"
                                         >
                                             <span>gdbhyt.baohiemxahoi.gov.vn</span>
                                             <Globe size={12} />
                                         </a>
                                     </div>
-                                    <div className="text-[11px] text-blue-700 font-bold flex items-center gap-1">
-                                        <CheckCircle size={14} weight="fill" />
-                                        <span>Sẵn sàng liên thông chứng chỉ hành nghề</span>
+                                    <div className="text-[11px] text-clinic-cta font-bold flex items-center gap-1">
+                                        <CheckCircle size={13} weight="fill" />
+                                        <span>Sẵn sàng liên thông chứng chỉ</span>
                                     </div>
                                 </div>
                                 <Link
                                     to="/admin/tuan-thu?tab=SETTING"
                                     onClick={() => handleSwitchTab('SETTING')}
-                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs shrink-0"
                                 >
                                     Cấu hình
                                 </Link>
@@ -629,10 +623,10 @@ export default function ComplianceAndAuditPage() {
 
                     <div className="medpro-card p-4">
                         <div className="medpro-section-title">
-                            <span>SỔ ĐĂNG KÝ NGHĨA VỤ PHÁP LÝ Y TẾ & MA TRẬN ĐIỀU KIỆN ÁP DỤNG</span>
+                            <span>SỔ ĐĂNG KÝ NGHĨA VỤ PHÁP LÝ Y TẾ &amp; MA TRẬN ĐIỀU KIỆN ÁP DỤNG</span>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="medpro-table">
+                            <table className="medpro-table tabular-nums">
                                 <thead>
                                     <tr>
                                         <th>Mã căn cứ</th>
@@ -646,11 +640,11 @@ export default function ComplianceAndAuditPage() {
                                 <tbody>
                                     {obligations.map((ob) => (
                                         <tr key={ob.id}>
-                                            <td className="font-mono font-bold text-[#00B5F1]">{ob.id}</td>
-                                            <td className="font-bold text-[#003553]">{ob.maVanBan}</td>
-                                            <td className="font-semibold text-[#12263F]">{ob.tenNghiaVu}</td>
+                                            <td className="font-mono font-bold text-clinic-cta">{ob.id}</td>
+                                            <td className="font-bold text-clinic-navy">{ob.maVanBan}</td>
+                                            <td className="font-semibold text-clinic-text">{ob.tenNghiaVu}</td>
                                             <td>{ob.nguoiChiuTrachNhiem}</td>
-                                            <td className="tabular-nums">{ob.hanApDung}</td>
+                                            <td>{ob.hanApDung}</td>
                                             <td>
                                                 <StatusBadge status={ob.trangThai} compact />
                                             </td>
@@ -665,133 +659,132 @@ export default function ComplianceAndAuditPage() {
 
             {activeTab === 'DON_THUOC' && (
                 <div className="space-y-4">
-                    <div className="medpro-card p-4 space-y-3 bg-gradient-to-r from-[#F0F9FF] to-white border-l-4 border-l-[#00B5F1]">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                    <div className="medpro-card p-4 space-y-3 bg-clinic-surface-tint">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-2.5">
                             <div>
-                                <h3 className="text-sm font-extrabold text-[#003553] uppercase flex items-center gap-2">
-                                    <Signature size={18} className="text-[#00B5F1]" />
-                                    <span>QUY TRÌNH LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (THÔNG TƯ 26/2025/TT-BYT)</span>
+                                <h3 className="font-display text-sm font-extrabold text-clinic-navy uppercase flex items-center gap-2">
+                                    <Signature size={17} className="text-clinic-cta" />
+                                    <span>Quy trình liên thông Đơn thuốc Quốc gia (TT 26/2025/TT-BYT)</span>
                                 </h3>
-                                <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
-                                    <span>Mô hình 4 bước chuẩn hóa từ lúc Bác sĩ kê đơn đến khi cấp Mã Đơn Quốc gia tra cứu tại các nhà thuốc.</span>
+                                <div className="text-xs text-clinic-text-secondary mt-0.5 flex flex-wrap items-center gap-2">
+                                    <span>Mô hình 4 bước chuẩn hóa từ kê đơn ngoại trú đến cấp Mã Đơn Quốc gia.</span>
                                     <a
                                         href="https://donthuocquocgia.vn"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                        title="Mở cổng chính thức donthuocquocgia.vn"
+                                        className="text-clinic-cta font-bold hover:underline inline-flex items-center gap-1"
                                     >
                                         <span>donthuocquocgia.vn</span>
                                         <Globe size={12} />
                                     </a>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={handleSyncAllSignedPrescriptions}
                                     disabled={syncingKey === 'ALL' || signedPrescriptions === 0}
-                                    className="medpro-btn-primary text-xs disabled:opacity-50"
+                                    className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                 >
                                     <ArrowsClockwise size={14} className={syncingKey === 'ALL' ? 'animate-spin' : ''} />
-                                    <span>Đồng bộ tất cả đơn đã ký ({signedPrescriptions})</span>
+                                    <span>Đồng bộ đơn đã ký ({signedPrescriptions})</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleExportPrescriptionsExcel}
-                                    className="medpro-btn-outline text-xs font-bold !bg-white hover:!bg-slate-50"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
-                                    <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <DownloadSimple size={14} weight="bold" className="text-clinic-cta" />
                                     <span>Xuất Excel Đơn thuốc</span>
                                 </button>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                            <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+                            <div className="p-3 rounded-[6px] bg-clinic-surface border border-clinic-border space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-slate-500 uppercase">Bước 1: Kê đơn</span>
-                                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center">1</span>
+                                    <span className="text-[11px] font-bold text-clinic-text-secondary uppercase">Bước 1: Kê đơn</span>
+                                    <span className="w-5 h-5 rounded-[4px] bg-clinic-bg-muted text-clinic-navy text-[11px] font-bold flex items-center justify-center">1</span>
                                 </div>
-                                <div className="text-xs font-bold text-[#003553]">Kê đơn ngoại trú</div>
-                                <p className="text-[11px] text-slate-500">Bác sĩ chuyên khoa chỉ định thuốc, liều lượng & đường dùng.</p>
-                                <div className="pt-1 text-[11px] font-semibold text-slate-600">Trạng thái: Bản nháp (DRAFT)</div>
+                                <div className="text-xs font-bold text-clinic-navy">Kê đơn ngoại trú</div>
+                                <p className="text-[11px] text-clinic-text-secondary">Bác sĩ chỉ định thuốc, liều lượng &amp; đường dùng.</p>
+                                <div className="pt-1 text-[11px] font-semibold text-clinic-text-secondary">Trạng thái: DRAFT</div>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-white border border-blue-200 shadow-2xs space-y-1">
+                            <div className="p-3 rounded-[6px] bg-clinic-surface border border-clinic-info-border space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-blue-600 uppercase">Bước 2: Ký số</span>
-                                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">2</span>
+                                    <span className="text-[11px] font-bold text-clinic-cta uppercase">Bước 2: Ký số</span>
+                                    <span className="w-5 h-5 rounded-[4px] bg-clinic-surface-alt text-clinic-cta text-[11px] font-bold flex items-center justify-center">2</span>
                                 </div>
-                                <div className="text-xs font-bold text-[#003553]">Ký số bảo mật SmartCA</div>
-                                <p className="text-[11px] text-slate-500">Khóa bất biến đơn thuốc, chống sửa đổi sau khi bác sĩ phê duyệt.</p>
-                                <div className="pt-1 text-[11px] font-semibold text-blue-600">Trạng thái: Đã ký số (SIGNED)</div>
+                                <div className="text-xs font-bold text-clinic-navy">Ký số bảo mật SmartCA</div>
+                                <p className="text-[11px] text-clinic-text-secondary">Khóa bất biến đơn thuốc sau khi bác sĩ phê duyệt.</p>
+                                <div className="pt-1 text-[11px] font-semibold text-clinic-cta">Trạng thái: SIGNED</div>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-white border-amber-200 border shadow-2xs space-y-1">
+                            <div className="p-3 rounded-[6px] bg-clinic-surface border border-clinic-warning-border space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-amber-600 uppercase">Bước 3: Gửi cổng</span>
-                                    <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">3</span>
+                                    <span className="text-[11px] font-bold text-clinic-warning uppercase">Bước 3: Gửi cổng</span>
+                                    <span className="w-5 h-5 rounded-[4px] bg-clinic-warning-bg text-clinic-warning text-[11px] font-bold flex items-center justify-center">3</span>
                                 </div>
-                                <div className="text-xs font-bold text-[#003553]">Truyền cổng liên thông</div>
-                                <p className="text-[11px] text-slate-500">Đẩy dữ liệu kèm mã Idempotency chống trùng lặp lên Cổng Quốc gia.</p>
-                                <div className="pt-1 text-[11px] font-semibold text-amber-600">Trạng thái: Đang truyền (SUBMITTED)</div>
+                                <div className="text-xs font-bold text-clinic-navy">Truyền cổng liên thông</div>
+                                <p className="text-[11px] text-clinic-text-secondary">Gửi dữ liệu kèm khóa Idempotency chống trùng lặp.</p>
+                                <div className="pt-1 text-[11px] font-semibold text-clinic-warning">Trạng thái: SUBMITTED</div>
                             </div>
 
-                            <div className="p-3 rounded-xl bg-white border-emerald-200 border shadow-2xs space-y-1">
+                            <div className="p-3 rounded-[6px] bg-clinic-surface border border-clinic-success-border space-y-1">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold text-emerald-600 uppercase">Bước 4: Cấp mã QG</span>
-                                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">4</span>
+                                    <span className="text-[11px] font-bold text-clinic-success uppercase">Bước 4: Cấp mã QG</span>
+                                    <span className="w-5 h-5 rounded-[4px] bg-clinic-success-bg text-clinic-success text-[11px] font-bold flex items-center justify-center">4</span>
                                 </div>
-                                <div className="text-xs font-bold text-[#003553]">Cấp mã Đơn thuốc QG</div>
-                                <p className="text-[11px] text-slate-500">Bộ Y tế phê duyệt, cấp mã VN-RX tra cứu tại mọi nhà thuốc toàn quốc.</p>
-                                <div className="pt-1 text-[11px] font-semibold text-emerald-600">Trạng thái: Đã liên thông (ACCEPTED)</div>
+                                <div className="text-xs font-bold text-clinic-navy">Cấp mã Đơn thuốc QG</div>
+                                <p className="text-[11px] text-clinic-text-secondary">Bộ Y tế xác nhận, cấp mã VN-RX cho nhà thuốc tra cứu.</p>
+                                <div className="pt-1 text-[11px] font-semibold text-clinic-success">Trạng thái: ACCEPTED</div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="medpro-card p-3.5 border-l-4 border-l-[#003553]">
-                            <div className="text-xs font-bold text-slate-500">TỔNG SỐ ĐƠN THUỐC</div>
-                            <div className="text-2xl font-extrabold text-[#003553] mt-1 tabular-nums">{totalPrescriptions}</div>
-                            <div className="text-[11px] text-slate-500 mt-1">Đơn thuốc kê tại phòng khám</div>
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border tabular-nums">
+                        <div className="p-4">
+                            <div className="text-xs font-semibold text-clinic-text-secondary">Tổng số đơn thuốc</div>
+                            <div className="text-2xl font-extrabold text-clinic-navy mt-1">{totalPrescriptions}</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Đơn thuốc kê tại phòng khám</div>
                         </div>
-                        <div className="medpro-card p-3.5 border-l-4 border-l-emerald-500">
-                            <div className="text-xs font-bold text-emerald-700">ĐÃ CẤP MÃ QUỐC GIA</div>
-                            <div className="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">{acceptedPrescriptions}</div>
-                            <div className="text-[11px] text-emerald-700 mt-1">Đã liên thông thành công</div>
+                        <div className="p-4">
+                            <div className="text-xs font-semibold text-clinic-success">Đã cấp mã Quốc gia</div>
+                            <div className="text-2xl font-extrabold text-clinic-success mt-1">{acceptedPrescriptions}</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Đã liên thông thành công</div>
                         </div>
-                        <div className="medpro-card p-3.5 border-l-4 border-l-[#00B5F1]">
-                            <div className="text-xs font-bold text-[#00B5F1]">ĐÃ KÝ SỐ CHỜ GỬI</div>
-                            <div className="text-2xl font-extrabold text-[#00B5F1] mt-1 tabular-nums">{signedPrescriptions}</div>
-                            <div className="text-[11px] text-slate-500 mt-1">Đã khóa dữ liệu an toàn</div>
+                        <div className="p-4">
+                            <div className="text-xs font-semibold text-clinic-cta">Đã ký số chờ gửi</div>
+                            <div className="text-2xl font-extrabold text-clinic-cta mt-1">{signedPrescriptions}</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Đã khóa dữ liệu an toàn</div>
                         </div>
-                        <div className="medpro-card p-3.5 border-l-4 border-l-amber-500">
-                            <div className="text-xs font-bold text-amber-700">BẢN NHÁP / CHƯA KÝ</div>
-                            <div className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{draftPrescriptions}</div>
-                            <div className="text-[11px] text-amber-700 mt-1">Bác sĩ đang hoàn thiện đơn</div>
+                        <div className="p-4">
+                            <div className="text-xs font-semibold text-clinic-warning">Bản nháp / Chưa ký</div>
+                            <div className="text-2xl font-extrabold text-clinic-warning mt-1">{draftPrescriptions}</div>
+                            <div className="text-[11px] text-clinic-text-muted mt-0.5">Bác sĩ đang hoàn thiện đơn</div>
                         </div>
                     </div>
 
                     <div className="medpro-card p-4 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
-                                <div className="relative flex-1 min-w-[240px]">
-                                    <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <div className="flex flex-wrap items-center gap-2 flex-1">
+                                <div className="relative flex-1 min-w-[240px] max-w-sm">
+                                    <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                                     <input
                                         type="text"
-                                        placeholder="Tìm theo Mã KCB, Mã Đơn, Tên Bệnh Nhân, Mã QG..."
+                                        placeholder="Tìm theo Mã KCB, Mã Đơn, Bệnh nhân, Mã QG..."
                                         value={searchRx}
                                         onChange={(e) => setSearchRx(e.target.value)}
-                                        className="medpro-input !pl-9 text-xs"
+                                        className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
                                     />
                                 </div>
-                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                                <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border tabular-nums">
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('ALL')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                                            statusFilter === 'ALL' ? 'bg-[#00B5F1] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-[6px] transition-colors cursor-pointer ${
+                                            statusFilter === 'ALL' ? 'bg-clinic-navy text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         Tất cả ({totalPrescriptions})
@@ -799,8 +792,8 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('ACCEPTED')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                                            statusFilter === 'ACCEPTED' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-[6px] transition-colors cursor-pointer ${
+                                            statusFilter === 'ACCEPTED' ? 'bg-clinic-success text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         Đã liên thông ({acceptedPrescriptions})
@@ -808,8 +801,8 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('SIGNED')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                                            statusFilter === 'SIGNED' ? 'bg-[#00B5F1] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-[6px] transition-colors cursor-pointer ${
+                                            statusFilter === 'SIGNED' ? 'bg-clinic-cta text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         Đã ký ({signedPrescriptions})
@@ -817,8 +810,8 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('DRAFT')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
-                                            statusFilter === 'DRAFT' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-[6px] transition-colors cursor-pointer ${
+                                            statusFilter === 'DRAFT' ? 'bg-clinic-warning text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         Bản nháp ({draftPrescriptions})
@@ -827,21 +820,17 @@ export default function ComplianceAndAuditPage() {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                            <table className="medpro-table">
+                        <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                            <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                                 <thead>
                                     <tr>
-                                        <th>STT</th>
-                                        <th>Mã ca khám</th>
-                                        <th>Mã đơn nội bộ</th>
-                                        <th>Bệnh nhân</th>
-                                        <th>Bác sĩ chỉ định</th>
-                                        <th>Số thuốc</th>
-                                        <th>Trạng thái liên thông</th>
-                                        <th>Mã Đơn Quốc gia</th>
-                                        <th>Thời điểm ký</th>
-                                        <th>Mã giao dịch</th>
-                                        <th>Thao tác</th>
+                                        <th className="w-9 text-center">STT</th>
+                                        <th className="whitespace-nowrap">Mã KCB / Mã đơn</th>
+                                        <th>Bệnh nhân / Bác sĩ</th>
+                                        <th className="text-center whitespace-nowrap">Thuốc</th>
+                                        <th className="whitespace-nowrap">Trạng thái</th>
+                                        <th>Mã Đơn QG &amp; Ký số</th>
+                                        <th className="whitespace-nowrap">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -854,74 +843,80 @@ export default function ComplianceAndAuditPage() {
                                         const idempotency = p.idempotencyKey || `IDEM-${currentKcb}-RX01`
 
                                         return (
-                                            <tr key={r.id}>
-                                                <td className="font-bold">{idx + 1}</td>
-                                                <td>
-                                                    <Link
-                                                        to="/admin/kham-benh"
-                                                        className="font-mono font-bold text-[#00B5F1] hover:underline"
-                                                        title="Bấm để chuyển đến Bàn khám lâm sàng"
-                                                    >
-                                                        {currentKcb}
-                                                    </Link>
+                                            <tr key={r.id || idx}>
+                                                <td className="font-bold text-center">{idx + 1}</td>
+                                                <td className="whitespace-nowrap">
+                                                    <div>
+                                                        <Link
+                                                            to="/admin/kham-benh"
+                                                            className="font-mono font-bold text-clinic-cta hover:underline"
+                                                            title="Chuyển đến Bàn khám lâm sàng"
+                                                        >
+                                                            {currentKcb}
+                                                        </Link>
+                                                    </div>
+                                                    <div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedRxRecord(r)}
+                                                            className="font-mono text-[11px] font-bold text-clinic-navy hover:text-clinic-cta hover:underline cursor-pointer"
+                                                            title="Xem chi tiết đơn thuốc"
+                                                        >
+                                                            {p.maDon || 'Chưa tạo'}
+                                                        </button>
+                                                    </div>
                                                 </td>
                                                 <td>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedRxRecord(r)}
-                                                        className="font-mono text-xs font-bold text-[#003553] hover:text-[#00B5F1] hover:underline cursor-pointer"
-                                                        title="Bấm xem chi tiết đơn thuốc"
-                                                    >
-                                                        {p.maDon || 'Chưa tạo'}
-                                                    </button>
+                                                    <div>
+                                                        <Link
+                                                            to="/admin/benh-nhan"
+                                                            className="font-bold text-clinic-navy hover:text-clinic-cta hover:underline"
+                                                        >
+                                                            {r.hoTen}
+                                                        </Link>
+                                                    </div>
+                                                    <div>
+                                                        <Link
+                                                            to="/admin/nhan-vien"
+                                                            className="text-[11px] text-clinic-text-secondary hover:text-clinic-cta hover:underline"
+                                                        >
+                                                            {r.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
+                                                        </Link>
+                                                    </div>
                                                 </td>
-                                                <td>
-                                                    <Link
-                                                        to="/admin/benh-nhan"
-                                                        className="font-bold text-[#003553] hover:text-[#00B5F1] hover:underline"
-                                                        title="Bấm xem hồ sơ bệnh nhân"
-                                                    >
-                                                        {r.hoTen}
-                                                    </Link>
-                                                </td>
-                                                <td>
-                                                    <Link
-                                                        to="/admin/nhan-vien"
-                                                        className="text-xs text-slate-700 hover:text-[#00B5F1] hover:underline"
-                                                        title="Xem hồ sơ nhân sự bác sĩ"
-                                                    >
-                                                        {r.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
-                                                    </Link>
-                                                </td>
-                                                <td className="tabular-nums text-center font-bold">{drugCount} thuốc</td>
-                                                <td>
+                                                <td className="text-center font-bold whitespace-nowrap">{drugCount} thuốc</td>
+                                                <td className="whitespace-nowrap">
                                                     <StatusBadge status={fsm} compact />
                                                 </td>
-                                                <td className="font-mono text-xs font-semibold text-[#003553]">
-                                                    {nationalCode !== 'Chưa cấp' ? (
-                                                        <a
-                                                            href="https://donthuocquocgia.vn"
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-emerald-700 font-bold hover:underline inline-flex items-center gap-1"
-                                                            title="Mở Cổng Quốc gia tra cứu đơn thuốc"
-                                                        >
-                                                            <span>{nationalCode}</span>
-                                                            <Globe size={11} />
-                                                        </a>
-                                                    ) : (
-                                                        <span className="text-slate-400 italic">Chưa cấp</span>
-                                                    )}
+                                                <td className="font-mono text-xs text-clinic-navy">
+                                                    <div>
+                                                        {nationalCode !== 'Chưa cấp' ? (
+                                                            <a
+                                                                href="https://donthuocquocgia.vn"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-clinic-success font-bold hover:underline inline-flex items-center gap-1"
+                                                            >
+                                                                <span>{nationalCode}</span>
+                                                                <Globe size={11} />
+                                                            </a>
+                                                        ) : (
+                                                            <span className="font-sans text-clinic-text-muted font-semibold">Chưa cấp</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="font-sans text-[11px] text-clinic-text-secondary">
+                                                        {p.ngayKy || 'Chưa ký'}
+                                                    </div>
+                                                    <div className="text-[10px] text-clinic-text-muted truncate max-w-[165px]" title={idempotency}>
+                                                        {idempotency}
+                                                    </div>
                                                 </td>
-                                                <td className="tabular-nums text-xs text-slate-600">{p.ngayKy || 'Chưa ký'}</td>
-                                                <td className="font-mono text-[11px] text-slate-500">{idempotency}</td>
-                                                <td>
+                                                <td className="whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">
                                                         <button
                                                             type="button"
                                                             onClick={() => setSelectedRxRecord(r)}
-                                                            className="medpro-btn-outline !py-1 !px-2 text-xs flex items-center gap-1 cursor-pointer"
-                                                            title="Xem chi tiết đơn thuốc"
+                                                            className="medpro-btn-outline !py-1 !px-2 text-xs"
                                                         >
                                                             <Eye size={13} />
                                                             <span>Chi tiết</span>
@@ -931,17 +926,17 @@ export default function ComplianceAndAuditPage() {
                                                                 type="button"
                                                                 onClick={() => handleSyncSinglePrescription(currentKcb)}
                                                                 disabled={syncingKey === currentKcb}
-                                                                className="medpro-btn-primary !py-1 !px-2 text-xs flex items-center gap-1 cursor-pointer"
+                                                                className="medpro-btn-primary !py-1 !px-2 text-xs"
                                                             >
                                                                 <ArrowsClockwise size={12} className={syncingKey === currentKcb ? 'animate-spin' : ''} />
                                                                 <span>Gửi cổng</span>
                                                             </button>
                                                         ) : fsm === 'ACCEPTED' ? (
-                                                            <span className="text-[11px] text-emerald-600 font-bold px-1.5 py-0.5 rounded bg-emerald-50">
+                                                            <span className="medpro-badge-success">
                                                                 Đã thông tuyến
                                                             </span>
                                                         ) : (
-                                                            <span className="text-[11px] text-slate-400 italic">Chờ ký</span>
+                                                            <span className="text-[11px] text-clinic-text-muted">Chờ ký</span>
                                                         )}
                                                     </div>
                                                 </td>
@@ -950,7 +945,7 @@ export default function ComplianceAndAuditPage() {
                                     })}
                                     {filteredRegistrations.length === 0 && (
                                         <tr>
-                                            <td colSpan={11}>
+                                            <td colSpan={7}>
                                                 <EmptyState icon="Signature" title="Không tìm thấy đơn thuốc phù hợp điều kiện lọc" />
                                             </td>
                                         </tr>
@@ -966,13 +961,12 @@ export default function ComplianceAndAuditPage() {
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
                         <span>ĐỒNG BỘ SỔ SỨC KHỎE ĐIỆN TỬ BỘ Y TẾ (TT 32/2023/TT-BYT)</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <a
                                 href="https://hssk.kcb.vn"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                title="Mở cổng HSSK chính thức"
+                                className="text-xs text-clinic-cta font-bold hover:underline inline-flex items-center gap-1"
                             >
                                 <span>Cổng HSSK: hssk.kcb.vn</span>
                                 <Globe size={12} />
@@ -980,16 +974,16 @@ export default function ComplianceAndAuditPage() {
                             <button
                                 type="button"
                                 onClick={() => handleTriggerSyncGeneric('Sổ Sức Khỏe Điện Tử')}
-                                className="medpro-btn-primary text-xs"
+                                className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                             >
                                 <ArrowsClockwise size={14} className={syncingKey === 'Sổ Sức Khỏe Điện Tử' ? 'animate-spin' : ''} />
-                                <span>Liên thông HSSK ca đã hoàn tất</span>
+                                <span>Liên thông HSSK ca hoàn tất</span>
                             </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table tabular-nums">
                             <thead>
                                 <tr>
                                     <th>STT</th>
@@ -1007,14 +1001,14 @@ export default function ComplianceAndAuditPage() {
                             <tbody>
                                 {(Array.isArray(nationalEhrSync) ? nationalEhrSync : []).map((item, idx) => (
                                     <tr key={item.id || idx}>
-                                        <td className="font-bold">{idx + 1}</td>
-                                        <td className="font-mono font-bold text-[#00B5F1]">
+                                        <td className="font-bold text-center">{idx + 1}</td>
+                                        <td className="font-mono font-bold text-clinic-cta">
                                             <Link to="/admin/kham-benh" className="hover:underline">
                                                 {item.maKCB}
                                             </Link>
                                         </td>
-                                        <td className="font-bold text-[#003553]">
-                                            <Link to="/admin/benh-nhan" className="hover:underline hover:text-[#00B5F1]">
+                                        <td className="font-bold text-clinic-navy">
+                                            <Link to="/admin/benh-nhan" className="hover:underline hover:text-clinic-cta">
                                                 {item.benhNhan}
                                             </Link>
                                         </td>
@@ -1028,7 +1022,7 @@ export default function ComplianceAndAuditPage() {
                                         <td>
                                             <span className="medpro-badge-info font-bold">{item.phanLoaiSucKhoe}</span>
                                         </td>
-                                        <td className="font-mono text-[11px] text-slate-500">{item.idempotencyKey}</td>
+                                        <td className="font-mono text-[11px] text-clinic-text-muted">{item.idempotencyKey}</td>
                                         <td>
                                             <span
                                                 className={
@@ -1040,7 +1034,7 @@ export default function ComplianceAndAuditPage() {
                                                 {item.trangThai}
                                             </span>
                                         </td>
-                                        <td className="tabular-nums text-xs text-slate-600">{item.ngayDongBo}</td>
+                                        <td className="text-xs text-clinic-text-secondary">{item.ngayDongBo}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1052,24 +1046,24 @@ export default function ComplianceAndAuditPage() {
             {activeTab === 'AUDIT' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="medpro-section-title !mb-0">
-                            <span>NHẬT KÝ KIỂM TOÁN HỆ THỐNG Y TẾ (THEO NGHỊ ĐỊNH 102/2025/NĐ-CP)</span>
+                        <div className="medpro-section-title !mb-0 !border-b-0 !pb-0">
+                            <span>NHẬT KÝ KIỂM TOÁN HỆ THỐNG Y TẾ (NGHỊ ĐỊNH 102/2025)</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="relative">
-                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                                 <input
                                     type="text"
                                     placeholder="Tìm theo người dùng, hành động, đối tượng..."
                                     value={searchAudit}
                                     onChange={(e) => setSearchAudit(e.target.value)}
-                                    className="medpro-input !pl-8 text-xs !py-1.5 w-64"
+                                    className="medpro-input !py-1.5 h-9 !pl-8 text-xs w-64"
                                 />
                             </div>
                             <select
                                 value={roleFilter}
                                 onChange={(e) => setRoleFilter(e.target.value)}
-                                className="medpro-input text-xs !py-1.5 w-36"
+                                className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate w-40"
                             >
                                 <option value="ALL">Mọi vai trò</option>
                                 <option value="SYSTEM">Hệ thống</option>
@@ -1081,8 +1075,8 @@ export default function ComplianceAndAuditPage() {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã Log</th>
@@ -1099,16 +1093,16 @@ export default function ComplianceAndAuditPage() {
                             <tbody>
                                 {(liveAuditLogs.length > 0 ? liveAuditLogs : filteredLogs).map((log) => (
                                     <tr key={log.id}>
-                                        <td className="font-mono font-bold text-[#003553]">{log.id}</td>
-                                        <td className="tabular-nums text-xs">{log.thoiGian || log.timestamp}</td>
-                                        <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || log.actor || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
+                                        <td className="font-mono font-bold text-clinic-navy">{log.id}</td>
+                                        <td className="text-xs text-clinic-text-secondary">{log.thoiGian || log.timestamp}</td>
+                                        <td className="font-semibold text-clinic-navy">{String(log.nguoiDung || log.actor || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
                                         <td>
                                             <span className="medpro-badge-info">{ROLE_LABEL_MAP[log.vaiTro] || ROLE_LABEL_MAP[log.role] || log.vaiTro || log.role}</span>
                                         </td>
-                                        <td className="font-semibold text-xs text-[#003553]">{ACTION_LABEL_MAP[log.hanhDong] || ACTION_LABEL_MAP[log.action] || log.hanhDong || log.action}</td>
+                                        <td className="font-semibold text-xs text-clinic-navy">{ACTION_LABEL_MAP[log.hanhDong] || ACTION_LABEL_MAP[log.action] || log.hanhDong || log.action}</td>
                                         <td className="font-semibold">{log.doiTuong || log.resource_type}</td>
-                                        <td className="text-xs text-slate-600">{log.mucDich || log.purpose}</td>
-                                        <td className="font-mono text-xs text-slate-500">{log.ip || log.client_ip}</td>
+                                        <td className="text-xs text-clinic-text-secondary">{log.mucDich || log.purpose}</td>
+                                        <td className="font-mono text-xs text-clinic-text-muted">{log.ip || log.client_ip}</td>
                                         <td>
                                             <StatusBadge status={log.ketQua || 'SUCCESS'} compact />
                                         </td>
@@ -1126,8 +1120,8 @@ export default function ComplianceAndAuditPage() {
                     </div>
 
                     {auditPagination.totalPages > 1 && (
-                        <div className="flex items-center justify-between pt-2 text-xs">
-                            <span className="text-slate-500">
+                        <div className="flex items-center justify-between pt-2 text-xs tabular-nums">
+                            <span className="text-clinic-text-secondary">
                                 Hiển thị trang {auditPagination.page} / {auditPagination.totalPages} (Tổng số {auditPagination.total} bản ghi)
                             </span>
                             <div className="flex items-center gap-1.5">
@@ -1135,7 +1129,7 @@ export default function ComplianceAndAuditPage() {
                                     type="button"
                                     onClick={() => fetchLiveAuditLogs(auditPagination.page - 1)}
                                     disabled={auditPagination.page <= 1 || isLoadingAudit}
-                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs disabled:opacity-40"
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs"
                                 >
                                     Trang trước
                                 </button>
@@ -1143,7 +1137,7 @@ export default function ComplianceAndAuditPage() {
                                     type="button"
                                     onClick={() => fetchLiveAuditLogs(auditPagination.page + 1)}
                                     disabled={auditPagination.page >= auditPagination.totalPages || isLoadingAudit}
-                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs disabled:opacity-40"
+                                    className="medpro-btn-outline !py-1 !px-2.5 text-xs"
                                 >
                                     Trang sau
                                 </button>
@@ -1156,30 +1150,30 @@ export default function ComplianceAndAuditPage() {
             {activeTab === 'SETTING' && (
                 <div className="medpro-card p-4 space-y-4">
                     <div className="medpro-section-title">
-                        <span>CẤU HÌNH PHÒNG KHÁM, GIẤY PHÉP HOẠT ĐỘNG & TOKEN LIÊN THÔNG</span>
-                        <div className="flex items-center gap-2">
+                        <span>CẤU HÌNH PHÒNG KHÁM, GIẤY PHÉP HOẠT ĐỘNG &amp; TOKEN LIÊN THÔNG</span>
+                        <div className="flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
                                 onClick={handleTestGatewayConnection}
                                 disabled={isTestingGateway}
-                                className="medpro-btn-outline text-xs flex items-center gap-1.5"
+                                className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 <ArrowsClockwise size={14} className={isTestingGateway ? 'animate-spin' : ''} />
-                                <span>{isTestingGateway ? 'Đang kiểm tra...' : 'Kiểm tra kết nối Cổng Quốc gia'}</span>
+                                <span>{isTestingGateway ? 'Đang kiểm tra...' : 'Kiểm tra kết nối Cổng QG'}</span>
                             </button>
-                            <button type="button" onClick={handleSaveSettings} className="medpro-btn-primary text-xs">
+                            <button type="button" onClick={handleSaveSettings} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                 <FloppyDisk size={14} weight="bold" />
-                                <span>Lưu cấu hình hệ thống</span>
+                                <span>Lưu cấu hình</span>
                             </button>
                         </div>
                     </div>
 
                     {gatewayPingResult && (
-                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
+                        <div className="p-3 rounded-[6px] bg-clinic-success-bg border border-clinic-success-border text-xs text-clinic-navy flex items-center justify-between tabular-nums">
                             <div className="flex items-center gap-2">
-                                <CheckCircle size={18} weight="fill" className="text-emerald-600" />
+                                <CheckCircle size={17} weight="fill" className="text-clinic-success shrink-0" />
                                 <span>
-                                    <strong>Cổng Đơn thuốc Quốc gia & HSSK:</strong> Phản hồi kết nối thành công 200 OK. Độ trễ: <strong>{gatewayPingResult.latency}ms</strong> (Lúc {gatewayPingResult.timestamp}).
+                                    <strong>Cổng Đơn thuốc Quốc gia &amp; HSSK:</strong> Phản hồi kết nối thành công 200 OK. Độ trễ: <strong>{gatewayPingResult.latency}ms</strong> (Lúc {gatewayPingResult.timestamp}).
                                 </span>
                             </div>
                             <a
@@ -1195,10 +1189,10 @@ export default function ComplianceAndAuditPage() {
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl border border-[#E5EEF5] bg-[#F8FBFE] space-y-3">
-                            <div className="flex items-center gap-2 text-xs font-extrabold text-[#003553] uppercase border-b border-slate-200 pb-2">
-                                <Buildings size={16} className="text-[#00B5F1]" />
-                                <span>1. Thông tin Cơ sở Khám chữa bệnh & Giấy phép</span>
+                        <section className="p-4 rounded-[6px] border border-clinic-border bg-clinic-bg space-y-3">
+                            <div className="flex items-center gap-2 text-xs font-extrabold text-clinic-navy uppercase border-b border-clinic-border pb-2">
+                                <Buildings size={15} className="text-clinic-cta" />
+                                <span>1. Thông tin Cơ sở Khám chữa bệnh &amp; Giấy phép</span>
                             </div>
                             <div>
                                 <label className="medpro-label">Tên Cơ sở Phòng khám *</label>
@@ -1216,7 +1210,7 @@ export default function ComplianceAndAuditPage() {
                                         type="text"
                                         value={settingsForm.maCoSoQG || ''}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, maCoSoQG: e.target.value })}
-                                        className="medpro-input font-mono font-bold text-[#00B5F1]"
+                                        className="medpro-input font-mono font-bold text-clinic-cta"
                                     />
                                 </div>
                                 <div>
@@ -1247,12 +1241,12 @@ export default function ComplianceAndAuditPage() {
                                     className="medpro-input"
                                 />
                             </div>
-                        </div>
+                        </section>
 
-                        <div className="p-4 rounded-xl border border-[#E5EEF5] bg-[#F8FBFE] space-y-3">
-                            <div className="flex items-center gap-2 text-xs font-extrabold text-[#003553] uppercase border-b border-slate-200 pb-2">
-                                <Key size={16} className="text-amber-500" />
-                                <span>2. Khóa bảo mật & Chứng thư Kết nối Cổng Quốc gia</span>
+                        <section className="p-4 rounded-[6px] border border-clinic-border bg-clinic-bg space-y-3">
+                            <div className="flex items-center gap-2 text-xs font-extrabold text-clinic-navy uppercase border-b border-clinic-border pb-2">
+                                <Key size={15} className="text-clinic-warning" />
+                                <span>2. Khóa bảo mật &amp; Chứng thư Kết nối Cổng Quốc gia</span>
                             </div>
                             <div>
                                 <label className="medpro-label">API Secret Key Cổng Đơn thuốc Quốc gia</label>
@@ -1278,19 +1272,19 @@ export default function ComplianceAndAuditPage() {
                                     type="text"
                                     value={settingsForm.hsskToken || ''}
                                     onChange={(e) => setSettingsForm({ ...settingsForm, hsskToken: e.target.value })}
-                                    className="medpro-input font-mono text-emerald-700 font-bold"
+                                    className="medpro-input font-mono text-clinic-success font-bold"
                                 />
                             </div>
-                            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1">
-                                <div className="font-bold flex items-center gap-1">
+                            <p role="note" className="p-3 rounded-[6px] bg-clinic-success-bg border border-clinic-success-border text-xs text-clinic-navy space-y-1">
+                                <strong className="flex items-center gap-1.5 text-clinic-success">
                                     <ShieldCheck size={14} weight="bold" />
-                                    <span>Trạng thái chứng thư số HSM: ĐANG KÍCH HOẠT</span>
-                                </div>
-                                <div className="text-[11px] text-emerald-700 leading-relaxed">
-                                    Chứng thư số VNPT SmartCA HSM đã tích hợp sẵn cho 04 Bác sĩ chuyên khoa tại phòng khám, sẵn sàng ký số tự động đạt chuẩn Thông tư 26/2025/TT-BYT.
-                                </div>
-                            </div>
-                        </div>
+                                    <span>Chứng thư số HSM: Đang kích hoạt</span>
+                                </strong>
+                                <span className="block text-[11px] text-clinic-text-secondary leading-relaxed">
+                                    VNPT SmartCA HSM đã tích hợp cho các bác sĩ chuyên khoa, sẵn sàng ký số đạt chuẩn TT 26/2025/TT-BYT.
+                                </span>
+                            </p>
+                        </section>
                     </div>
                 </div>
             )}
@@ -1300,88 +1294,93 @@ export default function ComplianceAndAuditPage() {
             )}
 
             {selectedRxRecord && (
-                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="medpro-card max-w-2xl w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div className="fixed inset-0 z-50 bg-clinic-navy-dark/50 flex items-center justify-center p-4">
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border shadow-xs max-w-2xl w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto tabular-nums">
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-3">
                             <div className="flex items-center gap-2">
-                                <Signature size={20} weight="bold" className="text-[#00B5F1]" />
+                                <Signature size={18} weight="bold" className="text-clinic-cta" />
                                 <div>
-                                    <h3 className="font-display font-extrabold text-base text-[#003553]">
-                                        CHI TIẾT ĐƠN THUỐC ĐIỆN TỬ NGOẠI TRÚ
+                                    <h3 className="font-display font-bold text-sm text-clinic-navy uppercase">
+                                        Chi tiết đơn thuốc điện tử ngoại trú
                                     </h3>
-                                    <div className="text-xs text-slate-500">
-                                        Mã đơn: <strong className="font-mono text-[#00B5F1]">{selectedRxRecord.prescription?.maDon || 'Chưa tạo'}</strong> • Mã ca KCB: <strong className="font-mono text-[#003553]">{selectedRxRecord.maKCB || selectedRxRecord.id}</strong>
+                                    <div className="text-xs text-clinic-text-secondary">
+                                        Mã đơn: <strong className="font-mono text-clinic-cta">{selectedRxRecord.prescription?.maDon || 'Chưa tạo'}</strong> &bull; Mã ca KCB: <strong className="font-mono text-clinic-navy">{selectedRxRecord.maKCB || selectedRxRecord.id}</strong>
                                     </div>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setSelectedRxRecord(null)}
-                                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
+                                className="text-clinic-text-muted hover:text-clinic-navy p-1 rounded-[6px] cursor-pointer"
                             >
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-clinic-bg rounded-[6px] border border-clinic-border text-xs">
                             <div>
-                                <span className="text-slate-500 block">Bệnh nhân:</span>
-                                <Link
-                                    to="/admin/benh-nhan"
-                                    className="text-[#003553] text-sm font-bold hover:underline hover:text-[#00B5F1]"
-                                    title="Xem hồ sơ bệnh nhân"
-                                >
-                                    {selectedRxRecord.hoTen}
-                                </Link>
+                                <dt className="text-clinic-text-secondary">Bệnh nhân:</dt>
+                                <dd>
+                                    <Link
+                                        to="/admin/benh-nhan"
+                                        className="text-clinic-navy text-xs font-bold hover:underline hover:text-clinic-cta"
+                                    >
+                                        {selectedRxRecord.hoTen}
+                                    </Link>
+                                </dd>
                             </div>
                             <div>
-                                <span className="text-slate-500 block">Năm sinh / Giới tính:</span>
-                                <strong className="text-slate-800">{selectedRxRecord.ngaySinh} ({selectedRxRecord.gioiTinh})</strong>
+                                <dt className="text-clinic-text-secondary">Năm sinh / Giới tính:</dt>
+                                <dd><strong className="text-clinic-navy">{selectedRxRecord.ngaySinh} ({selectedRxRecord.gioiTinh})</strong></dd>
                             </div>
                             <div>
-                                <span className="text-slate-500 block">Bác sĩ kê đơn:</span>
-                                <Link
-                                    to="/admin/nhan-vien"
-                                    className="text-[#00B5F1] font-bold hover:underline"
-                                    title="Xem hồ sơ nhân sự bác sĩ"
-                                >
-                                    {selectedRxRecord.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
-                                </Link>
+                                <dt className="text-clinic-text-secondary">Bác sĩ kê đơn:</dt>
+                                <dd>
+                                    <Link
+                                        to="/admin/nhan-vien"
+                                        className="text-clinic-cta font-bold hover:underline"
+                                    >
+                                        {selectedRxRecord.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
+                                    </Link>
+                                </dd>
                             </div>
                             <div>
-                                <span className="text-slate-500 block">Trạng thái Cổng QG:</span>
-                                <StatusBadge status={selectedRxRecord.prescription?.trangThaiFSM || 'DRAFT'} compact />
+                                <dt className="text-clinic-text-secondary">Trạng thái Cổng QG:</dt>
+                                <dd className="mt-0.5">
+                                    <StatusBadge status={selectedRxRecord.prescription?.trangThaiFSM || 'DRAFT'} compact />
+                                </dd>
                             </div>
-                        </div>
+                        </dl>
 
                         {selectedRxRecord.clinicalNotes?.chanDoanXacDinh && (
-                            <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 text-xs flex items-center justify-between">
-                                <div>
-                                    <span className="font-bold text-[#003553]">Chẩn đoán bệnh (ICD-10): </span>
-                                    <span className="text-slate-800">{selectedRxRecord.clinicalNotes.chanDoanXacDinh}</span>
-                                </div>
+                            <p role="note" className="p-2.5 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-xs flex items-center justify-between gap-2">
+                                <span>
+                                    <strong className="text-clinic-navy">Chẩn đoán bệnh (ICD-10): </strong>
+                                    <span className="text-clinic-text">{selectedRxRecord.clinicalNotes.chanDoanXacDinh}</span>
+                                </span>
                                 <Link
                                     to="/admin/kham-benh"
-                                    className="text-xs text-[#00B5F1] font-bold hover:underline shrink-0 ml-2"
+                                    className="text-xs text-clinic-cta font-bold hover:underline shrink-0 inline-flex items-center gap-1"
                                 >
-                                    Bàn khám &rarr;
+                                    <span>Bàn khám</span>
+                                    <ArrowRight size={12} weight="bold" />
                                 </Link>
-                            </div>
+                            </p>
                         )}
 
-                        <div>
-                            <div className="text-xs font-extrabold text-[#003553] uppercase mb-2">
+                        <section>
+                            <div className="text-xs font-bold text-clinic-navy uppercase mb-2">
                                 Danh mục thuốc kê ({((selectedRxRecord.prescription?.items || selectedRxRecord.prescription?.danhSachThuoc) || []).length} loại)
                             </div>
-                            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                            <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
                                 <table className="medpro-table text-xs">
                                     <thead>
                                         <tr>
                                             <th>STT</th>
-                                            <th>Tên thuốc & Hoạt chất</th>
+                                            <th>Tên thuốc &amp; Hoạt chất</th>
                                             <th>Số lượng</th>
                                             <th>ĐVT</th>
-                                            <th>Liều dùng & Hướng dẫn sử dụng</th>
+                                            <th>Liều dùng &amp; Hướng dẫn sử dụng</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1389,88 +1388,89 @@ export default function ComplianceAndAuditPage() {
                                             <tr key={item.id || i}>
                                                 <td className="font-bold text-center">{i + 1}</td>
                                                 <td>
-                                                    <div className="font-bold text-[#003553]">{item.tenThuoc}</div>
-                                                    <div className="text-[11px] text-slate-500">{item.hoatChat}</div>
+                                                    <div className="font-bold text-clinic-navy">{item.tenThuoc}</div>
+                                                    <div className="text-[11px] text-clinic-text-secondary">{item.hoatChat}</div>
                                                 </td>
-                                                <td className="tabular-nums font-bold text-center">{item.soLuong}</td>
+                                                <td className="font-bold text-center">{item.soLuong}</td>
                                                 <td className="text-center">{item.dvt}</td>
-                                                <td className="text-slate-700">{item.lieuDung}</td>
+                                                <td className="text-clinic-text-secondary">{item.lieuDung}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </section>
 
                         {selectedRxRecord.prescription?.loiDanBacSi && (
-                            <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-xs">
-                                <span className="font-bold text-amber-900">Lời dặn của Bác sĩ: </span>
-                                <span className="text-amber-950">{selectedRxRecord.prescription.loiDanBacSi}</span>
-                            </div>
+                            <p role="note" className="p-3 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-xs text-clinic-navy">
+                                <strong className="text-clinic-warning">Lời dặn của Bác sĩ: </strong>
+                                <span>{selectedRxRecord.prescription.loiDanBacSi}</span>
+                            </p>
                         )}
 
-                        <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-2">
-                            <div className="text-xs font-extrabold text-emerald-900 uppercase flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    <QrCode size={16} className="text-emerald-700" />
-                                    <span>THÔNG SỐ LIÊN THÔNG CỔNG ĐƠN THUỐC QUỐC GIA (TT 26/2025/TT-BYT)</span>
-                                </div>
+                        <section className="p-3.5 rounded-[6px] border border-clinic-success-border bg-clinic-success-bg space-y-2">
+                            <div className="text-xs font-bold text-clinic-navy uppercase flex flex-wrap items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <QrCode size={15} className="text-clinic-success" />
+                                    <span>Thông số liên thông Cổng Đơn thuốc Quốc gia</span>
+                                </span>
                                 <a
                                     href="https://donthuocquocgia.vn"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-[11px] text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
+                                    className="text-[11px] text-clinic-cta font-bold hover:underline inline-flex items-center gap-1 normal-case"
                                 >
-                                    <span>Mở cổng donthuocquocgia.vn</span>
+                                    <span>donthuocquocgia.vn</span>
                                     <Globe size={11} />
                                 </a>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                                 <div>
-                                    <span className="text-slate-500 block">Mã Đơn thuốc Quốc gia:</span>
-                                    {selectedRxRecord.prescription?.maLienThongQuocGia ? (
-                                        <a
-                                            href="https://donthuocquocgia.vn"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="font-mono font-bold text-emerald-700 text-sm hover:underline inline-flex items-center gap-1"
-                                            title="Bấm mở Cổng Quốc gia để tra cứu"
-                                        >
-                                            <span>{selectedRxRecord.prescription.maLienThongQuocGia}</span>
-                                            <Globe size={12} />
-                                        </a>
-                                    ) : (
-                                        <span className="text-slate-400 italic">Chưa cấp (Đang chờ liên thông)</span>
-                                    )}
+                                    <dt className="text-clinic-text-secondary">Mã Đơn thuốc Quốc gia:</dt>
+                                    <dd>
+                                        {selectedRxRecord.prescription?.maLienThongQuocGia ? (
+                                            <a
+                                                href="https://donthuocquocgia.vn"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-mono font-bold text-clinic-success text-sm hover:underline inline-flex items-center gap-1"
+                                            >
+                                                <span>{selectedRxRecord.prescription.maLienThongQuocGia}</span>
+                                                <Globe size={12} />
+                                            </a>
+                                        ) : (
+                                            <span className="text-clinic-text-muted">Chưa cấp (Đang chờ liên thông)</span>
+                                        )}
+                                    </dd>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500 block">Thời điểm ký số SmartCA:</span>
-                                    <span className="font-mono text-slate-700">
+                                    <dt className="text-clinic-text-secondary">Thời điểm ký số SmartCA:</dt>
+                                    <dd className="font-mono text-clinic-navy">
                                         {selectedRxRecord.prescription?.ngayKy || 'Chưa thực hiện ký số'}
-                                    </span>
+                                    </dd>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500 block">Mã giao dịch (Idempotency Key):</span>
-                                    <span className="font-mono text-slate-600 text-[11px]">
+                                    <dt className="text-clinic-text-secondary">Mã giao dịch (Idempotency Key):</dt>
+                                    <dd className="font-mono text-clinic-text-secondary text-[11px]">
                                         {selectedRxRecord.prescription?.idempotencyKey || `IDEM-${selectedRxRecord.maKCB || selectedRxRecord.id}-RX01`}
-                                    </span>
+                                    </dd>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500 block">Biên nhận giao dịch Bộ Y tế:</span>
-                                    <span className="font-mono text-slate-600 text-[11px]">
+                                    <dt className="text-clinic-text-secondary">Biên nhận Bộ Y tế:</dt>
+                                    <dd className="font-mono text-clinic-text-secondary text-[11px]">
                                         {selectedRxRecord.prescription?.receiptToken || (selectedRxRecord.prescription?.trangThaiFSM === 'ACCEPTED' ? `RCPT-BYT-${(selectedRxRecord.maKCB || selectedRxRecord.id).slice(-4)}-OK` : 'Chưa có')}
-                                    </span>
+                                    </dd>
                                 </div>
-                            </div>
-                        </div>
+                            </dl>
+                        </section>
 
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-clinic-border">
                             <a
                                 href="https://donthuocquocgia.vn"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="medpro-btn-outline text-xs inline-flex items-center gap-1.5"
+                                className="medpro-btn-outline !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5"
                             >
                                 <Globe size={13} />
                                 <span>Mở Cổng Tra cứu Bộ Y tế</span>
@@ -1479,7 +1479,7 @@ export default function ComplianceAndAuditPage() {
                                 <button
                                     type="button"
                                     onClick={() => setSelectedRxRecord(null)}
-                                    className="medpro-btn-outline text-xs cursor-pointer"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
                                     Đóng
                                 </button>
@@ -1491,7 +1491,7 @@ export default function ComplianceAndAuditPage() {
                                             handleSyncSinglePrescription(currentKcb)
                                             setSelectedRxRecord(null)
                                         }}
-                                        className="medpro-btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+                                        className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                     >
                                         <ArrowsClockwise size={13} />
                                         <span>Gửi Cổng Quốc gia ngay</span>

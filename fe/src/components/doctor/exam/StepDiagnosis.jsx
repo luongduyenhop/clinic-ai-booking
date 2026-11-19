@@ -44,19 +44,21 @@ const DEPARTMENT_ICD10_PRESETS = {
 function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
     return (
         <div
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 ${primary ? 'bg-[#E8F4FD] ring-2 ring-[#00B5F1]' : 'bg-[#F5F9FC]'}`}
+            className={`flex items-center gap-3 rounded-[6px] border px-4 py-3 ${
+                primary ? 'bg-clinic-surface-alt border-clinic-cta' : 'bg-clinic-surface-tint border-clinic-border'
+            }`}
         >
-            <span className="min-w-14 font-bold text-[#003553]">{dx.ma_icd10}</span>
-            <span className="flex-1 text-[13px]">{dx.ten_benh_chan_doan}</span>
+            <span className="min-w-14 font-bold text-clinic-navy tabular-nums">{dx.ma_icd10}</span>
+            <span className="flex-1 text-[13px] text-clinic-text">{dx.ten_benh_chan_doan}</span>
             <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                    primary ? 'bg-[#00B5F1]/15 text-[#0077B6] border border-[#00B5F1]/30' : 'bg-slate-200/60 text-slate-600'
+                className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[11px] font-semibold ${
+                    primary ? 'medpro-badge-info' : 'medpro-badge-neutral'
                 }`}
             >
                 {primary ? 'Chẩn đoán chính' : 'Chẩn đoán phụ'}
             </span>
             {!primary && !locked && (
-                <button type="button" className="text-[12px] font-semibold text-[#0077B6] hover:underline cursor-pointer" onClick={onMakePrimary}>
+                <button type="button" className="text-[12px] font-semibold text-clinic-cta hover:underline cursor-pointer" onClick={onMakePrimary}>
                     Đặt làm chính
                 </button>
             )}
@@ -65,7 +67,7 @@ function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
                     type="button"
                     aria-label={`Bỏ chẩn đoán ${dx.ma_icd10}`}
                     onClick={onRemove}
-                    className="rounded-full p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                    className="rounded-[6px] p-2 text-clinic-text-secondary hover:bg-clinic-danger-bg hover:text-clinic-danger cursor-pointer"
                 >
                     <ClinicIcon name="X" size={14} />
                 </button>
@@ -162,7 +164,7 @@ export default function StepDiagnosis({
                         value: r.ma,
                         label: (
                             <span>
-                                <strong className="mr-2 text-[#003553]">{r.ma}</strong>
+                                <strong className="mr-2 text-clinic-navy tabular-nums">{r.ma}</strong>
                                 {r.ten}
                             </span>
                         ),
@@ -226,7 +228,7 @@ export default function StepDiagnosis({
 
                     {presets.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 pt-2">
-                            <span className="text-[11px] font-bold text-slate-500 mr-1">Gợi ý nhanh theo khoa:</span>
+                            <span className="text-[11px] font-bold text-clinic-text-secondary mr-1">Gợi ý nhanh theo khoa:</span>
                             {presets.map((p) => {
                                 const alreadySelected = list.some((d) => d.ma_icd10 === p.ma)
                                 return (
@@ -235,13 +237,13 @@ export default function StepDiagnosis({
                                         type="button"
                                         onClick={() => handlePickPreset(p)}
                                         disabled={alreadySelected || locked}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-xs font-semibold transition cursor-pointer ${
                                             alreadySelected
-                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'
+                                                ? 'bg-clinic-bg-muted text-clinic-text-subtle cursor-not-allowed border border-clinic-border'
+                                                : 'bg-clinic-surface-tint text-clinic-navy border border-clinic-info-border hover:bg-clinic-surface-alt'
                                         }`}
                                     >
-                                        <span className="font-bold text-[#0077B6]">{p.ma}</span>
+                                        <span className="font-bold text-clinic-cta tabular-nums">{p.ma}</span>
                                         <span>{p.ten}</span>
                                     </button>
                                 )
@@ -251,19 +253,22 @@ export default function StepDiagnosis({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán chính (bắt buộc chọn 1 mã)</span>
+                    <span className="text-xs font-bold text-clinic-text-secondary">Chẩn đoán chính (bắt buộc chọn 1 mã)</span>
                     {primary ? (
                         <DiagnosisRow dx={primary} primary locked={locked} onRemove={() => remove(primary.ma_icd10)} />
                     ) : (
-                        <div className="rounded-xl border border-rose-300 bg-rose-50/80 px-4 py-3 text-[13px] text-rose-800">
-                            <span className="font-semibold">⚠️ Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10)</span> để hoàn tất hồ sơ khám.
-                            <p className="mt-0.5 text-xs text-rose-600">
+                        <div className="rounded-[6px] border border-clinic-danger-border bg-clinic-danger-bg px-4 py-3 text-[13px] text-clinic-danger">
+                            <span className="font-semibold inline-flex items-center gap-1.5">
+                                <ClinicIcon name="Warning" size={14} weight="bold" />
+                                <span>Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) để hoàn tất hồ sơ khám.</span>
+                            </span>
+                            <p className="mt-0.5 text-xs text-clinic-danger">
                                 {errors.danh_sach_chan_doan || 'Chọn từ ô tìm kiếm nhanh hoặc bấm vào gợi ý nhanh bên trên.'}
                             </p>
                         </div>
                     )}
-                    <span className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Chẩn đoán phụ (nếu có)</span>
-                    {secondary.length === 0 && <p className="text-[12px] text-slate-500">Không có.</p>}
+                    <span className="mt-2 text-xs font-bold text-clinic-text-secondary">Chẩn đoán phụ (nếu có)</span>
+                    {secondary.length === 0 && <p className="text-[12px] text-clinic-text-secondary">Không có.</p>}
                     {secondary.map((d) => (
                         <DiagnosisRow
                             key={d.ma_icd10}
@@ -283,11 +288,11 @@ export default function StepDiagnosis({
 
             <div className="flex flex-[1_1_280px] flex-col gap-4 self-start">
                 {ai && (
-                    <div className="flex flex-col gap-3 rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
-                        <h3 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-[#003553]">
-                            <ClinicIcon name="Robot" size={16} /> Đánh giá gợi ý AI
+                    <div className="medpro-card flex flex-col gap-3 rounded-[6px] bg-clinic-surface-alt p-4 border-clinic-info-border">
+                        <h3 className="flex items-center gap-2 text-[12px] font-bold text-clinic-navy">
+                            <ClinicIcon name="Stethoscope" size={16} /> Đánh giá gợi ý phân khoa
                         </h3>
-                        <p className="text-[13px] leading-relaxed">
+                        <p className="text-[13px] leading-relaxed text-clinic-text">
                             AI Triage đã gợi ý <strong>Khoa {ai.ten_chuyen_khoa || ai.chuyen_khoa}</strong> cho bệnh nhân này. Gợi ý có phù hợp với chẩn đoán của bác sĩ không?
                         </p>
                         <Rate value={rating} onChange={setRating} disabled={locked} />
@@ -307,28 +312,28 @@ export default function StepDiagnosis({
                             Gửi đánh giá
                         </button>
                         {!ai.phan_tich_ai_id && (
-                            <span className="text-[11px] text-amber-700">
+                            <span className="text-[11px] text-clinic-warning">
                                 Lượt khám này chưa có kết quả AI gắn từ lịch hẹn nên chưa thể ghi đánh giá.
                             </span>
                         )}
-                        <span className="text-[11px] text-slate-500">Dùng để cải thiện mô hình AI, bệnh nhân không thấy.</span>
+                        <span className="text-[11px] text-clinic-text-secondary">Dùng để cải thiện mô hình phân luồng, bệnh nhân không thấy.</span>
                     </div>
                 )}
 
-                <div className="flex flex-col gap-3 rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
-                    <h3 className="flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
-                        <ClinicIcon name="Microscope" size={16} /> Chỉ định Cận lâm sàng ({clsOrders.length + (pickedServices?.length || 0)})
+                <div className="medpro-card flex flex-col gap-3 rounded-[6px] bg-clinic-surface-alt p-4 border-clinic-info-border">
+                    <h3 className="flex items-center gap-2 text-[12px] font-extrabold text-clinic-navy tabular-nums">
+                        <ClinicIcon name="Microscope" size={16} /> Chỉ định cận lâm sàng ({clsOrders.length + (pickedServices?.length || 0)})
                     </h3>
 
                     {pickedServices.length > 0 && (
-                        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-2">
+                        <div className="rounded-[6px] border border-clinic-warning-border bg-clinic-warning-bg p-3 text-xs text-clinic-warning space-y-2">
                             <div className="flex items-center justify-between">
-                                <span className="font-bold flex items-center gap-1.5 text-amber-800">
-                                    <ClinicIcon name="Warning" size={14} className="text-amber-600" />
+                                <span className="font-bold flex items-center gap-1.5 text-clinic-warning tabular-nums">
+                                    <ClinicIcon name="Warning" size={14} className="text-clinic-warning" />
                                     Đã chọn {pickedServices.length} chỉ định ở Bước 2 (Chưa gửi):
                                 </span>
                             </div>
-                            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-800 font-medium pl-1">
+                            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-clinic-warning font-medium pl-1">
                                 {pickedServices.map((s) => (
                                     <li key={s.id} className="truncate">{s.ten_dich_vu}</li>
                                 ))}
@@ -337,7 +342,7 @@ export default function StepDiagnosis({
                                 <button
                                     type="button"
                                     onClick={onSendPickedOrders}
-                                    className="w-full mt-1.5 py-1.5 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                                    className="medpro-btn-primary w-full mt-1.5 py-1.5 px-3 rounded-[6px] font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 tabular-nums"
                                 >
                                     <ClinicIcon name="PaperPlaneTilt" size={13} weight="bold" />
                                     Gửi {pickedServices.length} chỉ định sang KTV ngay
@@ -348,21 +353,21 @@ export default function StepDiagnosis({
 
                     {clsOrders.length === 0 && pickedServices.length === 0 ? (
                         <div className="text-center py-4 space-y-2">
-                            <p className="text-[12px] text-slate-500 italic">
+                            <p className="text-[12px] text-clinic-text-secondary">
                                 Ca khám này chưa có chỉ định cận lâm sàng nào.
                             </p>
                             {!locked && onGoToStepOrders && (
                                 <button
                                     type="button"
                                     onClick={onGoToStepOrders}
-                                    className="text-xs font-semibold text-sky-700 hover:underline cursor-pointer"
+                                    className="text-xs font-semibold text-clinic-cta hover:underline cursor-pointer"
                                 >
                                     + Sang Bước 2 để chỉ định CLS
                                 </button>
                             )}
                         </div>
                     ) : clsOrders.length > 0 && (
-                        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-0.5">
+                        <div className="flex flex-col divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface max-h-80 overflow-y-auto">
                             {clsOrders.map((o) => {
                                 const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
@@ -372,19 +377,19 @@ export default function StepDiagnosis({
                                     : (o.tep_dinh_kem_url ? [o.tep_dinh_kem_url] : [])
 
                                 return (
-                                    <div key={o.id} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5 shadow-2xs border border-slate-200">
+                                    <div key={o.id} className="flex flex-col gap-1.5 p-2.5 bg-clinic-surface">
                                         <div className="flex items-center justify-between gap-1">
-                                            <span className="text-[12px] font-bold text-[#003553] truncate">
-                                                {o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || "Dịch vụ CLS"}
+                                            <span className="text-[12px] font-bold text-clinic-navy truncate">
+                                                {o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || 'Dịch vụ CLS'}
                                             </span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                                                isDone ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : isDoing ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                            <span className={`text-[10px] font-bold shrink-0 ${
+                                                isDone ? 'medpro-badge-success' : isDoing ? 'medpro-badge-info' : 'medpro-badge-warning'
                                             }`}>
                                                 {isDone ? 'Đã có KQ' : isDoing ? 'Đang làm' : 'Chờ làm'}
                                             </span>
                                         </div>
                                         {isDone && resultDetail && (
-                                            <div className="text-[11px] text-emerald-900 bg-emerald-50 rounded-lg p-2 border border-emerald-100 leading-relaxed font-medium">
+                                            <div className="text-[11px] text-clinic-success bg-clinic-success-bg rounded-[6px] p-2 border border-clinic-success-border leading-relaxed font-medium">
                                                 {formatResultSummary(resultDetail)}
                                             </div>
                                         )}

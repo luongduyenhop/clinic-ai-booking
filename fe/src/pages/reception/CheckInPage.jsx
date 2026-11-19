@@ -71,7 +71,7 @@ function getAppointmentStatusMeta(app) {
             tagColor: 'green',
             btnText: 'Xem hồ sơ',
             btnType: 'default',
-            btnClass: 'text-emerald-700 bg-emerald-50 border-emerald-300 font-semibold text-xs hover:bg-emerald-100',
+            btnClass: 'text-clinic-success bg-clinic-success-bg border-clinic-success-border font-semibold text-xs hover:bg-clinic-success-bg',
             canCheckIn: false,
         }
     }
@@ -83,7 +83,7 @@ function getAppointmentStatusMeta(app) {
             tagColor: 'volcano',
             btnText: 'Xem hồ sơ',
             btnType: 'default',
-            btnClass: 'text-rose-700 bg-rose-50 border-rose-300 font-semibold text-xs hover:bg-rose-100',
+            btnClass: 'text-clinic-danger bg-clinic-danger-bg border-clinic-danger-border font-semibold text-xs hover:bg-clinic-danger-bg',
             canCheckIn: false,
         }
     }
@@ -95,7 +95,7 @@ function getAppointmentStatusMeta(app) {
             tagColor: 'default',
             btnText: 'Xem hồ sơ',
             btnType: 'default',
-            btnClass: 'text-slate-600 bg-slate-50 border-slate-300 font-semibold text-xs hover:bg-slate-100',
+            btnClass: 'text-clinic-text-secondary bg-clinic-bg border-clinic-border font-semibold text-xs hover:bg-clinic-bg-muted',
             canCheckIn: false,
         }
     }
@@ -106,7 +106,7 @@ function getAppointmentStatusMeta(app) {
         tagColor: 'blue',
         btnText: 'Check-in',
         btnType: 'primary',
-        btnClass: 'bg-emerald-600 hover:bg-emerald-700 font-semibold text-xs',
+        btnClass: 'bg-clinic-success hover:bg-clinic-navy font-semibold text-xs',
         canCheckIn: true,
     }
 }
@@ -379,6 +379,12 @@ export default function CheckInPage() {
         return list
     }, [selectedPatient, appointments, selectedAppointment])
 
+    const waitingCheckInAppointments = useMemo(() => {
+        return (appointments || [])
+            .filter((app) => getAppointmentStatusMeta(app).canCheckIn)
+            .slice(0, 12)
+    }, [appointments])
+
     const handleSelectPatient = async (pat) => {
         const norm = normalizePatient(pat)
         setSelectedPatient(norm)
@@ -615,21 +621,21 @@ export default function CheckInPage() {
                     if (isFull) {
                         Modal.confirm({
                             title: 'Ca khám / Bác sĩ đã hết lượt tiếp nhận!',
-                            icon: <ExclamationCircleOutlined className="text-amber-500" />,
+                            icon: <ExclamationCircleOutlined className="text-clinic-warning" />,
                             content: (
-                                <div className="space-y-2 text-xs text-slate-600">
+                                <div className="space-y-2 text-xs text-clinic-text-secondary">
                                     <p>{errMsg}</p>
-                                    <p className="font-semibold text-slate-800">
+                                    <p className="font-semibold text-clinic-navy">
                                         Bạn có muốn ghi danh người bệnh vào <strong>Danh sách chờ (Waitlist)</strong> không?
                                     </p>
-                                    <p className="text-[11px] text-slate-500">
+                                    <p className="text-[11px] text-clinic-text-secondary">
                                         Hệ thống sẽ cấp mã số chờ (WAIT-xx). Khi có lịch hủy hoặc bác sĩ trống chỗ, người bệnh sẽ được ưu tiên giữ slot và tiếp nhận ngay.
                                     </p>
                                 </div>
                             ),
                             okText: 'Ghi danh vào Danh sách chờ',
                             cancelText: 'Hủy bỏ',
-                            okButtonProps: { className: 'bg-amber-600 hover:bg-amber-700 font-bold' },
+                            okButtonProps: { className: 'medpro-btn-amber font-bold' },
                             onOk: async () => {
                                 try {
                                     setIsSubmitting(true)
@@ -762,21 +768,21 @@ export default function CheckInPage() {
                 if (isFull) {
                     Modal.confirm({
                         title: 'Ca khám / Bác sĩ đã hết lượt tiếp nhận!',
-                        icon: <ExclamationCircleOutlined className="text-amber-500" />,
+                        icon: <ExclamationCircleOutlined className="text-clinic-warning" />,
                         content: (
-                            <div className="space-y-2 text-xs text-slate-600">
+                            <div className="space-y-2 text-xs text-clinic-text-secondary">
                                 <p>{errMsg}</p>
-                                <p className="font-semibold text-slate-800">
+                                <p className="font-semibold text-clinic-navy">
                                     Bạn có muốn ghi danh người bệnh vào <strong>Danh sách chờ (Waitlist)</strong> không?
                                 </p>
-                                <p className="text-[11px] text-slate-500">
+                                <p className="text-[11px] text-clinic-text-secondary">
                                     Hệ thống sẽ cấp mã số chờ (WAIT-xx). Khi có lịch hủy hoặc bác sĩ trống chỗ, người bệnh sẽ được ưu tiên giữ slot và tiếp nhận ngay.
                                 </p>
                             </div>
                         ),
                         okText: 'Ghi danh vào Danh sách chờ',
                         cancelText: 'Hủy bỏ',
-                        okButtonProps: { className: 'bg-amber-600 hover:bg-amber-700 font-bold' },
+                        okButtonProps: { className: 'medpro-btn-amber font-bold' },
                         onOk: async () => {
                             try {
                                 setIsSubmitting(true)
@@ -841,15 +847,15 @@ export default function CheckInPage() {
     return (
         <div className="space-y-4">
             {(isNearQuota || isOverQuota) && (
-                <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
-                    isOverQuota ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+                <div className={`p-4 rounded-[6px] border flex items-start gap-3 text-xs leading-relaxed ${
+                    isOverQuota ? 'bg-clinic-danger-bg border-clinic-danger-border text-clinic-danger' : 'bg-clinic-warning-bg border-clinic-warning-border text-clinic-warning'
                 }`}>
-                    <AlertOutlined className={`text-base shrink-0 mt-0.5 ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`} />
+                    <AlertOutlined className={`text-base shrink-0 mt-0.5 ${isOverQuota ? 'text-clinic-danger' : 'text-clinic-warning'}`} />
                     <div className="flex-1">
-                        <div className="font-bold text-sm">
+                        <div className="font-bold text-sm tabular-nums">
                             {isOverQuota
-                                ? `🛑 HẠN NGẠCH TIẾP ĐÓN TRONG NGÀY ĐÃ ĐẠT NGƯỠNG (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`
-                                : `⚠️ CẢNH BÁO CÔNG SUẤT TIẾP ĐÓN GẦN ĐẦY (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`}
+                                ? `HẠN NGẠCH TIẾP ĐÓN TRONG NGÀY ĐÃ ĐẠT NGƯỠNG (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`
+                                : `CẢNH BÁO CÔNG SUẤT TIẾP ĐÓN GẦN ĐẦY (${todayCheckInCount}/${maxDailyQuota} lượt - ${quotaPercent}%)`}
                         </div>
                         <div className="mt-1">
                             {isOverQuota ? (
@@ -863,9 +869,9 @@ export default function CheckInPage() {
                             )}
                         </div>
                     </div>
-                    <div className="w-24 shrink-0 bg-white/80 p-2 rounded-lg border border-slate-200 text-center font-mono font-bold">
-                        <div className="text-[10px] uppercase text-slate-500">Tiếp nhận</div>
-                        <div className={`text-base ${isOverQuota ? 'text-rose-600' : 'text-amber-600'}`}>{todayCheckInCount}/{maxDailyQuota}</div>
+                    <div className="w-24 shrink-0 bg-clinic-surface p-2 rounded-[6px] border border-clinic-border text-center font-mono font-bold tabular-nums">
+                        <div className="text-[10px] text-clinic-text-secondary">Tiếp nhận</div>
+                        <div className={`text-base ${isOverQuota ? 'text-clinic-danger' : 'text-clinic-warning'}`}>{todayCheckInCount}/{maxDailyQuota}</div>
                     </div>
                 </div>
             )}
@@ -874,9 +880,9 @@ export default function CheckInPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2.5">
-                            <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
+                            <h2 className="text-sm font-extrabold text-clinic-navy">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
                         </div>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-clinic-text-secondary">
                             Tra cứu SĐT, Họ tên, Mã lịch hẹn hoặc CCCD để tự động nạp hồ sơ và check-in ngay
                         </span>
                     </div>
@@ -895,7 +901,7 @@ export default function CheckInPage() {
                 <div className="relative" ref={searchContainerRef}>
                     <Input
                         size="large"
-                        prefix={<SearchOutlined className="text-slate-400 text-lg mr-1" />}
+                        prefix={<SearchOutlined className="text-clinic-text-muted text-lg mr-1" />}
                         suffix={isSearching ? <Spin size="small" /> : null}
                         placeholder="Gõ SĐT, họ tên, mã lịch hẹn (APT-...), CCCD hoặc mã BN để tra cứu..."
                         value={searchKeyword}
@@ -912,17 +918,17 @@ export default function CheckInPage() {
                                 setIsSearchOpen(false)
                             }
                         }}
-                        className="rounded-xl"
+                        className="rounded-[6px]"
                         allowClear
                     />
 
                     {isSearchOpen && hasSearchResults && searchKeyword.trim().length > 0 && (
-                        <div className="absolute top-12 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 max-h-80 overflow-y-auto space-y-2">
+                        <div className="absolute top-12 left-0 right-0 bg-clinic-surface border border-clinic-border rounded-[6px] z-30 p-2 max-h-80 overflow-y-auto space-y-2">
                             {searchAppointmentResults.length > 0 && (
                                 <div className="space-y-1">
-                                    <div className="px-3 py-1 text-[11px] font-bold text-sky-700 uppercase bg-sky-50 rounded-lg flex justify-between items-center">
+                                    <div className="px-3 py-1 text-[11px] font-bold text-clinic-cta bg-clinic-surface-tint rounded-[6px] flex justify-between items-center tabular-nums">
                                         <span className="flex items-center gap-1.5"><CalendarOutlined /> Lịch hẹn hôm nay ({searchAppointmentResults.length}):</span>
-                                        <span className="text-[10px] text-sky-600 font-normal">Bấm để Check-in ngay</span>
+                                        <span className="text-[10px] text-clinic-cta font-normal">Bấm để Check-in ngay</span>
                                     </div>
                                     {searchAppointmentResults.map((app) => {
                                         const statusMeta = getAppointmentStatusMeta(app)
@@ -931,33 +937,33 @@ export default function CheckInPage() {
                                             <div
                                                 key={app.id}
                                                 onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
-                                                className="p-3 rounded-xl hover:bg-sky-50 border border-slate-100 flex items-center justify-between cursor-pointer transition text-xs"
+                                                className="p-3 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
                                             >
                                                 <div className="space-y-1">
-                                                    <div className="font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-                                                        <span className="font-mono text-sky-800">{app.ma_lich_kham || `APT-${app.id}`}</span>
-                                                        <span>•</span>
+                                                    <div className="font-bold text-clinic-navy flex items-center gap-2 flex-wrap">
+                                                        <span className="font-mono text-clinic-cta tabular-nums">{app.ma_lich_kham || `APT-${app.id}`}</span>
+                                                        <span>·</span>
                                                         <span>{app.ten_benh_nhan}</span>
                                                         <Tag color={statusMeta.tagColor} className="text-[10px] mr-0 font-medium">
                                                             {statusMeta.label}
                                                         </Tag>
                                                     </div>
-                                                    <div className="text-slate-500 text-[11px] flex items-center gap-2 flex-wrap">
-                                                        <span>SĐT: <strong className="text-slate-700">{app.so_dien_thoai || 'N/A'}</strong></span>
-                                                        <span>•</span>
-                                                        <span>Giờ khám: <strong className="text-slate-700">{app.gio_kham || 'Theo ca'}</strong></span>
-                                                        <span>•</span>
-                                                        <span>Khoa: <strong className="text-slate-700">{app.chuyen_khoa || 'Chưa gán khoa'}</strong> {app.ten_bac_si ? `(${formatDoctorName(app.ten_bac_si)})` : ''}</span>
+                                                    <div className="text-clinic-text-secondary text-[11px] flex items-center gap-2 flex-wrap tabular-nums">
+                                                        <span>SĐT: <strong className="text-clinic-navy">{app.so_dien_thoai || 'N/A'}</strong></span>
+                                                        <span>·</span>
+                                                        <span>Giờ khám: <strong className="text-clinic-navy">{app.gio_kham || 'Theo ca'}</strong></span>
+                                                        <span>·</span>
+                                                        <span>Khoa: <strong className="text-clinic-navy">{app.chuyen_khoa || 'Chưa gán khoa'}</strong> {app.ten_bac_si ? `(${formatDoctorName(app.ten_bac_si)})` : ''}</span>
                                                         {app.phong_kham && (
                                                             <>
-                                                                <span>•</span>
-                                                                <span>Phòng: <strong className="text-sky-700">{app.phong_kham}</strong></span>
+                                                                <span>·</span>
+                                                                <span>Phòng: <strong className="text-clinic-cta">{app.phong_kham}</strong></span>
                                                             </>
                                                         )}
                                                         {app.ticket_id && (
                                                             <>
-                                                                <span>•</span>
-                                                                <span className="text-emerald-700 font-mono font-semibold">Vé #{app.ticket_id}</span>
+                                                                <span>·</span>
+                                                                <span className="text-clinic-success font-mono font-semibold">Vé #{app.ticket_id}</span>
                                                             </>
                                                         )}
                                                     </div>
@@ -977,17 +983,17 @@ export default function CheckInPage() {
 
                             {searchPatientResults.length > 0 && (
                                 <div className="space-y-1">
-                                    <div className="px-3 py-1 text-[11px] font-bold text-slate-500 uppercase bg-slate-50 rounded-lg">
-                                        👤 Hồ sơ bệnh nhân ({searchPatientResults.length}):
+                                    <div className="px-3 py-1 text-[11px] font-bold text-clinic-text-secondary bg-clinic-bg rounded-[6px] tabular-nums">
+                                        Hồ sơ bệnh nhân ({searchPatientResults.length}):
                                     </div>
                                     {searchPatientResults.map((p) => (
                                         <div
                                             key={p.id}
                                             onClick={() => handleSelectPatient(p)}
-                                            className="p-3 rounded-xl hover:bg-sky-50 border border-slate-100 flex items-center justify-between cursor-pointer transition text-xs"
+                                            className="p-3 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
                                         >
                                             <div>
-                                                <div className="font-bold text-slate-900 flex items-center gap-2">
+                                                <div className="font-bold text-clinic-navy flex items-center gap-2">
                                                     <span>{p.fullName || p.ho_ten}</span>
                                                     {p.isDuplicateSuspect && (
                                                         <Tag color="red" className="mr-0 text-[10px]">
@@ -995,8 +1001,8 @@ export default function CheckInPage() {
                                                         </Tag>
                                                     )}
                                                 </div>
-                                                <div className="text-slate-500 text-[11px] mt-0.5">
-                                                    Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> • SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> • CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
+                                                <div className="text-clinic-text-secondary text-[11px] mt-0.5 tabular-nums">
+                                                    Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> · SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> · CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
                                                 </div>
                                             </div>
                                             <Button size="small" type="primary" className="medpro-btn-primary !h-7 !px-3 text-xs font-bold">
@@ -1011,21 +1017,21 @@ export default function CheckInPage() {
                 </div>
 
                 {isSearchOpen && patientNotFoundForPhone && searchKeyword.trim().length > 0 && (
-                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="p-3.5 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-clinic-warning flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2.5">
-                            <PhoneOutlined className="text-amber-600 text-base" />
+                            <PhoneOutlined className="text-clinic-warning text-base" />
                             <div>
-                                <span className="font-bold">Số điện thoại {searchKeyword} chưa có hồ sơ (Bệnh nhân mới)</span>
-                                <div className="text-[11px] text-amber-700">Lễ tân có thể tạo hồ sơ nhanh trong 30 giây hoặc sử dụng form tiếp nhận nhanh bên dưới.</div>
+                                <span className="font-bold tabular-nums">Số điện thoại {searchKeyword} chưa có hồ sơ (Bệnh nhân mới)</span>
+                                <div className="text-[11px] text-clinic-warning">Lễ tân có thể tạo hồ sơ nhanh trong 30 giây hoặc sử dụng form tiếp nhận nhanh bên dưới.</div>
                             </div>
                         </div>
                         <Button
                             type="primary"
                             icon={<UserAddOutlined />}
-                            className="bg-amber-600 hover:bg-amber-700 font-bold text-xs"
+                            className="medpro-btn-amber font-bold text-xs"
                             onClick={() => setIsCreatePatientOpen(true)}
                         >
-                            ⚡ Tạo hồ sơ nhanh trong 30 giây
+                            Tạo hồ sơ nhanh trong 30 giây
                         </Button>
                     </div>
                 )}
@@ -1034,9 +1040,9 @@ export default function CheckInPage() {
             {selectedPatient ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="medpro-card p-4 space-y-3">
-                        <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
-                            <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Hồ sơ người bệnh (Bệnh nhân cũ)</span>
-                            <Button size="small" onClick={() => setSelectedPatient(null)} className="rounded-full text-xs font-semibold">
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
+                            <span className="font-extrabold text-clinic-navy text-xs">Hồ sơ người bệnh (Bệnh nhân cũ)</span>
+                            <Button size="small" onClick={() => setSelectedPatient(null)} className="rounded-[6px] text-xs font-semibold">
                                 Đổi bệnh nhân
                             </Button>
                         </div>
@@ -1059,25 +1065,25 @@ export default function CheckInPage() {
                             />
                         )}
 
-                        <Descriptions size="small" column={1} bordered className="bg-white rounded-xl overflow-hidden">
+                        <Descriptions size="small" column={1} bordered className="bg-clinic-surface rounded-[6px] overflow-hidden">
                             <Descriptions.Item label="Họ và tên">
-                                <span className="font-extrabold text-[#003553] text-sm">{selectedPatient.fullName}</span>
+                                <span className="font-extrabold text-clinic-navy text-sm">{selectedPatient.fullName}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Giới tính">
-                                <span className="font-semibold text-slate-800">{selectedPatient.gender}</span>
+                                <span className="font-semibold text-clinic-navy">{selectedPatient.gender}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Nhóm máu">
                                 <Tag color="magenta" className="font-bold">{selectedPatient.bloodType}</Tag>
                             </Descriptions.Item>
                             <Descriptions.Item label="Năm sinh">
-                                <span className="font-bold text-slate-800">
+                                <span className="font-bold text-clinic-navy tabular-nums">
                                     {selectedPatient.dob
-                                        ? `${dayjs(selectedPatient.dob).format('YYYY')} (${dayjs().diff(dayjs(selectedPatient.dob), 'year')} tuổi) • ${dayjs(selectedPatient.dob).format('DD/MM/YYYY')}`
+                                        ? `${dayjs(selectedPatient.dob).format('YYYY')} (${dayjs().diff(dayjs(selectedPatient.dob), 'year')} tuổi) · ${dayjs(selectedPatient.dob).format('DD/MM/YYYY')}`
                                         : 'Chưa cập nhật'}
                                 </span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Số điện thoại">
-                                <span className="font-mono font-bold text-[#00B5F1]">{selectedPatient.phone || 'Chưa có'}</span>
+                                <span className="font-mono font-bold text-clinic-cta tabular-nums">{selectedPatient.phone || 'Chưa có'}</span>
                             </Descriptions.Item>
                             <Descriptions.Item label="Địa chỉ">
                                 <span>{selectedPatient.address || 'Chưa cập nhật'}</span>
@@ -1085,7 +1091,7 @@ export default function CheckInPage() {
                             <Descriptions.Item label="Tiền sử dị ứng">
                                 {selectedPatient.allergies ? (
                                     <Tag color="red" className="font-bold">
-                                        ⚠️ {selectedPatient.allergies}
+                                        Dị ứng: {selectedPatient.allergies}
                                     </Tag>
                                 ) : (
                                     <Tag color="green">Chưa ghi nhận dị ứng thuốc</Tag>
@@ -1093,19 +1099,19 @@ export default function CheckInPage() {
                             </Descriptions.Item>
                             {selectedPatient.medicalHistory && (
                                 <Descriptions.Item label="Tiền sử bệnh">
-                                    <span className="text-slate-700">{selectedPatient.medicalHistory}</span>
+                                    <span className="text-clinic-text">{selectedPatient.medicalHistory}</span>
                                 </Descriptions.Item>
                             )}
                             <Descriptions.Item label="Mã hồ sơ">
-                                <span className="font-mono font-bold text-[#003553]">{selectedPatient.patientCode}</span>
+                                <span className="font-mono font-bold text-clinic-navy tabular-nums">{selectedPatient.patientCode}</span>
                             </Descriptions.Item>
-                            <Descriptions.Item label="CCCD">{selectedPatient.identityCard || 'Chưa cung cấp'}</Descriptions.Item>
+                            <Descriptions.Item label="CCCD"><span className="tabular-nums">{selectedPatient.identityCard || 'Chưa cung cấp'}</span></Descriptions.Item>
                         </Descriptions>
                     </div>
 
                     <div className="lg:col-span-2 medpro-card p-4 space-y-3">
-                        <div className="flex items-center justify-between border-b border-[#E2EDF5] pb-2.5">
-                            <span className="font-extrabold text-[#003553] text-xs uppercase tracking-wider">Phương thức tiếp nhận</span>
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
+                            <span className="font-extrabold text-clinic-navy text-xs">Phương thức tiếp nhận</span>
                             <Radio.Group
                                 value={checkInMode}
                                 onChange={(e) => setCheckInMode(e.target.value)}
@@ -1119,8 +1125,8 @@ export default function CheckInPage() {
                         {checkInMode === 'WITH_APPOINTMENT' ? (
                             <div className="space-y-4">
                                 {patientAppointments.length === 0 ? (
-                                    <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
-                                        <p className="text-slate-500 text-xs">
+                                    <div className="p-6 text-center bg-clinic-bg rounded-[6px] border border-dashed border-clinic-border space-y-2">
+                                        <p className="text-clinic-text-secondary text-xs">
                                             Không tìm thấy lịch hẹn hợp lệ nào hôm nay cho bệnh nhân này.
                                         </p>
                                         <Button
@@ -1133,9 +1139,9 @@ export default function CheckInPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        <label className="block text-xs font-bold text-slate-700 uppercase">
+                                        <span className="medpro-label">
                                             Chọn lịch hẹn cần check-in:
-                                        </label>
+                                        </span>
                                         {patientAppointments.map((app) => {
                                             const dep = departments.find((d) => d.id === (app.departmentId || app.chuyen_khoa_id))
                                             const doc = doctors.find((d) => d.id === (app.doctorId || app.bac_si_id))
@@ -1153,23 +1159,23 @@ export default function CheckInPage() {
                                                 <div
                                                     key={app.id}
                                                     onClick={() => setSelectedAppointment(app)}
-                                                    className={`p-4 rounded-xl border transition cursor-pointer text-xs space-y-2 ${
+                                                    className={`p-4 rounded-[6px] border transition cursor-pointer text-xs space-y-2 ${
                                                         isSelected
-                                                            ? 'border-sky-500 bg-sky-50/60 ring-2 ring-sky-200'
-                                                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                                                            ? 'border-clinic-cta bg-clinic-surface-alt'
+                                                            : 'border-clinic-border bg-clinic-bg hover:bg-clinic-surface-tint'
                                                     }`}
                                                 >
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-bold text-sky-800 text-sm">
+                                                    <div className="flex justify-between items-center tabular-nums">
+                                                        <span className="font-bold text-clinic-navy text-sm">
                                                             {displayCode}
                                                         </span>
                                                         <Tag color="blue">{displayTime}</Tag>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-2 text-slate-600">
-                                                        <div>Chuyên khoa: <strong>{depName}</strong></div>
-                                                        <div>Bác sĩ: <strong>{docName}</strong></div>
-                                                        <div>Phòng khám: <strong>{roomName}</strong></div>
-                                                        <div>Dịch vụ: <strong>{srvName}</strong></div>
+                                                    <div className="grid grid-cols-2 gap-2 text-clinic-text-secondary">
+                                                        <div>Chuyên khoa: <strong className="text-clinic-navy">{depName}</strong></div>
+                                                        <div>Bác sĩ: <strong className="text-clinic-navy">{docName}</strong></div>
+                                                        <div>Phòng khám: <strong className="text-clinic-navy">{roomName}</strong></div>
+                                                        <div>Dịch vụ: <strong className="text-clinic-navy">{srvName}</strong></div>
                                                     </div>
                                                 </div>
                                             )
@@ -1181,14 +1187,14 @@ export default function CheckInPage() {
                             <div className="space-y-3 text-xs">
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="block font-bold text-slate-700 uppercase">
-                                            Chuyên khoa khám <span className="text-red-500">*</span>
-                                        </label>
+                                        <span className="medpro-label !mb-0">
+                                            Chuyên khoa khám <span className="text-clinic-danger">*</span>
+                                        </span>
                                         {loadingSpecialties && <Spin size="small" />}
                                     </div>
                                     <Select
                                         className="w-full"
-                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        placeholder={loadingSpecialties ? 'Đang tải chuyên khoa...' : 'Chọn chuyên khoa khám...'}
                                         value={walkInDepartmentId}
                                         onChange={handleWalkInDepartmentChange}
                                         options={(departments || []).map((s) => ({
@@ -1200,21 +1206,21 @@ export default function CheckInPage() {
 
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="block font-bold text-slate-700 uppercase">
+                                        <span className="medpro-label !mb-0">
                                             Bác sĩ tiếp nhận khám (kèm buồng khám theo ca trực):
-                                        </label>
+                                        </span>
                                         {loadingWalkInDocs && <Spin size="small" />}
                                     </div>
                                     <Select
                                         className="w-full"
                                         placeholder={
                                             loadingWalkInDocs
-                                                ? "Đang tải danh sách bác sĩ..."
+                                                ? 'Đang tải danh sách bác sĩ...'
                                                 : !walkInDepartmentId
-                                                  ? "Chọn chuyên khoa trước"
+                                                  ? 'Chọn chuyên khoa trước'
                                                   : walkInDoctors.length === 0
-                                                    ? "Khoa này chưa có bác sĩ"
-                                                    : "Chọn bác sĩ hoặc để tự động"
+                                                    ? 'Khoa này chưa có bác sĩ'
+                                                    : 'Chọn bác sĩ hoặc để tự động'
                                         }
                                         allowClear
                                         loading={loadingWalkInDocs}
@@ -1222,7 +1228,7 @@ export default function CheckInPage() {
                                         value={walkInDoctorId || undefined}
                                         onChange={handleWalkInDoctorChange}
                                         options={[
-                                            { value: '', label: '⚡ Tự động phân bổ bác sĩ' },
+                                            { value: '', label: 'Tự động phân bổ bác sĩ' },
                                             ...walkInDoctors.map((d) => ({
                                                 value: d.id,
                                                 label: `${formatDoctorName(d.name, d.title)}${d.roomName ? ` — ${d.roomName}` : ''}${d.status === 'ON_LEAVE' ? ' (Nghỉ)' : ''}`,
@@ -1234,11 +1240,11 @@ export default function CheckInPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-3 border-t border-slate-100">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-3 border-t border-clinic-border">
                             <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
-                                    Mức độ ưu tiên <span className="text-red-500">*</span>
-                                </label>
+                                <span className="medpro-label">
+                                    Mức độ ưu tiên <span className="text-clinic-danger">*</span>
+                                </span>
                                 <Select
                                     className="w-full"
                                     value={priorityType}
@@ -1251,9 +1257,9 @@ export default function CheckInPage() {
                             </div>
                             {priorityType === 'PRIORITY' ? (
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Diện ưu tiên (Theo quy định) <span className="text-red-500">*</span>
-                                    </label>
+                                    <span className="medpro-label">
+                                        Diện ưu tiên (Theo quy định) <span className="text-clinic-danger">*</span>
+                                    </span>
                                     <Select
                                         className="w-full"
                                         value={priorityReason}
@@ -1263,10 +1269,11 @@ export default function CheckInPage() {
                                 </div>
                             ) : (
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                    <label htmlFor="ci-notes-normal" className="medpro-label">
                                         {checkInMode === 'WITH_APPOINTMENT' ? 'Ghi chú điều phối' : 'Lý do khám / Triệu chứng'}
                                     </label>
                                     <Input
+                                        id="ci-notes-normal"
                                         placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
                                         maxLength={255}
                                         value={checkInNotes}
@@ -1278,10 +1285,11 @@ export default function CheckInPage() {
 
                         {priorityType === 'PRIORITY' && (
                             <div className="text-xs pt-1">
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
+                                <label htmlFor="ci-notes-priority" className="medpro-label">
                                     {checkInMode === 'WITH_APPOINTMENT' ? 'Ghi chú điều phối' : 'Lý do khám / Triệu chứng'}
                                 </label>
                                 <Input
+                                    id="ci-notes-priority"
                                     placeholder={checkInMode === 'WITH_APPOINTMENT' ? 'Lưu ý điều phối bổ sung...' : 'Ví dụ: Đau mắt đỏ, mờ mắt, tái khám...'}
                                     maxLength={255}
                                     value={checkInNotes}
@@ -1295,14 +1303,14 @@ export default function CheckInPage() {
                                 <Checkbox
                                     checked={walkInAutoWaitlist}
                                     onChange={(e) => setWalkInAutoWaitlist(e.target.checked)}
-                                    className="text-xs text-amber-800 font-medium"
+                                    className="text-xs text-clinic-warning font-medium"
                                 >
                                     Đăng ký Danh sách chờ (Waitlist) nếu bác sĩ đã đủ chỉ tiêu tiếp nhận trong ca
                                 </Checkbox>
                             </div>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <div className="flex justify-end gap-2 pt-3 border-t border-clinic-border">
                             <Button className="medpro-btn-outline !h-10 !px-4 text-xs font-semibold" onClick={() => setSelectedPatient(null)}>Hủy bỏ</Button>
                             <Button
                                 type="primary"
@@ -1310,51 +1318,95 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleConfirmCheckIn}
                                 loading={isSubmitting}
-                                className="medpro-btn-primary !h-10 !px-6 text-sm font-bold shadow-md">
-                                Cấp STT Khám & Xem phiếu in
+                                className="medpro-btn-primary !h-10 !px-6 text-sm font-bold">
+                                Cấp STT Khám &amp; Xem phiếu in
                             </Button>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="medpro-card p-6 space-y-4 text-center flex flex-col justify-center">
-                        <div className="w-14 h-14 rounded-2xl bg-[#E8F4FD] text-[#00B5F1] border border-[#CBE9FA] flex items-center justify-center mx-auto text-2xl font-bold shadow-2xs">
-                            🔍
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    <div className="lg:col-span-7 medpro-card p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
+                            <div className="flex items-center gap-2">
+                                <CalendarOutlined className="text-clinic-cta text-sm" />
+                                <h3 className="text-xs font-extrabold text-clinic-navy">
+                                    Lịch hẹn chờ tiếp đón trong ngày ({waitingCheckInAppointments.length})
+                                </h3>
+                            </div>
+                            <span className="text-[11px] text-clinic-text-secondary tabular-nums">
+                                Chọn để nạp hồ sơ check-in ngay
+                            </span>
                         </div>
-                        <div>
-                            <h3 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Tra cứu hoặc Tạo mới người bệnh</h3>
-                            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                                Nhập số điện thoại, họ tên hoặc mã lịch hẹn vào ô tìm kiếm để nạp hồ sơ cũ và check-in ngay.
-                            </p>
-                        </div>
-                        <div className="pt-2">
-                            <Button
-                                type="primary"
-                                icon={<UserAddOutlined />}
-                                onClick={() => setIsCreatePatientOpen(true)}
-                                className="medpro-btn-primary !h-9 !px-5"
-                            >
-                                Tạo hồ sơ người bệnh mới (30s)
-                            </Button>
-                        </div>
+
+                        {waitingCheckInAppointments.length === 0 ? (
+                            <div className="py-10 px-4 text-center rounded-[6px] bg-clinic-bg border border-clinic-border space-y-1.5">
+                                <p className="text-xs font-bold text-clinic-navy">
+                                    Chưa có lịch hẹn đặt trước chờ tiếp đón trong ca
+                                </p>
+                                <p className="text-[11px] text-clinic-text-secondary max-w-md mx-auto">
+                                    Gõ số điện thoại, CCCD hoặc họ tên vào thanh tìm kiếm phía trên để tra cứu hồ sơ cũ, hoặc cấp số khám vãng lai tại biểu mẫu bên cạnh.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface overflow-hidden">
+                                {waitingCheckInAppointments.map((app) => {
+                                    const statusMeta = getAppointmentStatusMeta(app)
+                                    const appCode = app.ma_lich_kham || app.appointmentCode || `APT-${app.id}`
+                                    const patientName = app.ten_benh_nhan || app.patientName || 'Bệnh nhân'
+                                    const phone = app.so_dien_thoai || app.phone || 'Chưa có SĐT'
+                                    const visitTime = app.gio_kham || app.timeSlot || 'Theo ca'
+                                    const specialtyName = app.ten_chuyen_khoa || 'Chuyên khoa'
+                                    const doctorName = app.ten_bac_si ? formatDoctorName(app.ten_bac_si) : ''
+
+                                    return (
+                                        <div
+                                            key={app.id}
+                                            className="p-3 flex flex-wrap items-center justify-between gap-3 hover:bg-clinic-surface-tint transition-colors text-xs"
+                                        >
+                                            <div className="min-w-0 space-y-0.5">
+                                                <div className="flex items-center gap-2 flex-wrap tabular-nums">
+                                                    <span className="font-mono font-bold text-clinic-cta">{appCode}</span>
+                                                    <span className="font-bold text-clinic-navy">{patientName}</span>
+                                                    <span className="medpro-badge-info text-[10px] font-bold">{visitTime}</span>
+                                                </div>
+                                                <div className="text-[11px] text-clinic-text-secondary flex items-center gap-2 flex-wrap tabular-nums">
+                                                    <span>SĐT: <strong className="text-clinic-navy">{phone}</strong></span>
+                                                    <span>·</span>
+                                                    <span>{specialtyName}{doctorName ? ` (${doctorName})` : ''}</span>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                size="small"
+                                                type="primary"
+                                                onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
+                                                className="medpro-btn-primary !h-7 !px-3 text-xs font-bold shrink-0"
+                                            >
+                                                Chọn tiếp nhận
+                                            </Button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="medpro-card p-4 space-y-3 text-xs">
-                        <div className="flex items-center gap-2 border-b border-[#E2EDF5] pb-2.5">
-                            <ThunderboltOutlined className="text-amber-500 text-base" />
+                    <div className="lg:col-span-5 medpro-card p-4 space-y-3 text-xs">
+                        <div className="flex items-center gap-2 border-b border-clinic-border pb-2.5">
+                            <ThunderboltOutlined className="text-clinic-warning text-base" />
                             <div>
-                                <h3 className="font-extrabold text-[#003553] text-xs uppercase tracking-wide">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
-                                <p className="text-[11px] text-slate-400 mt-0.5">Cấp số thứ tự khám ngay tại quầy — Chọn Bác sĩ trực & Mức độ ưu tiên</p>
+                                <h3 className="font-extrabold text-clinic-navy text-xs">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
+                                <p className="text-[11px] text-clinic-text-secondary mt-0.5">Cấp số thứ tự khám ngay tại quầy — Chọn Bác sĩ trực &amp; Mức độ ưu tiên</p>
                             </div>
                         </div>
 
                         <div className="space-y-3">
                             <div>
-                                <label className="block font-bold text-slate-700 uppercase mb-1">
-                                    Họ và tên bệnh nhân <span className="text-red-500">*</span>
+                                <label htmlFor="qw-full-name" className="medpro-label">
+                                    Họ và tên bệnh nhân <span className="text-clinic-danger">*</span>
                                 </label>
                                 <Input
+                                    id="qw-full-name"
                                     placeholder="Nhập đầy đủ họ và tên bệnh nhân..."
                                     maxLength={150}
                                     value={quickWalkInForm.fullName}
@@ -1364,10 +1416,11 @@ export default function CheckInPage() {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Số điện thoại <span className="text-red-500">*</span>
+                                    <label htmlFor="qw-phone" className="medpro-label">
+                                        Số điện thoại <span className="text-clinic-danger">*</span>
                                     </label>
                                     <Input
+                                        id="qw-phone"
                                         placeholder="0912345678 (10-11 số)"
                                         maxLength={11}
                                         value={quickWalkInForm.phone}
@@ -1375,8 +1428,9 @@ export default function CheckInPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">Giới tính</label>
+                                    <label htmlFor="qw-gender" className="medpro-label">Giới tính</label>
                                     <Select
+                                        id="qw-gender"
                                         className="w-full"
                                         value={quickWalkInForm.gender}
                                         onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, gender: val })}
@@ -1391,8 +1445,9 @@ export default function CheckInPage() {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">Năm sinh</label>
+                                    <label htmlFor="qw-birth-year" className="medpro-label">Năm sinh</label>
                                     <Input
+                                        id="qw-birth-year"
                                         placeholder="Ví dụ: 1990"
                                         maxLength={4}
                                         value={quickWalkInForm.birthYear}
@@ -1401,14 +1456,14 @@ export default function CheckInPage() {
                                 </div>
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="block font-bold text-slate-700 uppercase">
-                                            Chuyên khoa khám <span className="text-red-500">*</span>
-                                        </label>
+                                        <span className="medpro-label !mb-0">
+                                            Chuyên khoa khám <span className="text-clinic-danger">*</span>
+                                        </span>
                                         {loadingSpecialties && <Spin size="small" />}
                                     </div>
                                     <Select
                                         className="w-full"
-                                        placeholder={loadingSpecialties ? "Đang tải chuyên khoa..." : "Chọn chuyên khoa khám..."}
+                                        placeholder={loadingSpecialties ? 'Đang tải chuyên khoa...' : 'Chọn chuyên khoa khám...'}
                                         value={quickWalkInForm.departmentId}
                                         onChange={handleQuickDepartmentChange}
                                         options={(departments || []).map((s) => ({
@@ -1421,21 +1476,21 @@ export default function CheckInPage() {
 
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="block font-bold text-slate-700 uppercase">
+                                    <span className="medpro-label !mb-0">
                                         Bác sĩ tiếp nhận khám (kèm buồng khám theo ca trực):
-                                    </label>
+                                    </span>
                                     {loadingQuickDocs && <Spin size="small" />}
                                 </div>
                                 <Select
                                     className="w-full"
                                     placeholder={
                                         loadingQuickDocs
-                                            ? "Đang tải danh sách bác sĩ..."
+                                            ? 'Đang tải danh sách bác sĩ...'
                                             : !quickWalkInForm.departmentId
-                                              ? "Chọn chuyên khoa trước"
+                                              ? 'Chọn chuyên khoa trước'
                                               : quickWalkInDoctors.length === 0
-                                                ? "Khoa này chưa có bác sĩ"
-                                                : "Chọn bác sĩ hoặc để tự động"
+                                                ? 'Khoa này chưa có bác sĩ'
+                                                : 'Chọn bác sĩ hoặc để tự động'
                                     }
                                     allowClear
                                     loading={loadingQuickDocs}
@@ -1443,7 +1498,7 @@ export default function CheckInPage() {
                                     value={quickWalkInForm.doctorId || undefined}
                                     onChange={(val) => setQuickWalkInForm({ ...quickWalkInForm, doctorId: val || null })}
                                     options={[
-                                        { value: '', label: '⚡ Tự động phân bổ bác sĩ' },
+                                        { value: '', label: 'Tự động phân bổ bác sĩ' },
                                         ...quickWalkInDoctors.map((d) => ({
                                             value: d.id,
                                             label: `${formatDoctorName(d.name, d.title)}${d.roomName ? ` — ${d.roomName}` : ''}${d.status === 'ON_LEAVE' ? ' (Nghỉ)' : ''}`,
@@ -1455,9 +1510,9 @@ export default function CheckInPage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                                        Mức độ ưu tiên <span className="text-red-500">*</span>
-                                    </label>
+                                    <span className="medpro-label">
+                                        Mức độ ưu tiên <span className="text-clinic-danger">*</span>
+                                    </span>
                                     <Select
                                         className="w-full"
                                         value={quickWalkInForm.priority}
@@ -1470,9 +1525,9 @@ export default function CheckInPage() {
                                 </div>
                                 {quickWalkInForm.priority === 'PRIORITY' ? (
                                     <div>
-                                        <label className="block font-bold text-slate-700 uppercase mb-1">
-                                            Diện ưu tiên (Theo quy định) <span className="text-red-500">*</span>
-                                        </label>
+                                        <span className="medpro-label">
+                                            Diện ưu tiên (Theo quy định) <span className="text-clinic-danger">*</span>
+                                        </span>
                                         <Select
                                             className="w-full"
                                             value={quickWalkInForm.priorityReason}
@@ -1482,10 +1537,11 @@ export default function CheckInPage() {
                                     </div>
                                 ) : (
                                     <div>
-                                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                                        <label htmlFor="qw-reason-normal" className="medpro-label">
                                             Lý do khám / Triệu chứng
                                         </label>
                                         <Input
+                                            id="qw-reason-normal"
                                             placeholder="Ví dụ: Ho khan, đau đầu, khám định kỳ..."
                                             maxLength={255}
                                             value={quickWalkInForm.reason}
@@ -1497,10 +1553,11 @@ export default function CheckInPage() {
 
                             {quickWalkInForm.priority === 'PRIORITY' && (
                                 <div>
-                                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                                    <label htmlFor="qw-reason-priority" className="medpro-label">
                                         Lý do khám / Triệu chứng
                                     </label>
                                     <Input
+                                        id="qw-reason-priority"
                                         placeholder="Ví dụ: Cấp cứu nhẹ, đau bụng dữ dội, người già đi một mình..."
                                         maxLength={255}
                                         value={quickWalkInForm.reason}
@@ -1513,7 +1570,7 @@ export default function CheckInPage() {
                                 <Checkbox
                                     checked={quickAutoWaitlist}
                                     onChange={(e) => setQuickAutoWaitlist(e.target.checked)}
-                                    className="text-xs text-amber-800 font-medium"
+                                    className="text-xs text-clinic-warning font-medium"
                                 >
                                     Đăng ký Danh sách chờ (Waitlist) nếu bác sĩ đã đủ chỉ tiêu tiếp nhận
                                 </Checkbox>
@@ -1525,9 +1582,9 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleQuickWalkInSubmit}
                                 loading={isSubmitting}
-                                className="medpro-btn-primary w-full !h-10 text-sm font-bold shadow-md mt-2"
+                                className="medpro-btn-primary w-full !h-10 text-sm font-bold mt-2"
                             >
-                                Cấp STT Khám Nhanh & In Phiếu
+                                Cấp STT Khám Nhanh &amp; In Phiếu
                             </Button>
                         </div>
                     </div>

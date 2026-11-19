@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Table, Input, Button, Tag, Space } from 'antd'
+import { Table, Input, Button, Space } from 'antd'
 import {
     SearchOutlined,
     UserAddOutlined,
@@ -70,11 +70,11 @@ export default function PatientsPage() {
             width: 140,
             render: (code, record) => (
                 <div>
-                    <span className="font-mono font-bold text-sky-700 block">{code || `BN-${record.id}`}</span>
+                    <span className="font-mono font-bold text-clinic-cta block tabular-nums">{code || `BN-${record.id}`}</span>
                     {record.isDuplicateSuspect && (
-                        <Tag color="red" className="text-[10px] mr-0 mt-0.5">
+                        <span className="medpro-badge-danger text-[10px] mt-0.5">
                             Trùng hồ sơ
-                        </Tag>
+                        </span>
                     )}
                 </div>
             ),
@@ -86,9 +86,9 @@ export default function PatientsPage() {
             width: 220,
             render: (name, record) => (
                 <div>
-                    <span className="font-bold text-slate-900 block">{name}</span>
-                    <span className="text-[11px] text-slate-400">
-                        {record.gender === 'MALE' ? 'Nam' : record.gender === 'FEMALE' ? 'Nữ' : 'Khác'} •{' '}
+                    <span className="font-bold text-clinic-navy block">{name}</span>
+                    <span className="text-[11px] text-clinic-text-muted tabular-nums">
+                        {record.gender === 'MALE' ? 'Nam' : record.gender === 'FEMALE' ? 'Nữ' : 'Khác'} ·{' '}
                         {record.dob ? dayjs(record.dob).format('DD/MM/YYYY') : 'Chưa có ngày sinh'}
                     </span>
                 </div>
@@ -98,15 +98,15 @@ export default function PatientsPage() {
             title: 'Liên hệ & Định danh',
             key: 'contact',
             render: (_, record) => (
-                <div className="text-xs space-y-0.5">
+                <div className="text-xs space-y-0.5 tabular-nums">
                     <div>
-                        SĐT: <strong>{record.phone}</strong>
+                        SĐT: <strong className="text-clinic-navy">{record.phone}</strong>
                     </div>
-                    <div className="text-slate-500">
-                        CCCD: {record.identityCard || <span className="text-slate-400 italic">Chưa có</span>}
+                    <div className="text-clinic-text-secondary">
+                        CCCD: {record.identityCard || <span className="text-clinic-text-subtle">Chưa có</span>}
                     </div>
                     {record.address && (
-                        <div className="text-slate-400 text-[11px] truncate max-w-xs">{record.address}</div>
+                        <div className="text-clinic-text-muted text-[11px] truncate max-w-xs">{record.address}</div>
                     )}
                 </div>
             ),
@@ -129,12 +129,12 @@ export default function PatientsPage() {
                            (record.patientCode && q.patientCode === record.patientCode)
                 ).length
                 return (
-                    <div className="text-xs text-slate-600 space-y-0.5">
+                    <div className="text-xs text-clinic-text-secondary space-y-0.5 tabular-nums">
                         <div>
-                            Lịch hẹn: <strong className="text-sky-700">{appCount}</strong>
+                            Lịch hẹn: <strong className="text-clinic-cta">{appCount}</strong>
                         </div>
                         <div>
-                            Đã khám: <strong className="text-emerald-700">{queueCount}</strong>
+                            Đã khám: <strong className="text-clinic-success">{queueCount}</strong>
                         </div>
                     </div>
                 )
@@ -169,13 +169,15 @@ export default function PatientsPage() {
     ]
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý hồ sơ bệnh nhân (Master Patient Index)</h2>
-                        <span className="text-xs text-slate-500">
-                            Tra cứu hồ sơ hành chính từ CSDL, kiểm tra mã định danh, người đại diện và cảnh báo trùng lặp
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display">
+                            Danh mục Hồ sơ Bệnh nhân
+                        </h2>
+                        <span className="text-xs text-clinic-text-secondary">
+                            Tra cứu hồ sơ hành chính, kiểm tra mã định danh CCCD, người đại diện và cảnh báo trùng hồ sơ
                         </span>
                     </div>
                     <div className="flex gap-2">
@@ -201,9 +203,9 @@ export default function PatientsPage() {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-clinic-border">
                     <Input
-                        prefix={<SearchOutlined className="text-slate-400" />}
+                        prefix={<SearchOutlined className="text-clinic-text-muted" />}
                         placeholder="Tìm theo tên, SĐT, CCCD hoặc mã bệnh nhân..."
                         value={searchQuery}
                         onChange={(e) => handleSearch(e.target.value)}

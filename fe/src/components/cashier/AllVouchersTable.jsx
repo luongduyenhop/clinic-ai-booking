@@ -29,16 +29,16 @@ export default function AllVouchersTable({
                         onClick={() => onSelectVoucher(voucher)}
                         className={`cursor-pointer ${
                             form.id === voucher.id
-                                ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]'
+                                ? 'bg-clinic-surface-alt font-semibold border-l-4 border-l-clinic-cta'
                                 : ''
                         }`}
                     >
                         <td className="tabular-nums text-center font-bold">{idx + 1}</td>
-                        <td className="font-mono text-[11px] font-bold text-[#00B5F1]">
+                        <td className="font-mono text-[11px] font-bold text-clinic-cta">
                             {voucher.maPhieu}
                         </td>
-                        <td className="font-semibold text-[#12263F]">{voucher.hoTenBN}</td>
-                        <td className="tabular-nums font-bold text-[#003553]">
+                        <td className="font-semibold text-clinic-navy">{voucher.hoTenBN}</td>
+                        <td className="tabular-nums font-bold text-clinic-navy">
                             {Number(voucher.tongTien).toLocaleString('vi-VN')} đ
                         </td>
                         <td className="text-center">
@@ -53,7 +53,7 @@ export default function AllVouchersTable({
                                         e.stopPropagation()
                                         onOpenQr(voucher)
                                     }}
-                                    className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
+                                    className="p-1 text-clinic-cta hover:text-clinic-navy transition cursor-pointer"
                                     title="Mã QR (SePay / VietQR)"
                                 >
                                     <QrCode size={13} weight="bold" />

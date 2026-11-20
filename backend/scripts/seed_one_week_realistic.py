@@ -40,7 +40,7 @@ from scripts.run_migrations import DEPLOYMENT_LOCK, require_demo_database
 from seed_data import seed_catalogs
 CORE_STAFF = [
     ("admin.demo", "Quản trị viên [DEMO]", VaiTroEnum.ADMIN, "0000000001"),
-    ("doctor.demo", "Bác sĩ Nội tổng quát [DEMO]", VaiTroEnum.BAC_SI, "0000000002"),
+    ("doctor.demo", "BS.CKI Nguyễn Văn An", VaiTroEnum.BAC_SI, "0000000002"),
     ("letan.demo", "Lễ tân [DEMO]", VaiTroEnum.LE_TAN, "0000000003"),
     ("ktv.demo", "Kỹ thuật viên [DEMO]", VaiTroEnum.KY_THUAT_VIEN, "0000000004"),
     ("thungan.demo", "Thu ngân [DEMO]", VaiTroEnum.THU_NGAN, "0000000005"),
@@ -96,6 +96,8 @@ async def seed_all_doctors_and_staff(session, password, dept_map, room_map):
             )
             session.add(person)
             await session.flush()
+        elif name == "doctor.demo" and person.ho_ten in ("Bác sĩ Nội tổng quát [DEMO]", "Bác sĩ Nội tổng quát"):
+            person.ho_ten = full_name
         account = await session.scalar(select(TaiKhoan).where(TaiKhoan.email == email))
         if account is None:
             session.add(TaiKhoan(

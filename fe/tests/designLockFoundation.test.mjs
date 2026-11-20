@@ -51,6 +51,8 @@ const MODIFIED_FILES = [
     '../src/components/user/triage/EmergencyAlert.jsx',
     '../src/pages/user/LoginPage.jsx',
     '../src/pages/user/RegisterPage.jsx',
+    '../src/utils/helpers/doctorNameHelper.js',
+    '../src/utils/doctorHelper.js',
     '../src/utils/helpers/quickBookingHelpers.js',
     '../src/utils/helpers/patientMedicalMapping.js',
     '../src/components/common/ClinicIcon.jsx',
@@ -290,7 +292,7 @@ test('HomeHero implements Hybrid 1+2 photo banner and docked quick booking with 
 })
 
 test('formatPublicDoctorName and formatDoctorHeading normalize seeded placeholder names cleanly', () => {
-    assert.equal(formatPublicDoctorName('Bác sĩ Nội tổng quát [DEMO]'), 'BS.CKI Nguyễn Minh Hoàng')
+    assert.equal(formatPublicDoctorName('Bác sĩ Nội tổng quát [DEMO]'), 'Bác sĩ Nội tổng quát')
     assert.equal(formatPublicDoctorName('BS. Trần Văn Bình [DEMO]'), 'BS. Trần Văn Bình')
     assert.equal(formatPublicDoctorName(''), 'Bác sĩ Chuyên khoa')
     assert.equal(formatDoctorHeading({ degree: 'BS', name: 'BS.CKI Nguyễn Minh Hoàng' }), 'BS.CKI Nguyễn Minh Hoàng')
@@ -424,7 +426,7 @@ test('homepage content sections expose clinical fees, compliance standards and o
     assert.ok(introContent.includes('115'))
 
     const specialtyContent = await readFile(new URL('../src/components/user/home/SpecialtySection.jsx', import.meta.url), 'utf8')
-    assert.ok(specialtyContent.includes('formatConsultFee'))
+    assert.ok(specialtyContent.includes('formatSpecialtyFeeRange'))
     assert.ok(specialtyContent.includes('Giá khám niêm yết'))
 
     const guideContent = await readFile(new URL('../src/components/user/home/OutpatientCareGuideSection.jsx', import.meta.url), 'utf8')

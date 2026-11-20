@@ -1,3 +1,5 @@
+import { formatUnifiedDoctorName, stripDemoTag } from './doctorNameHelper.js'
+
 export function getTodayIsoDate(now = new Date()) {
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -36,6 +38,21 @@ export function formatConsultFee(amount) {
     return `${new Intl.NumberFormat('vi-VN').format(numeric)}đ`
 }
 
+export function formatSpecialtyFeeRange(doctorsForSpecialty = [], fallbackFee = 0) {
+    const fees = (Array.isArray(doctorsForSpecialty) ? doctorsForSpecialty : [])
+        .map((item) => Number(item?.fee ?? item?.gia_kham_mac_dinh ?? 0))
+        .filter((value) => Number.isFinite(value) && value > 0)
+    if (!fees.length) {
+        return formatConsultFee(fallbackFee)
+    }
+    const minFee = Math.min(...fees)
+    const maxFee = Math.max(...fees)
+    if (minFee === maxFee) {
+        return formatConsultFee(minFee)
+    }
+    return `${formatConsultFee(minFee)} – ${formatConsultFee(maxFee)}`
+}
+
 export function formatVietnameseDateLabel(isoDate) {
     if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return ''
     const [year, month, day] = isoDate.split('-').map(Number)
@@ -61,20 +78,13 @@ export function isAutomatedTestSpecialtyRecord(item = {}) {
 }
 
 export function formatPublicDoctorName(rawName = '') {
-    const cleaned = String(rawName).replace(/\s*\[DEMO\]\s*/gi, ' ').replace(/\s+/g, ' ').trim()
+    const cleaned = stripDemoTag(rawName)
     if (!cleaned) return 'Bác sĩ Chuyên khoa'
-    if (/^bác\s+sĩ\s+nội\s+tổng\s+quát$/i.test(cleaned)) {
-        return 'BS.CKI Nguyễn Minh Hoàng'
-    }
     return cleaned
 }
 
 export function formatDoctorHeading(doctor = {}) {
-    const name = String(doctor.name || '').trim()
-    const degree = String(doctor.degree || '').trim()
-    if (!degree || !name) return name
-    if (/^(bs|p\.?gs|gs|ts|ths)/i.test(name)) return name
-    return `${degree} ${name}`
+    return formatUnifiedDoctorName(doctor.name, doctor.degree)
 }
 
 const SPECIALTY_CLINICAL_TABLE = [

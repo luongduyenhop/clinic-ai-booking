@@ -20,10 +20,12 @@ def require_admin(current_user: TaiKhoan = Depends(get_current_user)):
 @bi_router.get("/dashboard-stats", response_model=ResponseEnvelope[AdminDashboardStatsResponse])
 async def get_dashboard_stats(
     query_date: Optional[date] = Query(None),
+    tu_ngay: Optional[date] = Query(None),
+    den_ngay: Optional[date] = Query(None),
     current_user: TaiKhoan = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    data = await admin_service.get_dashboard_stats(query_date, db)
+    data = await admin_service.get_dashboard_stats(query_date, db, tu_ngay=tu_ngay, den_ngay=den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu thống kê vận hành thành công")
 
 @bi_router.get("/export-excel", response_model=ResponseEnvelope[ServiceExportResponse])

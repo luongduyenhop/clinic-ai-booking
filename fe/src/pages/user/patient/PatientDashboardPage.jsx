@@ -60,13 +60,13 @@ export default function PatientDashboardPage() {
     const cards = [
         {
             label: 'Lịch hẹn',
-            value: portalData.appointments.length,
+            value: portalData.appointmentsError ? '—' : portalData.appointments.length,
             icon: CalendarCheck,
             to: '/benh-nhan/lich-hen',
         },
         {
             label: 'Lần khám',
-            value: portalData.medicalHistory.length,
+            value: portalData.medicalHistoryError ? '—' : portalData.medicalHistory.length,
             icon: ClipboardText,
             to: '/benh-nhan/lich-su-kham',
         },

@@ -45,6 +45,7 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
                     return []
                 }
             })() : [],
+            appointmentsError: bookings.status === 'rejected' ? pickErrorMessage(bookings.reason) : '',
             familyMembers: family.status === 'fulfilled' ? (() => {
                 try {
                     return unwrapApi(family.value)
@@ -63,6 +64,7 @@ export const fetchPatientPortalAsync = createAsyncThunk('user/fetchPatientPortal
                     return []
                 }
             })() : [],
+            medicalHistoryError: records.status === 'rejected' ? pickErrorMessage(records.reason) : '',
             doctorSchedules: [],
             prescriptions: prescriptionPage ? (() => {
                 try {

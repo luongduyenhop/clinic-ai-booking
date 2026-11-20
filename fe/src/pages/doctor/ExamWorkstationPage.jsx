@@ -98,7 +98,12 @@ export default function ExamWorkstationPage() {
 
                 <section aria-label="Hồ sơ lượt khám" className="flex min-w-0 flex-1 flex-col gap-4 w-full">
                     {!encounterId && (
-                        <WorkstationEmptyState queue={queue} />
+                        <WorkstationEmptyState
+                            queue={queue}
+                            onSelectEncounter={selectEncounter}
+                            onCallNext={handleCallNext}
+                            calling={calling}
+                        />
                     )}
 
                     {encounterId && encounterLoading && !encounter && (

@@ -5,6 +5,8 @@ import { getDashboardStatsAsync } from '../../redux/actions/admin/adminAction'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../../services/clinicalEventBridge'
 import { getNavigationConfig } from '../../utils/helpers/clinicConfigHelpers'
 import { mapDoctorPerformanceItems } from '../../utils/helpers/doctorPerformanceMapping'
+import { formatUnifiedDoctorName } from '../../utils/helpers/doctorNameHelper'
+import { getOffsetIsoDate, getTodayIsoDate } from '../../utils/helpers/quickBookingHelpers'
 import { adminService } from '../../services/admin/AdminService'
 import { exportToExcel } from '../../utils/helpers/exportUtils'
 import { AppToast } from '../../components/common/AppNotification'
@@ -75,18 +77,6 @@ const ACTION_LABEL_MAP = {
     AMEND_EMR_RECORD: 'Lập biên bản đính chính',
 }
 
-const formatDoctorDisplayName = (degree, name) => {
-    const cleanName = String(name || '').trim()
-    const cleanDegree = String(degree || '').trim()
-    if (!cleanName) return cleanDegree
-    if (!cleanDegree) return cleanName
-    const normalize = (value) => value.toLowerCase().replace(/[\s.]+/g, '')
-    if (normalize(cleanName).startsWith(normalize(cleanDegree))) {
-        return cleanName
-    }
-    return `${cleanDegree} ${cleanName}`
-}
-
 export default function DashboardAdminPage() {
     const dispatch = useDispatch()
     const { clinicData, stats } = useSelector((state) => state.app.admin)
@@ -94,6 +84,17 @@ export default function DashboardAdminPage() {
 
     const [activeViewTab, setActiveViewTab] = useState('DIEU_HANH')
     const [timeFilter, setTimeFilter] = useState('week')
+
+    const timeRange = useMemo(() => {
+        const denNgay = getTodayIsoDate()
+        if (timeFilter === 'today') {
+            return { tuNgay: denNgay, denNgay, periodLabel: 'Hôm nay' }
+        }
+        if (timeFilter === 'month') {
+            return { tuNgay: getOffsetIsoDate(-29), denNgay, periodLabel: '30 ngày gần nhất' }
+        }
+        return { tuNgay: getOffsetIsoDate(-6), denNgay, periodLabel: '7 ngày gần nhất' }
+    }, [timeFilter])
 
     const [topDiseases, setTopDiseases] = useState([])
     const [topServices, setTopServices] = useState([])
@@ -152,8 +153,9 @@ export default function DashboardAdminPage() {
     }
 
     useEffect(() => {
+        const rangeParams = { tuNgay: timeRange.tuNgay, denNgay: timeRange.denNgay }
         const refreshStats = () => {
-            dispatch(getDashboardStatsAsync())
+            dispatch(getDashboardStatsAsync(rangeParams))
         }
 
         refreshStats()
@@ -175,18 +177,19 @@ export default function DashboardAdminPage() {
             unsubEncounter()
             unsubBill()
         }
-    }, [dispatch])
+    }, [dispatch, timeRange.tuNgay, timeRange.denNgay])
 
     useEffect(() => {
+        const rangeParams = { tuNgay: timeRange.tuNgay, denNgay: timeRange.denNgay }
         const fetchAnalytics = async () => {
             setAnalyticsLoading(true)
             try {
                 const [diseasesRes, servicesRes, docPerfRes, roomRes, medRes] = await Promise.allSettled([
-                    adminService.getTopIcd10Diseases(),
-                    adminService.getTopServicesAnalytics(),
-                    adminService.getDoctorPerformanceAnalytics(),
-                    adminService.getRoomWorkloadAnalytics(),
-                    adminService.getTopMedicinesAnalytics(),
+                    adminService.getTopIcd10Diseases(rangeParams),
+                    adminService.getTopServicesAnalytics(rangeParams),
+                    adminService.getDoctorPerformanceAnalytics(rangeParams),
+                    adminService.getRoomWorkloadAnalytics(rangeParams),
+                    adminService.getTopMedicinesAnalytics(rangeParams),
                 ])
                 if (diseasesRes.status === 'fulfilled' && diseasesRes.value?.danh_sach_benh) {
                     setTopDiseases(diseasesRes.value.danh_sach_benh)
@@ -211,7 +214,7 @@ export default function DashboardAdminPage() {
             }
         }
         fetchAnalytics()
-    }, [])
+    }, [timeRange.tuNgay, timeRange.denNgay])
 
     const registrations = clinicData?.registrations || []
     const staffList = clinicData?.staffList || []
@@ -442,7 +445,7 @@ export default function DashboardAdminPage() {
 
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                Doanh thu kỳ báo cáo
+                                Doanh thu toàn phòng khám ({timeRange.periodLabel})
                             </span>
                             <div className="font-display text-2xl font-extrabold text-clinic-warning mt-1">
                                 {Number(stats?.tong_doanh_thu_trong_ngay ?? liveRevenue).toLocaleString('vi-VN')} đ
@@ -461,11 +464,14 @@ export default function DashboardAdminPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="medpro-card p-4">
                             <div className="medpro-section-title">
-                                <span>HIỆU SUẤT BÁC SĨ &amp; NĂNG SUẤT LÂM SÀNG</span>
+                                <span>HIỆU SUẤT BÁC SĨ ({timeRange.periodLabel})</span>
                                 <Link to="/admin/nhan-vien" className="text-xs font-bold text-clinic-cta hover:underline">
                                     Quản lý Bác sĩ
                                 </Link>
                             </div>
+                            <p className="text-[11px] text-clinic-text-muted mt-1">
+                                Doanh thu từng bác sĩ chỉ tính công khám ước tính theo ca hoàn tất (chưa gồm cận lâm sàng).
+                            </p>
                             <div className="space-y-2 mt-3 tabular-nums">
                                 {doctorPerformance === null ? (
                                     <div className="p-6 text-center text-xs text-clinic-text-muted">
@@ -483,7 +489,7 @@ export default function DashboardAdminPage() {
                                         >
                                             <div className="min-w-0">
                                                 <div className="text-xs font-bold text-clinic-navy truncate">
-                                                    {formatDoctorDisplayName(doc.degree, doc.name) || `Bác sĩ #${doc.id}`}
+                                                    {formatUnifiedDoctorName(doc.name, doc.degree) || `Bác sĩ #${doc.id}`}
                                                 </div>
                                                 <div className="text-[11px] text-clinic-text-secondary truncate">
                                                     {doc.specialty || 'Chuyên khoa khám bệnh'}
@@ -493,6 +499,9 @@ export default function DashboardAdminPage() {
                                                 <div className="text-xs font-bold text-clinic-cta">{doc.completedCases} ca hoàn tất</div>
                                                 <div className="text-[11px] text-clinic-success font-bold">
                                                     {doc.revenue.toLocaleString('vi-VN')} đ
+                                                </div>
+                                                <div className="text-[10px] text-clinic-text-muted">
+                                                    Doanh thu khám (ước tính)
                                                 </div>
                                             </div>
                                         </div>

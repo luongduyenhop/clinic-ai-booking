@@ -93,11 +93,15 @@ export class AdminService extends BaseServices {
         return { data: saveClinicStore(data) }
     }
 
-    getDashboardStats = async () => {
+    getDashboardStats = async ({ tuNgay, denNgay } = {}) => {
+        const params = new URLSearchParams()
+        if (tuNgay) params.append('tu_ngay', tuNgay)
+        if (denNgay) params.append('den_ngay', denNgay)
+        const query = params.toString() ? `?${params.toString()}` : ''
         const { data: storeData } = await this.getAllClinicData()
         const [compRes, kpiRes] = await Promise.allSettled([
             this.get('/api/v1/compliance/dashboard', { __skipGlobalLoading: true, __skipRefresh: true }),
-            this.get('/api/v1/admin/dashboard-stats', { __skipGlobalLoading: true, __skipRefresh: true }),
+            this.get(`/api/v1/admin/dashboard-stats${query}`, { __skipGlobalLoading: true, __skipRefresh: true }),
         ])
         const compData = compRes.status === 'fulfilled' ? (compRes.value?.data?.data || compRes.value?.data || {}) : {}
         const kpiData = kpiRes.status === 'fulfilled' ? (kpiRes.value?.data?.data || kpiRes.value?.data || {}) : {}

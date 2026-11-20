@@ -481,7 +481,9 @@ async def get_shift_dashboard(
 ) -> ShiftDashboardResponse:
     now_dt = clinic_now()
     target_date = query_date or now_dt.date()
-    target_ca = ca_kham or self._determine_shift(now_dt.time())
+    is_all_day = bool(ca_kham and ca_kham.strip().lower() == "all")
+    target_ca = None if is_all_day else (ca_kham or self._determine_shift(now_dt.time()))
+    response_ca = "all" if is_all_day else target_ca
 
     stmt_apt = (
         select(LichKham)
@@ -676,7 +678,7 @@ async def get_shift_dashboard(
 
     return ShiftDashboardResponse(
         ngay=target_date,
-        ca_kham=target_ca,
+        ca_kham=response_ca,
         tong_hen_truoc=tong_hen_truoc,
         so_da_check_in=so_da_check_in,
         so_dang_cho=so_dang_cho,
@@ -716,7 +718,9 @@ async def get_room_status_dashboard(
 
     target_date = query_date or now_dt.date()
 
-    target_ca = ca_kham or self._determine_shift(now_dt.time())
+    is_all_day = bool(ca_kham and ca_kham.strip().lower() == "all")
+
+    target_ca = "all" if is_all_day else (ca_kham or self._determine_shift(now_dt.time()))
 
     stmt_rooms = select(PhongKham).options(selectinload(PhongKham.chuyen_khoa)).order_by(PhongKham.ma_phong)
 
@@ -748,7 +752,7 @@ async def get_room_status_dashboard(
 
     )
 
-    if ca_kham:
+    if ca_kham and not is_all_day:
 
         stmt_llv = stmt_llv.where(LichLamViec.ca_lam_viec == ca_kham)
 
@@ -778,7 +782,7 @@ async def get_room_status_dashboard(
 
     )
 
-    if ca_kham:
+    if ca_kham and not is_all_day:
 
         stmt_q = stmt_q.where(HangDoiKham.ca_kham == ca_kham)
 

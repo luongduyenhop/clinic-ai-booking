@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
-import { buildQuickBookingPath, formatConsultFee } from '../../../utils/helpers/quickBookingHelpers'
+import { buildQuickBookingPath, formatSpecialtyFeeRange } from '../../../utils/helpers/quickBookingHelpers'
 
 function SpecialtyBookLink({ specialtyId }) {
     return (
@@ -21,11 +21,11 @@ function SpecialtyRoomBadge({ room }) {
     )
 }
 
-function SpecialtyFeeCell({ fee, inline = false }) {
+function SpecialtyFeeCell({ feeLabel, inline = false }) {
     return (
         <div className={inline ? 'flex items-baseline gap-2' : ''}>
             <span className="font-bold text-clinic-navy tabular-nums">
-                {formatConsultFee(fee)}
+                {feeLabel}
             </span>
             <span className={inline ? 'text-[11px] text-clinic-text-muted' : 'block text-[11px] text-clinic-text-muted mt-0.5'}>
                 Lượt khám 30 phút
@@ -50,7 +50,12 @@ function SpecialtyScopeCell({ services, description }) {
 }
 
 export default function SpecialtySection() {
-    const { specialties, loading, error } = useMedicalCatalog()
+    const { specialties, doctors, loading, error } = useMedicalCatalog()
+
+    const resolveSpecialtyFeeLabel = (specialty) => {
+        const matchedDoctors = doctors.filter((doc) => doc.specialtyId === specialty.id)
+        return formatSpecialtyFeeRange(matchedDoctors, specialty.fee)
+    }
 
     return (
         <section id="chuyen-khoa" className="bg-clinic-surface py-12 sm:py-14 scroll-mt-20 border-b border-clinic-border">
@@ -107,7 +112,7 @@ export default function SpecialtySection() {
                                                 <SpecialtyRoomBadge room={item.room} />
                                             </td>
                                             <td className="py-3.5 px-4 whitespace-nowrap text-[13px]">
-                                                <SpecialtyFeeCell fee={item.fee} />
+                                                <SpecialtyFeeCell feeLabel={resolveSpecialtyFeeLabel(item)} />
                                             </td>
                                             <td className="py-3.5 px-4 text-right whitespace-nowrap">
                                                 <SpecialtyBookLink specialtyId={item.id} />
@@ -132,7 +137,7 @@ export default function SpecialtySection() {
                                         />
                                     </div>
                                     <div className="mt-3 flex items-center justify-between gap-3 text-[13px]">
-                                        <SpecialtyFeeCell fee={item.fee} inline />
+                                        <SpecialtyFeeCell feeLabel={resolveSpecialtyFeeLabel(item)} inline />
                                         <SpecialtyBookLink specialtyId={item.id} />
                                     </div>
                                 </div>

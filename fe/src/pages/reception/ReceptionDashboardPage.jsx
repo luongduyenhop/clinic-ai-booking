@@ -54,13 +54,17 @@ export default function ReceptionDashboardPage() {
     const [selectedApp, setSelectedApp] = useState(null)
     const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [showAllRooms, setShowAllRooms] = useState(false)
+    const [scopeMode, setScopeMode] = useState('all')
     const [currentHour] = useState(() => new Date().getHours())
-    const shiftLabel = currentHour >= 12 ? 'Ca chiều (13:00 - 17:30)' : 'Ca sáng (07:30 - 12:00)'
+    const currentShiftCode = currentHour >= 12 ? 'chieu' : 'sang'
+    const currentShiftLabel = currentHour >= 12 ? 'Ca chiều (13:00 - 17:30)' : 'Ca sáng (07:30 - 12:00)'
+    const activeCaKham = scopeMode === 'all' ? 'all' : currentShiftCode
+    const headerScopeLabel = scopeMode === 'all' ? 'Cả ngày (07:30 – 17:30)' : currentShiftLabel
 
     useEffect(() => {
-        dispatch(fetchShiftDashboardAsync())
+        dispatch(fetchShiftDashboardAsync({ caKham: activeCaKham }))
         dispatch(fetchDoctorAbsencesAsync())
-    }, [dispatch])
+    }, [dispatch, activeCaKham])
 
     const todayAppointmentsCount = shiftSummary?.tong_hen_truoc ?? appointments.length
     const checkedInCount = shiftSummary?.da_check_in ?? queueEntries.length
@@ -201,12 +205,36 @@ export default function ReceptionDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface border border-clinic-border rounded-[6px] px-4 py-3">
                 <div className="flex flex-wrap items-center gap-3 min-w-0">
                     <h1 className="font-display text-base sm:text-lg font-extrabold text-clinic-navy tracking-tight">
-                        Điều phối Tiếp đón &amp; Luồng khám trong ca
+                        Điều phối Tiếp đón &amp; Luồng khám
                     </h1>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-clinic-bg border border-clinic-border text-[11px] font-semibold text-clinic-text-secondary tabular-nums">
                         <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
-                        <span>{shiftLabel}</span>
+                        <span>{headerScopeLabel}</span>
                     </span>
+                    <div className="inline-flex items-center rounded-[6px] border border-clinic-border bg-clinic-bg p-0.5 text-xs">
+                        <button
+                            type="button"
+                            onClick={() => setScopeMode('all')}
+                            className={`px-2.5 py-1 rounded-[4px] font-semibold transition-colors cursor-pointer ${
+                                scopeMode === 'all'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'text-clinic-text-secondary hover:text-clinic-navy'
+                            }`}
+                        >
+                            Cả ngày
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScopeMode('current')}
+                            className={`px-2.5 py-1 rounded-[4px] font-semibold transition-colors cursor-pointer ${
+                                scopeMode === 'current'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'text-clinic-text-secondary hover:text-clinic-navy'
+                            }`}
+                        >
+                            Ca này
+                        </button>
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <Link
@@ -581,7 +609,7 @@ export default function ReceptionDashboardPage() {
                 open={isCloseShiftOpen}
                 onCancel={() => setIsCloseShiftOpen(false)}
                 onSuccess={() => {
-                    dispatch(fetchShiftDashboardAsync())
+                    dispatch(fetchShiftDashboardAsync({ caKham: activeCaKham }))
                 }}
             />
         </div>

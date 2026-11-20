@@ -3,9 +3,9 @@ import { adminService } from '../../../services/admin/AdminService'
 
 export const getDashboardStatsAsync = createAsyncThunk(
     'admin/getDashboardStats',
-    async (_, { rejectWithValue }) => {
+    async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await adminService.getDashboardStats()
+            const response = await adminService.getDashboardStats(params)
             return response.data
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || error.message)

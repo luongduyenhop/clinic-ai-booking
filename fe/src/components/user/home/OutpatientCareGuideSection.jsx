@@ -13,13 +13,13 @@ const PATIENT_JOURNEY_STEPS = [
     },
     {
         step: '3',
-        title: 'Thăm khám lâm sàng & Thực hiện cận lâm sàng tại chỗ',
+        title: 'Thăm khám lâm sàng, thực hiện cận lâm sàng tại chỗ',
         description:
             'Bác sĩ xem sẵn tóm tắt triệu chứng, thăm khám trực tiếp và chỉ định sinh hóa máu, siêu âm hoặc nội soi ngay trong khuôn viên phòng khám.',
     },
     {
         step: '4',
-        title: 'Nhận đơn thuốc ký số, thanh toán & lưu Sổ sức khỏe',
+        title: 'Nhận đơn thuốc ký số, thanh toán và lưu Sổ sức khỏe',
         description:
             'Thanh toán bằng tiền mặt, thẻ ngân hàng hoặc chuyển khoản QR; toa thuốc và kết quả chẩn đoán đồng bộ vào tài khoản để theo dõi tái khám.',
     },
@@ -27,17 +27,16 @@ const PATIENT_JOURNEY_STEPS = [
 
 const GUIDE_SECTIONS = [
     {
-        title: 'Giấy tờ & hồ sơ y tế cần mang theo',
+        title: 'Giấy tờ và hồ sơ y tế cần mang theo',
         items: [
             'Căn cước công dân gắn chip hoặc ứng dụng VNeID đã định danh mức 2.',
-            'Thẻ Bảo hiểm Y tế hoặc thẻ bảo lãnh viện phí thương mại còn thời hạn.',
-            'Toa thuốc đang sử dụng và kết quả xét nghiệm, siêu âm, phim chụp trong 06 tháng gần nhất.',
+            'Toa thuốc đang sử dụng và kết quả xét nghiệm, siêu âm, phim chụp trong 6 tháng gần nhất.',
         ],
     },
     {
-        title: 'Lưu ý nhịn ăn trước khi lấy máu xét nghiệm & nội soi',
+        title: 'Lưu ý nhịn ăn trước khi lấy máu xét nghiệm, nội soi',
         items: [
-            'Nhịn ăn tối thiểu 08 giờ (chỉ uống nước lọc, tránh sữa, cà phê, nước ngọt) khi làm xét nghiệm đường huyết, mỡ máu hoặc siêu âm bụng.',
+            'Nhịn ăn tối thiểu 8 giờ (chỉ uống nước lọc, tránh sữa, cà phê, nước ngọt) khi làm xét nghiệm đường huyết, mỡ máu hoặc siêu âm bụng.',
             'Không sử dụng rượu bia hoặc chất kích thích trong 24 giờ trước thời điểm lấy mẫu.',
             'Thông báo ngay cho điều dưỡng nếu đang mang thai, nghi ngờ có thai hoặc có tiền sử dị ứng thuốc.',
         ],
@@ -76,13 +75,13 @@ export default function OutpatientCareGuideSection() {
         <section id="huong-dan-kham" className="bg-clinic-bg py-12 sm:py-16 scroll-mt-20 border-t border-clinic-border">
             <div className="public-container">
                 <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
-                    Quy trình khám &amp; Chuẩn bị trước khi đến phòng khám
+                    Quy trình khám và chuẩn bị trước khi đến
                 </h2>
 
                 <div className="mt-6 grid lg:grid-cols-[0.95fr_1.05fr] gap-8 items-start">
                     <div className="medpro-card p-5 sm:p-6 bg-clinic-surface">
                         <h3 className="font-display text-base font-bold text-clinic-navy pb-3 border-b border-clinic-border">
-                            Quy trình 04 bước khám khép kín tại Clinic-AI
+                            Khám tại Clinic-AI gồm 4 bước
                         </h3>
 
                         <ol className="divide-y divide-clinic-border">
@@ -111,7 +110,7 @@ export default function OutpatientCareGuideSection() {
                                 </dd>
                             </div>
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <dt className="text-clinic-text-secondary">Lấy mẫu máu sáng &amp; Tổng đài</dt>
+                                <dt className="text-clinic-text-secondary">Lấy mẫu máu sáng và Tổng đài</dt>
                                 <dd className="font-semibold text-clinic-navy tabular-nums">
                                     Từ 07:30 · 1900 6868
                                 </dd>

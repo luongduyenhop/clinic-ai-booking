@@ -90,7 +90,7 @@ export default function SettingClinicPage() {
                 serverTime: new Date().toISOString(),
                 gatewayVersion: 'DonThuocQG-BYT v2.4.1 (Ready)',
             })
-            AppToast.success('Kết nối Cổng Đơn thuốc Quốc gia BYT thành công! Độ trễ: 42ms')
+            AppToast.success('Kết nối Cổng Đơn thuốc Quốc gia BYT thành công. Độ trễ: 42ms')
         }, 1200)
     }
 
@@ -130,7 +130,7 @@ export default function SettingClinicPage() {
                 },
             })
         )
-        AppToast.success('Lưu cấu hình hệ thống phòng khám thành công!')
+        AppToast.success('Lưu cấu hình hệ thống phòng khám thành công')
     }
 
     return (

@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { formatUnifiedDoctorName, stripDoctorTitles } from '../src/utils/helpers/doctorNameHelper.js'
 import { formatDoctorName } from '../src/utils/doctorHelper.js'
 import { formatDoctorHeading, formatSpecialtyFeeRange } from '../src/utils/helpers/quickBookingHelpers.js'
+import { toFriendlyErrorMessage } from '../src/utils/helpers/clientErrorHelper.js'
 
 test('formatUnifiedDoctorName prevents duplicate degree prefixes and [DEMO] noise', () => {
     assert.equal(formatUnifiedDoctorName('BS. Vũ Anh Dũng', 'BS.CKI'), 'BS.CKI Vũ Anh Dũng')
@@ -34,4 +35,16 @@ test('formatSpecialtyFeeRange derives fee display from specialty doctors or fall
         '180.000đ'
     )
     assert.equal(formatSpecialtyFeeRange([{ fee: 0 }], 0), 'Theo niêm yết')
+})
+
+test('toFriendlyErrorMessage hides technical Axios/network strings and keeps Vietnamese backend messages', () => {
+    const fallback = 'Chưa tải được lịch khám. Bạn thử lại sau ít phút hoặc gọi 1900 6868.'
+    assert.equal(toFriendlyErrorMessage(new Error('Network Error'), fallback), fallback)
+    assert.equal(toFriendlyErrorMessage(new Error('Request failed with status code 500'), fallback), fallback)
+    assert.equal(toFriendlyErrorMessage({ isAxiosError: true, message: 'timeout of 10000ms exceeded' }, fallback), fallback)
+    assert.equal(
+        toFriendlyErrorMessage({ response: { data: { message: 'Khung giờ này đã được đặt trước.' } }, message: 'Request failed with status code 409' }, fallback),
+        'Khung giờ này đã được đặt trước.'
+    )
+    assert.equal(toFriendlyErrorMessage(new Error('Danh sách chuyên khoa không hợp lệ'), fallback), 'Danh sách chuyên khoa không hợp lệ')
 })

@@ -76,7 +76,7 @@ export default function GuideAndQaManagementPage() {
 
     const handleSaveGuideCategory = async () => {
         if (!catForm.tenDanhMuc?.trim()) {
-            AppToast.error('Vui lòng nhập tên danh mục hướng dẫn!')
+            AppToast.error('Vui lòng nhập tên danh mục hướng dẫn')
             return
         }
         const exists = guideCategories.some((c) => c.id === catForm.id && catForm.id)
@@ -85,12 +85,12 @@ export default function GuideAndQaManagementPage() {
             : [...guideCategories, { ...catForm, id: `DMHD-0${guideCategories.length + 1}`, stt: guideCategories.length + 1 }]
 
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'guideCategories', items: updated }))
-        AppToast.success('Đã lưu danh mục hướng dẫn!')
+        AppToast.success('Đã lưu danh mục hướng dẫn')
     }
 
     const handleSaveGuide = async () => {
         if (!guideForm.tieuDe?.trim()) {
-            AppToast.error('Vui lòng nhập tiêu đề bài hướng dẫn!')
+            AppToast.error('Vui lòng nhập tiêu đề bài hướng dẫn')
             return
         }
         const exists = guides.some((g) => g.id === guideForm.id && guideForm.id)
@@ -107,12 +107,12 @@ export default function GuideAndQaManagementPage() {
               ]
 
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'guides', items: updated }))
-        AppToast.success('Đã lưu bài viết hướng dẫn quy trình khám!')
+        AppToast.success('Đã lưu bài viết hướng dẫn quy trình khám')
     }
 
     const handleSaveQa = async () => {
         if (!qaForm.cauHoi?.trim()) {
-            AppToast.error('Vui lòng nhập nội dung câu hỏi!')
+            AppToast.error('Vui lòng nhập nội dung câu hỏi')
             return
         }
         const payload = {
@@ -130,7 +130,7 @@ export default function GuideAndQaManagementPage() {
 
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'qaList', items: updated }))
         setQaForm(payload)
-        AppToast.success('Đã lưu phản hồi tư vấn hỏi đáp bệnh nhân!')
+        AppToast.success('Đã lưu phản hồi tư vấn hỏi đáp bệnh nhân')
     }
 
     return (
@@ -430,7 +430,7 @@ export default function GuideAndQaManagementPage() {
                                             const updated = guides.filter((x) => x.id !== guideForm.id)
                                             await dispatch(updateClinicCollectionAsync({ collectionKey: 'guides', items: updated }))
                                             setGuideForm(updated[0] || {})
-                                            AppToast.info('Đã xóa bài hướng dẫn!')
+                                            AppToast.info('Đã xóa bài hướng dẫn')
                                         }}
                                         className="medpro-btn-danger !py-1.5 !px-3 text-xs"
                                     >
@@ -449,7 +449,7 @@ export default function GuideAndQaManagementPage() {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.info('Đã chọn ảnh minh họa cho bài hướng dẫn!')}
+                                    onClick={() => AppToast.info('Đã chọn ảnh minh họa cho bài hướng dẫn')}
                                     className="medpro-btn-outline !py-1.5 !px-3 text-xs w-full"
                                 >
                                     <UploadSimple size={14} weight="bold" className="text-clinic-cta" />

@@ -7,9 +7,9 @@ import { Hospital, LockKey, PhoneCall, ShieldCheck } from '../../components/comm
 import { buildPatientLoginCredentials, patientLoginValidationSchema } from '../../utils/auth/patientLoginValidation'
 
 const PORTAL_HIGHLIGHTS = [
-    'Quản lý mã hẹn & lịch sử khám ngoại trú',
-    'Tra cứu đơn thuốc điện tử & kết quả xét nghiệm',
-    'Hồ sơ bệnh án bảo mật theo TT32/2023/TT-BYT',
+    'Quản lý mã hẹn và lịch sử khám ngoại trú',
+    'Tra cứu đơn thuốc điện tử và kết quả xét nghiệm',
+    'Hồ sơ bệnh án điện tử bảo mật cho cá nhân và gia đình',
 ]
 
 export default function LoginPage() {
@@ -26,7 +26,7 @@ export default function LoginPage() {
                 loginUserAsync(buildPatientLoginCredentials(values))
             )
             if (loginUserAsync.fulfilled.match(result)) {
-                AppToast.success('Đăng nhập Cổng Bệnh Nhân thành công!')
+                AppToast.success('Đã đăng nhập')
                 const target = location.state?.from?.pathname || '/benh-nhan'
                 navigate(target, { replace: true })
             }
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     return (
         <AuthShell
-            title="Cổng Bệnh Nhân — Đăng Nhập"
+            title="Đăng nhập"
             description="Đăng nhập để đặt lịch khám, tra cứu đơn thuốc điện tử và theo dõi kết quả cận lâm sàng."
         >
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
@@ -79,7 +79,7 @@ export default function LoginPage() {
                         disabled={formik.isSubmitting}
                         className="medpro-btn-primary w-full min-h-11 !text-sm font-bold cursor-pointer"
                     >
-                        {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng Nhập'}
+                        {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng nhập'}
                     </button>
                 </div>
 
@@ -126,7 +126,7 @@ export function AuthShell({ title, description, children }) {
                             <span>CLINIC-AI</span>
                         </Link>
                         <h2 className="mt-12 font-display text-2xl font-extrabold leading-snug text-clinic-surface">
-                            Cổng Hồ sơ & Lịch khám Ngoại trú Hợp nhất
+                            Lịch hẹn và hồ sơ khám của bạn
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-clinic-on-navy-muted">
                             Theo dõi toàn bộ phiếu hẹn, kết quả xét nghiệm cận lâm sàng và đơn thuốc điện tử trên một tài khoản định danh duy nhất.

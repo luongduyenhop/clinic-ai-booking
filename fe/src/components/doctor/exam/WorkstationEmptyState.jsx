@@ -65,7 +65,7 @@ export default function WorkstationEmptyState({
             ) : (
                 <div className="border-b border-clinic-border pb-3">
                     <h2 className="text-base font-extrabold text-clinic-navy">
-                        Thông tin Ca trực &amp; Quy trình Bàn khám ngoại trú
+                        Thông tin ca trực và quy trình bàn khám ngoại trú
                     </h2>
                     <p className="text-xs text-clinic-text-secondary mt-1">
                         Chưa có hồ sơ bệnh án đang mở. Chọn một lượt khám ở cột Hàng đợi bên trái hoặc nhấn phím F2 để tiếp nhận ca kế tiếp.
@@ -124,7 +124,7 @@ export default function WorkstationEmptyState({
                 </div>
 
                 <div className="rounded-[6px] bg-clinic-bg border border-clinic-border p-4 space-y-1.5">
-                    <h3 className="font-bold text-clinic-navy">Quy chuẩn Bệnh án điện tử TT 32/2023/TT-BYT</h3>
+                    <h3 className="font-bold text-clinic-navy">Lưu ý khóa bệnh án điện tử</h3>
                     <p className="text-clinic-text-secondary leading-5">
                         Sau khi hoàn tất chẩn đoán ICD-10 và phát hành đơn thuốc điện tử, hồ sơ tự động khóa để bảo toàn dữ liệu; mọi bổ sung phát sinh được lập qua biên bản đính chính.
                     </p>

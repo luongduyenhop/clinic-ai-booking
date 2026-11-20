@@ -17,7 +17,7 @@ const ROUTE_TITLES = {
     '/staff/queue': 'Điều phối Hàng chờ thông minh',
     '/staff/appointments': 'Quản lý Lịch hẹn khám',
     '/staff/patients': 'Hồ sơ Bệnh nhân',
-    '/staff/exam-workstation': 'Bàn khám lâm sàng TT32 & Kê đơn',
+    '/staff/exam-workstation': 'Bàn khám lâm sàng và kê đơn',
     '/staff/specialty-exam': 'Khám Chuyên khoa Lâm sàng',
     '/staff/paraclinical-work': 'Bàn làm việc Cận lâm sàng & Kết quả',
     '/staff/paraclinical': 'Chỉ định CLS & PT-TT',

@@ -348,26 +348,26 @@ export default function ClinicalExamPage() {
 
     const handleAddIcd = () => {
         if (currentExam?.emrLocked) {
-            AppToast.warning('Bệnh án đã khóa (INT-03)! Vui lòng lập Biên bản đính chính nếu cần bổ sung.')
+            AppToast.warning('Bệnh án đã khóa (INT-03). Vui lòng lập Biên bản đính chính nếu cần bổ sung.')
             return
         }
         const found = icdCatalog.find((i) => i.maICD === selectedIcdCode)
         if (!found) return
         if (icdList.some((x) => x.maICD === found.maICD)) {
-            AppToast.info('Mã bệnh ICD-10 này đã có trong danh sách chẩn đoán!')
+            AppToast.info('Mã bệnh ICD-10 này đã có trong danh sách chẩn đoán')
             return
         }
         setIcdList([...icdList, { maICD: found.maICD, tenBenh: found.tenBenh, dienGiai: icdNote }])
         if (found.truyenNhiem) {
             AppToast.warning(
-                `CẢNH BÁO DỊCH TỄ (LAW-01): Mã bệnh ${found.maICD} (${found.tenBenh}) thuộc danh mục bệnh truyền nhiễm cần báo cáo giám sát!`
+                `CẢNH BÁO DỊCH TỄ (LAW-01): Mã bệnh ${found.maICD} (${found.tenBenh}) thuộc danh mục bệnh truyền nhiễm cần báo cáo giám sát`
             )
         }
     }
 
     const handleRemoveIcd = (maICD) => {
         if (currentExam?.emrLocked) {
-            AppToast.warning('Bệnh án đã khóa bất biến (INT-03)!')
+            AppToast.warning('Bệnh án đã khóa bất biến (INT-03)')
             return
         }
         setIcdList(icdList.filter((i) => i.maICD !== maICD))
@@ -375,7 +375,7 @@ export default function ClinicalExamPage() {
 
     const handleAddServiceFromCatalog = (srv) => {
         if (services.some((s) => s.maDV === srv.maDV)) {
-            AppToast.info(`Dịch vụ "${srv.tenDV}" đã có trong phiếu chỉ định!`)
+            AppToast.info(`Dịch vụ "${srv.tenDV}" đã có trong phiếu chỉ định`)
             return
         }
         const newOrder = {
@@ -407,7 +407,7 @@ export default function ClinicalExamPage() {
             }
         })
         setServices(merged)
-        AppToast.success(`Đã áp dụng ${pkg.tenMau} (${pkg.services.length} dịch vụ)!`)
+        AppToast.success(`Đã áp dụng ${pkg.tenMau} (${pkg.services.length} dịch vụ)`)
     }
 
     const isPrescriptionImmutable = ['SIGNED', 'ISSUED', 'SUBMISSION_PENDING', 'SUBMITTED', 'ACCEPTED'].includes(
@@ -417,7 +417,7 @@ export default function ClinicalExamPage() {
     const handleAddDrug = () => {
         if (isPrescriptionImmutable) {
             AppToast.error(
-                `CHẶN SỬA ĐƠN THUỐC: Đơn thuốc đã ở trạng thái đã ký số hoặc liên thông. Không thể sửa trực tiếp thuốc đã ký!`
+                `CHẶN SỬA ĐƠN THUỐC: Đơn thuốc đã ở trạng thái đã ký số hoặc liên thông. Không thể sửa trực tiếp thuốc đã ký`
             )
             return
         }
@@ -447,7 +447,7 @@ export default function ClinicalExamPage() {
 
     const handleApplySamplePrescription = (sample) => {
         if (isPrescriptionImmutable) {
-            AppToast.error('Đơn thuốc đã ký số, không thể ghi đè bằng đơn thuốc mẫu!')
+            AppToast.error('Đơn thuốc đã ký số, không thể ghi đè bằng đơn thuốc mẫu')
             return
         }
         if (!sample?.items) return
@@ -463,7 +463,7 @@ export default function ClinicalExamPage() {
             ...prescription,
             items: mapped,
         })
-        AppToast.success(`Đã nạp ${sample.tenMau}!`)
+        AppToast.success(`Đã nạp ${sample.tenMau}`)
     }
 
     const handleTransitionPrescriptionFSM = async (nextState) => {
@@ -492,12 +492,12 @@ export default function ClinicalExamPage() {
             'LOCK_EMR_RECORD',
             'Hoàn thành khám lâm sàng & Khóa Hồ sơ bệnh án điện tử'
         )
-        AppToast.success('Đã hoàn thành ca khám và Khóa Bệnh án điện tử thành công!')
+        AppToast.success('Đã hoàn thành ca khám và Khóa Bệnh án điện tử thành công')
     }
 
     const handleCreateAmendment = async () => {
         if (!amendmentReason.trim()) {
-            AppToast.warning('Vui lòng nhập Lý do đính chính bệnh án!')
+            AppToast.warning('Vui lòng nhập Lý do đính chính bệnh án')
             return
         }
         const newAmendment = {
@@ -515,7 +515,7 @@ export default function ClinicalExamPage() {
         )
         setShowAmendmentModal(false)
         setAmendmentReason('')
-        AppToast.success('Đã lập Biên bản đính chính (lưu lịch sử gốc) và mở khóa đính chính có kiểm soát!')
+        AppToast.success('Đã lập Biên bản đính chính (lưu lịch sử gốc) và mở khóa đính chính có kiểm soát')
     }
 
     const totalServiceCost = services.reduce((sum, s) => sum + (Number(s.thanhTien) || 0), 0)
@@ -730,7 +730,7 @@ export default function ClinicalExamPage() {
                                     type="button"
                                     onClick={() => {
                                         saveCurrentExamState()
-                                        AppToast.success('Đã lưu dữ liệu khám bệnh!')
+                                        AppToast.success('Đã lưu dữ liệu khám bệnh')
                                     }}
                                     className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
@@ -1248,7 +1248,7 @@ export default function ClinicalExamPage() {
                                                         type="button"
                                                         onClick={() => {
                                                             if (isPrescriptionImmutable) {
-                                                                AppToast.error('Đơn thuốc đã ký số, không thể xóa dòng thuốc!')
+                                                                AppToast.error('Đơn thuốc đã ký số, không thể xóa dòng thuốc')
                                                                 return
                                                             }
                                                             setPrescription({
@@ -1530,7 +1530,7 @@ export default function ClinicalExamPage() {
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.success('Đã ký số Bác sĩ kết luận Khám sức khỏe định kỳ!')}
+                                    onClick={() => AppToast.success('Đã ký số Bác sĩ kết luận Khám sức khỏe định kỳ')}
                                     className="medpro-btn-primary text-xs"
                                 >
                                     <Signature size={14} weight="bold" />
@@ -1538,7 +1538,7 @@ export default function ClinicalExamPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.success("Đã đồng bộ phiếu khám sức khỏe lên Cổng Sổ Sức Khỏe Điện Tử HSSK thành công!")}
+                                    onClick={() => AppToast.success("Đã đồng bộ phiếu khám sức khỏe lên Cổng Sổ Sức Khỏe Điện Tử HSSK thành công")}
                                     className="medpro-btn-amber text-xs font-bold"
                                 >
                                     <UploadSimple size={14} weight="bold" />

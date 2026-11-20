@@ -11,6 +11,7 @@ import { QrCode } from '../../components/common/ClinicIcon'
 import { PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'
 import { updateInvoiceStatusAsync } from '../../redux/actions/reception/receptionAction'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 export default function AdministrationPage() {
     const dispatch = useDispatch()
@@ -60,7 +61,7 @@ export default function AdministrationPage() {
             message.success(`Đã thu ${formatCurrency(paymentModal.invoice.amountToPay)} và hoàn tất hóa đơn ${paymentModal.invoice.invoiceCode}!`)
             setPaymentModal({ open: false, invoice: null, method: 'CASH', processing: false })
         } catch (err) {
-            message.error(err.message || 'Lỗi khi xác nhận thanh toán')
+            message.error(toFriendlyErrorMessage(err, 'Lỗi khi xác nhận thanh toán'))
             setPaymentModal((prev) => ({ ...prev, processing: false }))
         }
     }
@@ -83,7 +84,7 @@ export default function AdministrationPage() {
                     ).unwrap()
                     message.success(`Đã hoàn tất hoàn phí cho hóa đơn ${record.invoiceCode}!`)
                 } catch (err) {
-                    message.error(err.message || 'Lỗi khi hoàn phí')
+                    message.error(toFriendlyErrorMessage(err, 'Lỗi khi hoàn phí'))
                 }
             },
         })

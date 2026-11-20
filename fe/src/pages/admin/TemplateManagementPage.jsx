@@ -38,7 +38,7 @@ export default function TemplateManagementPage() {
         const f = e.target.files?.[0]
         if (!f) return
         setForm(prev => ({ ...prev, tenFile: f.name }))
-        AppToast.success(`Đã tải lên tệp mẫu: ${f.name} thành công!`)
+        AppToast.success(`Đã tải lên tệp mẫu: ${f.name} thành công`)
         e.target.value = ''
     }
 
@@ -110,12 +110,12 @@ export default function TemplateManagementPage() {
             noiDung: '',
             trangThai: true,
         })
-        AppToast.info(`Đã khởi tạo ${currentTypeMeta.label} mới!`)
+        AppToast.info(`Đã khởi tạo ${currentTypeMeta.label} mới`)
     }
 
     const handleSaveTemplate = async () => {
         if (!form.tenMau?.trim()) {
-            AppToast.error('Vui lòng nhập Tên mẫu!')
+            AppToast.error('Vui lòng nhập Tên mẫu')
             return
         }
         const payload = { ...form, loaiMau }
@@ -140,7 +140,7 @@ export default function TemplateManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật biểu mẫu thành công!' : 'Đã thêm mới biểu mẫu thành công!')
+        AppToast.success(exists ? 'Đã cập nhật biểu mẫu thành công' : 'Đã thêm mới biểu mẫu thành công')
     }
 
     const handleDeleteTemplate = async () => {
@@ -149,7 +149,7 @@ export default function TemplateManagementPage() {
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'templates', items: updated }))
         const remaining = updated.filter((t) => t.loaiMau === loaiMau)
         setForm(remaining[0] || { id: '', loaiMau, tenMau: '', tenFile: '', noiDung: '', trangThai: true })
-        AppToast.info('Đã xóa biểu mẫu!')
+        AppToast.info('Đã xóa biểu mẫu')
     }
 
     return (

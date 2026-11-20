@@ -279,7 +279,7 @@ export default function TvQueueDisplayModal({ isOpen, onClose, queueList = [], r
                         Bệnh nhân có dấu hiệu Cờ đỏ Cấp cứu (Khó thở, Đau ngực cấp, Sốt cao co giật) được ưu tiên khám ngay theo quy trình phân loại 3 cổng.
                     </span>
                 </div>
-                <span className="font-mono text-clinic-cyan">Chuẩn Thông tư 32/2023/TT-BYT</span>
+                <span className="font-mono text-clinic-cyan">Phòng khám Đa khoa Clinic-AI</span>
             </div>
         </div>
     )

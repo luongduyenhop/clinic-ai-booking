@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { http } from '../BaseService'
+import { http } from '../BaseService.js'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper.js'
 import {
     formatPublicDoctorName,
     getSpecialtyClinicalMetadata,
     isAutomatedTestDoctorRecord,
     isAutomatedTestSpecialtyRecord,
-} from '../../utils/helpers/quickBookingHelpers'
+} from '../../utils/helpers/quickBookingHelpers.js'
 
 export {
     formatPublicDoctorName,
@@ -85,7 +86,10 @@ export function useMedicalCatalog() {
                         specialties: [],
                         doctors: [],
                         loading: false,
-                        error: error.response?.data?.message || error.message || 'Không thể tải danh mục bác sĩ',
+                        error: toFriendlyErrorMessage(
+                            error,
+                            'Chưa tải được lịch khám. Bạn thử lại sau ít phút hoặc gọi 1900 6868.'
+                        ),
                     })
                 }
             })

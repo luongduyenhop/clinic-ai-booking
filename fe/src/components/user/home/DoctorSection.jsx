@@ -104,7 +104,7 @@ export default function DoctorSection({
             <div className="public-container">
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-clinic-border">
                     <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
-                        Lịch bác sĩ & khung giờ còn trống
+                        Lịch bác sĩ và khung giờ còn trống
                     </h2>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -224,7 +224,7 @@ export default function DoctorSection({
                             <div>
                                 <h3 className="font-display text-[15px] font-bold text-clinic-navy">
                                     {selectedSpecialtyId
-                                        ? 'Chuyên khoa tiếp nhận khám theo ca Sáng & Chiều'
+                                        ? 'Chuyên khoa tiếp nhận khám ca sáng và chiều'
                                         : 'Không tìm thấy bác sĩ phù hợp với từ khóa hiện tại'}
                                 </h3>
                                 <p className="mt-1 text-[13px] leading-6">

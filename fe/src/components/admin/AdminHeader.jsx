@@ -48,7 +48,7 @@ const SPECIALIZED_PORTALS = [
     },
 ]
 
-export default function AdminHeader({ pageTitle = 'Trung tâm Điều hành & Thống kê BI' }) {
+export default function AdminHeader({ pageTitle = 'Tổng quan' }) {
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const { user, isLoggingOut } = useSelector((state) => state.app.auth)
@@ -110,7 +110,7 @@ export default function AdminHeader({ pageTitle = 'Trung tâm Điều hành & Th
 
     const handleResetDemo = async () => {
         await dispatch(resetClinicDemoDataAsync())
-        AppToast.success('Đã đồng bộ lại dữ liệu cấu hình chuẩn từ máy chủ!')
+        AppToast.success('Đã đồng bộ lại dữ liệu cấu hình chuẩn từ máy chủ')
     }
 
     const handleLogout = async () => {

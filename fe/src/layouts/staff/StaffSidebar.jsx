@@ -33,7 +33,7 @@ export const getStaffMenuForRole = (role) => {
                 group: 'Lâm sàng & Bàn khám',
                 items: [
                     { to: '/staff/doctor-dashboard', label: 'Tổng quan ca trực', icon: HouseLine },
-                    { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng TT32', icon: Stethoscope, badge: 'Ưu tiên' },
+                    { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng', icon: Stethoscope, badge: 'Ưu tiên' },
                     { to: '/staff/specialty-exam', label: 'Khám chuyên khoa', icon: FirstAidKit },
                 ],
             },
@@ -110,10 +110,10 @@ export const getStaffMenuForRole = (role) => {
 
     return [
         {
-            group: '1. Điều hành & Thống kê BI',
+            group: '1. Điều hành và thống kê',
             items: [
-                { to: '/staff/dashboard', label: 'Trung tâm Điều hành BI', icon: HouseLine },
-                { to: '/staff/reports', label: 'Báo cáo & Thống kê', icon: ChartBar },
+                { to: '/staff/dashboard', label: 'Tổng quan', icon: HouseLine },
+                { to: '/staff/reports', label: 'Báo cáo và thống kê', icon: ChartBar },
             ],
         },
         {

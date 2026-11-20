@@ -3,6 +3,7 @@ import { patientPortalService } from '../../services/user/PatientPortalService'
 import { AppToast } from '../../components/common/AppNotification'
 import PatientPageHeader from '../../components/user/patient/PatientPageHeader'
 import { PatientError, PatientLoading } from '../../components/user/patient/PatientPageState'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 const emptyMember = {
     ho_ten: '',
@@ -24,7 +25,7 @@ const personalFields = [
 ]
 
 const errorText = (error) =>
-    error.response?.data?.message || error.message || 'Có lỗi từ máy chủ'
+    toFriendlyErrorMessage(error, 'Chưa tải được thông tin hồ sơ. Bạn vui lòng thử lại sau.')
 
 export default function PatientProfilePage() {
     const [profile, setProfile] = useState(null)

@@ -9,6 +9,7 @@ import {
     updatePatientAsync,
     searchPatientsAsync,
 } from '../../redux/actions/reception/receptionAction'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 const BLOOD_TYPE_OPTIONS = [
     { value: 'O+', label: 'Nhóm máu O+' },
@@ -68,7 +69,7 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                 setDuplicateWarning(null)
                 onClose()
             } catch (err) {
-                message.error(err.message || 'Lỗi khi lưu hồ sơ bệnh nhân')
+                message.error(toFriendlyErrorMessage(err, 'Lỗi khi lưu hồ sơ bệnh nhân'))
             }
         },
     })

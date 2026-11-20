@@ -435,7 +435,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     <div className="p-4 rounded-[6px] bg-clinic-danger-bg border border-clinic-danger-border space-y-3">
                         <h4 className="font-bold text-clinic-danger text-sm">Xác nhận hủy lịch hẹn</h4>
                         <p className="text-xs text-clinic-danger">
-                            Lưu ý: Quy tắc an toàn y tế yêu cầu hủy trước tối thiểu 02 giờ. Sau khi hủy, slot sẽ tự động giải phóng và thông báo cho người đứng đầu Danh sách chờ (Waitlist).
+                            Lưu ý: Quy tắc an toàn y tế yêu cầu hủy trước tối thiểu 2 giờ. Sau khi hủy, slot sẽ tự động giải phóng và thông báo cho người đứng đầu Danh sách chờ (Waitlist).
                         </p>
                         <Input.TextArea
                             rows={3}

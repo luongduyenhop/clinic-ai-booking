@@ -91,31 +91,31 @@ const SPECIALTY_CLINICAL_TABLE = [
     {
         keys: ['khoa_noi', 'nội tổng quát', 'nội khoa', 'nội'],
         fee: 150000,
-        services: 'Khám nội tổng quát, đo điện tim ECG, siêu âm ổ bụng & theo dõi bệnh mạn tính',
+        services: 'Khám nội tổng quát, đo điện tim ECG, siêu âm ổ bụng và theo dõi bệnh mạn tính',
         floor: 'Phòng 101 – Tầng 1',
     },
     {
         keys: ['khoa_ngoai', 'ngoại tổng quát', 'ngoại khoa', 'ngoại'],
         fee: 200000,
-        services: 'Khám ngoại tổng quát, xử trí vết thương, cắt chỉ & tiểu phẫu vô trùng',
+        services: 'Khám ngoại tổng quát, xử trí vết thương, cắt chỉ và tiểu phẫu vô trùng',
         floor: 'Phòng 201 – Tầng 2',
     },
     {
         keys: ['khoa_tmh', 'tai mũi họng', 'tai mui hong', 'tmh'],
         fee: 220000,
-        services: 'Nội soi Tai Mũi Họng ống mềm, lấy dị vật, hút rửa mũi xoang & khí dung',
+        services: 'Nội soi Tai Mũi Họng ống mềm, lấy dị vật, hút rửa mũi xoang và khí dung',
         floor: 'Phòng 205 – Tầng 2',
     },
     {
         keys: ['khoa_rang', 'răng hàm mặt', 'rang ham mat', 'nha khoa', 'răng'],
         fee: 180000,
-        services: 'Khám nha tổng quát, cạo vôi siêu âm, hàn răng thẩm mỹ & nhổ răng khôn',
+        services: 'Khám nha tổng quát, cạo vôi siêu âm, hàn răng thẩm mỹ và nhổ răng khôn',
         floor: 'Phòng 301 – Tầng 3',
     },
     {
         keys: ['khoa_mat', 'nhãn khoa', 'nhan khoa', 'mắt'],
         fee: 160000,
-        services: 'Đo thị lực – khúc xạ tự động, soi đáy mắt & tầm soát đục thủy tinh thể',
+        services: 'Đo thị lực – khúc xạ tự động, soi đáy mắt và tầm soát đục thủy tinh thể',
         floor: 'Phòng 305 – Tầng 3',
     },
 ]

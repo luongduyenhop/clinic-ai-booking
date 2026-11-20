@@ -125,7 +125,7 @@ export default function AppointmentManagementPage() {
                 })
             }
         } catch {
-            AppToast.error('Không thể tải ma trận lịch trực!')
+            AppToast.error('Không thể tải ma trận lịch trực')
         } finally {
             setMatrixLoading(false)
         }
@@ -192,12 +192,12 @@ export default function AppointmentManagementPage() {
 
     const handleNew = () => {
         setForm(buildEmptyAppointment())
-        AppToast.info('Đã khởi tạo mẫu Lịch hẹn mới!')
+        AppToast.info('Đã khởi tạo mẫu Lịch hẹn mới')
     }
 
     const handleSave = async () => {
         if (!form.hoTen?.trim() || !form.dienThoai?.trim()) {
-            AppToast.error('Vui lòng nhập đầy đủ Họ tên và Số điện thoại đặt lịch!')
+            AppToast.error('Vui lòng nhập đầy đủ Họ tên và Số điện thoại đặt lịch')
             return
         }
         const exists = appointments.some((a) => a.id === form.id && form.id)
@@ -226,7 +226,7 @@ export default function AppointmentManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật thông tin lịch hẹn!' : 'Đã tạo lịch hẹn khám mới thành công!')
+        AppToast.success(exists ? 'Đã cập nhật thông tin lịch hẹn' : 'Đã tạo lịch hẹn khám mới thành công')
     }
 
     const handleDelete = async () => {
@@ -244,17 +244,17 @@ export default function AppointmentManagementPage() {
             })
         )
         setForm(updated[0] || buildEmptyAppointment())
-        AppToast.info('Đã xóa lịch hẹn khám!')
+        AppToast.info('Đã xóa lịch hẹn khám')
     }
 
     const handleConvertToRegistration = () => {
         navigate('/admin/dang-ky-kham')
-        AppToast.info(`Mở Tiếp đón cho BN ${form.hoTen}. Nhấn 'Chọn từ Lịch hẹn' để nạp tự động!`)
+        AppToast.info(`Mở Tiếp đón cho BN ${form.hoTen}. Nhấn 'Chọn từ Lịch hẹn' để nạp tự động`)
     }
 
     const handleSessionCheckIn = (course) => {
         if (course.soBuoiDaTap >= course.tongSoBuoi) {
-            AppToast.warning('Liệu trình đã hoàn thành đủ số buổi!')
+            AppToast.warning('Liệu trình đã hoàn thành đủ số buổi')
             return
         }
         const updated = treatmentCourses.map((c) =>
@@ -271,7 +271,7 @@ export default function AppointmentManagementPage() {
                 },
             })
         )
-        AppToast.success(`Đã điểm danh buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi} cho BN ${course.tenBN}!`)
+        AppToast.success(`Đã điểm danh buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi} cho BN ${course.tenBN}`)
     }
 
     return (
@@ -673,7 +673,7 @@ export default function AppointmentManagementPage() {
                                         <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
-                                                onClick={() => AppToast.success(`Đã cập nhật trạng thái gói cho BN ${pkg.tenBN}!`)}
+                                                onClick={() => AppToast.success(`Đã cập nhật trạng thái gói cho BN ${pkg.tenBN}`)}
                                                 className="medpro-btn-outline !py-1 !px-2.5 text-[11px]"
                                             >
                                                 Cập nhật

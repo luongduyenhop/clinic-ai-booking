@@ -41,11 +41,11 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
     const handleSwapSubmit = (e) => {
         e.preventDefault()
         if (!swapForm.currentDate || !swapForm.targetDate) {
-            AppToast.warning('Vui lòng chọn ngày ca hiện tại và ngày mong muốn đổi sang!')
+            AppToast.warning('Vui lòng chọn ngày ca hiện tại và ngày mong muốn đổi sang')
             return
         }
         if (!swapForm.reason.trim()) {
-            AppToast.warning('Vui lòng nhập lý do đổi ca trực!')
+            AppToast.warning('Vui lòng nhập lý do đổi ca trực')
             return
         }
 
@@ -64,7 +64,7 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
         setRequestHistory((prev) => [newRequest, ...prev])
         if (onRequestSubmitted) onRequestSubmitted(newRequest)
 
-        AppToast.success('Đã gửi phiếu yêu cầu đổi ca trực tới Ban Điều Hành!')
+        AppToast.success('Đã gửi phiếu yêu cầu đổi ca trực tới Ban Điều Hành')
         setSwapForm({
             currentDate: '',
             currentShift: 'MORNING',
@@ -79,11 +79,11 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
     const handleLeaveSubmit = (e) => {
         e.preventDefault()
         if (!leaveForm.startDate) {
-            AppToast.warning('Vui lòng chọn ngày bắt đầu nghỉ!')
+            AppToast.warning('Vui lòng chọn ngày bắt đầu nghỉ')
             return
         }
         if (!leaveForm.reason.trim()) {
-            AppToast.warning('Vui lòng nhập lý do xin nghỉ!')
+            AppToast.warning('Vui lòng nhập lý do xin nghỉ')
             return
         }
 
@@ -109,7 +109,7 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
         setRequestHistory((prev) => [newRequest, ...prev])
         if (onRequestSubmitted) onRequestSubmitted(newRequest)
 
-        AppToast.success('Đã nộp đơn xin nghỉ trực thành công!')
+        AppToast.success('Đã nộp đơn xin nghỉ trực thành công')
         setLeaveForm({
             leaveType: 'ANNUAL',
             startDate: '',

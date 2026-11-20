@@ -33,6 +33,7 @@ import { APPOINTMENT_STATUS } from '../../utils/constants/receptionConstants'
 import { receptionService } from '../../services/reception/receptionService'
 import { unwrapApi } from '../../utils/helpers/apiHelper'
 import { formatDoctorName } from '../../utils/doctorHelper'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 function normalizePatient(p) {
     if (!p) return null
@@ -664,7 +665,7 @@ export default function CheckInPage() {
                                     setSelectedPatient(null)
                                     setWalkInAutoWaitlist(false)
                                 } catch (wErr) {
-                                    message.error(typeof wErr === 'string' ? wErr : (wErr?.message || 'Không thể ghi danh vào danh sách chờ'))
+                                    message.error(toFriendlyErrorMessage(wErr, 'Không thể ghi danh vào danh sách chờ'))
                                 } finally {
                                     setIsSubmitting(false)
                                 }
@@ -676,7 +677,7 @@ export default function CheckInPage() {
                 }
             }
         } catch (err) {
-            message.error(err.message || 'Lỗi khi tiếp nhận bệnh nhân')
+            message.error(toFriendlyErrorMessage(err, 'Lỗi khi tiếp nhận bệnh nhân'))
         } finally {
             setIsSubmitting(false)
         }

@@ -66,7 +66,7 @@ export default function PatientMedicalRecordsPage() {
         )
         if (submitPatientFeedbackAsync.fulfilled.match(result)) {
             setRatingModalOpen(false)
-            toast.success('Cảm ơn bạn đã đánh giá dịch vụ khám chữa bệnh!')
+            toast.success('Cảm ơn bạn đã đánh giá dịch vụ khám chữa bệnh')
         } else {
             toast.error(result.payload || 'Không thể lưu đánh giá. Vui lòng thử lại.')
         }

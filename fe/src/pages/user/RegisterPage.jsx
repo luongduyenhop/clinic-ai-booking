@@ -8,6 +8,7 @@ import { AppToast } from '../../components/common/AppNotification'
 import { AuthShell } from './LoginPage'
 import { CheckCircle, LockKey } from '../../components/common/ClinicIcon'
 import { http } from '../../services/BaseService'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 const MAX_BIRTH_DATE = new Date()
 
@@ -80,10 +81,10 @@ export default function RegisterPage() {
                     })
                 )
                 setStep('success')
-                AppToast.success('Đã đăng ký tài khoản bệnh nhân thành công!')
+                AppToast.success('Đã tạo tài khoản bệnh nhân')
                 navigate('/benh-nhan', { replace: true })
             } catch (err) {
-                setError(err.response?.data?.message || err.message || 'Đăng ký không thành công')
+                setError(toFriendlyErrorMessage(err, 'Đăng ký chưa thành công. Bạn vui lòng thử lại sau.'))
             } finally {
                 setSubmittingOtp(false)
             }

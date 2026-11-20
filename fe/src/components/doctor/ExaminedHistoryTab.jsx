@@ -25,7 +25,7 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
 
     const handlePrintPrescription = (patient) => {
         const roomLabel = doctorInfo?.room || 'Buồng khám chuyên khoa'
-        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in ${roomLabel}!`)
+        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in ${roomLabel}`)
     }
 
     return (

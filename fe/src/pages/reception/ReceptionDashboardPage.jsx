@@ -205,7 +205,7 @@ export default function ReceptionDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface border border-clinic-border rounded-[6px] px-4 py-3">
                 <div className="flex flex-wrap items-center gap-3 min-w-0">
                     <h1 className="font-display text-base sm:text-lg font-extrabold text-clinic-navy tracking-tight">
-                        Điều phối Tiếp đón &amp; Luồng khám
+                        Điều phối tiếp đón và luồng khám
                     </h1>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[4px] bg-clinic-bg border border-clinic-border text-[11px] font-semibold text-clinic-text-secondary tabular-nums">
                         <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
@@ -414,7 +414,7 @@ export default function ReceptionDashboardPage() {
                         <div className="medpro-section-title">
                             <div className="flex items-center gap-1.5">
                                 <Clock size={16} weight="duotone" className="text-clinic-warning" />
-                                <span>Chờ lâu (&gt;30p) &amp; Sự cố ca trực</span>
+                                <span>Chờ lâu (&gt;30p) và sự cố ca trực</span>
                             </div>
                             <Link to="/reception/queue" className="text-[11px] font-bold text-clinic-cta hover:underline">
                                 Vào hàng đợi

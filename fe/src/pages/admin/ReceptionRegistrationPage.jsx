@@ -153,7 +153,7 @@ export default function ReceptionRegistrationPage() {
         setForm(buildEmptyRegistrationForm())
         setActiveRightTab('THONG_TIN')
         setAiSuggestion(null)
-        AppToast.info('Đã khởi tạo mẫu phiếu Đăng ký khám mới (F2)!')
+        AppToast.info('Đã khởi tạo mẫu phiếu Đăng ký khám mới (F2)')
     }
 
     const handlePickAppointment = (appt) => {
@@ -181,7 +181,7 @@ export default function ReceptionRegistrationPage() {
 
     const handleAISuggestSpecialty = async () => {
         if (!form.trieuChung?.trim()) {
-            AppToast.warning('Vui lòng nhập Triệu chứng ban đầu để Trợ lý AI gợi ý chuyên khoa!')
+            AppToast.warning('Vui lòng nhập Triệu chứng ban đầu để Trợ lý AI gợi ý chuyên khoa')
             return
         }
         setAiLoading(true)
@@ -195,7 +195,7 @@ export default function ReceptionRegistrationPage() {
                     phongKham: res.data.phongKham || prev.phongKham,
                     bacSi: res.data.bacSi || prev.bacSi,
                 }))
-                AppToast.success('Trợ lý AI đã gợi ý chuyên khoa & phòng khám phù hợp!')
+                AppToast.success('Trợ lý AI đã gợi ý chuyên khoa & phòng khám phù hợp')
             }
         } catch {
             AppToast.error('Không thể kết nối dịch vụ AI gợi ý chuyên khoa.')
@@ -270,11 +270,11 @@ export default function ReceptionRegistrationPage() {
 
     const handleSaveRegistration = async () => {
         if (!form.hoTen?.trim()) {
-            AppToast.warning('Vui lòng nhập Họ tên bệnh nhân!')
+            AppToast.warning('Vui lòng nhập Họ tên bệnh nhân')
             return
         }
         if (!form.dienThoai?.trim()) {
-            AppToast.warning('Vui lòng nhập Số điện thoại liên hệ!')
+            AppToast.warning('Vui lòng nhập Số điện thoại liên hệ')
             return
         }
 
@@ -305,7 +305,7 @@ export default function ReceptionRegistrationPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật thông tin đăng ký khám (F5)!' : 'Đã tạo lượt đăng ký khám mới thành công!')
+        AppToast.success(exists ? 'Đã cập nhật thông tin đăng ký khám (F5)' : 'Đã tạo lượt đăng ký khám mới thành công')
     }
 
     const handleDeleteRegistration = async () => {
@@ -323,7 +323,7 @@ export default function ReceptionRegistrationPage() {
             })
         )
         setForm(updated[0] || buildEmptyRegistrationForm())
-        AppToast.info('Đã xóa lượt đăng ký khám!')
+        AppToast.info('Đã xóa lượt đăng ký khám')
     }
 
     return (

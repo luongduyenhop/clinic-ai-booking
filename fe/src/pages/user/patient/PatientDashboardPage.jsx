@@ -99,7 +99,7 @@ export default function PatientDashboardPage() {
         }
         const found = result.payload
         if (found.length) {
-            AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin!`)
+            AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin`)
         } else {
             AppToast.warning('Thông tin vừa nhập chưa khớp với hồ sơ của bạn.')
         }
@@ -108,7 +108,7 @@ export default function PatientDashboardPage() {
     const handleAddFamilyMember = async (e) => {
         e.preventDefault()
         if (!newMember.ho_ten.trim()) {
-            AppToast.error('Vui lòng nhập họ tên người thân!')
+            AppToast.error('Vui lòng nhập họ tên người thân')
             return
         }
         if (familyMutation.loading) return
@@ -117,7 +117,7 @@ export default function PatientDashboardPage() {
             AppToast.error(result.payload || 'Không thể thêm người thân')
             return
         }
-        AppToast.success(`Đã thêm hồ sơ "${newMember.ho_ten}" vào Sổ sức khỏe gia đình!`)
+        AppToast.success(`Đã thêm hồ sơ "${newMember.ho_ten}" vào Sổ sức khỏe gia đình`)
         setNewMember({
             ho_ten: '',
             moi_quan_he: 'Con cái',
@@ -132,7 +132,7 @@ export default function PatientDashboardPage() {
     return (
         <>
             <PatientPageHeader
-                title="Tổng quan sức khỏe & Hồ sơ gia đình"
+                title="Tổng quan sức khỏe và hồ sơ gia đình"
                 description="Theo dõi lịch khám, tra cứu mã bệnh nhân và quản lý sổ sức khỏe người thân của bạn."
                 action={
                     <Link to="/dat-lich" className="medpro-btn-primary min-h-11">
@@ -185,7 +185,7 @@ export default function PatientDashboardPage() {
                     </div>
                     <div>
                         <h3 className="font-display font-bold text-sm text-clinic-navy">
-                            Tra cứu viện phí &amp; biên lai thanh toán
+                            Tra cứu viện phí và biên lai thanh toán
                         </h3>
                         <p className="text-xs text-clinic-text-secondary mt-0.5">
                             Xem chi tiết các khoản thu khám lâm sàng, xét nghiệm và trạng thái xác nhận từ bộ phận thu ngân.

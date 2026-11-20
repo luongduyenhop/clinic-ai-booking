@@ -140,7 +140,7 @@ export default function PrescriptionPrintAndCopyModal({
         if (onApplyOldPrescription) {
             onApplyOldPrescription(oldRx.items, oldRx.ghi_chu, oldRx.id)
         }
-        AppToast.success(`Đã sao chép ${oldRx.items.length} thuốc từ đơn cũ #${oldRx.id} (${oldRx.ngay_ke})!`)
+        AppToast.success(`Đã sao chép ${oldRx.items.length} thuốc từ đơn cũ #${oldRx.id} (${oldRx.ngay_ke})`)
         onClose()
     }
 
@@ -148,7 +148,7 @@ export default function PrescriptionPrintAndCopyModal({
         if (onApplySampleTemplate) {
             onApplySampleTemplate(tmpl.items, tmpl.notes, tmpl.id)
         }
-        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ mẫu "${tmpl.name}" vào đơn nháp. Bác sĩ vui lòng rà soát lại trước khi lưu!`)
+        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ mẫu "${tmpl.name}" vào đơn nháp. Bác sĩ vui lòng rà soát lại trước khi lưu`)
         onClose()
     }
 
@@ -194,7 +194,7 @@ export default function PrescriptionPrintAndCopyModal({
                 document.execCommand('copy')
                 document.body.removeChild(ta)
             }
-            AppToast.success('Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm! Bạn có thể dán vào Zalo/SMS để gửi.')
+            AppToast.success('Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm. Bạn có thể dán vào Zalo/SMS để gửi.')
         } catch (e) {
             console.error('Clipboard copy error:', e)
             AppToast.error('Không thể truy cập Clipboard trình duyệt. Vui lòng thử lại.')

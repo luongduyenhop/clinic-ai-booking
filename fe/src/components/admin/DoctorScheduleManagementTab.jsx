@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useSelector } from 'react-redux'
 import { adminService } from '../../services/admin/AdminService'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 import { AppToast } from '../common/AppNotification'
 import { exportToExcel } from '../../utils/helpers/exportUtils'
 import {
@@ -211,7 +212,7 @@ export default function DoctorScheduleManagementTab() {
             const data = await adminService.getDoctorScheduleMatrix(params)
             setMatrixRawData(data)
         } catch {
-            AppToast.error('Không thể tải ma trận phân ca trực!')
+            AppToast.error('Không thể tải ma trận phân ca trực')
         } finally {
             setLoading(false)
         }
@@ -472,7 +473,7 @@ export default function DoctorScheduleManagementTab() {
     const handleCreateShiftSubmit = async (e) => {
         e.preventDefault()
         if (!createShiftForm.bac_si_id || !createShiftForm.ngay || !createShiftForm.phong_kham_id) {
-            AppToast.error('Vui lòng chọn đầy đủ Bác sĩ, Ngày làm việc và Buồng khám!')
+            AppToast.error('Vui lòng chọn đầy đủ Bác sĩ, Ngày làm việc và Buồng khám')
             return
         }
 
@@ -496,11 +497,11 @@ export default function DoctorScheduleManagementTab() {
 
         try {
             await adminService.createShiftAdmin(payload)
-            AppToast.success('Phân ca làm việc cho bác sĩ thành công!')
+            AppToast.success('Phân ca làm việc cho bác sĩ thành công')
             setShowCreateModal(false)
             fetchMatrix()
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi phân ca trực khám!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Lỗi khi phân ca trực khám')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -516,11 +517,11 @@ export default function DoctorScheduleManagementTab() {
                 is_active: newStatus,
                 ghi_chu_nghi: newStatus ? '' : 'Tạm khóa ca trực',
             })
-            AppToast.success(newStatus ? 'Đã kích hoạt lại ca trực!' : 'Đã tạm khóa ca trực thành công!')
+            AppToast.success(newStatus ? 'Đã kích hoạt lại ca trực' : 'Đã tạm khóa ca trực thành công')
             setShowDetailModal(false)
             fetchMatrix()
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Không thể cập nhật trạng thái ca trực!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Không thể cập nhật trạng thái ca trực')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -542,11 +543,11 @@ export default function DoctorScheduleManagementTab() {
             })
             const data = res?.data || res
             const soTao = data?.so_ca_tao_thanh_cong ?? 0
-            AppToast.success(`Đã sao chép lịch sang tuần sau thành công! Đã tạo ${soTao} ca trực mới.`)
+            AppToast.success(`Đã sao chép lịch sang tuần sau thành công. Đã tạo ${soTao} ca trực mới.`)
             setShowCopyModal(false)
             setCurrentMonday(nextMonday)
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Không thể sao chép lịch sang tuần sau!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Không thể sao chép lịch sang tuần sau')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -579,7 +580,7 @@ export default function DoctorScheduleManagementTab() {
             headers,
             rows,
         })
-        AppToast.success('Đã xuất báo cáo lịch trực (.xlsx) thành công!')
+        AppToast.success('Đã xuất báo cáo lịch trực (.xlsx) thành công')
     }
 
     return (

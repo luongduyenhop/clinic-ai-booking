@@ -4,6 +4,7 @@ import PatientPageHeader from '../../../components/user/patient/PatientPageHeade
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
 import { bookingService } from '../../../services/user/BookingService'
 import { CalendarCheck, Clock, Stethoscope } from '../../../components/common/ClinicIcon'
+import { toFriendlyErrorMessage } from '../../../utils/helpers/clientErrorHelper'
 import {
     buildQuickBookingPath,
     formatConsultFee,
@@ -58,7 +59,14 @@ export default function DoctorSchedulesPage() {
                 if (active) setRows(data)
             })
             .catch((err) => {
-                if (active) setError(err.message)
+                if (active) {
+                    setError(
+                        toFriendlyErrorMessage(
+                            err,
+                            'Chưa tải được lịch khám. Bạn thử lại sau ít phút hoặc gọi 1900 6868.'
+                        )
+                    )
+                }
             })
             .finally(() => {
                 if (active) setLoading(false)
@@ -79,7 +87,7 @@ export default function DoctorSchedulesPage() {
         <div className="space-y-6">
             <PatientPageHeader
                 title="Lịch làm việc bác sĩ"
-                description="Khung giờ khám còn trống được cập nhật trực tiếp theo thời gian thực từ phòng khám."
+                description="Khung giờ khám còn trống được cập nhật trực tiếp từ phòng khám."
             />
 
             <div className="medpro-card p-5">

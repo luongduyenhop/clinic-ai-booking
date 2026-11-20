@@ -219,14 +219,14 @@ export function useDoctorWorkstationLogic() {
 
         if (done === 0) {
             AppToast.warning(
-                'Bác sĩ chưa thực hiện khám chuyên khoa. Vui lòng chọn Bình thường hoặc Bất thường trước khi chuyển sang Cận lâm sàng!'
+                'Bác sĩ chưa thực hiện khám chuyên khoa. Vui lòng chọn Bình thường hoặc Bất thường trước khi chuyển sang Cận lâm sàng'
             )
             return false
         }
 
         if (done < spec.items.length) {
             AppToast.warning(
-                `Mục khám chuyên khoa chưa hoàn tất (đã khám ${done}/${spec.items.length} mục). Vui lòng đánh giá các mục còn lại trước khi chuyển sang Cận lâm sàng!`
+                `Mục khám chuyên khoa chưa hoàn tất (đã khám ${done}/${spec.items.length} mục). Vui lòng đánh giá các mục còn lại trước khi chuyển sang Cận lâm sàng`
             )
             return false
         }
@@ -249,7 +249,7 @@ export function useDoctorWorkstationLogic() {
             }
             if (step === 2 && targetStep > 2 && pickedOrders.length > 0) {
                 AppToast.warning(
-                    'Bạn đang có chỉ định CLS chưa gửi ở Bước 2. Vui lòng bấm gửi chỉ định trước khi tiếp tục!'
+                    'Bạn đang có chỉ định CLS chưa gửi ở Bước 2. Vui lòng bấm gửi chỉ định trước khi tiếp tục'
                 )
                 return
             }
@@ -404,7 +404,7 @@ export function useDoctorWorkstationLogic() {
         setCalling(true)
         try {
             const ticket = await dispatch(startPatientAsync(encounterId)).unwrap()
-            AppToast.success(`Đã bắt đầu phiên khám bệnh nhân #${ticket.so_thu_tu_kham} · ${ticket.ten_benh_nhan}!`)
+            AppToast.success(`Đã bắt đầu phiên khám bệnh nhân #${ticket.so_thu_tu_kham} · ${ticket.ten_benh_nhan}`)
             if (audioAnnouncer.isEnabled()) {
                 audioAnnouncer.announcePatient(ticket.ten_benh_nhan, ticket.so_thu_tu_kham, 'buồng khám số 1')
             }
@@ -453,7 +453,7 @@ export function useDoctorWorkstationLogic() {
             currentActiveTicket?.trang_thai !== 'tam_hoan' &&
             encounter?.trang_thai !== 'tam_hoan'
         ) {
-            AppToast.warning('Bệnh nhân chưa có chỉ định Cận lâm sàng nào để chuyển sang trạng thái Chờ CLS!')
+            AppToast.warning('Bệnh nhân chưa có chỉ định Cận lâm sàng nào để chuyển sang trạng thái Chờ CLS')
             return
         }
         const activeItem = currentActiveTicket
@@ -618,7 +618,7 @@ export function useDoctorWorkstationLogic() {
                 document.body.removeChild(ta)
             }
             AppToast.success(
-                'Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm! Bạn có thể dán (Ctrl+V) vào Zalo/SMS gửi bệnh nhân.'
+                'Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm. Bạn có thể dán (Ctrl+V) vào Zalo/SMS gửi bệnh nhân.'
             )
         } catch {
             AppToast.error('Không thể truy cập Clipboard trình duyệt.')
@@ -655,7 +655,7 @@ export function useDoctorWorkstationLogic() {
         }
         try {
             const completedEnc = await dispatch(completeEncounterAsync({ encounterId: encounter.id, payload })).unwrap()
-            AppToast.success('Đã hoàn tất khám và khóa bệnh án! Chuyển sang danh sách Đã xong.')
+            AppToast.success('Đã hoàn tất khám và khóa bệnh án. Chuyển sang danh sách Đã xong.')
             await loadQueue()
             setQueueFilter('da_kham')
             if (completedEnc?.id) {
@@ -673,7 +673,7 @@ export function useDoctorWorkstationLogic() {
 
         if (step !== 4) {
             AppToast.warning(
-                'Bạn cần hoàn thành các bước tuần tự đến Bước 4 (Đơn thuốc & Dặn dò) trước khi hoàn tất ca khám!'
+                'Bạn cần hoàn thành các bước tuần tự đến Bước 4 (Đơn thuốc & Dặn dò) trước khi hoàn tất ca khám'
             )
             setStep(4)
             return
@@ -681,7 +681,7 @@ export function useDoctorWorkstationLogic() {
 
         if (pickedOrders.length > 0) {
             AppToast.warning(
-                `Bạn đang chọn ${pickedOrders.length} dịch vụ CLS ở Bước 2 chưa gửi sang KTV. Vui lòng bấm gửi chỉ định trước khi hoàn tất!`
+                `Bạn đang chọn ${pickedOrders.length} dịch vụ CLS ở Bước 2 chưa gửi sang KTV. Vui lòng bấm gửi chỉ định trước khi hoàn tất`
             )
             setStep(2)
             return
@@ -759,7 +759,7 @@ export function useDoctorWorkstationLogic() {
                 'Bắt buộc chọn đúng 1 mã bệnh chính (ICD-10) trước khi hoàn tất khám.'
             )
             Modal.warning({
-                title: 'Chưa thể kết thúc ca khám!',
+                title: 'Chưa thể kết thúc ca khám',
                 width: 480,
                 content: (
                     <div className="space-y-3 text-xs text-slate-700 mt-2">

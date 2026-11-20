@@ -46,8 +46,8 @@ const OPERATIONAL_PORTAL_LINKS = [
     },
     {
         role: 'Thu ngân viện phí',
-        title: 'Cổng Thu Viện Phí & Đối Soát Ca',
-        desc: 'Thanh toán khép kín VietQR/Tiền mặt, xuất biên lai & khóa sổ ca',
+        title: 'Cổng Thu Viện Phí và Đối Soát Ca',
+        desc: 'Thanh toán VietQR hoặc tiền mặt, xuất biên lai và khóa sổ ca',
         path: '/staff/cashier',
         icon: 'Receipt',
     },
@@ -136,17 +136,17 @@ export default function DashboardAdminPage() {
                 item.is_active ? 'Đang hoạt động' : 'Tạm ngưng',
             ])
             await exportToExcel({
-                filename: `bao-cao-bi-danh-muc-dich-vu_${new Date().toISOString().slice(0, 10)}.xlsx`,
-                sheetName: 'Báo cáo BI',
-                title: 'BÁO CÁO THỐNG KÊ QUẢN TRỊ BI & DANH MỤC DỊCH VỤ',
-                subtitle: `Phân hệ Quản trị BI • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} dịch vụ`,
+                filename: `bao-cao-tong-quan-danh-muc-dich-vu_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                sheetName: 'Báo cáo Tổng quan',
+                title: 'BÁO CÁO THỐNG KÊ QUẢN TRỊ VÀ DANH MỤC DỊCH VỤ',
+                subtitle: `Phân hệ Quản trị • Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} • Tổng số: ${rows.length} dịch vụ`,
                 headers,
                 rows,
                 signOff: true,
             })
-            AppToast.success(`Đã xuất báo cáo BI (${rows.length} dịch vụ) thành công!`)
+            AppToast.success(`Đã xuất báo cáo (${rows.length} dịch vụ)`)
         } catch {
-            AppToast.error('Lỗi khi xuất báo cáo BI ra file Excel')
+            AppToast.error('Lỗi khi xuất báo cáo ra file Excel')
         } finally {
             setExportingExcel(false)
         }
@@ -311,13 +311,13 @@ export default function DashboardAdminPage() {
             <div className="medpro-card p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-1">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-clinic-cta">
-                        Điều hành tổng thể phòng khám &amp; Danh mục trung tâm
+                        Điều hành phòng khám và danh mục trung tâm
                     </div>
                     <h2 className="font-display text-base lg:text-lg font-extrabold text-clinic-navy">
-                        Trung tâm Điều hành &amp; Thống kê Quản trị (BI)
+                        Tổng quan phòng khám
                     </h2>
                     <p className="text-xs text-clinic-text-secondary max-w-3xl">
-                        Tổng hợp công suất khám chữa bệnh, doanh thu viện phí, hiệu suất bác sĩ và giám sát tuân thủ pháp lý y tế theo thời gian thực.
+                        Tổng hợp công suất khám chữa bệnh, doanh thu viện phí, hiệu suất bác sĩ và giám sát tuân thủ pháp lý y tế.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
@@ -333,7 +333,7 @@ export default function DashboardAdminPage() {
                         className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                     >
                         <ShieldCheck size={15} weight="duotone" className="text-clinic-cta" />
-                        <span>Nhân sự &amp; Phân quyền</span>
+                        <span>Nhân sự và phân quyền</span>
                     </Link>
                 </div>
             </div>
@@ -387,7 +387,7 @@ export default function DashboardAdminPage() {
                         className="medpro-btn-primary !py-1.5 !px-3 text-xs ml-1"
                     >
                         <DownloadSimple size={14} weight="bold" />
-                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel BI'}</span>
+                        <span>{exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}</span>
                     </button>
                 </div>
             </div>
@@ -413,7 +413,7 @@ export default function DashboardAdminPage() {
 
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                Hoàn tất khám &amp; Kê đơn
+                                Hoàn tất khám và kê đơn
                             </span>
                             <div className="font-display text-2xl font-extrabold text-clinic-success mt-1">
                                 {stats?.so_ca_hoan_tat_kham ?? registrations.filter((r) => r.trangThai === 'Đã khám').length}
@@ -429,7 +429,7 @@ export default function DashboardAdminPage() {
 
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                Nhân sự &amp; Bác sĩ Active
+                                Bác sĩ đang làm việc
                             </span>
                             <div className="font-display text-2xl font-extrabold text-clinic-cta mt-1">
                                 {stats?.tong_bac_si_hoat_dong ?? staffList.length}

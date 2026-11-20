@@ -6,7 +6,7 @@ export default function DoctorCertificateModal({ isOpen, onClose, doctorInfo }) 
     if (!isOpen) return null
 
     const handlePrint = () => {
-        AppToast.success('Đã gửi chứng chỉ hành nghề tới máy in tài liệu!')
+        AppToast.success('Đã gửi chứng chỉ hành nghề tới máy in tài liệu')
     }
 
     return createPortal(

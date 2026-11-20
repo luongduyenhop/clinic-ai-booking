@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { exportToExcel } from '../../utils/helpers/exportUtils'
 import { useSelector } from 'react-redux'
 import { adminService } from '../../services/admin/AdminService'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 import { AppToast } from '../common/AppNotification'
 import {
     CalendarCheck,
@@ -110,7 +111,7 @@ export default function DoctorLeaveManagementTab() {
             setLeaves(safeFiltered)
             setAllLeaves(Array.isArray(allData) ? allData : safeFiltered)
         } catch (err) {
-            AppToast.error(err.response?.data?.message || 'Không thể tải danh sách đơn nghỉ phép từ CSDL!')
+            AppToast.error(err.response?.data?.message || 'Không thể tải danh sách đơn nghỉ phép từ CSDL')
             setLeaves([])
         } finally {
             setLoading(false)
@@ -179,7 +180,7 @@ export default function DoctorLeaveManagementTab() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} đơn nghỉ phép ra file Excel (.xlsx) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} đơn nghỉ phép ra file Excel (.xlsx) thành công`)
     }
 
     const handleExportAffectedBookingsExcel = () => {
@@ -205,7 +206,7 @@ export default function DoctorLeaveManagementTab() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} bệnh nhân ảnh hưởng ra file Excel (.xlsx) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} bệnh nhân ảnh hưởng ra file Excel (.xlsx) thành công`)
     }
 
     const handleOpenCreateModal = () => {
@@ -224,15 +225,15 @@ export default function DoctorLeaveManagementTab() {
     const handleCreateLeave = async (e) => {
         e.preventDefault()
         if (!createForm.bac_si_id) {
-            AppToast.warning('Vui lòng chọn bác sĩ!')
+            AppToast.warning('Vui lòng chọn bác sĩ')
             return
         }
         if (!createForm.tu_ngay || !createForm.den_ngay) {
-            AppToast.warning('Vui lòng chọn khoảng thời gian nghỉ!')
+            AppToast.warning('Vui lòng chọn khoảng thời gian nghỉ')
             return
         }
         if (!createForm.ly_do.trim()) {
-            AppToast.warning('Vui lòng nhập lý do nghỉ phép!')
+            AppToast.warning('Vui lòng nhập lý do nghỉ phép')
             return
         }
 
@@ -248,11 +249,11 @@ export default function DoctorLeaveManagementTab() {
                 ly_do: createForm.ly_do.trim(),
             }
             await adminService.createDoctorLeave(payload)
-            AppToast.success('Tạo đơn nghỉ phép thành công!')
+            AppToast.success('Tạo đơn nghỉ phép thành công')
             setIsCreateModalOpen(false)
             loadLeaves()
         } catch (err) {
-            const errorMsg = err.response?.data?.message || err.response?.data?.detail || err.message || 'Đã xảy ra lỗi khi tạo đơn nghỉ phép!'
+            const errorMsg = toFriendlyErrorMessage(err, 'Đã xảy ra lỗi khi tạo đơn nghỉ phép')
             AppToast.error(errorMsg)
         } finally {
             setCreateSubmitting(false)
@@ -269,10 +270,10 @@ export default function DoctorLeaveManagementTab() {
                 hanh_dong: 'DA_DUYET',
                 ghi_chu: 'Quản trị viên phê duyệt nghỉ phép',
             })
-            AppToast.success('Đã duyệt đơn nghỉ phép và tự động khóa ca trực liên quan!')
+            AppToast.success('Đã duyệt đơn nghỉ phép và tự động khóa ca trực liên quan')
             loadLeaves()
         } catch (err) {
-            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi phê duyệt đơn nghỉ phép!')
+            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi phê duyệt đơn nghỉ phép')
         } finally {
             setActionLoadingId(null)
         }
@@ -287,7 +288,7 @@ export default function DoctorLeaveManagementTab() {
     const handleConfirmReject = async (e) => {
         e.preventDefault()
         if (!rejectReason.trim()) {
-            AppToast.warning('Vui lòng nhập lý do từ chối đơn!')
+            AppToast.warning('Vui lòng nhập lý do từ chối đơn')
             return
         }
 
@@ -297,11 +298,11 @@ export default function DoctorLeaveManagementTab() {
                 hanh_dong: 'TU_CHOI',
                 ghi_chu: rejectReason.trim(),
             })
-            AppToast.success('Đã từ chối đơn nghỉ phép!')
+            AppToast.success('Đã từ chối đơn nghỉ phép')
             setIsRejectModalOpen(false)
             loadLeaves()
         } catch (err) {
-            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi từ chối đơn!')
+            AppToast.error(err.response?.data?.message || err.response?.data?.detail || 'Lỗi khi từ chối đơn')
         } finally {
             setRejectSubmitting(false)
         }
@@ -312,10 +313,10 @@ export default function DoctorLeaveManagementTab() {
         setActionLoadingId(leave.id)
         try {
             await adminService.cancelDoctorLeave(leave.id)
-            AppToast.success('Đã hủy đơn nghỉ phép và mở lại ca trực thành công!')
+            AppToast.success('Đã hủy đơn nghỉ phép và mở lại ca trực thành công')
             loadLeaves()
         } catch (err) {
-            AppToast.error(err.response?.data?.message || 'Không thể hủy đơn nghỉ phép!')
+            AppToast.error(err.response?.data?.message || 'Không thể hủy đơn nghỉ phép')
         } finally {
             setActionLoadingId(null)
         }
@@ -326,10 +327,10 @@ export default function DoctorLeaveManagementTab() {
         setActionLoadingId(leave.id)
         try {
             await adminService.deleteDoctorLeave(leave.id)
-            AppToast.success('Đã xóa đơn nghỉ phép thành công!')
+            AppToast.success('Đã xóa đơn nghỉ phép thành công')
             loadLeaves()
         } catch (err) {
-            AppToast.error(err.response?.data?.message || 'Không thể xóa đơn nghỉ phép!')
+            AppToast.error(err.response?.data?.message || 'Không thể xóa đơn nghỉ phép')
         } finally {
             setActionLoadingId(null)
         }
@@ -344,7 +345,7 @@ export default function DoctorLeaveManagementTab() {
             setAffectedBookings(Array.isArray(data) ? data : [])
         } catch {
             setAffectedBookings([])
-            AppToast.error('Không thể tải danh sách lịch khám bị ảnh hưởng!')
+            AppToast.error('Không thể tải danh sách lịch khám bị ảnh hưởng')
         } finally {
             setAffectedLoading(false)
         }

@@ -107,13 +107,13 @@ export default function ClinicalRail({ encounter, onApplyPrescription, onOpenOrd
             return
         }
         onApplyPrescription(h.items, h.ghi_chu || h.chan_doan)
-        AppToast.success(`Đã sao chép ${h.items.length} thuốc từ lần khám ngày ${formatDate(h.ngay)} vào đơn hiện tại!`)
+        AppToast.success(`Đã sao chép ${h.items.length} thuốc từ lần khám ngày ${formatDate(h.ngay)} vào đơn hiện tại`)
     }
 
     const handleApplyTemplate = (tmpl) => {
         if (locked) return
         onApplyPrescription(tmpl.items, tmpl.notes)
-        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ phác đồ mẫu "${tmpl.name}". Bác sĩ vui lòng rà soát lại trước khi lưu!`)
+        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ phác đồ mẫu "${tmpl.name}". Bác sĩ vui lòng rà soát lại trước khi lưu`)
     }
 
     const filteredTemplates = SAMPLE_PRESCRIPTION_TEMPLATES.filter(

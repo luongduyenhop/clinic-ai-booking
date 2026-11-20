@@ -78,7 +78,7 @@ export default function NewsManagementPage() {
 
     const handleSaveCategory = async () => {
         if (!catForm.tenDanhMuc?.trim()) {
-            AppToast.error('Vui lòng nhập Tên danh mục tin tức!')
+            AppToast.error('Vui lòng nhập Tên danh mục tin tức')
             return
         }
         const exists = categories.some((c) => c.id === catForm.id && catForm.id)
@@ -106,7 +106,7 @@ export default function NewsManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật danh mục tin tức!' : 'Đã thêm mới danh mục tin tức!')
+        AppToast.success(exists ? 'Đã cập nhật danh mục tin tức' : 'Đã thêm mới danh mục tin tức')
     }
 
     const handleDeleteCategory = async () => {
@@ -119,12 +119,12 @@ export default function NewsManagementPage() {
             })
         )
         setCatForm(updated[0] || { id: '', tenDanhMuc: '', moTa: '', thuTu: 1, trangThai: true })
-        AppToast.info('Đã xóa danh mục tin tức!')
+        AppToast.info('Đã xóa danh mục tin tức')
     }
 
     const handleSaveArticle = async () => {
         if (!artForm.tieuDe?.trim()) {
-            AppToast.error('Vui lòng nhập Tiêu đề bài viết tin tức!')
+            AppToast.error('Vui lòng nhập Tiêu đề bài viết tin tức')
             return
         }
         const exists = articles.some((a) => a.id === artForm.id && artForm.id)
@@ -153,7 +153,7 @@ export default function NewsManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật bài viết tin tức!' : 'Đã đăng bài viết tin tức mới!')
+        AppToast.success(exists ? 'Đã cập nhật bài viết tin tức' : 'Đã đăng bài viết tin tức mới')
     }
 
     const handleDeleteArticle = async () => {
@@ -166,7 +166,7 @@ export default function NewsManagementPage() {
             })
         )
         setArtForm(updated[0] || { id: '', tieuDe: '', danhMuc: '', moTa: '', noiDung: '', trangThai: true })
-        AppToast.info('Đã xóa bài viết tin tức!')
+        AppToast.info('Đã xóa bài viết tin tức')
     }
 
     return (
@@ -444,7 +444,7 @@ export default function NewsManagementPage() {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.info('Đã chọn ảnh bìa cho bài viết tin tức!')}
+                                    onClick={() => AppToast.info('Đã chọn ảnh bìa cho bài viết tin tức')}
                                     className="medpro-btn-outline !py-1.5 !px-3 text-xs w-full"
                                 >
                                     <UploadSimple size={14} weight="bold" className="text-clinic-cta" />

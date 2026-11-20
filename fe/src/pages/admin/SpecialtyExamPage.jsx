@@ -192,7 +192,7 @@ export default function SpecialtyExamPage() {
         const encounterId = Number(String(currentExam.id).replace(/\D/g, '')) || 1
         const activeKey = deptKey || 'noi-khoa'
         await clinicalService.saveSpecialtyExam(encounterId, activeKey, specialtyData[activeKey.split('-')[0]] || specialtyData)
-        AppToast.success(`Lưu dữ liệu ${currentMeta.title} (CSDL 2 tầng) thành công!`)
+        AppToast.success(`Lưu dữ liệu ${currentMeta.title} (CSDL 2 tầng) thành công`)
     }
 
     return (

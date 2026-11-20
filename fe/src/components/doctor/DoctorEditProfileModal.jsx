@@ -25,11 +25,11 @@ export default function DoctorEditProfileModal({ isOpen, onClose, currentInfo, o
     const handleSubmit = (e) => {
         e.preventDefault()
         if (!formData.name.trim()) {
-            AppToast.warning('Họ và tên bác sĩ không được để trống!')
+            AppToast.warning('Họ và tên bác sĩ không được để trống')
             return
         }
         onSave(formData)
-        AppToast.success('Cập nhật thông tin hồ sơ bác sĩ thành công!')
+        AppToast.success('Cập nhật thông tin hồ sơ bác sĩ thành công')
         onClose()
     }
 

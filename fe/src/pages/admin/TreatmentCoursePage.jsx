@@ -114,7 +114,7 @@ export default function TreatmentCoursePage() {
 
     const handleCheckInSession = (course) => {
         if (course.soBuoiDaTap >= course.tongSoBuoi) {
-            AppToast.warning(`Liệu trình của BN ${course.tenBN} đã hoàn thành toàn bộ ${course.tongSoBuoi} buổi!`)
+            AppToast.warning(`Liệu trình của BN ${course.tenBN} đã hoàn thành toàn bộ ${course.tongSoBuoi} buổi`)
             return
         }
         const updated = treatmentCourses.map((c) => {
@@ -139,7 +139,7 @@ export default function TreatmentCoursePage() {
                 },
             })
         )
-        AppToast.success(`Điểm danh thành công buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi} cho BN ${course.tenBN}!`)
+        AppToast.success(`Điểm danh thành công buổi ${course.soBuoiDaTap + 1}/${course.tongSoBuoi} cho BN ${course.tenBN}`)
     }
 
     return (
@@ -165,7 +165,7 @@ export default function TreatmentCoursePage() {
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
-                        onClick={() => AppToast.info('Vui lòng chọn bệnh nhân để chỉ định liệu trình!')}
+                        onClick={() => AppToast.info('Vui lòng chọn bệnh nhân để chỉ định liệu trình')}
                         className="medpro-btn-primary !py-2 !px-3.5 text-xs"
                     >
                         <PlusCircle size={15} weight="bold" />

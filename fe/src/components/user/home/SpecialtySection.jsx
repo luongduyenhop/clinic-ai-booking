@@ -63,7 +63,7 @@ export default function SpecialtySection() {
                 <div className="flex flex-wrap items-baseline justify-between gap-4 pb-4 border-b border-clinic-border">
                     <div>
                         <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
-                            Các chuyên khoa khám ngoại trú &amp; Bảng giá niêm yết
+                            Chuyên khoa khám ngoại trú và bảng giá niêm yết
                         </h2>
                         <p className="mt-1 text-[13px] text-clinic-text-secondary">
                             Chi phí dưới đây là giá khám bác sĩ trực tiếp theo từng chuyên khoa; xét nghiệm hoặc thủ thuật phát sinh được báo giá rõ trước khi thực hiện.
@@ -90,7 +90,7 @@ export default function SpecialtySection() {
                                 <thead>
                                     <tr className="bg-clinic-bg-muted border-b border-clinic-border text-[11.5px] font-bold uppercase tracking-[0.04em] text-clinic-navy">
                                         <th className="py-3 px-4">Chuyên khoa</th>
-                                        <th className="py-3 px-4">Bệnh lý tiếp nhận &amp; Kỹ thuật thực hiện</th>
+                                        <th className="py-3 px-4">Bệnh lý tiếp nhận, kỹ thuật thực hiện</th>
                                         <th className="py-3 px-4">Vị trí buồng khám</th>
                                         <th className="py-3 px-4">Giá khám niêm yết</th>
                                         <th className="py-3 px-4 text-right">Đặt hẹn</th>

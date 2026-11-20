@@ -6,6 +6,7 @@ import { AppToast } from '../../components/common/AppNotification'
 import { setAuth } from '../../redux/slices/authSlice'
 import { getRoleDefaultPath, isStaffRole } from '../../utils/constants/System'
 import { authService } from '../../services/user/AuthService'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 import {
     Hospital,
     LockKey,
@@ -58,12 +59,11 @@ export default function StaffLoginPage() {
                     })
                 )
 
-                AppToast.success(`Chào mừng ${user.fullName || 'Cán bộ Y tế'} quay trở lại ca trực!`)
+                AppToast.success('Đã đăng nhập')
                 const target = location.state?.from?.pathname || getRoleDefaultPath(role)
                 navigate(target, { replace: true })
             } catch (err) {
-                const msg =
-                    err.response?.data?.message || err.message || 'Tài khoản hoặc mật khẩu không chính xác'
+                const msg = toFriendlyErrorMessage(err, 'Tài khoản hoặc mật khẩu không chính xác')
                 setStatus(msg)
                 AppToast.error(msg)
             } finally {
@@ -84,7 +84,7 @@ export default function StaffLoginPage() {
                             CLINIC-AI HIS
                         </span>
                         <span className="text-[11px] font-medium text-clinic-on-navy-muted block">
-                            Cổng Cán Bộ &amp; Nhân Viên Y Tế
+                            Cổng cán bộ và nhân viên y tế
                         </span>
                     </div>
                 </Link>
@@ -92,13 +92,13 @@ export default function StaffLoginPage() {
                 <div className="flex items-center gap-3 text-xs">
                     <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-clinic-navy-dark text-clinic-on-navy-muted font-semibold">
                         <ShieldCheck size={14} weight="bold" />
-                        <span>Cổng Nội Bộ Bảo Mật</span>
+                        <span>Cổng nội bộ bảo mật</span>
                     </span>
                     <Link
                         to="/login"
                         className="px-3 py-1.5 rounded-[6px] text-clinic-surface hover:bg-clinic-navy-dark font-bold transition-colors"
                     >
-                        Cổng Bệnh Nhân
+                        Cổng bệnh nhân
                     </Link>
                 </div>
             </header>
@@ -107,13 +107,13 @@ export default function StaffLoginPage() {
                 <div className="max-w-[440px] w-full mx-auto space-y-4">
                     <div className="text-center space-y-1">
                         <p className="text-xs font-semibold text-clinic-cta">
-                            Phòng khám Đa khoa Clinic-AI — Hệ thống Thông tin Bệnh viện (HIS)
+                            Phòng khám Đa khoa Clinic-AI — Hệ thống thông tin phòng khám
                         </p>
                         <h1 className="text-2xl font-display font-extrabold text-clinic-navy">
-                            Đăng Nhập Ca Trực
+                            Đăng nhập nhân viên
                         </h1>
                         <p className="text-xs text-clinic-text-secondary">
-                            Sử dụng tài khoản nội bộ được cấp phát để truy cập phân hệ nghiệp vụ.
+                            Sử dụng tài khoản nội bộ được cấp để truy cập hệ thống làm việc.
                         </p>
                     </div>
 
@@ -133,7 +133,7 @@ export default function StaffLoginPage() {
                                     htmlFor="staff-email"
                                     className="block text-xs font-bold text-clinic-navy mb-1.5"
                                 >
-                                    Email / Tên đăng nhập Cán bộ
+                                    Email
                                 </label>
                                 <input
                                     id="staff-email"
@@ -159,7 +159,7 @@ export default function StaffLoginPage() {
                                     htmlFor="staff-password"
                                     className="block text-xs font-bold text-clinic-navy mb-1.5"
                                 >
-                                    Mật khẩu nghiệp vụ
+                                    Mật khẩu
                                 </label>
                                 <input
                                     id="staff-password"
@@ -197,27 +197,27 @@ export default function StaffLoginPage() {
                                 disabled={formik.isSubmitting}
                                 className="medpro-btn-primary w-full min-h-11 rounded-[6px] text-xs font-bold cursor-pointer disabled:opacity-50"
                             >
-                                {formik.isSubmitting ? 'Đang xác thực...' : 'Vào Ca Trực HIS'}
+                                {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng nhập'}
                             </button>
                         </form>
 
                         <div className="pt-3 border-t border-clinic-border flex items-start gap-2 text-[11px] text-clinic-text-secondary leading-5">
                             <LockKey size={14} weight="bold" className="text-clinic-navy shrink-0 mt-0.5" />
                             <span>
-                                Tài khoản nhân viên do Quản trị viên phòng khám cấp phát theo vai trò chuyên môn (TT 32/2023/TT-BYT).
+                                Tài khoản nhân viên do quản trị viên phòng khám cấp phát theo vai trò chuyên môn.
                             </span>
                         </div>
                     </div>
 
                     <p className="text-center text-xs text-clinic-text-secondary tabular-nums">
-                        Hỗ trợ cấp phát tài khoản &amp; phân quyền: Tổ CNTT nội bộ · Tổng đài 1900 6868
+                        Hỗ trợ cấp phát tài khoản và phân quyền: Tổ CNTT nội bộ · Tổng đài 1900 6868
                     </p>
                 </div>
             </main>
 
             <footer className="h-12 border-t border-clinic-border px-4 sm:px-6 flex items-center justify-between text-[11px] text-clinic-text-muted bg-clinic-surface tabular-nums">
                 <span>&copy; {CURRENT_YEAR} Clinic-AI HIS. Nền tảng điều hành phòng khám đa khoa.</span>
-                <span>Tiêu chuẩn Thông tư 32/2023/TT-BYT</span>
+                <span>Phòng khám Đa khoa Clinic-AI</span>
             </footer>
         </div>
     )

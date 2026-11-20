@@ -78,7 +78,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     const handleSignPrescription = async () => {
         if (rows.length === 0) {
-            AppToast.warning('Vui lòng kê ít nhất 1 loại thuốc vào đơn trước khi ký số!')
+            AppToast.warning('Vui lòng kê ít nhất 1 loại thuốc vào đơn trước khi ký số')
             return
         }
         setSigningLoading(true)
@@ -102,10 +102,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             setFieldValue('nguoi_ky', res?.nguoi_ky || encounter?.ten_bac_si || 'Bác sĩ khám bệnh')
             setShowSignConfirm(false)
             AppToast.success(
-                'Đã ký số đơn thuốc điện tử thành công! Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
+                'Đã ký số đơn thuốc điện tử thành công. Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
             )
         } catch (err) {
-            AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
+            AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại')
         } finally {
             setSigningLoading(false)
         }
@@ -225,7 +225,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
 
     const handleSyncNationalRx = () => {
         setNationalSyncStatus('synced')
-        AppToast.success(`Đã đồng bộ thành công đơn thuốc lên Cổng Đơn thuốc Quốc gia! Mã biên nhận: BYT-2026-${Math.floor(Math.random() * 900000 + 100000)}`)
+        AppToast.success(`Đã đồng bộ thành công đơn thuốc lên Cổng Đơn thuốc Quốc gia. Mã biên nhận: BYT-2026-${Math.floor(Math.random() * 900000 + 100000)}`)
     }
 
     return (

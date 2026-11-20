@@ -165,13 +165,13 @@ export default function CorporateHealthPage() {
                     const parsed = JSON.parse(text)
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         setImportedEmployees(parsed)
-                        AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp JSON!`)
+                        AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp JSON`)
                         return
                     }
                 }
                 const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
                 if (lines.length <= 1) {
-                    AppToast.error('Tệp không chứa dữ liệu hoặc thiếu dòng tiêu đề!')
+                    AppToast.error('Tệp không chứa dữ liệu hoặc thiếu dòng tiêu đề')
                     return
                 }
                 const rows = lines.slice(1)
@@ -193,9 +193,9 @@ export default function CorporateHealthPage() {
                     }
                 })
                 setImportedEmployees(parsed)
-                AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp CSV!`)
+                AppToast.success(`Đã nhận diện ${parsed.length} nhân viên từ tệp CSV`)
             } catch {
-                AppToast.error('Không thể đọc tệp danh sách nhân viên. Vui lòng kiểm tra định dạng!')
+                AppToast.error('Không thể đọc tệp danh sách nhân viên. Vui lòng kiểm tra định dạng')
             }
         }
         reader.readAsText(file)
@@ -203,11 +203,11 @@ export default function CorporateHealthPage() {
 
     const handleConfirmImport = () => {
         if (!selectedCorp) {
-            AppToast.error('Vui lòng chọn hợp đồng khám đoàn!')
+            AppToast.error('Vui lòng chọn hợp đồng khám đoàn')
             return
         }
         if (!importedEmployees || importedEmployees.length === 0) {
-            AppToast.error('Vui lòng chọn tệp danh sách nhân viên (.csv hoặc .json) để nạp!')
+            AppToast.error('Vui lòng chọn tệp danh sách nhân viên (.csv hoặc .json) để nạp')
             return
         }
         const currentList = selectedCorp.employees || []
@@ -234,7 +234,7 @@ export default function CorporateHealthPage() {
         const count = importedEmployees.length
         setImportedEmployees([])
         setImportFileName('')
-        AppToast.success(`Đã nạp thành công ${count} nhân viên vào đoàn ${selectedCorp.tenDoan}!`)
+        AppToast.success(`Đã nạp thành công ${count} nhân viên vào đoàn ${selectedCorp.tenDoan}`)
     }
 
     const handleDownloadTemplate = (e) => {
@@ -255,7 +255,7 @@ export default function CorporateHealthPage() {
             rows,
             signOff: true,
         })
-        AppToast.success('Đã xuất file Excel mẫu chuẩn TT 32 thành công!')
+        AppToast.success('Đã xuất file Excel mẫu chuẩn TT 32 thành công')
     }
 
     const handleRequestPayment = (corp) => {
@@ -280,7 +280,7 @@ export default function CorporateHealthPage() {
                 },
             })
         )
-        AppToast.success(`Đã cập nhật phiếu thu và gửi đề nghị thanh toán tới ${corp.tenDoan}!`)
+        AppToast.success(`Đã cập nhật phiếu thu và gửi đề nghị thanh toán tới ${corp.tenDoan}`)
     }
 
     const filteredCheckups = useMemo(() => {
@@ -306,7 +306,7 @@ export default function CorporateHealthPage() {
 
     const handleCreateContract = () => {
         if (!newCorpForm.tenDoan.trim()) {
-            AppToast.error('Vui lòng nhập tên công ty / doanh nghiệp!')
+            AppToast.error('Vui lòng nhập tên công ty / doanh nghiệp')
             return
         }
         const tongGia = (newCorpForm.soLuongNhanVien * newCorpForm.donGiaNguoi * (100 - newCorpForm.chietKhau)) / 100
@@ -344,12 +344,12 @@ export default function CorporateHealthPage() {
         )
         setSelectedCorp(newCorp)
         setIsAddModalOpen(false)
-        AppToast.success(`Tạo hợp đồng khám đoàn ${newCorp.tenDoan} thành công!`)
+        AppToast.success(`Tạo hợp đồng khám đoàn ${newCorp.tenDoan} thành công`)
     }
 
     const handleCreatePackage = () => {
         if (!newPackageForm.tenGoi.trim()) {
-            AppToast.error('Vui lòng nhập tên gói khám!')
+            AppToast.error('Vui lòng nhập tên gói khám')
             return
         }
         const rawLines = newPackageForm.danhMucTramText
@@ -382,7 +382,7 @@ export default function CorporateHealthPage() {
             })
         )
         setIsPackageModalOpen(false)
-        AppToast.success(`Tạo gói khám ${newPkg.tenGoi} thành công!`)
+        AppToast.success(`Tạo gói khám ${newPkg.tenGoi} thành công`)
     }
 
     return (
@@ -625,7 +625,7 @@ export default function CorporateHealthPage() {
                                                     rows,
                                                     signOff: true,
                                                 })
-                                                AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công!')
+                                                AppToast.success('Đã xuất danh sách kết luận sức khỏe đoàn ra file Excel (.xlsx) thành công')
                                             }}
                                             className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                                         >

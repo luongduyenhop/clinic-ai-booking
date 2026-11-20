@@ -1,4 +1,6 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
@@ -54,6 +56,7 @@ const MODIFIED_FILES = [
     '../src/utils/helpers/doctorNameHelper.js',
     '../src/utils/doctorHelper.js',
     '../src/utils/helpers/quickBookingHelpers.js',
+    '../src/utils/helpers/clientErrorHelper.js',
     '../src/utils/helpers/patientMedicalMapping.js',
     '../src/components/common/ClinicIcon.jsx',
     '../src/pages/user/BookingWizardPage.jsx',
@@ -420,9 +423,9 @@ test('getSpecialtyClinicalMetadata resolves fee, procedures and floor across cod
     assert.equal(fallback.floor, 'Khu Khám Ngoại Trú')
 })
 
-test('homepage content sections expose clinical fees, compliance standards and operational guidance', async () => {
+test('homepage content sections expose clinical fees, safety guidance and no BHYT claims', async () => {
     const introContent = await readFile(new URL('../src/components/user/home/ClinicIntroSection.jsx', import.meta.url), 'utf8')
-    assert.ok(introContent.includes('32/2023/TT-BYT'))
+    assert.ok(!introContent.includes('32/2023/TT-BYT'))
     assert.ok(introContent.includes('115'))
 
     const specialtyContent = await readFile(new URL('../src/components/user/home/SpecialtySection.jsx', import.meta.url), 'utf8')
@@ -430,6 +433,52 @@ test('homepage content sections expose clinical fees, compliance standards and o
     assert.ok(specialtyContent.includes('Giá khám niêm yết'))
 
     const guideContent = await readFile(new URL('../src/components/user/home/OutpatientCareGuideSection.jsx', import.meta.url), 'utf8')
-    assert.ok(guideContent.includes('Quy trình 04 bước khám khép kín'))
+    assert.ok(guideContent.includes('Khám tại Clinic-AI gồm 4 bước'))
+    assert.ok(!guideContent.includes('Bảo hiểm Y tế'))
     assert.ok(!guideContent.includes('Bước 01'))
+})
+
+async function collectJsxFiles(dirPath) {
+    const entries = await readdir(dirPath, { withFileTypes: true })
+    const collected = []
+    for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name)
+        if (entry.isDirectory()) {
+            collected.push(...(await collectJsxFiles(fullPath)))
+        } else if (entry.name.endsWith('.jsx')) {
+            collected.push(fullPath)
+        }
+    }
+    return collected
+}
+
+test('fe/src JSX files enforce copywriting rules (no leading-zero counts, retired AI phrases, or exclamation toasts)', async () => {
+    const srcRoot = fileURLToPath(new URL('../src', import.meta.url))
+    const jsxFiles = await collectJsxFiles(srcRoot)
+    const leadingZeroPattern = /\b0[1-9]\s+(khoa|bước|lượt|giờ|tháng|ngày)\b/i
+    const toastExclaimPattern = /\b(?:AppToast|toast)\.(?:success|error|warning|info)\([^)\n]*!['"`]\s*[,)]/
+    const retiredPhrases = [
+        'Phân luồng AI & Cảnh báo cờ đỏ',
+        'Cổng Hồ sơ & Lịch khám Ngoại trú Hợp nhất',
+        'Cổng Bệnh Nhân — Đăng Nhập',
+        'Đăng Nhập Ca Trực',
+        'Vào Ca Trực HIS',
+        'Nhân sự & Bác sĩ Active',
+        'Trung tâm Điều hành & Thống kê Quản trị (BI)',
+        'Trung tâm Điều hành & Thống kê BI',
+        'Trung tâm Điều hành BI',
+        'Quy trình 04 bước khám khép kín',
+        'Khóa khung giờ trống theo thời gian thực',
+        'Cận lâm sàng & Đơn thuốc ký số khép kín',
+    ]
+
+    for (const filePath of jsxFiles) {
+        const rel = path.relative(srcRoot, filePath)
+        const content = await readFile(filePath, 'utf8')
+        assert.equal(leadingZeroPattern.test(content), false, `${rel} must not use leading zero before counter noun`)
+        assert.equal(toastExclaimPattern.test(content), false, `${rel} must not use exclamation mark in toast messages`)
+        for (const phrase of retiredPhrases) {
+            assert.equal(content.includes(phrase), false, `${rel} must not contain retired copy "${phrase}"`)
+        }
+    }
 })

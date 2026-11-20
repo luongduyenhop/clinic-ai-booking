@@ -186,7 +186,7 @@ export default function ComplianceAndAuditPage() {
                 },
             })
         )
-        AppToast.success('Đã lưu cấu hình phòng khám & chứng thư kết nối thành công!')
+        AppToast.success('Đã lưu cấu hình phòng khám & chứng thư kết nối thành công')
     }
 
     const handleTestGatewayConnection = () => {
@@ -198,7 +198,7 @@ export default function ComplianceAndAuditPage() {
                 latency: 42,
                 timestamp: new Date().toLocaleTimeString('vi-VN'),
             })
-            AppToast.success('Cổng Đơn thuốc Quốc gia & HSSK phản hồi 200 OK (Độ trễ: 42ms)!')
+            AppToast.success('Cổng Đơn thuốc Quốc gia & HSSK phản hồi 200 OK (Độ trễ: 42ms)')
         }, 800)
     }
 
@@ -236,7 +236,7 @@ export default function ComplianceAndAuditPage() {
             })
         )
         setSyncingKey('')
-        AppToast.success(`Đã liên thông thành công đơn thuốc ca ${targetKcb} lên Cổng Quốc gia!`)
+        AppToast.success(`Đã liên thông thành công đơn thuốc ca ${targetKcb} lên Cổng Quốc gia`)
     }
 
     const handleExportPrescriptionsExcel = () => {
@@ -265,7 +265,7 @@ export default function ComplianceAndAuditPage() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xlsx) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xlsx) thành công`)
     }
 
     const handleSyncAllSignedPrescriptions = async () => {
@@ -302,14 +302,14 @@ export default function ComplianceAndAuditPage() {
             })
         )
         setSyncingKey('')
-        AppToast.success('Đã đồng bộ toàn bộ đơn thuốc đã ký số lên Cổng Quốc gia thành công!')
+        AppToast.success('Đã đồng bộ toàn bộ đơn thuốc đã ký số lên Cổng Quốc gia thành công')
     }
 
     const handleTriggerSyncGeneric = (gatewayName) => {
         setSyncingKey(gatewayName)
         setTimeout(() => {
             setSyncingKey('')
-            AppToast.success(`Đồng bộ dữ liệu ${gatewayName} lên Cổng Quốc gia thành công (Mã biên nhận: SYNC-${Date.now().toString().slice(-6)})!`)
+            AppToast.success(`Đồng bộ dữ liệu ${gatewayName} lên Cổng Quốc gia thành công (Mã biên nhận: SYNC-${Date.now().toString().slice(-6)})`)
         }, 1000)
     }
 
@@ -461,7 +461,7 @@ export default function ComplianceAndAuditPage() {
                             rows,
                             signOff: true,
                         })
-                        AppToast.success(`Đã trích xuất ${rows.length} nhật ký kiểm toán phục vụ đoàn thanh tra y tế!`)
+                        AppToast.success(`Đã trích xuất ${rows.length} nhật ký kiểm toán phục vụ đoàn thanh tra y tế`)
                     }}
                     className="medpro-btn-amber !py-1.5 !px-3 text-xs font-bold"
                 >

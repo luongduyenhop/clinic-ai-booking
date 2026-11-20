@@ -27,17 +27,17 @@ export const PERMISSION_MODULES_23 = [
 export const DEFAULT_NAVIGATION_CONFIG = {
     headerWorkflowTabs: [
         {
-            label: 'Tổng quan BI',
+            label: 'Tổng quan',
             path: '/admin',
             icon: 'ChartBar',
             hasDropdown: true,
-            dropdownTitle: 'ĐIỀU HÀNH & BÁO CÁO QUẢN TRỊ',
+            dropdownTitle: 'ĐIỀU HÀNH VÀ BÁO CÁO QUẢN TRỊ',
             submenu: [
                 {
-                    label: 'Trung tâm Điều hành & BI',
+                    label: 'Tổng quan phòng khám',
                     path: '/admin',
                     icon: 'HouseLine',
-                    desc: 'Công suất khoa phòng, hiệu suất bác sĩ & chỉ số vận hành',
+                    desc: 'Công suất khoa phòng, hiệu suất bác sĩ và chỉ số vận hành',
                 },
                 {
                     label: 'Báo cáo Thống kê Tổng hợp',
@@ -168,11 +168,11 @@ export const DEFAULT_NAVIGATION_CONFIG = {
     sidebarSections: [
         {
             id: 'pillar-executive',
-            title: '1. ĐIỀU HÀNH & THỐNG KÊ BI',
+            title: '1. ĐIỀU HÀNH VÀ THỐNG KÊ',
             menus: [
                 {
                     id: 'dashboard',
-                    title: 'Trung tâm Điều hành BI',
+                    title: 'Tổng quan',
                     icon: 'HouseLine',
                     path: '/admin',
                 },

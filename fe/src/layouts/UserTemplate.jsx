@@ -20,7 +20,7 @@ export default function UserTemplate() {
                             <span>CLINIC-AI</span>
                         </div>
                         <p className="mt-3 max-w-md leading-6">
-                            Phòng khám Đa khoa Ngoại trú tích hợp Bệnh án Điện tử EMR hợp nhất, hỗ trợ đặt lịch theo khung giờ định danh và phân luồng chuyên khoa chuẩn mực.
+                            Phòng khám Đa khoa Ngoại trú tích hợp Bệnh án Điện tử EMR, hỗ trợ đặt lịch theo khung giờ định danh và phân luồng chuyên khoa chuẩn mực.
                         </p>
                         <div className="mt-4 grid gap-1 text-xs text-clinic-on-navy-subtle">
                             <span>Địa điểm: Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh</span>
@@ -29,7 +29,7 @@ export default function UserTemplate() {
                     </div>
 
                     <div>
-                        <h2 className="font-display font-bold text-clinic-surface">Lịch tiếp nhận & Hỗ trợ</h2>
+                        <h2 className="font-display font-bold text-clinic-surface">Lịch tiếp nhận và hỗ trợ</h2>
                         <div className="mt-4 grid gap-2">
                             <a href="tel:19006868" className="hover:text-clinic-surface transition-colors tabular-nums">
                                 Hotline: 1900 6868
@@ -43,12 +43,12 @@ export default function UserTemplate() {
                     </div>
 
                     <div>
-                        <h2 className="font-display font-bold text-clinic-surface">Cổng thông tin & Nội bộ</h2>
+                        <h2 className="font-display font-bold text-clinic-surface">Cổng thông tin và nội bộ</h2>
                         <div className="mt-4 grid gap-2">
                             <Link to="/dat-lich" className="hover:text-clinic-surface transition-colors">Đặt lịch khám ngoại trú</Link>
                             <Link to="/khao-sat-trieu-chung" className="hover:text-clinic-surface transition-colors">Phân luồng triệu chứng</Link>
                             <a href="/#gioi-thieu" className="hover:text-clinic-surface transition-colors">Giới thiệu phòng khám</a>
-                            <a href="/#huong-dan-kham" className="hover:text-clinic-surface transition-colors">Quy trình & Hướng dẫn khám</a>
+                            <a href="/#huong-dan-kham" className="hover:text-clinic-surface transition-colors">Quy trình và hướng dẫn khám</a>
                             <Link to="/staff/login" className="text-clinic-surface hover:underline font-bold inline-flex items-center gap-1.5 pt-1">
                                 <LockKey size={15} weight="bold" />
                                 <span>Đăng nhập Cổng Nhân Viên</span>

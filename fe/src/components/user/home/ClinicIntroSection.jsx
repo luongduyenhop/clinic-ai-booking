@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 const OPERATIONAL_CAPABILITY_ROWS = [
     {
         label: 'Quy mô chuyên môn',
-        value: '05 khoa lâm sàng (Nội, Ngoại, TMH, Răng, Mắt)',
+        value: '5 khoa lâm sàng (Nội, Ngoại, TMH, Răng, Mắt)',
     },
     {
         label: 'Pháp lý bác sĩ',
@@ -11,29 +11,29 @@ const OPERATIONAL_CAPABILITY_ROWS = [
     },
     {
         label: 'Quy chuẩn dữ liệu',
-        value: 'Bệnh án điện tử theo Thông tư 32/2023/TT-BYT',
+        value: 'Hồ sơ bệnh án điện tử đồng bộ toàn phòng khám',
     },
     {
         label: 'Phân bổ ca khám',
-        value: 'Mỗi giờ tối đa 02 lượt hẹn (30 phút/lượt)',
+        value: 'Mỗi giờ tối đa 2 lượt hẹn (30 phút/lượt)',
     },
 ]
 
 const PLATFORM_STRENGTHS = [
     {
-        title: 'Phân luồng AI & Cảnh báo cờ đỏ',
+        title: 'Phân luồng bằng AI, cảnh báo dấu hiệu cấp cứu',
         detail: 'Phát hiện sớm dấu hiệu cấp cứu để khuyến nghị gọi 115 kịp thời, đồng thời gợi ý đúng chuyên khoa phù hợp.',
     },
     {
-        title: 'Khóa khung giờ trống theo thời gian thực',
+        title: 'Giữ chỗ ngay khi xác nhận lịch',
         detail: 'Hệ thống đối chiếu phạm vi hành nghề bác sĩ và giữ chỗ ngay khi người bệnh xác nhận lịch.',
     },
     {
-        title: 'Cận lâm sàng & Đơn thuốc ký số khép kín',
+        title: 'Xét nghiệm và đơn thuốc ký số',
         detail: 'Kết nối chỉ định sinh hóa máu, siêu âm, nội soi và phát hành đơn thuốc điện tử chuẩn Bộ Y tế.',
     },
     {
-        title: 'Cổng Sổ sức khỏe cá nhân & Gia đình',
+        title: 'Sổ sức khỏe cho cả gia đình',
         detail: 'Tra cứu tập trung chỉ số sinh tồn, kết quả chẩn đoán, hóa đơn và nhắc lịch tái khám định kỳ.',
     },
 ]

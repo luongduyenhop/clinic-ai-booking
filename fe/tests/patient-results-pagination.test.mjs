@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { configureStore, createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 
 const loadModule = (source) => import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
-const helper = await loadModule(await readFile(new URL('../src/utils/helpers/apiHelper.js', import.meta.url), 'utf8'))
+const helper = await import('../src/utils/helpers/apiHelper.js')
 const mapping = await loadModule(await readFile(new URL('../src/utils/helpers/patientResultMapping.js', import.meta.url), 'utf8'))
 const medicalMapping = await loadModule(await readFile(new URL('../src/utils/helpers/patientMedicalMapping.js', import.meta.url), 'utf8'))
 let rejectRx = false

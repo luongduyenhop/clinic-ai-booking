@@ -35,7 +35,7 @@ export default function DoctorTemplate() {
     const pageTitle = isClsPage
         ? 'Bàn làm việc Cận lâm sàng'
         : isScheduleTab
-          ? 'Lịch trực & Ca làm việc'
+          ? 'Lịch trực và ca làm việc'
           : isHistoryTab
             ? 'Hồ sơ bệnh nhân đã khám'
             : 'Bàn khám lâm sàng'
@@ -61,7 +61,7 @@ export default function DoctorTemplate() {
     const menuSections = [
         {
             id: 'doctor_clinical',
-            title: 'Lâm sàng & Ca trực',
+            title: 'Lâm sàng và ca trực',
             items: [
                 {
                     to: '/doctor',
@@ -72,7 +72,7 @@ export default function DoctorTemplate() {
                 },
                 {
                     to: '/doctor?tab=schedule',
-                    label: 'Lịch trực & Ca làm việc',
+                    label: 'Lịch trực và ca làm việc',
                     icon: CalendarCheck,
                     active: isScheduleTab,
                 },
@@ -192,10 +192,10 @@ export default function DoctorTemplate() {
 
                     {!isCollapsed && (
                         <div className="flex items-center justify-between pt-1 text-[10px]">
-                            <span>Bệnh án TT 32/2023:</span>
+                            <span>Trạng thái máy chủ:</span>
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-success text-clinic-surface font-bold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-clinic-surface" />
-                                ONLINE
+                                Trực tuyến
                             </span>
                         </div>
                     )}

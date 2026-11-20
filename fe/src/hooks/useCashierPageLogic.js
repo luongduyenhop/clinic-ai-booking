@@ -458,7 +458,7 @@ export function useCashierPageLogic() {
     const handlePayAllForPatient = async (group) => {
         const unpaidVouchers = group.vouchers.filter((voucher) => !voucher.daThu)
         if (unpaidVouchers.length === 0) {
-            AppToast.info(`Tất cả hóa đơn của BN ${group.hoTenBN} đều đã được thu tiền!`)
+            AppToast.info(`Tất cả hóa đơn của BN ${group.hoTenBN} đều đã được thu tiền`)
             return
         }
         const methodMap = {
@@ -512,7 +512,7 @@ export function useCashierPageLogic() {
     const handleAddLineItem = () => {
         const amount = Number(newItemAmount) || 0
         if (!newItemName.trim() || amount <= 0) {
-            AppToast.warning('Vui lòng nhập tên khoản thu và số tiền hợp lệ!')
+            AppToast.warning('Vui lòng nhập tên khoản thu và số tiền hợp lệ')
             return
         }
         const nextItems = [
@@ -537,7 +537,7 @@ export function useCashierPageLogic() {
 
     const handleSaveVoucher = async () => {
         if (!form.tenPhieu?.trim()) {
-            AppToast.error('Vui lòng nhập Tên phiếu thu viện phí!')
+            AppToast.error('Vui lòng nhập Tên phiếu thu viện phí')
             return
         }
 
@@ -580,7 +580,7 @@ export function useCashierPageLogic() {
                     },
                 })
             )
-            AppToast.success(`Đã cập nhật thu gộp cho BN ${form.hoTenBN}!`)
+            AppToast.success(`Đã cập nhật thu gộp cho BN ${form.hoTenBN}`)
             await fetchLiveCashierData()
             setForm((prev) => ({ ...prev, daThu: Boolean(form.daThu) }))
             return
@@ -613,7 +613,7 @@ export function useCashierPageLogic() {
                 }))
                 fetchLiveCashierData()
             } catch (err) {
-                AppToast.error(err?.response?.data?.message || err?.message || 'Không thể lập hóa đơn viện phí!')
+                AppToast.error(err?.response?.data?.message || err?.message || 'Không thể lập hóa đơn viện phí')
                 return
             }
         }
@@ -642,7 +642,7 @@ export function useCashierPageLogic() {
                 fetchLiveCashierData()
             } catch (err) {
                 if (!err?.response) {
-                    AppToast.error(err?.message || 'Thanh toán viện phí thất bại!')
+                    AppToast.error(err?.message || 'Thanh toán viện phí thất bại')
                 }
                 return
             }
@@ -687,7 +687,7 @@ export function useCashierPageLogic() {
                 },
             })
         )
-        AppToast.success(matchIdx >= 0 ? 'Đã cập nhật phiếu thu viện phí!' : 'Đã lập phiếu thu viện phí mới thành công!')
+        AppToast.success(matchIdx >= 0 ? 'Đã cập nhật phiếu thu viện phí' : 'Đã lập phiếu thu viện phí mới thành công')
     }
 
     const handleDeleteVoucher = async () => {
@@ -705,7 +705,7 @@ export function useCashierPageLogic() {
             })
         )
         setForm(updated[0] || buildEmptyVoucher())
-        AppToast.info('Đã xóa phiếu thu viện phí!')
+        AppToast.info('Đã xóa phiếu thu viện phí')
     }
 
     const handleDailyClosing = async () => {
@@ -744,7 +744,7 @@ export function useCashierPageLogic() {
             })
         )
         AppToast.success(
-            'Đã khóa sổ ca thành công! Tổng doanh thu thu được: ' + totalThuClosing.toLocaleString('vi-VN') + ' đ'
+            'Đã khóa sổ ca thành công. Tổng doanh thu thu được: ' + totalThuClosing.toLocaleString('vi-VN') + ' đ'
         )
     }
 

@@ -118,12 +118,12 @@ export default function PatientManagementPage() {
 
     const handleNew = () => {
         setForm(buildEmptyPatient())
-        AppToast.info('Đã mở biểu mẫu Thêm mới Bệnh nhân!')
+        AppToast.info('Đã mở biểu mẫu Thêm mới Bệnh nhân')
     }
 
     const handleSave = async () => {
         if (!form.hoTen?.trim() || !form.dienThoai?.trim()) {
-            AppToast.error('Vui lòng nhập Họ tên và Số điện thoại bệnh nhân!')
+            AppToast.error('Vui lòng nhập Họ tên và Số điện thoại bệnh nhân')
             return
         }
 
@@ -154,7 +154,7 @@ export default function PatientManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật hồ sơ bệnh nhân!' : 'Đã thêm mới bệnh nhân thành công!')
+        AppToast.success(exists ? 'Đã cập nhật hồ sơ bệnh nhân' : 'Đã thêm mới bệnh nhân thành công')
     }
 
     const handleDelete = async () => {
@@ -172,7 +172,7 @@ export default function PatientManagementPage() {
             })
         )
         setForm(updated[0] || buildEmptyPatient())
-        AppToast.info('Đã xóa hồ sơ bệnh nhân!')
+        AppToast.info('Đã xóa hồ sơ bệnh nhân')
     }
 
     const familyHouseholds = useMemo(() => [
@@ -407,7 +407,7 @@ export default function PatientManagementPage() {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => AppToast.info('Đã mở trình chọn ảnh chân dung bệnh nhân!')}
+                                    onClick={() => AppToast.info('Đã mở trình chọn ảnh chân dung bệnh nhân')}
                                     className="medpro-btn-outline !py-1.5 !px-3 text-xs w-full"
                                 >
                                     <UploadSimple size={14} weight="bold" className="text-clinic-cta" />
@@ -698,7 +698,7 @@ export default function PatientManagementPage() {
 
                         <button
                             type="button"
-                            onClick={() => AppToast.info('Mở biểu mẫu thêm mới hộ gia đình!')}
+                            onClick={() => AppToast.info('Mở biểu mẫu thêm mới hộ gia đình')}
                             className="medpro-btn-primary !py-1.5 !px-3.5 text-xs shrink-0"
                         >
                             <PlusCircle size={15} weight="bold" />

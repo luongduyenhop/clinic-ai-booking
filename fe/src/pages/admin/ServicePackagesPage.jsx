@@ -120,7 +120,7 @@ export default function ServicePackagesPage() {
 
     const handleCreatePackageReg = () => {
         if (!regForm.tenBN.trim()) {
-            AppToast.error('Vui lòng nhập tên bệnh nhân!')
+            AppToast.error('Vui lòng nhập tên bệnh nhân')
             return
         }
         const template = packageTemplates.find((t) => t.id === regForm.selectedGoiId) || packageTemplates[0]
@@ -151,7 +151,7 @@ export default function ServicePackagesPage() {
             })
         )
         setIsRegisterModalOpen(false)
-        AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}!`)
+        AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}`)
     }
 
     return (

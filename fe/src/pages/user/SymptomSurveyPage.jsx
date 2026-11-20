@@ -128,7 +128,7 @@ export default function SymptomSurveyPage() {
             <div className="mx-auto max-w-3xl">
                 <div className="mb-7">
                     <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-clinic-navy">
-                        Kiểm tra triệu chứng & gợi ý chuyên khoa khám
+                        Kiểm tra triệu chứng, gợi ý khoa khám
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-clinic-text-secondary">
                         Mô tả triệu chứng hiện tại để hệ thống đối chiếu danh mục lâm sàng và gợi ý chuyên khoa tiếp nhận phù hợp.
@@ -248,7 +248,7 @@ export default function SymptomSurveyPage() {
                             ? 'Đang đối chiếu dữ liệu triệu chứng...'
                             : emergencyReasons.length
                               ? 'Xem hướng dẫn cấp cứu'
-                              : 'Phân tích & gợi ý chuyên khoa'}
+                              : 'Phân tích và gợi ý chuyên khoa'}
                     </button>
 
                     <p className="mt-4 text-center text-xs leading-5 text-clinic-text-muted">

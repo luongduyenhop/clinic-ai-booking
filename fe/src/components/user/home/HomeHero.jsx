@@ -92,11 +92,11 @@ export default function HomeHero({
                 <div className="public-container relative z-10">
                     <div className="max-w-[610px] pt-14 pb-20 sm:pt-16 sm:pb-24 lg:pt-[76px] lg:pb-28 text-clinic-surface">
                         <h1 className="font-display text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.18] font-extrabold tracking-[-0.02em] text-clinic-surface">
-                            Đặt lịch khám chuyên khoa &amp; Phân luồng triệu chứng trực tuyến
+                            Đặt lịch khám chuyên khoa, kiểm tra triệu chứng trước khi đến
                         </h1>
 
                         <p className="mt-4 max-w-[540px] text-[15px] leading-[1.65] text-clinic-on-navy-muted">
-                            Sàng lọc triệu chứng AI để định hướng đúng chuyên khoa, giữ trước khung giờ bác sĩ 30 phút thực tế và lưu trữ trọn vẹn kết quả xét nghiệm, đơn thuốc điện tử cho bản thân cùng gia đình.
+                            Sàng lọc triệu chứng AI để định hướng đúng chuyên khoa, giữ trước khung giờ bác sĩ 30 phút thực tế và lưu trữ kết quả xét nghiệm, đơn thuốc điện tử cho bản thân cùng gia đình.
                         </p>
 
                         <div className="mt-6">

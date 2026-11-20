@@ -48,7 +48,7 @@ export default function AmendmentManagementTab({ onPendingCountChange }) {
         if (!actionModal) return
         const { type, amendment } = actionModal
         if (type === 'APPROVE' && amendment.muc_do_nghiem_trong === 'CAO' && !modalMaKiemThao.trim()) {
-            AppToast.error('Yêu cầu đính chính mức độ CAO bắt buộc nhập Số biên bản kiểm thảo của Hội đồng chuyên môn!')
+            AppToast.error('Yêu cầu đính chính mức độ CAO bắt buộc nhập Số biên bản kiểm thảo của Hội đồng chuyên môn')
             return
         }
         setSubmitting(true)
@@ -58,12 +58,12 @@ export default function AmendmentManagementTab({ onPendingCountChange }) {
                     ma_kiem_thao: modalMaKiemThao.trim() || null,
                     ghi_chu: modalGhiChu.trim() || null,
                 })
-                AppToast.success(`Phê duyệt biên bản đính chính #${amendment.id} thành công!`)
+                AppToast.success(`Phê duyệt biên bản đính chính #${amendment.id} thành công`)
             } else {
                 await adminService.rejectAmendment(amendment.id, {
                     ghi_chu: modalGhiChu.trim() || null,
                 })
-                AppToast.success(`Đã từ chối biên bản đính chính #${amendment.id}!`)
+                AppToast.success(`Đã từ chối biên bản đính chính #${amendment.id}`)
             }
             setActionModal(null)
             setSelectedAmendment(null)

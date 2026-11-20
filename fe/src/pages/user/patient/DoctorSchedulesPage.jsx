@@ -4,6 +4,7 @@ import PatientPageHeader from '../../../components/user/patient/PatientPageHeade
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
 import { bookingService } from '../../../services/user/BookingService'
 import { CalendarCheck, Clock, Stethoscope } from '../../../components/common/ClinicIcon'
+import DoctorAvatar from '../../../components/common/DoctorAvatar'
 import { toFriendlyErrorMessage } from '../../../utils/helpers/clientErrorHelper'
 import {
     buildQuickBookingPath,
@@ -166,16 +167,13 @@ export default function DoctorSchedulesPage() {
                             >
                                 <div>
                                     <div className="flex items-start gap-4">
-                                        <picture className="w-14 h-14 rounded-[8px] overflow-hidden border border-clinic-border shrink-0 bg-clinic-surface-alt block">
-                                            <source srcSet="/images/doctor-portrait.webp" type="image/webp" />
-                                            <img
-                                                src="/images/doctor-portrait.jpg"
-                                                width={1024}
-                                                height={1024}
-                                                alt={doctor.name}
-                                                className="w-full h-full object-cover object-top"
-                                            />
-                                        </picture>
+                                        <DoctorAvatar
+                                            name={doctor.name}
+                                            initials={doctor.initials}
+                                            specialty={doctor.specialty || specialtyName}
+                                            specialtyCode={doctor.specialtyCode}
+                                            size="md"
+                                        />
                                         <div className="flex-1 min-w-0">
                                             <span className="inline-flex items-center gap-1 rounded-[6px] bg-clinic-surface-alt px-2 py-0.5 text-[11px] font-bold text-clinic-cta">
                                                 <Stethoscope size={13} />

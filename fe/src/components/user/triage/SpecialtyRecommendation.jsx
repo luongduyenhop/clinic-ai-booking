@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Info, Stethoscope } from '../../common/ClinicIcon'
+import DoctorAvatar from '../../common/DoctorAvatar'
 import { useMedicalCatalog } from '../../../services/user/MedicalCatalogService'
 import { formatDoctorHeading } from '../../../utils/helpers/quickBookingHelpers'
 
@@ -127,19 +128,13 @@ export default function SpecialtyRecommendation({ result, symptoms, onRestart })
                                                     key={doctor.id}
                                                     className="flex items-center gap-3.5 rounded-[8px] bg-clinic-surface p-3.5"
                                                 >
-                                                    <picture className="w-12 h-12 rounded-[8px] overflow-hidden shrink-0 bg-clinic-surface-alt block">
-                                                        <source
-                                                            srcSet="/images/doctor-portrait.webp"
-                                                            type="image/webp"
-                                                        />
-                                                        <img
-                                                            src="/images/doctor-portrait.jpg"
-                                                            width={1024}
-                                                            height={1024}
-                                                            alt={doctor.name}
-                                                            className="w-full h-full object-cover object-top"
-                                                        />
-                                                    </picture>
+                                                    <DoctorAvatar
+                                                        name={doctor.name}
+                                                        initials={doctor.initials}
+                                                        specialty={doctor.specialty || recommendation.specialtyName}
+                                                        specialtyCode={doctor.specialtyCode}
+                                                        size="sm"
+                                                    />
                                                     <div className="min-w-0 flex-1">
                                                         <p className="truncate text-sm font-bold text-clinic-navy">
                                                             {formatDoctorHeading(doctor)}

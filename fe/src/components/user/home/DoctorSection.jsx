@@ -13,6 +13,7 @@ import {
     getTodayIsoDate,
 } from '../../../utils/helpers/quickBookingHelpers'
 import { Clock, MagnifyingGlass } from '../../common/ClinicIcon'
+import DoctorAvatar from '../../common/DoctorAvatar'
 
 const MAX_INLINE_SLOTS = 8
 
@@ -276,16 +277,13 @@ export default function DoctorSection({
                                 className="medpro-card p-5 sm:p-6 grid lg:grid-cols-[1fr_1.35fr] gap-6 items-center"
                             >
                                 <div className="flex items-start gap-4">
-                                    <picture className="w-16 h-16 sm:w-[76px] sm:h-[76px] rounded-[8px] overflow-hidden border border-clinic-border shrink-0 bg-clinic-surface-alt block">
-                                        <source srcSet="/images/doctor-portrait.webp" type="image/webp" />
-                                        <img
-                                            src="/images/doctor-portrait.jpg"
-                                            width={1024}
-                                            height={1024}
-                                            alt={doctor.name}
-                                            className="w-full h-full object-cover object-top"
-                                        />
-                                    </picture>
+                                    <DoctorAvatar
+                                        name={doctor.name}
+                                        initials={doctor.initials}
+                                        specialty={doctor.specialty}
+                                        specialtyCode={doctor.specialtyCode}
+                                        size="md"
+                                    />
                                     <div className="min-w-0 flex-1">
                                         <h3 className="font-display text-base font-extrabold text-clinic-navy leading-snug">
                                             {formatDoctorHeading(doctor)}

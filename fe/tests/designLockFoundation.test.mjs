@@ -59,6 +59,7 @@ const MODIFIED_FILES = [
     '../src/utils/helpers/clientErrorHelper.js',
     '../src/utils/helpers/patientMedicalMapping.js',
     '../src/components/common/ClinicIcon.jsx',
+    '../src/components/common/DoctorAvatar.jsx',
     '../src/pages/user/BookingWizardPage.jsx',
     '../src/components/user/triage/TriageStepper.jsx',
     '../src/components/user/triage/MainSymptomStep.jsx',
@@ -279,8 +280,16 @@ test('HomeHero implements Hybrid 1+2 photo banner and docked quick booking with 
     const catalogContent = await readFile(new URL('../src/services/user/MedicalCatalogService.js', import.meta.url), 'utf8')
     assert.ok(catalogContent.includes('isAutomatedTestDoctorRecord'), 'MedicalCatalogService must filter automated test doctors')
 
+    const recContent = await readFile(new URL('../src/components/user/triage/SpecialtyRecommendation.jsx', import.meta.url), 'utf8')
+    const schedulesContent = await readFile(new URL('../src/pages/user/patient/DoctorSchedulesPage.jsx', import.meta.url), 'utf8')
+
     assert.ok(doctorContent.includes('getAvailableSlots'), 'DoctorSection must fetch real available slots per doctor')
-    assert.ok(doctorContent.includes('doctor-portrait.webp'), 'DoctorSection must render physician portrait photography')
+    assert.ok(doctorContent.includes('DoctorAvatar'), 'DoctorSection must use DoctorAvatar initials component')
+    assert.ok(recContent.includes('DoctorAvatar'), 'SpecialtyRecommendation must use DoctorAvatar initials component')
+    assert.ok(schedulesContent.includes('DoctorAvatar'), 'DoctorSchedulesPage must use DoctorAvatar initials component')
+    assert.ok(!doctorContent.includes('doctor-portrait'), 'DoctorSection must not use shared stock doctor-portrait')
+    assert.ok(!recContent.includes('doctor-portrait'), 'SpecialtyRecommendation must not use shared stock doctor-portrait')
+    assert.ok(!schedulesContent.includes('doctor-portrait'), 'DoctorSchedulesPage must not use shared stock doctor-portrait')
     assert.ok(!doctorContent.includes('rounded-t-[48px]'), 'DoctorSection must not render arched decorative avatars')
     assert.ok(!heroContent.includes('ArrowRight'), 'HomeHero must not spam arrow icons')
     assert.ok(!doctorContent.includes('ArrowRight'), 'DoctorSection must not spam arrow icons')

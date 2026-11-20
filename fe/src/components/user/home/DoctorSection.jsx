@@ -15,7 +15,7 @@ import {
 import { Clock, MagnifyingGlass } from '../../common/ClinicIcon'
 import DoctorAvatar from '../../common/DoctorAvatar'
 
-const MAX_INLINE_SLOTS = 8
+const MAX_INLINE_SLOTS = 4
 
 export default function DoctorSection({
     embedded = false,
@@ -207,177 +207,183 @@ export default function DoctorSection({
                     </div>
                 )}
 
-                <div className="mt-5 grid gap-4">
-                    {loading && (
-                        <div className="medpro-card p-6 text-sm text-clinic-text-secondary">
-                            Đang tải lịch làm việc của đội ngũ bác sĩ...
-                        </div>
-                    )}
-
-                    {error && (
-                        <p role="alert" className="medpro-card p-4 border-clinic-danger-border bg-clinic-danger-bg text-sm font-medium text-clinic-danger">
-                            {error}
-                        </p>
-                    )}
-
-                    {!loading && !error && !filteredDoctors.length && (
-                        <div className="medpro-card p-6 text-sm text-clinic-text-secondary flex flex-wrap items-center justify-between gap-4">
-                            <div>
-                                <h3 className="font-display text-[15px] font-bold text-clinic-navy">
-                                    {selectedSpecialtyId
-                                        ? 'Chuyên khoa tiếp nhận khám ca sáng và chiều'
-                                        : 'Không tìm thấy bác sĩ phù hợp với từ khóa hiện tại'}
-                                </h3>
-                                <p className="mt-1 text-[13px] leading-6">
-                                    {selectedSpecialtyId
-                                        ? 'Bạn có thể chọn chuyên khoa này trong biểu mẫu đặt hẹn đầy đủ để quầy tiếp nhận sắp xếp buồng khám phù hợp.'
-                                        : 'Vui lòng thử từ khóa khác hoặc đặt lại bộ lọc để xem toàn bộ lịch làm việc đang mở.'}
-                                </p>
+                {(loading || error || !filteredDoctors.length) && (
+                    <div className="mt-5 grid gap-4">
+                        {loading && (
+                            <div className="medpro-card p-6 text-sm text-clinic-text-secondary">
+                                Đang tải lịch làm việc của đội ngũ bác sĩ...
                             </div>
-                            <div className="flex flex-wrap items-center gap-2.5">
-                                {selectedSpecialtyId && (
-                                    <Link
-                                        to={buildQuickBookingPath({ specialtyId: selectedSpecialtyId, appointmentDate: selectedDate })}
-                                        className="medpro-btn-primary"
-                                    >
-                                        Đặt khám theo chuyên khoa
-                                    </Link>
-                                )}
-                                {(selectedSpecialtyId || searchTerm) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            updateSpecialtyId('')
-                                            setSearchTerm('')
-                                        }}
-                                        className="medpro-btn-outline"
-                                    >
-                                        Xem tất cả bác sĩ
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {filteredDoctors.map((doctor) => {
-                        const entry = slotsByDoctor[doctor.id]
-                        const availableSlots = entry?.slots || []
-                        const visibleSlots = availableSlots.slice(0, MAX_INLINE_SLOTS)
-                        const specialtyMeta = getSpecialtyClinicalMetadata(doctor.specialtyCode || doctor.specialty)
-                        const doctorBookingPath = buildQuickBookingPath({
-                            specialtyId: doctor.specialtyId,
-                            doctorId: doctor.id,
-                            appointmentDate: selectedDate,
-                            doctors,
-                        })
+                        {error && (
+                            <p role="alert" className="medpro-card p-4 border-clinic-danger-border bg-clinic-danger-bg text-sm font-medium text-clinic-danger">
+                                {error}
+                            </p>
+                        )}
 
-                        return (
-                            <article
-                                key={doctor.id}
-                                className="medpro-card p-5 sm:p-6 grid lg:grid-cols-[1fr_1.35fr] gap-6 items-center"
-                            >
-                                <div className="flex items-start gap-4">
-                                    <DoctorAvatar
-                                        name={doctor.name}
-                                        initials={doctor.initials}
-                                        specialty={doctor.specialty}
-                                        specialtyCode={doctor.specialtyCode}
-                                        size="md"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="font-display text-base font-extrabold text-clinic-navy leading-snug">
-                                            {formatDoctorHeading(doctor)}
-                                        </h3>
-                                        <p className="mt-0.5 text-[13px] font-semibold text-clinic-cta">
-                                            {doctor.specialty || 'Đa khoa'}
-                                        </p>
-                                        <p className="mt-1 text-xs leading-5 text-clinic-text-secondary">
-                                            {specialtyMeta.services}
-                                        </p>
-                                        <dl className="mt-2.5 grid gap-1 text-[12.5px] text-clinic-text-secondary">
-                                            <div>
-                                                <dt className="inline">Phòng khám: </dt>
-                                                <dd className="inline font-semibold text-clinic-navy">
-                                                    {doctor.room || specialtyMeta.floor}
-                                                </dd>
-                                            </div>
-                                            {doctor.experience && (
-                                                <div>
-                                                    <dt className="inline">Kinh nghiệm: </dt>
-                                                    <dd className="inline font-semibold text-clinic-navy">{doctor.experience}</dd>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <dt className="inline">Phí khám: </dt>
-                                                <dd className="inline font-bold text-clinic-navy tabular-nums">
-                                                    {formatConsultFee(doctor.fee || specialtyMeta.fee)} / ca 30 phút
-                                                </dd>
-                                            </div>
-                                        </dl>
-                                    </div>
+                        {!loading && !error && !filteredDoctors.length && (
+                            <div className="medpro-card p-6 text-sm text-clinic-text-secondary flex flex-wrap items-center justify-between gap-4">
+                                <div>
+                                    <h3 className="font-display text-[15px] font-bold text-clinic-navy">
+                                        {selectedSpecialtyId
+                                            ? 'Chuyên khoa tiếp nhận khám ca sáng và chiều'
+                                            : 'Không tìm thấy bác sĩ phù hợp với từ khóa hiện tại'}
+                                    </h3>
+                                    <p className="mt-1 text-[13px] leading-6">
+                                        {selectedSpecialtyId
+                                            ? 'Bạn có thể chọn chuyên khoa này trong biểu mẫu đặt hẹn đầy đủ để quầy tiếp nhận sắp xếp buồng khám phù hợp.'
+                                            : 'Vui lòng thử từ khóa khác hoặc đặt lại bộ lọc để xem toàn bộ lịch làm việc đang mở.'}
+                                    </p>
                                 </div>
-
-                                <div className="lg:border-l lg:border-clinic-border lg:pl-6">
-                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-clinic-navy tabular-nums">
-                                            <Clock size={14} weight="bold" className="text-clinic-cta" />
-                                            <span>Khung giờ nhận khám · {dateLabel}</span>
-                                        </span>
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                    {selectedSpecialtyId && (
                                         <Link
-                                            to={doctorBookingPath}
-                                            className="text-xs font-semibold text-clinic-cta hover:underline tabular-nums shrink-0"
+                                            to={buildQuickBookingPath({ specialtyId: selectedSpecialtyId, appointmentDate: selectedDate })}
+                                            className="medpro-btn-primary"
                                         >
-                                            {availableSlots.length > MAX_INLINE_SLOTS
-                                                ? `Xem toàn bộ ${availableSlots.length} khung giờ`
-                                                : 'Đặt lịch chi tiết'}
+                                            Đặt khám theo chuyên khoa
                                         </Link>
-                                    </div>
-
-                                    {slotsLoading && !entry ? (
-                                        <p className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-muted">
-                                            Đang kiểm tra lịch trống...
-                                        </p>
-                                    ) : entry?.failed ? (
-                                        <p className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-secondary">
-                                            Mở trang đặt lịch để xem chi tiết khung giờ làm việc.
-                                        </p>
-                                    ) : availableSlots.length === 0 ? (
-                                        <div className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-secondary flex flex-wrap items-center justify-between gap-2">
-                                            <span>Không còn khung giờ trống trong ngày này.</span>
-                                            {selectedDate !== tomorrowDate && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateSelectedDate(tomorrowDate)}
-                                                    className="font-bold text-clinic-cta hover:underline cursor-pointer"
-                                                >
-                                                    Xem ngày mai
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {visibleSlots.map((slot, index) => (
-                                                <Link
-                                                    key={slot.value}
-                                                    to={buildQuickBookingPath({
-                                                        specialtyId: doctor.specialtyId,
-                                                        doctorId: doctor.id,
-                                                        appointmentDate: selectedDate,
-                                                        timeSlot: slot.value,
-                                                        doctors,
-                                                    })}
-                                                    className={`clinical-slot-btn ${index === 0 ? 'clinical-slot-btn-featured' : ''}`}
-                                                >
-                                                    {slot.value}
-                                                </Link>
-                                            ))}
-                                        </div>
+                                    )}
+                                    {(selectedSpecialtyId || searchTerm) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                updateSpecialtyId('')
+                                                setSearchTerm('')
+                                            }}
+                                            className="medpro-btn-outline"
+                                        >
+                                            Xem tất cả bác sĩ
+                                        </button>
                                     )}
                                 </div>
-                            </article>
-                        )
-                    })}
-                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!loading && !error && filteredDoctors.length > 0 && (
+                    <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {filteredDoctors.map((doctor) => {
+                            const entry = slotsByDoctor[doctor.id]
+                            const availableSlots = entry?.slots || []
+                            const visibleSlots = availableSlots.slice(0, MAX_INLINE_SLOTS)
+                            const specialtyMeta = getSpecialtyClinicalMetadata(doctor.specialtyCode || doctor.specialty)
+                            const doctorBookingPath = buildQuickBookingPath({
+                                specialtyId: doctor.specialtyId,
+                                doctorId: doctor.id,
+                                appointmentDate: selectedDate,
+                                doctors,
+                            })
+
+                            return (
+                                <article
+                                    key={doctor.id}
+                                    className="medpro-card p-5 flex flex-col justify-between gap-4 min-w-0"
+                                >
+                                    <div className="flex items-start gap-3.5 min-w-0">
+                                        <DoctorAvatar
+                                            name={doctor.name}
+                                            initials={doctor.initials}
+                                            specialty={doctor.specialty}
+                                            specialtyCode={doctor.specialtyCode}
+                                            size="md"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-display text-base font-extrabold text-clinic-navy leading-snug truncate">
+                                                {formatDoctorHeading(doctor)}
+                                            </h3>
+                                            <p className="mt-0.5 text-[13px] font-semibold text-clinic-cta">
+                                                {doctor.specialty || 'Đa khoa'}
+                                            </p>
+                                            <p className="mt-1 text-xs leading-5 text-clinic-text-secondary line-clamp-2">
+                                                {specialtyMeta.services}
+                                            </p>
+                                            <dl className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-clinic-text-secondary">
+                                                <div>
+                                                    <dt className="inline">Phòng: </dt>
+                                                    <dd className="inline font-semibold text-clinic-navy">
+                                                        {doctor.room || specialtyMeta.floor}
+                                                    </dd>
+                                                </div>
+                                                {doctor.experience && (
+                                                    <div>
+                                                        <dt className="inline">Kinh nghiệm: </dt>
+                                                        <dd className="inline font-semibold text-clinic-navy">{doctor.experience}</dd>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <dt className="inline">Phí khám: </dt>
+                                                    <dd className="inline font-bold text-clinic-navy tabular-nums">
+                                                        {formatConsultFee(doctor.fee || specialtyMeta.fee)}
+                                                    </dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-3.5 border-t border-clinic-border">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-clinic-navy tabular-nums">
+                                                <Clock size={14} weight="bold" className="text-clinic-cta" />
+                                                <span>Khung giờ · {dateLabel}</span>
+                                            </span>
+                                            <Link
+                                                to={doctorBookingPath}
+                                                className="text-xs font-semibold text-clinic-cta hover:underline tabular-nums shrink-0"
+                                            >
+                                                {availableSlots.length > MAX_INLINE_SLOTS
+                                                    ? `Xem toàn bộ ${availableSlots.length} khung giờ`
+                                                    : 'Đặt lịch chi tiết'}
+                                            </Link>
+                                        </div>
+
+                                        {slotsLoading && !entry ? (
+                                            <p className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-muted">
+                                                Đang kiểm tra lịch trống...
+                                            </p>
+                                        ) : entry?.failed ? (
+                                            <p className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-secondary">
+                                                Mở trang đặt lịch để xem chi tiết khung giờ làm việc.
+                                            </p>
+                                        ) : availableSlots.length === 0 ? (
+                                            <div className="rounded-[6px] bg-clinic-bg p-3 text-xs text-clinic-text-secondary flex flex-wrap items-center justify-between gap-2">
+                                                <span>Không còn khung giờ trống trong ngày này.</span>
+                                                {selectedDate !== tomorrowDate && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateSelectedDate(tomorrowDate)}
+                                                        className="font-bold text-clinic-cta hover:underline cursor-pointer"
+                                                    >
+                                                        Xem ngày mai
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                {visibleSlots.map((slot, index) => (
+                                                    <Link
+                                                        key={slot.value}
+                                                        to={buildQuickBookingPath({
+                                                            specialtyId: doctor.specialtyId,
+                                                            doctorId: doctor.id,
+                                                            appointmentDate: selectedDate,
+                                                            timeSlot: slot.value,
+                                                            doctors,
+                                                        })}
+                                                        className={`clinical-slot-btn ${index === 0 ? 'clinical-slot-btn-featured' : ''}`}
+                                                    >
+                                                        {slot.value}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </article>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
         </section>
     )

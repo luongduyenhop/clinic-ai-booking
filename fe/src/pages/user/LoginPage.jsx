@@ -3,14 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
-import { Hospital, LockKey, PhoneCall, ShieldCheck } from '../../components/common/ClinicIcon'
+import { Hospital, LockKey, PhoneCall } from '../../components/common/ClinicIcon'
 import { buildPatientLoginCredentials, patientLoginValidationSchema } from '../../utils/auth/patientLoginValidation'
-
-const PORTAL_HIGHLIGHTS = [
-    'Quản lý mã hẹn và lịch sử khám ngoại trú',
-    'Tra cứu đơn thuốc điện tử và kết quả xét nghiệm',
-    'Hồ sơ bệnh án điện tử bảo mật cho cá nhân và gia đình',
-]
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -113,49 +107,38 @@ export default function LoginPage() {
     )
 }
 
-export function AuthShell({ title, description, children }) {
+export function AuthShell({ title, description, maxWidthClass = 'max-w-[460px]', children }) {
     return (
         <div className="min-h-[calc(100vh-102px)] bg-clinic-bg py-10 px-4 flex items-center justify-center">
-            <div className="w-full max-w-[980px] grid lg:grid-cols-[.9fr_1.1fr] medpro-card overflow-hidden">
-                <div className="hidden lg:flex bg-clinic-navy p-10 text-clinic-surface flex-col justify-between">
-                    <div>
-                        <Link to="/" className="inline-flex items-center gap-2.5 font-display font-extrabold text-xl text-clinic-surface">
-                            <span className="w-10 h-10 rounded-[8px] bg-clinic-navy-dark border border-[color:var(--clinic-nav-divider)] flex items-center justify-center text-clinic-surface">
-                                <Hospital size={20} weight="fill" />
-                            </span>
-                            <span>CLINIC-AI</span>
-                        </Link>
-                        <h2 className="mt-12 font-display text-2xl font-extrabold leading-snug text-clinic-surface">
-                            Lịch hẹn và hồ sơ khám của bạn
-                        </h2>
-                        <p className="mt-3 text-sm leading-6 text-clinic-on-navy-muted">
-                            Theo dõi toàn bộ phiếu hẹn, kết quả xét nghiệm cận lâm sàng và đơn thuốc điện tử trên một tài khoản định danh duy nhất.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3 text-sm text-clinic-on-navy-muted">
-                        {PORTAL_HIGHLIGHTS.map((item) => (
-                            <p key={item} className="flex items-center gap-2.5">
-                                <ShieldCheck size={17} weight="fill" className="text-clinic-info-border shrink-0" />
-                                <span>{item}</span>
-                            </p>
-                        ))}
-                        <div className="pt-4 mt-4 border-t border-[color:var(--clinic-nav-divider)] text-xs text-clinic-on-navy-muted tabular-nums">
-                            Giờ tiếp nhận: 07:30 – 17:30 (Thứ 2 – Thứ 7)
-                        </div>
-                    </div>
+            <div className={`w-full ${maxWidthClass} mx-auto space-y-5`}>
+                <div className="text-center space-y-2">
+                    <Link
+                        to="/"
+                        className="inline-flex items-center gap-2 font-display font-extrabold text-base text-clinic-navy"
+                    >
+                        <span className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center shrink-0">
+                            <Hospital size={17} weight="fill" />
+                        </span>
+                        <span>CLINIC-AI</span>
+                    </Link>
+                    <p className="text-xs font-semibold text-clinic-cta">
+                        Lịch hẹn và hồ sơ khám của bạn
+                    </p>
+                    <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-clinic-navy">
+                        {title}
+                    </h1>
+                    <p className="text-sm text-clinic-text-secondary">
+                        {description}
+                    </p>
                 </div>
 
-                <div className="p-6 sm:p-10 lg:p-11">
-                    <div className="mb-7">
-                        <span className="lg:hidden inline-flex w-10 h-10 rounded-[8px] bg-clinic-navy text-clinic-surface items-center justify-center mb-4">
-                            <Hospital size={20} weight="fill" />
-                        </span>
-                        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-clinic-navy">{title}</h1>
-                        <p className="mt-2 text-sm text-clinic-text-secondary">{description}</p>
-                    </div>
+                <div className="medpro-card bg-clinic-surface p-6 sm:p-8">
                     {children}
                 </div>
+
+                <p className="text-center text-xs text-clinic-text-muted tabular-nums">
+                    Giờ tiếp nhận: 07:30 – 17:30 (Thứ 2 – Thứ 7) · Hotline 1900 6868
+                </p>
             </div>
         </div>
     )

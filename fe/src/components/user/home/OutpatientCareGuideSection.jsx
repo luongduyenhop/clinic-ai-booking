@@ -1,27 +1,27 @@
 const PATIENT_JOURNEY_STEPS = [
     {
         step: '1',
-        title: 'Phân luồng triệu chứng AI hoặc chọn thẳng giờ khám',
+        title: 'Kiểm tra triệu chứng hoặc chọn giờ khám',
         description:
-            'Khai báo biểu hiện đang gặp để hệ thống sàng lọc dấu hiệu nguy hiểm và gợi ý đúng chuyên khoa, hoặc chọn trực tiếp bác sĩ còn khung giờ 30 phút.',
+            'Khai báo triệu chứng để hệ thống gợi ý đúng chuyên khoa, hoặc chọn bác sĩ và khung giờ còn trống.',
     },
     {
         step: '2',
-        title: 'Làm thủ tục tiếp nhận tại Quầy Lễ tân Tầng 1',
+        title: 'Xác nhận tại Quầy Lễ tân Tầng 1',
         description:
-            'Có mặt trước giờ hẹn 15 phút để đối chiếu thông tin đặt trước; hồ sơ hẹn trực tuyến được ưu tiên chuyển thẳng vào buồng khám đúng ca.',
+            'Có mặt trước giờ hẹn 15 phút để đối chiếu thông tin và vào đúng buồng khám.',
     },
     {
         step: '3',
-        title: 'Thăm khám lâm sàng, thực hiện cận lâm sàng tại chỗ',
+        title: 'Thăm khám lâm sàng, cận lâm sàng tại chỗ',
         description:
-            'Bác sĩ xem sẵn tóm tắt triệu chứng, thăm khám trực tiếp và chỉ định sinh hóa máu, siêu âm hoặc nội soi ngay trong khuôn viên phòng khám.',
+            'Bác sĩ thăm khám trực tiếp và chỉ định xét nghiệm máu, siêu âm hoặc nội soi ngay tại phòng khám.',
     },
     {
         step: '4',
-        title: 'Nhận đơn thuốc ký số, thanh toán và lưu Sổ sức khỏe',
+        title: 'Nhận đơn thuốc ký số và thanh toán',
         description:
-            'Thanh toán bằng tiền mặt, thẻ ngân hàng hoặc chuyển khoản QR; toa thuốc và kết quả chẩn đoán đồng bộ vào tài khoản để theo dõi tái khám.',
+            'Thanh toán tiền mặt, thẻ hoặc chuyển khoản QR; đơn thuốc và kết quả được lưu trong Sổ sức khỏe.',
     },
 ]
 
@@ -36,17 +36,9 @@ const GUIDE_SECTIONS = [
     {
         title: 'Lưu ý nhịn ăn trước khi lấy máu xét nghiệm, nội soi',
         items: [
-            'Nhịn ăn tối thiểu 8 giờ (chỉ uống nước lọc, tránh sữa, cà phê, nước ngọt) khi làm xét nghiệm đường huyết, mỡ máu hoặc siêu âm bụng.',
+            'Nhịn ăn tối thiểu 8 giờ (chỉ uống nước lọc, tránh sữa, cà phê, nước ngọt) khi xét nghiệm đường huyết, mỡ máu hoặc siêu âm bụng.',
             'Không sử dụng rượu bia hoặc chất kích thích trong 24 giờ trước thời điểm lấy mẫu.',
-            'Thông báo ngay cho điều dưỡng nếu đang mang thai, nghi ngờ có thai hoặc có tiền sử dị ứng thuốc.',
-        ],
-    },
-    {
-        title: 'Tiện ích trực tuyến trên Cổng Bệnh nhân',
-        items: [
-            'Đặt lịch khám hộ cho người thân trong gia đình trên cùng một tài khoản quản lý.',
-            'Tra cứu lịch sử đơn thuốc điện tử có chữ ký số, chỉ số sinh tồn và hóa đơn viện phí sau khám.',
-            'Chủ động dời lịch hoặc hủy hẹn trực tuyến khi lịch trình cá nhân thay đổi.',
+            'Thông báo cho điều dưỡng nếu đang mang thai, nghi ngờ có thai hoặc có tiền sử dị ứng thuốc.',
         ],
     },
 ]
@@ -72,7 +64,7 @@ function GuideChecklistBlock({ title, items, hasBottomBorder }) {
 
 export default function OutpatientCareGuideSection() {
     return (
-        <section id="huong-dan-kham" className="bg-clinic-bg py-12 sm:py-16 scroll-mt-20 border-t border-clinic-border">
+        <section id="huong-dan-kham" className="bg-clinic-bg py-10 sm:py-12 scroll-mt-20 border-t border-clinic-border">
             <div className="public-container">
                 <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
                     Quy trình khám và chuẩn bị trước khi đến

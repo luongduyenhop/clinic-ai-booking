@@ -1,24 +1,5 @@
 import { Link } from 'react-router-dom'
 
-const OPERATIONAL_CAPABILITY_ROWS = [
-    {
-        label: 'Quy mô chuyên môn',
-        value: '5 khoa lâm sàng (Nội, Ngoại, TMH, Răng, Mắt)',
-    },
-    {
-        label: 'Pháp lý bác sĩ',
-        value: 'Kiểm tra chứng chỉ hành nghề còn hạn trước khi mở ca trực',
-    },
-    {
-        label: 'Quy chuẩn dữ liệu',
-        value: 'Hồ sơ bệnh án điện tử đồng bộ toàn phòng khám',
-    },
-    {
-        label: 'Phân bổ ca khám',
-        value: 'Mỗi giờ tối đa 2 lượt hẹn (30 phút/lượt)',
-    },
-]
-
 const PLATFORM_STRENGTHS = [
     {
         title: 'Phân luồng bằng AI, cảnh báo dấu hiệu cấp cứu',
@@ -40,7 +21,7 @@ const PLATFORM_STRENGTHS = [
 
 export default function ClinicIntroSection() {
     return (
-        <section id="gioi-thieu" className="bg-clinic-surface py-12 sm:py-16 scroll-mt-20 border-b border-clinic-border">
+        <section id="gioi-thieu" className="bg-clinic-surface py-10 sm:py-12 scroll-mt-20 border-b border-clinic-border">
             <div className="public-container grid lg:grid-cols-[0.95fr_1.1fr] gap-8 lg:gap-12 items-start">
                 <div>
                     <picture className="block rounded-[8px] overflow-hidden border border-clinic-border bg-clinic-bg">
@@ -56,20 +37,6 @@ export default function ClinicIntroSection() {
                     <p className="mt-2.5 text-xs text-clinic-text-muted">
                         Không gian tư vấn ngoại trú kết nối trực tiếp với khu xét nghiệm và chẩn đoán hình ảnh tại chỗ.
                     </p>
-
-                    <div className="mt-5 rounded-[8px] border border-clinic-border bg-clinic-bg px-4 py-3">
-                        <h3 className="font-display text-xs font-bold uppercase tracking-[0.04em] text-clinic-navy pb-2 border-b border-clinic-border">
-                            Hồ sơ năng lực vận hành
-                        </h3>
-                        <dl className="divide-y divide-clinic-border text-[13px]">
-                            {OPERATIONAL_CAPABILITY_ROWS.map((row) => (
-                                <div key={row.label} className="py-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                                    <dt className="text-clinic-text-secondary">{row.label}</dt>
-                                    <dd className="font-semibold text-clinic-navy text-right tabular-nums">{row.value}</dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </div>
                 </div>
 
                 <div>

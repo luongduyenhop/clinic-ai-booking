@@ -96,6 +96,7 @@ export default function RegisterPage() {
             <AuthShell
                 title="Đăng ký thành công"
                 description="Tài khoản bệnh nhân của bạn đã được lưu vào hệ thống và sẵn sàng sử dụng."
+                maxWidthClass="max-w-[520px]"
             >
                 <div className="text-center py-10">
                     <CheckCircle size={56} weight="fill" className="mx-auto text-clinic-success" />
@@ -109,6 +110,7 @@ export default function RegisterPage() {
         <AuthShell
             title="Tạo tài khoản bệnh nhân"
             description="Đăng ký để đặt lịch và theo dõi hồ sơ khám chữa bệnh ngoại trú."
+            maxWidthClass="max-w-[520px]"
         >
             {error && (
                 <p

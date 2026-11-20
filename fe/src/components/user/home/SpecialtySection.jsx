@@ -36,16 +36,9 @@ function SpecialtyFeeCell({ feeLabel, inline = false }) {
 
 function SpecialtyScopeCell({ services, description }) {
     return (
-        <div>
-            <p className="text-[13px] font-medium text-clinic-navy leading-5">
-                {services}
-            </p>
-            {description && (
-                <p className="mt-1 text-xs leading-5 text-clinic-text-secondary">
-                    {description}
-                </p>
-            )}
-        </div>
+        <p className="text-[13px] leading-5 text-clinic-text">
+            {services || description}
+        </p>
     )
 }
 

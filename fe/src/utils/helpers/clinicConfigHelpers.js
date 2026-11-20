@@ -168,7 +168,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
     sidebarSections: [
         {
             id: 'pillar-executive',
-            title: '1. ĐIỀU HÀNH VÀ THỐNG KÊ',
+            title: 'ĐIỀU HÀNH VÀ THỐNG KÊ',
             menus: [
                 {
                     id: 'dashboard',
@@ -192,7 +192,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-catalogs',
-            title: '2. QUẢN TRỊ DANH MỤC Y TẾ',
+            title: 'QUẢN TRỊ DANH MỤC Y TẾ',
             menus: [
                 {
                     id: 'catalogs',
@@ -223,7 +223,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-iam-hr',
-            title: '3. NHÂN SỰ & PHÂN QUYỀN (IAM)',
+            title: 'NHÂN SỰ VÀ PHÂN QUYỀN',
             menus: [
                 {
                     id: 'users',
@@ -246,7 +246,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-compliance-settings',
-            title: '4. TUÂN THỦ & CẤU HÌNH HỆ THỐNG',
+            title: 'TUÂN THỦ VÀ CẤU HÌNH HỆ THỐNG',
             menus: [
                 {
                     id: 'compliance',
@@ -275,7 +275,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
     ],
     dashboardQuickModules: [
         {
-            step: 'Trụ cột 01',
+            step: 'Danh mục',
             title: 'Khoa phòng & Buồng khám',
             desc: 'Quản lý danh mục chuyên khoa, buồng khám lâm sàng/CLS và trạng thái vận hành',
             path: '/admin/danh-muc/khoa-phong',
@@ -283,7 +283,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Master Data',
         },
         {
-            step: 'Trụ cột 02',
+            step: 'Bảng giá',
             title: 'Dịch vụ & Giá niêm yết',
             desc: 'Cấu hình danh mục dịch vụ khám, xét nghiệm, CĐHA và niêm yết giá thu ngân',
             path: '/admin/danh-muc/dich-vu',
@@ -291,7 +291,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Bảng giá DV',
         },
         {
-            step: 'Trụ cột 03',
+            step: 'Dược và ICD-10',
             title: 'Thuốc BYT & Bệnh ICD-10',
             desc: 'Danh mục thuốc kê đơn ngoại trú (không quản lý kho) & từ điển bệnh lý ICD-10',
             path: '/admin/danh-muc/thuoc-vat-tu',
@@ -299,7 +299,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Dược & ICD-10',
         },
         {
-            step: 'Trụ cột 04',
+            step: 'Nhân sự',
             title: 'Nhân sự, Lịch trực & CCHN',
             desc: 'Quản lý hồ sơ bác sĩ, kiểm soát hạn Chứng chỉ hành nghề & duyệt nghỉ phép',
             path: '/admin/nhan-vien',
@@ -307,7 +307,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'HR & CCHN',
         },
         {
-            step: 'Trụ cột 05',
+            step: 'Phân quyền',
             title: 'Ma trận Phân quyền (RBAC)',
             desc: 'Thiết lập ma trận phân quyền truy cập theo vai trò chuẩn Least Privilege',
             path: '/admin/phan-quyen',
@@ -315,7 +315,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'IAM & RBAC',
         },
         {
-            step: 'Trụ cột 06',
+            step: 'Tuân thủ',
             title: 'Tuân thủ, Audit & Cấu hình',
             desc: 'Giám sát liên thông Đơn thuốc QG (TT26), Nhật ký Audit EMR & Cài đặt phòng khám',
             path: '/admin/tuan-thu',
@@ -376,28 +376,28 @@ export const DEFAULT_CATALOG_ROUTE_MAP = {
 export const DEFAULT_GENERAL_CATALOG_SUB_TABS = [
     {
         key: 'goTat',
-        label: '1. Danh mục Gõ tắt',
+        label: 'Danh mục Gõ tắt',
         codeLabel: 'Mã gõ tắt',
         nameLabel: 'Nội dung diễn giải đầy đủ',
         icon: 'Lightning',
     },
     {
         key: 'donViTinh',
-        label: '2. Đơn vị tính',
+        label: 'Đơn vị tính',
         codeLabel: 'Mã ĐVT',
         nameLabel: 'Tên đơn vị tính',
         icon: 'Package',
     },
     {
         key: 'khoanThu',
-        label: '3. Danh mục Khoản thu',
+        label: 'Danh mục Khoản thu',
         codeLabel: 'Mã khoản thu',
         nameLabel: 'Tên khoản thu viện phí',
         icon: 'CurrencyCircleDollar',
     },
     {
         key: 'phuongPhapTruDau',
-        label: '5. Phương pháp trừ đau',
+        label: 'Phương pháp trừ đau',
         codeLabel: 'Mã PP',
         nameLabel: 'Tên phương pháp vô cảm / trừ đau',
         icon: 'Syringe',

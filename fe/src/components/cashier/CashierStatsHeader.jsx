@@ -20,7 +20,7 @@ export default function CashierStatsHeader({
                     }`}
                 >
                     <Receipt size={15} weight="bold" />
-                    <span>1. Thu viện phí &amp; Hóa đơn ({allVouchersCount})</span>
+                    <span>Thu viện phí và hóa đơn ({allVouchersCount})</span>
                 </button>
                 <button
                     type="button"
@@ -32,7 +32,7 @@ export default function CashierStatsHeader({
                     }`}
                 >
                     <FloppyDisk size={15} weight="bold" />
-                    <span>2. Khóa sổ &amp; Đối soát cuối ngày ({cashierClosingsCount})</span>
+                    <span>Khóa sổ và đối soát cuối ngày ({cashierClosingsCount})</span>
                 </button>
             </div>
             {activeCashierTab === 'KHOA_SO' && (

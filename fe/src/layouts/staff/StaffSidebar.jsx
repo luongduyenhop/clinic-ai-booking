@@ -110,37 +110,37 @@ export const getStaffMenuForRole = (role) => {
 
     return [
         {
-            group: '1. Điều hành và thống kê',
+            group: 'Điều hành và thống kê',
             items: [
                 { to: '/staff/dashboard', label: 'Tổng quan', icon: HouseLine },
                 { to: '/staff/reports', label: 'Báo cáo và thống kê', icon: ChartBar },
             ],
         },
         {
-            group: '2. Danh mục Y tế (Master Data)',
+            group: 'Danh mục y tế',
             items: [
-                { to: '/staff/catalogs/khoa-phong', label: 'Khoa phòng & Buồng khám', icon: Buildings },
-                { to: '/staff/catalogs/dich-vu', label: 'Dịch vụ & Giá niêm yết', icon: Stethoscope },
-                { to: '/staff/catalogs/thuoc-vat-tu', label: 'Danh mục Thuốc BYT', icon: Folders },
-                { to: '/staff/catalogs/benh', label: 'Danh mục Bệnh ICD-10', icon: ClipboardText },
-                { to: '/staff/templates/mau-in', label: 'Biểu mẫu & Mẫu in', icon: ClipboardText },
+                { to: '/staff/catalogs/khoa-phong', label: 'Khoa phòng và buồng khám', icon: Buildings },
+                { to: '/staff/catalogs/dich-vu', label: 'Dịch vụ và giá niêm yết', icon: Stethoscope },
+                { to: '/staff/catalogs/thuoc-vat-tu', label: 'Danh mục thuốc BYT', icon: Folders },
+                { to: '/staff/catalogs/benh', label: 'Danh mục bệnh ICD-10', icon: ClipboardText },
+                { to: '/staff/templates/mau-in', label: 'Biểu mẫu và mẫu in', icon: ClipboardText },
             ],
         },
         {
-            group: '3. Nhân sự & Phân quyền (IAM)',
+            group: 'Nhân sự và phân quyền',
             items: [
-                { to: '/staff/permissions', label: 'Nhân sự, CCHN & Phân quyền', icon: ShieldCheck, badge: 'RBAC' },
-                { to: '/admin/phan-lich', label: 'Phân lịch trực & Ma trận Ca', icon: CalendarPlus },
-                { to: '/admin/nghi-phep', label: 'Duyệt nghỉ phép Bác sĩ', icon: CalendarCheck },
-                { to: '/staff/patients', label: 'Hồ sơ Bệnh nhân (Master)', icon: Users },
+                { to: '/staff/permissions', label: 'Nhân sự, CCHN và phân quyền', icon: ShieldCheck, badge: 'RBAC' },
+                { to: '/admin/phan-lich', label: 'Phân lịch trực và ca làm việc', icon: CalendarPlus },
+                { to: '/admin/nghi-phep', label: 'Duyệt nghỉ phép bác sĩ', icon: CalendarCheck },
+                { to: '/staff/patients', label: 'Hồ sơ bệnh nhân', icon: Users },
             ],
         },
         {
-            group: '4. Tuân thủ & Cấu hình Hệ thống',
+            group: 'Tuân thủ và cấu hình',
             items: [
-                { to: '/staff/compliance', label: 'Tuân thủ Pháp lý & Audit', icon: LockKey },
+                { to: '/staff/compliance', label: 'Tuân thủ pháp lý và kiểm toán', icon: LockKey },
                 { to: '/staff/compliance?tab=DINH_CHINH', label: 'Duyệt đính chính EMR', icon: ShieldCheck },
-                { to: '/staff/settings', label: 'Cấu hình Phòng khám', icon: Buildings },
+                { to: '/staff/settings', label: 'Cấu hình phòng khám', icon: Buildings },
             ],
         },
     ]

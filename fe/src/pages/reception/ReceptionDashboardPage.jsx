@@ -401,7 +401,7 @@ export default function ReceptionDashboardPage() {
                                             </div>
                                             <div className="flex items-center justify-between text-clinic-text-secondary text-[11px] tabular-nums">
                                                 <span>Mã: {app.ma_lich_kham || app.appointmentCode || `APT-${app.id}`}</span>
-                                                <span className="font-mono">{app.so_dien_thoai || pat?.phone}</span>
+                                                <span>{app.so_dien_thoai || pat?.phone}</span>
                                             </div>
                                         </button>
                                     )
@@ -469,7 +469,7 @@ export default function ReceptionDashboardPage() {
                                                 </div>
                                                 <div className="flex items-center justify-between text-clinic-text-secondary text-[11px]">
                                                     <span>{q.roomName || room?.name}</span>
-                                                    <span className="font-mono">Check-in: {q.checkInTime}</span>
+                                                    <span>Check-in: {q.checkInTime}</span>
                                                 </div>
                                             </div>
                                         )
@@ -578,7 +578,7 @@ export default function ReceptionDashboardPage() {
                                         </span>
                                         <p className="font-medium text-clinic-navy mt-1 leading-snug">{log.description}</p>
                                     </div>
-                                    <div className="text-right text-clinic-text-secondary text-[10.5px] shrink-0 font-mono tabular-nums">
+                                    <div className="text-right text-clinic-text-secondary text-[10.5px] shrink-0 tabular-nums">
                                         <span>{log.timestamp}</span>
                                         <span className="block font-semibold text-clinic-text">{log.actor}</span>
                                     </div>

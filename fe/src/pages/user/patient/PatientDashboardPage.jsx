@@ -5,12 +5,8 @@ import PatientPageHeader from '../../../components/user/patient/PatientPageHeade
 import AppointmentCard from '../../../components/user/patient/AppointmentCard'
 import { PatientError, PatientLoading } from '../../../components/user/patient/PatientPageState'
 import {
-    CalendarCheck,
     CalendarPlus,
-    ClipboardText,
     MagnifyingGlass,
-    Microscope,
-    Pill,
     QrCode,
     Users,
 } from '../../../components/common/ClinicIcon'
@@ -61,13 +57,11 @@ export default function PatientDashboardPage() {
         {
             label: 'Lịch hẹn',
             value: portalData.appointmentsError ? '—' : portalData.appointments.length,
-            icon: CalendarCheck,
             to: '/benh-nhan/lich-hen',
         },
         {
             label: 'Lần khám',
             value: portalData.medicalHistoryError ? '—' : portalData.medicalHistory.length,
-            icon: ClipboardText,
             to: '/benh-nhan/lich-su-kham',
         },
         {
@@ -75,7 +69,6 @@ export default function PatientDashboardPage() {
             value: portalData.prescriptionError
                 ? '—'
                 : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length),
-            icon: Pill,
             to: '/benh-nhan/don-thuoc',
         },
         {
@@ -83,7 +76,6 @@ export default function PatientDashboardPage() {
             value: portalData.labError
                 ? '—'
                 : (portalData.labMeta?.total_items ?? portalData.labResults.length),
-            icon: Microscope,
             to: '/benh-nhan/ket-qua-can-lam-sang',
         },
     ]
@@ -143,21 +135,16 @@ export default function PatientDashboardPage() {
             />
 
             <div className="medpro-card grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-clinic-border overflow-hidden tabular-nums">
-                {cards.map(({ label, value, icon: Icon, to }) => (
+                {cards.map(({ label, value, to }) => (
                     <Link
                         key={label}
                         to={to}
-                        className="flex items-center gap-3.5 p-4 bg-clinic-surface hover:bg-clinic-surface-tint transition-colors"
+                        className="p-4 bg-clinic-surface hover:bg-clinic-surface-tint transition-colors block"
                     >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-clinic-surface-alt text-clinic-cta shrink-0">
-                            <Icon size={20} weight="duotone" />
-                        </span>
-                        <span>
-                            <strong className="block font-display text-2xl font-extrabold text-clinic-navy">
-                                {value}
-                            </strong>
-                            <span className="text-xs font-medium text-clinic-text-secondary">{label}</span>
-                        </span>
+                        <span className="text-xs font-medium text-clinic-text-secondary">{label}</span>
+                        <strong className="mt-1 block font-display text-2xl font-extrabold text-clinic-navy">
+                            {value}
+                        </strong>
                     </Link>
                 ))}
             </div>

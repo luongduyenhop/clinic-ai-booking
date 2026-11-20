@@ -279,17 +279,17 @@ export default function DashboardAdminPage() {
     const executiveTabs = [
         {
             id: 'DIEU_HANH',
-            label: '1. Điều hành & Công suất',
+            label: 'Điều hành và công suất',
             icon: ShieldCheck,
         },
         {
             id: 'TAI_CHINH_DUOC',
-            label: '2. Doanh thu, Dịch vụ & Dược',
+            label: 'Doanh thu, dịch vụ và dược',
             icon: Receipt,
         },
         {
             id: 'DICH_TE_TUAN_THU',
-            label: '3. Dịch tễ ICD-10 & Tuân thủ',
+            label: 'Dịch tễ ICD-10 và tuân thủ',
             icon: ChartBar,
         },
     ]
@@ -530,7 +530,7 @@ export default function DashboardAdminPage() {
                                         >
                                             <div className="flex justify-between text-xs font-bold text-clinic-navy">
                                                 <span>{room.ma_phong} - {room.ten_phong}</span>
-                                                <span className="text-clinic-cta font-mono">{room.ty_le_su_dung_phan_tram}%</span>
+                                                <span className="text-clinic-cta tabular-nums">{room.ty_le_su_dung_phan_tram}%</span>
                                             </div>
                                             <div className="flex justify-between text-[11px] text-clinic-text-secondary">
                                                 <span>Chuyên khoa: {room.chuyen_khoa || 'Đa khoa'}</span>
@@ -593,7 +593,7 @@ export default function DashboardAdminPage() {
                     <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border tabular-nums">
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                1. Doanh thu Khám Lâm Sàng
+                                Doanh thu khám lâm sàng
                             </span>
                             <div className="font-display text-xl font-extrabold text-clinic-navy mt-1">
                                 {Number(stats?.doanh_thu_kham_lam_sang ?? 0).toLocaleString('vi-VN')} đ
@@ -602,7 +602,7 @@ export default function DashboardAdminPage() {
                         </div>
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                2. Cận Lâm Sàng &amp; DVKT
+                                Cận lâm sàng và dịch vụ kỹ thuật
                             </span>
                             <div className="font-display text-xl font-extrabold text-clinic-cta mt-1">
                                 {Number(stats?.doanh_thu_can_lam_sang ?? 0).toLocaleString('vi-VN')} đ
@@ -611,7 +611,7 @@ export default function DashboardAdminPage() {
                         </div>
                         <div className="p-4">
                             <span className="text-xs font-semibold text-clinic-text-secondary block">
-                                3. Dịch vụ Kỹ thuật Chuyên sâu
+                                Dịch vụ kỹ thuật chuyên sâu
                             </span>
                             <div className="font-display text-xl font-extrabold text-clinic-success mt-1">
                                 {Number(stats?.doanh_thu_goi_dich_vu ?? 0).toLocaleString('vi-VN')} đ
@@ -694,8 +694,8 @@ export default function DashboardAdminPage() {
                                                     <td className="font-mono font-bold text-clinic-navy">{med.ma_thuoc || `TH00${idx + 1}`}</td>
                                                     <td className="font-bold text-clinic-text">{med.ten_thuoc}</td>
                                                     <td>{med.don_vi_tinh || 'Viên'}</td>
-                                                    <td className="text-center font-bold text-clinic-cta">{med.so_don_ke || 0} đơn</td>
-                                                    <td className="text-right font-mono font-bold text-clinic-success">
+                                                    <td className="text-center font-bold text-clinic-cta tabular-nums">{med.so_don_ke || 0} đơn</td>
+                                                    <td className="text-right font-bold text-clinic-success tabular-nums">
                                                         {Number(med.tong_so_luong || 0).toLocaleString('vi-VN')}
                                                     </td>
                                                 </tr>
@@ -743,13 +743,13 @@ export default function DashboardAdminPage() {
                                                         {srv.nhom_dich_vu || 'Dịch vụ'}
                                                     </span>
                                                 </td>
-                                                <td className="text-right font-mono font-bold text-clinic-text-secondary">
+                                                <td className="text-right font-bold text-clinic-text-secondary tabular-nums">
                                                     {Number(srv.don_gia || 0).toLocaleString('vi-VN')} đ
                                                 </td>
-                                                <td className="text-center font-bold text-clinic-navy">
+                                                <td className="text-center font-bold text-clinic-navy tabular-nums">
                                                     {srv.so_luong_chi_dinh || 0} lượt
                                                 </td>
-                                                <td className="text-right font-mono font-bold text-clinic-success">
+                                                <td className="text-right font-bold text-clinic-success tabular-nums">
                                                     {Number(srv.tong_doanh_thu || 0).toLocaleString('vi-VN')} đ
                                                 </td>
                                             </tr>
@@ -842,10 +842,10 @@ export default function DashboardAdminPage() {
                                                     <td className="font-mono font-bold text-clinic-navy">{b.ma_icd10}</td>
                                                     <td className="font-bold text-clinic-text">{b.ten_benh}</td>
                                                     <td className="text-xs text-clinic-text-secondary">{b.chuong_benh || 'Ngoại trú'}</td>
-                                                    <td className="font-mono font-bold text-clinic-cta text-center">
+                                                    <td className="font-bold text-clinic-cta text-center tabular-nums">
                                                         {b.so_ca || 0} ca
                                                     </td>
-                                                    <td className="text-center font-bold text-clinic-text-secondary">
+                                                    <td className="text-center font-bold text-clinic-text-secondary tabular-nums">
                                                         {b.ty_le_phan_tram || 0}%
                                                     </td>
                                                     <td>

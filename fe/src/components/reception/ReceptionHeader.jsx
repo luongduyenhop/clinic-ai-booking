@@ -236,7 +236,7 @@ export default function ReceptionHeader() {
             <div className="flex items-center gap-2.5 shrink-0">
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold shrink-0 whitespace-nowrap">
                     <Clock size={13} weight="bold" className="text-clinic-cta" />
-                    <span className="tabular-nums font-mono">{formattedTime}</span>
+                    <span className="tabular-nums">{formattedTime}</span>
                 </div>
 
                 <button

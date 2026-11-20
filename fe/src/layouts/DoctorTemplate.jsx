@@ -219,7 +219,7 @@ export default function DoctorTemplate() {
 
                         <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-bg border border-clinic-border text-clinic-text-secondary text-[11.5px] font-semibold shrink-0 whitespace-nowrap tabular-nums">
                             <Clock size={13} weight="bold" className="text-clinic-cta" />
-                            <span className="font-mono">{formattedTime}</span>
+                            <span>{formattedTime}</span>
                         </div>
 
                         <DoctorHeaderProfile />

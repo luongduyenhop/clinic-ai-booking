@@ -16,6 +16,7 @@ def test_sepay_parse_invoice_reference():
 def test_sepay_verify_token():
     svc = SepayService()
     with patch("app.services.sepay_service.settings") as mock_settings:
+        mock_settings.is_hosted = False
         mock_settings.SEPAY_WEBHOOK_TOKEN = "secret123"
         assert svc.verify_token("Apikey secret123") is True
         assert svc.verify_token("Bearer secret123") is True

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+import hmac
 import re
 from typing import Optional
 from sqlalchemy import or_, select
@@ -14,17 +15,17 @@ from app.services.cashier_service import cashier_service
 
 class SepayService:
     def verify_token(self, authorization_header: Optional[str]) -> bool:
-        configured_token = settings.SEPAY_WEBHOOK_TOKEN
+        configured_token = (settings.SEPAY_WEBHOOK_TOKEN or "").strip()
         if not configured_token:
-            return True
+            return not settings.is_hosted
         if not authorization_header:
             return False
         header_val = authorization_header.strip()
-        if header_val.startswith("Apikey "):
+        if header_val[:7].lower() in ("apikey ", "bearer "):
             header_val = header_val[7:].strip()
-        elif header_val.startswith("Bearer "):
-            header_val = header_val[7:].strip()
-        return header_val == configured_token
+        if not header_val:
+            return False
+        return hmac.compare_digest(header_val, configured_token)
 
     def parse_invoice_reference(self, content: Optional[str], description: Optional[str]) -> Optional[str]:
         candidates = [content or "", description or ""]

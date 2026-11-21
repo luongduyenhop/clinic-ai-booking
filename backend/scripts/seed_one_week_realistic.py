@@ -774,14 +774,14 @@ async def seed_week_and_today_cases(
                 ghi_chu="Kính trình Lãnh đạo phòng khám phê duyệt đính chính hồ sơ bệnh án điện tử.",
             ))
     today_cases = [
-        ("patient_p101_curr", "Lê Văn Tiến", "0912009001", primary_doc, "DANG_KHAM", "Đau ngực trái từng cơn, hồi hộp trống ngực"),
-        ("patient_p101_waiting", "Nguyễn Hải Đăng", "0912009002", primary_doc, "CHO_KHAM", "Kiểm tra sức khỏe tổng quát định kỳ"),
-        ("patient_lab_wait", "Trần Thu Hà", "0912009003", doctor_entities[1], "CHO_KHAM", "Tầm soát tiểu đường và mỡ máu"),
-        ("patient_cashier_wait", "Đỗ Minh Tuấn", "0912009004", doctor_entities[2], "DA_KHAM", "Viêm họng hạt cấp tính"),
-        ("patient_queue_05", "Phạm Quỳnh Chi", "0912009005", doctor_entities[3], "CHO_KHAM", "Đau nhức răng hàm số 8 hàm dưới"),
+        ("patient_p101_curr", "Lê Văn Tiến", "0912009001", primary_doc, "DANG_KHAM", "Đau ngực trái từng cơn, hồi hộp trống ngực", CaLamViecEnum.SANG.value, time(8, 30)),
+        ("patient_p101_waiting", "Nguyễn Hải Đăng", "0912009002", primary_doc, "CHO_KHAM", "Kiểm tra sức khỏe tổng quát định kỳ", CaLamViecEnum.SANG.value, time(9, 30)),
+        ("patient_lab_wait", "Trần Thu Hà", "0912009003", doctor_entities[1], "CHO_KHAM", "Tầm soát tiểu đường và mỡ máu", CaLamViecEnum.SANG.value, time(10, 30)),
+        ("patient_cashier_wait", "Đỗ Minh Tuấn", "0912009004", doctor_entities[2], "DA_KHAM", "Viêm họng hạt cấp tính", CaLamViecEnum.CHIEU.value, time(14, 0)),
+        ("patient_queue_05", "Phạm Quỳnh Chi", "0912009005", doctor_entities[3], "CHO_KHAM", "Đau nhức răng hàm số 8 hàm dưới", CaLamViecEnum.CHIEU.value, time(15, 0)),
     ]
     stt_today = 1
-    for code_key, full_name, phone, doctor, q_status, reason in today_cases:
+    for code_key, full_name, phone, doctor, q_status, reason, case_shift, case_time in today_cases:
         person = await session.scalar(select(NguoiDung).where(NguoiDung.so_dien_thoai == phone))
         if person is None:
             person = NguoiDung(
@@ -818,8 +818,8 @@ async def seed_week_and_today_cases(
                 bac_si_id=doctor.id,
                 chuyen_khoa_id=doctor.chuyen_khoa_id,
                 ngay_kham=today,
-                gio_kham=time(8 + stt_today, 0),
-                ca_kham=CaLamViecEnum.SANG.value,
+                gio_kham=case_time,
+                ca_kham=case_shift,
                 trang_thai=expected_appt_status,
                 so_thu_tu=stt_today,
                 ly_do_kham=reason,
@@ -834,8 +834,8 @@ async def seed_week_and_today_cases(
             appt.bac_si_id = doctor.id
             appt.chuyen_khoa_id = doctor.chuyen_khoa_id
             appt.ngay_kham = today
-            appt.gio_kham = time(8 + stt_today, 0)
-            appt.ca_kham = CaLamViecEnum.SANG.value
+            appt.gio_kham = case_time
+            appt.ca_kham = case_shift
             appt.trang_thai = expected_appt_status
             appt.ly_do_kham = reason
             appt.trieu_chung_ban_dau = reason
@@ -857,7 +857,7 @@ async def seed_week_and_today_cases(
                 bac_si_id=doctor.id,
                 phong_kham_id=doctor.phong_kham_id,
                 ngay_kham=today,
-                ca_kham=CaLamViecEnum.SANG.value,
+                ca_kham=case_shift,
                 so_thu_tu_kham=stt_today,
                 loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
                 muc_do_uu_tien=1 if stt_today == 1 else 2,
@@ -876,7 +876,7 @@ async def seed_week_and_today_cases(
             queue_ticket.bac_si_id = doctor.id
             queue_ticket.phong_kham_id = doctor.phong_kham_id
             queue_ticket.ngay_kham = today
-            queue_ticket.ca_kham = CaLamViecEnum.SANG.value
+            queue_ticket.ca_kham = case_shift
             queue_ticket.trang_thai = queue_status_val
             queue_ticket.thoi_gian_check_in = checkin_dt
             queue_ticket.thoi_gian_bat_dau = start_dt

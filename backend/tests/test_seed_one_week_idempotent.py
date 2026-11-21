@@ -17,6 +17,8 @@ from app.models.medical import (
     LuotKham,
     PhieuThuChi,
 )
+from app.services.admin_service import admin_service
+from app.services.queue_service import queue_service
 from scripts.seed_one_week_realistic import seed_week_and_today_cases
 
 
@@ -284,5 +286,54 @@ async def test_seed_one_week_rolls_today_cases_forward_on_new_day():
                 .where(BienBanDinhChinh.ly_do_ma == "BO_SUNG_KET_QUA_CLS")
             )
             assert int(amend_count or 0) == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_seed_one_week_populates_admin_and_both_reception_shifts():
+    engine, session_factory = await _create_sqlite_session_factory()
+    day1_now = datetime(2026, 11, 20, 3, 0, tzinfo=timezone.utc)
+    day2_now = datetime(2026, 11, 21, 14, 45, tzinfo=timezone.utc)
+    try:
+        async with session_factory() as session:
+            async with session.begin():
+                await seed_week_and_today_cases(session, "Demo@12345678", now_override=day1_now)
+
+        async with session_factory() as session:
+            async with session.begin():
+                rolled_day = await seed_week_and_today_cases(
+                    session,
+                    "Demo@12345678",
+                    now_override=day2_now,
+                )
+            assert rolled_day == date(2026, 11, 21)
+
+            admin_stats = await admin_service.get_dashboard_stats(date(2026, 11, 21), session)
+            assert admin_stats.tong_lich_hen_hom_nay == 5
+            assert admin_stats.so_ca_cho_kham == 3
+            assert admin_stats.so_ca_dang_kham == 1
+            assert admin_stats.so_ca_hoan_tat_kham == 1
+            assert admin_stats.tong_doanh_thu_trong_ngay > 0
+
+            sang_dash = await queue_service.get_shift_dashboard(
+                query_date=date(2026, 11, 21),
+                ca_kham="sang",
+                db=session,
+            )
+            assert sang_dash.tong_hen_truoc == 3
+            assert sang_dash.da_check_in == 3
+            assert sang_dash.dang_cho_kham == 2
+            assert sang_dash.dang_kham == 1
+
+            chieu_dash = await queue_service.get_shift_dashboard(
+                query_date=date(2026, 11, 21),
+                ca_kham="chieu",
+                db=session,
+            )
+            assert chieu_dash.tong_hen_truoc == 2
+            assert chieu_dash.da_check_in == 2
+            assert chieu_dash.dang_cho_kham == 1
+            assert chieu_dash.da_kham == 1
     finally:
         await engine.dispose()

@@ -3,6 +3,7 @@ import os
 import re
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from typing import Optional
 from sqlalchemy import delete, select, text, update
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
@@ -30,8 +31,10 @@ from app.models.medical import (
     DonThuoc,
     GiaoDichThanhToan,
     HoaDon,
+    KetQuaCLS,
     KhaiNiem,
     LuotKham,
+    PhieuKetQuaCLS,
     PhieuThuChi,
     Thuoc,
 )
@@ -333,284 +336,213 @@ async def _cleanup_duplicate_seed_invoices(session):
         await session.flush()
 
 
-async def seed_one_week_realistic():
-    password = os.environ.get("DEMO_PASSWORD", "Demo@12345678")
-    async with AsyncSessionLocal.begin() as session:
-        await session.execute(text("SET LOCAL lock_timeout = '60s'"))
-        await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DEPLOYMENT_LOCK})
-        connection = await session.connection()
-        await connection.run_sync(require_demo_database)
-        await _cleanup_duplicate_seed_invoices(session)
-        dept_map, room_map, service_map = await seed_catalogs(session)
-        people, doctor_entities = await seed_all_doctors_and_staff(session, password, dept_map, room_map)
-        now = datetime.now(timezone.utc)
-        today = now.astimezone(timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))).date()
-        await seed_shifts_for_all_doctors(session, doctor_entities, today)
-        patient_entities = await seed_patients(session)
-        icd_list = (await session.scalars(select(KhaiNiem).limit(20))).all()
-        icd_lookup = {item.ma_khai_niem: item for item in icd_list}
-        drug_list = (await session.scalars(select(Thuoc).where(Thuoc.is_active.is_(True)).limit(15))).all()
-        services_list = list(service_map.values())
-        lab_services = [s for s in services_list if s.ma_nhom_byt in ("XN", "CDHA")]
-        general_lab = lab_services[0] if lab_services else services_list[0]
-        general_xray = lab_services[1] if len(lab_services) > 1 else general_lab
-        primary_doc = doctor_entities[0]
-        cashier_person = people[VaiTroEnum.THU_NGAN]
-        tech_person = people[VaiTroEnum.KY_THUAT_VIEN]
-        clinical_templates = [
-            ("I10", "Tăng huyết áp vô căn (nguyên phát)", "Tái khám định kỳ theo dõi huyết áp", 135, 85, 78, 36.6, 68.0, 168.0),
-            ("E11", "Đái tháo đường không phụ thuộc insulin (Type 2)", "Khát nước nhiều, sụt cân nhẹ, mệt mỏi", 120, 80, 74, 36.5, 62.0, 162.0),
-            ("K21.9", "Bệnh trào ngược dạ dày - thực quản (GERD)", "Ợ chua, nóng rát vùng thượng vị sau ăn", 118, 76, 80, 36.7, 58.0, 160.0),
-            ("J00", "Viêm mũi họng cấp", "Sổ mũi nghẹt mũi 3 ngày nay, hắt hơi nhiều", 110, 70, 82, 37.2, 54.0, 158.0),
-            ("M54.5", "Đau thắt lưng cơ năng", "Đau mỏi vùng thắt lưng sau mang vác nặng", 125, 82, 72, 36.5, 72.0, 172.0),
-            ("K29.7", "Viêm dạ dày không đặc hiệu", "Đau âm ỉ thượng vị lúc đói, đầy hơi khó tiêu", 115, 75, 76, 36.6, 60.0, 165.0),
-            ("J20.9", "Viêm phế quản cấp", "Ho có đờm trắng đục, không khó thở, sốt nhẹ", 120, 78, 86, 37.4, 65.0, 168.0),
-        ]
-        for day_offset in range(-7, 0):
-            target_date = today + timedelta(days=day_offset)
-            daily_patients_count = 3
-            for idx in range(daily_patients_count):
-                patient = patient_entities[(abs(day_offset) * 3 + idx) % len(patient_entities)]
-                doctor = doctor_entities[idx % len(doctor_entities)]
-                template = clinical_templates[(day_offset + idx) % len(clinical_templates)]
-                icd_code, icd_name, reason, bp_sys, bp_dia, pulse, temp, weight, height = template
-                appt_code = f"LK-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
-                appt = await session.scalar(select(LichKham).where(LichKham.ma_lich_kham == appt_code))
-                if appt is None:
-                    appt = LichKham(
-                        ma_lich_kham=appt_code,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        chuyen_khoa_id=doctor.chuyen_khoa_id,
-                        ngay_kham=target_date,
-                        gio_kham=time(8 + idx, 15),
-                        ca_kham=CaLamViecEnum.SANG.value,
-                        trang_thai=TrangThaiLichEnum.DA_KHAM.value,
-                        so_thu_tu=idx + 1,
-                        ly_do_kham=reason,
-                        trieu_chung_ban_dau=reason,
-                        is_reconfirmed_24h=True,
-                    )
-                    session.add(appt)
-                    await session.flush()
-                queue_ticket = await session.scalar(select(HangDoiKham).where(HangDoiKham.lich_kham_id == appt.id))
-                if queue_ticket is None:
-                    checkin_dt = datetime.combine(target_date, time(8, 0), tzinfo=timezone.utc) + timedelta(minutes=idx * 20)
-                    start_dt = checkin_dt + timedelta(minutes=15)
-                    end_dt = start_dt + timedelta(minutes=25)
-                    queue_ticket = HangDoiKham(
-                        lich_kham_id=appt.id,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        phong_kham_id=doctor.phong_kham_id,
-                        ngay_kham=target_date,
-                        ca_kham=CaLamViecEnum.SANG.value,
-                        so_thu_tu_kham=idx + 1,
-                        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
-                        muc_do_uu_tien=2,
-                        trang_thai=TrangThaiHangDoiEnum.DA_KHAM.value,
-                        thoi_gian_check_in=checkin_dt,
-                        thoi_gian_bat_dau=start_dt,
-                        thoi_gian_ket_thuc=end_dt,
-                        so_lan_goi=1,
-                    )
-                    session.add(queue_ticket)
-                    await session.flush()
-                kcb_code = f"KCB-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
-                encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
-                if encounter is None:
-                    start_dt = datetime.combine(target_date, time(8, 15), tzinfo=timezone.utc) + timedelta(minutes=idx * 25)
-                    end_dt = start_dt + timedelta(minutes=25)
-                    encounter = LuotKham(
-                        ma_kcb=kcb_code,
-                        lich_kham_id=appt.id,
-                        hang_doi_kham_id=queue_ticket.id,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        loai_kham="KHAM_MOI",
-                        thoi_gian_bat_dau=start_dt,
-                        thoi_gian_ket_thuc=end_dt,
-                        ly_do_vao_kham=reason,
-                        trieu_chung=reason,
-                        kham_lam_sang_bo_phan="Tim đều rõ, T1 T2 bình thường. Phổi trong, không rales. Bụng mềm không chướng.",
-                        mach_lan_phut=pulse,
-                        huyet_ap_tam_thu=bp_sys,
-                        huyet_ap_tam_truong=bp_dia,
-                        nhiet_do_c=Decimal(str(temp)),
-                        can_nang_kg=Decimal(str(weight)),
-                        chieu_cao_cm=Decimal(str(height)),
-                        spo2=Decimal("98.0"),
-                        bmi=round(Decimal(str(weight)) / ((Decimal(str(height)) / 100) ** 2), 1),
-                        ket_luan_dieu_tri=f"Chẩn đoán xác định: {icd_name}. Kê đơn điều trị ngoại trú và dặn tái khám sau 7 ngày.",
-                        is_locked=True,
-                        thoi_gian_khoa=end_dt,
-                    )
-                    session.add(encounter)
-                    await session.flush()
-                icd_item = icd_lookup.get(icd_code)
-                existing_diag = await session.scalar(select(ChanDoan).where(ChanDoan.luot_kham_id == encounter.id))
-                if existing_diag is None:
-                    session.add(ChanDoan(
-                        luot_kham_id=encounter.id,
-                        khai_niem_id=icd_item.id if icd_item else None,
-                        ma_icd10=icd_code,
-                        ten_benh_chan_doan=icd_name,
-                        loai_chan_doan="chinh",
-                    ))
-                chosen_service = general_lab if idx % 2 == 0 else general_xray
-                existing_order = await session.scalar(select(ChiDinh).where(ChiDinh.luot_kham_id == encounter.id))
-                if existing_order is None:
-                    order = ChiDinh(
-                        luot_kham_id=encounter.id,
-                        dich_vu_id=chosen_service.id,
-                        bac_si_chi_dinh_id=doctor.id,
-                        phong_thuc_hien_id=chosen_service.phong_thuc_hien_id,
-                        ky_thuat_vien_id=tech_person.id,
-                        don_gia_tai_thoi_diem=chosen_service.don_gia,
-                        thanh_tien=chosen_service.don_gia,
-                        trang_thai="hoan_thanh",
-                        thoi_gian_tra_ket_qua=start_dt + timedelta(minutes=18),
-                        ket_qua_chi_tiet="Chỉ số sinh hóa máu trong giới hạn bình thường. Không phát hiện bất thường cấp tính.",
-                        ket_qua_phan_loai="BINH_THUONG",
-                    )
-                    session.add(order)
-                    await session.flush()
-                if drug_list:
-                    existing_rx = await session.scalar(select(DonThuoc).where(DonThuoc.luot_kham_id == encounter.id))
-                    if existing_rx is None:
-                        rx = DonThuoc(
-                            ma_don_thuoc=f"DT-{target_date.strftime('%Y%m%d')}-{encounter.id:04d}",
-                            luot_kham_id=encounter.id,
-                            bac_si_ke_don_id=doctor.id,
-                            ngay_ke_don=end_dt,
-                            so_ngay_dung=7,
-                            trang_thai="COMPLETED",
-                            loi_dan_uong_thuoc="Uống thuốc đều đặn sau bữa ăn, hạn chế thức khuya và kiêng rượu bia.",
-                        )
-                        session.add(rx)
-                        await session.flush()
-                        d1 = drug_list[idx % len(drug_list)]
-                        d2 = drug_list[(idx + 1) % len(drug_list)]
-                        session.add(ChiTietDonThuoc(
-                            don_thuoc_id=rx.id,
-                            thuoc_id=d1.id,
-                            ten_thuoc=d1.ten_thuoc,
-                            don_vi_tinh=d1.don_vi_tinh,
-                            so_luong=14,
-                            cach_dung="Uống 1 viên sau ăn sáng và 1 viên sau ăn tối",
-                            so_ngay_dung=7,
-                        ))
-                        session.add(ChiTietDonThuoc(
-                            don_thuoc_id=rx.id,
-                            thuoc_id=d2.id,
-                            ten_thuoc=d2.ten_thuoc,
-                            don_vi_tinh=d2.don_vi_tinh,
-                            so_luong=7,
-                            cach_dung="Uống 1 viên sau ăn sáng",
-                            so_ngay_dung=7,
-                        ))
-                inv_code = f"HD-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
-                existing_inv = await session.scalar(
-                    select(HoaDon).where((HoaDon.ma_hoa_don == inv_code) | (HoaDon.luot_kham_id == encounter.id))
-                )
-                if existing_inv is None:
-                    consult_fee = Decimal(str(doctor.gia_kham_mac_dinh))
-                    service_fee = Decimal(str(chosen_service.don_gia))
-                    total_amount = consult_fee + service_fee
-                    inv = HoaDon(
-                        ma_hoa_don=inv_code,
-                        luot_kham_id=encounter.id,
-                        benh_nhan_id=patient.id,
-                        tong_tien=total_amount,
-                        so_tien_phai_thu=total_amount,
-                        thuc_thu=total_amount,
-                        trang_thai="da_thu",
-                        nguoi_lap_id=cashier_person.id,
-                        thu_ngan_id=cashier_person.id,
-                        ngay_thanh_toan=end_dt,
-                        phuong_thuc_thanh_toan="chuyen_khoan" if idx % 2 == 0 else "tien_mat",
-                    )
-                    session.add(inv)
-                    await session.flush()
-                    session.add(ChiTietHoaDon(
-                        hoa_don_id=inv.id,
-                        loai_muc="kham_benh",
-                        ten_khoan_thu=f"Phí khám chuyên khoa - {doctor.hoc_vi}",
-                        don_gia=consult_fee,
-                        thanh_tien=consult_fee,
-                    ))
-                    session.add(ChiTietHoaDon(
-                        hoa_don_id=inv.id,
-                        loai_muc="can_lam_sang",
-                        ten_khoan_thu=chosen_service.ten_dich_vu,
-                        don_gia=service_fee,
-                        thanh_tien=service_fee,
-                    ))
-                    session.add(GiaoDichThanhToan(
-                        ma_giao_dich=f"GD-{target_date.strftime('%Y%m%d')}-{inv.id:04d}",
-                        hoa_don_id=inv.id,
-                        loai_giao_dich="THANH_TOAN",
-                        so_tien=total_amount,
-                        phuong_thuc="CHUYEN_KHOAN" if idx % 2 == 0 else "TIEN_MAT",
-                        nguon_tao_giao_dich="CONG_SEPAY" if idx % 2 == 0 else "QUAY_THU_NGAN",
-                        nguoi_thu_id=cashier_person.id,
-                        thoi_gian_giao_dich=end_dt,
-                        thoi_gian_xac_nhan=end_dt,
-                        trang_thai="THANH_CONG",
-                    ))
-        yesterday_encounter = await session.scalar(
-            select(LuotKham).order_by(LuotKham.id.desc()).limit(1)
+def _resolve_seed_clock(now_override: Optional[datetime] = None) -> tuple[datetime, date]:
+    raw_now = now_override or datetime.now(timezone.utc)
+    now = raw_now.replace(tzinfo=timezone.utc) if raw_now.tzinfo is None else raw_now.astimezone(timezone.utc)
+    today = now.astimezone(timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))).date()
+    return now, today
+
+
+async def _upsert_today_cls_orders(
+    session,
+    encounter_id: int,
+    doctor_id: int,
+    general_lab: DichVu,
+    general_xray: DichVu,
+    tech_person_id: int,
+    now: datetime,
+) -> None:
+    xray_url = "https://res.cloudinary.com/wnxp3aok/image/upload/v1731518000/demo_chest_xray.jpg"
+    order_specs = [
+        {
+            "dich_vu_id": general_lab.id,
+            "phong_thuc_hien_id": general_lab.phong_thuc_hien_id,
+            "don_gia_tai_thoi_diem": general_lab.don_gia,
+            "thanh_tien": general_lab.don_gia,
+            "trang_thai": "cho_thuc_hien",
+            "ky_thuat_vien_id": None,
+            "tep_dinh_kem_url": None,
+            "file_dinh_kem_urls": [],
+            "ket_qua_chi_tiet": None,
+            "ket_qua_phan_loai": "BINH_THUONG",
+        },
+        {
+            "dich_vu_id": general_xray.id,
+            "phong_thuc_hien_id": general_xray.phong_thuc_hien_id,
+            "don_gia_tai_thoi_diem": general_xray.don_gia,
+            "thanh_tien": general_xray.don_gia,
+            "trang_thai": "cho_duyet",
+            "ky_thuat_vien_id": tech_person_id,
+            "tep_dinh_kem_url": xray_url,
+            "file_dinh_kem_urls": [xray_url],
+            "ket_qua_chi_tiet": "Hình ảnh bóng tim trong giới hạn bình thường. Hai phế trường sáng đều, không thấy tổn thương thâm nhiễm khu trú.",
+            "ket_qua_phan_loai": "BINH_THUONG",
+        },
+    ]
+    existing_orders = list((await session.scalars(
+        select(ChiDinh).where(ChiDinh.luot_kham_id == encounter_id).order_by(ChiDinh.id.asc())
+    )).all())
+    if len(existing_orders) > len(order_specs):
+        extra_ids = [o.id for o in existing_orders[len(order_specs):]]
+        await session.execute(update(ChiTietHoaDon).where(ChiTietHoaDon.chi_dinh_id.in_(extra_ids)).values(chi_dinh_id=None))
+        await session.execute(delete(KetQuaCLS).where(KetQuaCLS.chi_dinh_id.in_(extra_ids)))
+        await session.execute(delete(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id.in_(extra_ids)))
+        await session.execute(delete(ChiDinh).where(ChiDinh.id.in_(extra_ids)))
+    for idx, spec in enumerate(order_specs):
+        if idx < len(existing_orders):
+            order = existing_orders[idx]
+            order.dich_vu_id = spec["dich_vu_id"]
+            order.bac_si_chi_dinh_id = doctor_id
+            order.phong_thuc_hien_id = spec["phong_thuc_hien_id"]
+            order.don_gia_tai_thoi_diem = spec["don_gia_tai_thoi_diem"]
+            order.thanh_tien = spec["thanh_tien"]
+            order.trang_thai = spec["trang_thai"]
+            order.ky_thuat_vien_id = spec["ky_thuat_vien_id"]
+            order.tep_dinh_kem_url = spec["tep_dinh_kem_url"]
+            order.file_dinh_kem_urls = spec["file_dinh_kem_urls"]
+            order.ket_qua_chi_tiet = spec["ket_qua_chi_tiet"]
+            order.ket_qua_phan_loai = spec["ket_qua_phan_loai"]
+            order.created_at = now
+        else:
+            session.add(ChiDinh(
+                luot_kham_id=encounter_id,
+                dich_vu_id=spec["dich_vu_id"],
+                bac_si_chi_dinh_id=doctor_id,
+                phong_thuc_hien_id=spec["phong_thuc_hien_id"],
+                don_gia_tai_thoi_diem=spec["don_gia_tai_thoi_diem"],
+                thanh_tien=spec["thanh_tien"],
+                trang_thai=spec["trang_thai"],
+                ky_thuat_vien_id=spec["ky_thuat_vien_id"],
+                tep_dinh_kem_url=spec["tep_dinh_kem_url"],
+                file_dinh_kem_urls=spec["file_dinh_kem_urls"],
+                ket_qua_chi_tiet=spec["ket_qua_chi_tiet"],
+                ket_qua_phan_loai=spec["ket_qua_phan_loai"],
+                created_at=now,
+            ))
+    await session.flush()
+
+
+async def _upsert_today_invoice(
+    session,
+    encounter_id: int,
+    patient_id: int,
+    doctor: BacSi,
+    cashier_person_id: int,
+    now: datetime,
+) -> None:
+    inv_code = "HD-TODAY-SEPAY-001"
+    consult_fee = Decimal(str(doctor.gia_kham_mac_dinh))
+    inv_created_at = now - timedelta(minutes=10)
+    existing_inv = await session.scalar(
+        select(HoaDon).where((HoaDon.ma_hoa_don == inv_code) | (HoaDon.luot_kham_id == encounter_id))
+    )
+    if existing_inv is None:
+        inv = HoaDon(
+            ma_hoa_don=inv_code,
+            luot_kham_id=encounter_id,
+            benh_nhan_id=patient_id,
+            tong_tien=consult_fee,
+            so_tien_phai_thu=consult_fee,
+            thuc_thu=0,
+            trang_thai="chua_thu",
+            nguoi_lap_id=cashier_person_id,
+            phuong_thuc_thanh_toan="chuyen_khoan",
+            created_at=inv_created_at,
         )
-        if yesterday_encounter:
-            existing_amend = await session.scalar(
-                select(BienBanDinhChinh).where(BienBanDinhChinh.luot_kham_id == yesterday_encounter.id)
+        session.add(inv)
+        await session.flush()
+    else:
+        inv = existing_inv
+        inv.ma_hoa_don = inv_code
+        inv.luot_kham_id = encounter_id
+        inv.benh_nhan_id = patient_id
+        inv.tong_tien = consult_fee
+        inv.so_tien_phai_thu = consult_fee
+        inv.thuc_thu = 0
+        inv.trang_thai = "chua_thu"
+        inv.nguoi_lap_id = cashier_person_id
+        inv.thu_ngan_id = cashier_person_id
+        inv.ngay_thanh_toan = None
+        inv.phuong_thuc_thanh_toan = "chuyen_khoan"
+        inv.created_at = inv_created_at
+        await session.execute(delete(GiaoDichThanhToan).where(GiaoDichThanhToan.hoa_don_id == inv.id))
+        await session.execute(
+            delete(PhieuThuChi).where(
+                (PhieuThuChi.hoa_don_id == inv.id) | (PhieuThuChi.ma_phieu == f"PT-{inv_code}")
             )
-            if existing_amend is None:
-                session.add(BienBanDinhChinh(
-                    luot_kham_id=yesterday_encounter.id,
-                    thuc_the_loai=AmendmentEntityType.CHAN_DOAN.value,
-                    thuc_the_id=yesterday_encounter.id,
-                    ly_do_ma="BO_SUNG_KET_QUA_CLS",
-                    ly_do_text="Bệnh nhân có kết quả siêu âm bổ sung sỏi túi mật 5mm, đính chính chẩn đoán từ K29 sang K80",
-                    noi_dung_cu_json={"ma_icd10": "K29.7", "ten_benh": "Viêm dạ dày không đặc hiệu"},
-                    noi_dung_moi_json={"ma_icd10": "K80.2", "ten_benh": "Sỏi túi mật không có viêm túi mật"},
-                    muc_do_nghiem_trong="TRUNG_BINH",
-                    requested_by_id=primary_doc.nguoi_dung_id,
-                    trang_thai=AmendmentStatus.CHO_PHE_DUYET.value,
-                    ghi_chu="Kính trình Lãnh đạo phòng khám phê duyệt đính chính hồ sơ bệnh án điện tử.",
-                ))
-        today_cases = [
-            ("patient_p101_curr", "Lê Văn Tiến", "0912009001", primary_doc, "DANG_KHAM", "Đau ngực trái từng cơn, hồi hộp trống ngực"),
-            ("patient_p101_waiting", "Nguyễn Hải Đăng", "0912009002", primary_doc, "CHO_KHAM", "Kiểm tra sức khỏe tổng quát định kỳ"),
-            ("patient_lab_wait", "Trần Thu Hà", "0912009003", doctor_entities[1], "CHO_KHAM", "Tầm soát tiểu đường và mỡ máu"),
-            ("patient_cashier_wait", "Đỗ Minh Tuấn", "0912009004", doctor_entities[2], "DA_KHAM", "Viêm họng hạt cấp tính"),
-            ("patient_queue_05", "Phạm Quỳnh Chi", "0912009005", doctor_entities[3], "CHO_KHAM", "Đau nhức răng hàm số 8 hàm dưới"),
-        ]
-        stt_today = 1
-        for code_key, full_name, phone, doctor, q_status, reason in today_cases:
-            person = await session.scalar(select(NguoiDung).where(NguoiDung.so_dien_thoai == phone))
-            if person is None:
-                person = NguoiDung(
-                    ho_ten=full_name,
-                    email=f"{code_key}@clinic-ai.test",
-                    so_dien_thoai=phone,
-                    ngay_sinh=date(1991, 4, 15),
-                    gioi_tinh="Nữ" if "Hà" in full_name or "Chi" in full_name else "Nam",
-                    dia_chi="Hà Nội",
-                )
-                session.add(person)
-                await session.flush()
-            patient = await session.scalar(select(BenhNhan).where(BenhNhan.nguoi_dung_id == person.id))
-            if patient is None:
-                patient = BenhNhan(
-                    nguoi_dung_id=person.id,
-                    ma_dinh_danh_y_te=f"BN-TODAY-{stt_today:03d}",
-                    nhom_mau="O+",
-                    diem_tin_nhiem=100,
-                )
-                session.add(patient)
-                await session.flush()
-            appt_code = f"LK-TODAY-{stt_today:03d}"
+        )
+        await session.flush()
+
+    existing_items = list((await session.scalars(
+        select(ChiTietHoaDon).where(ChiTietHoaDon.hoa_don_id == inv.id).order_by(ChiTietHoaDon.id.asc())
+    )).all())
+    item_label = f"Phí khám chuyên khoa - {doctor.hoc_vi}"
+    if existing_items:
+        item = existing_items[0]
+        item.loai_muc = "kham_benh"
+        item.ten_khoan_thu = item_label
+        item.so_luong = 1
+        item.don_gia = consult_fee
+        item.thanh_tien = consult_fee
+        if len(existing_items) > 1:
+            await session.execute(
+                delete(ChiTietHoaDon).where(ChiTietHoaDon.id.in_([row.id for row in existing_items[1:]]))
+            )
+    else:
+        session.add(ChiTietHoaDon(
+            hoa_don_id=inv.id,
+            loai_muc="kham_benh",
+            ten_khoan_thu=item_label,
+            don_gia=consult_fee,
+            thanh_tien=consult_fee,
+        ))
+    await session.flush()
+
+
+async def seed_week_and_today_cases(
+    session,
+    password: str,
+    now_override: Optional[datetime] = None,
+) -> date:
+    await _cleanup_duplicate_seed_invoices(session)
+    dept_map, room_map, service_map = await seed_catalogs(session)
+    people, doctor_entities = await seed_all_doctors_and_staff(session, password, dept_map, room_map)
+    now, today = _resolve_seed_clock(now_override)
+    await seed_shifts_for_all_doctors(session, doctor_entities, today)
+    patient_entities = await seed_patients(session)
+    patient_name_rows = (await session.execute(select(NguoiDung.id, NguoiDung.ho_ten))).all()
+    person_name_map = {row[0]: row[1] for row in patient_name_rows}
+    icd_list = (await session.scalars(select(KhaiNiem).limit(20))).all()
+    icd_lookup = {item.ma_khai_niem: item for item in icd_list}
+    drug_list = (await session.scalars(select(Thuoc).where(Thuoc.is_active.is_(True)).limit(15))).all()
+    services_list = list(service_map.values())
+    lab_services = [s for s in services_list if s.ma_nhom_byt in ("XN", "CDHA")]
+    general_lab = lab_services[0] if lab_services else services_list[0]
+    general_xray = lab_services[1] if len(lab_services) > 1 else general_lab
+    primary_doc = doctor_entities[0]
+    cashier_person = people[VaiTroEnum.THU_NGAN]
+    tech_person = people[VaiTroEnum.KY_THUAT_VIEN]
+    clinical_templates = [
+        ("I10", "Tăng huyết áp vô căn (nguyên phát)", "Tái khám định kỳ theo dõi huyết áp", 135, 85, 78, 36.6, 68.0, 168.0),
+        ("E11", "Đái tháo đường không phụ thuộc insulin (Type 2)", "Khát nước nhiều, sụt cân nhẹ, mệt mỏi", 120, 80, 74, 36.5, 62.0, 162.0),
+        ("K21.9", "Bệnh trào ngược dạ dày - thực quản (GERD)", "Ợ chua, nóng rát vùng thượng vị sau ăn", 118, 76, 80, 36.7, 58.0, 160.0),
+        ("J00", "Viêm mũi họng cấp", "Sổ mũi nghẹt mũi 3 ngày nay, hắt hơi nhiều", 110, 70, 82, 37.2, 54.0, 158.0),
+        ("M54.5", "Đau thắt lưng cơ năng", "Đau mỏi vùng thắt lưng sau mang vác nặng", 125, 82, 72, 36.5, 72.0, 172.0),
+        ("K29.7", "Viêm dạ dày không đặc hiệu", "Đau âm ỉ thượng vị lúc đói, đầy hơi khó tiêu", 115, 75, 76, 36.6, 60.0, 165.0),
+        ("J20.9", "Viêm phế quản cấp", "Ho có đờm trắng đục, không khó thở, sốt nhẹ", 120, 78, 86, 37.4, 65.0, 168.0),
+    ]
+    for day_offset in range(-7, 0):
+        target_date = today + timedelta(days=day_offset)
+        daily_patients_count = 3
+        for idx in range(daily_patients_count):
+            patient = patient_entities[(abs(day_offset) * 3 + idx) % len(patient_entities)]
+            doctor = doctor_entities[idx % len(doctor_entities)]
+            template = clinical_templates[(day_offset + idx) % len(clinical_templates)]
+            icd_code, icd_name, reason, bp_sys, bp_dia, pulse, temp, weight, height = template
+            checkin_dt = datetime.combine(target_date, time(8, 0), tzinfo=timezone.utc) + timedelta(minutes=idx * 20)
+            start_dt = checkin_dt + timedelta(minutes=15)
+            end_dt = start_dt + timedelta(minutes=25)
+            appt_code = f"LK-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
             appt = await session.scalar(select(LichKham).where(LichKham.ma_lich_kham == appt_code))
             if appt is None:
                 appt = LichKham(
@@ -618,11 +550,11 @@ async def seed_one_week_realistic():
                     benh_nhan_id=patient.id,
                     bac_si_id=doctor.id,
                     chuyen_khoa_id=doctor.chuyen_khoa_id,
-                    ngay_kham=today,
-                    gio_kham=time(8 + stt_today, 0),
+                    ngay_kham=target_date,
+                    gio_kham=time(8 + idx, 15),
                     ca_kham=CaLamViecEnum.SANG.value,
-                    trang_thai=TrangThaiLichEnum.DANG_KHAM.value if q_status == "DANG_KHAM" else TrangThaiLichEnum.DA_XAC_NHAN.value,
-                    so_thu_tu=stt_today,
+                    trang_thai=TrangThaiLichEnum.DA_KHAM.value,
+                    so_thu_tu=idx + 1,
                     ly_do_kham=reason,
                     trieu_chung_ban_dau=reason,
                     is_reconfirmed_24h=True,
@@ -636,129 +568,444 @@ async def seed_one_week_realistic():
                     benh_nhan_id=patient.id,
                     bac_si_id=doctor.id,
                     phong_kham_id=doctor.phong_kham_id,
-                    ngay_kham=today,
+                    ngay_kham=target_date,
                     ca_kham=CaLamViecEnum.SANG.value,
-                    so_thu_tu_kham=stt_today,
+                    so_thu_tu_kham=idx + 1,
                     loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
-                    muc_do_uu_tien=1 if stt_today == 1 else 2,
-                    trang_thai=getattr(TrangThaiHangDoiEnum, q_status).value,
-                    thoi_gian_check_in=now - timedelta(minutes=40 - stt_today * 5),
-                    thoi_gian_bat_dau=now - timedelta(minutes=10) if q_status == "DANG_KHAM" else None,
-                    so_lan_goi=1 if q_status == "DANG_KHAM" else 0,
-                    ghi_chu_dieu_phoi=reason,
+                    muc_do_uu_tien=2,
+                    trang_thai=TrangThaiHangDoiEnum.DA_KHAM.value,
+                    thoi_gian_check_in=checkin_dt,
+                    thoi_gian_bat_dau=start_dt,
+                    thoi_gian_ket_thuc=end_dt,
+                    so_lan_goi=1,
                 )
                 session.add(queue_ticket)
                 await session.flush()
-            if q_status == "DANG_KHAM":
-                kcb_code = f"KCB-TODAY-{stt_today:03d}"
-                encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
-                if encounter is None:
-                    encounter = LuotKham(
-                        ma_kcb=kcb_code,
-                        lich_kham_id=appt.id,
-                        hang_doi_kham_id=queue_ticket.id,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        thoi_gian_bat_dau=now - timedelta(minutes=15),
-                        ly_do_vao_kham=reason,
-                        trieu_chung=reason,
-                        mach_lan_phut=80,
-                        huyet_ap_tam_thu=130,
-                        huyet_ap_tam_truong=85,
-                        nhiet_do_c=Decimal("36.7"),
-                        can_nang_kg=Decimal("64.5"),
-                        chieu_cao_cm=Decimal("165.0"),
-                        spo2=Decimal("98.0"),
-                        bmi=Decimal("23.7"),
-                        is_locked=False,
-                    )
-                    session.add(encounter)
-                    await session.flush()
-            if code_key == "patient_lab_wait":
-                kcb_code = "KCB-TODAY-LAB"
-                encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
-                if encounter is None:
-                    encounter = LuotKham(
-                        ma_kcb=kcb_code,
-                        lich_kham_id=appt.id,
-                        hang_doi_kham_id=queue_ticket.id,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        thoi_gian_bat_dau=now - timedelta(minutes=30),
-                        ly_do_vao_kham=reason,
-                        trieu_chung=reason,
-                        is_locked=False,
-                    )
-                    session.add(encounter)
-                    await session.flush()
-                order1 = ChiDinh(
-                    luot_kham_id=encounter.id,
-                    dich_vu_id=general_lab.id,
-                    bac_si_chi_dinh_id=doctor.id,
-                    phong_thuc_hien_id=general_lab.phong_thuc_hien_id,
-                    don_gia_tai_thoi_diem=general_lab.don_gia,
-                    thanh_tien=general_lab.don_gia,
-                    trang_thai="cho_thuc_hien",
+            kcb_code = f"KCB-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
+            encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
+            if encounter is None:
+                encounter = LuotKham(
+                    ma_kcb=kcb_code,
+                    lich_kham_id=appt.id,
+                    hang_doi_kham_id=queue_ticket.id,
+                    benh_nhan_id=patient.id,
+                    bac_si_id=doctor.id,
+                    loai_kham="KHAM_MOI",
+                    thoi_gian_bat_dau=start_dt,
+                    thoi_gian_ket_thuc=end_dt,
+                    ly_do_vao_kham=reason,
+                    trieu_chung=reason,
+                    kham_lam_sang_bo_phan="Tim đều rõ, T1 T2 bình thường. Phổi trong, không rales. Bụng mềm không chướng.",
+                    mach_lan_phut=pulse,
+                    huyet_ap_tam_thu=bp_sys,
+                    huyet_ap_tam_truong=bp_dia,
+                    nhiet_do_c=Decimal(str(temp)),
+                    can_nang_kg=Decimal(str(weight)),
+                    chieu_cao_cm=Decimal(str(height)),
+                    spo2=Decimal("98.0"),
+                    bmi=round(Decimal(str(weight)) / ((Decimal(str(height)) / 100) ** 2), 1),
+                    ket_luan_dieu_tri=f"Chẩn đoán xác định: {icd_name}. Kê đơn điều trị ngoại trú và dặn tái khám sau 7 ngày.",
+                    is_locked=True,
+                    thoi_gian_khoa=end_dt,
                 )
-                order2 = ChiDinh(
+                session.add(encounter)
+                await session.flush()
+            icd_item = icd_lookup.get(icd_code)
+            existing_diag = await session.scalar(select(ChanDoan).where(ChanDoan.luot_kham_id == encounter.id))
+            if existing_diag is None:
+                session.add(ChanDoan(
                     luot_kham_id=encounter.id,
-                    dich_vu_id=general_xray.id,
+                    khai_niem_id=icd_item.id if icd_item else None,
+                    ma_icd10=icd_code,
+                    ten_benh_chan_doan=icd_name,
+                    loai_chan_doan="chinh",
+                ))
+            chosen_service = general_lab if idx % 2 == 0 else general_xray
+            existing_order = await session.scalar(select(ChiDinh).where(ChiDinh.luot_kham_id == encounter.id))
+            if existing_order is None:
+                order = ChiDinh(
+                    luot_kham_id=encounter.id,
+                    dich_vu_id=chosen_service.id,
                     bac_si_chi_dinh_id=doctor.id,
-                    phong_thuc_hien_id=general_xray.phong_thuc_hien_id,
-                    don_gia_tai_thoi_diem=general_xray.don_gia,
-                    thanh_tien=general_xray.don_gia,
-                    trang_thai="cho_duyet",
+                    phong_thuc_hien_id=chosen_service.phong_thuc_hien_id,
                     ky_thuat_vien_id=tech_person.id,
-                    tep_dinh_kem_url="https://res.cloudinary.com/wnxp3aok/image/upload/v1731518000/demo_chest_xray.jpg",
-                    file_dinh_kem_urls=["https://res.cloudinary.com/wnxp3aok/image/upload/v1731518000/demo_chest_xray.jpg"],
-                    ket_qua_chi_tiet="Hình ảnh bóng tim trong giới hạn bình thường. Hai phế trường sáng đều, không thấy tổn thương thâm nhiễm khu trú.",
+                    don_gia_tai_thoi_diem=chosen_service.don_gia,
+                    thanh_tien=chosen_service.don_gia,
+                    trang_thai="hoan_thanh",
+                    thoi_gian_tra_ket_qua=start_dt + timedelta(minutes=18),
+                    ket_qua_chi_tiet="Chỉ số sinh hóa máu trong giới hạn bình thường. Không phát hiện bất thường cấp tính.",
                     ket_qua_phan_loai="BINH_THUONG",
                 )
-                session.add_all([order1, order2])
+                session.add(order)
                 await session.flush()
-            if code_key == "patient_cashier_wait":
-                kcb_code = "KCB-TODAY-CASHIER"
-                encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
-                if encounter is None:
-                    encounter = LuotKham(
-                        ma_kcb=kcb_code,
-                        lich_kham_id=appt.id,
-                        hang_doi_kham_id=queue_ticket.id,
-                        benh_nhan_id=patient.id,
-                        bac_si_id=doctor.id,
-                        thoi_gian_bat_dau=now - timedelta(minutes=45),
-                        thoi_gian_ket_thuc=now - timedelta(minutes=10),
-                        ly_do_vao_kham=reason,
-                        trieu_chung=reason,
-                        is_locked=True,
-                    )
-                    session.add(encounter)
-                    await session.flush()
-                inv_code = "HD-TODAY-SEPAY-001"
-                existing_inv = await session.scalar(select(HoaDon).where(HoaDon.ma_hoa_don == inv_code))
-                if existing_inv is None:
-                    consult_fee = Decimal(str(doctor.gia_kham_mac_dinh))
-                    inv = HoaDon(
-                        ma_hoa_don=inv_code,
+            if drug_list:
+                existing_rx = await session.scalar(select(DonThuoc).where(DonThuoc.luot_kham_id == encounter.id))
+                if existing_rx is None:
+                    rx = DonThuoc(
+                        ma_don_thuoc=f"DT-{target_date.strftime('%Y%m%d')}-{encounter.id:04d}",
                         luot_kham_id=encounter.id,
-                        benh_nhan_id=patient.id,
-                        tong_tien=consult_fee,
-                        so_tien_phai_thu=consult_fee,
-                        thuc_thu=0,
-                        trang_thai="chua_thu",
-                        nguoi_lap_id=cashier_person.id,
-                        phuong_thuc_thanh_toan="chuyen_khoan",
+                        bac_si_ke_don_id=doctor.id,
+                        ngay_ke_don=end_dt,
+                        so_ngay_dung=7,
+                        trang_thai="COMPLETED",
+                        loi_dan_uong_thuoc="Uống thuốc đều đặn sau bữa ăn, hạn chế thức khuya và kiêng rượu bia.",
                     )
-                    session.add(inv)
+                    session.add(rx)
                     await session.flush()
-                    session.add(ChiTietHoaDon(
-                        hoa_don_id=inv.id,
-                        loai_muc="kham_benh",
-                        ten_khoan_thu=f"Phí khám chuyên khoa - {doctor.hoc_vi}",
-                        don_gia=consult_fee,
-                        thanh_tien=consult_fee,
+                    d1 = drug_list[idx % len(drug_list)]
+                    d2 = drug_list[(idx + 1) % len(drug_list)]
+                    session.add(ChiTietDonThuoc(
+                        don_thuoc_id=rx.id,
+                        thuoc_id=d1.id,
+                        ten_thuoc=d1.ten_thuoc,
+                        don_vi_tinh=d1.don_vi_tinh,
+                        so_luong=14,
+                        cach_dung="Uống 1 viên sau ăn sáng và 1 viên sau ăn tối",
+                        so_ngay_dung=7,
                     ))
-            stt_today += 1
+                    session.add(ChiTietDonThuoc(
+                        don_thuoc_id=rx.id,
+                        thuoc_id=d2.id,
+                        ten_thuoc=d2.ten_thuoc,
+                        don_vi_tinh=d2.don_vi_tinh,
+                        so_luong=7,
+                        cach_dung="Uống 1 viên sau ăn sáng",
+                        so_ngay_dung=7,
+                    ))
+            inv_code = f"HD-{target_date.strftime('%Y%m%d')}-{idx + 1:04d}"
+            existing_inv = await session.scalar(
+                select(HoaDon).where((HoaDon.ma_hoa_don == inv_code) | (HoaDon.luot_kham_id == encounter.id))
+            )
+            consult_fee = Decimal(str(doctor.gia_kham_mac_dinh))
+            service_fee = Decimal(str(chosen_service.don_gia))
+            total_amount = consult_fee + service_fee
+            if existing_inv is None:
+                inv = HoaDon(
+                    ma_hoa_don=inv_code,
+                    luot_kham_id=encounter.id,
+                    benh_nhan_id=patient.id,
+                    tong_tien=total_amount,
+                    so_tien_phai_thu=total_amount,
+                    thuc_thu=total_amount,
+                    trang_thai="da_thu",
+                    nguoi_lap_id=cashier_person.id,
+                    thu_ngan_id=cashier_person.id,
+                    ngay_thanh_toan=end_dt,
+                    phuong_thuc_thanh_toan="chuyen_khoan" if idx % 2 == 0 else "tien_mat",
+                    created_at=end_dt,
+                )
+                session.add(inv)
+                await session.flush()
+                session.add(ChiTietHoaDon(
+                    hoa_don_id=inv.id,
+                    loai_muc="kham_benh",
+                    ten_khoan_thu=f"Phí khám chuyên khoa - {doctor.hoc_vi}",
+                    don_gia=consult_fee,
+                    thanh_tien=consult_fee,
+                ))
+                session.add(ChiTietHoaDon(
+                    hoa_don_id=inv.id,
+                    loai_muc="can_lam_sang",
+                    ten_khoan_thu=chosen_service.ten_dich_vu,
+                    don_gia=service_fee,
+                    thanh_tien=service_fee,
+                ))
+            else:
+                inv = existing_inv
+            txn_code = f"GD-{target_date.strftime('%Y%m%d')}-{inv.id:04d}"
+            existing_txn = await session.scalar(
+                select(GiaoDichThanhToan).where(
+                    (GiaoDichThanhToan.ma_giao_dich == txn_code) | (GiaoDichThanhToan.hoa_don_id == inv.id)
+                )
+            )
+            if existing_txn is None:
+                session.add(GiaoDichThanhToan(
+                    ma_giao_dich=txn_code,
+                    hoa_don_id=inv.id,
+                    loai_giao_dich="THANH_TOAN",
+                    so_tien=inv.thuc_thu or total_amount,
+                    phuong_thuc="CHUYEN_KHOAN" if idx % 2 == 0 else "TIEN_MAT",
+                    nguon_tao_giao_dich="CONG_SEPAY" if idx % 2 == 0 else "QUAY_THU_NGAN",
+                    nguoi_thu_id=cashier_person.id,
+                    thoi_gian_giao_dich=end_dt,
+                    thoi_gian_xac_nhan=end_dt,
+                    trang_thai="THANH_CONG",
+                ))
+            pt_code = f"PT-{inv_code}"
+            existing_pt = await session.scalar(
+                select(PhieuThuChi).where((PhieuThuChi.hoa_don_id == inv.id) | (PhieuThuChi.ma_phieu == pt_code))
+            )
+            if existing_pt is None and inv.trang_thai == "da_thu":
+                session.add(PhieuThuChi(
+                    ma_phieu=pt_code,
+                    loai_phieu="THU",
+                    hoa_don_id=inv.id,
+                    nguoi_giao_dich=person_name_map.get(patient.nguoi_dung_id, f"Bệnh nhân #{patient.id}"),
+                    so_tien=inv.thuc_thu or total_amount,
+                    phuong_thuc="chuyen_khoan" if idx % 2 == 0 else "tien_mat",
+                    ly_do=f"Thu viện phí hóa đơn {inv_code}",
+                    nhan_vien_id=cashier_person.id,
+                    thoi_gian=end_dt,
+                    trang_thai_khoa_so=True,
+                    created_at=end_dt,
+                ))
+    yesterday_encounter = await session.scalar(
+        select(LuotKham)
+        .where(LuotKham.is_locked.is_(True), LuotKham.ma_kcb.like("KCB-20%"))
+        .order_by(LuotKham.id.desc())
+        .limit(1)
+    )
+    if yesterday_encounter:
+        existing_amend = await session.scalar(
+            select(BienBanDinhChinh).where(BienBanDinhChinh.ly_do_ma == "BO_SUNG_KET_QUA_CLS")
+        )
+        if existing_amend is None:
+            session.add(BienBanDinhChinh(
+                luot_kham_id=yesterday_encounter.id,
+                thuc_the_loai=AmendmentEntityType.CHAN_DOAN.value,
+                thuc_the_id=yesterday_encounter.id,
+                ly_do_ma="BO_SUNG_KET_QUA_CLS",
+                ly_do_text="Bệnh nhân có kết quả siêu âm bổ sung sỏi túi mật 5mm, đính chính chẩn đoán từ K29 sang K80",
+                noi_dung_cu_json={"ma_icd10": "K29.7", "ten_benh": "Viêm dạ dày không đặc hiệu"},
+                noi_dung_moi_json={"ma_icd10": "K80.2", "ten_benh": "Sỏi túi mật không có viêm túi mật"},
+                muc_do_nghiem_trong="TRUNG_BINH",
+                requested_by_id=primary_doc.nguoi_dung_id,
+                trang_thai=AmendmentStatus.CHO_PHE_DUYET.value,
+                ghi_chu="Kính trình Lãnh đạo phòng khám phê duyệt đính chính hồ sơ bệnh án điện tử.",
+            ))
+    today_cases = [
+        ("patient_p101_curr", "Lê Văn Tiến", "0912009001", primary_doc, "DANG_KHAM", "Đau ngực trái từng cơn, hồi hộp trống ngực"),
+        ("patient_p101_waiting", "Nguyễn Hải Đăng", "0912009002", primary_doc, "CHO_KHAM", "Kiểm tra sức khỏe tổng quát định kỳ"),
+        ("patient_lab_wait", "Trần Thu Hà", "0912009003", doctor_entities[1], "CHO_KHAM", "Tầm soát tiểu đường và mỡ máu"),
+        ("patient_cashier_wait", "Đỗ Minh Tuấn", "0912009004", doctor_entities[2], "DA_KHAM", "Viêm họng hạt cấp tính"),
+        ("patient_queue_05", "Phạm Quỳnh Chi", "0912009005", doctor_entities[3], "CHO_KHAM", "Đau nhức răng hàm số 8 hàm dưới"),
+    ]
+    stt_today = 1
+    for code_key, full_name, phone, doctor, q_status, reason in today_cases:
+        person = await session.scalar(select(NguoiDung).where(NguoiDung.so_dien_thoai == phone))
+        if person is None:
+            person = NguoiDung(
+                ho_ten=full_name,
+                email=f"{code_key}@clinic-ai.test",
+                so_dien_thoai=phone,
+                ngay_sinh=date(1991, 4, 15),
+                gioi_tinh="Nữ" if "Hà" in full_name or "Chi" in full_name else "Nam",
+                dia_chi="Hà Nội",
+            )
+            session.add(person)
+            await session.flush()
+        patient = await session.scalar(select(BenhNhan).where(BenhNhan.nguoi_dung_id == person.id))
+        if patient is None:
+            patient = BenhNhan(
+                nguoi_dung_id=person.id,
+                ma_dinh_danh_y_te=f"BN-TODAY-{stt_today:03d}",
+                nhom_mau="O+",
+                diem_tin_nhiem=100,
+            )
+            session.add(patient)
+            await session.flush()
+        expected_appt_status = (
+            TrangThaiLichEnum.DANG_KHAM.value
+            if q_status == "DANG_KHAM"
+            else (TrangThaiLichEnum.DA_KHAM.value if q_status == "DA_KHAM" else TrangThaiLichEnum.DA_XAC_NHAN.value)
+        )
+        appt_code = f"LK-TODAY-{stt_today:03d}"
+        appt = await session.scalar(select(LichKham).where(LichKham.ma_lich_kham == appt_code))
+        if appt is None:
+            appt = LichKham(
+                ma_lich_kham=appt_code,
+                benh_nhan_id=patient.id,
+                bac_si_id=doctor.id,
+                chuyen_khoa_id=doctor.chuyen_khoa_id,
+                ngay_kham=today,
+                gio_kham=time(8 + stt_today, 0),
+                ca_kham=CaLamViecEnum.SANG.value,
+                trang_thai=expected_appt_status,
+                so_thu_tu=stt_today,
+                ly_do_kham=reason,
+                trieu_chung_ban_dau=reason,
+                is_reconfirmed_24h=True,
+                created_at=now,
+            )
+            session.add(appt)
+            await session.flush()
+        else:
+            appt.benh_nhan_id = patient.id
+            appt.bac_si_id = doctor.id
+            appt.chuyen_khoa_id = doctor.chuyen_khoa_id
+            appt.ngay_kham = today
+            appt.gio_kham = time(8 + stt_today, 0)
+            appt.ca_kham = CaLamViecEnum.SANG.value
+            appt.trang_thai = expected_appt_status
+            appt.ly_do_kham = reason
+            appt.trieu_chung_ban_dau = reason
+            appt.is_reconfirmed_24h = True
+            appt.created_at = now
+        checkin_dt = now - timedelta(minutes=40 - stt_today * 5)
+        start_dt = (
+            now - timedelta(minutes=10)
+            if q_status == "DANG_KHAM"
+            else (now - timedelta(minutes=45) if q_status == "DA_KHAM" else None)
+        )
+        end_dt = now - timedelta(minutes=10) if q_status == "DA_KHAM" else None
+        queue_status_val = getattr(TrangThaiHangDoiEnum, q_status).value
+        queue_ticket = await session.scalar(select(HangDoiKham).where(HangDoiKham.lich_kham_id == appt.id))
+        if queue_ticket is None:
+            queue_ticket = HangDoiKham(
+                lich_kham_id=appt.id,
+                benh_nhan_id=patient.id,
+                bac_si_id=doctor.id,
+                phong_kham_id=doctor.phong_kham_id,
+                ngay_kham=today,
+                ca_kham=CaLamViecEnum.SANG.value,
+                so_thu_tu_kham=stt_today,
+                loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
+                muc_do_uu_tien=1 if stt_today == 1 else 2,
+                trang_thai=queue_status_val,
+                thoi_gian_check_in=checkin_dt,
+                thoi_gian_bat_dau=start_dt,
+                thoi_gian_ket_thuc=end_dt,
+                so_lan_goi=1 if q_status in ("DANG_KHAM", "DA_KHAM") else 0,
+                ghi_chu_dieu_phoi=reason,
+                created_at=now,
+            )
+            session.add(queue_ticket)
+            await session.flush()
+        else:
+            queue_ticket.benh_nhan_id = patient.id
+            queue_ticket.bac_si_id = doctor.id
+            queue_ticket.phong_kham_id = doctor.phong_kham_id
+            queue_ticket.ngay_kham = today
+            queue_ticket.ca_kham = CaLamViecEnum.SANG.value
+            queue_ticket.trang_thai = queue_status_val
+            queue_ticket.thoi_gian_check_in = checkin_dt
+            queue_ticket.thoi_gian_bat_dau = start_dt
+            queue_ticket.thoi_gian_ket_thuc = end_dt
+            queue_ticket.ghi_chu_dieu_phoi = reason
+            queue_ticket.created_at = now
+        if q_status == "DANG_KHAM":
+            kcb_code = f"KCB-TODAY-{stt_today:03d}"
+            encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
+            if encounter is None:
+                encounter = LuotKham(
+                    ma_kcb=kcb_code,
+                    lich_kham_id=appt.id,
+                    hang_doi_kham_id=queue_ticket.id,
+                    benh_nhan_id=patient.id,
+                    bac_si_id=doctor.id,
+                    thoi_gian_bat_dau=now - timedelta(minutes=15),
+                    ly_do_vao_kham=reason,
+                    trieu_chung=reason,
+                    mach_lan_phut=80,
+                    huyet_ap_tam_thu=130,
+                    huyet_ap_tam_truong=85,
+                    nhiet_do_c=Decimal("36.7"),
+                    can_nang_kg=Decimal("64.5"),
+                    chieu_cao_cm=Decimal("165.0"),
+                    spo2=Decimal("98.0"),
+                    bmi=Decimal("23.7"),
+                    is_locked=False,
+                    created_at=now,
+                )
+                session.add(encounter)
+                await session.flush()
+            else:
+                encounter.lich_kham_id = appt.id
+                encounter.hang_doi_kham_id = queue_ticket.id
+                encounter.benh_nhan_id = patient.id
+                encounter.bac_si_id = doctor.id
+                encounter.thoi_gian_bat_dau = now - timedelta(minutes=15)
+                encounter.thoi_gian_ket_thuc = None
+                encounter.thoi_gian_khoa = None
+                encounter.is_locked = False
+                encounter.created_at = now
+        if code_key == "patient_lab_wait":
+            kcb_code = "KCB-TODAY-LAB"
+            encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
+            if encounter is None:
+                encounter = LuotKham(
+                    ma_kcb=kcb_code,
+                    lich_kham_id=appt.id,
+                    hang_doi_kham_id=queue_ticket.id,
+                    benh_nhan_id=patient.id,
+                    bac_si_id=doctor.id,
+                    thoi_gian_bat_dau=now - timedelta(minutes=30),
+                    ly_do_vao_kham=reason,
+                    trieu_chung=reason,
+                    is_locked=False,
+                    created_at=now,
+                )
+                session.add(encounter)
+                await session.flush()
+            else:
+                encounter.lich_kham_id = appt.id
+                encounter.hang_doi_kham_id = queue_ticket.id
+                encounter.benh_nhan_id = patient.id
+                encounter.bac_si_id = doctor.id
+                encounter.thoi_gian_bat_dau = now - timedelta(minutes=30)
+                encounter.thoi_gian_ket_thuc = None
+                encounter.thoi_gian_khoa = None
+                encounter.is_locked = False
+                encounter.created_at = now
+            await _upsert_today_cls_orders(
+                session,
+                encounter.id,
+                doctor.id,
+                general_lab,
+                general_xray,
+                tech_person.id,
+                now,
+            )
+        if code_key == "patient_cashier_wait":
+            kcb_code = "KCB-TODAY-CASHIER"
+            encounter = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == kcb_code))
+            if encounter is None:
+                encounter = LuotKham(
+                    ma_kcb=kcb_code,
+                    lich_kham_id=appt.id,
+                    hang_doi_kham_id=queue_ticket.id,
+                    benh_nhan_id=patient.id,
+                    bac_si_id=doctor.id,
+                    thoi_gian_bat_dau=now - timedelta(minutes=45),
+                    thoi_gian_ket_thuc=now - timedelta(minutes=10),
+                    ly_do_vao_kham=reason,
+                    trieu_chung=reason,
+                    is_locked=True,
+                    thoi_gian_khoa=now - timedelta(minutes=10),
+                    created_at=now,
+                )
+                session.add(encounter)
+                await session.flush()
+            else:
+                encounter.lich_kham_id = appt.id
+                encounter.hang_doi_kham_id = queue_ticket.id
+                encounter.benh_nhan_id = patient.id
+                encounter.bac_si_id = doctor.id
+                encounter.thoi_gian_bat_dau = now - timedelta(minutes=45)
+                encounter.thoi_gian_ket_thuc = now - timedelta(minutes=10)
+                encounter.is_locked = True
+                encounter.thoi_gian_khoa = now - timedelta(minutes=10)
+                encounter.created_at = now
+            await _upsert_today_invoice(
+                session,
+                encounter.id,
+                patient.id,
+                doctor,
+                cashier_person.id,
+                now,
+            )
+        stt_today += 1
+    return today
+
+
+async def seed_one_week_realistic(now_override: Optional[datetime] = None):
+    password = os.environ.get("DEMO_PASSWORD", "Demo@12345678")
+    async with AsyncSessionLocal.begin() as session:
+        await session.execute(text("SET LOCAL lock_timeout = '60s'"))
+        await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DEPLOYMENT_LOCK})
+        connection = await session.connection()
+        await connection.run_sync(require_demo_database)
+        await seed_week_and_today_cases(session, password, now_override=now_override)
         await session.commit()
 def main():
     asyncio.run(seed_one_week_realistic())

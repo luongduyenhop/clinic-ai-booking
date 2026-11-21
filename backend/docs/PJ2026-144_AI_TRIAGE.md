@@ -54,7 +54,7 @@ bệnh chỉ còn ~0,2 giây thay vì 4-15 giây đọc/unpickle bundle ~35 MB. 
 lỗi, server vẫn khởi động và request đầu tiên sẽ tự nạp model.
 
 Cài dependency bằng `python -m pip install -r requirements.txt`, hoặc rebuild
-Docker để cài đúng scikit-learn 1.6.1 và các dependency đã ghim.
+Docker để cài đúng scikit-learn 1.9.1 và các dependency đã ghim.
 
 Kiểm thử:
 

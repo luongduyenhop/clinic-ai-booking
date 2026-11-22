@@ -12,9 +12,9 @@ export default function PatientInfoStep({ formik, user, isAuthenticated, loading
     <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="accepted" checked={formik.values.accepted} onChange={formik.handleChange}/><span>Tôi xác nhận lịch khám dành cho chính tài khoản bệnh nhân đang đăng nhập và đồng ý với chính sách bảo mật.</span></label>
     {formik.touched.accepted && formik.errors.accepted && <p className="text-xs text-rose-600">{formik.errors.accepted}</p>}
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-    <div className="flex justify-between border-t border-slate-100 pt-5">
-      <button type="button" className="medpro-btn-outline" onClick={onBack}>← Quay lại</button>
-      <button type="submit" className="medpro-btn-primary" disabled={!isAuthenticated || loading}>
+    <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-between">
+      <button type="button" className="medpro-btn-outline min-h-11 w-full sm:min-h-0 sm:w-auto" onClick={onBack}>← Quay lại</button>
+      <button type="submit" className="medpro-btn-primary min-h-11 w-full sm:min-h-0 sm:w-auto" disabled={!isAuthenticated || loading}>
         {loading ? 'Đang tạo lịch...' : 'Xác nhận đặt lịch'}
       </button>
     </div>

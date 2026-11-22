@@ -135,7 +135,7 @@ export default function BookingPage() {
                                 <div className="flex justify-end border-t border-slate-100 pt-5">
                                     <button
                                         type="button"
-                                        className="medpro-btn-primary"
+                                        className="medpro-btn-primary min-h-11 w-full sm:min-h-0 sm:w-auto"
                                         disabled={!canContinueToSlots || catalogLoading}
                                         onClick={() => setStep(2)}
                                     >
@@ -175,13 +175,13 @@ export default function BookingPage() {
                                         </button>
                                     </p>
                                 )}
-                                <div className="flex justify-between border-t border-slate-100 pt-5">
-                                    <button type="button" className="medpro-btn-outline" onClick={() => setStep(1)}>
+                                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-between">
+                                    <button type="button" className="medpro-btn-outline min-h-11 w-full sm:min-h-0 sm:w-auto" onClick={() => setStep(1)}>
                                         ← Quay lại
                                     </button>
                                     <button
                                         type="button"
-                                        className="medpro-btn-primary"
+                                        className="medpro-btn-primary min-h-11 w-full sm:min-h-0 sm:w-auto"
                                         disabled={!canContinueToPatient}
                                         onClick={() => setStep(3)}
                                     >

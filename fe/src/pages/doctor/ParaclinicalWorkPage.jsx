@@ -27,6 +27,11 @@ const REFRESH_MS = 3000
 
 const todayIso = () => new Date().toLocaleDateString('en-CA')
 
+// Ca lịch sử có trạng thái 'hoan_thanh' được tính là đã có kết quả để bộ lọc khớp với nhãn hiển thị
+const displayStatus = (order) => (String(order?.trang_thai || '').toLowerCase() === 'hoan_thanh' ? 'da_co_ket_qua' : clsDisplayStatus(order))
+
+const isPendingWork = (order) => ['da_chi_dinh', 'dang_thuc_hien'].includes(displayStatus(order))
+
 const waitLabel = (minutes) => {
     if (!minutes) return 'vừa chỉ định'
     if (minutes < 60) return `chờ ${minutes} phút`
@@ -95,8 +100,8 @@ export default function ParaclinicalWorkPage() {
     const groupOrders = worklist.filter(
         (o) => String(o.nhom_dich_vu || '').toUpperCase() === String(group || '').toUpperCase()
     )
-    const visible = groupOrders.filter((o) => statusFilter === 'ALL' || clsDisplayStatus(o) === statusFilter)
-    const selected = visible.find((o) => o.id === selectedId) || visible.find((o) => clsDisplayStatus(o) !== 'da_co_ket_qua') || visible[0]
+    const visible = groupOrders.filter((o) => statusFilter === 'ALL' || displayStatus(o) === statusFilter)
+    const selected = visible.find((o) => o.id === selectedId) || visible.find((o) => displayStatus(o) !== 'da_co_ket_qua') || visible[0]
 
     const handleStart = async () => {
         setStarting(true)
@@ -176,11 +181,9 @@ export default function ParaclinicalWorkPage() {
                 </div>
                 <div role="tablist" aria-label="Loại cận lâm sàng" className="flex flex-wrap gap-1 rounded-3xl bg-[#E8F4FD] p-1">
                     {SERVICE_GROUPS.map((g) => {
-                        const count = worklist.filter((o) => {
-                            const match = String(o.nhom_dich_vu || '').toUpperCase() === String(g.key || '').toUpperCase()
-                            const pending = o.trang_thai === 'da_chi_dinh' || o.trang_thai === 'CHO_THUC_HIEN' || o.trang_thai === 'dang_thuc_hien'
-                            return match && pending
-                        }).length
+                        const count = worklist.filter(
+                            (o) => String(o.nhom_dich_vu || '').toUpperCase() === String(g.key || '').toUpperCase() && isPendingWork(o)
+                        ).length
                         return (
                             <button
                                 key={g.key}
@@ -259,7 +262,7 @@ export default function ParaclinicalWorkPage() {
                     )}
                     <div className="flex flex-wrap gap-1.5">
                         {STATUS_FILTERS.map((f) => {
-                            const n = f.key === 'ALL' ? groupOrders.length : groupOrders.filter((o) => clsDisplayStatus(o) === f.key).length
+                            const n = f.key === 'ALL' ? groupOrders.length : groupOrders.filter((o) => displayStatus(o) === f.key).length
                             return (
                                 <button
                                     key={f.key}
@@ -284,7 +287,7 @@ export default function ParaclinicalWorkPage() {
 
                     {!worklistLoading &&
                         visible.map((o) => {
-                            const st = ORDER_STATUS[clsDisplayStatus(o)] || ORDER_STATUS[o.trang_thai] || { label: o.trang_thai || 'Chờ làm', badge: 'medpro-badge' }
+                            const st = ORDER_STATUS[displayStatus(o)] || ORDER_STATUS[o.trang_thai] || { label: o.trang_thai || 'Chờ làm', badge: 'medpro-badge' }
                             const isSel = selected?.id === o.id
                             return (
                                 <button

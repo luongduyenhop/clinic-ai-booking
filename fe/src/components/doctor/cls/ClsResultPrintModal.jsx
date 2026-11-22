@@ -53,10 +53,11 @@ const SHEET_CSS = `
 .cls-sheet .imgs img { width: 100%; height: 62mm; object-fit: contain; background: #000; border: 1px solid #555; }
 .cls-sheet.a5 .imgs img { height: 40mm; }
 .cls-sheet .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; text-align: center; page-break-inside: avoid; }
+.cls-sheet .sign > div { display: flex; flex-direction: column; align-items: center; }
 .cls-sheet .sign .role { font-weight: 700; text-transform: uppercase; }
 .cls-sheet .sign .hint { font-style: italic; font-size: .85em; }
 .cls-sheet .sign .stamp { margin: 6px auto; display: inline-block; border: 1.5px solid #0b6b3a; color: #0b6b3a; border-radius: 4px; padding: 2px 8px; font-size: .85em; font-weight: 700; }
-.cls-sheet .sign .who { font-weight: 700; margin-top: 4px; }
+.cls-sheet .sign .who { font-weight: 700; margin-top: auto; padding-top: 4px; }
 .cls-sheet .foot { margin-top: 10px; border-top: 1px dashed #777; padding-top: 3px; font-size: .8em; color: #444; display: flex; justify-content: space-between; gap: 8px; }
 `
 
@@ -266,6 +267,7 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
     const [paperKey, setPaperKey] = useState('A4')
     const [report, setReport] = useState(null)
     const [images, setImages] = useState([])
+    const [missingImages, setMissingImages] = useState(0)
     const [error, setError] = useState(null)
     const [reloadKey, setReloadKey] = useState(0)
     const [printedAt] = useState(() => new Date().toISOString())
@@ -289,7 +291,9 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
                     )
                 )
                 if (cancelled) return
-                setImages(embedded.filter(Boolean))
+                const loaded = embedded.filter(Boolean)
+                setImages(loaded)
+                setMissingImages(urls.length - loaded.length)
                 setReport(data)
             })
             .catch((e) => !cancelled && setError(e?.response?.data?.message || e?.message || 'Không tải được phiếu kết quả'))
@@ -377,6 +381,12 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
                 />
             )}
             {!error && !report && <LoadingBlock />}
+            {report && missingImages > 0 && (
+                <div role="alert" className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+                    <ClinicIcon name="WarningCircle" size={16} weight="fill" className="shrink-0" />
+                    Không tải được {missingImages} ảnh kết quả nên phiếu in sẽ thiếu ảnh. Kiểm tra kết nối rồi mở lại phiếu.
+                </div>
+            )}
             {report && (
                 <div className="max-h-[70vh] overflow-auto rounded-xl bg-slate-200 p-4">
                     <style>{SHEET_CSS}</style>

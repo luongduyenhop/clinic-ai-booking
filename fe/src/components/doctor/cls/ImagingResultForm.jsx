@@ -140,7 +140,7 @@ export default function ImagingResultForm({ order, submitting, onSubmit }) {
                         orderId={order.id}
                         urls={images}
                         onChange={setImages}
-                        disabled={locked}
+                        disabled={locked || notStarted}
                         disabledHint={approved ? 'Kết quả đã duyệt, không thay đổi ảnh' : 'Bấm “Tiếp nhận & bắt đầu” để tải ảnh lên'}
                     />
                 </div>

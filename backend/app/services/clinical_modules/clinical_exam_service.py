@@ -371,6 +371,76 @@ async def get_all_specialty_exams(
             out[key] = None
     return out
 
+
+def _to_decimal(value: Optional[float]) -> Optional[Decimal]:
+    return Decimal(str(value)) if value is not None else None
+
+
+async def _record_legacy_vitals(
+    luot_kham: LuotKham,
+    payload: VitalsCreateRequest,
+    bmi: Optional[float],
+    is_critical: bool,
+    warnings: List[str],
+    db: AsyncSession,
+) -> VitalsResponse:
+    """Lượt khám cũ (bảng luot_kham): ghi sinh hiệu vào luot_kham và luot_kham_the_luc thay vì bảng encounters."""
+    heart_rate = int(payload.heart_rate)
+    respiratory_rate = int(payload.respiratory_rate) if payload.respiratory_rate is not None else None
+    vitals = {
+        "huyet_ap_tam_thu": int(payload.systolic_bp),
+        "huyet_ap_tam_truong": int(payload.diastolic_bp),
+        "spo2": _to_decimal(payload.spo2_percentage),
+        "bmi": _to_decimal(bmi),
+    }
+    for field, value in {
+        **vitals,
+        "mach_lan_phut": heart_rate,
+        "nhiet_do_c": _to_decimal(payload.body_temperature),
+        "nhip_tho_lan_phut": respiratory_rate,
+        "chieu_cao_cm": _to_decimal(payload.height_cm),
+        "can_nang_kg": _to_decimal(payload.weight_kg),
+    }.items():
+        setattr(luot_kham, field, value)
+
+    the_luc = (
+        await db.execute(select(LuotKhamTheLuc).where(LuotKhamTheLuc.luot_kham_id == luot_kham.id))
+    ).scalar_one_or_none()
+    if not the_luc:
+        the_luc = LuotKhamTheLuc(luot_kham_id=luot_kham.id)
+        db.add(the_luc)
+    for field, value in {
+        **vitals,
+        "mach": heart_rate,
+        "nhiet_do": _to_decimal(payload.body_temperature),
+        "nhip_tho": respiratory_rate,
+        "chieu_cao": _to_decimal(payload.height_cm),
+        "can_nang": _to_decimal(payload.weight_kg),
+        "thoi_gian_do": datetime.now(timezone.utc),
+    }.items():
+        setattr(the_luc, field, value)
+
+    await db.commit()
+    await db.refresh(the_luc)
+
+    return VitalsResponse(
+        id=the_luc.id,
+        encounter_id=luot_kham.id,
+        systolic_bp=payload.systolic_bp,
+        diastolic_bp=payload.diastolic_bp,
+        heart_rate=payload.heart_rate,
+        body_temperature=payload.body_temperature,
+        respiratory_rate=payload.respiratory_rate,
+        spo2_percentage=payload.spo2_percentage,
+        height_cm=payload.height_cm,
+        weight_kg=payload.weight_kg,
+        bmi=float(the_luc.bmi) if the_luc.bmi is not None else None,
+        is_critical=is_critical,
+        warnings=warnings,
+        recorded_at=the_luc.thoi_gian_do,
+    )
+
+
 async def record_encounter_vitals(
     self, encounter_id: int, payload: VitalsCreateRequest, user: TaiKhoan, db: AsyncSession
 ) -> VitalsResponse:
@@ -411,6 +481,9 @@ async def record_encounter_vitals(
         is_critical = True
         warnings.append("Rối loạn nhịp tim đe dọa tính mạng")
 
+    if not encounter:
+        return await _record_legacy_vitals(legacy_lk, payload, calculated_bmi, is_critical, warnings, db)
+
     recorded_by_id = user.id
     user_prod_stmt = select(UserProduction.id).where(
         or_(
@@ -438,24 +511,6 @@ async def record_encounter_vitals(
         recorded_at=datetime.now(timezone.utc),
     )
     db.add(vital)
-
-    stmt_lk = select(LuotKham).where(LuotKham.id == encounter_id)
-    existing_lk = (await db.execute(stmt_lk)).scalar_one_or_none()
-    if existing_lk:
-        vital_legacy = LuotKhamTheLuc(
-            luot_kham_id=existing_lk.id,
-            mach_lan_phut=int(payload.heart_rate),
-            nhiet_do_c=float(payload.body_temperature),
-            huyet_ap_tam_thu=int(payload.systolic_bp),
-            huyet_ap_tam_truong=int(payload.diastolic_bp),
-            nhip_tho_lan_phut=int(payload.respiratory_rate) if payload.respiratory_rate else None,
-            can_nang_kg=float(payload.weight_kg) if payload.weight_kg else None,
-            chieu_cao_cm=float(payload.height_cm) if payload.height_cm else None,
-            spo2=float(payload.spo2_percentage) if payload.spo2_percentage else None,
-            bmi=float(calculated_bmi) if calculated_bmi else None,
-        )
-        db.add(vital_legacy)
-
     await db.commit()
     await db.refresh(vital)
 

@@ -17,6 +17,7 @@ import WorkstationHeaderBar from '../../components/doctor/exam/WorkstationHeader
 import WorkstationEmptyState from '../../components/doctor/exam/WorkstationEmptyState'
 import ExamActionBar from '../../components/doctor/exam/ExamActionBar'
 import { clinicalService } from '../../services/doctor/ClinicalService'
+import { printPrescriptionDocument, printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocuments'
 
 export default function ExamWorkstationPage() {
     const {
@@ -68,6 +69,23 @@ export default function ExamWorkstationPage() {
         handleQuickCopyZaloText,
         handleComplete,
     } = useDoctorWorkstationLogic()
+
+    const handlePrintPrescriptionDirect = () => {
+        printPrescriptionDocument({
+            encounter,
+            prescriptionItems: formik?.values?.danh_sach_thuoc || [],
+            diagnoses: formik?.values?.danh_sach_chan_doan || [],
+            prescriptionNote: formik?.values?.loi_dan_uong_thuoc || formik?.values?.loi_dan_bac_si || '',
+        })
+    }
+
+    const handlePrintMedicalRecordDirect = () => {
+        printMedicalRecordDocument({
+            encounter,
+            diagnoses: formik?.values?.danh_sach_chan_doan || [],
+            prescriptionItems: formik?.values?.danh_sach_thuoc || [],
+        })
+    }
 
     return (
         <div className="flex flex-col gap-4 max-w-[1720px] mx-auto w-full">
@@ -249,6 +267,7 @@ export default function ExamWorkstationPage() {
                                         encounter={encounter}
                                         matchingTemplate={matchingTemplate}
                                         onApplySampleTemplate={(items, note) => handleApplyPrescription(items, note)}
+                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab: tab || 'print' })}
                                         onOpenAdvancedModal={() => setRxModalState({ open: true, tab: 'templates' })}
                                         onPrint={() => setRxModalState({ open: true, tab: 'print' })}
                                     />
@@ -269,7 +288,9 @@ export default function ExamWorkstationPage() {
                                     }}
                                     onComplete={handleComplete}
                                     onQuickCopyZaloText={handleQuickCopyZaloText}
-                                    onOpenPrintModal={() => setRxModalState({ open: true, tab: 'print' })}
+                                    onPrintPrescription={handlePrintPrescriptionDirect}
+                                    onPrintMedicalRecord={handlePrintMedicalRecordDirect}
+                                    onOpenPrintModal={handlePrintPrescriptionDirect}
                                 />
                             </div>
                         </>
@@ -307,6 +328,7 @@ export default function ExamWorkstationPage() {
             />
 
             <PrescriptionPrintAndCopyModal
+                key={`rx-modal-${rxModalState.open ? 'open' : 'closed'}-${rxModalState.tab}`}
                 isOpen={rxModalState.open}
                 initialTab={rxModalState.tab}
                 onClose={() => setRxModalState((prev) => ({ ...prev, open: false }))}

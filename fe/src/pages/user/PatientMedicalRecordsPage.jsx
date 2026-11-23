@@ -384,8 +384,19 @@ export default function PatientMedicalRecordsPage() {
                                                 (Số ngày điều trị: <strong>{currentRecord.donThuoc.soNgayDung} ngày</strong>)
                                             </span>
                                         </div>
-                                        <div className="text-xs text-slate-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                                            ⚠️ <strong>Lời dặn:</strong> {currentRecord.donThuoc.loiDanChung}
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handlePrintRecord}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-[#0088BA] hover:bg-sky-100 font-bold text-xs transition cursor-pointer shadow-2xs"
+                                                title="In đơn thuốc điện tử"
+                                            >
+                                                <Printer size={15} weight="bold" />
+                                                <span>In đơn thuốc</span>
+                                            </button>
+                                            <div className="text-xs text-slate-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                                ⚠️ <strong>Lời dặn:</strong> {currentRecord.donThuoc.loiDanChung}
+                                            </div>
                                         </div>
                                     </div>
 

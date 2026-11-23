@@ -91,6 +91,32 @@ const sanitizeReason = (reason) => {
     return reason
 }
 
+const extractPrescriptionItems = (enc) => {
+    const raw = (Array.isArray(enc?.danh_sach_thuoc) && enc.danh_sach_thuoc.length > 0)
+        ? enc.danh_sach_thuoc
+        : (Array.isArray(enc?.don_thuoc?.danh_sach_thuoc) && enc.don_thuoc.danh_sach_thuoc.length > 0)
+        ? enc.don_thuoc.danh_sach_thuoc
+        : (Array.isArray(enc?.don_thuoc?.danh_sach_chi_tiet) && enc.don_thuoc.danh_sach_chi_tiet.length > 0)
+        ? enc.don_thuoc.danh_sach_chi_tiet
+        : []
+
+    return raw.map((m) => ({
+        ...m,
+        id: m.id || m.thuoc_id,
+        ten_thuoc: m.ten_thuoc || m.ten || '',
+        hoat_chat: m.hoat_chat || '',
+        ham_luong: m.ham_luong || '',
+        don_vi_tinh: m.don_vi_tinh || m.don_vi || 'Viên',
+        so_luong: m.so_luong ?? 1,
+        sang: m.sang ?? m.lieu_sang ?? '',
+        trua: m.trua ?? m.lieu_trua ?? '',
+        chieu: m.chieu ?? m.lieu_chieu ?? '',
+        toi: m.toi ?? m.lieu_toi ?? '',
+        so_ngay_dung: String(m.so_ngay_dung ?? m.so_ngay ?? '5'),
+        cach_dung: m.cach_dung || m.cach_dung_day_du || '',
+    }))
+}
+
 const toFormValues = (enc) => ({
     ly_do_vao_kham: sanitizeReason(enc?.ly_do_vao_kham),
     benh_su: enc?.benh_su || '',
@@ -99,7 +125,7 @@ const toFormValues = (enc) => ({
     ...Object.fromEntries(VITAL_FIELDS.map((f) => [f.name, enc?.[f.name] ?? ''])),
     danh_sach_chan_doan: enc?.danh_sach_chan_doan || [],
     ket_luan_dieu_tri: enc?.ket_luan_dieu_tri || '',
-    danh_sach_thuoc: enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || [],
+    danh_sach_thuoc: extractPrescriptionItems(enc),
     loi_dan_uong_thuoc: enc?.loi_dan_uong_thuoc || enc?.don_thuoc?.loi_dan_uong_thuoc || '',
     trang_thai_don_thuoc: enc?.trang_thai_don_thuoc || enc?.don_thuoc?.trang_thai || 'DRAFT',
     ngay_ky: enc?.ngay_ky || enc?.don_thuoc?.ngay_ky || '',
@@ -209,9 +235,21 @@ export function useDoctorWorkstationLogic() {
         }
     }, [encounter?.id, hasClsReady, hasCompletedCls])
 
+    const initialValues = useMemo(() => toFormValues(encounter), [encounter])
+
+    const formik = useFormik({
+        initialValues,
+        enableReinitialize: true,
+        validationSchema: vitalsSchema,
+        onSubmit: () => {},
+    })
+
+    const formikRef = useRef(formik)
+    formikRef.current = formik
+
     const validateClinicalStep = useCallback(() => {
         if (isReadOnly || hasClsReady || hasCompletedCls) return true
-        const exam = formik.values.kham_chuyen_khoa || {}
+        const exam = formikRef.current?.values?.kham_chuyen_khoa || formik.values.kham_chuyen_khoa || {}
         const rawKhoa = resolvedSpecialty?.key || exam.khoa || encounter?.chuyen_khoa_kham
         const spec = findSpecialtyExam(rawKhoa)
         const items = exam.items || {}
@@ -240,7 +278,7 @@ export function useDoctorWorkstationLogic() {
         }
 
         return true
-    }, [isReadOnly, hasClsReady, hasCompletedCls, resolvedSpecialty, encounter])
+    }, [isReadOnly, hasClsReady, hasCompletedCls, resolvedSpecialty, encounter, formik.values.kham_chuyen_khoa])
 
     const handleStepChange = useCallback(
         (targetStep) => {
@@ -366,15 +404,6 @@ export function useDoctorWorkstationLogic() {
         },
         [searchParams, setSearchParams]
     )
-
-    const initialValues = useMemo(() => toFormValues(encounter), [encounter])
-
-    const formik = useFormik({
-        initialValues,
-        enableReinitialize: true,
-        validationSchema: vitalsSchema,
-        onSubmit: () => {},
-    })
 
     const draft = useMemo(
         () => ({
@@ -627,6 +656,19 @@ export function useDoctorWorkstationLogic() {
 
     const doComplete = async () => {
         const v = formik.values
+        const normalizedMeds = (v.danh_sach_thuoc || []).map((r) => ({
+            ...r,
+            so_luong: computeQuantity(r) || r.so_luong || 1,
+            sang: r.sang || '',
+            trua: r.trua || '',
+            chieu: r.chieu || '',
+            toi: r.toi || '',
+            lieu_sang: r.sang || r.lieu_sang || '',
+            lieu_trua: r.trua || r.lieu_trua || '',
+            lieu_chieu: r.chieu || r.lieu_chieu || '',
+            lieu_toi: r.toi || r.lieu_toi || '',
+            cach_dung_day_du: [doseText(r), r.cach_dung].filter(Boolean).join(' – '),
+        }))
         const payload = {
             ...Object.fromEntries(DRAFT_FIELDS.map((k) => [k, v[k]])),
             kham_lam_sang_bo_phan_day_du: [composeSpecialtyText(v.kham_chuyen_khoa), v.kham_lam_sang_bo_phan]
@@ -636,17 +678,14 @@ export function useDoctorWorkstationLogic() {
             ket_luan_dieu_tri: v.ket_luan_dieu_tri,
             loi_dan_bac_si: v.loi_dan_bac_si,
             ngay_hen_tai_kham: v.ngay_hen_tai_kham || null,
+            danh_sach_thuoc: normalizedMeds,
             don_thuoc: {
                 loi_dan_uong_thuoc: v.loi_dan_uong_thuoc,
                 trang_thai: v.trang_thai_don_thuoc || 'DRAFT',
                 ngay_ky: v.ngay_ky || null,
                 chu_ky_so: v.chu_ky_so || null,
                 nguoi_ky: v.nguoi_ky || null,
-                danh_sach_thuoc: v.danh_sach_thuoc.map((r) => ({
-                    ...r,
-                    so_luong: computeQuantity(r),
-                    cach_dung_day_du: [doseText(r), r.cach_dung].filter(Boolean).join(' – '),
-                })),
+                danh_sach_thuoc: normalizedMeds,
             },
             trang_thai_don_thuoc: v.trang_thai_don_thuoc || 'DRAFT',
             ngay_ky: v.ngay_ky || null,
@@ -824,7 +863,13 @@ export function useDoctorWorkstationLogic() {
             }
         },
         onJumpToOrders: () => setStep(2),
-        onOpenHistory: () => setHistoryOpen(true),
+        onOpenHistory: () => {
+            if (step === 4) {
+                setRxModalState({ open: true, tab: 'copy' })
+            } else {
+                setHistoryOpen(true)
+            }
+        },
         onPrint: () => setRxModalState({ open: true, tab: 'print' }),
         onEscape: () => {
             if (rxModalState.open || historyOpen || amendmentOpen) {

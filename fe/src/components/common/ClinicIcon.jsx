@@ -524,4 +524,6 @@ export {
     Ear,
 }
 
+export default ClinicIcon
+
 

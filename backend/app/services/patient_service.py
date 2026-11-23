@@ -1,6 +1,7 @@
 import json
 from typing import List, Optional
 from sqlalchemy import desc, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -64,9 +65,32 @@ class PatientService:
 
         stmt = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
         bn = (await db.execute(stmt)).scalar_one_or_none()
-        if not bn:
+        if bn:
+            return bn
+
+        nd = (await db.execute(select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id))).scalar_one_or_none()
+        if not nd:
             raise NotFoundException("Không tìm thấy hồ sơ bệnh nhân liên kết với tài khoản này!")
-        return bn
+
+        bn = BenhNhan(
+            nguoi_dung_id=nd.id,
+            ma_dinh_danh_y_te=f"BN-{nd.id:06d}",
+            diem_tin_nhiem=100,
+            so_lan_no_show=0,
+            is_blocked_booking=False,
+        )
+        try:
+            async with db.begin_nested():
+                db.add(bn)
+                await db.flush()
+            await db.commit()
+            await db.refresh(bn)
+            return bn
+        except IntegrityError:
+            bn = (await db.execute(stmt)).scalar_one_or_none()
+            if bn:
+                return bn
+            raise NotFoundException("Không tìm thấy hồ sơ bệnh nhân liên kết với tài khoản này!")
 
     async def get_patient_profile(self, user: TaiKhoan, db: AsyncSession) -> PatientProfileResponse:
         bn = await self._get_current_benh_nhan(user, db)

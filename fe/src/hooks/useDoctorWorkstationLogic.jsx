@@ -209,6 +209,15 @@ export function useDoctorWorkstationLogic() {
         }
     }, [encounter?.id, hasClsReady, hasCompletedCls])
 
+    const initialValues = useMemo(() => toFormValues(encounter), [encounter])
+
+    const formik = useFormik({
+        initialValues,
+        enableReinitialize: true,
+        validationSchema: vitalsSchema,
+        onSubmit: () => {},
+    })
+
     const validateClinicalStep = useCallback(() => {
         if (isReadOnly || hasClsReady || hasCompletedCls) return true
         const exam = formik.values.kham_chuyen_khoa || {}
@@ -240,14 +249,14 @@ export function useDoctorWorkstationLogic() {
         }
 
         return true
-    }, [isReadOnly, hasClsReady, hasCompletedCls, resolvedSpecialty, encounter])
+    }, [isReadOnly, hasClsReady, hasCompletedCls, resolvedSpecialty, encounter, formik.values.kham_chuyen_khoa])
 
     const handleStepChange = useCallback(
-        (targetStep) => {
+        (targetStep, options = {}) => {
             if (step === 1 && targetStep > 1 && !hasClsReady && !hasCompletedCls) {
                 if (!validateClinicalStep()) return
             }
-            if (step === 2 && targetStep > 2 && pickedOrders.length > 0) {
+            if (!options.skipPickedCheck && step === 2 && targetStep > 2 && pickedOrders.length > 0) {
                 AppToast.warning(
                     'Bạn đang có chỉ định CLS chưa gửi ở Bước 2. Vui lòng bấm gửi chỉ định trước khi tiếp tục!'
                 )
@@ -367,15 +376,6 @@ export function useDoctorWorkstationLogic() {
         [searchParams, setSearchParams]
     )
 
-    const initialValues = useMemo(() => toFormValues(encounter), [encounter])
-
-    const formik = useFormik({
-        initialValues,
-        enableReinitialize: true,
-        validationSchema: vitalsSchema,
-        onSubmit: () => {},
-    })
-
     const draft = useMemo(
         () => ({
             encounterId: encounter?.id,
@@ -385,6 +385,9 @@ export function useDoctorWorkstationLogic() {
     )
     const debouncedDraft = useDebounce(draft, 800)
     const lastSaved = useRef(null)
+    useEffect(() => {
+        lastSaved.current = null
+    }, [encounter?.id])
     const hasDraftErrors = Object.keys(formik.errors).some((k) => DRAFT_FIELDS.includes(k))
 
     useEffect(() => {
@@ -396,7 +399,10 @@ export function useDoctorWorkstationLogic() {
         dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch: debouncedDraft.fields }))
             .unwrap()
             .then((res) => setSavedAt(res.saved_at))
-            .catch((msg) => AppToast.error(msg))
+            .catch((msg) => {
+                lastSaved.current = null
+                AppToast.error(msg)
+            })
     }, [debouncedDraft, encounter, locked, hasDraftErrors, initialValues, dispatch, isReadOnly])
 
     const handleStartCurrentPatient = async () => {
@@ -667,10 +673,6 @@ export function useDoctorWorkstationLogic() {
     }
 
     const handleComplete = async () => {
-        if (encounter && !encounter.thoi_gian_bat_dau) {
-            encounter.thoi_gian_bat_dau = new Date().toISOString()
-        }
-
         if (step !== 4) {
             AppToast.warning(
                 'Bạn cần hoàn thành các bước tuần tự đến Bước 4 (Đơn thuốc & Dặn dò) trước khi hoàn tất ca khám!'

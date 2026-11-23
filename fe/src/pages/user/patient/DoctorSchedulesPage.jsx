@@ -89,14 +89,14 @@ export default function DoctorSchedulesPage() {
                         </h3>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/60">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200/60 bg-slate-100/80 p-1 sm:flex sm:items-center">
                             {quickDates.map((q) => (
                                 <button
                                     key={q.val}
                                     type="button"
                                     onClick={() => setDate(q.val)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    className={`min-h-10 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer sm:min-h-0 ${
                                         date === q.val
                                             ? 'bg-white text-[#008EC2] shadow-xs'
                                             : 'text-slate-600 hover:text-[#003553]'
@@ -107,10 +107,10 @@ export default function DoctorSchedulesPage() {
                             ))}
                         </div>
 
-                        <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+                        <div className="flex items-center gap-1.5 sm:border-l sm:border-slate-200 sm:pl-2">
                             <input
                                 type="date"
-                                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs focus:border-[#00B5F1] focus:outline-none"
+                                className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs focus:border-[#00B5F1] focus:outline-none sm:min-h-0 sm:w-auto"
                                 min={minDate}
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
@@ -186,12 +186,12 @@ export default function DoctorSchedulesPage() {
                                                 {slotError}
                                             </p>
                                         ) : availableCount > 0 ? (
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                                                 {slots.map((s) => (
                                                     <Link
                                                         key={s.value}
                                                         to={`/dat-lich?specialty=${doctor.specialtyId}&doctor=${doctor.id}&date=${date}&slot=${s.value}`}
-                                                        className="group inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#003553] hover:border-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition-all shadow-2xs cursor-pointer"
+                                                        className="group inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#003553] shadow-2xs transition-all cursor-pointer hover:border-[#00B5F1] hover:bg-[#00B5F1] hover:text-white sm:min-h-0"
                                                         title={`Đặt lịch lúc ${s.value}`}
                                                     >
                                                         <span>{s.value}</span>
@@ -211,7 +211,7 @@ export default function DoctorSchedulesPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                                <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="text-xs text-slate-500">
                                         <span>Phí khám dự kiến: </span>
                                         <strong className="text-sm font-extrabold text-[#003553]">
@@ -221,7 +221,7 @@ export default function DoctorSchedulesPage() {
 
                                     <Link
                                         to={`/dat-lich?specialty=${doctor.specialtyId}&doctor=${doctor.id}&date=${date}`}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#008EC2] to-[#00B5F1] px-4 py-2 text-xs font-extrabold text-white shadow-xs hover:shadow-md hover:brightness-105 transition-all"
+                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#008EC2] to-[#00B5F1] px-4 py-2 text-xs font-extrabold text-white shadow-xs transition-all hover:shadow-md hover:brightness-105 sm:min-h-0"
                                     >
                                         <Sparkle size={14} weight="fill" />
                                         Đặt lịch khám

@@ -54,34 +54,34 @@ export default function PatientProfilePage() {
     } catch (e) { AppToast.error(errorText(e)) }
     finally { setSaving(false) }
   }
-  if (loading) return <main className="public-container py-10">Đang tải hồ sơ bệnh nhân...</main>
-  if (error) return <main className="public-container py-10 text-rose-600" role="alert">{error} <button type="button" onClick={load} className="underline">Thử lại</button></main>
-  return <main className="public-container py-8 space-y-6">
+  if (loading) return <div className="py-6">Đang tải hồ sơ bệnh nhân...</div>
+  if (error) return <div className="py-6 text-rose-600" role="alert">{error} <button type="button" onClick={load} className="inline-flex min-h-10 items-center underline sm:min-h-0">Thử lại</button></div>
+  return <div className="space-y-6">
     <h1 className="font-display text-2xl font-extrabold text-[#003553]">Hồ sơ sức khỏe của tôi</h1>
-    <section className="medpro-card p-6">
+    <section className="medpro-card p-4 sm:p-6">
       <p className="text-sm text-slate-500 mb-4">Mã định danh y tế: <strong>{profile?.ma_dinh_danh_y_te}</strong></p>
       <form onSubmit={saveProfile} className="grid gap-4 sm:grid-cols-2">
         {personalFields.map(([key, label, type]) => <label key={key} className="text-sm font-semibold text-slate-700">{label}
           <input className="medpro-input mt-1" type={type || 'text'} value={profile?.[key] || ''} onChange={e => setProfile(s => ({ ...s, [key]: e.target.value }))} />
         </label>)}
         <p className="sm:col-span-2 text-sm text-slate-500">Số điện thoại: {profile?.so_dien_thoai || 'Chưa cập nhật'} · Email: {profile?.email || 'Chưa cập nhật'}</p>
-        <button disabled={saving} className="medpro-btn-primary sm:col-span-2" type="submit">{saving ? 'Đang lưu...' : 'Lưu hồ sơ'}</button>
+        <button disabled={saving} className="medpro-btn-primary min-h-11 sm:col-span-2" type="submit">{saving ? 'Đang lưu...' : 'Lưu hồ sơ'}</button>
       </form>
     </section>
-    <section className="medpro-card p-6 space-y-4">
+    <section className="medpro-card p-4 sm:p-6 space-y-4">
       <h2 className="font-display text-xl font-bold text-[#003553]">Hồ sơ người thân ({family.length})</h2>
       {family.length === 0 && <p className="text-sm text-slate-500">Chưa có hồ sơ người thân.</p>}
-      {family.map(person => <div key={person.id} className="flex items-center justify-between gap-2 border-b border-slate-100 py-3">
+      {family.map(person => <div key={person.id} className="flex flex-col gap-2 border-b border-slate-100 py-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm"><strong>{person.ho_ten}</strong> · {person.quan_he} · {person.ngay_sinh}</span>
-        <button type="button" disabled={saving} className="text-sm text-rose-600 underline" onClick={() => removeMember(person.id)}>Xóa</button>
+        <button type="button" disabled={saving} className="inline-flex min-h-10 items-center text-sm text-rose-600 underline sm:min-h-0" onClick={() => removeMember(person.id)}>Xóa</button>
       </div>)}
       <form onSubmit={addMember} className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Họ tên người thân<input required minLength={2} className="medpro-input mt-1" value={member.ho_ten} onChange={e => setMember(s => ({...s, ho_ten: e.target.value}))}/></label>
         <label className="text-sm">Quan hệ<select className="medpro-input mt-1" value={member.quan_he} onChange={e => setMember(s => ({...s, quan_he: e.target.value}))}><option value="CON">Con</option><option value="CHA_ME">Cha/mẹ</option><option value="VO_CHONG">Vợ/chồng</option><option value="NGUOI_THAN">Người thân</option></select></label>
         <label className="text-sm">Ngày sinh<input type="date" required className="medpro-input mt-1" value={member.ngay_sinh} onChange={e => setMember(s => ({...s, ngay_sinh: e.target.value}))}/></label>
         <label className="text-sm">Giới tính<select className="medpro-input mt-1" value={member.gioi_tinh} onChange={e => setMember(s => ({...s, gioi_tinh: e.target.value}))}><option>Nam</option><option>Nữ</option><option>Khác</option></select></label>
-        <button type="submit" disabled={saving} className="medpro-btn-primary sm:col-span-2">{saving ? 'Đang lưu...' : 'Thêm người thân'}</button>
+        <button type="submit" disabled={saving} className="medpro-btn-primary min-h-11 sm:col-span-2">{saving ? 'Đang lưu...' : 'Thêm người thân'}</button>
       </form>
     </section>
-  </main>
+  </div>
 }

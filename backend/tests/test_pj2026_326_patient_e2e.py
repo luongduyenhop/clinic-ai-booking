@@ -1,15 +1,3 @@
-"""PJ2026-326: E2E tests for Patient Portal & AI Triage.
-
-Covers:
-- Step 1: AI Red Flag 115 detection for both accented and unaccented Vietnamese + booking block.
-- Step 2: AI symptom recommendation -> 30-min online slot booking (LK...) & booked slot exclusion.
-- Step 3: Closed-loop Patient Portal verification (medical history, CLS lab + X-ray image,
-          4-dose prescription, paid invoice).
-- Step 4: Anti-IDOR security verification across appointments, encounters/feedback,
-          family members, and read endpoints.
-- Regression: Auto-linking a valid BENH_NHAN account when BenhNhan profile row is missing.
-"""
-
 from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
@@ -52,7 +40,6 @@ async def test_step1_red_flag_115_with_and_without_diacritics_and_blocks_booking
     assert fe_data["has_emergency"] is True
     assert fe_data["chuyenKhoa"] is None
 
-    # Emergency triage record must be blocked from creating a regular appointment
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     block_res = await api_client.post(
         "/api/v1/appointments",
@@ -72,7 +59,6 @@ async def test_step1_red_flag_115_with_and_without_diacritics_and_blocks_booking
 async def test_step2_ai_triage_to_30min_slot_booking_and_slot_exclusion(
     api_client, booking, db_session
 ):
-    # Ensure doctor bs_x has an active morning shift tomorrow
     target_date = date.today() + timedelta(days=2)
     shift = LichLamViec(
         bac_si_id=booking.bs_x.id,
@@ -88,7 +74,6 @@ async def test_step2_ai_triage_to_30min_slot_booking_and_slot_exclusion(
     db_session.add(shift)
     await db_session.commit()
 
-    # 1. AI Triage normal symptom
     triage_res = await api_client.post(
         "/api/v1/ai/analyze-symptoms",
         json={"trieu_chung": "đau họng sốt nhẹ ho khan 2 ngày"},
@@ -99,7 +84,6 @@ async def test_step2_ai_triage_to_30min_slot_booking_and_slot_exclusion(
     assert triage_data["has_emergency"] is False
     assert len(triage_data["suggested_specialties"]) >= 1
 
-    # 2. Fetch available 30-min slots
     slots_res = await api_client.get(
         f"/api/v1/appointments/doctors/{booking.bs_x.id}/slots",
         params={"query_date": target_date.isoformat()},
@@ -110,7 +94,6 @@ async def test_step2_ai_triage_to_30min_slot_booking_and_slot_exclusion(
     assert len(available_slots) > 0
     chosen_time = available_slots[0]["time_val"]
 
-    # 3. Book the chosen slot
     book_res = await api_client.post(
         "/api/v1/appointments",
         json={
@@ -126,7 +109,6 @@ async def test_step2_ai_triage_to_30min_slot_booking_and_slot_exclusion(
     appt = book_res.json()["data"]
     assert appt["ma_lich_kham"].startswith("LK")
 
-    # 4. Verify booked slot is now marked booked (unavailable)
     slots_after = await api_client.get(
         f"/api/v1/appointments/doctors/{booking.bs_x.id}/slots",
         params={"query_date": target_date.isoformat()},
@@ -145,7 +127,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     now = datetime.now(timezone.utc)
     appointment = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
 
-    # Doctor starts encounter
     enc_res = await api_client.post(
         "/api/v1/clinical/encounters",
         json={"lich_kham_id": appointment.id, "ly_do_vao_kham": "Đau họng, ho khan"},
@@ -154,7 +135,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     assert enc_res.status_code == 201
     encounter_id = enc_res.json()["data"]["id"]
 
-    # Doctor records diagnosis
     diag_res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/diagnoses",
         json={
@@ -166,7 +146,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     )
     assert diag_res.status_code in (200, 201)
 
-    # Doctor creates 4-dose prescription
     rx_res = await api_client.post(
         f"/api/v1/clinical/encounters/{encounter_id}/prescriptions",
         json={
@@ -190,7 +169,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     )
     assert rx_res.status_code == 201
 
-    # KTV returns CLS result with X-ray image attachment
     service = DichVu(
         ma_dich_vu=f"XQ-E2E-{booking.suffix}",
         ten_dich_vu="Chụp X-quang ngực thẳng",
@@ -212,7 +190,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     )
     db_session.add(cls_order)
 
-    # Cashier records paid invoice
     invoice = HoaDon(
         ma_hoa_don=f"HD-E2E-{booking.suffix}",
         luot_kham_id=encounter_id,
@@ -227,8 +204,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     db_session.add(invoice)
     await db_session.commit()
 
-    # Verify all 4 Patient Portal pages via API
-    # 1) /benh-nhan/lich-su-kham
     records_res = await api_client.get(
         "/api/v1/patient/medical-records", headers=booking.tokens["bn_a"]
     )
@@ -239,7 +214,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
         for r in records
     )
 
-    # 2) /benh-nhan/ket-qua-can-lam-sang
     labs_res = await api_client.get(
         "/api/v1/patient/lab-results", headers=booking.tokens["bn_a"]
     )
@@ -250,7 +224,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
     assert lab["tep_dinh_kem"][0]["loai_tep"] == "HINH_ANH"
     assert lab["tep_dinh_kem"][0]["url"].endswith("xray-chest-e2e.png")
 
-    # 3) /benh-nhan/don-thuoc
     rxs_res = await api_client.get(
         "/api/v1/patient/prescriptions", headers=booking.tokens["bn_a"]
     )
@@ -266,7 +239,6 @@ async def test_step3_closed_loop_patient_portal_history_lab_prescription_invoice
         "0 viên",
     ]
 
-    # 4) /benh-nhan/hoa-don
     inv_res = await api_client.get(
         "/api/v1/patient/invoices", headers=booking.tokens["bn_a"]
     )
@@ -301,7 +273,6 @@ async def test_step4_idor_protection_blocks_other_patient_access_and_mutations(
     assert fam_res.status_code == 201
     member_a_id = fam_res.json()["data"]["id"]
 
-    # Patient B attempts IDOR mutations against Patient A's IDs -> must be 403/404
     cancel_idor = await api_client.post(
         f"/api/v1/appointments/{appt_a.id}/cancel",
         json={"ly_do_huy": "IDOR attempt"},
@@ -344,7 +315,6 @@ async def test_step4_idor_protection_blocks_other_patient_access_and_mutations(
     )
     assert fam_del_idor.status_code in (403, 404)
 
-    # Patient B read endpoints must never leak Patient A's records
     for ep in (
         "/api/v1/appointments/my-appointments",
         "/api/v1/patient/medical-records",

@@ -116,7 +116,7 @@ export default function PatientDashboardPage() {
                         <QrCode size={22} weight="bold" />
                     </div>
                     <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-display font-extrabold text-sm text-[#003553]">
                                 TRA CỨU VIỆN PHÍ &amp; HÓA ĐƠN
                             </h3>
@@ -131,7 +131,7 @@ export default function PatientDashboardPage() {
                 </div>
                 <Link
                     to="/benh-nhan/hoa-don"
-                    className="medpro-btn-primary text-xs px-4 py-2 shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="medpro-btn-primary min-h-11 w-full justify-center text-xs px-4 py-2 shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer sm:min-h-0 sm:w-auto"
                 >
                     <QrCode size={15} weight="bold" />
                     <span>Tra cứu hóa đơn</span>
@@ -159,7 +159,7 @@ export default function PatientDashboardPage() {
                 {}
                 <section className="medpro-card p-5 flex flex-col justify-between">
                     <div>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <Users size={20} className="text-[#008EC2]" />
                                 <h2 className="font-display font-bold text-[#003553]">
@@ -169,7 +169,7 @@ export default function PatientDashboardPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowAddFamily(!showAddFamily)}
-                                className="text-xs font-bold text-[#008EC2] hover:underline cursor-pointer"
+                                className="inline-flex min-h-10 items-center text-xs font-bold text-[#008EC2] hover:underline cursor-pointer sm:min-h-0"
                             >
                                 {showAddFamily ? 'Đóng form' : '+ Thêm hồ sơ người thân'}
                             </button>
@@ -226,9 +226,9 @@ export default function PatientDashboardPage() {
                             {familyList.map((m) => (
                                 <div
                                     key={m.id}
-                                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs"
+                                    className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div>
+                                    <div className="min-w-0">
                                         <div className="font-bold text-[#003553] text-sm">
                                             {m.ho_ten}{' '}
                                             <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">
@@ -242,7 +242,7 @@ export default function PatientDashboardPage() {
                                     </div>
                                     <Link
                                         to="/dat-lich"
-                                        className="px-3 py-1.5 rounded-lg bg-[#E8F4FD] text-[#008EC2] font-bold hover:bg-sky-200 transition"
+                                        className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#E8F4FD] px-3 py-1.5 font-bold text-[#008EC2] transition hover:bg-sky-200 sm:min-h-0 sm:shrink-0"
                                     >
                                         Đặt lịch cho bản thân
                                     </Link>
@@ -265,15 +265,15 @@ export default function PatientDashboardPage() {
                             Nhập đầy đủ số điện thoại, CCCD hoặc họ tên trên hồ sơ của bạn để xem mã bệnh nhân.
                         </p>
 
-                        <form onSubmit={handleFindLostCode} className="flex gap-2 mb-3">
+                        <form onSubmit={handleFindLostCode} className="mb-3 flex flex-col gap-2 sm:flex-row">
                             <input
                                 type="text"
                                 placeholder="Số điện thoại, CCCD hoặc họ tên đầy đủ"
                                 value={lookupQuery}
                                 onChange={(e) => setLookupQuery(e.target.value)}
-                                className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-[#008EC2]"
+                                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:border-[#008EC2] focus:outline-none sm:min-h-0"
                             />
-                            <button type="submit" disabled={lookupLoading} className="medpro-btn-primary text-xs px-4 py-2 shrink-0">
+                            <button type="submit" disabled={lookupLoading} className="medpro-btn-primary min-h-11 shrink-0 justify-center px-4 py-2 text-xs sm:min-h-0">
                                 Tìm mã BN
                             </button>
                         </form>

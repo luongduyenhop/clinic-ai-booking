@@ -98,17 +98,17 @@ export default function PatientMedicalRecordsPage() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Link
                             to="/dat-lich"
-                            className="inline-flex items-center gap-2 bg-[#00B5F1] hover:bg-[#009fd4] text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-md transition"
+                            className="inline-flex min-h-11 items-center gap-2 bg-[#00B5F1] hover:bg-[#009fd4] text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-md transition sm:min-h-0"
                         >
                             <CalendarCheck size={18} weight="bold" />
                             <span>Đặt khám mới</span>
                         </Link>
                         <button
                             onClick={handlePrintRecord}
-                            className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer"
+                            className="inline-flex min-h-11 items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer sm:min-h-0"
                             title="In sổ khám bệnh"
                         >
                             <Printer size={18} weight="duotone" />
@@ -402,7 +402,7 @@ export default function PatientMedicalRecordsPage() {
 
                                     {}
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-xs text-left border-collapse">
+                                        <table className="w-full min-w-[640px] text-xs text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-slate-100 text-[#003553] border-b border-slate-200">
                                                     <th className="p-2.5 font-bold">Tên thuốc & Hàm lượng</th>
@@ -452,7 +452,7 @@ export default function PatientMedicalRecordsPage() {
                                             {}
                                             {cls.chiTiet && (
                                                 <div className="overflow-x-auto">
-                                                    <table className="w-full text-xs text-left border-collapse">
+                                                    <table className="w-full min-w-[520px] text-xs text-left border-collapse">
                                                         <thead>
                                                             <tr className="bg-slate-50 text-slate-600">
                                                                 <th className="p-2 font-bold">Chỉ số xét nghiệm</th>

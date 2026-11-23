@@ -89,7 +89,7 @@ export default function LabResultsPage() {
 
                                         {item.details.length > 0 && (
                                             <div className="mt-3 overflow-x-auto">
-                                                <table className="medpro-table">
+                                                <table className="medpro-table min-w-[460px] sm:min-w-full">
                                                     <thead>
                                                         <tr>
                                                             <th>Chỉ số</th>
@@ -129,12 +129,12 @@ export default function LabResultsPage() {
                 />
             )}
 
-            <nav aria-label="Phân trang" className="mt-5 flex items-center justify-between gap-3">
+            <nav aria-label="Phân trang" className="mt-5 flex flex-wrap items-center justify-between gap-3">
                 <button
                     type="button"
                     disabled={!meta?.has_prev}
                     onClick={() => setPage(meta.page - 1)}
-                    className="medpro-btn-outline disabled:opacity-40"
+                    className="medpro-btn-outline min-h-11 disabled:opacity-40 sm:min-h-0"
                 >
                     Trang trước
                 </button>
@@ -145,7 +145,7 @@ export default function LabResultsPage() {
                     type="button"
                     disabled={!meta?.has_next}
                     onClick={() => setPage(meta.page + 1)}
-                    className="medpro-btn-outline disabled:opacity-40"
+                    className="medpro-btn-outline min-h-11 disabled:opacity-40 sm:min-h-0"
                 >
                     Trang sau
                 </button>

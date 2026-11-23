@@ -49,11 +49,11 @@ export default function DateSlotStep({
                             Lịch khả dụng trong 7 ngày tới hoặc chọn ngày khác qua ô lịch.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs font-semibold text-slate-500">Ngày khác:</label>
+                    <div className="flex w-full items-center gap-2 sm:w-auto">
+                        <label className="shrink-0 text-xs font-semibold text-slate-500">Ngày khác:</label>
                         <input
                             type="date"
-                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:border-[#00B5F1] focus:outline-none focus:ring-1 focus:ring-[#00B5F1]"
+                            className="min-h-10 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-[#00B5F1] focus:outline-none focus:ring-1 focus:ring-[#00B5F1] sm:min-h-0 sm:flex-none"
                             min={UPCOMING_DATES[0].value}
                             value={appointmentDate || ''}
                             onChange={(e) => onDateChange(e.target.value)}
@@ -197,17 +197,17 @@ export default function DateSlotStep({
 function SlotGroupSection({ period, timeRange, iconBadge, items, selected, onChange }) {
     return (
         <div className="rounded-xl bg-white p-4 border border-slate-200/80 shadow-xs">
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-[#003553]">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-bold text-[#003553]">
                     <span className="text-base">{iconBadge}</span>
                     <span>{period}</span>
                     <span className="text-xs font-normal text-slate-400">({timeRange})</span>
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="shrink-0 text-[11px] font-semibold text-slate-400">
                     {items.length} ca khả dụng
                 </span>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
                 {items.map((slot) => {
                     const isSelected = selected === slot.value
                     return (
@@ -216,7 +216,7 @@ function SlotGroupSection({ period, timeRange, iconBadge, items, selected, onCha
                             key={slot.value}
                             disabled={!slot.available}
                             onClick={() => onChange(slot.value)}
-                            className={`group relative flex items-center justify-center rounded-xl py-2.5 px-3 text-xs font-extrabold tracking-wide transition-all cursor-pointer ${
+                            className={`group relative flex min-h-11 items-center justify-center rounded-xl py-2.5 px-3 text-xs font-extrabold tracking-wide transition-all cursor-pointer ${
                                 isSelected
                                     ? 'bg-[#00B5F1] text-white shadow-md shadow-sky-500/25 ring-2 ring-sky-300'
                                     : slot.available

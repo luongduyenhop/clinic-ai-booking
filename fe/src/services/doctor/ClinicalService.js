@@ -1111,6 +1111,15 @@ export class ClinicalService extends BaseServices {
         return res?.data?.data
     }
 
+    getCompletedEncounters = async ({ days = 30, limit = 100 } = {}) => {
+        const res = await this.get(`/api/v1/clinical/doctor/completed-encounters?days=${days}&limit=${limit}`, {
+            __skipGlobalLoading: true,
+            __skipGlobalError: true,
+        })
+        const items = res?.data?.data
+        return Array.isArray(items) ? items : []
+    }
+
     pollReturnedResults = async () => {
         if (this._returnedPollOff) return []
         if (this._returnedPolling) return []

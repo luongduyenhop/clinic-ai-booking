@@ -10,6 +10,7 @@ from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.appointment import (
     DoctorScheduleSlotsResponse,
     AppointmentCreateRequest,
+    GuestAppointmentCreateRequest,
     AppointmentCancelRequest,
     AppointmentCancelResponse,
     AppointmentResponse,
@@ -21,6 +22,7 @@ from app.schemas.appointment import (
     AutoProcessNoShowResponse,
     AppointmentRescheduleRequest,
 )
+from app.services.appointment_guest_service import guest_appointment_service
 from app.services.appointment_service import appointment_service
 
 router = APIRouter(prefix="/appointments", tags=["2. Đặt Lịch & Điều Phối Slot (Package B)"])
@@ -55,6 +57,24 @@ async def create_booking(
     db: AsyncSession = Depends(get_db)
 ):
     result = await appointment_service.create_booking(payload, current_user, db)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Đặt lịch khám thành công! Mã hẹn đã được khởi tạo.",
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.post(
+    "/guest",
+    response_model=ResponseEnvelope[AppointmentResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Đặt lịch khám trực tuyến dành cho khách vãng lai không cần đăng nhập"
+)
+async def create_guest_booking(
+    payload: GuestAppointmentCreateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await guest_appointment_service.create_guest_booking(payload, db)
     return ResponseEnvelope.success_response(
         data=result,
         message="Đặt lịch khám thành công! Mã hẹn đã được khởi tạo.",

@@ -1,5 +1,7 @@
 import { http } from '../BaseService.js'
 
+const PHONE_PATTERN = new RegExp('^0\\d{9}$')
+
 class BookingService {
     async getBookings() {
         const response = await http.get('/api/v1/appointments/my-appointments')
@@ -30,7 +32,7 @@ class BookingService {
         const doctorId = Number(payload.doctorId)
         if (!Number.isInteger(doctorId) || !payload.appointmentDate || !payload.timeSlot) throw new Error('Thông tin đặt lịch chưa đầy đủ')
         const startTime = (payload.timeSlot || '').split(' - ')[0]
-        const body = {
+        const baseBody = {
             bac_si_id: doctorId,
             ngay_kham: payload.appointmentDate,
             gio_kham: startTime.length === 5 ? `${startTime}:00` : startTime,
@@ -38,7 +40,28 @@ class BookingService {
             trieu_chung_ban_dau: payload.aiRecommendation?.symptoms || payload.patient?.reason || '',
             phan_tich_ai_id: payload.aiRecommendation?.analysisId || null,
         }
-        const res = await http.post('/api/v1/appointments', body, { __skipGlobalError: true })
+
+        const isGuest = Boolean(payload.isGuest)
+        let endpoint = '/api/v1/appointments'
+        let body = baseBody
+
+        if (isGuest) {
+            const guestName = String(payload.patient?.guestFullName || '').trim()
+            const guestPhone = String(payload.patient?.guestPhone || '').trim()
+            if (guestName.length < 2 || !PHONE_PATTERN.test(guestPhone)) {
+                throw new Error('Vui lòng nhập đầy đủ họ tên và số điện thoại 10 số hợp lệ')
+            }
+            endpoint = '/api/v1/appointments/guest'
+            body = {
+                ...baseBody,
+                ho_ten: guestName,
+                so_dien_thoai: guestPhone,
+                ngay_sinh: payload.patient?.guestDob || null,
+                gioi_tinh: payload.patient?.guestGender || 'Khác',
+            }
+        }
+
+        const res = await http.post(endpoint, body, { __skipGlobalError: true })
         const record = res?.data?.data
         if (!record?.id || !record?.ma_lich_kham) throw new Error('Backend chưa xác nhận lịch hẹn. Vui lòng thử lại.')
         return {
@@ -49,8 +72,8 @@ class BookingService {
             status: record.trang_thai,
             doctorName: record.bac_si?.ho_ten || '',
             specialtyName: record.bac_si?.chuyen_khoa || '',
-            patientName: record.benh_nhan?.ho_ten || '',
-            patientPhone: record.benh_nhan?.so_dien_thoai || '',
+            patientName: record.benh_nhan?.ho_ten || payload.patient?.guestFullName || '',
+            patientPhone: record.benh_nhan?.so_dien_thoai || payload.patient?.guestPhone || '',
             createdAt: new Date().toISOString(),
         }
     }

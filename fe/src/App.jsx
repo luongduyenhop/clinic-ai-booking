@@ -40,7 +40,6 @@ import PatientMedicalRecordsPage from './pages/user/PatientMedicalRecordsPage'
 import PatientBillingPage from './pages/user/PatientBillingPage'
 
 import DashboardAdminPage from './pages/admin/DashboardAdminPage'
-import ReceptionRegistrationPage from './pages/admin/ReceptionRegistrationPage'
 import PatientManagementPage from './pages/admin/PatientManagementPage'
 import ParaclinicalPage from './pages/admin/ParaclinicalPage'
 import AppointmentManagementPage from './pages/admin/AppointmentManagementPage'
@@ -55,7 +54,6 @@ import ServicePackagesPage from './pages/admin/ServicePackagesPage'
 import TreatmentCoursePage from './pages/admin/TreatmentCoursePage'
 import SettingClinicPage from './pages/admin/SettingClinicPage'
 import DownloadAppPage from './pages/admin/DownloadAppPage'
-import SpecialtyExamPage from './pages/admin/SpecialtyExamPage'
 import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'
 import CorporateHealthPage from './pages/admin/CorporateHealthPage'
 import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage'
@@ -132,18 +130,18 @@ function App() {
                         <Route index element={<DashboardAdminPage />} />
                         <Route path="bao-cao" element={<DashboardAdminPage />} />
 
-                        <Route path="dang-ky-kham" element={<ReceptionRegistrationPage />} />
+                        <Route path="dang-ky-kham" element={<CheckInPage />} />
 
                         <Route path="benh-nhan" element={<PatientManagementPage />} />
                         <Route path="benh-nhan/them-moi" element={<PatientManagementPage />} />
 
                         <Route path="kham-benh" element={<ExamWorkstationPage />} />
                         <Route path="khambenh" element={<ExamWorkstationPage />} />
-                        <Route path="kham-chuyen-khoa/:deptKey" element={<SpecialtyExamPage />} />
-                        <Route path="khamlamsang/:deptKey" element={<SpecialtyExamPage />} />
+                        <Route path="kham-chuyen-khoa/:deptKey" element={<ExamWorkstationPage />} />
+                        <Route path="khamlamsang/:deptKey" element={<ExamWorkstationPage />} />
 
-                        <Route path="can-lam-sang" element={<ParaclinicalPage />} />
-                        <Route path="pt-tt" element={<ParaclinicalPage />} />
+                        <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
+                        <Route path="pt-tt" element={<ParaclinicalWorkPage />} />
 
                         <Route path="lich-hen" element={<AppointmentManagementPage />} />
 
@@ -214,8 +212,8 @@ function App() {
                         <Route path="appointments" element={<AppointmentsPage />} />
                         <Route path="patients" element={<PatientManagementPage />} />
                         <Route path="exam-workstation" element={<ExamWorkstationPage />} />
-                        <Route path="specialty-exam" element={<SpecialtyExamPage />} />
-                        <Route path="specialty-exam/:deptKey" element={<SpecialtyExamPage />} />
+                        <Route path="specialty-exam" element={<Navigate to="/staff/exam-workstation" replace />} />
+                        <Route path="specialty-exam/:deptKey" element={<Navigate to="/staff/exam-workstation" replace />} />
                         <Route path="paraclinical-work" element={<ParaclinicalWorkPage />} />
                         <Route path="paraclinical" element={<ParaclinicalPage />} />
                         <Route path="cashier" element={<Navigate to="/reception/cashier" replace />} />
@@ -230,7 +228,7 @@ function App() {
                         <Route path="treatment-courses" element={<TreatmentCoursePage />} />
                         <Route path="settings" element={<SettingClinicPage />} />
                         <Route path="reports" element={<ReportsPage />} />
-                        <Route path="reception" element={<ReceptionRegistrationPage />} />
+                        <Route path="reception" element={<Navigate to="/staff/check-in" replace />} />
                     </Route>
                 </Route>
             </Routes>

@@ -120,5 +120,31 @@ test('Admin routes connect guide and QA management pages without dead redirects'
     assert.ok(appContent.includes("import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'"), 'App.jsx must import GuideAndQaManagementPage')
     assert.ok(appContent.includes('<Route path="huong-dan" element={<GuideAndQaManagementPage />} />'), 'huong-dan must route to GuideAndQaManagementPage')
     assert.ok(appContent.includes('<Route path="hoi-dap" element={<GuideAndQaManagementPage />} />'), 'hoi-dap must route to GuideAndQaManagementPage')
+    assert.ok(appContent.includes('<Route path="dang-ky-kham" element={<CheckInPage />} />'), 'dang-ky-kham must route to unified CheckInPage')
+    assert.ok(appContent.includes('<Route path="kham-chuyen-khoa/:deptKey" element={<ExamWorkstationPage />} />'), 'kham-chuyen-khoa must route to unified ExamWorkstationPage')
+    assert.ok(appContent.includes('<Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />'), 'can-lam-sang must route to unified ParaclinicalWorkPage')
+    assert.ok(appContent.includes('<Route path="specialty-exam" element={<Navigate to="/staff/exam-workstation" replace />} />'), 'staff specialty-exam must redirect to exam-workstation')
+    assert.ok(appContent.includes('<Route path="reception" element={<Navigate to="/staff/check-in" replace />} />'), 'staff reception must redirect to check-in')
     assert.ok(!appContent.includes('//') && !appContent.includes('/*'), 'App.jsx must be clean without comments')
+})
+
+test('P1 guest booking, unified sidebar and 30-day doctor history stay wired and comment-free', async () => {
+    const bookingSvcSrc = await readFile(new URL('../src/services/user/BookingService.js', import.meta.url), 'utf8')
+    const patientStepSrc = await readFile(new URL('../src/components/user/booking/PatientInfoStep.jsx', import.meta.url), 'utf8')
+    const sidebarSrc = await readFile(new URL('../src/layouts/staff/StaffSidebar.jsx', import.meta.url), 'utf8')
+    const doctorDashSrc = await readFile(new URL('../src/pages/doctor/DoctorDashboardPage.jsx', import.meta.url), 'utf8')
+
+    assert.ok(bookingSvcSrc.includes('/api/v1/appointments/guest'), 'BookingService must post guest bookings to /api/v1/appointments/guest')
+    assert.ok(patientStepSrc.includes('name="guestFullName"') && patientStepSrc.includes('name="guestPhone"'), 'PatientInfoStep must render guest name and phone inputs')
+    assert.ok(!sidebarSrc.includes('/staff/specialty-exam'), 'StaffSidebar must not show duplicate specialty-exam menu item')
+    assert.ok(doctorDashSrc.includes('clinicalService.getCompletedEncounters'), 'DoctorDashboardPage must load multi-day completed encounters from backend')
+
+    for (const [name, src] of [
+        ['BookingService.js', bookingSvcSrc],
+        ['PatientInfoStep.jsx', patientStepSrc],
+        ['StaffSidebar.jsx', sidebarSrc],
+        ['DoctorDashboardPage.jsx', doctorDashSrc],
+    ]) {
+        assert.ok(!src.includes('//') && !src.includes('/*'), `${name} must be clean without comments`)
+    }
 })

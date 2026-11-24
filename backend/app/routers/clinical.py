@@ -41,6 +41,7 @@ from app.schemas.compliance import (
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.queue import CallNextResponse, QueueTicketResponse
+from app.services.clinical_modules.doctor_history_service import get_doctor_completed_encounters
 from app.services.clinical_service import clinical_service
 from app.services.national_gateway_service import national_gateway_service
 from app.services.prescription_fsm_service import prescription_fsm_service
@@ -222,6 +223,24 @@ async def get_my_encounters_history(
     return ResponseEnvelope.success_response(
         data=result,
         message="Lấy lịch sử hồ sơ bệnh án thành công"
+    )
+
+
+@router.get(
+    "/doctor/completed-encounters",
+    response_model=ResponseEnvelope[List[dict]],
+    summary="Bác sĩ hoặc Quản trị viên tra cứu lịch sử các lượt khám đã khóa trong nhiều ngày"
+)
+async def get_doctor_completed_encounters_endpoint(
+    days: int = Query(30, ge=1, le=365, description="Số ngày gần nhất cần tra cứu"),
+    limit: int = Query(100, ge=1, le=500, description="Số bản ghi tối đa"),
+    current_user: TaiKhoan = Depends(clinical_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_doctor_completed_encounters(db=db, current_user=current_user, days=days, limit=limit)
+    return ResponseEnvelope.success_response(
+        data=result,
+        message="Lấy lịch sử lượt khám đã hoàn tất thành công"
     )
 
 

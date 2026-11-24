@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
 import { useDispatch, useSelector } from 'react-redux'
@@ -13,6 +13,8 @@ import { useMedicalCatalog } from '../../services/user/MedicalCatalogService'
 import { createPatientBookingAsync, fetchAvailableSlotsAsync } from '../../redux/actions/user/bookingAction'
 import { clearLatestBooking } from '../../redux/slices/user/userSlice'
 import { ShieldCheck } from '../../components/common/ClinicIcon'
+
+const PHONE_REGEX = new RegExp('^0\\d{9}$')
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams()
@@ -50,17 +52,59 @@ export default function BookingPage() {
         if (booking.doctorId && booking.appointmentDate) dispatch(fetchAvailableSlotsAsync({ doctorId: booking.doctorId, appointmentDate: booking.appointmentDate }))
     }, [booking.doctorId, booking.appointmentDate, dispatch])
 
-    const formik = useFormik({
-        enableReinitialize: true,
-        initialValues: { reason: '', accepted: false },
-        validationSchema: Yup.object({
+    const validationSchema = useMemo(() => {
+        const baseFields = {
             reason: Yup.string().max(500, 'Nội dung tối đa 500 ký tự'),
             accepted: Yup.boolean().oneOf([true], 'Bạn cần đồng ý với chính sách bảo mật'),
-        }),
+        }
+        if (isAuthenticated) {
+            return Yup.object(baseFields)
+        }
+        return Yup.object({
+            ...baseFields,
+            guestFullName: Yup.string()
+                .trim()
+                .min(2, 'Họ và tên tối thiểu 2 ký tự')
+                .max(100, 'Họ và tên tối đa 100 ký tự')
+                .required('Vui lòng nhập họ và tên người khám'),
+            guestPhone: Yup.string()
+                .trim()
+                .matches(PHONE_REGEX, 'Số điện thoại gồm 10 chữ số và bắt đầu bằng số 0')
+                .required('Vui lòng nhập số điện thoại liên hệ'),
+            guestDob: Yup.string()
+                .nullable()
+                .test('valid-dob', 'Ngày sinh không được vượt quá ngày hiện tại', (value) => {
+                    if (!value) return true
+                    return value <= new Date().toISOString().slice(0, 10)
+                }),
+            guestGender: Yup.string().oneOf(['Nam', 'Nữ', 'Khác']),
+        })
+    }, [isAuthenticated])
+
+    const formik = useFormik({
+        enableReinitialize: true,
+        initialValues: {
+            guestFullName: '',
+            guestPhone: '',
+            guestDob: '',
+            guestGender: 'Khác',
+            reason: '',
+            accepted: false,
+        },
+        validationSchema,
         onSubmit: async (patient) => {
-            if (!isAuthenticated) return
-            if (slotsLoading || bookingError || !availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)) { setStep(2); return }
-            const result = await dispatch(createPatientBookingAsync({ ...booking, patient, aiRecommendation }))
+            if (slotsLoading || !availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)) {
+                setStep(2)
+                return
+            }
+            const result = await dispatch(
+                createPatientBookingAsync({
+                    ...booking,
+                    patient,
+                    aiRecommendation,
+                    isGuest: !isAuthenticated,
+                })
+            )
             if (createPatientBookingAsync.fulfilled.match(result)) window.scrollTo({ top: 0, behavior: 'smooth' })
             else if (result.payload?.status === 409) {
                 setSlotConflict({ date: booking.appointmentDate, timeSlot: booking.timeSlot })
@@ -80,7 +124,7 @@ export default function BookingPage() {
         }
         return next
     })
-    const validSlot = !slotsLoading && !bookingError && availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)
+    const validSlot = !slotsLoading && availableSlots.some((slot) => slot.available && slot.value === booking.timeSlot)
     const canContinueToSlots = Boolean(booking.specialtyId && booking.doctorId)
     const canContinueToPatient = Boolean(booking.appointmentDate && booking.timeSlot && validSlot)
 

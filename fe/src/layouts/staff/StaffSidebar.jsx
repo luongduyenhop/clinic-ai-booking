@@ -10,7 +10,6 @@ import {
     ClipboardText,
     Stethoscope,
     Microscope,
-    FirstAidKit,
     Receipt,
     ChartBar,
     Folders,
@@ -32,7 +31,6 @@ export const getStaffMenuForRole = (role) => {
                 items: [
                     { to: '/staff/doctor-dashboard', label: 'Tổng quan ca trực', icon: HouseLine },
                     { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng TT32', icon: Stethoscope, badge: 'Ưu tiên' },
-                    { to: '/staff/specialty-exam', label: 'Khám chuyên khoa', icon: FirstAidKit },
                 ],
             },
             {

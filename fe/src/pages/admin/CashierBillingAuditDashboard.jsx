@@ -46,7 +46,7 @@ export default function CashierBillingAuditDashboard() {
         const invId = inv.id || inv.ma_hoa_don
         try {
             await apiClient.post(`/cashier/invoices/${invId}/pay`, {
-                phuong_thuc_thanh_toan: 'VIETQR',
+                phuong_thuc_thanh_toan: 'chuyen_khoan',
                 so_tien_khach_tra: inv.thuc_thu || inv.final_amount || inv.tong_tien,
                 ghi_chu: 'Thanh toan VietQR Napas 247'
             })

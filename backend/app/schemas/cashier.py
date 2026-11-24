@@ -46,9 +46,9 @@ class InvoiceResponse(BaseModel):
 
     id: int
     ma_hoa_don: str
-    luot_kham_id: int
+    luot_kham_id: Optional[int] = None
     benh_nhan_id: int
-    thu_ngan_id: int
+    thu_ngan_id: Optional[int] = None
     tong_tien: Decimal
     mien_giam: Decimal
     thuc_thu: Decimal
@@ -76,6 +76,10 @@ class PendingBillItem(BaseModel):
     mien_giam: Decimal
     thuc_thu: Decimal
     trang_thai: str
+    phuong_thuc_thanh_toan: Optional[str] = None
+    ngay_thanh_toan: Optional[datetime] = None
+    so_hoa_don_in: Optional[str] = None
+    ghi_chu: Optional[str] = None
     created_at: datetime
     cac_khoan_thu: List[InvoiceLineItemResponse] = []
 

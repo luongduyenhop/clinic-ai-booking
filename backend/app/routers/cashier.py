@@ -95,6 +95,32 @@ async def preview_invoice(
     )
 
 
+@router.get(
+    "/invoices",
+    response_model=ResponseEnvelope[PendingBillsListResponse],
+    summary="Lấy danh sách hóa đơn viện phí (chờ thu & đã thu)"
+)
+async def list_invoices(
+    trang_thai: Optional[str] = Query(None, description="Lọc trạng thái: chua_thu, da_thu, tat_ca"),
+    tu_khoa: Optional[str] = Query(None, description="Tìm kiếm theo mã hóa đơn, mã BN hoặc họ tên"),
+    page: int = Query(1, ge=1, description="Số trang"),
+    page_size: int = Query(50, ge=1, le=200, description="Kích thước trang"),
+    current_user: TaiKhoan = Depends(cashier_role_guard),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await cashier_service.list_invoices(
+        trang_thai=trang_thai,
+        ma_kcb=tu_khoa,
+        page=page,
+        page_size=page_size,
+        db=db,
+    )
+    return ResponseEnvelope.success_response(
+        data=result,
+        message=f"Lấy danh sách {len(result.items)} hóa đơn thành công"
+    )
+
+
 @router.post(
     "/invoices",
     response_model=ResponseEnvelope[InvoiceResponse],

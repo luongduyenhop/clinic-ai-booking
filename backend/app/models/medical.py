@@ -482,7 +482,7 @@ class HoaDon(BaseModelWithTimestamp):
             kwargs["so_tien_phai_thu"] = kwargs["thuc_thu"]
         elif "so_tien_phai_thu" in kwargs and "thuc_thu" not in kwargs:
             kwargs["thuc_thu"] = kwargs["so_tien_phai_thu"]
-        if "thu_ngan_id" in kwargs and "nguoi_lap_id" not in kwargs:
+        if kwargs.get("thu_ngan_id") is not None and "nguoi_lap_id" not in kwargs:
             kwargs["nguoi_lap_id"] = kwargs["thu_ngan_id"]
         elif "nguoi_lap_id" in kwargs and "thu_ngan_id" not in kwargs:
             kwargs["thu_ngan_id"] = kwargs["nguoi_lap_id"]

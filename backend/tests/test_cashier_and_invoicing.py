@@ -570,12 +570,33 @@ async def test_cashier_pricing_from_master_dich_vu_when_doctor_has_no_fee(api_cl
 @pytest.mark.asyncio
 async def test_cashier_pay_by_voucher_code_string(api_client, booking, db_session):
     token_admin = booking.tokens["admin"]
-    voucher_code = f"PT0001001_{booking.suffix}"
+    token_bs = booking.tokens["bs_x"]
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+
+    res_start = await api_client.post(
+        "/api/v1/clinical/encounters",
+        json={"lich_kham_id": lich.id, "ly_do_vao_kham": "Khám nội kiểm tra"},
+        headers=token_bs
+    )
+    assert res_start.status_code == 201
+    enc_id = res_start.json()["data"]["id"]
+
+    res_bill = await api_client.post(
+        "/api/v1/cashier/invoices",
+        json={"luot_kham_id": enc_id, "mien_giam": 0.00},
+        headers=token_admin
+    )
+    assert res_bill.status_code == 201
+    bill_data = res_bill.json()["data"]
+    ma_hoa_don = bill_data["ma_hoa_don"]
+    expected_amount = Decimal(str(bill_data["thuc_thu"]))
+
     res_pay = await api_client.post(
-        f"/api/v1/cashier/invoices/{voucher_code}/pay",
+        f"/api/v1/cashier/invoices/{ma_hoa_don}/pay",
         json={
-            "phuong_thuc_thanh_toan": "chuyen_khoan",
-            "so_tien_khach_tra": 200000,
+            "phuong_thuc_thanh_toan": "VIETQR",
+            "so_tien_khach_tra": float(expected_amount),
             "ghi_chu": "Thanh toán qua quét mã VietQR"
         },
         headers=token_admin
@@ -584,4 +605,16 @@ async def test_cashier_pay_by_voucher_code_string(api_client, booking, db_sessio
     data = res_pay.json()["data"]
     assert data["trang_thai"] == "da_thu"
     assert data["phuong_thuc_thanh_toan"] == "chuyen_khoan"
-    assert Decimal(str(data["thuc_thu"])) == Decimal("200000.00")
+    assert Decimal(str(data["thuc_thu"])) == expected_amount
+
+    unknown_code = f"PT-KHONG-TON-TAI-{booking.suffix}"
+    res_missing = await api_client.post(
+        f"/api/v1/cashier/invoices/{unknown_code}/pay",
+        json={
+            "phuong_thuc_thanh_toan": "chuyen_khoan",
+            "so_tien_khach_tra": 200000,
+            "ghi_chu": "Mã không tồn tại"
+        },
+        headers=token_admin
+    )
+    assert res_missing.status_code == 404

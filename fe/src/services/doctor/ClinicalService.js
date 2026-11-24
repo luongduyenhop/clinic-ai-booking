@@ -766,108 +766,12 @@ export class ClinicalService extends BaseServices {
             await this.persistToPostgres()
         }
         const finalEnc = db.encounters[encounterId] || db.encounters[String(encounterId)] || enc
-
-        let newVoucher = null
         try {
-            const examFee = 150000
-            const invoiceItems = [
-                {
-                    ten: 'Công khám chuyên khoa ' + (finalEnc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'),
-                    soLuong: 1,
-                    donGia: examFee,
-                    soTien: examFee,
-                    loai: 'KHAM',
-                },
-            ]
-
-            const servicesCatalog = (await this.getServicesCatalog()) || []
-            ;(finalEnc.danh_sach_chi_dinh || []).forEach((cls) => {
-                const s = servicesCatalog.find((x) => String(x.id) === String(cls.dich_vu_id) || x.ma_dich_vu === cls.ma_dich_vu)
-                const price = s?.don_gia || 180000
-                invoiceItems.push({
-                    ten: cls.ten_dich_vu,
-                    soLuong: 1,
-                    donGia: price,
-                    soTien: price,
-                    loai: 'CLS',
-                })
-            })
-
-            const drugsList = payload.don_thuoc?.danh_sach_thuoc || []
-            let totalDrugFee = 0
-            drugsList.forEach((d) => {
-                const qty = Number(d.so_luong) || 10
-                const price = Number(d.don_gia) || 8500
-                const itemTotal = qty * price
-                totalDrugFee += itemTotal
-                invoiceItems.push({
-                    ten: `${d.ten_thuoc} (${d.ham_luong || ''})`,
-                    soLuong: qty,
-                    donGia: price,
-                    soTien: itemTotal,
-                    loai: 'THUOC',
-                })
-            })
-
-            const totalAmount = invoiceItems.reduce((sum, item) => sum + item.soTien, 0)
-            const voucherCode = `PT26102600${Math.floor(100 + Math.random() * 900)}`
-
-            newVoucher = {
-                id: `PT-${Date.now().toString().slice(-6)}`,
-                maPhieu: voucherCode,
-                loaiPhieu: 'Phiếu thu',
-                tenPhieu: `Thu viện phí & tiền thuốc - BN ${finalEnc.benh_nhan?.ho_ten || 'Vãng lai'}`,
-                maBN: finalEnc.benh_nhan?.ma || 'BN-2026',
-                hoTenBN: finalEnc.benh_nhan?.ho_ten || 'Bệnh nhân',
-                ngayThu: new Date().toISOString().replace('T', ' ').slice(0, 16),
-                nguoiThu: 'Phạm Thu Nga (Thu ngân)',
-                hinhThuc: 'Chuyển khoản',
-                daThu: false,
-                ghiChu: `Khoa: ${finalEnc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'} · Bác sĩ: ${finalEnc.bac_si_kham || 'BS. CKI Trần Quốc Huy'} · Đơn: ${payload.don_thuoc?.ma_don_thuoc_quoc_gia || 'DTQG-2026'}`,
-                items: invoiceItems,
-                tongTien: totalAmount,
-                encounterId: finalEnc.id,
-                tienKham: examFee,
-                tienCls: invoiceItems.filter((i) => i.loai === 'CLS').reduce((s, i) => s + i.soTien, 0),
-                tienThuoc: totalDrugFee,
-                thuocTaiPhongKham: true,
-            }
-
-            const ADMIN_STORE_KEY = 'CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'
-            const rawAdminStore = localStorage.getItem(ADMIN_STORE_KEY)
-            if (rawAdminStore) {
-                const adminStore = JSON.parse(rawAdminStore)
-                if (adminStore && Array.isArray(adminStore.vouchers)) {
-                    const existIdx = adminStore.vouchers.findIndex(
-                        (v) => v && ((finalEnc?.id && v.encounterId === finalEnc.id) || v.maPhieu === voucherCode)
-                    )
-                    if (existIdx >= 0) {
-                        adminStore.vouchers[existIdx] = { ...adminStore.vouchers[existIdx], ...newVoucher }
-                    } else {
-                        adminStore.vouchers.unshift(newVoucher)
-                    }
-                    localStorage.setItem(ADMIN_STORE_KEY, JSON.stringify(adminStore))
-                }
-            }
-
-            const PATIENT_HISTORY_KEY = 'clinic_patient_completed_encounters_v1'
-            const rawPatientHist = localStorage.getItem(PATIENT_HISTORY_KEY)
-            const historyList = rawPatientHist ? JSON.parse(rawPatientHist) : []
-            historyList.unshift({
-                ...finalEnc,
-                voucherCode,
-                ngay_kham: new Date().toISOString().slice(0, 10),
-            })
-            localStorage.setItem(PATIENT_HISTORY_KEY, JSON.stringify(historyList.slice(0, 50)))
-
             clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, {
                 encounterId,
-                voucher: newVoucher,
                 encounter: finalEnc,
             })
-        } catch (err) {
-            console.warn('Error syncing completed encounter to cashier & portal:', err)
-        }
+        } catch {}
 
         return delay(finalEnc)
     }

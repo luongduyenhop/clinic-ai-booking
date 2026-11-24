@@ -1,10 +1,10 @@
 from typing import List, Optional
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.medical import HoaDon
-from app.models.user import BenhNhan
+from app.models.user import BenhNhan, NguoiDung
 from app.schemas.cashier import (
     InvoiceLineItemResponse,
     PatientBrief,
@@ -12,28 +12,62 @@ from app.schemas.cashier import (
     PendingBillsListResponse,
 )
 
-async def get_pending_bills(
+
+async def list_invoices(
+    trang_thai: Optional[str] = None,
     ma_kcb: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
     db: AsyncSession = None,
 ) -> PendingBillsListResponse:
-    stmt = (
+    filters = []
+    normalized_status = (trang_thai or "").strip().lower()
+    if normalized_status and normalized_status != "tat_ca":
+        filters.append(HoaDon.trang_thai == normalized_status)
+    else:
+        filters.append(HoaDon.trang_thai.in_(["chua_thu", "da_thu"]))
+
+    keyword = (ma_kcb or "").strip()
+    if keyword:
+        kw_clauses = [
+            HoaDon.ma_hoa_don.ilike(f"%{keyword}%"),
+            BenhNhan.ma_dinh_danh_y_te.ilike(f"%{keyword}%"),
+            NguoiDung.ho_ten.ilike(f"%{keyword}%"),
+        ]
+        upper_kw = keyword.upper()
+        if upper_kw.startswith("KCB-") and upper_kw[4:].isdigit():
+            kw_clauses.append(HoaDon.luot_kham_id == int(upper_kw[4:]))
+        elif keyword.isdigit():
+            kw_clauses.append(HoaDon.luot_kham_id == int(keyword))
+        filters.append(or_(*kw_clauses))
+
+    base_from = (
         select(HoaDon)
+        .outerjoin(HoaDon.benh_nhan)
+        .outerjoin(BenhNhan.nguoi_dung)
+        .where(*filters)
+    )
+    count_stmt = (
+        select(func.count(HoaDon.id))
+        .select_from(HoaDon)
+        .outerjoin(HoaDon.benh_nhan)
+        .outerjoin(BenhNhan.nguoi_dung)
+        .where(*filters)
+    )
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    stmt = (
+        base_from
         .options(
             selectinload(HoaDon.chi_tiet_hoa_don),
             selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
             selectinload(HoaDon.luot_kham),
         )
-        .where(HoaDon.trang_thai == "chua_thu")
         .order_by(HoaDon.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
-    total = (
-        await db.execute(select(func.count(HoaDon.id)).where(HoaDon.trang_thai == "chua_thu"))
-    ).scalar_one()
-    page_invoices = (
-        await db.execute(stmt.offset((page - 1) * page_size).limit(page_size))
-    ).scalars().all()
+    page_invoices = (await db.execute(stmt)).scalars().all()
 
     items: List[PendingBillItem] = []
     for inv in page_invoices:
@@ -71,9 +105,28 @@ async def get_pending_bills(
                 mien_giam=inv.mien_giam,
                 thuc_thu=inv.thuc_thu,
                 trang_thai=inv.trang_thai,
+                phuong_thuc_thanh_toan=inv.phuong_thuc_thanh_toan,
+                ngay_thanh_toan=inv.ngay_thanh_toan,
+                so_hoa_don_in=inv.so_hoa_don_in,
+                ghi_chu=inv.ghi_chu,
                 created_at=inv.created_at,
                 cac_khoan_thu=line_dtos,
             )
         )
 
     return PendingBillsListResponse(items=items, total=total)
+
+
+async def get_pending_bills(
+    ma_kcb: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    db: AsyncSession = None,
+) -> PendingBillsListResponse:
+    return await list_invoices(
+        trang_thai="chua_thu",
+        ma_kcb=ma_kcb,
+        page=page,
+        page_size=page_size,
+        db=db,
+    )

@@ -558,12 +558,29 @@ async def complete_encounter(
     if active_ticket is not None:
         active_ticket.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
         active_ticket.thoi_gian_ket_thuc = now
+    elif luot_kham.hang_doi_kham_id is not None:
+        direct_ticket = (
+            await db.execute(
+                select(HangDoiKham).where(HangDoiKham.id == luot_kham.hang_doi_kham_id).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if direct_ticket is not None:
+            direct_ticket.trang_thai = TrangThaiHangDoiEnum.DA_KHAM.value
+            direct_ticket.thoi_gian_ket_thuc = now
     else:
         logger.warning(
             f"[QUEUE_SYNC_SKIPPED] encounter_id={encounter_id} "
             f"lich_kham_id={luot_kham.lich_kham_id} "
             f"ticket_states={[t.trang_thai for t in tickets]}"
         )
+
+    await db.flush()
+    from app.services.cashier_service import cashier_service
+    await cashier_service.ensure_invoice_for_completed_encounter(
+        luot_kham_id=luot_kham.id,
+        nguoi_lap_id=user.nguoi_dung_id,
+        db=db,
+    )
 
     await db.commit()
 

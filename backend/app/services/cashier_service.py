@@ -54,6 +54,7 @@ from app.services.cashier_modules.cashier_helpers import (
 )
 from app.services.cashier_modules.cashier_query_service import (
     get_pending_bills as cashier_get_pending_bills,
+    list_invoices as cashier_list_invoices,
 )
 from app.services.cashier_modules.cashier_shift_service import (
     close_shift as cashier_shift_close_shift,
@@ -249,6 +250,7 @@ class CashierService:
                         hoa_don_id=hoa_don.id,
                         loai_muc=line.loai_muc,
                         muc_tham_chieu_id=line.muc_tham_chieu_id,
+                        chi_dinh_id=line.muc_tham_chieu_id if line.loai_muc == "can_lam_sang" else None,
                         ten_khoan_thu=line.ten_khoan_thu,
                         so_luong=line.so_luong,
                         don_gia=line.don_gia,
@@ -263,6 +265,87 @@ class CashierService:
 
         return await self.get_invoice_detail(hoa_don.id, db)
 
+    async def ensure_invoice_for_completed_encounter(
+        self,
+        luot_kham_id: int,
+        nguoi_lap_id: Optional[int],
+        db: AsyncSession,
+    ) -> Optional[HoaDon]:
+        try:
+            async with db.begin_nested():
+                luot_kham = await self._load_encounter_for_billing(luot_kham_id, db, lock=False)
+                pending_bill, has_cong_kham, billed_cd_ids = await self._inspect_billing_state(luot_kham.id, db)
+                estimate = await estimate_encounter(
+                    luot_kham,
+                    db,
+                    excluded_chidinh_ids=billed_cd_ids,
+                    include_cong_kham=(not has_cong_kham),
+                )
+                if not estimate.lines:
+                    return pending_bill
+
+                if pending_bill is not None:
+                    for line in estimate.lines:
+                        db.add(
+                            ChiTietHoaDon(
+                                hoa_don_id=pending_bill.id,
+                                loai_muc=line.loai_muc,
+                                muc_tham_chieu_id=line.muc_tham_chieu_id,
+                                chi_dinh_id=line.muc_tham_chieu_id if line.loai_muc == "can_lam_sang" else None,
+                                ten_khoan_thu=line.ten_khoan_thu,
+                                so_luong=line.so_luong,
+                                don_gia=line.don_gia,
+                                thanh_tien=line.thanh_tien,
+                                ghi_chu=line.ghi_chu,
+                            )
+                        )
+                    new_total = Decimal(str(pending_bill.tong_tien or ZERO)) + estimate.tong_tien
+                    current_discount = Decimal(str(pending_bill.mien_giam or ZERO))
+                    net_due = max(ZERO, new_total - current_discount)
+                    pending_bill.tong_tien = new_total
+                    pending_bill.so_tien_phai_thu = net_due
+                    pending_bill.thuc_thu = net_due
+                    await db.flush()
+                    return pending_bill
+
+                now = datetime.now(timezone.utc)
+                ma_hd = f"HD-{now.strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+                hoa_don = HoaDon(
+                    ma_hoa_don=ma_hd,
+                    luot_kham_id=luot_kham.id,
+                    benh_nhan_id=luot_kham.benh_nhan_id,
+                    nguoi_lap_id=nguoi_lap_id,
+                    thu_ngan_id=None,
+                    tong_tien=estimate.tong_tien,
+                    mien_giam=ZERO,
+                    so_tien_phai_thu=estimate.tong_tien,
+                    thuc_thu=estimate.tong_tien,
+                    phuong_thuc_thanh_toan="tien_mat",
+                    trang_thai="chua_thu",
+                    ghi_chu="Tự động khởi tạo khi hoàn tất lượt khám",
+                )
+                db.add(hoa_don)
+                await db.flush()
+                for line in estimate.lines:
+                    db.add(
+                        ChiTietHoaDon(
+                            hoa_don_id=hoa_don.id,
+                            loai_muc=line.loai_muc,
+                            muc_tham_chieu_id=line.muc_tham_chieu_id,
+                            chi_dinh_id=line.muc_tham_chieu_id if line.loai_muc == "can_lam_sang" else None,
+                            ten_khoan_thu=line.ten_khoan_thu,
+                            so_luong=line.so_luong,
+                            don_gia=line.don_gia,
+                            thanh_tien=line.thanh_tien,
+                            ghi_chu=line.ghi_chu,
+                        )
+                    )
+                await db.flush()
+                return hoa_don
+        except Exception as exc:
+            logger.warning(f"[AUTO_INVOICE_SKIPPED] encounter_id={luot_kham_id} reason={exc}")
+            return None
+
     async def pay_invoice(
         self,
         invoice_id: int | str,
@@ -273,60 +356,6 @@ class CashierService:
         ref_str = str(invoice_id).strip()
         is_numeric_id = ref_str.isdigit()
         invoice = await self._find_invoice_by_ref(invoice_id, db, lock=True)
-        if not invoice and not is_numeric_id:
-            first_bn = (await db.execute(select(BenhNhan).order_by(BenhNhan.id.asc()))).scalars().first()
-            first_bs = (await db.execute(select(BacSi).order_by(BacSi.id.asc()))).scalars().first()
-            if first_bn and first_bs:
-                now_utc = datetime.now(timezone.utc)
-                lich = LichKham(
-                    ma_lich_kham=f"LH-VC-{uuid.uuid4().hex[:8].upper()}",
-                    benh_nhan_id=first_bn.id,
-                    bac_si_id=first_bs.id,
-                    ngay_kham=now_utc.date(),
-                    gio_kham=now_utc.time().replace(microsecond=0),
-                    thoi_luong_phut=30,
-                    so_thu_tu=1,
-                    trang_thai="da_xac_nhan",
-                )
-                db.add(lich)
-                await db.flush()
-                lk = LuotKham(
-                    lich_kham_id=lich.id,
-                    bac_si_id=first_bs.id,
-                    benh_nhan_id=first_bn.id,
-                    thoi_gian_bat_dau=now_utc,
-                    ly_do_vao_kham=payload.ghi_chu or f"Thu viện phí {ref_str}",
-                )
-                db.add(lk)
-                await db.flush()
-                so_tien_init = max(ZERO, Decimal(str(payload.so_tien_khach_tra or 0)))
-                hd_code = ref_str if ref_str.startswith("HD-") else f"HD-{ref_str[:40]}"
-                invoice = HoaDon(
-                    ma_hoa_don=hd_code,
-                    luot_kham_id=lk.id,
-                    benh_nhan_id=first_bn.id,
-                    thu_ngan_id=thu_ngan_user_id,
-                    tong_tien=so_tien_init,
-                    mien_giam=ZERO,
-                    thuc_thu=so_tien_init,
-                    phuong_thuc_thanh_toan=payload.phuong_thuc_thanh_toan or "tien_mat",
-                    trang_thai="chua_thu",
-                    ghi_chu=payload.ghi_chu,
-                )
-                db.add(invoice)
-                await db.flush()
-                ct = ChiTietHoaDon(
-                    hoa_don_id=invoice.id,
-                    loai_muc="cong_kham",
-                    muc_tham_chieu_id=None,
-                    ten_khoan_thu="Thu viện phí dịch vụ",
-                    so_luong=1,
-                    don_gia=so_tien_init,
-                    thanh_tien=so_tien_init,
-                )
-                db.add(ct)
-                await db.flush()
-
         if not invoice:
             raise NotFoundException(f"Không tìm thấy hóa đơn ID {invoice_id}!")
 
@@ -342,17 +371,17 @@ class CashierService:
             invoice.thuc_thu = invoice.so_tien_phai_thu
 
         so_tien_tra = Decimal(str(payload.so_tien_khach_tra))
-        if not is_numeric_id and so_tien_tra > ZERO:
-            invoice.tong_tien = so_tien_tra
-            invoice.thuc_thu = so_tien_tra
         if so_tien_tra < invoice.thuc_thu:
             raise UnprocessableEntityException(
                 f"Số tiền thanh toán ({so_tien_tra}) không đủ số tiền thực thu ({invoice.thuc_thu})!"
             )
 
+        raw_method = (payload.phuong_thuc_thanh_toan or "tien_mat").strip().lower()
+        normalized_method = "chuyen_khoan" if raw_method in ("vietqr", "chuyen_khoan", "qr") else raw_method
+
         now = datetime.now(timezone.utc)
         invoice.trang_thai = "da_thu"
-        invoice.phuong_thuc_thanh_toan = payload.phuong_thuc_thanh_toan
+        invoice.phuong_thuc_thanh_toan = normalized_method
         invoice.ngay_thanh_toan = now
         invoice.thu_ngan_id = thu_ngan_user_id
         invoice.so_hoa_don_in = f"BL-{now.strftime('%Y')}-{invoice.id:06d}"
@@ -366,7 +395,7 @@ class CashierService:
             hoa_don_id=invoice.id,
             nguoi_giao_dich=f"Bệnh nhân ID {invoice.benh_nhan_id}",
             so_tien=invoice.thuc_thu,
-            phuong_thuc=payload.phuong_thuc_thanh_toan,
+            phuong_thuc=normalized_method,
             ly_do=f"Thu tiền viện phí hóa đơn {invoice.ma_hoa_don}",
             nhan_vien_id=thu_ngan_user_id,
             thoi_gian=now,
@@ -380,7 +409,7 @@ class CashierService:
             hoa_don_id=invoice.id,
             loai_giao_dich="THU_VIEN_PHI",
             so_tien=invoice.thuc_thu,
-            phuong_thuc=payload.phuong_thuc_thanh_toan,
+            phuong_thuc=normalized_method,
             nguon_tao_giao_dich="TAI_QUAY",
             nguoi_thu_id=thu_ngan_user_id,
             thoi_gian_giao_dich=now,
@@ -429,6 +458,22 @@ class CashierService:
         invoice.ghi_chu = f"{invoice.ghi_chu or ''} | HỦY: {ly_do}".strip(" | ")
         await db.commit()
         return await self.get_invoice_detail(invoice.id, db)
+
+    async def list_invoices(
+        self,
+        trang_thai: Optional[str] = None,
+        ma_kcb: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+        db: AsyncSession = None,
+    ) -> PendingBillsListResponse:
+        return await cashier_list_invoices(
+            trang_thai=trang_thai,
+            ma_kcb=ma_kcb,
+            page=page,
+            page_size=page_size,
+            db=db,
+        )
 
     async def get_pending_bills(
         self,

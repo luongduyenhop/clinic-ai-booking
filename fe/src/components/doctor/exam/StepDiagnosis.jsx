@@ -76,17 +76,17 @@ function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
 
 function formatResultSummary(detail) {
     if (!detail) return null
-    if (typeof detail === 'string') return detail
+    if (typeof detail === 'string') return detail.trim() || null
     if (typeof detail === 'object') {
         if (detail.ket_luan) return String(detail.ket_luan)
         if (detail.mo_ta) return String(detail.mo_ta)
         if (detail.tom_tat) return String(detail.tom_tat)
-        if (Array.isArray(detail.chi_tiet)) {
+        if (Array.isArray(detail.chi_tiet) && detail.chi_tiet.length > 0) {
             return detail.chi_tiet
                 .map((ct) => `${ct.ten_chi_so || ct.ten || ct.ma}: ${ct.gia_tri} ${ct.don_vi || ''}`.trim())
                 .join(', ')
         }
-        if (detail.chi_so && typeof detail.chi_so === 'object') {
+        if (detail.chi_so && typeof detail.chi_so === 'object' && Object.keys(detail.chi_so).length > 0) {
             return Object.entries(detail.chi_so)
                 .map(([k, v]) => {
                     if (v && typeof v === 'object') {
@@ -96,10 +96,12 @@ function formatResultSummary(detail) {
                 })
                 .join(', ')
         }
+        if (Object.keys(detail).length === 0) return null
         try {
-            return JSON.stringify(detail)
+            const str = JSON.stringify(detail)
+            return str === '{}' ? null : str
         } catch {
-            return String(detail)
+            return null
         }
     }
     return String(detail)
@@ -115,6 +117,9 @@ export default function StepDiagnosis({
     services = [],
     onSendPickedOrders,
     onGoToStepOrders,
+    clsOrders: externalClsOrders,
+    aiData,
+    encounterId: _encounterId,
 }) {
     const dispatch = useDispatch()
     const { values, setFieldValue, handleChange, errors } = formik
@@ -122,14 +127,15 @@ export default function StepDiagnosis({
     const [options, setOptions] = useState([])
     const debounced = useDebounce(keyword, 200)
 
-    const ai = encounter?.ket_qua_ai || encounter?.lich_kham?.ket_qua_ai || encounter?.benh_nhan?.ket_qua_ai
+    const ai = aiData || encounter?.phan_tich_ai || encounter?.ket_qua_ai || encounter?.lich_kham?.ket_qua_ai || encounter?.benh_nhan?.ket_qua_ai
     const [rating, setRating] = useState(encounter?.danh_gia_ai?.so_sao || 0)
     const [ratingNote, setRatingNote] = useState(encounter?.danh_gia_ai?.nhan_xet || '')
 
     const list = values.danh_sach_chan_doan || []
     const primary = list.find((d) => d.loai_chan_doan === 'chinh')
     const secondary = list.filter((d) => d.loai_chan_doan !== 'chinh')
-    const clsOrders = (encounter?.danh_sach_chi_dinh || []).filter((o) => o.trang_thai !== 'da_huy')
+    const rawClsList = externalClsOrders !== undefined ? externalClsOrders : (encounter?.danh_sach_chi_dinh || [])
+    const clsOrders = rawClsList.filter((o) => o.trang_thai !== 'da_huy')
 
     const pickedServices = useMemo(() => {
         return (pickedOrders || []).map((id) => services.find((s) => String(s.id) === String(id))).filter(Boolean)
@@ -316,8 +322,8 @@ export default function StepDiagnosis({
                 )}
 
                 <div className="flex flex-col gap-3 rounded-2xl bg-[#E8F4FD] p-4 border border-sky-200 shadow-xs">
-                    <h3 className="flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wide text-[#003553]">
-                        <ClinicIcon name="Microscope" size={16} /> Chỉ định Cận lâm sàng ({clsOrders.length + (pickedServices?.length || 0)})
+                    <h3 className="flex items-center gap-2 text-xs md:text-sm font-extrabold uppercase tracking-wide text-[#003553]">
+                        <ClinicIcon name="Microscope" size={17} /> Chỉ định Cận lâm sàng ({clsOrders.length + (pickedServices?.length || 0)})
                     </h3>
 
                     {pickedServices.length > 0 && (
@@ -362,7 +368,7 @@ export default function StepDiagnosis({
                             )}
                         </div>
                     ) : clsOrders.length > 0 && (
-                        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-0.5">
+                        <div className="flex flex-col gap-3 max-h-[520px] overflow-y-auto pr-1">
                             {clsOrders.map((o) => {
                                 const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
@@ -371,25 +377,34 @@ export default function StepDiagnosis({
                                     ? o.tep_dinh_kem_urls
                                     : (o.tep_dinh_kem_url ? [o.tep_dinh_kem_url] : [])
 
+                                const formattedText = formatResultSummary(resultDetail) || o.ket_luan || o.ghi_chu || null
+
                                 return (
-                                    <div key={o.id} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5 shadow-2xs border border-slate-200">
-                                        <div className="flex items-center justify-between gap-1">
-                                            <span className="text-[12px] font-bold text-[#003553] truncate">
+                                    <div key={o.id} className="flex flex-col gap-2 rounded-2xl bg-white p-3.5 shadow-xs border border-slate-200/90 transition hover:border-[#00B5F1]/50">
+                                        <div className="flex items-center justify-between gap-1.5">
+                                            <span className="text-sm font-extrabold text-[#003553] line-clamp-1">
                                                 {o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || "Dịch vụ CLS"}
                                             </span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                                            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${
                                                 isDone ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : isDoing ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
                                             }`}>
-                                                {isDone ? 'Đã có KQ' : isDoing ? 'Đang làm' : 'Chờ làm'}
+                                                {isDone ? '✓ Đã có KQ' : isDoing ? '⏳ Đang làm' : 'Chờ làm'}
                                             </span>
                                         </div>
-                                        {isDone && resultDetail && (
-                                            <div className="text-[11px] text-emerald-900 bg-emerald-50 rounded-lg p-2 border border-emerald-100 leading-relaxed font-medium">
-                                                {formatResultSummary(resultDetail)}
+                                        {isDone && formattedText && (
+                                            <div className="text-xs sm:text-[13px] text-emerald-950 bg-emerald-50/90 rounded-xl p-3 border border-emerald-200 leading-relaxed font-semibold">
+                                                <span className="text-[11px] font-bold text-emerald-800 uppercase block tracking-wider mb-1">
+                                                    📌 Kết quả / Kết luận:
+                                                </span>
+                                                <div className="whitespace-pre-line text-emerald-900 font-medium">
+                                                    {formattedText}
+                                                </div>
                                             </div>
                                         )}
                                         {isDone && imageList.length > 0 && (
-                                            <ResultAttachments files={imageList} serviceName={o.ten_dich_vu || 'Kết quả cận lâm sàng'} />
+                                            <div className="pt-0.5">
+                                                <ResultAttachments files={imageList} serviceName={o.ten_dich_vu || 'Kết quả cận lâm sàng'} />
+                                            </div>
                                         )}
                                     </div>
                                 )

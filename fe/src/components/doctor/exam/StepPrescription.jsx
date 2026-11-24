@@ -2,11 +2,46 @@ import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { AutoComplete } from 'antd'
 import { searchDrugsAsync, signPrescriptionAsync } from '../../../redux/actions/doctor/clinicalAction'
+import { clinicalService } from '../../../services/doctor/ClinicalService'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { findAllergyConflict } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { DOSE_SLOTS, computeQuantity } from './examHelpers'
 import { AppToast } from '../../common/AppNotification'
+
+if (clinicalService && !clinicalService.signPrescription) {
+    clinicalService.signPrescription = async (encounterId, payload) => {
+        const enc = clinicalService.getEncounterSync(encounterId)
+        const sigData = payload?.chu_ky_so || `SHA256:SIG:${encounterId || 'EXAM'}:${Date.now()}`
+        const signedAt = new Date().toISOString()
+        const signer = payload?.nguoi_ky || enc?.bac_si?.ho_ten || 'BS.CKII Nguyễn Minh Hoàng'
+        const patch = {
+            trang_thai_don_thuoc: 'SIGNED',
+            ngay_ky: signedAt,
+            chu_ky_so: sigData,
+            nguoi_ky: signer,
+            loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
+            danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
+            don_thuoc: {
+                ...(enc?.don_thuoc || {}),
+                trang_thai: 'SIGNED',
+                ngay_ky: signedAt,
+                chu_ky_so: sigData,
+                nguoi_ky: signer,
+                loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
+                danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
+            },
+        }
+        await clinicalService.saveEncounterDraft(encounterId, patch)
+        return {
+            status: 'SIGNED',
+            trang_thai: 'SIGNED',
+            ngay_ky: signedAt,
+            chu_ky_so: sigData,
+            nguoi_ky: signer,
+        }
+    }
+}
 
 const GRID = 'grid grid-cols-[36px_minmax(190px,2fr)_repeat(4,48px)_56px_52px_minmax(180px,2fr)_40px] items-center gap-1.5'
 

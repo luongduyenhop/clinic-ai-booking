@@ -840,8 +840,10 @@ export class ClinicalService extends BaseServices {
     }
 
     createAmendment = async (encounterId, payload) => {
+        const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
+        const targetId = enc?.luot_kham_server_id || (String(encounterId).startsWith('ticket-') ? enc?.luot_kham_server_id || encounterId : encounterId)
         try {
-            const res = await this.post(`/api/v1/clinical/encounters/${encounterId}/amendments`, {
+            const res = await this.post(`/api/v1/clinical/encounters/${targetId}/amendments`, {
                 thuc_the_loai: payload.thuc_the_loai || 'CHAN_DOAN',
                 thuc_the_id: payload.thuc_the_id || 1,
                 ly_do_text: payload.ly_do_text,
@@ -850,17 +852,17 @@ export class ClinicalService extends BaseServices {
                 ghi_chu: payload.ghi_chu || null,
             })
             return res.data?.data || res.data
-        } catch {
-            if (!db.encounters[encounterId]?.is_locked) return reject('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
-            const amendment = { id: db.nextId++, trang_thai: 'CHO_PHE_DUYET', ...payload }
-            await this.persistToPostgres()
-            return delay(amendment)
+        } catch (err) {
+            const errMsg = pickErrorMessage(err, 'Không thể gửi biên bản đính chính')
+            return reject(errMsg)
         }
     }
 
     getEncounterAmendments = async (encounterId) => {
         try {
-            const res = await this.get(`/api/v1/clinical/encounters/${encounterId}/amendments`, {
+            const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
+            const targetId = enc?.luot_kham_server_id || encounterId
+            const res = await this.get(`/api/v1/clinical/encounters/${targetId}/amendments`, {
                 __skipGlobalLoading: true,
                 __skipRefresh: true,
             })

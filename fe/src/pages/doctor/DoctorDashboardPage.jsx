@@ -67,16 +67,44 @@ export default function DoctorDashboardPage() {
                     ? `${primaryDx.ma_icd10} - ${primaryDx.ten_benh_chan_doan}`
                     : 'Chưa có chẩn đoán'
 
-                const timeStr = enc?.thoi_gian_khoa
-                    ? new Date(enc.thoi_gian_khoa).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                    : ''
-                const dateStr = enc?.thoi_gian_khoa
-                    ? new Date(enc.thoi_gian_khoa).toLocaleDateString('vi-VN')
-                    : new Date().toLocaleDateString('vi-VN')
+                const completedTimestamp = enc?.thoi_gian_khoa || enc?.updated_at || t.updated_at || t.created_at
+                const dateObj = completedTimestamp ? new Date(completedTimestamp) : new Date()
+                const timeStr = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                const dateStr = dateObj.toLocaleDateString('vi-VN')
+                const year = dateObj.getFullYear()
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+                const day = String(dateObj.getDate()).padStart(2, '0')
+                const rawDateStr = `${year}-${month}-${day}`
 
-                const labTests = (enc?.danh_sach_chi_dinh || [])
+                const rawOrders = enc?.danh_sach_chi_dinh || []
+                const labOrders = rawOrders
                     .filter((o) => o.trang_thai !== 'da_huy')
-                    .map((o) => o.ten_dich_vu)
+                    .map((o) => {
+                        const resultDetail = o.ket_qua_chi_tiet || o.tri_so_chi_tiet
+                        const imageList = (o.tep_dinh_kem_urls && o.tep_dinh_kem_urls.length > 0)
+                            ? o.tep_dinh_kem_urls
+                            : (o.tep_dinh_kem_url ? [o.tep_dinh_kem_url] : [])
+
+                        let summary = o.ket_luan || o.ghi_chu || ''
+                        if (typeof resultDetail === 'string' && resultDetail.trim()) {
+                            summary = resultDetail.trim()
+                        } else if (resultDetail && typeof resultDetail === 'object') {
+                            summary = resultDetail.ket_luan || resultDetail.tom_tat || resultDetail.mo_ta || summary
+                        }
+
+                        return {
+                            id: o.id || o.server_order_id,
+                            name: o.ten_dich_vu || 'Dịch vụ CLS',
+                            status: o.trang_thai,
+                            summary: summary || (o.trang_thai === 'da_co_ket_qua' ? 'Đã có kết quả' : 'Chờ thực hiện'),
+                            description: resultDetail?.mo_ta || '',
+                            detail: resultDetail,
+                            attachments: imageList,
+                            performedAt: o.thoi_gian_tra_kq || o.thoi_gian_thuc_hien || '',
+                        }
+                    })
+
+                const labTests = labOrders.map((o) => o.name)
 
                 const rawRx = enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || []
                 const prescriptions = rawRx.map((m, mIdx) => ({
@@ -88,6 +116,7 @@ export default function DoctorDashboardPage() {
 
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
+                    encounterId: t.encounter_id,
                     queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
                     patientId: t.patient_id,
                     patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),
@@ -99,8 +128,10 @@ export default function DoctorDashboardPage() {
                     status: 'COMPLETED',
                     completedAt: timeStr,
                     completedDate: dateStr,
+                    completedDateRaw: rawDateStr,
                     finalDiagnosis,
                     labTests,
+                    labOrders,
                     prescriptions,
                     doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
                 }

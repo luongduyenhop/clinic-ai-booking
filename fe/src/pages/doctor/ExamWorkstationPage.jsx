@@ -112,11 +112,43 @@ export default function ExamWorkstationPage() {
                     )}
 
                     {encounterId && encounterError && (
-                        <div className="medpro-card p-8">
-                            <ErrorBlock
-                                message={encounterError}
-                                onRetry={() => selectEncounter(encounterId)}
-                            />
+                        <div className="medpro-card p-8 border-rose-200 bg-rose-50/40">
+                            {String(encounterError).toLowerCase().includes('hết hạn') ||
+                            String(encounterError).toLowerCase().includes('giấy phép') ||
+                            String(encounterError).toLowerCase().includes('expired') ||
+                            String(encounterError).toLowerCase().includes('403') ||
+                            String(encounterError).toLowerCase().includes('đình chỉ') ? (
+                                <div className="flex flex-col items-center text-center max-w-xl mx-auto py-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-600 mb-4 shadow-xs">
+                                        <ClinicIcon name="WarningCircle" size={32} weight="bold" />
+                                    </div>
+                                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-700 bg-rose-100 px-3 py-1 rounded-full border border-rose-200 mb-2">
+                                        HTTP 403 · Forbidden · Vi phạm CCHN
+                                    </span>
+                                    <h3 className="text-base font-extrabold text-rose-900 mb-2">
+                                        CHỨNG CHỈ HÀNH NGHỀ KHÔNG HỢP LỆ — TỪ CHỐI THỰC HIỆN CA KHÁM
+                                    </h3>
+                                    <div className="p-3.5 bg-white rounded-xl border border-rose-200 text-rose-800 text-sm font-semibold leading-relaxed mb-4 text-left w-full shadow-2xs">
+                                        {encounterError}
+                                    </div>
+                                    <p className="text-xs text-rose-600 max-w-lg mb-4">
+                                        Theo Luật Khám bệnh, chữa bệnh 2023 và quy chế kiểm soát tuân thủ lâm sàng, bác sĩ có chứng chỉ hành nghề hết hạn hoặc bị đình chỉ không được phép tiếp nhận ca khám, kê đơn hoặc ký số hồ sơ bệnh án.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => selectEncounter(null)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-900 transition shadow-xs"
+                                    >
+                                        <ClinicIcon name="ArrowLeft" size={14} weight="bold" />
+                                        <span>Đóng hồ sơ ca khám</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <ErrorBlock
+                                    message={encounterError}
+                                    onRetry={() => selectEncounter(encounterId)}
+                                />
+                            )}
                         </div>
                     )}
 
@@ -221,11 +253,14 @@ export default function ExamWorkstationPage() {
                                         orders={encounter.danh_sach_chi_dinh || []}
                                         services={services}
                                         locked={isReadOnly}
+                                        onSubmit={handleCreateOrders}
                                         onSubmitOrders={handleCreateOrders}
                                         onCancelOrder={handleCancelOrder}
                                         onPostponeForCls={handlePostponeForCls}
                                         submitting={orderSubmitting}
+                                        picked={pickedOrders}
                                         pickedOrders={pickedOrders}
+                                        onPickedChange={setPickedOrders}
                                         onPickedOrdersChange={setPickedOrders}
                                     />
                                 )}
@@ -234,11 +269,16 @@ export default function ExamWorkstationPage() {
                                     <StepDiagnosis
                                         formik={formik}
                                         locked={isReadOnly}
+                                        encounter={encounter}
                                         aiData={encounter.phan_tich_ai}
                                         encounterId={encounter.id}
                                         onRateAi={handleRateAi}
                                         doctorSpecialty={resolvedSpecialty?.label || currentUser?.specialty || ''}
                                         clsOrders={encounter.danh_sach_chi_dinh || []}
+                                        pickedOrders={pickedOrders}
+                                        services={services}
+                                        onSendPickedOrders={handleCreateOrders}
+                                        onGoToStepOrders={() => handleStepChange(2)}
                                     />
                                 )}
 
@@ -249,6 +289,7 @@ export default function ExamWorkstationPage() {
                                         encounter={encounter}
                                         matchingTemplate={matchingTemplate}
                                         onApplySampleTemplate={(items, note) => handleApplyPrescription(items, note)}
+                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab: tab || 'print' })}
                                         onOpenAdvancedModal={() => setRxModalState({ open: true, tab: 'templates' })}
                                         onPrint={() => setRxModalState({ open: true, tab: 'print' })}
                                     />
@@ -307,6 +348,7 @@ export default function ExamWorkstationPage() {
             />
 
             <PrescriptionPrintAndCopyModal
+                key={`rx-modal-${rxModalState.open ? 'open' : 'closed'}-${rxModalState.tab}`}
                 isOpen={rxModalState.open}
                 initialTab={rxModalState.tab}
                 onClose={() => setRxModalState((prev) => ({ ...prev, open: false }))}

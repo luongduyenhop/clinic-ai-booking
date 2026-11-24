@@ -12,12 +12,17 @@ from app.models.medical import (
     BienBanDinhChinh,
     ChiDinh,
     ChiTietHoaDon,
+    DichVu,
     GiaoDichThanhToan,
     HoaDon,
+    KetQuaCLS,
     LuotKham,
+    PhieuKetQuaCLS,
     PhieuThuChi,
 )
+from app.models.user import TaiKhoan, VaiTroEnum
 from app.services.admin_service import admin_service
+from app.services.cls_approval_service import cls_approval_service
 from app.services.queue_service import queue_service
 from scripts.seed_one_week_realistic import seed_week_and_today_cases
 
@@ -335,5 +340,55 @@ async def test_seed_one_week_populates_admin_and_both_reception_shifts():
             assert chieu_dash.da_check_in == 2
             assert chieu_dash.dang_cho_kham == 1
             assert chieu_dash.da_kham == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_seed_one_week_creates_cdha_xray_and_approvable_cls_records():
+    engine, session_factory = await _create_sqlite_session_factory()
+    now_dt = datetime(2026, 11, 21, 3, 0, tzinfo=timezone.utc)
+    try:
+        async with session_factory() as session:
+            async with session.begin():
+                await seed_week_and_today_cases(session, "Demo@12345678", now_override=now_dt)
+
+        async with session_factory() as session:
+            lab_enc = await session.scalar(select(LuotKham).where(LuotKham.ma_kcb == "KCB-TODAY-LAB"))
+            assert lab_enc is not None
+            pending_order = await session.scalar(
+                select(ChiDinh).where(
+                    ChiDinh.luot_kham_id == lab_enc.id,
+                    ChiDinh.trang_thai == "cho_duyet",
+                )
+            )
+            assert pending_order is not None
+            svc = await session.scalar(select(DichVu).where(DichVu.id == pending_order.dich_vu_id))
+            assert svc is not None
+            assert svc.ma_nhom_byt == "CDHA"
+
+            kq = await session.scalar(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == pending_order.id))
+            phieu = await session.scalar(select(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id == pending_order.id))
+            assert kq is not None
+            assert phieu is not None
+            assert phieu.trang_thai == "DA_CO_KET_QUA"
+
+            doctor_user = await session.scalar(
+                select(TaiKhoan).where(TaiKhoan.email == "doctor.demo@clinic-ai.test")
+            )
+            assert doctor_user is not None
+            assert doctor_user.vai_tro == VaiTroEnum.BAC_SI.value
+            order_id = pending_order.id
+
+            approval_res = await cls_approval_service.approve(order_id, doctor_user, session)
+            assert approval_res.trang_thai == "da_co_ket_qua"
+
+        async with session_factory() as verify_session:
+            refreshed_order = await verify_session.scalar(select(ChiDinh).where(ChiDinh.id == order_id))
+            refreshed_phieu = await verify_session.scalar(select(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id == order_id))
+            assert refreshed_order is not None
+            assert refreshed_order.trang_thai == "da_co_ket_qua"
+            assert refreshed_phieu is not None
+            assert refreshed_phieu.trang_thai == "DA_DUYET"
     finally:
         await engine.dispose()

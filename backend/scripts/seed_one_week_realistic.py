@@ -39,6 +39,7 @@ from app.models.medical import (
     Thuoc,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
+from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_DA_DUYET
 from scripts.run_migrations import DEPLOYMENT_LOCK, require_demo_database
 from seed_data import seed_catalogs
 CORE_STAFF = [
@@ -343,6 +344,56 @@ def _resolve_seed_clock(now_override: Optional[datetime] = None) -> tuple[dateti
     return now, today
 
 
+async def _sync_order_cls_records(
+    session,
+    order: ChiDinh,
+    service_obj: DichVu,
+    tech_person_id: int,
+    doctor_id: int,
+    event_time: datetime,
+) -> None:
+    if order.trang_thai == "cho_thuc_hien":
+        await session.execute(delete(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))
+        await session.execute(delete(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id == order.id))
+        return
+
+    is_approved = order.trang_thai in ("hoan_thanh", "da_co_ket_qua", "da_duyet")
+    is_xn = (service_obj.ma_nhom_byt or "").upper() == "XN"
+    loai_kq = "XET_NGHIEM" if is_xn else "CHAN_DOAN_HINH_ANH"
+    default_ket_luan = "Hình ảnh tim phổi trong giới hạn bình thường." if not is_xn else (order.ket_qua_chi_tiet or "Bình thường")
+    urls = list(order.file_dinh_kem_urls or [])
+
+    kq = await session.scalar(select(KetQuaCLS).where(KetQuaCLS.chi_dinh_id == order.id))
+    if kq is None:
+        kq = KetQuaCLS(chi_dinh_id=order.id)
+        session.add(kq)
+    kq.nguoi_thuc_hien_id = tech_person_id
+    kq.bac_si_duyet_id = doctor_id if is_approved else None
+    kq.ket_qua_chi_tiet = order.ket_qua_chi_tiet
+    kq.file_dinh_kem_urls = urls
+    kq.ket_qua_phan_loai = order.ket_qua_phan_loai or "BINH_THUONG"
+    kq.thoi_gian_thuc_hien = event_time
+    kq.thoi_gian_duyet = event_time if is_approved else None
+
+    phieu = await session.scalar(
+        select(PhieuKetQuaCLS)
+        .where(PhieuKetQuaCLS.chi_dinh_id == order.id, PhieuKetQuaCLS.lan_thuc_hien == 1)
+    )
+    if phieu is None:
+        phieu = PhieuKetQuaCLS(chi_dinh_id=order.id, lan_thuc_hien=1)
+        session.add(phieu)
+    phieu.loai_ket_qua = loai_kq
+    phieu.trang_thai = PHIEU_DA_DUYET if is_approved else PHIEU_CHO_DUYET
+    phieu.ky_thuat_vien_id = tech_person_id
+    phieu.thoi_gian_thuc_hien = event_time
+    phieu.bac_si_duyet_id = doctor_id if is_approved else None
+    phieu.thoi_gian_duyet = event_time if is_approved else None
+    phieu.thoi_gian_tra_ket_qua = event_time if is_approved else None
+    phieu.mo_ta_hinh_anh = order.ket_qua_chi_tiet if not is_xn else None
+    phieu.ket_luan = default_ket_luan
+    phieu.tep_dinh_kem_urls = urls
+
+
 async def _upsert_today_cls_orders(
     session,
     encounter_id: int,
@@ -355,6 +406,7 @@ async def _upsert_today_cls_orders(
     xray_url = "https://res.cloudinary.com/wnxp3aok/image/upload/v1731518000/demo_chest_xray.jpg"
     order_specs = [
         {
+            "service": general_lab,
             "dich_vu_id": general_lab.id,
             "phong_thuc_hien_id": general_lab.phong_thuc_hien_id,
             "don_gia_tai_thoi_diem": general_lab.don_gia,
@@ -367,6 +419,7 @@ async def _upsert_today_cls_orders(
             "ket_qua_phan_loai": "BINH_THUONG",
         },
         {
+            "service": general_xray,
             "dich_vu_id": general_xray.id,
             "phong_thuc_hien_id": general_xray.phong_thuc_hien_id,
             "don_gia_tai_thoi_diem": general_xray.don_gia,
@@ -388,6 +441,7 @@ async def _upsert_today_cls_orders(
         await session.execute(delete(KetQuaCLS).where(KetQuaCLS.chi_dinh_id.in_(extra_ids)))
         await session.execute(delete(PhieuKetQuaCLS).where(PhieuKetQuaCLS.chi_dinh_id.in_(extra_ids)))
         await session.execute(delete(ChiDinh).where(ChiDinh.id.in_(extra_ids)))
+    order_pairs = []
     for idx, spec in enumerate(order_specs):
         if idx < len(existing_orders):
             order = existing_orders[idx]
@@ -404,7 +458,7 @@ async def _upsert_today_cls_orders(
             order.ket_qua_phan_loai = spec["ket_qua_phan_loai"]
             order.created_at = now
         else:
-            session.add(ChiDinh(
+            order = ChiDinh(
                 luot_kham_id=encounter_id,
                 dich_vu_id=spec["dich_vu_id"],
                 bac_si_chi_dinh_id=doctor_id,
@@ -418,7 +472,19 @@ async def _upsert_today_cls_orders(
                 ket_qua_chi_tiet=spec["ket_qua_chi_tiet"],
                 ket_qua_phan_loai=spec["ket_qua_phan_loai"],
                 created_at=now,
-            ))
+            )
+            session.add(order)
+        order_pairs.append((order, spec["service"]))
+    await session.flush()
+    for order_obj, svc_obj in order_pairs:
+        await _sync_order_cls_records(
+            session,
+            order_obj,
+            svc_obj,
+            tech_person_id,
+            doctor_id,
+            now,
+        )
     await session.flush()
 
 
@@ -516,9 +582,14 @@ async def seed_week_and_today_cases(
     icd_lookup = {item.ma_khai_niem: item for item in icd_list}
     drug_list = (await session.scalars(select(Thuoc).where(Thuoc.is_active.is_(True)).limit(15))).all()
     services_list = list(service_map.values())
-    lab_services = [s for s in services_list if s.ma_nhom_byt in ("XN", "CDHA")]
-    general_lab = lab_services[0] if lab_services else services_list[0]
-    general_xray = lab_services[1] if len(lab_services) > 1 else general_lab
+    service_by_id = {s.id: s for s in services_list}
+    xn_services = [s for s in services_list if s.ma_nhom_byt == "XN"]
+    cdha_services = [s for s in services_list if s.ma_nhom_byt == "CDHA"]
+    general_lab = xn_services[0] if xn_services else services_list[0]
+    general_xray = next(
+        (s for s in cdha_services if "XQ" in (s.ma_dich_vu or "").upper() or "QUANG" in (s.ten_dich_vu or "").upper()),
+        cdha_services[0] if cdha_services else general_lab,
+    )
     primary_doc = doctor_entities[0]
     cashier_person = people[VaiTroEnum.THU_NGAN]
     tech_person = people[VaiTroEnum.KY_THUAT_VIEN]
@@ -623,7 +694,7 @@ async def seed_week_and_today_cases(
             chosen_service = general_lab if idx % 2 == 0 else general_xray
             existing_order = await session.scalar(select(ChiDinh).where(ChiDinh.luot_kham_id == encounter.id))
             if existing_order is None:
-                order = ChiDinh(
+                existing_order = ChiDinh(
                     luot_kham_id=encounter.id,
                     dich_vu_id=chosen_service.id,
                     bac_si_chi_dinh_id=doctor.id,
@@ -636,8 +707,16 @@ async def seed_week_and_today_cases(
                     ket_qua_chi_tiet="Chỉ số sinh hóa máu trong giới hạn bình thường. Không phát hiện bất thường cấp tính.",
                     ket_qua_phan_loai="BINH_THUONG",
                 )
-                session.add(order)
+                session.add(existing_order)
                 await session.flush()
+            await _sync_order_cls_records(
+                session,
+                existing_order,
+                service_by_id.get(existing_order.dich_vu_id, chosen_service),
+                tech_person.id,
+                doctor.id,
+                start_dt + timedelta(minutes=18),
+            )
             if drug_list:
                 existing_rx = await session.scalar(select(DonThuoc).where(DonThuoc.luot_kham_id == encounter.id))
                 if existing_rx is None:
@@ -1001,10 +1080,17 @@ async def seed_week_and_today_cases(
 async def seed_one_week_realistic(now_override: Optional[datetime] = None):
     password = os.environ.get("DEMO_PASSWORD", "Demo@12345678")
     async with AsyncSessionLocal.begin() as session:
-        await session.execute(text("SET LOCAL lock_timeout = '60s'"))
-        await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DEPLOYMENT_LOCK})
         connection = await session.connection()
-        await connection.run_sync(require_demo_database)
+        if connection.dialect.name == "postgresql":
+            await session.execute(text("SET LOCAL lock_timeout = '60s'"))
+            await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DEPLOYMENT_LOCK})
+            await connection.run_sync(require_demo_database)
+        else:
+            import app.models
+            import app.models.content
+            from app.core.database import Base
+            _ = (app.models, app.models.content)
+            await connection.run_sync(Base.metadata.create_all)
         await seed_week_and_today_cases(session, password, now_override=now_override)
         await session.commit()
 def main():

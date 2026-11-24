@@ -1,3 +1,4 @@
+import hmac
 import re
 import uuid
 from decimal import Decimal
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import UnauthorizedException
+from app.core.exceptions import ForbiddenException
 from app.models.user import NguoiDung
 from app.models.medical import GiaoDichThanhToan, HoaDon
 from app.schemas.cashier import (
@@ -25,12 +26,16 @@ async def process_sepay_webhook(
     find_invoice_by_ref_fn: Callable[..., Any],
     pay_invoice_fn: Callable[..., Any],
 ) -> SepayWebhookResponse:
-    if settings.SEPAY_API_KEY:
-        expected_key = settings.SEPAY_API_KEY.strip()
+    configured_token = (settings.SEPAY_WEBHOOK_TOKEN or settings.SEPAY_API_KEY or "").strip()
+    if not configured_token:
+        if settings.is_hosted:
+            raise ForbiddenException("Mã xác thực SePay Webhook chưa được cấu hình trên môi trường hosted")
+    else:
         auth_val = (authorization_header or "").strip()
-        clean_token = auth_val.replace("Apikey ", "").replace("Bearer ", "").strip()
-        if clean_token != expected_key and auth_val != expected_key:
-            raise UnauthorizedException("Mã xác thực SePay API Key không hợp lệ")
+        if auth_val[:7].lower() in ("apikey ", "bearer "):
+            auth_val = auth_val[7:].strip()
+        if not auth_val or not hmac.compare_digest(auth_val, configured_token):
+            raise ForbiddenException("Mã xác thực SePay Webhook không hợp lệ")
 
     if payload.transferType and str(payload.transferType).strip().lower() != "in":
         return SepayWebhookResponse(

@@ -7,6 +7,7 @@ from sqlalchemy.engine import URL
 
 ALLOWED_SLOT_DURATIONS = (15, 30, 45, 60)
 ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+DEFAULT_PAYMENT_WEBHOOK_SECRET = "clinic_ai_default_payment_webhook_secret_key_32bytes"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -82,7 +83,7 @@ class Settings(BaseSettings):
     CLINIC_NAME: str = "PHÒNG KHÁM ĐA KHOA THÔNG MINH CLINIC-AI"
     CLINIC_ADDRESS: str = "Khu Công Nghệ Cao, TP. Thủ Đức"
     CLINIC_PHONE: str = "1900 6868"
-    PAYMENT_WEBHOOK_SECRET: Optional[str] = "clinic_ai_default_payment_webhook_secret_key_32bytes"
+    PAYMENT_WEBHOOK_SECRET: Optional[str] = DEFAULT_PAYMENT_WEBHOOK_SECRET
 
     SEPAY_API_KEY: Optional[str] = None
     SEPAY_WEBHOOK_TOKEN: Optional[str] = None
@@ -125,6 +126,15 @@ class Settings(BaseSettings):
             or "placeholder" in self.SECRET_KEY.lower()
         ):
             raise ValueError("SECRET_KEY must be generated for this deployment")
+        webhook_secret = (self.PAYMENT_WEBHOOK_SECRET or "").strip()
+        if (
+            not webhook_secret
+            or webhook_secret == DEFAULT_PAYMENT_WEBHOOK_SECRET
+            or "change_in_production" in webhook_secret.lower()
+            or "replace_with" in webhook_secret.lower()
+            or "placeholder" in webhook_secret.lower()
+        ):
+            raise ValueError("PAYMENT_WEBHOOK_SECRET must be set to a non-default secret on hosted deployments")
         return self
 
     @field_validator("SLOT_DURATION_MINUTES")

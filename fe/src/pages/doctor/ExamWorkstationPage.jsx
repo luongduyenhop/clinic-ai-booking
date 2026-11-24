@@ -55,16 +55,13 @@ export default function ExamWorkstationPage() {
         handleStepChange,
         loadQueue,
         formik,
-        matchingTemplate,
         handleStartCurrentPatient,
         handleCallNext,
         handleRecall,
-        handlePostponeForCls,
         handleCreateOrders,
         handleCancelOrder,
         handleRateAi,
         handleAmendment,
-        handleApplyPrescription,
         handleQuickCopyZaloText,
         handleComplete,
     } = useDoctorWorkstationLogic()
@@ -198,80 +195,80 @@ export default function ExamWorkstationPage() {
                                 step={step}
                                 locked={isReadOnly}
                                 onChange={handleStepChange}
-                                hasOrders={(encounter.danh_sach_chi_dinh || []).some((order) => order.trang_thai !== 'da_huy')}
-                                hasDiagnosis={(formik.values.danh_sach_chan_doan || []).length > 0}
-                                hasPrescription={(formik.values.danh_sach_thuoc || []).length > 0}
-                                hasPendingCls={isWaitingCls}
-                                hasClsReady={hasClsReady}
+                                counts={{
+                                    cls:
+                                        (encounter.danh_sach_chi_dinh || []).filter((order) => order.trang_thai !== 'da_huy').length +
+                                        (pickedOrders?.length || 0),
+                                    diagnosis: (formik.values.danh_sach_chan_doan || []).length,
+                                    rx: (formik.values.danh_sach_thuoc || []).length,
+                                }}
                             />
 
-                            <div className="flex flex-col gap-4">
+                            <div className="medpro-card flex flex-col gap-5 p-5">
                                 {step === 1 && (
                                     <StepClinical
                                         formik={formik}
-                                        locked={isReadOnly}
                                         encounter={encounter}
-                                        resolvedSpecialty={resolvedSpecialty}
+                                        locked={isReadOnly}
                                     />
                                 )}
 
                                 {step === 2 && (
                                     <StepOrders
                                         encounter={encounter}
-                                        orders={encounter.danh_sach_chi_dinh || []}
                                         services={services}
                                         locked={isReadOnly}
-                                        onSubmitOrders={handleCreateOrders}
-                                        onCancelOrder={handleCancelOrder}
-                                        onPostponeForCls={handlePostponeForCls}
                                         submitting={orderSubmitting}
-                                        pickedOrders={pickedOrders}
-                                        onPickedOrdersChange={setPickedOrders}
+                                        onSubmit={handleCreateOrders}
+                                        onCancelOrder={handleCancelOrder}
+                                        picked={pickedOrders}
+                                        onPickedChange={setPickedOrders}
                                     />
                                 )}
 
                                 {step === 3 && (
                                     <StepDiagnosis
                                         formik={formik}
+                                        encounter={encounter}
                                         locked={isReadOnly}
-                                        aiData={encounter.phan_tich_ai}
-                                        encounterId={encounter.id}
                                         onRateAi={handleRateAi}
-                                        doctorSpecialty={resolvedSpecialty?.label || currentUser?.specialty || ''}
-                                        clsOrders={encounter.danh_sach_chi_dinh || []}
+                                        doctorSpecialty={resolvedSpecialty?.key || ''}
+                                        pickedOrders={pickedOrders}
+                                        services={services}
+                                        onSendPickedOrders={() => handleCreateOrders(pickedOrders)}
+                                        onGoToStepOrders={() => setStep(2)}
                                     />
                                 )}
 
                                 {step === 4 && (
                                     <StepPrescription
                                         formik={formik}
-                                        locked={isReadOnly}
                                         encounter={encounter}
-                                        matchingTemplate={matchingTemplate}
-                                        onApplySampleTemplate={(items, note) => handleApplyPrescription(items, note)}
-                                        onOpenAdvancedModal={() => setRxModalState({ open: true, tab: 'templates' })}
-                                        onPrint={() => setRxModalState({ open: true, tab: 'print' })}
+                                        locked={isReadOnly}
+                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab })}
                                     />
                                 )}
-
-                                <ExamActionBar
-                                    step={step}
-                                    locked={locked}
-                                    formikValues={formik.values}
-                                    encounter={encounter}
-                                    onPrevStep={() => setStep(step - 1)}
-                                    onNextStep={async () => {
-                                        if (step === 2 && pickedOrders.length > 0) {
-                                            const ok = await handleCreateOrders(pickedOrders)
-                                            if (!ok) return
-                                        }
-                                        handleStepChange(step + 1)
-                                    }}
-                                    onComplete={handleComplete}
-                                    onQuickCopyZaloText={handleQuickCopyZaloText}
-                                    onOpenPrintModal={() => setRxModalState({ open: true, tab: 'print' })}
-                                />
                             </div>
+
+                            <ExamActionBar
+                                step={step}
+                                locked={locked}
+                                formikValues={formik.values}
+                                encounter={encounter}
+                                onPrevStep={() => setStep(step - 1)}
+                                onNextStep={async () => {
+                                    if (step === 2 && pickedOrders.length > 0) {
+                                        const ok = await handleCreateOrders(pickedOrders)
+                                        if (!ok) return
+                                        handleStepChange(step + 1, { skipPickedCheck: true })
+                                        return
+                                    }
+                                    handleStepChange(step + 1)
+                                }}
+                                onComplete={handleComplete}
+                                onQuickCopyZaloText={handleQuickCopyZaloText}
+                                onOpenPrintModal={() => setRxModalState({ open: true, tab: 'print' })}
+                            />
                         </>
                     )}
                 </section>
@@ -307,10 +304,12 @@ export default function ExamWorkstationPage() {
             />
 
             <PrescriptionPrintAndCopyModal
+                key={rxModalState.open ? rxModalState.tab : 'closed'}
                 isOpen={rxModalState.open}
                 initialTab={rxModalState.tab}
                 onClose={() => setRxModalState((prev) => ({ ...prev, open: false }))}
                 encounter={encounter || {}}
+                patient={encounter?.benh_nhan || {}}
                 diagnoses={formik.values.danh_sach_chan_doan || []}
                 prescriptionItems={formik.values.danh_sach_thuoc || []}
                 prescriptionNote={formik.values.loi_dan_uong_thuoc || formik.values.loi_dan_bac_si || ''}

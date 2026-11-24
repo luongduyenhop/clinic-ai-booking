@@ -95,11 +95,19 @@ class ClinicalService:
     def _reconstruct_specialty_exam(self, encounter: LuotKham, dept_slug: str, active_orders: list) -> dict:
         return clinical_workspace_service._reconstruct_specialty_exam(self, encounter, dept_slug, active_orders)
 
-    async def _resolve_and_heal_ticket_encounter(self, ticket: HangDoiKham, db: AsyncSession) -> Optional[LuotKham]:
-        return await clinical_workspace_service._resolve_and_heal_ticket_encounter(self, ticket, db)
+    async def _resolve_and_heal_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, for_update: bool = False
+    ) -> tuple[Optional[LuotKham], bool]:
+        return await clinical_workspace_service._resolve_and_heal_ticket_encounter(
+            self, ticket, db, for_update=for_update
+        )
 
-    async def _get_ticket_encounter(self, ticket: HangDoiKham, db: AsyncSession) -> Optional[LuotKham]:
-        return await clinical_workspace_service._get_ticket_encounter(self, ticket, db)
+    async def _get_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, for_update: bool = False
+    ) -> Optional[LuotKham]:
+        return await clinical_workspace_service._get_ticket_encounter(
+            self, ticket, db, for_update=for_update
+        )
 
     def _assert_completion_diagnosis_invariant(self, luot_kham: LuotKham) -> None:
         return clinical_encounter_service._assert_completion_diagnosis_invariant(luot_kham)

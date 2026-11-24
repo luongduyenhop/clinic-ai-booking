@@ -92,6 +92,19 @@ export default function DoctorDashboardPage() {
                     quantity: `${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'}`,
                 }))
 
+                const bloodPressure =
+                    enc?.huyet_ap_tam_thu && enc?.huyet_ap_tam_truong
+                        ? `${enc.huyet_ap_tam_thu}/${enc.huyet_ap_tam_truong}`
+                        : null
+                const heartRate = enc?.mach_lan_phut ?? null
+                const doctorName =
+                    enc?.bac_si?.ho_ten ||
+                    enc?.ten_bac_si ||
+                    user?.fullName ||
+                    user?.ho_ten ||
+                    user?.name ||
+                    'Bác sĩ điều trị'
+
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
                     encounterId: t.encounter_id,
@@ -112,12 +125,17 @@ export default function DoctorDashboardPage() {
                     finalDiagnosis,
                     labTests,
                     prescriptions,
+                    vitals: {
+                        bloodPressure,
+                        heartRate,
+                    },
+                    doctorName,
                     doctorNotes: enc?.loi_dan_bac_si || enc?.ket_luan_dieu_tri || enc?.don_thuoc?.loi_dan_uong_thuoc || 'Đã hoàn tất phiên khám.',
                 }
             })
 
         return completedFromQueue
-    }, [queue])
+    }, [queue, user])
 
     return (
         <div className="space-y-4">

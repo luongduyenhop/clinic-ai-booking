@@ -46,7 +46,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
             },
             ngay_kham: enc.ngay_kham || item.completedDate,
             thoi_gian_khoa: enc.thoi_gian_khoa || item.completedAt,
-            bac_si: enc.bac_si || { ho_ten: 'BS. CKI Nguyễn Văn An' },
+            bac_si: enc.bac_si || { ho_ten: item.doctorName || 'Bác sĩ điều trị' },
             ten_chuyen_khoa: enc.ten_chuyen_khoa || 'Khoa Nội tổng quát',
             loi_dan_bac_si: enc.loi_dan_bac_si || item.doctorNotes || '',
             loi_dan_uong_thuoc: enc.loi_dan_uong_thuoc || item.doctorNotes || '',
@@ -274,15 +274,15 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             </div>
                             <div>
                                 <span className="text-slate-400 block text-[11px]">Huyết áp:</span>
-                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.bloodPressure || '125/80'} mmHg</span>
+                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.bloodPressure ? `${selectedRecord.vitals.bloodPressure} mmHg` : '—'}</span>
                             </div>
                             <div>
                                 <span className="text-slate-400 block text-[11px]">Nhịp tim:</span>
-                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.heartRate || '76'} bpm</span>
+                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.heartRate ? `${selectedRecord.vitals.heartRate} bpm` : '—'}</span>
                             </div>
                             <div>
                                 <span className="text-slate-400 block text-[11px]">Bác sĩ điều trị:</span>
-                                <span className="font-bold text-[#00B5F1]">BS. CKI Nguyễn Văn An</span>
+                                <span className="font-bold text-[#00B5F1]">{selectedRecord.doctorName || selectedRecord.encounter?.bac_si?.ho_ten || 'Bác sĩ điều trị'}</span>
                             </div>
                         </div>
 

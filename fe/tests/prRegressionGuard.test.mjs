@@ -97,6 +97,16 @@ test('Admin layout and dashboard maintain core structure and zero comments', asy
     assert.ok(!dashboardContent.includes('//') && !dashboardContent.includes('/*'), 'DashboardAdminPage must be clean without comments')
 })
 
+test('ClinicalService completes backend encounter outside demoMode and ExaminedHistoryTab uses real vitals and doctorName', async () => {
+    const clinicalSrc = await readFile(new URL('../src/services/doctor/ClinicalService.js', import.meta.url), 'utf8')
+    const historySrc = await readFile(new URL('../src/components/doctor/ExaminedHistoryTab.jsx', import.meta.url), 'utf8')
+    assert.ok(clinicalSrc.includes('if (!enc || enc.is_locked) return false'), 'filterSyncableEncounters must exclude locked encounters')
+    assert.ok(clinicalSrc.includes('/api/v1/clinical/encounters/${enc.luot_kham_server_id}/complete'), 'completeEncounter must post to backend complete endpoint when luot_kham_server_id exists')
+    assert.ok(historySrc.includes('selectedRecord.doctorName'), 'ExaminedHistoryTab must render selectedRecord.doctorName')
+    assert.ok(!historySrc.includes('BS. CKI Nguyễn Văn An'), 'ExaminedHistoryTab must not hardcode BS. CKI Nguyễn Văn An')
+    assert.ok(!historySrc.includes('125/80'), 'ExaminedHistoryTab must not hardcode fallback 125/80 vitals')
+})
+
 test('Admin routes connect guide and QA management pages without dead redirects', async () => {
     const appContent = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
     assert.ok(appContent.includes("import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'"), 'App.jsx must import GuideAndQaManagementPage')

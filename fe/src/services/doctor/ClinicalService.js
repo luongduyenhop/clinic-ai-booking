@@ -305,11 +305,11 @@ const filterSyncableEncounters = (encountersMap = {}, queueList = []) => {
     const queueStatusByEncId = new Map(queueList.map((t) => [String(t.encounter_id), t.trang_thai]))
     return Object.fromEntries(
         Object.entries(encountersMap || {}).filter(([k, enc]) => {
-            if (!enc) return false
-            if (enc.luot_kham_server_id || enc.thoi_gian_bat_dau || enc.is_locked) return true
+            if (!enc || enc.is_locked) return false
+            if (enc.luot_kham_server_id || enc.thoi_gian_bat_dau) return true
             if ((enc.danh_sach_chi_dinh || []).length > 0) return true
             const qStatus = queueStatusByEncId.get(String(k))
-            return Boolean(qStatus && qStatus !== 'cho_kham')
+            return Boolean(qStatus && qStatus !== 'cho_kham' && qStatus !== 'da_kham')
         })
     )
 }
@@ -732,27 +732,47 @@ export class ClinicalService extends BaseServices {
             if (!enc.luot_kham_server_id) return reject('Cần bắt đầu khám trước khi hoàn tất.')
             await this.persistToPostgres({ encounters: { [encounterId]: payload } })
             await this.post(`/api/v1/clinical/encounters/${enc.luot_kham_server_id}/complete`, {
-                ket_luan_dieu_tri: payload.ket_luan_dieu_tri,
-                loi_dan_bac_si: payload.loi_dan_bac_si,
-                ngay_hen_tai_kham: payload.ngay_hen_tai_kham,
+                ket_luan_dieu_tri: payload.ket_luan_dieu_tri || null,
+                loi_dan_bac_si: payload.loi_dan_bac_si || null,
+                ngay_hen_tai_kham: payload.ngay_hen_tai_kham || null,
             })
             await this.reloadFromPostgres()
             clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, { encounterId })
             return delay(db.encounters[encounterId])
         }
-        Object.assign(enc, payload, { is_locked: true, thoi_gian_khoa: new Date().toISOString() })
-        if (ticket) {
-            ticket.trang_thai = 'da_kham'
-            ticket.ghi_chu = 'Đã khám xong'
+        if (enc.luot_kham_server_id) {
+            const syncPatch = { ...payload }
+            if ((enc?.don_thuoc?.trang_thai || enc?.trang_thai_don_thuoc) === 'SIGNED') {
+                delete syncPatch.danh_sach_thuoc
+                delete syncPatch.don_thuoc
+            }
+            await this.put(
+                '/api/v1/clinical/workspace-state',
+                { queue: [], encounters: { [encounterId]: syncPatch } },
+                { __skipGlobalLoading: true }
+            )
+            await this.post(`/api/v1/clinical/encounters/${enc.luot_kham_server_id}/complete`, {
+                ket_luan_dieu_tri: payload.ket_luan_dieu_tri || null,
+                loi_dan_bac_si: payload.loi_dan_bac_si || null,
+                ngay_hen_tai_kham: payload.ngay_hen_tai_kham || null,
+            })
+            await this.reloadFromPostgres()
+        } else {
+            Object.assign(enc, payload, { is_locked: true, thoi_gian_khoa: new Date().toISOString() })
+            if (ticket) {
+                ticket.trang_thai = 'da_kham'
+                ticket.ghi_chu = 'Đã khám xong'
+            }
+            await this.persistToPostgres()
         }
-        await this.persistToPostgres()
+        const finalEnc = db.encounters[encounterId] || db.encounters[String(encounterId)] || enc
 
         let newVoucher = null
         try {
             const examFee = 150000
             const invoiceItems = [
                 {
-                    ten: 'Công khám chuyên khoa ' + (enc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'),
+                    ten: 'Công khám chuyên khoa ' + (finalEnc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'),
                     soLuong: 1,
                     donGia: examFee,
                     soTien: examFee,
@@ -761,7 +781,7 @@ export class ClinicalService extends BaseServices {
             ]
 
             const servicesCatalog = (await this.getServicesCatalog()) || []
-            ;(enc.danh_sach_chi_dinh || []).forEach((cls) => {
+            ;(finalEnc.danh_sach_chi_dinh || []).forEach((cls) => {
                 const s = servicesCatalog.find((x) => String(x.id) === String(cls.dich_vu_id) || x.ma_dich_vu === cls.ma_dich_vu)
                 const price = s?.don_gia || 180000
                 invoiceItems.push({
@@ -796,17 +816,17 @@ export class ClinicalService extends BaseServices {
                 id: `PT-${Date.now().toString().slice(-6)}`,
                 maPhieu: voucherCode,
                 loaiPhieu: 'Phiếu thu',
-                tenPhieu: `Thu viện phí & tiền thuốc - BN ${enc.benh_nhan?.ho_ten || 'Vãng lai'}`,
-                maBN: enc.benh_nhan?.ma || 'BN-2026',
-                hoTenBN: enc.benh_nhan?.ho_ten || 'Bệnh nhân',
+                tenPhieu: `Thu viện phí & tiền thuốc - BN ${finalEnc.benh_nhan?.ho_ten || 'Vãng lai'}`,
+                maBN: finalEnc.benh_nhan?.ma || 'BN-2026',
+                hoTenBN: finalEnc.benh_nhan?.ho_ten || 'Bệnh nhân',
                 ngayThu: new Date().toISOString().replace('T', ' ').slice(0, 16),
                 nguoiThu: 'Phạm Thu Nga (Thu ngân)',
                 hinhThuc: 'Chuyển khoản',
-                daThu: false, 
-                ghiChu: `Khoa: ${enc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'} · Bác sĩ: ${enc.bac_si_kham || 'BS. CKI Trần Quốc Huy'} · Đơn: ${payload.don_thuoc?.ma_don_thuoc_quoc_gia || 'DTQG-2026'}`,
+                daThu: false,
+                ghiChu: `Khoa: ${finalEnc.ai_triage?.ten_chuyen_khoa || 'Nội tổng quát'} · Bác sĩ: ${finalEnc.bac_si_kham || 'BS. CKI Trần Quốc Huy'} · Đơn: ${payload.don_thuoc?.ma_don_thuoc_quoc_gia || 'DTQG-2026'}`,
                 items: invoiceItems,
                 tongTien: totalAmount,
-                encounterId: enc.id,
+                encounterId: finalEnc.id,
                 tienKham: examFee,
                 tienCls: invoiceItems.filter((i) => i.loai === 'CLS').reduce((s, i) => s + i.soTien, 0),
                 tienThuoc: totalDrugFee,
@@ -819,7 +839,7 @@ export class ClinicalService extends BaseServices {
                 const adminStore = JSON.parse(rawAdminStore)
                 if (adminStore && Array.isArray(adminStore.vouchers)) {
                     const existIdx = adminStore.vouchers.findIndex(
-                        (v) => v && ((enc?.id && v.encounterId === enc.id) || v.maPhieu === voucherCode)
+                        (v) => v && ((finalEnc?.id && v.encounterId === finalEnc.id) || v.maPhieu === voucherCode)
                     )
                     if (existIdx >= 0) {
                         adminStore.vouchers[existIdx] = { ...adminStore.vouchers[existIdx], ...newVoucher }
@@ -834,7 +854,7 @@ export class ClinicalService extends BaseServices {
             const rawPatientHist = localStorage.getItem(PATIENT_HISTORY_KEY)
             const historyList = rawPatientHist ? JSON.parse(rawPatientHist) : []
             historyList.unshift({
-                ...enc,
+                ...finalEnc,
                 voucherCode,
                 ngay_kham: new Date().toISOString().slice(0, 10),
             })
@@ -843,13 +863,13 @@ export class ClinicalService extends BaseServices {
             clinicalEventBridge.emit(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, {
                 encounterId,
                 voucher: newVoucher,
-                encounter: enc,
+                encounter: finalEnc,
             })
         } catch (err) {
             console.warn('Error syncing completed encounter to cashier & portal:', err)
         }
 
-        return delay(enc)
+        return delay(finalEnc)
     }
 
     createAmendment = async (encounterId, payload) => {

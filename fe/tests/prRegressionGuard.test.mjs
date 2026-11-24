@@ -46,6 +46,16 @@ test('useDoctorWorkstationLogic initializes formik before validateClinicalStep a
     assert.ok(!content.includes('//') && !content.includes('/*'), 'useDoctorWorkstationLogic must be clean without comments')
 })
 
+test('printMedicalDocuments escapes dynamic HTML and StepPrescription retains print modal trigger', async () => {
+    const printSrc = await readFile(new URL('../src/utils/helpers/printMedicalDocuments.js', import.meta.url), 'utf8')
+    const stepRxSrc = await readFile(new URL('../src/components/doctor/exam/StepPrescription.jsx', import.meta.url), 'utf8')
+    assert.ok(printSrc.includes('function escapeHtml('), 'printMedicalDocuments must define escapeHtml')
+    assert.ok(printSrc.includes('escapeHtml(patientName)') && printSrc.includes('escapeHtml(dxMainText)'), 'printMedicalDocuments must escape interpolated values')
+    assert.ok(!printSrc.includes('//') && !printSrc.includes('/*'), 'printMedicalDocuments must be clean without comments')
+    assert.ok(stepRxSrc.includes("onOpenRxModal('print')"), 'StepPrescription must preserve A4/A5 print modal trigger')
+    assert.ok(!stepRxSrc.includes('//') && !stepRxSrc.includes('/*'), 'StepPrescription must be clean without comments')
+})
+
 test('BookingPage unifies MedPro card layout, AI recommendation and slot retry', async () => {
     const content = await readFile(new URL('../src/pages/user/BookingPage.jsx', import.meta.url), 'utf8')
     assert.ok(content.includes('aiRecommendation'), 'BookingPage must preserve aiRecommendation state and payload')

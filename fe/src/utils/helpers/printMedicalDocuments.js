@@ -1,3 +1,12 @@
+function escapeHtml(val) {
+    return String(val ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
 function printHtmlViaHiddenIframe(htmlContent) {
     const iframe = document.createElement('iframe')
     iframe.setAttribute('style', 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0;')
@@ -71,19 +80,20 @@ export function printPrescriptionDocument({ encounter = {}, prescriptionItems = 
         const dose = resolveDoseText(item)
         const usage = item.cach_dung || item.huong_dan || item.dosage || 'Uống sau ăn no'
         const days = item.so_ngay_dung || item.so_ngay || 5
+        const drugName = item.ten_thuoc || item.ten || item.name || 'Thuốc'
         return `
             <tr>
                 <td style="text-align:center;font-weight:bold;padding:6px 4px;">${idx + 1}</td>
                 <td style="padding:6px 8px;">
-                    <div style="font-weight:bold;font-size:13px;color:#000;">${item.ten_thuoc || item.ten || item.name || 'Thuốc'}</div>
-                    <div style="font-size:11px;color:#444;">${item.hoat_chat ? `Hoạt chất: ${item.hoat_chat}` : ''} ${item.ham_luong ? `(${item.ham_luong})` : ''}</div>
+                    <div style="font-weight:bold;font-size:13px;color:#000;">${escapeHtml(drugName)}</div>
+                    <div style="font-size:11px;color:#444;">${item.hoat_chat ? `Hoạt chất: ${escapeHtml(item.hoat_chat)}` : ''} ${item.ham_luong ? `(${escapeHtml(item.ham_luong)})` : ''}</div>
                 </td>
                 <td style="text-align:center;padding:6px 6px;">
-                    <div style="font-weight:bold;color:#0f766e;font-size:12px;">${dose}</div>
-                    <div style="font-size:11px;color:#555;font-style:italic;">${usage}</div>
+                    <div style="font-weight:bold;color:#0f766e;font-size:12px;">${escapeHtml(dose)}</div>
+                    <div style="font-size:11px;color:#555;font-style:italic;">${escapeHtml(usage)}</div>
                 </td>
-                <td style="text-align:center;font-weight:600;padding:6px 4px;">${days} ngày</td>
-                <td style="text-align:center;font-weight:bold;font-size:13px;padding:6px 4px;">${qty} ${unit}</td>
+                <td style="text-align:center;font-weight:600;padding:6px 4px;">${escapeHtml(days)} ngày</td>
+                <td style="text-align:center;font-weight:bold;font-size:13px;padding:6px 4px;">${escapeHtml(qty)} ${escapeHtml(unit)}</td>
             </tr>
         `
     }).join('')
@@ -92,7 +102,7 @@ export function printPrescriptionDocument({ encounter = {}, prescriptionItems = 
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Đơn Thuốc - ${patientName}</title>
+<title>Đơn Thuốc - ${escapeHtml(patientName)}</title>
 <style>
 @page { size: auto; margin: 8mm 10mm; }
 body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #111; margin: 0; padding: 0; line-height: 1.4; }
@@ -122,8 +132,8 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
         <div class="clinic-meta">GPHĐ: Số 1428/HNO-GPHĐ · Chuẩn liên thông Bộ Y Tế TT 52/2017</div>
     </div>
     <div style="text-align:right;">
-        <div style="font-weight:bold;font-size:11px;">Mã ĐHYT: <span style="font-family:monospace;">${patientCode}</span></div>
-        <div style="font-size:10.5px;color:#555;">Mã ĐT QG: <span style="font-family:monospace;font-weight:bold;">${nationalRxCode}</span></div>
+        <div style="font-weight:bold;font-size:11px;">Mã ĐHYT: <span style="font-family:monospace;">${escapeHtml(patientCode)}</span></div>
+        <div style="font-size:10.5px;color:#555;">Mã ĐT QG: <span style="font-family:monospace;font-weight:bold;">${escapeHtml(nationalRxCode)}</span></div>
     </div>
 </div>
 
@@ -133,11 +143,11 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
 </div>
 
 <div class="info-grid">
-    <div><span class="info-label">Họ và tên người bệnh:</span> <strong>${patientName}</strong></div>
-    <div><span class="info-label">Tuổi / Giới tính:</span> ${patientAge} tuổi · ${patientGender}</div>
-    <div><span class="info-label">Điện thoại liên hệ:</span> ${patientPhone}</div>
-    <div><span class="info-label">Địa chỉ:</span> ${patientAddress}</div>
-    <div style="grid-column: span 2;"><span class="info-label">Chẩn đoán y khoa:</span> <strong>${dxMainText}</strong>${dxSubText ? ` <em>(Kèm theo: ${dxSubText})</em>` : ''}</div>
+    <div><span class="info-label">Họ và tên người bệnh:</span> <strong>${escapeHtml(patientName)}</strong></div>
+    <div><span class="info-label">Tuổi / Giới tính:</span> ${escapeHtml(patientAge)} tuổi · ${escapeHtml(patientGender)}</div>
+    <div><span class="info-label">Điện thoại liên hệ:</span> ${escapeHtml(patientPhone)}</div>
+    <div><span class="info-label">Địa chỉ:</span> ${escapeHtml(patientAddress)}</div>
+    <div style="grid-column: span 2;"><span class="info-label">Chẩn đoán y khoa:</span> <strong>${escapeHtml(dxMainText)}</strong>${dxSubText ? ` <em>(Kèm theo: ${escapeHtml(dxSubText)})</em>` : ''}</div>
 </div>
 
 <table class="rx-table">
@@ -156,8 +166,8 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
 </table>
 
 <div class="note-box">
-    <strong>📌 Lời dặn của bác sĩ điều trị:</strong> ${note}
-    ${followUpDate ? `<div style="margin-top:4px;"><strong>🗓 Hẹn tái khám:</strong> ${followUpDate} (hoặc khi có triệu chứng bất thường).</div>` : ''}
+    <strong>📌 Lời dặn của bác sĩ điều trị:</strong> ${escapeHtml(note)}
+    ${followUpDate ? `<div style="margin-top:4px;"><strong>🗓 Hẹn tái khám:</strong> ${escapeHtml(followUpDate)} (hoặc khi có triệu chứng bất thường).</div>` : ''}
 </div>
 
 <div class="footer-box">
@@ -165,12 +175,12 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
         <em>* Khám lại xin mang theo đơn này. Đơn thuốc có giá trị mua trong vòng 05 ngày kể từ ngày kê đơn theo quy định của Bộ Y Tế. Tra cứu đơn thuốc điện tử tại cổng: donthuocquocgia.vn</em>
     </div>
     <div class="sig-box">
-        <div style="font-size:11px;font-style:italic;">Hà Nội, ngày ${dateFormatted}</div>
+        <div style="font-size:11px;font-style:italic;">Hà Nội, ngày ${escapeHtml(dateFormatted)}</div>
         <div style="font-weight:bold;text-transform:uppercase;margin:4px 0 6px 0;font-size:12px;">Bác sĩ khám bệnh</div>
         <div class="sig-stamp">
             <div style="font-size:10px;font-weight:bold;color:#047857;text-transform:uppercase;">✓ Chứng thư số Y tế hợp lệ</div>
-            <div style="font-weight:bold;font-size:12px;color:#064e3b;margin:2px 0;">${doctorName}</div>
-            <div style="font-size:9.5px;color:#065f46;">Thời gian ký: ${today.toLocaleTimeString('vi-VN')} · ${today.toLocaleDateString('vi-VN')}</div>
+            <div style="font-weight:bold;font-size:12px;color:#064e3b;margin:2px 0;">${escapeHtml(doctorName)}</div>
+            <div style="font-size:9.5px;color:#065f46;">Thời gian ký: ${escapeHtml(today.toLocaleTimeString('vi-VN'))} · ${escapeHtml(today.toLocaleDateString('vi-VN'))}</div>
         </div>
     </div>
 </div>
@@ -222,7 +232,7 @@ export function printMedicalRecordDocument({ encounter = {}, diagnoses = [], pre
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Bệnh Án - ${patientName}</title>
+<title>Bệnh Án - ${escapeHtml(patientName)}</title>
 <style>
 @page { size: auto; margin: 10mm 12mm; }
 body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #111; margin: 0; padding: 0; line-height: 1.45; }
@@ -250,12 +260,12 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
 <div class="header-box">
     <div>
         <div class="clinic-title">Phòng Khám Đa Khoa Quốc Tế Clinic-AI</div>
-        <div class="clinic-meta">Khoa: <strong>${departmentName}</strong> · Cơ sở số 18 Duy Tân, Cầu Giấy, Hà Nội</div>
+        <div class="clinic-meta">Khoa: <strong>${escapeHtml(departmentName)}</strong> · Cơ sở số 18 Duy Tân, Cầu Giấy, Hà Nội</div>
         <div class="clinic-meta">Hotline: 1900 2115 · GPHĐ: 1428/HNO-GPHĐ</div>
     </div>
     <div style="text-align:right;">
-        <div style="font-weight:bold;font-size:11px;">Mã bệnh án: <span style="font-family:monospace;">${patientCode}</span></div>
-        <div style="font-size:10.5px;color:#555;">Mã lượt khám: <span style="font-family:monospace;">HSK-${String(encId).padStart(6, '0')}</span></div>
+        <div style="font-weight:bold;font-size:11px;">Mã bệnh án: <span style="font-family:monospace;">${escapeHtml(patientCode)}</span></div>
+        <div style="font-size:10.5px;color:#555;">Mã lượt khám: <span style="font-family:monospace;">HSK-${escapeHtml(String(encId).padStart(6, '0'))}</span></div>
     </div>
 </div>
 
@@ -266,32 +276,32 @@ body { font-family: 'Times New Roman', Times, serif; font-size: 12.5px; color: #
 
 <div class="sec-title">I. Thông Tin Hành Chính Người Bệnh</div>
 <div class="grid-2">
-    <div><strong>Họ và tên:</strong> ${patientName}</div>
-    <div><strong>Tuổi / Giới tính:</strong> ${patientAge} tuổi · ${patientGender}</div>
-    <div><strong>Số điện thoại:</strong> ${patientPhone}</div>
-    <div><strong>Địa chỉ:</strong> ${patientAddress}</div>
+    <div><strong>Họ và tên:</strong> ${escapeHtml(patientName)}</div>
+    <div><strong>Tuổi / Giới tính:</strong> ${escapeHtml(patientAge)} tuổi · ${escapeHtml(patientGender)}</div>
+    <div><strong>Số điện thoại:</strong> ${escapeHtml(patientPhone)}</div>
+    <div><strong>Địa chỉ:</strong> ${escapeHtml(patientAddress)}</div>
 </div>
 
 <div class="sec-title">II. Lý Do Khám &amp; Tiền Sử Bệnh</div>
 <div style="font-size:12px;margin:4px 0;">
-    <div><strong>Lý do vào khám:</strong> ${encounter.ly_do_vao_kham || encounter.trieu_chung || 'Khám bệnh theo chỉ định'}</div>
-    <div><strong>Bệnh sử:</strong> ${encounter.benh_su || 'Không ghi nhận tiền sử đặc biệt'}</div>
-    <div><strong>Dị ứng thuốc:</strong> ${bn.di_ung_thuoc || encounter.tien_su_di_ung || 'Không có dị ứng'}</div>
+    <div><strong>Lý do vào khám:</strong> ${escapeHtml(encounter.ly_do_vao_kham || encounter.trieu_chung || 'Khám bệnh theo chỉ định')}</div>
+    <div><strong>Bệnh sử:</strong> ${escapeHtml(encounter.benh_su || 'Không ghi nhận tiền sử đặc biệt')}</div>
+    <div><strong>Dị ứng thuốc:</strong> ${escapeHtml(bn.di_ung_thuoc || encounter.tien_su_di_ung || 'Không có dị ứng')}</div>
 </div>
 
 <div class="sec-title">III. Dấu Hiệu Sinh Tồn &amp; Thể Lực</div>
 <div class="grid-4">
     ${vitals.map((v) => `
         <div class="vital-item">
-            <div class="vital-label">${v.label}</div>
-            <div class="vital-val">${v.val}</div>
+            <div class="vital-label">${escapeHtml(v.label)}</div>
+            <div class="vital-val">${escapeHtml(v.val)}</div>
         </div>
     `).join('')}
 </div>
 
 <div class="sec-title">IV. Khám Chuyên Khoa &amp; Toàn Thân</div>
 <div style="font-size:12px;background:#f8fafc;padding:6px 10px;border-radius:4px;border:1px solid #e2e8f0;margin:4px 0;">
-    ${encounter.kham_lam_sang_bo_phan || encounter.kham_chuyen_khoa?.rawText || 'Toàn trạng tỉnh táo, tiếp xúc tốt. Các cơ quan tuần hoàn, hô hấp, tiêu hóa trong giới hạn bình thường.'}
+    ${escapeHtml(encounter.kham_lam_sang_bo_phan || encounter.kham_chuyen_khoa?.rawText || 'Toàn trạng tỉnh táo, tiếp xúc tốt. Các cơ quan tuần hoàn, hô hấp, tiêu hóa trong giới hạn bình thường.')}
 </div>
 
 ${clsOrders.length > 0 ? `
@@ -309,9 +319,9 @@ ${clsOrders.length > 0 ? `
         ${clsOrders.map((o, i) => `
             <tr>
                 <td style="text-align:center;">${i + 1}</td>
-                <td><strong>${o.ten_dich_vu}</strong></td>
+                <td><strong>${escapeHtml(o.ten_dich_vu)}</strong></td>
                 <td><span style="color:#0f766e;font-weight:bold;">${o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet' ? 'Đã có kết quả' : 'Đang xử lý'}</span></td>
-                <td>${typeof o.ket_qua_chi_tiet === 'object' ? (o.ket_qua_chi_tiet?.ket_luan || 'Đã có kết quả') : (o.ket_qua_chi_tiet || '—')}</td>
+                <td>${escapeHtml(typeof o.ket_qua_chi_tiet === 'object' ? (o.ket_qua_chi_tiet?.ket_luan || 'Đã có kết quả') : (o.ket_qua_chi_tiet || '—'))}</td>
             </tr>
         `).join('')}
     </tbody>
@@ -320,16 +330,16 @@ ${clsOrders.length > 0 ? `
 
 <div class="sec-title">VI. Kết Luận Chẩn Đoán &amp; Hướng Điều Trị</div>
 <div style="font-size:12px;margin:4px 0;">
-    <div><strong>Chẩn đoán chính (ICD-10):</strong> <span style="font-size:13px;color:#003553;font-weight:bold;">${dxMainText}</span></div>
-    ${dxSubText ? `<div><strong>Chẩn đoán kèm theo:</strong> ${dxSubText}</div>` : ''}
-    <div><strong>Kết luận điều trị:</strong> ${encounter.ket_luan_dieu_tri || 'Điều trị ngoại trú, theo dõi đáp ứng lâm sàng.'}</div>
+    <div><strong>Chẩn đoán chính (ICD-10):</strong> <span style="font-size:13px;color:#003553;font-weight:bold;">${escapeHtml(dxMainText)}</span></div>
+    ${dxSubText ? `<div><strong>Chẩn đoán kèm theo:</strong> ${escapeHtml(dxSubText)}</div>` : ''}
+    <div><strong>Kết luận điều trị:</strong> ${escapeHtml(encounter.ket_luan_dieu_tri || 'Điều trị ngoại trú, theo dõi đáp ứng lâm sàng.')}</div>
     ${rawItems.length > 0 ? `<div><strong>Thuốc đã kê:</strong> ${rawItems.length} khoản thuốc điều trị ngoại trú.</div>` : ''}
 </div>
 
 <div class="sec-title">VII. Lời Dặn Của Bác Sĩ &amp; Hẹn Tái Khám</div>
 <div style="font-size:12px;margin:4px 0;">
-    <div><strong>Lời dặn:</strong> ${encounter.loi_dan_bac_si || encounter.loi_dan_uong_thuoc || 'Tuân thủ đơn thuốc, nghỉ ngơi hợp lý.'}</div>
-    <div><strong>Lịch hẹn tái khám:</strong> ${encounter.ngay_hen_tai_kham ? `Tái khám ngày <strong>${encounter.ngay_hen_tai_kham}</strong>` : 'Tái khám khi có dấu hiệu bất thường'}</div>
+    <div><strong>Lời dặn:</strong> ${escapeHtml(encounter.loi_dan_bac_si || encounter.loi_dan_uong_thuoc || 'Tuân thủ đơn thuốc, nghỉ ngơi hợp lý.')}</div>
+    <div><strong>Lịch hẹn tái khám:</strong> ${encounter.ngay_hen_tai_kham ? `Tái khám ngày <strong>${escapeHtml(encounter.ngay_hen_tai_kham)}</strong>` : 'Tái khám khi có dấu hiệu bất thường'}</div>
 </div>
 
 <div class="footer-box">
@@ -337,12 +347,12 @@ ${clsOrders.length > 0 ? `
         <em>Hồ sơ bệnh án điện tử đã hoàn tất và lưu trữ bất biến theo quy định bảo mật dữ liệu y tế TT 32/2023/TT-BYT.</em>
     </div>
     <div class="sig-box">
-        <div style="font-size:11px;font-style:italic;">Hà Nội, ngày ${dateFormatted}</div>
+        <div style="font-size:11px;font-style:italic;">Hà Nội, ngày ${escapeHtml(dateFormatted)}</div>
         <div style="font-weight:bold;text-transform:uppercase;margin:4px 0 6px 0;font-size:12px;">Bác sĩ điều trị</div>
         <div class="sig-stamp">
             <div style="font-size:10px;font-weight:bold;color:#0284c7;text-transform:uppercase;">✓ Ký số hồ sơ bệnh án EMR</div>
-            <div style="font-weight:bold;font-size:12px;color:#0369a1;margin:2px 0;">${doctorName}</div>
-            <div style="font-size:9.5px;color:#0284c7;">Thời gian khóa: ${today.toLocaleTimeString('vi-VN')} · ${today.toLocaleDateString('vi-VN')}</div>
+            <div style="font-weight:bold;font-size:12px;color:#0369a1;margin:2px 0;">${escapeHtml(doctorName)}</div>
+            <div style="font-size:9.5px;color:#0284c7;">Thời gian khóa: ${escapeHtml(today.toLocaleTimeString('vi-VN'))} · ${escapeHtml(today.toLocaleDateString('vi-VN'))}</div>
         </div>
     </div>
 </div>

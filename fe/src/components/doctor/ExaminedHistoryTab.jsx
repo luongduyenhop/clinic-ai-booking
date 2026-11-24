@@ -1,29 +1,69 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
+import ResultAttachments from '../user/patient/ResultAttachments'
+
+// Helper thuần túy: lấy ngày hôm nay theo giờ địa phương YYYY-MM-DD
+const getTodayRaw = () => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+}
+
+// Helper: định dạng YYYY-MM-DD sang DD/MM/YYYY
+const formatDateVN = (dateRaw) => {
+    if (!dateRaw) return ''
+    const parts = dateRaw.split('-')
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return dateRaw
+}
 
 export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [searchKeyword, setSearchKeyword] = useState('')
-    const [timeFilter, setTimeFilter] = useState('ALL') 
+    const [selectedDate, setSelectedDate] = useState('') // '' (Tất cả), todayRaw (Hôm nay), hoặc YYYY-MM-DD cụ thể
     const [selectedRecord, setSelectedRecord] = useState(null)
 
-    const todayStr = useMemo(() => new Date().toLocaleDateString('vi-VN'), [])
-    const filteredList = useMemo(() => examinedList.filter((item) => {
-        const matchesSearch =
-            (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
-            (item?.patientCode || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
-            (item?.finalDiagnosis || '').toLowerCase().includes(searchKeyword.toLowerCase())
+    const todayRaw = useMemo(() => getTodayRaw(), [])
+    const formattedSelectedDate = useMemo(() => formatDateVN(selectedDate), [selectedDate])
 
-        if (!matchesSearch) return false
+    const isAllTime = !selectedDate
+    const isToday = selectedDate === todayRaw
+    const isCustomDate = Boolean(selectedDate && selectedDate !== todayRaw)
 
-        if (timeFilter === 'TODAY') {
-            return item.completedDate === todayStr
-        }
-        return true
-    }), [examinedList, searchKeyword, timeFilter, todayStr])
+    const filteredList = useMemo(() => {
+        const kw = searchKeyword.trim().toLowerCase()
+        return examinedList.filter((item) => {
+            if (kw) {
+                const matchesSearch =
+                    (item?.fullName || '').toLowerCase().includes(kw) ||
+                    (item?.patientCode || '').toLowerCase().includes(kw) ||
+                    (item?.finalDiagnosis || '').toLowerCase().includes(kw) ||
+                    (item?.phone || '').includes(kw)
+                if (!matchesSearch) return false
+            }
+
+            if (selectedDate) {
+                return (
+                    item.completedDateRaw === selectedDate ||
+                    item.completedDate === formattedSelectedDate
+                )
+            }
+
+            return true
+        })
+    }, [examinedList, searchKeyword, selectedDate, formattedSelectedDate])
 
     const handlePrintPrescription = (patient) => {
-        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng 204!`)
+        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng khám!`)
+    }
+
+    const handleResetFilter = () => {
+        setSelectedDate('')
+        setSearchKeyword('')
     }
 
     return (
@@ -39,7 +79,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                 Lịch Sử & Hồ Sơ Bệnh Nhân Đã Khám
                             </h3>
                             <p className="text-xs text-slate-500">
-                                Danh sách các lượt khám do bạn trực tiếp kết luận và kê đơn
+                                Danh sách các lượt khám do bạn trực tiếp kết luận, xem kết quả dịch vụ và kê đơn
                             </p>
                         </div>
                     </div>
@@ -51,8 +91,9 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                    <div className="relative flex-1 w-full">
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 pt-2">
+                    {/* Ô tìm kiếm */}
+                    <div className="relative flex-1">
                         <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
                             🔍
                         </span>
@@ -60,17 +101,18 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             type="text"
                             value={searchKeyword}
                             onChange={(e) => setSearchKeyword(e.target.value)}
-                            placeholder="Tìm kiếm theo họ tên bệnh nhân, mã hồ sơ hoặc chẩn đoán..."
+                            placeholder="Tìm kiếm theo họ tên bệnh nhân, số điện thoại, mã hồ sơ hoặc chẩn đoán..."
                             className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:border-[#00B5F1] focus:bg-white focus:ring-2 focus:ring-[#00B5F1]/10 transition"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {/* Bộ lọc theo ngày */}
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => setTimeFilter('ALL')}
+                            onClick={() => setSelectedDate('')}
                             className={`px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                                timeFilter === 'ALL'
+                                isAllTime
                                     ? 'bg-[#003553] text-white shadow-2xs'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
@@ -79,17 +121,65 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                         </button>
                         <button
                             type="button"
-                            onClick={() => setTimeFilter('TODAY')}
+                            onClick={() => setSelectedDate(todayRaw)}
                             className={`px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                                timeFilter === 'TODAY'
+                                isToday
                                     ? 'bg-[#003553] text-white shadow-2xs'
                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                         >
                             Hôm nay
                         </button>
+
+                        {/* Chọn ngày tùy chỉnh */}
+                        <div
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition ${
+                                isCustomDate
+                                    ? 'border-[#00B5F1] bg-sky-50/50 ring-2 ring-[#00B5F1]/15'
+                                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100/70'
+                            }`}
+                        >
+                            <span className="text-xs text-slate-500 font-bold flex items-center gap-1 whitespace-nowrap">
+                                📅 <span>Lọc theo ngày:</span>
+                            </span>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="text-xs font-bold text-slate-800 bg-transparent outline-none cursor-pointer py-1"
+                            />
+                            {selectedDate && (
+                                <button
+                                    type="button"
+                                    onClick={handleResetFilter}
+                                    className="w-5 h-5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center text-[11px] font-bold cursor-pointer transition"
+                                    title="Xóa bộ lọc ngày"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
+
+                {/* Dòng trạng thái nếu đang lọc theo một ngày cụ thể */}
+                {selectedDate && (
+                    <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-sky-50 border border-sky-200/70 text-xs text-sky-900">
+                        <div className="flex items-center gap-2">
+                            <span>📌</span>
+                            <span>
+                                Đang lọc bệnh nhân đã khám ngày <strong>{formattedSelectedDate}</strong>: <strong>{filteredList.length}</strong> hồ sơ
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleResetFilter}
+                            className="text-sky-700 hover:text-sky-950 font-bold underline cursor-pointer text-[11px]"
+                        >
+                            Hiển thị tất cả
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
@@ -109,7 +199,9 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                             {filteredList.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="py-12 text-center text-slate-400 text-xs">
-                                        Chưa có bệnh nhân nào trong danh sách đã khám.
+                                        {selectedDate
+                                            ? `Không tìm thấy bệnh nhân nào đã khám trong ngày ${formattedSelectedDate}.`
+                                            : 'Chưa có bệnh nhân nào trong danh sách đã khám.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -139,8 +231,18 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                         </td>
 
                                         <td className="py-3.5 px-4">
-                                            <div className="flex flex-wrap gap-1">
-                                                {item.labTests && item.labTests.length > 0 ? (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {item.labOrders && item.labOrders.length > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedRecord(item)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#00B5F1] hover:text-[#008cc0] text-[11px] font-bold border border-sky-200 transition cursor-pointer shadow-2xs"
+                                                        title="Xem kết quả cận lâm sàng chi tiết"
+                                                    >
+                                                        <span>🔬 {item.labOrders.length} KQ dịch vụ</span>
+                                                        <span className="text-[9px]">↗</span>
+                                                    </button>
+                                                ) : item.labTests && item.labTests.length > 0 ? (
                                                     <span className="px-2 py-0.5 rounded-md bg-sky-50 text-[#00B5F1] text-[10px] font-semibold border border-sky-100">
                                                         🔬 {item.labTests.length} xét nghiệm
                                                     </span>
@@ -165,7 +267,7 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                                     onClick={() => setSelectedRecord(item)}
                                                     className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-[#E8F4FD] hover:text-[#00B5F1] hover:border-[#00B5F1]/30 font-bold text-[11px] text-slate-700 transition cursor-pointer shadow-2xs"
                                                 >
-                                                    👁 Chi tiết
+                                                    👁 Xem hồ sơ & KQ
                                                 </button>
                                                 <button
                                                     type="button"
@@ -185,17 +287,24 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                 </div>
             </div>
 
+            {/* Modal Hồ Sơ Bệnh Án Điện Tử & Xem Lại Kết Quả Dịch Vụ */}
             {selectedRecord &&
                 createPortal(
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-3xl max-w-2xl w-full flex flex-col max-h-[85vh] border border-slate-200 shadow-2xl relative overflow-hidden">
-                            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
-                                <div>
-                                    <h3 className="text-base font-extrabold text-[#003553]">
-                                        Hồ Sơ Bệnh Án Điện Tử
-                                    </h3>
-                                    <p className="text-xs text-slate-400">
-                                        Mã bệnh án: <span className="font-bold text-slate-700">{selectedRecord.patientCode}</span> | Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
+                        <div className="bg-white rounded-3xl max-w-3xl sm:max-w-4xl w-full flex flex-col max-h-[90vh] border border-slate-200 shadow-2xl relative overflow-hidden">
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 shrink-0 bg-slate-50/50">
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-8 h-8 rounded-xl bg-sky-100 text-[#00B5F1] flex items-center justify-center font-bold text-base">
+                                            📋
+                                        </span>
+                                        <h3 className="text-base sm:text-lg font-extrabold text-[#003553]">
+                                            Hồ Sơ Bệnh Án Điện Tử & Kết Quả Khám
+                                        </h3>
+                                    </div>
+                                    <p className="text-xs text-slate-500 pl-10">
+                                        Mã bệnh án: <span className="font-bold text-slate-800">{selectedRecord.patientCode}</span> | Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
                                     </p>
                                 </div>
                                 <button
@@ -207,88 +316,180 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            {/* Modal Body */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                                {/* Thông tin hành chính bệnh nhân */}
+                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Họ và tên:</span>
+                                        <span className="font-bold text-slate-800 text-sm">{selectedRecord.fullName}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Giới tính / Tuổi:</span>
+                                        <span className="font-semibold text-slate-800">{selectedRecord.gender} • {selectedRecord.age} tuổi</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Số điện thoại:</span>
+                                        <span className="font-semibold text-slate-800">{selectedRecord.phone}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Huyết áp:</span>
+                                        <span className="font-bold text-slate-800">{selectedRecord.vitals?.bloodPressure || '125/80'} mmHg</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Nhịp tim:</span>
+                                        <span className="font-bold text-slate-800">{selectedRecord.vitals?.heartRate || '76'} bpm</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Bác sĩ điều trị:</span>
+                                        <span className="font-bold text-[#00B5F1]">BS. CKI Nguyễn Văn An</span>
+                                    </div>
+                                </div>
 
-                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Họ và tên:</span>
-                                <span className="font-bold text-slate-800">{selectedRecord.fullName}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Giới tính / Tuổi:</span>
-                                <span className="font-semibold text-slate-800">{selectedRecord.gender} • {selectedRecord.age} tuổi</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Số điện thoại:</span>
-                                <span className="font-semibold text-slate-800">{selectedRecord.phone}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Huyết áp:</span>
-                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.bloodPressure || '125/80'} mmHg</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Nhịp tim:</span>
-                                <span className="font-bold text-slate-800">{selectedRecord.vitals?.heartRate || '76'} bpm</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-400 block text-[11px]">Bác sĩ điều trị:</span>
-                                <span className="font-bold text-[#00B5F1]">BS. CKI Nguyễn Văn An</span>
-                            </div>
-                        </div>
+                                {/* Chẩn đoán xác định */}
+                                <div className="space-y-1.5 text-xs">
+                                    <h4 className="font-extrabold text-slate-700 uppercase text-[11px] tracking-wider">
+                                        Chẩn đoán xác định:
+                                    </h4>
+                                    <div className="p-3.5 rounded-2xl bg-[#E8F4FD] border border-sky-200 text-[#003553] font-bold text-sm">
+                                        {selectedRecord.finalDiagnosis}
+                                    </div>
+                                </div>
 
-                        <div className="space-y-1.5 text-xs">
-                            <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
-                                Chẩn đoán xác định:
-                            </h4>
-                            <p className="p-3 rounded-xl bg-[#E8F4FD] border border-sky-200 text-[#003553] font-bold">
-                                {selectedRecord.finalDiagnosis}
-                            </p>
-                        </div>
+                                {/* Kết quả Cận lâm sàng & Dịch vụ chi tiết */}
+                                <div className="space-y-2.5 text-xs">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-extrabold text-[#003553] uppercase text-[12px] tracking-wider flex items-center gap-2">
+                                            <span>🔬</span>
+                                            <span>Kết Quả Cận Lâm Sàng & Dịch Vụ Đã Thực Hiện</span>
+                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
+                                                {selectedRecord.labOrders?.length || selectedRecord.labTests?.length || 0} dịch vụ
+                                            </span>
+                                        </h4>
+                                    </div>
 
-                        {selectedRecord.labTests && selectedRecord.labTests.length > 0 && (
-                            <div className="space-y-1.5 text-xs">
-                                <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
-                                    Cận lâm sàng đã chỉ định:
-                                </h4>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {selectedRecord.labTests.map((t, i) => (
-                                        <span
-                                            key={i}
-                                            className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-semibold"
-                                        >
-                                            🔬 {t}
-                                        </span>
-                                    ))}
+                                    {selectedRecord.labOrders && selectedRecord.labOrders.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {selectedRecord.labOrders.map((order, idx) => {
+                                                const hasAttachments = order.attachments && order.attachments.length > 0
+                                                const hasConclusion = Boolean(order.summary || order.description)
+                                                return (
+                                                    <div
+                                                        key={order.id || idx}
+                                                        className="p-4 rounded-2xl border border-sky-100 bg-sky-50/40 hover:bg-sky-50/70 transition space-y-3"
+                                                    >
+                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="w-6 h-6 rounded-lg bg-[#00B5F1] text-white flex items-center justify-center font-extrabold text-xs">
+                                                                    {idx + 1}
+                                                                </span>
+                                                                <span className="font-extrabold text-slate-800 text-[13px]">
+                                                                    {order.name}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {order.performedAt && (
+                                                                    <span className="text-[11px] text-slate-400">
+                                                                        🕒 {order.performedAt}
+                                                                    </span>
+                                                                )}
+                                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] border border-emerald-200">
+                                                                    ✓ Đã có kết quả
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Kết luận & Chỉ số CLS */}
+                                                        {hasConclusion ? (
+                                                            <div className="p-3.5 rounded-xl bg-white border border-emerald-100 shadow-2xs space-y-1">
+                                                                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide block">
+                                                                    📌 Kết luận / Kết quả thực hiện:
+                                                                </span>
+                                                                <p className="text-xs sm:text-[13px] font-semibold text-slate-800 whitespace-pre-wrap leading-relaxed">
+                                                                    {order.summary}
+                                                                </p>
+                                                                {order.description && order.description !== order.summary && (
+                                                                    <p className="text-[11px] text-slate-500 pt-1.5 border-t border-slate-100 whitespace-pre-wrap">
+                                                                        {order.description}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-xs italic text-slate-400">
+                                                                Chưa có ghi chú kết luận chi tiết.
+                                                            </p>
+                                                        )}
+
+                                                        {/* Nút xem hình ảnh đính kèm (nếu có) */}
+                                                        {hasAttachments && (
+                                                            <div className="pt-1 flex items-center justify-between bg-white/60 p-2.5 rounded-xl border border-sky-100">
+                                                                <span className="text-xs text-slate-600 font-medium">
+                                                                    Hình ảnh chẩn đoán đính kèm: <strong>{order.attachments.length} ảnh</strong>
+                                                                </span>
+                                                                <ResultAttachments
+                                                                    files={order.attachments}
+                                                                    serviceName={order.name}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : selectedRecord.labTests && selectedRecord.labTests.length > 0 ? (
+                                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedRecord.labTests.map((t, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-semibold"
+                                                    >
+                                                        🔬 {t}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 italic text-center">
+                                            Không có chỉ định cận lâm sàng nào trong lượt khám này.
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Đơn thuốc chi tiết */}
+                                <div className="space-y-2 text-xs">
+                                    <h4 className="font-extrabold text-slate-700 uppercase text-[11px] tracking-wider">
+                                        Đơn thuốc chi tiết:
+                                    </h4>
+                                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+                                        {selectedRecord.prescriptions && selectedRecord.prescriptions.length > 0 ? (
+                                            selectedRecord.prescriptions.map((med, i) => (
+                                                <div key={i} className="p-3 flex justify-between items-center bg-white hover:bg-slate-50/50 transition">
+                                                    <div>
+                                                        <span className="font-bold text-slate-800">{i + 1}. {med.name}</span>
+                                                        <p className="text-[11px] text-slate-500">{med.dosage}</p>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                                                        {med.quantity}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-3 text-slate-400 italic text-center">
+                                                Không có thuốc được kê.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Lời dặn của bác sĩ */}
+                                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1">
+                                    <span className="font-bold block text-[12px]">📌 Lời dặn của bác sĩ:</span>
+                                    <p className="font-medium">{selectedRecord.doctorNotes || 'Ăn uống hợp lý, nghỉ ngơi. Tái khám khi có dấu hiệu bất thường.'}</p>
                                 </div>
                             </div>
-                        )}
 
-                        <div className="space-y-2 text-xs">
-                            <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
-                                Đơn thuốc chi tiết:
-                            </h4>
-                            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
-                                {selectedRecord.prescriptions?.map((med, i) => (
-                                    <div key={i} className="p-3 flex justify-between items-center bg-white">
-                                        <div>
-                                            <span className="font-bold text-slate-800">{i + 1}. {med.name}</span>
-                                            <p className="text-[11px] text-slate-500">{med.dosage}</p>
-                                        </div>
-                                        <span className="text-xs font-semibold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
-                                            {med.quantity}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1">
-                            <span className="font-bold block">📌 Lời dặn của bác sĩ:</span>
-                            <p>{selectedRecord.doctorNotes || 'Ăn uống hợp lý, hạn chế mỡ động vật. Tái khám sau 14 ngày.'}</p>
-                        </div>
-
-                            </div>
-
+                            {/* Modal Footer */}
                             <div className="flex justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
                                 <button
                                     type="button"

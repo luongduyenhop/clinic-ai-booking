@@ -299,3 +299,22 @@ async def test_diagnosis_keeps_doctor_detailed_name(api_client, booking, db_sess
     )
     assert res.status_code == 201
     assert res.json()["data"]["ten_benh_chan_doan"] == "Tăng huyết áp độ 1 (ESC/ESH)"
+
+
+@pytest.mark.asyncio
+async def test_expired_doctor_blocked_from_clinical_exam_http_403(api_client, booking, db_session):
+    original_status = booking.bs_x.trang_thai_giay_phep
+    try:
+        booking.bs_x.trang_thai_giay_phep = "EXPIRED"
+        await db_session.flush()
+
+        res = await api_client.get("/api/v1/clinical/encounters/1", headers=booking.tokens["bs_x"])
+        assert res.status_code == 403
+        assert "HẾT HẠN" in res.json()["message"] or "EXPIRED" in res.json()["message"]
+
+        res_call = await api_client.post("/api/v1/clinical/queue/call-next", headers=booking.tokens["bs_x"])
+        assert res_call.status_code == 403
+        assert "HẾT HẠN" in res_call.json()["message"] or "EXPIRED" in res_call.json()["message"]
+    finally:
+        booking.bs_x.trang_thai_giay_phep = original_status
+        await db_session.flush()

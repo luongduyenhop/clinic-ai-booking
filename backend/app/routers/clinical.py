@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,6 +110,8 @@ async def get_encounter_detail(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    if current_user.vai_tro == VaiTroEnum.BAC_SI.value:
+        await clinical_service._get_doctor_from_user(current_user, db)
     result = await clinical_service.get_encounter_detail(encounter_id, current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -479,6 +481,7 @@ async def call_next_patient(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    await clinical_service._get_doctor_from_user(current_user, db)
     result = await queue_service.call_next_patient(current_user, db)
     return ResponseEnvelope.success_response(
         data=result,
@@ -510,7 +513,7 @@ async def postpone_ticket(
     summary="Bác sĩ tạo biên bản đính chính bệnh án đã khóa (OpenMRS / FHIR Amendment Pattern)"
 )
 async def request_amendment(
-    encounter_id: int,
+    encounter_id: Union[int, str],
     payload: AmendmentCreateRequest,
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -529,7 +532,7 @@ async def request_amendment(
     summary="Xem danh sách các biên bản đính chính của một ca khám"
 )
 async def get_amendments(
-    encounter_id: int,
+    encounter_id: Union[int, str],
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

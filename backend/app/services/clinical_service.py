@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.medical import (
@@ -10,7 +10,7 @@ from app.models.medical import (
     ChiDinh,
 )
 from app.models.appointment import HangDoiKham
-from app.models.user import TaiKhoan, BacSi
+from app.models.user import TaiKhoan, BacSi, VaiTroEnum
 from app.models.specialty_exam import (
     KhamNoiKhoa,
     KhamNgoaiKhoa,
@@ -67,8 +67,54 @@ class ClinicalService:
         "rang-ham-mat": KhamRangHamMat,
     }
 
+    @staticmethod
+    def _assert_doctor_license_valid(bac_si: BacSi, user: Optional[TaiKhoan] = None) -> None:
+        from app.models.compliance import TrangThaiGiayPhep
+        from app.services.credential_service import DoctorLicenseInvalidException
+        from datetime import datetime, timezone
+
+        doc_name = f"ID {getattr(bac_si, 'id', '')}"
+        status = getattr(bac_si, "trang_thai_giay_phep", "ACTIVE")
+
+        if status == TrangThaiGiayPhep.EXPIRED.value or status == "EXPIRED":
+            raise DoctorLicenseInvalidException(
+                f"Giấy phép hành nghề của Bác sĩ {doc_name} đã HẾT HẠN (EXPIRED). Không thể phân công hoặc tiếp nhận ca khám!"
+            )
+        if status == TrangThaiGiayPhep.SUSPENDED.value or status == "SUSPENDED":
+            raise DoctorLicenseInvalidException(
+                f"Bác sĩ {doc_name} đang bị TẠM ĐÌNH CHỈ hành nghề (SUSPENDED). Mọi hoạt động chuyên môn bị tạm khóa!"
+            )
+        if status == TrangThaiGiayPhep.REVOKED.value or status == "REVOKED":
+            raise DoctorLicenseInvalidException(
+                f"Giấy phép hành nghề của Bác sĩ {doc_name} đã bị THU HỒI (REVOKED). Từ chối thực hiện tác vụ!"
+            )
+
+        ngay_het_han = getattr(bac_si, "ngay_het_han", None)
+        if ngay_het_han:
+            now = datetime.now(timezone.utc)
+            if isinstance(ngay_het_han, datetime):
+                exp_dt = ngay_het_han if ngay_het_han.tzinfo else ngay_het_han.replace(tzinfo=timezone.utc)
+                is_expired = exp_dt < now
+                exp_str = exp_dt.strftime("%Y-%m-%d")
+            else:
+                is_expired = ngay_het_han < now.date()
+                exp_str = ngay_het_han.strftime("%Y-%m-%d")
+
+            if is_expired:
+                bac_si.trang_thai_giay_phep = TrangThaiGiayPhep.EXPIRED.value
+                bac_si.is_active = False
+                raise DoctorLicenseInvalidException(
+                    f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_str}!"
+                )
+
+        if hasattr(bac_si, "is_active") and not bac_si.is_active:
+            raise DoctorLicenseInvalidException(f"Hồ sơ Bác sĩ {doc_name} hiện đang ở trạng thái ngừng hoạt động!")
+
     async def _get_doctor_from_user(self, user: TaiKhoan, db: AsyncSession) -> BacSi:
-        return await clinical_encounter_service._get_doctor_from_user(self, user, db)
+        bac_si = await clinical_encounter_service._get_doctor_from_user(self, user, db)
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            self._assert_doctor_license_valid(bac_si, user)
+        return bac_si
 
     async def enrich_workspace_ai(self, payload: dict, db: AsyncSession) -> dict:
         return await clinical_encounter_service.enrich_workspace_ai(self, payload, db)
@@ -95,11 +141,19 @@ class ClinicalService:
     def _reconstruct_specialty_exam(self, encounter: LuotKham, dept_slug: str, active_orders: list) -> dict:
         return clinical_workspace_service._reconstruct_specialty_exam(self, encounter, dept_slug, active_orders)
 
-    async def _resolve_and_heal_ticket_encounter(self, ticket: HangDoiKham, db: AsyncSession) -> Optional[LuotKham]:
-        return await clinical_workspace_service._resolve_and_heal_ticket_encounter(self, ticket, db)
+    async def _resolve_and_heal_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, *, for_update: bool = False
+    ) -> tuple[Optional[LuotKham], bool]:
+        return await clinical_workspace_service._resolve_and_heal_ticket_encounter(
+            self, ticket, db, for_update=for_update
+        )
 
-    async def _get_ticket_encounter(self, ticket: HangDoiKham, db: AsyncSession) -> Optional[LuotKham]:
-        return await clinical_workspace_service._get_ticket_encounter(self, ticket, db)
+    async def _get_ticket_encounter(
+        self, ticket: HangDoiKham, db: AsyncSession, *, for_update: bool = False
+    ) -> Optional[LuotKham]:
+        return await clinical_workspace_service._get_ticket_encounter(
+            self, ticket, db, for_update=for_update
+        )
 
     def _assert_completion_diagnosis_invariant(self, luot_kham: LuotKham) -> None:
         return clinical_encounter_service._assert_completion_diagnosis_invariant(luot_kham)
@@ -176,7 +230,7 @@ class ClinicalService:
     def _to_amendment_response(self, bb: BienBanDinhChinh) -> AmendmentResponse:
         return clinical_amendment_service._to_amendment_response(self, bb)
 
-    async def request_amendment(self, encounter_id: int, payload: AmendmentCreateRequest, user: TaiKhoan, db: AsyncSession) -> AmendmentResponse:
+    async def request_amendment(self, encounter_id: Union[int, str], payload: AmendmentCreateRequest, user: TaiKhoan, db: AsyncSession) -> AmendmentResponse:
         return await clinical_amendment_service.request_amendment(self, encounter_id, payload, user, db)
 
     async def approve_amendment(self, amendment_id: int, payload: AmendmentApproveRequest, user: TaiKhoan, db: AsyncSession) -> AmendmentResponse:
@@ -185,7 +239,7 @@ class ClinicalService:
     async def reject_amendment(self, amendment_id: int, payload: AmendmentApproveRequest, user: TaiKhoan, db: AsyncSession) -> AmendmentResponse:
         return await clinical_amendment_service.reject_amendment(self, amendment_id, payload, user, db)
 
-    async def get_amendments(self, encounter_id: int, user: TaiKhoan, db: AsyncSession) -> List[AmendmentResponse]:
+    async def get_amendments(self, encounter_id: Union[int, str], user: TaiKhoan, db: AsyncSession) -> List[AmendmentResponse]:
         return await clinical_amendment_service.get_amendments(self, encounter_id, user, db)
 
     async def save_physical_exam(self, encounter_id: int, payload: PhysicalExamRequest, user: TaiKhoan, db: AsyncSession) -> PhysicalExamResponse:

@@ -6,22 +6,32 @@ import { EmptyBlock } from '../clinical/StateBlocks'
 
 export default function StepOrders({
     encounter,
-    services,
+    services = [],
     locked,
     submitting,
     onSubmit,
+    onSubmitOrders,
     picked: externalPicked,
+    pickedOrders,
     onPickedChange,
+    onPickedOrdersChange,
+    orders: _orders,
+    onCancelOrder: _onCancelOrder,
+    onPostponeForCls: _onPostponeForCls,
 }) {
+    const submitFn = onSubmitOrders || onSubmit
+    const effectivePicked = externalPicked !== undefined ? externalPicked : pickedOrders
+    const effectiveOnPickedChange = onPickedOrdersChange || onPickedChange
+
     const [keyword, setKeyword] = useState('')
     const [pack, setPack] = useState(null)
     const [localPicked, setLocalPicked] = useState([])
 
-    const picked = externalPicked !== undefined ? externalPicked : localPicked
+    const picked = effectivePicked !== undefined ? effectivePicked : localPicked
     const setPicked = (updater) => {
-        if (onPickedChange) {
+        if (effectiveOnPickedChange) {
             const next = typeof updater === 'function' ? updater(picked) : updater
-            onPickedChange(next)
+            effectiveOnPickedChange(next)
         } else {
             setLocalPicked(updater)
         }
@@ -49,7 +59,8 @@ export default function StepOrders({
     const ordersTotal = orders.reduce((sum, o) => sum + (services.find((s) => String(s.id) === String(o.dich_vu_id))?.don_gia || o.don_gia_tai_thoi_diem || o.don_gia || 0), 0)
 
     const handleSend = async () => {
-        const ok = await onSubmit(picked)
+        if (!submitFn) return
+        const ok = await submitFn(picked)
         if (ok) {
             setPicked([])
             setPack(null)

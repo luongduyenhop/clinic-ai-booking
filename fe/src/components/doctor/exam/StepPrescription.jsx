@@ -22,6 +22,7 @@ if (clinicalService && !clinicalService.signPrescription) {
             nguoi_ky: signer,
             loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
             danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
+            ...(Array.isArray(payload?.danh_sach_chan_doan) ? { danh_sach_chan_doan: payload.danh_sach_chan_doan } : {}),
             don_thuoc: {
                 ...(enc?.don_thuoc || {}),
                 trang_thai: 'SIGNED',
@@ -131,6 +132,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
             const payload = {
                 danh_sach_thuoc: rows,
                 loi_dan_uong_thuoc: values.loi_dan_uong_thuoc || '',
+                danh_sach_chan_doan: values.danh_sach_chan_doan || [],
                 chu_ky_so: sigData,
             }
             const res = await dispatch(

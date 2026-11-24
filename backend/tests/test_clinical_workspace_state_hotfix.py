@@ -205,6 +205,9 @@ async def test_workspace_state_put_persists_diagnosis_and_prescription(api_clien
                         }
                     ],
                     "loi_dan_uong_thuoc": "Uống sau ăn no",
+                    "ket_luan_dieu_tri": "Theo dõi huyết áp",
+                    "loi_dan_bac_si": "Hạn chế muối",
+                    "ngay_hen_tai_kham": "2026-12-01",
                 }
             },
         },
@@ -214,6 +217,9 @@ async def test_workspace_state_put_persists_diagnosis_and_prescription(api_clien
     assert res_save.json()["data"]["saved"] is True
 
     lk = (await db_session.execute(select(LuotKham).where(LuotKham.hang_doi_kham_id == ticket.id))).scalar_one()
+    assert lk.ket_luan_dieu_tri == "Theo dõi huyết áp"
+    assert lk.loi_dan_bac_si == "Hạn chế muối"
+    assert str(lk.ngay_hen_tai_kham) == "2026-12-01"
     diags = (await db_session.execute(select(ChanDoan).where(ChanDoan.luot_kham_id == lk.id))).scalars().all()
     assert len(diags) == 1
     assert diags[0].ma_icd10 == "J02.9"
@@ -237,3 +243,6 @@ async def test_workspace_state_put_persists_diagnosis_and_prescription(api_clien
     persisted_enc = res_get.json()["data"]["encounters"][enc_key]
     assert persisted_enc["danh_sach_chan_doan"][0]["ma_icd10"] == "J02.9"
     assert persisted_enc["danh_sach_thuoc"][0]["ten_thuoc"] == "Paracetamol 500mg"
+    assert persisted_enc["ket_luan_dieu_tri"] == "Theo dõi huyết áp"
+    assert persisted_enc["loi_dan_bac_si"] == "Hạn chế muối"
+    assert persisted_enc["ngay_hen_tai_kham"] == "2026-12-01"

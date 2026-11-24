@@ -41,6 +41,8 @@ test('useDoctorWorkstationLogic initializes formik before validateClinicalStep a
     const validateIdx = content.indexOf('const validateClinicalStep = useCallback(')
     assert.ok(formikIdx !== -1 && validateIdx !== -1 && formikIdx < validateIdx, 'useFormik must be declared before validateClinicalStep')
     assert.ok(content.includes('formik.values.kham_chuyen_khoa]'), 'validateClinicalStep deps must include formik.values.kham_chuyen_khoa')
+    assert.ok(content.includes("'danh_sach_chan_doan'") && content.includes("'danh_sach_thuoc'"), 'DRAFT_FIELDS must sync diagnoses and draft prescription items')
+    assert.ok(content.includes("'loi_dan_bac_si'") && content.includes("'ngay_hen_tai_kham'"), 'DRAFT_FIELDS must sync advice and follow-up date')
     assert.ok(content.includes('skipPickedCheck'), 'handleStepChange must support skipPickedCheck')
     assert.ok(!content.includes('encounter.thoi_gian_bat_dau ='), 'useDoctorWorkstationLogic must not mutate Redux frozen encounter object')
     assert.ok(!content.includes('//') && !content.includes('/*'), 'useDoctorWorkstationLogic must be clean without comments')
@@ -53,6 +55,7 @@ test('printMedicalDocuments escapes dynamic HTML and StepPrescription retains pr
     assert.ok(printSrc.includes('escapeHtml(patientName)') && printSrc.includes('escapeHtml(dxMainText)'), 'printMedicalDocuments must escape interpolated values')
     assert.ok(!printSrc.includes('//') && !printSrc.includes('/*'), 'printMedicalDocuments must be clean without comments')
     assert.ok(stepRxSrc.includes("onOpenRxModal('print')"), 'StepPrescription must preserve A4/A5 print modal trigger')
+    assert.ok(stepRxSrc.includes('danh_sach_chan_doan: values.danh_sach_chan_doan || []'), 'StepPrescription sign payload must forward danh_sach_chan_doan')
     assert.ok(!stepRxSrc.includes('//') && !stepRxSrc.includes('/*'), 'StepPrescription must be clean without comments')
 })
 

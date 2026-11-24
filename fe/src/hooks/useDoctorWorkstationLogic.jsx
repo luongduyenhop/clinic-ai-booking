@@ -57,6 +57,11 @@ const DRAFT_FIELDS = [
     'kham_lam_sang_bo_phan',
     'ket_luan_dieu_tri',
     'kham_chuyen_khoa',
+    'danh_sach_chan_doan',
+    'danh_sach_thuoc',
+    'loi_dan_uong_thuoc',
+    'loi_dan_bac_si',
+    'ngay_hen_tai_kham',
     ...VITAL_FIELDS.map((f) => f.name),
 ]
 
@@ -405,6 +410,7 @@ export function useDoctorWorkstationLogic() {
     const draft = useMemo(
         () => ({
             encounterId: encounter?.id,
+            isRxSigned: formik.values.trang_thai_don_thuoc === 'SIGNED',
             fields: Object.fromEntries(DRAFT_FIELDS.map((k) => [k, formik.values[k]])),
         }),
         [encounter?.id, formik.values]
@@ -414,15 +420,20 @@ export function useDoctorWorkstationLogic() {
     useEffect(() => {
         lastSaved.current = null
     }, [encounter?.id])
-    const hasDraftErrors = Object.keys(formik.errors).some((k) => DRAFT_FIELDS.includes(k))
+    const hasDraftErrors = Object.keys(formik.errors).some((k) => VITAL_FIELDS.some((f) => f.name === k))
 
     useEffect(() => {
         if (!encounter || isReadOnly || hasDraftErrors || debouncedDraft.encounterId !== encounter.id) return
         const initialDraft = JSON.stringify(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, initialValues[k]])))
         const serialized = JSON.stringify(debouncedDraft.fields)
         if (serialized === initialDraft || serialized === lastSaved.current) return
+        const patch = { ...debouncedDraft.fields }
+        if (debouncedDraft.isRxSigned) {
+            delete patch.danh_sach_thuoc
+            delete patch.loi_dan_uong_thuoc
+        }
         lastSaved.current = serialized
-        dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch: debouncedDraft.fields }))
+        dispatch(saveEncounterDraftAsync({ encounterId: encounter.id, patch }))
             .unwrap()
             .then((res) => setSavedAt(res.saved_at))
             .catch((msg) => {

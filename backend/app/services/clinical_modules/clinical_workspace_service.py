@@ -607,6 +607,22 @@ async def sync_workspace_to_postgres(
                 if enc_data.get("kham_lam_sang_bo_phan"):
                     target_lk.kham_lam_sang_bo_phan = enc_data.get("kham_lam_sang_bo_phan")
 
+                if "ket_luan_dieu_tri" in enc_data and enc_data.get("ket_luan_dieu_tri") is not None:
+                    target_lk.ket_luan_dieu_tri = str(enc_data.get("ket_luan_dieu_tri"))
+
+                if "loi_dan_bac_si" in enc_data and enc_data.get("loi_dan_bac_si") is not None:
+                    target_lk.loi_dan_bac_si = str(enc_data.get("loi_dan_bac_si"))
+
+                if "ngay_hen_tai_kham" in enc_data:
+                    raw_follow_up = enc_data.get("ngay_hen_tai_kham")
+                    if raw_follow_up:
+                        try:
+                            target_lk.ngay_hen_tai_kham = date.fromisoformat(str(raw_follow_up)[:10])
+                        except ValueError:
+                            pass
+                    else:
+                        target_lk.ngay_hen_tai_kham = None
+
                 bs_id = doctor.id if doctor else (target_lk.tiep_quan_boi_id or target_lk.bac_si_id)
 
                 kham_ck = enc_data.get("kham_chuyen_khoa")

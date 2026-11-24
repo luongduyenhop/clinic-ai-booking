@@ -11,6 +11,8 @@ export default function ExamActionBar({
     onNextStep,
     onComplete,
     onQuickCopyZaloText,
+    onPrintPrescription,
+    onPrintMedicalRecord,
     onOpenPrintModal,
 }) {
     const diagnosesCount = (formikValues.danh_sach_chan_doan || []).length
@@ -40,12 +42,22 @@ export default function ExamActionBar({
 
                 <button
                     type="button"
-                    onClick={onOpenPrintModal}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-sky-200 bg-sky-50 text-[#00A9E3] hover:bg-sky-100 active:scale-95 transition cursor-pointer"
-                    title="Xem trước mẫu in đơn thuốc chuẩn Bộ Y Tế, đơn kính và mã QR chuyển khoản"
+                    onClick={onPrintMedicalRecord || onOpenPrintModal}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-[#00A9E3] active:scale-95 transition cursor-pointer shadow-2xs"
+                    title="In phiếu khám bệnh và tóm tắt hồ sơ bệnh án ngoại trú EMR"
+                >
+                    <ClinicIcon name="FileText" size={14} />
+                    <span>In Bệnh Án</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={onPrintPrescription || onOpenPrintModal}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-[#00A9E3] active:scale-95 transition cursor-pointer shadow-2xs"
+                    title="In đơn thuốc điện tử chuẩn Bộ Y Tế kèm mã QR và chữ ký số"
                 >
                     <ClinicIcon name="Printer" size={14} />
-                    <span>In Đơn &amp; Mã QR</span>
+                    <span>In Đơn Thuốc</span>
                 </button>
 
                 {step > 1 && (

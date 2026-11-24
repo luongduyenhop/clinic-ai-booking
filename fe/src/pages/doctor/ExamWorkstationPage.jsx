@@ -17,6 +17,7 @@ import WorkstationHeaderBar from '../../components/doctor/exam/WorkstationHeader
 import WorkstationEmptyState from '../../components/doctor/exam/WorkstationEmptyState'
 import ExamActionBar from '../../components/doctor/exam/ExamActionBar'
 import { clinicalService } from '../../services/doctor/ClinicalService'
+import { printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocuments'
 
 export default function ExamWorkstationPage() {
     const {
@@ -65,6 +66,14 @@ export default function ExamWorkstationPage() {
         handleQuickCopyZaloText,
         handleComplete,
     } = useDoctorWorkstationLogic()
+
+    const handlePrintMedicalRecordDirect = () => {
+        printMedicalRecordDocument({
+            encounter,
+            diagnoses: formik?.values?.danh_sach_chan_doan || [],
+            prescriptionItems: formik?.values?.danh_sach_thuoc || [],
+        })
+    }
 
     return (
         <div className="flex flex-col gap-4 max-w-[1720px] mx-auto w-full">
@@ -245,7 +254,7 @@ export default function ExamWorkstationPage() {
                                         formik={formik}
                                         encounter={encounter}
                                         locked={isReadOnly}
-                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab })}
+                                        onOpenRxModal={(tab) => setRxModalState({ open: true, tab: tab || 'print' })}
                                     />
                                 )}
                             </div>
@@ -267,6 +276,8 @@ export default function ExamWorkstationPage() {
                                 }}
                                 onComplete={handleComplete}
                                 onQuickCopyZaloText={handleQuickCopyZaloText}
+                                onPrintMedicalRecord={handlePrintMedicalRecordDirect}
+                                onPrintPrescription={() => setRxModalState({ open: true, tab: 'print' })}
                                 onOpenPrintModal={() => setRxModalState({ open: true, tab: 'print' })}
                             />
                         </>

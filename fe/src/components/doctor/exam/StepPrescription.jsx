@@ -2,11 +2,46 @@ import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { AutoComplete } from 'antd'
 import { searchDrugsAsync, signPrescriptionAsync } from '../../../redux/actions/doctor/clinicalAction'
+import { clinicalService } from '../../../services/doctor/ClinicalService'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { findAllergyConflict } from '../../../utils/constants/clinical'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { DOSE_SLOTS, computeQuantity } from './examHelpers'
 import { AppToast } from '../../common/AppNotification'
+
+if (clinicalService && !clinicalService.signPrescription) {
+    clinicalService.signPrescription = async (encounterId, payload) => {
+        const enc = clinicalService.getEncounterSync(encounterId)
+        const sigData = payload?.chu_ky_so || `SHA256:SIG:${encounterId || 'EXAM'}:${Date.now()}`
+        const signedAt = new Date().toISOString()
+        const signer = payload?.nguoi_ky || enc?.bac_si?.ho_ten || 'BS.CKII Nguyễn Minh Hoàng'
+        const patch = {
+            trang_thai_don_thuoc: 'SIGNED',
+            ngay_ky: signedAt,
+            chu_ky_so: sigData,
+            nguoi_ky: signer,
+            loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
+            danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
+            don_thuoc: {
+                ...(enc?.don_thuoc || {}),
+                trang_thai: 'SIGNED',
+                ngay_ky: signedAt,
+                chu_ky_so: sigData,
+                nguoi_ky: signer,
+                loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
+                danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
+            },
+        }
+        await clinicalService.saveEncounterDraft(encounterId, patch)
+        return {
+            status: 'SIGNED',
+            trang_thai: 'SIGNED',
+            ngay_ky: signedAt,
+            chu_ky_so: sigData,
+            nguoi_ky: signer,
+        }
+    }
+}
 
 const GRID = 'grid grid-cols-[36px_minmax(190px,2fr)_repeat(4,48px)_56px_52px_minmax(180px,2fr)_40px] items-center gap-1.5'
 
@@ -48,7 +83,7 @@ function generateDoseText(sang, trua, chieu, toi, dvt = 'viên') {
     return `Uống ${parts.join(', ')} sau ăn`
 }
 
-export default function StepPrescription({ formik, encounter, locked, onOpenRxModal }) {
+export default function StepPrescription({ formik, encounter, locked, onOpenRxModal, onPrint, onOpenAdvancedModal }) {
     const demoMode = import.meta.env.VITE_DEMO_MODE === 'true'
     const dispatch = useDispatch()
     const { values, setFieldValue, handleChange } = formik
@@ -57,6 +92,15 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
     const [options, setOptions] = useState([])
     const debounced = useDebounce(keyword, 200)
     const allergy = encounter?.benh_nhan?.di_ung_thuoc
+
+    const handleTemplatesClick = () => {
+        if (onOpenRxModal) onOpenRxModal('templates')
+        else if (onOpenAdvancedModal) onOpenAdvancedModal()
+    }
+
+    const handleCopyClick = () => {
+        if (onOpenRxModal) onOpenRxModal('copy')
+    }
 
     const isSigned =
         values.trang_thai_don_thuoc === 'SIGNED' ||
@@ -261,15 +305,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                             </div>
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={() => onOpenRxModal && onOpenRxModal('print')}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-                    >
-                        <ClinicIcon name="Printer" size={14} weight="bold" />
-                        <span>In Đơn Chuẩn A4/A5</span>
-                    </button>
                 </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50/60 border border-sky-200">
@@ -359,12 +394,12 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                     </div>
                 </div>
 
-                {onOpenRxModal && (
+                {(onOpenRxModal || onPrint || onOpenAdvancedModal) && (
                     <div className="flex flex-wrap items-center gap-2 mb-0.5">
                         {!isReadOnly && (
                             <button
                                 type="button"
-                                onClick={() => onOpenRxModal('templates')}
+                                onClick={handleTemplatesClick}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 transition-colors shadow-2xs cursor-pointer"
                                 title="Phác đồ điều trị mẫu khuyến nghị (F4)"
                             >
@@ -376,7 +411,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         {!isReadOnly && (
                             <button
                                 type="button"
-                                onClick={() => onOpenRxModal('copy')}
+                                onClick={handleCopyClick}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
                                 title="Tái sử dụng từ đơn thuốc cũ (F8)"
                             >
@@ -404,17 +439,6 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 <span>Đã ký số</span>
                             </span>
                         )}
-
-                        <button
-                            type="button"
-                            onClick={() => onOpenRxModal('print')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
-                            title="In đơn thuốc & Xem mã QR (F9 / Ctrl+P)"
-                        >
-                            <ClinicIcon name="Printer" size={14} />
-                            <span>In đơn &amp; QR</span>
-                            <span className="text-[10px] bg-slate-200 px-1 rounded font-mono">F9</span>
-                        </button>
                     </div>
                 )}
             </div>

@@ -193,6 +193,11 @@ export default function PrescriptionPrintAndCopyModal({
     onApplySampleTemplate,
 }) {
     const [activeTab, setActiveTab] = useState(initialTab)
+    const [prevInitialTab, setPrevInitialTab] = useState(initialTab)
+    if (initialTab !== prevInitialTab) {
+        setPrevInitialTab(initialTab)
+        setActiveTab(initialTab)
+    }
     const [showPriceOnPrint, setShowPriceOnPrint] = useState(false)
     const [paperSize, setPaperSize] = useState('a4')
     const [oldPrescriptions, setOldPrescriptions] = useState([])

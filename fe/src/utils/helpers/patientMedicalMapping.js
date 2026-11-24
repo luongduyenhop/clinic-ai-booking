@@ -53,8 +53,8 @@ export function mapMedicalRecords(records) {
         const primaryDiagnosis = diagnoses.find((item) => item.loai_chan_doan?.toLowerCase() === 'chinh')
         const secondaryDiagnoses = diagnoses.filter((item) => item !== primaryDiagnosis)
         const dateTime = record.thoi_gian_bat_dau || (record.ngay_kham ? `${record.ngay_kham}T00:00:00` : '')
-        const rx = record.don_thuoc_chi_tiet?.[0]
-        const medicines = rx?.thuoc || []
+        const rx = record.don_thuoc_chi_tiet?.[0] || record.don_thuoc
+        const medicines = rx?.thuoc || rx?.danh_sach_chi_tiet || rx?.danh_sach_thuoc || record.danh_sach_thuoc || []
 
         const displayVital = (value, suffix) => value == null ? 'Chưa ghi nhận' : `${value}${suffix}`
         const displayDiagnosis = (diagnosis) => diagnosis
@@ -113,7 +113,16 @@ export function mapMedicalRecords(records) {
                 maDon: rx?.ma_don || 'Không có đơn thuốc',
                 soNgayDung: Math.max(0, ...medicines.map((item) => Number(item.so_ngay) || 0)),
                 loiDanChung: rx?.loi_dan || record.loi_dan_bac_si || 'Không có lời dặn',
-                danhSachThuoc: medicines.map((item) => [`${item.ten} ${item.ham_luong || ''}`.trim(), item.don_vi, item.so_luong, item.sang || '—', item.trua || '—', item.chieu || '—', item.toi || '—', item.cach_dung]),
+                danhSachThuoc: medicines.map((item) => [
+                    `${item.ten || item.ten_thuoc || ''} ${item.ham_luong || ''}`.trim(),
+                    item.don_vi || item.don_vi_tinh || 'Viên',
+                    item.so_luong || 1,
+                    item.sang || item.lieu_sang || '—',
+                    item.trua || item.lieu_trua || '—',
+                    item.chieu || item.lieu_chieu || '—',
+                    item.toi || item.lieu_toi || '—',
+                    item.cach_dung || item.cach_dung_day_du || 'Uống sau ăn',
+                ]),
             },
             taiKham: {
                 ngayHen: record.ngay_hen_tai_kham || 'Chưa có lịch hẹn',

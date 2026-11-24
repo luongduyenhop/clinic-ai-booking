@@ -78,16 +78,26 @@ export default function DoctorDashboardPage() {
                     .filter((o) => o.trang_thai !== 'da_huy')
                     .map((o) => o.ten_dich_vu)
 
-                const rawRx = enc?.danh_sach_thuoc || enc?.don_thuoc?.danh_sach_thuoc || []
+                const rawRx = (Array.isArray(enc?.danh_sach_thuoc) && enc.danh_sach_thuoc.length > 0)
+                    ? enc.danh_sach_thuoc
+                    : (Array.isArray(enc?.don_thuoc?.danh_sach_thuoc) && enc.don_thuoc.danh_sach_thuoc.length > 0)
+                    ? enc.don_thuoc.danh_sach_thuoc
+                    : (Array.isArray(enc?.don_thuoc?.danh_sach_chi_tiet) && enc.don_thuoc.danh_sach_chi_tiet.length > 0)
+                    ? enc.don_thuoc.danh_sach_chi_tiet
+                    : []
                 const prescriptions = rawRx.map((m, mIdx) => ({
                     id: m.id || mIdx + 1,
-                    name: m.ten_thuoc,
+                    name: m.ten_thuoc || m.ten || 'Thuốc',
                     dosage: m.cach_dung_day_du || m.cach_dung || 'Theo chỉ định',
                     quantity: `${m.so_luong || 1} ${m.don_vi_tinh || 'Viên'}`,
                 }))
 
                 return {
                     id: t.ticket_id || t.encounter_id || idx + 1,
+                    encounterId: t.encounter_id,
+                    encounter: enc || {},
+                    diagnoses: dxList,
+                    prescriptionItems: rawRx,
                     queueNumber: t.ticket_code || `#${String(t.so_thu_tu_kham).padStart(2, '0')}`,
                     patientId: t.patient_id,
                     patientCode: bn.ma || (t.so_thu_tu_kham ? `BN-2026-${String(t.so_thu_tu_kham).padStart(4, '0')}` : 'BN-2026'),

@@ -279,10 +279,23 @@ const mergeRemoteAndLocalEncounter = (rEnc, lEnc, preferLocalDraft = false) => {
         merged.danh_sach_chan_doan = rEnc.danh_sach_chan_doan?.length ? rEnc.danh_sach_chan_doan : (lEnc.danh_sach_chan_doan || [])
     }
 
-    if (preferLocalDraft && lEnc.danh_sach_thuoc?.length) {
-        merged.danh_sach_thuoc = lEnc.danh_sach_thuoc
+    const getEncounterMeds = (enc) => {
+        if (!enc) return []
+        if (Array.isArray(enc.danh_sach_thuoc) && enc.danh_sach_thuoc.length > 0) return enc.danh_sach_thuoc
+        if (Array.isArray(enc?.don_thuoc?.danh_sach_thuoc) && enc.don_thuoc.danh_sach_thuoc.length > 0) return enc.don_thuoc.danh_sach_thuoc
+        if (Array.isArray(enc?.don_thuoc?.danh_sach_chi_tiet) && enc.don_thuoc.danh_sach_chi_tiet.length > 0) return enc.don_thuoc.danh_sach_chi_tiet
+        return []
+    }
+
+    const localMeds = getEncounterMeds(lEnc)
+    const remoteMeds = getEncounterMeds(rEnc)
+    if (preferLocalDraft && localMeds.length) {
+        merged.danh_sach_thuoc = localMeds
     } else {
-        merged.danh_sach_thuoc = rEnc.danh_sach_thuoc?.length ? rEnc.danh_sach_thuoc : (lEnc.danh_sach_thuoc || [])
+        merged.danh_sach_thuoc = remoteMeds.length ? remoteMeds : localMeds
+    }
+    if (merged.don_thuoc) {
+        merged.don_thuoc.danh_sach_thuoc = merged.danh_sach_thuoc
     }
 
     return merged

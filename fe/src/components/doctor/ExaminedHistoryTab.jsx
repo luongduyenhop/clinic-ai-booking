@@ -1,13 +1,14 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { AppToast } from '../common/AppNotification'
+import { printPrescriptionDocument, printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocuments'
+import { ClinicIcon } from '../common/ClinicIcon'
 
 export default function ExaminedHistoryTab({ examinedList = [] }) {
     const [searchKeyword, setSearchKeyword] = useState('')
     const [timeFilter, setTimeFilter] = useState('ALL') 
     const [selectedRecord, setSelectedRecord] = useState(null)
 
-    const todayStr = useMemo(() => new Date().toLocaleDateString('vi-VN'), [])
+    const [todayStr] = useState(() => new Date().toLocaleDateString('vi-VN'))
     const filteredList = useMemo(() => examinedList.filter((item) => {
         const matchesSearch =
             (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
@@ -22,8 +23,64 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
         return true
     }), [examinedList, searchKeyword, timeFilter, todayStr])
 
-    const handlePrintPrescription = (patient) => {
-        AppToast.success(`Đã gửi lệnh in đơn thuốc của bệnh nhân ${patient.fullName} tới máy in Phòng 204!`)
+    const preparePrintPayload = (item) => {
+        if (!item) return { encounter: {}, diagnoses: [], prescriptionItems: [], prescriptionNote: '' }
+        const enc = item.encounter || {}
+        const bn = enc.benh_nhan || {}
+        const mergedEncounter = {
+            ...enc,
+            id: enc.id || item.encounterId || item.id,
+            ten_benh_nhan: enc.ten_benh_nhan || bn.ho_ten || item.fullName,
+            tuoi: enc.tuoi || bn.tuoi || item.age,
+            gioi_tinh: enc.gioi_tinh || bn.gioi_tinh || item.gender,
+            so_dien_thoai: enc.so_dien_thoai || bn.so_dien_thoai || item.phone,
+            dia_chi: enc.dia_chi || bn.dia_chi || item.address || 'Hà Nội',
+            benh_nhan: {
+                ...bn,
+                ho_ten: bn.ho_ten || item.fullName,
+                tuoi: bn.tuoi || item.age,
+                gioi_tinh: bn.gioi_tinh || item.gender,
+                so_dien_thoai: bn.so_dien_thoai || item.phone,
+                ma: bn.ma || item.patientCode,
+                di_ung_thuoc: bn.di_ung_thuoc || item.allergy || 'Không có',
+            },
+            ngay_kham: enc.ngay_kham || item.completedDate,
+            thoi_gian_khoa: enc.thoi_gian_khoa || item.completedAt,
+            bac_si: enc.bac_si || { ho_ten: 'BS. CKI Nguyễn Văn An' },
+            ten_chuyen_khoa: enc.ten_chuyen_khoa || 'Khoa Nội tổng quát',
+            loi_dan_bac_si: enc.loi_dan_bac_si || item.doctorNotes || '',
+            loi_dan_uong_thuoc: enc.loi_dan_uong_thuoc || item.doctorNotes || '',
+            ket_luan_dieu_tri: enc.ket_luan_dieu_tri || item.doctorNotes || '',
+        }
+
+        const diagnoses = (item.diagnoses && item.diagnoses.length > 0)
+            ? item.diagnoses
+            : (item.finalDiagnosis ? [{
+                ma_icd10: item.finalDiagnosis.split(' - ')[0]?.trim(),
+                ten_benh_chan_doan: item.finalDiagnosis.split(' - ')[1]?.trim() || item.finalDiagnosis,
+                loai_chan_doan: 'chinh'
+            }] : [])
+
+        const prescriptionItems = (item.prescriptionItems && item.prescriptionItems.length > 0)
+            ? item.prescriptionItems
+            : (item.prescriptions || [])
+
+        return {
+            encounter: mergedEncounter,
+            diagnoses,
+            prescriptionItems,
+            prescriptionNote: item.doctorNotes || mergedEncounter.loi_dan_uong_thuoc || '',
+        }
+    }
+
+    const handlePrintPrescription = (item) => {
+        const payload = preparePrintPayload(item)
+        printPrescriptionDocument(payload)
+    }
+
+    const handlePrintMedicalRecord = (item) => {
+        const payload = preparePrintPayload(item)
+        printMedicalRecordDocument(payload)
     }
 
     return (
@@ -159,21 +216,14 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
                                         </td>
 
                                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1.5">
+                                            <div className="flex items-center justify-end">
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedRecord(item)}
-                                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-[#E8F4FD] hover:text-[#00B5F1] hover:border-[#00B5F1]/30 font-bold text-[11px] text-slate-700 transition cursor-pointer shadow-2xs"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-xs text-slate-700 transition cursor-pointer shadow-2xs"
                                                 >
-                                                    👁 Chi tiết
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handlePrintPrescription(item)}
-                                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-[11px] text-slate-700 transition cursor-pointer"
-                                                    title="In đơn thuốc"
-                                                >
-                                                    🖨 In đơn
+                                                    <ClinicIcon name="Eye" size={13} className="text-slate-500" />
+                                                    <span>Chi tiết</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -289,18 +339,31 @@ export default function ExaminedHistoryTab({ examinedList = [] }) {
 
                             </div>
 
-                            <div className="flex justify-end gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => handlePrintPrescription(selectedRecord)}
-                                    className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer"
-                                >
-                                    🖨 In hồ sơ bệnh án
-                                </button>
+                            <div className="flex items-center justify-between gap-2 p-4 px-6 border-t border-slate-100 bg-slate-50/70 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrintMedicalRecord(selectedRecord)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs transition cursor-pointer"
+                                        title="In phiếu khám & tóm tắt bệnh án EMR"
+                                    >
+                                        <ClinicIcon name="FileText" size={14} className="text-slate-500" />
+                                        <span>In bệnh án</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrintPrescription(selectedRecord)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs transition cursor-pointer"
+                                        title="In đơn thuốc điện tử chuẩn Bộ Y Tế"
+                                    >
+                                        <ClinicIcon name="Printer" size={14} className="text-slate-500" />
+                                        <span>In đơn thuốc</span>
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => setSelectedRecord(null)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
                                 >
                                     Đóng
                                 </button>

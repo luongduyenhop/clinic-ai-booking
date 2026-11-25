@@ -1,3 +1,5 @@
+import { toFriendlyErrorMessage } from './clientErrorHelper.js'
+
 export function unwrapApi(res) {
     if (!res) return null
     const envelope = res?.data !== undefined ? res.data : res
@@ -109,7 +111,7 @@ export function pickErrorMessage(error, defaultMessage = 'Đã có lỗi xảy r
         }
     }
 
-    return error.message || defaultMessage
+    return toFriendlyErrorMessage(error, defaultMessage)
 }
 
 export default {

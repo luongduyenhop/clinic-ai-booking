@@ -3,17 +3,24 @@ import { useDispatch, useSelector } from 'react-redux'
 import ResultAttachments from '../../../components/user/patient/ResultAttachments'
 import { fetchLabResultsAsync } from '../../../redux/actions/user/patientPortalAction'
 import PatientPageHeader from '../../../components/user/patient/PatientPageHeader'
-import { PatientEmpty, PatientError, PatientLoading } from '../../../components/user/patient/PatientPageState'
-import { StatusBadge, CalendarCheck } from '../../../components/common/ClinicIcon'
+import {
+    PatientEmpty,
+    PatientError,
+    PatientLoading,
+} from '../../../components/user/patient/PatientPageState'
+import { CalendarCheck, StatusBadge } from '../../../components/common/ClinicIcon'
 
 const formatDate = (value) =>
     value ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`)) : 'Chưa cập nhật'
 
 export default function LabResultsPage() {
     const dispatch = useDispatch()
-    const { items, meta, loading: portalLoading, error: portalError } = useSelector(
-        (state) => state.user.user.labResultsPage
-    )
+    const {
+        items,
+        meta,
+        loading: portalLoading,
+        error: portalError,
+    } = useSelector((state) => state.user.user.labResultsPage)
     const page = meta?.page || 1
 
     useEffect(() => {
@@ -54,36 +61,36 @@ export default function LabResultsPage() {
                     {groupedByDate.map((group) => (
                         <section
                             key={group.date || 'unknown'}
-                            className="medpro-card overflow-hidden border border-slate-200/90 p-0"
+                            className="medpro-card overflow-hidden p-0"
                         >
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-[#F0F7FC] px-4 py-3 sm:px-5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border bg-clinic-surface-tint px-4 py-3 sm:px-5">
                                 <div className="flex items-center gap-2">
-                                    <CalendarCheck size={18} weight="duotone" className="text-[#008EC2]" />
-                                    <span className="font-display text-sm font-extrabold text-[#003553]">
+                                    <CalendarCheck size={18} weight="duotone" className="text-clinic-cta" />
+                                    <span className="font-display text-sm font-extrabold text-clinic-navy tabular-nums">
                                         Ngày thực hiện: {formatDate(group.date)}
                                     </span>
                                 </div>
-                                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-[#007EAD] border border-[#B8E6F7]">
+                                <span className="medpro-badge-info tabular-nums">
                                     {group.items.length} kết quả trong ngày
                                 </span>
                             </div>
 
-                            <div className="divide-y divide-slate-200/80">
+                            <div className="divide-y divide-clinic-border">
                                 {group.items.map((item) => (
-                                    <article key={item.id} className="p-4 sm:p-5 bg-white">
+                                    <article key={item.id} className="p-4 sm:p-5 bg-clinic-surface">
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div>
-                                                <span className="inline-block rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-[#008EC2] border border-sky-100">
+                                                <span className="inline-block rounded-[6px] bg-clinic-surface-alt px-2.5 py-0.5 text-[11px] font-bold text-clinic-cta">
                                                     {item.type}
                                                 </span>
-                                                <h2 className="mt-1.5 font-display text-base sm:text-lg font-bold text-[#003553]">
+                                                <h2 className="mt-1.5 font-display text-base sm:text-lg font-bold text-clinic-navy">
                                                     {item.name}
                                                 </h2>
                                             </div>
                                             <StatusBadge status={item.status} />
                                         </div>
 
-                                        <p className="mt-3 rounded-xl bg-[#E8F4FD] px-4 py-3 text-sm leading-6 text-[#36566B]">
+                                        <p className="mt-3 rounded-[6px] bg-clinic-bg px-4 py-3 text-sm leading-6 text-clinic-text-secondary">
                                             {item.summary}
                                         </p>
 
@@ -101,8 +108,10 @@ export default function LabResultsPage() {
                                                         {item.details.map((detail) => (
                                                             <tr key={detail.label}>
                                                                 <td>{detail.label}</td>
-                                                                <td className="font-bold text-[#003553]">{detail.value}</td>
-                                                                <td>{detail.reference}</td>
+                                                                <td className="font-bold text-clinic-navy tabular-nums">
+                                                                    {detail.value}
+                                                                </td>
+                                                                <td className="tabular-nums">{detail.reference}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -115,7 +124,7 @@ export default function LabResultsPage() {
                                 ))}
                             </div>
 
-                            <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2.5 text-[11px] text-slate-400 sm:px-5">
+                            <div className="border-t border-clinic-border bg-clinic-bg px-4 py-2.5 text-[11px] text-clinic-text-muted sm:px-5">
                                 Kết quả cần được bác sĩ diễn giải trong bối cảnh lâm sàng; không tự chẩn đoán hoặc dùng thuốc.
                             </div>
                         </section>
@@ -138,7 +147,7 @@ export default function LabResultsPage() {
                 >
                     Trang trước
                 </button>
-                <span className="text-sm">
+                <span className="text-sm text-clinic-text-secondary tabular-nums">
                     Trang {meta?.page || 1} / {Math.max(1, meta?.total_pages || 1)}
                 </span>
                 <button

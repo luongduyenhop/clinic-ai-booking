@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, Fragment } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Tag, Select, DatePicker, Button, Alert, Progress, Tabs, Table, Empty, Input, Tooltip } from 'antd'
+import { Select, DatePicker, Button, Alert, Progress, Tabs, Table, Empty, Input, Tooltip } from 'antd'
 import {
     UserOutlined,
     SwapOutlined,
@@ -62,9 +62,9 @@ const getShortRoomCode = (shift) => {
 }
 
 const ROOM_TYPE_LABELS = {
-    kham_benh: { label: 'Khám lâm sàng', color: 'blue' },
-    xet_nghiem: { label: 'Xét nghiệm', color: 'purple' },
-    chan_doan_hinh_anh: { label: 'Chẩn đoán hình ảnh', color: 'cyan' },
+    kham_benh: { label: 'Khám lâm sàng', badge: 'medpro-badge-info' },
+    xet_nghiem: { label: 'Xét nghiệm', badge: 'medpro-badge-warning' },
+    chan_doan_hinh_anh: { label: 'Chẩn đoán hình ảnh', badge: 'medpro-badge-success' },
 }
 
 export default function ClinicSchedulePage() {
@@ -274,13 +274,13 @@ export default function ClinicSchedulePage() {
             key: 'ngay_lam_viec',
             width: 170,
             render: (ngay, record) => (
-                <div className="flex flex-col gap-1">
-                    <span className="font-bold text-slate-800">
+                <div className="flex flex-col gap-1 tabular-nums">
+                    <span className="font-bold text-clinic-navy">
                         {ngay ? dayjs(ngay).format('DD/MM/YYYY') : '—'}
                     </span>
-                    <Tag color="geekblue" className="w-fit text-[11px] font-bold">
+                    <span className="medpro-badge-info w-fit text-[11px] font-bold">
                         {DAY_OF_WEEK_NAMES[record.thu_trong_tuan] || `Thứ ${record.thu_trong_tuan}`}
-                    </Tag>
+                    </span>
                 </div>
             ),
         },
@@ -290,8 +290,8 @@ export default function ClinicSchedulePage() {
             key: 'ten_bac_si',
             render: (name, record) => (
                 <div>
-                    <strong className="text-slate-900 block">{name || 'N/A'}</strong>
-                    <span className="text-xs text-slate-500">{record.ten_chuyen_khoa || 'Đa khoa'}</span>
+                    <strong className="text-clinic-navy block">{name || 'N/A'}</strong>
+                    <span className="text-xs text-clinic-text-secondary">{record.ten_chuyen_khoa || 'Đa khoa'}</span>
                 </div>
             ),
         },
@@ -299,7 +299,7 @@ export default function ClinicSchedulePage() {
             title: 'Buồng khám',
             dataIndex: 'phong_kham',
             key: 'phong_kham',
-            render: (room) => <span className="font-medium text-slate-700">{room || 'Chưa gán'}</span>,
+            render: (room) => <span className="font-medium text-clinic-text">{room || 'Chưa gán'}</span>,
         },
         {
             title: 'Ca trực',
@@ -308,11 +308,11 @@ export default function ClinicSchedulePage() {
             width: 160,
             render: (shift, record) => (
                 <div>
-                    <Tag color={shift === 'sang' ? 'orange' : 'purple'}>
+                    <span className={shift === 'sang' ? 'medpro-badge-warning' : 'medpro-badge-info'}>
                         {shift === 'sang' ? 'Ca sáng' : shift === 'chieu' ? 'Ca chiều' : shift}
-                    </Tag>
+                    </span>
                     {record.gio_bat_dau && record.gio_ket_thuc && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className="text-[11px] text-clinic-text-secondary mt-0.5 tabular-nums">
                             {record.gio_bat_dau} - {record.gio_ket_thuc}
                         </div>
                     )}
@@ -325,11 +325,11 @@ export default function ClinicSchedulePage() {
             key: 'gioi_han_ca_kham',
             width: 160,
             render: (limit, record) => (
-                <div className="text-xs">
-                    <div className="font-bold text-[#003553]">{limit ?? 0} lượt</div>
+                <div className="text-xs tabular-nums">
+                    <div className="font-bold text-clinic-navy">{limit ?? 0} lượt</div>
                     {(record.han_muc_dat_truoc != null || record.han_muc_vang_lai != null) && (
-                        <div className="text-[11px] text-slate-400">
-                            Onl: {record.han_muc_dat_truoc ?? 0} • Quầy: {record.han_muc_vang_lai ?? 0}
+                        <div className="text-[11px] text-clinic-text-secondary">
+                            Onl: {record.han_muc_dat_truoc ?? 0} · Quầy: {record.han_muc_vang_lai ?? 0}
                         </div>
                     )}
                 </div>
@@ -342,11 +342,11 @@ export default function ClinicSchedulePage() {
             width: 150,
             render: (active, record) => (
                 <div>
-                    <Tag color={active !== false ? 'success' : 'error'}>
+                    <span className={active !== false ? 'medpro-badge-success' : 'medpro-badge-danger'}>
                         {active !== false ? 'Đang làm việc' : 'Đã khóa'}
-                    </Tag>
+                    </span>
                     {active === false && record.ghi_chu_nghi && (
-                        <div className="text-[10.5px] text-rose-500 mt-0.5 line-clamp-2" title={record.ghi_chu_nghi}>
+                        <div className="text-[10.5px] text-clinic-danger mt-0.5 line-clamp-2" title={record.ghi_chu_nghi}>
                             {record.ghi_chu_nghi}
                         </div>
                     )}
@@ -361,26 +361,26 @@ export default function ClinicSchedulePage() {
             dataIndex: 'ma_phong',
             key: 'ma_phong',
             width: 110,
-            render: (code) => <span className="font-mono font-bold text-sky-700">{code}</span>,
+            render: (code) => <span className="font-mono font-bold text-clinic-cta tabular-nums">{code}</span>,
         },
         {
             title: 'Tên buồng khám vật lý',
             dataIndex: 'ten_phong',
             key: 'ten_phong',
-            render: (name) => <strong className="text-slate-800">{name}</strong>,
+            render: (name) => <strong className="text-clinic-navy">{name}</strong>,
         },
         {
             title: 'Vị trí tầng',
             dataIndex: 'tang',
             key: 'tang',
             width: 120,
-            render: (floor) => <Tag color="blue">{floor || 'Tầng 1'}</Tag>,
+            render: (floor) => <span className="medpro-badge-neutral">{floor || 'Tầng 1'}</span>,
         },
         {
             title: 'Chuyên khoa',
             dataIndex: 'ten_chuyen_khoa',
             key: 'ten_chuyen_khoa',
-            render: (spec) => spec ? <span className="text-slate-700">{spec}</span> : <span className="text-slate-400 italic">Dùng chung / Cận lâm sàng</span>,
+            render: (spec) => spec ? <span className="text-clinic-text">{spec}</span> : <span className="text-clinic-text-muted">Dùng chung / Cận lâm sàng</span>,
         },
         {
             title: 'Loại buồng',
@@ -388,8 +388,8 @@ export default function ClinicSchedulePage() {
             key: 'loai_phong',
             width: 180,
             render: (type) => {
-                const conf = ROOM_TYPE_LABELS[type] || { label: type || 'Khác', color: 'default' }
-                return <Tag color={conf.color}>{conf.label}</Tag>
+                const conf = ROOM_TYPE_LABELS[type] || { label: type || 'Khác', badge: 'medpro-badge-neutral' }
+                return <span className={conf.badge}>{conf.label}</span>
             },
         },
         {
@@ -398,9 +398,9 @@ export default function ClinicSchedulePage() {
             key: 'is_active',
             width: 130,
             render: (active) => (
-                <Tag color={active !== false ? 'success' : 'error'}>
+                <span className={active !== false ? 'medpro-badge-success' : 'medpro-badge-danger'}>
                     {active !== false ? 'Đang hoạt động' : 'Tạm dừng'}
-                </Tag>
+                </span>
             ),
         },
     ]
@@ -410,8 +410,8 @@ export default function ClinicSchedulePage() {
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý Lịch trực & Nguồn lực phòng khám</h2>
-                        <span className="text-xs text-slate-500">
+                        <h2 className="text-sm font-extrabold text-clinic-navy">Quản lý Lịch trực &amp; Nguồn lực phòng khám</h2>
+                        <span className="text-xs text-clinic-text-secondary">
                             Điều phối ca trực bác sĩ thực tế, khuôn mẫu lịch định kỳ tuần và giám sát công suất buồng khám vật lý
                         </span>
                     </div>
@@ -434,8 +434,8 @@ export default function ClinicSchedulePage() {
                         {
                             key: 'daily_roster',
                             label: (
-                                <span className="font-semibold">
-                                    <UserOutlined /> Lịch trực thực tế & Sức chứa ca ({roster.length})
+                                <span className="font-semibold tabular-nums">
+                                    <UserOutlined /> Lịch trực thực tế &amp; Sức chứa ca ({roster.length})
                                 </span>
                             ),
                         },
@@ -450,7 +450,7 @@ export default function ClinicSchedulePage() {
                         {
                             key: 'physical_rooms',
                             label: (
-                                <span className="font-semibold">
+                                <span className="font-semibold tabular-nums">
                                     <ApartmentOutlined /> Danh mục buồng khám vật lý ({rooms.length})
                                 </span>
                             ),
@@ -463,7 +463,7 @@ export default function ClinicSchedulePage() {
                 <div className="space-y-5">
                     <div className="medpro-card p-3 flex flex-wrap items-center gap-3 text-xs">
                         <div>
-                            <span className="text-slate-400 mr-2">Ngày khám:</span>
+                            <span className="text-clinic-text-secondary mr-2">Ngày khám:</span>
                             <DatePicker
                                 format="DD/MM/YYYY"
                                 value={dayjs(selectedDate)}
@@ -471,7 +471,7 @@ export default function ClinicSchedulePage() {
                             />
                         </div>
                         <div>
-                            <span className="text-slate-400 mr-2">Ca trực:</span>
+                            <span className="text-clinic-text-secondary mr-2">Ca trực:</span>
                             <Select
                                 className="w-52"
                                 value={selectedShift}
@@ -484,7 +484,7 @@ export default function ClinicSchedulePage() {
                             />
                         </div>
                         <div>
-                            <span className="text-slate-400 mr-2">Chuyên khoa:</span>
+                            <span className="text-clinic-text-secondary mr-2">Chuyên khoa:</span>
                             <Select
                                 className="w-60"
                                 placeholder="Tất cả chuyên khoa"
@@ -526,14 +526,14 @@ export default function ClinicSchedulePage() {
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <UserOutlined className="text-sky-600" />
+                            <h3 className="text-sm font-bold text-clinic-navy flex items-center gap-2 tabular-nums">
+                                <UserOutlined className="text-clinic-cta" />
                                 Danh sách Bác sĩ trực ca ({roster.length} bác sĩ)
                             </h3>
                         </div>
 
                         {roster.length === 0 ? (
-                            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center">
+                            <div className="bg-clinic-surface p-8 rounded-[6px] border border-clinic-border text-center">
                                 <Empty description="Không có lịch phân ca trực nào phù hợp với bộ lọc ngày và ca khám đã chọn" />
                             </div>
                         ) : (
@@ -556,48 +556,53 @@ export default function ClinicSchedulePage() {
                                     return (
                                         <div
                                             key={doc.lich_lam_viec_id || doc.bac_si_id || idx}
-                                            className={`p-4 rounded-2xl border transition shadow-2xs space-y-3 ${isAbsent
-                                                ? 'bg-red-50/40 border-red-200'
+                                            className={`p-4 rounded-[6px] border transition space-y-3 ${isAbsent
+                                                ? 'bg-clinic-danger-bg border-clinic-danger-border'
                                                 : isFull
-                                                    ? 'bg-amber-50/30 border-amber-300'
-                                                    : 'bg-white border-slate-200/90 hover:border-sky-300'
+                                                    ? 'bg-clinic-warning-bg border-clinic-warning-border'
+                                                    : 'bg-clinic-surface border-clinic-border hover:border-clinic-cta'
                                             }`}
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <h4 className="font-bold text-slate-900 text-sm">{doc.ten_bac_si}</h4>
-                                                    <span className="text-[11px] text-slate-500">{specialtyName}</span>
+                                                    <h4 className="font-bold text-clinic-navy text-sm">{doc.ten_bac_si}</h4>
+                                                    <span className="text-[11px] text-clinic-text-secondary">{specialtyName}</span>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1">
-                                                    <Tag
-                                                        color={isAbsent ? 'error' : doc.is_active === false ? 'default' : 'success'}
-                                                        className="mr-0 text-[10px] font-bold"
+                                                    <span
+                                                        className={`text-[10px] font-bold ${
+                                                            isAbsent
+                                                                ? 'medpro-badge-danger'
+                                                                : doc.is_active === false
+                                                                  ? 'medpro-badge-neutral'
+                                                                  : 'medpro-badge-success'
+                                                        }`}
                                                     >
                                                         {isAbsent ? 'Nghỉ đột xuất' : doc.is_active === false ? 'Hủy ca' : 'Đang trực'}
-                                                    </Tag>
+                                                    </span>
                                                     {isFull && (
-                                                        <Tag color="red" className="mr-0 text-[10px] font-bold">
+                                                        <span className="medpro-badge-danger text-[10px] font-bold">
                                                             Đầy ca
-                                                        </Tag>
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="text-xs text-slate-600 space-y-1.5 pt-1 border-t border-slate-100">
+                                            <div className="text-xs text-clinic-text-secondary space-y-1.5 pt-1 border-t border-clinic-border tabular-nums">
                                                 <div className="flex justify-between">
-                                                    <span className="text-slate-400">Phòng trực:</span>
-                                                    <span className="font-semibold text-slate-800 text-right max-w-[170px] truncate" title={roomName}>
+                                                    <span className="text-clinic-text-muted">Phòng trực:</span>
+                                                    <span className="font-semibold text-clinic-navy text-right max-w-[170px] truncate" title={roomName}>
                                                         {roomName}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-slate-400">Ca trực:</span>
-                                                    <span className="font-medium text-slate-700">{shiftName}</span>
+                                                    <span className="text-clinic-text-muted">Ca trực:</span>
+                                                    <span className="font-medium text-clinic-text">{shiftName}</span>
                                                 </div>
                                                 <div className="space-y-1 pt-1">
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-slate-400">Sức chứa ca:</span>
-                                                        <span className={`font-bold ${isFull ? 'text-rose-600' : 'text-sky-700'}`}>
+                                                        <span className="text-clinic-text-muted">Sức chứa ca:</span>
+                                                        <span className={`font-bold ${isFull ? 'text-clinic-danger' : 'text-clinic-cta'}`}>
                                                             {currentCount} / {capacity} lượt
                                                         </span>
                                                     </div>
@@ -605,7 +610,7 @@ export default function ClinicSchedulePage() {
                                                         percent={percentUsed}
                                                         size="small"
                                                         status={isFull ? 'exception' : (percentUsed >= 80 ? 'active' : 'normal')}
-                                                        strokeColor={isFull ? '#ef4444' : (percentUsed >= 80 ? '#f59e0b' : '#0284c7')}
+                                                        strokeColor={isFull ? 'var(--color-clinic-danger-solid)' : (percentUsed >= 80 ? 'var(--color-clinic-warning)' : 'var(--color-clinic-cta)')}
                                                         showInfo={false}
                                                     />
                                                 </div>
@@ -620,18 +625,18 @@ export default function ClinicSchedulePage() {
                     <div className="medpro-card p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                    <MedicineBoxOutlined className="text-emerald-600" />
+                                <h3 className="text-sm font-bold text-clinic-navy flex items-center gap-2 tabular-nums">
+                                    <MedicineBoxOutlined className="text-clinic-success" />
                                     Giám sát phụ tải buồng khám thời gian thực ({roomStatus.length} phòng)
                                 </h3>
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-clinic-text-secondary">
                                     Cập nhật bác sĩ ngồi buồng, bệnh nhân đang khám và cảnh báo quá tải hàng chờ (≥ 5 người)
                                 </span>
                             </div>
                         </div>
 
                         {roomStatus.length === 0 ? (
-                            <div className="p-6 text-center text-slate-400 text-xs">
+                            <div className="p-6 text-center text-clinic-text-muted text-xs">
                                 Chưa có dữ liệu trạng thái buồng khám cho ca trực này
                             </div>
                         ) : (
@@ -643,46 +648,51 @@ export default function ClinicSchedulePage() {
                                     return (
                                         <div
                                             key={room.phong_kham_id || room.id}
-                                            className={`p-3.5 rounded-xl border space-y-2.5 transition ${isOverloaded
-                                                ? 'bg-amber-50/50 border-amber-300'
-                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                            className={`p-3.5 rounded-[6px] border space-y-2.5 transition ${isOverloaded
+                                                ? 'bg-clinic-warning-bg border-clinic-warning-border'
+                                                : 'bg-clinic-surface border-clinic-border hover:border-clinic-border-strong'
                                             }`}
                                         >
                                             <div className="flex justify-between items-start gap-1">
                                                 <div>
-                                                    <div className="font-bold text-slate-800 text-xs">
+                                                    <div className="font-bold text-clinic-navy text-xs">
                                                         {room.ten_phong}
                                                     </div>
-                                                    <div className="text-slate-400 text-[10px]">
-                                                        {room.chuyen_khoa || 'Chuyên khoa'} • {room.tang || 'Tầng 1'}
+                                                    <div className="text-clinic-text-muted text-[10px]">
+                                                        {room.chuyen_khoa || 'Chuyên khoa'} · {room.tang || 'Tầng 1'}
                                                     </div>
                                                 </div>
-                                                <Tag
-                                                    color={isOverloaded ? 'error' : (room.ten_bac_si ? 'processing' : 'default')}
-                                                    className="mr-0 text-[10px] font-semibold"
+                                                <span
+                                                    className={`text-[10px] font-semibold ${
+                                                        isOverloaded
+                                                            ? 'medpro-badge-danger'
+                                                            : room.ten_bac_si
+                                                              ? 'medpro-badge-info'
+                                                              : 'medpro-badge-neutral'
+                                                    }`}
                                                 >
-                                                    {isOverloaded ? 'Quá tải' : (room.ten_bac_si ? 'Đang khám' : 'Chưa phân ca')}
-                                                </Tag>
+                                                    {isOverloaded ? 'Quá tải' : room.ten_bac_si ? 'Đang khám' : 'Chưa phân ca'}
+                                                </span>
                                             </div>
 
-                                            <div className="space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100 text-[11px]">
-                                                <div className="flex justify-between text-slate-600">
-                                                    <span className="text-slate-400">Bác sĩ:</span>
-                                                    <span className="font-medium text-slate-800 truncate max-w-[130px]" title={room.ten_bac_si || 'Chưa gán'}>
+                                            <div className="space-y-1 bg-clinic-bg p-2 rounded-[4px] border border-clinic-border text-[11px]">
+                                                <div className="flex justify-between text-clinic-text-secondary">
+                                                    <span className="text-clinic-text-muted">Bác sĩ:</span>
+                                                    <span className="font-medium text-clinic-navy truncate max-w-[130px]" title={room.ten_bac_si || 'Chưa gán'}>
                                                         {room.ten_bac_si || 'Chưa gán'}
                                                     </span>
                                                 </div>
-                                                <div className="flex justify-between text-slate-600">
-                                                    <span className="text-slate-400">Đang khám:</span>
-                                                    <span className="font-medium text-emerald-700 truncate max-w-[130px]" title={room.benh_nhan_dang_kham || 'Buồng trống'}>
+                                                <div className="flex justify-between text-clinic-text-secondary">
+                                                    <span className="text-clinic-text-muted">Đang khám:</span>
+                                                    <span className="font-medium text-clinic-success truncate max-w-[130px]" title={room.benh_nhan_dang_kham || 'Buồng trống'}>
                                                         {room.benh_nhan_dang_kham || 'Buồng trống'}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-100">
-                                                <span className="text-slate-500">Đang chờ:</span>
-                                                <span className={`font-bold px-1.5 py-0.5 rounded text-[11px] ${waitingCount >= 5 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
+                                            <div className="flex justify-between items-center text-[11px] pt-1 border-t border-clinic-border tabular-nums">
+                                                <span className="text-clinic-text-secondary">Đang chờ:</span>
+                                                <span className={`font-bold px-1.5 py-0.5 rounded-[4px] text-[11px] ${waitingCount >= 5 ? 'bg-clinic-danger-bg text-clinic-danger' : 'bg-clinic-bg-muted text-clinic-navy'}`}>
                                                     {waitingCount} người
                                                 </span>
                                             </div>
@@ -697,27 +707,27 @@ export default function ClinicSchedulePage() {
 
             {activeTab === 'template' && (
                 <div className="space-y-4">
-                    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+                    <div className="bg-clinic-surface rounded-[6px] border border-clinic-border p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
-                                <h3 className="text-sm font-extrabold text-[#003553] flex items-center gap-2">
-                                    <CalendarOutlined className="text-[#009EDB]" />
+                                <h3 className="text-sm font-extrabold text-clinic-navy flex items-center gap-2">
+                                    <CalendarOutlined className="text-clinic-cta" />
                                     Bảng lịch làm việc của Bác sĩ theo tuần
                                 </h3>
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-clinic-text-secondary">
                                     Theo dõi trực quan ca sáng/chiều từng ngày trong tuần, chuyên khoa và buồng khám phụ trách
                                 </span>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                                <div className="flex items-center gap-1 bg-clinic-bg-muted border border-clinic-border p-1 rounded-[6px]">
                                     <button
                                         type="button"
                                         onClick={() => setTemplateViewMode('WEEK_MATRIX')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                        className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                                             templateViewMode === 'WEEK_MATRIX'
-                                                ? 'bg-[#00263C] text-white shadow-2xs'
-                                                : 'text-slate-600 hover:text-[#00263C]'
+                                                ? 'bg-clinic-navy text-clinic-surface'
+                                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         <TableOutlined />
@@ -726,10 +736,10 @@ export default function ClinicSchedulePage() {
                                     <button
                                         type="button"
                                         onClick={() => setTemplateViewMode('LIST_VIEW')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                        className={`px-3 py-1.5 rounded-[4px] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                                             templateViewMode === 'LIST_VIEW'
-                                                ? 'bg-[#00263C] text-white shadow-2xs'
-                                                : 'text-slate-600 hover:text-[#00263C]'
+                                                ? 'bg-clinic-navy text-clinic-surface'
+                                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                                         }`}
                                     >
                                         <UnorderedListOutlined />
@@ -737,7 +747,7 @@ export default function ClinicSchedulePage() {
                                     </button>
                                 </div>
 
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 tabular-nums">
                                     <Button
                                         size="small"
                                         icon={<LeftOutlined />}
@@ -749,7 +759,7 @@ export default function ClinicSchedulePage() {
                                     />
                                     <Button
                                         size="small"
-                                        className="font-bold text-[#003553]"
+                                        className="font-bold text-clinic-navy"
                                         onClick={() => {
                                             setTemplateDate('')
                                             setTemplateWeekMonday(getMondayIso(dayjs()))
@@ -766,19 +776,19 @@ export default function ClinicSchedulePage() {
                                         }}
                                         title="Tuần sau"
                                     />
-                                    <div className="text-xs font-bold text-[#00263C] px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-200">
+                                    <div className="text-xs font-bold text-clinic-navy px-2.5 py-1 bg-clinic-bg rounded-[6px] border border-clinic-border">
                                         {dayjs(templateWeekMonday).format('DD/MM/YYYY')} → {dayjs(templateWeekSunday).format('DD/MM/YYYY')}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+                        <div className="pt-3 border-t border-clinic-border flex flex-wrap items-center justify-between gap-2.5">
                             <div className="flex flex-wrap items-center gap-2.5 text-xs">
                                 <Input
                                     allowClear
                                     size="small"
-                                    prefix={<SearchOutlined className="text-slate-400" />}
+                                    prefix={<SearchOutlined className="text-clinic-text-muted" />}
                                     placeholder="Tìm tên bác sĩ..."
                                     value={templateSearch}
                                     onChange={(e) => setTemplateSearch(e.target.value)}
@@ -826,10 +836,10 @@ export default function ClinicSchedulePage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowSlotDetails((prev) => !prev)}
-                                    className={`h-8 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                                    className={`h-8 px-2.5 rounded-[6px] border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                                         showSlotDetails
-                                            ? 'bg-[#00263C] text-[#00B5F1] border-[#00B5F1]'
-                                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                            ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                                            : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border hover:bg-clinic-bg-muted'
                                     }`}
                                     title="Bật/Tắt hiển thị số slot Onl / Quầy trên từng ô lịch"
                                 >
@@ -840,26 +850,26 @@ export default function ClinicSchedulePage() {
                         </div>
 
                         {templateViewMode === 'WEEK_MATRIX' && (
-                            <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-600 select-none">
-                                <span className="font-bold text-[#00263C] text-xs">Chú giải:</span>
+                            <div className="pt-2 border-t border-clinic-border flex flex-wrap items-center gap-3 text-[11px] font-semibold text-clinic-text-secondary select-none">
+                                <span className="font-bold text-clinic-navy text-xs">Chú giải:</span>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-300 inline-block" />
+                                    <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-warning-bg border border-clinic-warning-border inline-block" />
                                     <span>Ca Sáng (07:30 - 11:30)</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-3.5 h-3.5 rounded bg-sky-100 border border-sky-300 inline-block" />
+                                    <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-surface-alt border border-clinic-info-border inline-block" />
                                     <span>Ca Chiều (13:30 - 17:00)</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-3.5 h-3.5 rounded border border-dashed border-slate-300 bg-white inline-block" />
+                                    <span className="w-3.5 h-3.5 rounded-[4px] border border-dashed border-clinic-border-strong bg-clinic-surface inline-block" />
                                     <span>Chưa xếp ca</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-3.5 h-3.5 rounded bg-slate-200 border border-slate-300 inline-block" />
+                                    <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-bg-muted border border-clinic-border inline-block" />
                                     <span>Nghỉ phép / Đã khóa ca</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="w-3.5 h-3.5 rounded bg-slate-300 border border-slate-400 inline-block" />
+                                    <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-bg-muted border border-clinic-border-strong inline-block" />
                                     <span>Cuối tuần (T7, CN)</span>
                                 </div>
                             </div>
@@ -867,61 +877,61 @@ export default function ClinicSchedulePage() {
                     </div>
 
                     {templateViewMode === 'WEEK_MATRIX' ? (
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                        <div className="bg-clinic-surface rounded-[6px] border border-clinic-border overflow-hidden">
                             <div className="max-h-[640px] overflow-auto relative">
                                 <table className="w-full text-left border-collapse min-w-[1050px]">
                                     <thead>
-                                        <tr className="border-b border-slate-200 h-[48px]">
+                                        <tr className="border-b border-clinic-border h-[48px]">
                                             <th
                                                 rowSpan={2}
-                                                className="sticky top-0 left-0 bg-slate-50 z-40 p-2.5 text-xs font-black text-[#00263C] border-r border-slate-200 w-[235px] min-w-[235px] max-w-[235px] shadow-2xs"
+                                                className="sticky top-0 left-0 bg-clinic-bg z-40 p-2.5 text-xs font-black text-clinic-navy border-r border-clinic-border w-[235px] min-w-[235px] max-w-[235px] tabular-nums"
                                             >
-                                                Bác sĩ & Chuyên khoa ({matrixDoctors.length})
+                                                Bác sĩ &amp; Chuyên khoa ({matrixDoctors.length})
                                             </th>
                                             {weekDays.map((day) => (
                                                 <th
                                                     key={day.isoDate}
                                                     colSpan={2}
-                                                    className={`sticky top-0 z-30 h-[48px] px-2 py-1 text-center text-xs font-bold border-l border-slate-200 ${
+                                                    className={`sticky top-0 z-30 h-[48px] px-2 py-1 text-center text-xs font-bold border-l border-clinic-border tabular-nums ${
                                                         day.isSelected
-                                                            ? 'bg-sky-100 text-[#00263C] ring-2 ring-[#009EDB] ring-inset'
+                                                            ? 'bg-clinic-surface-alt text-clinic-navy'
                                                             : day.isWeekend
-                                                            ? 'bg-slate-200/90 text-slate-900 border-l-2 border-slate-300 font-extrabold'
+                                                            ? 'bg-clinic-bg-muted text-clinic-navy border-l-2 border-clinic-border-strong font-extrabold'
                                                             : day.isToday
-                                                            ? 'bg-sky-100/80 text-[#00263C] ring-2 ring-[#00B5F1] ring-inset'
-                                                            : 'bg-slate-50 text-slate-700'
+                                                            ? 'bg-clinic-surface-alt text-clinic-navy'
+                                                            : 'bg-clinic-bg text-clinic-text'
                                                     }`}
                                                 >
                                                     <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                                                         <span>{day.label}</span>
                                                         {day.isWeekend && (
-                                                            <span className="px-1 py-0.5 rounded bg-slate-700 text-white text-[9px] font-black uppercase tracking-wider">
+                                                            <span className="px-1 py-0.5 rounded-[4px] bg-clinic-navy text-clinic-surface text-[10px] font-bold">
                                                                 Cuối tuần
                                                             </span>
                                                         )}
                                                         {day.isToday && (
-                                                            <span className="px-1 py-0.5 rounded bg-[#00B5F1] text-[#00263C] text-[9px] font-black uppercase tracking-wider">
+                                                            <span className="px-1 py-0.5 rounded-[4px] bg-clinic-cta text-clinic-surface text-[10px] font-bold">
                                                                 Hôm nay
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="text-[11px] font-normal text-slate-500 mt-0.5">({day.displayDate})</div>
+                                                    <div className="text-[11px] font-normal text-clinic-text-secondary mt-0.5">({day.displayDate})</div>
                                                 </th>
                                             ))}
                                         </tr>
-                                        <tr className="border-b border-slate-200">
+                                        <tr className="border-b border-clinic-border">
                                             {weekDays.map((day) => (
                                                 <Fragment key={day.isoDate}>
                                                     <th
-                                                        className={`sticky top-[48px] z-30 p-1 text-center text-[11px] font-bold border-l border-slate-200 ${
-                                                            day.isWeekend ? 'bg-slate-200 text-slate-800' : 'bg-slate-100/90 text-slate-600'
+                                                        className={`sticky top-[48px] z-30 p-1 text-center text-[11px] font-bold border-l border-clinic-border ${
+                                                            day.isWeekend ? 'bg-clinic-bg-muted text-clinic-navy' : 'bg-clinic-bg text-clinic-text-secondary'
                                                         }`}
                                                     >
                                                         S
                                                     </th>
                                                     <th
-                                                        className={`sticky top-[48px] z-30 p-1 text-center text-[11px] font-bold border-l border-slate-200 ${
-                                                            day.isWeekend ? 'bg-slate-200 text-slate-800' : 'bg-slate-100/90 text-slate-600'
+                                                        className={`sticky top-[48px] z-30 p-1 text-center text-[11px] font-bold border-l border-clinic-border ${
+                                                            day.isWeekend ? 'bg-clinic-bg-muted text-clinic-navy' : 'bg-clinic-bg text-clinic-text-secondary'
                                                         }`}
                                                     >
                                                         C
@@ -930,10 +940,10 @@ export default function ClinicSchedulePage() {
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-100">
+                                    <tbody className="divide-y divide-clinic-border">
                                         {loading ? (
                                             <tr>
-                                                <td colSpan={15} className="p-12 text-center text-slate-400 text-xs">
+                                                <td colSpan={15} className="p-12 text-center text-clinic-text-muted text-xs">
                                                     Đang tải ma trận lịch làm việc tuần...
                                                 </td>
                                             </tr>
@@ -945,17 +955,17 @@ export default function ClinicSchedulePage() {
                                             </tr>
                                         ) : (
                                             matrixDoctors.map((doc) => (
-                                                <tr key={doc.key} className="hover:bg-slate-50/70 transition">
-                                                    <td className="sticky left-0 bg-white z-20 shadow-2xs p-2.5 border-r border-slate-200 align-middle w-[235px] min-w-[235px] max-w-[235px]">
+                                                <tr key={doc.key} className="hover:bg-clinic-surface-tint transition">
+                                                    <td className="sticky left-0 bg-clinic-surface z-20 p-2.5 border-r border-clinic-border align-middle w-[235px] min-w-[235px] max-w-[235px]">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003553] to-[#00B5F1] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                                            <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface font-black text-xs flex items-center justify-center shrink-0">
                                                                 {getDoctorInitials(doc.ho_ten)}
                                                             </div>
                                                             <div className="min-w-0 flex-1">
-                                                                <div className="font-extrabold text-[#003553] text-xs leading-snug break-words">
+                                                                <div className="font-extrabold text-clinic-navy text-xs leading-snug break-words">
                                                                     {doc.ho_ten}
                                                                 </div>
-                                                                <div className="text-[11px] font-medium text-slate-500 truncate mt-0.5">
+                                                                <div className="text-[11px] font-medium text-clinic-text-secondary truncate mt-0.5">
                                                                     {doc.chuyen_khoa}
                                                                 </div>
                                                             </div>
@@ -968,16 +978,16 @@ export default function ClinicSchedulePage() {
 
                                                         const renderMatrixCell = (shift, caType) => {
                                                             const cellBg = day.isSelected
-                                                                ? 'bg-sky-50/40'
+                                                                ? 'bg-clinic-surface-tint'
                                                                 : day.isWeekend
-                                                                ? 'bg-slate-100/60'
+                                                                ? 'bg-clinic-bg-muted'
                                                                 : day.isToday
-                                                                ? 'bg-sky-50/20'
+                                                                ? 'bg-clinic-surface-tint/60'
                                                                 : ''
                                                             if (!shift) {
                                                                 return (
-                                                                    <td className={`p-1 border-l border-slate-100 align-middle text-center ${cellBg}`}>
-                                                                        <div className="h-[46px] rounded-lg border border-dashed border-slate-200 bg-white/80 flex items-center justify-center text-slate-300 text-xs">
+                                                                    <td className={`p-1 border-l border-clinic-border align-middle text-center ${cellBg}`}>
+                                                                        <div className="h-[46px] rounded-[4px] border border-dashed border-clinic-border bg-clinic-surface flex items-center justify-center text-clinic-text-subtle text-xs">
                                                                             —
                                                                         </div>
                                                                     </td>
@@ -993,31 +1003,31 @@ export default function ClinicSchedulePage() {
                                                                 : '13:30 - 17:00'
 
                                                             const tooltipText = (
-                                                                <div className="text-xs space-y-0.5">
+                                                                <div className="text-xs space-y-0.5 tabular-nums">
                                                                     <div className="font-bold">{doc.ho_ten}</div>
                                                                     <div>{shift.phong_kham || shortCode}</div>
                                                                     <div>
-                                                                        {caType === 'sang' ? 'Ca sáng' : 'Ca chiều'} ({timeStr}) • {dayjs(day.isoDate).format('DD/MM/YYYY')}
+                                                                        {caType === 'sang' ? 'Ca sáng' : 'Ca chiều'} ({timeStr}) · {dayjs(day.isoDate).format('DD/MM/YYYY')}
                                                                     </div>
                                                                     <div>
-                                                                        Hạn mức: {shift.gioi_han_ca_kham ?? 0} lượt (Onl: {shift.han_muc_dat_truoc ?? 0} • Quầy: {shift.han_muc_vang_lai ?? 0})
+                                                                        Hạn mức: {shift.gioi_han_ca_kham ?? 0} lượt (Onl: {shift.han_muc_dat_truoc ?? 0} · Quầy: {shift.han_muc_vang_lai ?? 0})
                                                                     </div>
                                                                     {isLocked && shift.ghi_chu_nghi && (
-                                                                        <div className="text-rose-300">Lý do khóa: {shift.ghi_chu_nghi}</div>
+                                                                        <div className="text-clinic-danger">Lý do khóa: {shift.ghi_chu_nghi}</div>
                                                                     )}
                                                                 </div>
                                                             )
 
                                                             return (
-                                                                <td className={`p-1 border-l border-slate-100 align-middle text-center ${cellBg}`}>
+                                                                <td className={`p-1 border-l border-clinic-border align-middle text-center ${cellBg}`}>
                                                                     <Tooltip title={tooltipText}>
                                                                         <div
-                                                                            className={`h-[46px] rounded-lg border p-1 flex flex-col items-center justify-center shadow-2xs transition ${
+                                                                            className={`h-[46px] rounded-[4px] border p-1 flex flex-col items-center justify-center transition tabular-nums ${
                                                                                 isLocked
-                                                                                    ? 'border-slate-300 bg-slate-100 text-slate-500'
+                                                                                    ? 'border-clinic-border-strong bg-clinic-bg-muted text-clinic-text-muted'
                                                                                     : caType === 'sang'
-                                                                                    ? 'border-amber-300/80 bg-amber-50 hover:bg-amber-100/70 text-amber-900'
-                                                                                    : 'border-sky-300/80 bg-sky-50 hover:bg-sky-100/70 text-sky-900'
+                                                                                    ? 'border-clinic-warning-border bg-clinic-warning-bg text-clinic-warning'
+                                                                                    : 'border-clinic-info-border bg-clinic-surface-alt text-clinic-navy'
                                                                             }`}
                                                                         >
                                                                             <span className="font-black text-xs tracking-tight truncate max-w-[82px]">
@@ -1052,8 +1062,8 @@ export default function ClinicSchedulePage() {
                                     </tbody>
                                     {matrixDoctors.length > 0 && (
                                         <tfoot>
-                                            <tr className="border-t-2 border-slate-200 bg-slate-50">
-                                                <td className="sticky left-0 bg-slate-50 z-20 p-2.5 border-r border-slate-200 text-xs font-extrabold text-[#003553]">
+                                            <tr className="border-t-2 border-clinic-border bg-clinic-bg tabular-nums">
+                                                <td className="sticky left-0 bg-clinic-bg z-20 p-2.5 border-r border-clinic-border text-xs font-extrabold text-clinic-navy">
                                                     Tổng BS trực / ca
                                                 </td>
                                                 {weekDays.map((day) => {
@@ -1061,10 +1071,10 @@ export default function ClinicSchedulePage() {
                                                     const chieuCount = slotActiveDoctorCounts.get(`${day.isoDate}_chieu`)?.size || 0
                                                     return (
                                                         <Fragment key={day.isoDate}>
-                                                            <td className="p-1.5 border-l border-slate-200 text-center text-[11px] font-extrabold text-amber-800 bg-amber-50/40">
+                                                            <td className="p-1.5 border-l border-clinic-border text-center text-[11px] font-extrabold text-clinic-warning bg-clinic-warning-bg">
                                                                 {sangCount} BS
                                                             </td>
-                                                            <td className="p-1.5 border-l border-slate-200 text-center text-[11px] font-extrabold text-sky-800 bg-sky-50/40">
+                                                            <td className="p-1.5 border-l border-clinic-border text-center text-[11px] font-extrabold text-clinic-cta bg-clinic-surface-alt">
                                                                 {chieuCount} BS
                                                             </td>
                                                         </Fragment>
@@ -1077,7 +1087,7 @@ export default function ClinicSchedulePage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+                        <div className="bg-clinic-surface rounded-[6px] border border-clinic-border p-4">
                             <Table
                                 columns={templateColumns}
                                 dataSource={filteredTemplateList}
@@ -1098,18 +1108,18 @@ export default function ClinicSchedulePage() {
 
             {activeTab === 'physical_rooms' && (
                 <div className="medpro-card p-4 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-border pb-3">
                         <div>
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <ApartmentOutlined className="text-emerald-600" />
-                                Danh mục buồng phòng vật lý & phân bổ chuyên khoa
+                            <h3 className="text-sm font-bold text-clinic-navy flex items-center gap-2">
+                                <ApartmentOutlined className="text-clinic-success" />
+                                Danh mục buồng phòng vật lý &amp; phân bổ chuyên khoa
                             </h3>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-clinic-text-secondary">
                                 Toàn bộ cơ sở vật chất phòng ốc gồm phòng khám, xét nghiệm và chẩn đoán hình ảnh
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400">Lọc chuyên khoa:</span>
+                            <span className="text-xs text-clinic-text-secondary">Lọc chuyên khoa:</span>
                             <Select
                                 className="w-60"
                                 placeholder="Tất cả chuyên khoa"

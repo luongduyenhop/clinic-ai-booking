@@ -95,14 +95,14 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                 title: `Hoàn tất kết quả có ${critical.length} chỉ số ở ngưỡng nguy hiểm?`,
                 content: (
                     <div className="space-y-1.5 text-[13px]">
-                        <ul className="list-disc pl-5 text-rose-700">
+                        <ul className="list-disc pl-5 text-clinic-danger">
                             {critical.map(({ c, ev }) => (
                                 <li key={c.ma}>
                                     <strong>{c.ten}</strong>: {values[c.ma]} {c.don_vi} (ngưỡng nguy kịch {criticalLimit(c, ev.huong)})
                                 </li>
                             ))}
                         </ul>
-                        <p className="text-slate-600">Hãy kiểm tra lại mẫu/máy. Khi duyệt & trả, bác sĩ chỉ định sẽ thấy cờ cảnh báo Nguy kịch.</p>
+                        <p className="text-clinic-text-secondary">Hãy kiểm tra lại mẫu/máy. Khi duyệt & trả, bác sĩ chỉ định sẽ thấy cờ cảnh báo Nguy kịch.</p>
                     </div>
                 ),
                 okText: 'Đã kiểm tra, hoàn tất',
@@ -117,9 +117,9 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
 
     return (
         <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
-            <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-clinic-text-secondary">
                 <span>
-                    Bộ chỉ số: <strong className="text-[#003553]">{template.ten_mau}</strong>
+                    Bộ chỉ số: <strong className="text-clinic-navy">{template.ten_mau}</strong>
                 </span>
                 <span>
                     · Khoảng tham chiếu{' '}
@@ -128,7 +128,7 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
             </div>
 
             {critical.length > 0 && (
-                <div role="alert" className="flex items-start gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-[13px] text-rose-800">
+                <div role="alert" className="flex items-start gap-3 rounded-[6px] border border-clinic-danger-border bg-clinic-danger-bg px-4 py-3 text-[13px] text-clinic-danger">
                     <ClinicIcon name="WarningCircle" size={20} weight="fill" className="mt-0.5 shrink-0" />
                     <div>
                         <div className="font-bold">{critical.length} chỉ số vượt ngưỡng nguy hiểm</div>
@@ -156,39 +156,39 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
                             return (
                                 <tr key={c.ma} className={style?.row || ''}>
                                     <td>
-                                        <div className="font-semibold text-[#003553]">{c.ten}</div>
-                                        <div className="text-[11px] text-slate-500">{c.ma}</div>
+                                        <div className="font-semibold text-clinic-navy">{c.ten}</div>
+                                        <div className="text-[11px] text-clinic-text-secondary">{c.ma}</div>
                                     </td>
                                     <td>
                                         <input
                                             aria-label={c.ten}
                                             inputMode="decimal"
                                             disabled={locked || submitting}
-                                            className={`medpro-input font-bold ${style ? `${style.input} ${style.text}` : ''} ${
-                                                ev?.invalid ? '!border-rose-500' : ''
+                                            className={`medpro-input font-bold tabular-nums ${style ? `${style.input} ${style.text}` : ''} ${
+                                                ev?.invalid ? '!border-clinic-danger-solid' : ''
                                             }`}
                                             value={values[c.ma] ?? ''}
                                             onChange={(e) => setValue(c.ma, e.target.value)}
                                         />
                                     </td>
-                                    <td className="text-slate-500">{c.don_vi}</td>
-                                    <td className="text-slate-600">{c.khoang_tham_chieu || '—'}</td>
+                                    <td className="text-clinic-text-secondary">{c.don_vi}</td>
+                                    <td className="text-clinic-text-secondary">{c.khoang_tham_chieu || '—'}</td>
                                     <td>
-                                        {ev?.invalid && <span className="text-[12px] text-rose-600">Không hợp lệ</span>}
+                                        {ev?.invalid && <span className="text-[12px] text-clinic-danger">Không hợp lệ</span>}
                                         {style && (
                                             <span className={style.badge}>
                                                 <ClinicIcon name={style.icon} size={12} weight="bold" />
                                                 {ev.danh_gia === 'NGUY_HIEM' ? `Nguy hiểm ${LAB_HUONG_ARROW[ev.huong]}` : style.label}
                                             </span>
                                         )}
-                                        {ev?.danh_gia === 'BINH_THUONG' && <span className="text-slate-500">Bình thường</span>}
+                                        {ev?.danh_gia === 'BINH_THUONG' && <span className="text-clinic-text-secondary">Bình thường</span>}
                                     </td>
                                 </tr>
                             )
                         })}
                     </tbody>
                 </table>
-                {formError && <p className="mt-2 text-[12px] text-rose-600">{formError}</p>}
+                {formError && <p className="mt-2 text-[12px] text-clinic-danger">{formError}</p>}
             </div>
 
             <ClassificationBar value={classification} abnormalCount={abnormalCount} />
@@ -212,8 +212,8 @@ function LabIndicatorForm({ order, submitting, onSubmitLab }) {
             </div>
 
             {!approved && (
-                <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                    <span className="min-w-[240px] flex-1 text-[12px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-3 border-t border-clinic-border pt-4">
+                    <span className="min-w-[240px] flex-1 text-[12px] text-clinic-text-secondary">
                         Đánh giá do hệ thống tính lại khi lưu. Sau khi hoàn tất, bấm “Duyệt &amp; Trả kết quả” để kết quả và cờ cảnh báo hiện
                         trên Bàn khám của bác sĩ.
                     </span>
@@ -299,30 +299,30 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
                     </thead>
                     <tbody>
                         {params.map((p, i) => (
-                            <tr key={p.code} className={flags[i] ? 'bg-rose-50/60' : ''}>
+                            <tr key={p.code} className={flags[i] ? 'bg-clinic-danger-bg' : ''}>
                                 <td>
-                                    <div className="font-semibold text-[#003553]">{p.name}</div>
-                                    <div className="text-[11px] text-slate-500">{p.code}</div>
+                                    <div className="font-semibold text-clinic-navy">{p.name}</div>
+                                    <div className="text-[11px] text-clinic-text-secondary">{p.code}</div>
                                 </td>
                                 <td>
                                     <input
                                         aria-label={p.name}
                                         disabled={locked}
-                                        className={`medpro-input font-bold ${flags[i] ? '!border-rose-500 text-rose-700' : ''}`}
+                                        className={`medpro-input font-bold tabular-nums ${flags[i] ? '!border-clinic-danger-solid text-clinic-danger' : ''}`}
                                         value={values.values[p.code]}
                                         onChange={(e) => setFieldValue(`values.${p.code}`, e.target.value)}
                                         placeholder={p.normal ?? ''}
                                     />
                                 </td>
-                                <td className="text-slate-500">{p.unit}</td>
-                                <td className="text-slate-600">{formatReference(p)}</td>
-                                <td>{flags[i] ? <span className="medpro-badge-danger">{FLAG_LABEL[flags[i]]}</span> : <span className="text-slate-500">Bình thường</span>}</td>
+                                <td className="text-clinic-text-secondary">{p.unit}</td>
+                                <td className="text-clinic-text-secondary">{formatReference(p)}</td>
+                                <td>{flags[i] ? <span className="medpro-badge-danger">{FLAG_LABEL[flags[i]]}</span> : <span className="text-clinic-text-secondary">Bình thường</span>}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                {params.length === 0 && <p className="py-4 text-center text-slate-500">Chưa có mẫu chỉ số cho dịch vụ này.</p>}
-                {errors.values && formik.touched.values && <p className="mt-2 text-[12px] text-rose-600">{errors.values}</p>}
+                {params.length === 0 && <p className="py-4 text-center text-clinic-text-secondary">Chưa có mẫu chỉ số cho dịch vụ này.</p>}
+                {errors.values && formik.touched.values && <p className="mt-2 text-[12px] text-clinic-danger">{errors.values}</p>}
             </div>
 
             <ClassificationBar value={classification} abnormalCount={abnormalCount} />
@@ -333,7 +333,7 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
                     <label>
                         <span className="medpro-label">Kết luận</span>
                         <textarea name="ket_luan" rows={3} disabled={locked} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
-                        {errors.ket_luan && formik.touched.ket_luan && <p className="mt-1 text-[12px] text-rose-600">{errors.ket_luan}</p>}
+                        {errors.ket_luan && formik.touched.ket_luan && <p className="mt-1 text-[12px] text-clinic-danger">{errors.ket_luan}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Đề nghị</span>

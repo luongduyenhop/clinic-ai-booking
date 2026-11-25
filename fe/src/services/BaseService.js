@@ -3,6 +3,7 @@ import { DOMAIN, REFRESH_TOKEN, TOKEN } from '../utils/constants/System'
 import { resolveRoleFromAuth } from '../utils/auth/authRole'
 import { AppToast } from '../components/common/AppNotification'
 import { getAuthSessionRevision } from '../utils/auth/authStorage'
+import { toFriendlyErrorMessage } from '../utils/helpers/clientErrorHelper.js'
 
 export const http = axios.create({
     baseURL: DOMAIN,
@@ -90,8 +91,10 @@ http.interceptors.response.use(
         const status = error.response?.status
         const shouldStopLoading = Boolean(originalRequest?.__globalLoadingCountered)
         if (status && status >= 400 && status !== 401 && !originalRequest?.__skipGlobalError) {
-            const body = error.response?.data
-            const msg = body?.Message || body?.message || error.message || 'Lỗi không xác định từ máy chủ'
+            const msg = toFriendlyErrorMessage(
+                error,
+                'Không thể kết nối máy chủ. Bạn vui lòng thử lại sau ít phút.'
+            )
             AppToast.error(msg)
         }
 

@@ -1,7 +1,48 @@
 import { Check } from '../../common/ClinicIcon'
 
-const labels = ['Chuyên khoa & Bác sĩ', 'Ngày & Giờ khám', 'Thông tin người khám']
+const BOOKING_STEP_LABELS = ['Chuyên khoa & Bác sĩ', 'Ngày & Giờ khám', 'Thông tin người khám']
 
 export default function BookingStepper({ currentStep }) {
-    return <ol className="grid grid-cols-3 gap-2" aria-label="Tiến trình đặt lịch">{labels.map((label, index) => { const step = index + 1; const done = step < currentStep; const active = step === currentStep; return <li key={label} className="relative"><div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3"><span className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-bold ${done || active ? 'bg-[#00B5F1] text-white' : 'bg-slate-100 text-slate-400'}`}>{done ? <Check size={17} weight="bold" /> : step}</span><span className={`text-[11px] sm:text-sm font-bold text-center sm:text-left leading-4 ${active ? 'text-[#003553]' : done ? 'text-[#008EC2]' : 'text-slate-400'}`}>{label}</span></div>{index < 2 && <span className={`hidden sm:block absolute h-0.5 top-[18px] left-[44px] right-[-4px] -z-10 ${done ? 'bg-[#00B5F1]' : 'bg-slate-200'}`} />}</li> })}</ol>
+    return (
+        <ol className="grid grid-cols-3 gap-3" aria-label="Tiến trình đặt lịch">
+            {BOOKING_STEP_LABELS.map((label, index) => {
+                const step = index + 1
+                const done = step < currentStep
+                const active = step === currentStep
+                const badgeClass = active
+                    ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                    : done
+                      ? 'bg-clinic-surface-alt text-clinic-cta border-clinic-info-border'
+                      : 'bg-clinic-bg-muted text-clinic-text-muted border-clinic-border'
+                const labelClass = active
+                    ? 'text-clinic-navy'
+                    : done
+                      ? 'text-clinic-cta'
+                      : 'text-clinic-text-muted'
+
+                return (
+                    <li key={label} className="relative">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-2.5">
+                            <span
+                                className={`w-8 h-8 shrink-0 rounded-[6px] border flex items-center justify-center text-xs font-extrabold tabular-nums ${badgeClass}`}
+                            >
+                                {done ? <Check size={15} weight="bold" /> : step}
+                            </span>
+                            <span className={`text-[11px] sm:text-[13px] font-bold text-center sm:text-left leading-4 sm:pt-1 ${labelClass}`}>
+                                {label}
+                            </span>
+                        </div>
+                        {index < BOOKING_STEP_LABELS.length - 1 && (
+                            <span
+                                aria-hidden="true"
+                                className={`hidden sm:block absolute h-[2px] top-4 left-[40px] right-[-6px] -z-10 ${
+                                    done ? 'bg-clinic-cta' : 'bg-clinic-border'
+                                }`}
+                            />
+                        )}
+                    </li>
+                )
+            })}
+        </ol>
+    )
 }

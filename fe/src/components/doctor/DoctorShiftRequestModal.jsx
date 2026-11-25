@@ -1,30 +1,26 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppToast } from '../common/AppNotification'
+import { ClinicIcon } from '../common/ClinicIcon'
 
 export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubmitted }) {
-    // 3 Tab: 'SWAP' (Đổi ca) | 'LEAVE' (Xin nghỉ) | 'HISTORY' (Lịch sử đơn)
     const [activeTab, setActiveTab] = useState('SWAP')
-
-    // Danh sách các đơn yêu cầu đã gửi (sẵn sàng đón nhận từ Backend qua API GET /api/Doctor/shift-requests)
     const [requestHistory, setRequestHistory] = useState([])
 
-    // State Form Đổi ca trực
     const [swapForm, setSwapForm] = useState({
         currentDate: '',
-        currentShift: 'MORNING', // MORNING | AFTERNOON
+        currentShift: 'MORNING',
         targetDate: '',
         targetShift: 'MORNING',
         substituteDoctor: '',
         reason: '',
     })
 
-    // State Form Xin nghỉ trực
     const [leaveForm, setLeaveForm] = useState({
-        leaveType: 'ANNUAL', // ANNUAL | SICK | CONFERENCE | PERSONAL
+        leaveType: 'ANNUAL',
         startDate: '',
         endDate: '',
-        shiftScope: 'ALL_DAY', // ALL_DAY | MORNING | AFTERNOON
+        shiftScope: 'ALL_DAY',
         substituteDoctor: '',
         handoverNotes: '',
         reason: '',
@@ -42,15 +38,14 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
         setLeaveForm((prev) => ({ ...prev, [name]: value }))
     }
 
-    // Submit Đơn Đổi ca trực
     const handleSwapSubmit = (e) => {
         e.preventDefault()
         if (!swapForm.currentDate || !swapForm.targetDate) {
-            AppToast.warning('Vui lòng chọn ngày ca hiện tại và ngày mong muốn đổi sang!')
+            AppToast.warning('Vui lòng chọn ngày ca hiện tại và ngày mong muốn đổi sang')
             return
         }
         if (!swapForm.reason.trim()) {
-            AppToast.warning('Vui lòng nhập lý do đổi ca trực!')
+            AppToast.warning('Vui lòng nhập lý do đổi ca trực')
             return
         }
 
@@ -62,14 +57,14 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
             details: `Đổi ca ${swapForm.currentShift === 'MORNING' ? 'Sáng' : 'Chiều'} (${swapForm.currentDate}) sang ${swapForm.targetShift === 'MORNING' ? 'Sáng' : 'Chiều'} (${swapForm.targetDate})`,
             substitute: swapForm.substituteDoctor.trim() || 'Nhờ Khoa điều phối',
             reason: swapForm.reason.trim(),
-            status: 'PENDING', // PENDING | APPROVED | REJECTED
+            status: 'PENDING',
             statusLabel: 'Chờ Trưởng khoa duyệt',
         }
 
         setRequestHistory((prev) => [newRequest, ...prev])
         if (onRequestSubmitted) onRequestSubmitted(newRequest)
 
-        AppToast.success('Đã gửi phiếu yêu cầu đổi ca trực tới Ban Điều Hành!')
+        AppToast.success('Đã gửi phiếu yêu cầu đổi ca trực tới Ban Điều Hành')
         setSwapForm({
             currentDate: '',
             currentShift: 'MORNING',
@@ -81,15 +76,14 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
         setActiveTab('HISTORY')
     }
 
-    // Submit Đơn Xin nghỉ trực
     const handleLeaveSubmit = (e) => {
         e.preventDefault()
         if (!leaveForm.startDate) {
-            AppToast.warning('Vui lòng chọn ngày bắt đầu nghỉ!')
+            AppToast.warning('Vui lòng chọn ngày bắt đầu nghỉ')
             return
         }
         if (!leaveForm.reason.trim()) {
-            AppToast.warning('Vui lòng nhập lý do xin nghỉ!')
+            AppToast.warning('Vui lòng nhập lý do xin nghỉ')
             return
         }
 
@@ -115,7 +109,7 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
         setRequestHistory((prev) => [newRequest, ...prev])
         if (onRequestSubmitted) onRequestSubmitted(newRequest)
 
-        AppToast.success('Đã nộp đơn xin nghỉ trực thành công!')
+        AppToast.success('Đã nộp đơn xin nghỉ trực thành công')
         setLeaveForm({
             leaveType: 'ANNUAL',
             startDate: '',
@@ -129,101 +123,102 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
     }
 
     return createPortal(
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-4 flex justify-center items-center py-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto relative">
-                {/* Header Modal */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-clinic-navy/60 backdrop-blur-xs p-4 flex justify-center items-center py-6">
+            <div className="bg-clinic-surface rounded-[6px] max-w-xl w-full p-6 space-y-5 border border-clinic-border max-h-[90vh] overflow-y-auto relative">
+                <div className="flex items-center justify-between pb-3 border-b border-clinic-border">
                     <div className="flex items-center gap-2.5">
-                        <span className="w-9 h-9 rounded-xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center text-lg font-bold">
-                            🔄
+                        <span className="w-9 h-9 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-cta flex items-center justify-center">
+                            <ClinicIcon name="ArrowsClockwise" size={18} weight="bold" />
                         </span>
                         <div>
-                            <h3 className="text-base font-extrabold text-[#003553]">
-                                Điều Chỉnh Ca Trực & Nghỉ Phép
+                            <h3 className="text-base font-extrabold text-clinic-navy">
+                                Điều Chỉnh Ca Trực &amp; Nghỉ Phép
                             </h3>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-clinic-text-secondary">
                                 Gửi yêu cầu đổi ca trực hoặc làm đơn xin nghỉ phép gửi Ban Điều Hành
                             </p>
                         </div>
                     </div>
                     <button
                         type="button"
+                        aria-label="Đóng hộp thoại điều chỉnh ca trực"
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm cursor-pointer transition"
+                        className="w-8 h-8 rounded-[6px] bg-clinic-bg-muted hover:bg-clinic-border text-clinic-text-secondary flex items-center justify-center cursor-pointer transition"
                     >
-                        ✕
+                        <ClinicIcon name="X" size={16} weight="bold" />
                     </button>
                 </div>
 
-                {/* Tab Switcher */}
-                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 text-xs font-bold">
+                <div className="flex items-center gap-1.5 p-1 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs font-bold">
                     <button
                         type="button"
                         onClick={() => setActiveTab('SWAP')}
-                        className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer text-center ${
+                        className={`flex-1 py-2 px-3 rounded-[4px] transition cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                             activeTab === 'SWAP'
-                                ? 'bg-white text-[#003553] shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        🔄 Đổi Ca Trực
+                        <ClinicIcon name="ArrowsClockwise" size={14} />
+                        <span>Đổi Ca Trực</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('LEAVE')}
-                        className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer text-center ${
+                        className={`flex-1 py-2 px-3 rounded-[4px] transition cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                             activeTab === 'LEAVE'
-                                ? 'bg-white text-[#003553] shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        📝 Xin Nghỉ / Báo Vắng
+                        <ClinicIcon name="CalendarX" size={14} />
+                        <span>Xin Nghỉ / Báo Vắng</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('HISTORY')}
-                        className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+                        className={`flex-1 py-2 px-3 rounded-[4px] transition cursor-pointer inline-flex items-center justify-center gap-1.5 tabular-nums ${
                             activeTab === 'HISTORY'
-                                ? 'bg-white text-[#003553] shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'text-clinic-text-secondary hover:text-clinic-navy'
                         }`}
                     >
-                        <span>📋 Đơn Đã Gửi</span>
+                        <ClinicIcon name="ClipboardText" size={14} />
+                        <span>Đơn Đã Gửi</span>
                         {requestHistory.length > 0 && (
-                            <span className="w-4 h-4 rounded-full bg-[#00B5F1] text-white text-[10px] flex items-center justify-center">
+                            <span className="px-1.5 py-0.5 rounded-[4px] bg-clinic-cta text-clinic-surface text-[10px]">
                                 {requestHistory.length}
                             </span>
                         )}
                     </button>
                 </div>
 
-                {/* ═══════════════════════════════════════════════════════════════════
-                    TAB 1: FORM YÊU CẦU ĐỔI CA TRỰC
-                ═══════════════════════════════════════════════════════════════════ */}
                 {activeTab === 'SWAP' && (
                     <form onSubmit={handleSwapSubmit} className="space-y-4 text-xs">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
-                                    Ngày ca trực cần đổi <span className="text-red-500">*</span>
+                                <label htmlFor="swap-current-date" className="medpro-label">
+                                    Ngày ca trực cần đổi <span className="text-clinic-danger">*</span>
                                 </label>
                                 <input
+                                    id="swap-current-date"
                                     type="date"
                                     name="currentDate"
                                     value={swapForm.currentDate}
                                     onChange={handleSwapChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
+                                <label htmlFor="swap-current-shift" className="medpro-label">
                                     Ca trực hiện tại
                                 </label>
                                 <select
+                                    id="swap-current-shift"
                                     name="currentShift"
                                     value={swapForm.currentShift}
                                     onChange={handleSwapChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input"
                                 >
                                     <option value="MORNING">Ca Sáng (07:30 - 11:30)</option>
                                     <option value="AFTERNOON">Ca Chiều (13:30 - 17:00)</option>
@@ -233,26 +228,28 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
-                                    Ngày muốn đổi sang <span className="text-red-500">*</span>
+                                <label htmlFor="swap-target-date" className="medpro-label">
+                                    Ngày muốn đổi sang <span className="text-clinic-danger">*</span>
                                 </label>
                                 <input
+                                    id="swap-target-date"
                                     type="date"
                                     name="targetDate"
                                     value={swapForm.targetDate}
                                     onChange={handleSwapChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
+                                <label htmlFor="swap-target-shift" className="medpro-label">
                                     Ca muốn nhận
                                 </label>
                                 <select
+                                    id="swap-target-shift"
                                     name="targetShift"
                                     value={swapForm.targetShift}
                                     onChange={handleSwapChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input"
                                 >
                                     <option value="MORNING">Ca Sáng (07:30 - 11:30)</option>
                                     <option value="AFTERNOON">Ca Chiều (13:30 - 17:00)</option>
@@ -261,67 +258,67 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
                         </div>
 
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
+                            <label htmlFor="swap-substitute" className="medpro-label">
                                 Bác sĩ đồng ý đổi ca cùng (nếu đã thỏa thuận trước)
                             </label>
                             <input
+                                id="swap-substitute"
                                 type="text"
                                 name="substituteDoctor"
                                 value={swapForm.substituteDoctor}
                                 onChange={handleSwapChange}
                                 placeholder="Để trống nếu nhờ Ban Điều Hành xếp lịch tự động..."
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                className="medpro-input"
                             />
                         </div>
 
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Lý do đề xuất đổi ca <span className="text-red-500">*</span>
+                            <label htmlFor="swap-reason" className="medpro-label">
+                                Lý do đề xuất đổi ca <span className="text-clinic-danger">*</span>
                             </label>
                             <textarea
+                                id="swap-reason"
                                 rows="3"
                                 name="reason"
                                 value={swapForm.reason}
                                 onChange={handleSwapChange}
                                 placeholder="Ghi rõ lý do cần đổi ca trực (trùng lịch giảng dạy, việc gia đình...)"
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                className="medpro-input"
                             />
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                                className="medpro-btn-outline px-4 py-2 rounded-[6px] font-bold text-xs cursor-pointer"
                             >
                                 Hủy bỏ
                             </button>
                             <button
                                 type="submit"
-                                className="px-5 py-2 rounded-xl bg-[#00B5F1] hover:bg-sky-500 text-white font-bold text-xs shadow-sm transition cursor-pointer active:scale-95 flex items-center gap-1.5"
+                                className="medpro-btn-primary px-5 py-2 rounded-[6px] font-bold text-xs cursor-pointer flex items-center gap-1.5"
                             >
-                                <span>📤</span>
+                                <ClinicIcon name="PaperPlaneTilt" size={14} weight="bold" />
                                 <span>Gửi yêu cầu đổi ca</span>
                             </button>
                         </div>
                     </form>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════════════
-                    TAB 2: FORM ĐƠN XIN NGHỈ TRỰC / BÁO VẮNG
-                ═══════════════════════════════════════════════════════════════════ */}
                 {activeTab === 'LEAVE' && (
                     <form onSubmit={handleLeaveSubmit} className="space-y-4 text-xs">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
+                                <label htmlFor="leave-type" className="medpro-label">
                                     Loại đơn xin nghỉ
                                 </label>
                                 <select
+                                    id="leave-type"
                                     name="leaveType"
                                     value={leaveForm.leaveType}
                                     onChange={handleLeaveChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input"
                                 >
                                     <option value="ANNUAL">Nghỉ phép năm</option>
                                     <option value="SICK">Nghỉ ốm / Khám bệnh</option>
@@ -330,14 +327,15 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
                                 </select>
                             </div>
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
+                                <label htmlFor="leave-scope" className="medpro-label">
                                     Phạm vi ca nghỉ
                                 </label>
                                 <select
+                                    id="leave-scope"
                                     name="shiftScope"
                                     value={leaveForm.shiftScope}
                                     onChange={handleLeaveChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input"
                                 >
                                     <option value="ALL_DAY">Toàn bộ ngày nghỉ</option>
                                     <option value="MORNING">Chỉ nghỉ Ca Sáng</option>
@@ -348,105 +346,106 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
-                                    Từ ngày <span className="text-red-500">*</span>
+                                <label htmlFor="leave-start" className="medpro-label">
+                                    Từ ngày <span className="text-clinic-danger">*</span>
                                 </label>
                                 <input
+                                    id="leave-start"
                                     type="date"
                                     name="startDate"
                                     value={leaveForm.startDate}
                                     onChange={handleLeaveChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">
+                                <label htmlFor="leave-end" className="medpro-label">
                                     Đến ngày (để trống nếu nghỉ 1 ngày)
                                 </label>
                                 <input
+                                    id="leave-end"
                                     type="date"
                                     name="endDate"
                                     value={leaveForm.endDate}
                                     onChange={handleLeaveChange}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                    className="medpro-input tabular-nums"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
+                            <label htmlFor="leave-substitute" className="medpro-label">
                                 Bác sĩ nhận bàn giao phụ trách (nếu có)
                             </label>
                             <input
+                                id="leave-substitute"
                                 type="text"
                                 name="substituteDoctor"
                                 value={leaveForm.substituteDoctor}
                                 onChange={handleLeaveChange}
                                 placeholder="Tên bác sĩ nhận thay thế hoặc để trống..."
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                className="medpro-input"
                             />
                         </div>
 
                         <div>
-                            <label className="block font-bold text-slate-700 mb-1">
-                                Lý do xin nghỉ phép <span className="text-red-500">*</span>
+                            <label htmlFor="leave-reason" className="medpro-label">
+                                Lý do xin nghỉ phép <span className="text-clinic-danger">*</span>
                             </label>
                             <textarea
+                                id="leave-reason"
                                 rows="3"
                                 name="reason"
                                 value={leaveForm.reason}
                                 onChange={handleLeaveChange}
                                 placeholder="Ghi rõ lý do nghỉ phép gửi Ban Điều Hành phòng khám duyệt..."
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 outline-none focus:border-[#00B5F1] focus:bg-white transition"
+                                className="medpro-input"
                             />
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                                className="medpro-btn-outline px-4 py-2 rounded-[6px] font-bold text-xs cursor-pointer"
                             >
                                 Hủy bỏ
                             </button>
                             <button
                                 type="submit"
-                                className="px-5 py-2 rounded-xl bg-[#003553] hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition cursor-pointer active:scale-95 flex items-center gap-1.5"
+                                className="px-5 py-2 rounded-[6px] bg-clinic-navy hover:bg-clinic-navy-dark text-clinic-surface font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
                             >
-                                <span>📝</span>
+                                <ClinicIcon name="FileText" size={14} weight="bold" />
                                 <span>Nộp đơn xin nghỉ</span>
                             </button>
                         </div>
                     </form>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════════════
-                    TAB 3: LỊCH SỬ CÁC ĐƠN YÊU CẦU ĐÃ NỘP
-                ═══════════════════════════════════════════════════════════════════ */}
                 {activeTab === 'HISTORY' && (
                     <div className="space-y-3">
                         {requestHistory.length === 0 ? (
-                            <div className="py-12 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-1">
-                                <span className="text-2xl block">📋</span>
-                                <p className="font-bold text-slate-600">Chưa có đơn yêu cầu nào</p>
-                                <p className="text-[11px] text-slate-400">
+                            <div className="py-12 text-center text-clinic-text-secondary text-xs border border-dashed border-clinic-border rounded-[6px] bg-clinic-bg space-y-1.5">
+                                <ClinicIcon name="ClipboardText" size={24} className="mx-auto text-clinic-text-subtle" />
+                                <p className="font-bold text-clinic-navy">Chưa có đơn yêu cầu nào</p>
+                                <p className="text-[11px] text-clinic-text-secondary">
                                     Các đơn đổi ca hoặc xin nghỉ bạn đã gửi sẽ được lưu và hiển thị tại đây.
                                 </p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden max-h-60 overflow-y-auto">
+                            <div className="divide-y divide-clinic-border border border-clinic-border rounded-[6px] overflow-hidden max-h-60 overflow-y-auto">
                                 {requestHistory.map((item) => (
-                                    <div key={item.id} className="p-3 bg-white space-y-1.5 text-xs">
+                                    <div key={item.id} className="p-3 bg-clinic-surface space-y-1.5 text-xs">
                                         <div className="flex items-center justify-between">
-                                            <span className="font-extrabold text-[#003553]">
+                                            <span className="font-extrabold text-clinic-navy">
                                                 {item.typeLabel}
                                             </span>
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span className="medpro-badge-warning text-[10px] font-bold">
                                                 {item.statusLabel}
                                             </span>
                                         </div>
-                                        <p className="text-slate-700 font-medium">{item.details}</p>
-                                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                                        <p className="text-clinic-text font-medium">{item.details}</p>
+                                        <div className="flex items-center justify-between text-[11px] text-clinic-text-secondary pt-0.5 tabular-nums">
                                             <span>Bàn giao: {item.substitute}</span>
                                             <span>Gửi lúc: {item.createdAt}</span>
                                         </div>
@@ -455,11 +454,11 @@ export default function DoctorShiftRequestModal({ isOpen, onClose, onRequestSubm
                             </div>
                         )}
 
-                        <div className="flex justify-end pt-2 border-t border-slate-100">
+                        <div className="flex justify-end pt-2 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                                className="medpro-btn-outline px-4 py-2 rounded-[6px] font-bold text-xs cursor-pointer"
                             >
                                 Đóng
                             </button>

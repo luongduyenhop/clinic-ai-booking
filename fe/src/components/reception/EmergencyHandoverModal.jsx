@@ -3,6 +3,7 @@ import { Modal, Input, Select, Button, message, Alert } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
 import { AlertOutlined } from '@ant-design/icons'
 import { emergencyHandoverAsync } from '../../redux/actions/reception/receptionAction'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 export default function EmergencyHandoverModal({ open, onClose, defaultPatientId }) {
     const dispatch = useDispatch()
@@ -34,7 +35,7 @@ export default function EmergencyHandoverModal({ open, onClose, defaultPatientId
             setReason('')
             onClose()
         } catch (err) {
-            message.error(err.message || 'Lỗi khi kích hoạt bàn giao')
+            message.error(toFriendlyErrorMessage(err, 'Lỗi khi kích hoạt bàn giao'))
         } finally {
             setIsSubmitting(false)
         }

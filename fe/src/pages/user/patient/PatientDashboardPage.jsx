@@ -5,24 +5,28 @@ import PatientPageHeader from '../../../components/user/patient/PatientPageHeade
 import AppointmentCard from '../../../components/user/patient/AppointmentCard'
 import { PatientError, PatientLoading } from '../../../components/user/patient/PatientPageState'
 import {
-    CalendarCheck,
     CalendarPlus,
-    ClipboardText,
-    Microscope,
-    Pill,
-    Users,
     MagnifyingGlass,
+    QrCode,
+    Users,
 } from '../../../components/common/ClinicIcon'
-import { fetchPatientPortalAsync, findPatientCodeAsync, addFamilyMemberAsync } from '../../../redux/actions/user/patientPortalAction'
+import {
+    fetchPatientPortalAsync,
+    findPatientCodeAsync,
+    addFamilyMemberAsync,
+} from '../../../redux/actions/user/patientPortalAction'
 import { AppToast } from '../../../components/common/AppNotification'
-import { QrCode } from '@phosphor-icons/react'
 
 export default function PatientDashboardPage() {
     const dispatch = useDispatch()
     const { portalData, portalLoading, portalError } = useSelector((state) => state.user.user)
 
     const [lookupQuery, setLookupQuery] = useState('')
-    const { items: lookupResults, loading: lookupLoading, error: lookupError } = useSelector((state) => state.user.user.patientLookup)
+    const {
+        items: lookupResults,
+        loading: lookupLoading,
+        error: lookupError,
+    } = useSelector((state) => state.user.user.patientLookup)
     const familyMutation = useSelector((state) => state.user.user.familyMutation)
     const [showAddFamily, setShowAddFamily] = useState(false)
     const [newMember, setNewMember] = useState({
@@ -34,7 +38,14 @@ export default function PatientDashboardPage() {
     })
 
     if (portalLoading) return <PatientLoading />
-    if (portalError) return <PatientError message={portalError} onRetry={() => dispatch(fetchPatientPortalAsync())} />
+    if (portalError) {
+        return (
+            <PatientError
+                message={portalError}
+                onRetry={() => dispatch(fetchPatientPortalAsync())}
+            />
+        )
+    }
 
     const upcoming = portalData.appointments
         .filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status))
@@ -43,10 +54,30 @@ export default function PatientDashboardPage() {
     const familyList = portalData.familyMembers || []
 
     const cards = [
-        { label: 'Lịch hẹn', value: portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
-        { label: 'Bệnh án điện tử', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/benh-an' },
-        { label: 'Đơn thuốc', value: portalData.prescriptionError ? '—' : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length), icon: Pill, to: '/benh-nhan/don-thuoc' },
-        { label: 'Kết quả CLS', value: portalData.labError ? '—' : (portalData.labMeta?.total_items ?? portalData.labResults.length), icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
+        {
+            label: 'Lịch hẹn',
+            value: portalData.appointmentsError ? '—' : portalData.appointments.length,
+            to: '/benh-nhan/lich-hen',
+        },
+        {
+            label: 'Bệnh án điện tử',
+            value: portalData.medicalHistoryError ? '—' : portalData.medicalHistory.length,
+            to: '/benh-nhan/benh-an',
+        },
+        {
+            label: 'Đơn thuốc',
+            value: portalData.prescriptionError
+                ? '—'
+                : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length),
+            to: '/benh-nhan/don-thuoc',
+        },
+        {
+            label: 'Kết quả CLS',
+            value: portalData.labError
+                ? '—'
+                : (portalData.labMeta?.total_items ?? portalData.labResults.length),
+            to: '/benh-nhan/ket-qua-can-lam-sang',
+        },
     ]
 
     const handleFindLostCode = async (e) => {
@@ -54,10 +85,13 @@ export default function PatientDashboardPage() {
         if (!lookupQuery.trim()) return
         if (lookupLoading) return
         const result = await dispatch(findPatientCodeAsync(lookupQuery))
-        if (!findPatientCodeAsync.fulfilled.match(result)) { AppToast.error(result.payload || 'Không thể tra cứu'); return }
+        if (!findPatientCodeAsync.fulfilled.match(result)) {
+            AppToast.error(result.payload || 'Không thể tra cứu')
+            return
+        }
         const found = result.payload
         if (found.length) {
-            AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin!`)
+            AppToast.success(`Tìm thấy ${found.length} hồ sơ bệnh nhân khớp thông tin`)
         } else {
             AppToast.warning('Thông tin vừa nhập chưa khớp với hồ sơ của bạn.')
         }
@@ -66,14 +100,23 @@ export default function PatientDashboardPage() {
     const handleAddFamilyMember = async (e) => {
         e.preventDefault()
         if (!newMember.ho_ten.trim()) {
-            AppToast.error('Vui lòng nhập họ tên người thân!')
+            AppToast.error('Vui lòng nhập họ tên người thân')
             return
         }
         if (familyMutation.loading) return
         const result = await dispatch(addFamilyMemberAsync(newMember))
-        if (!addFamilyMemberAsync.fulfilled.match(result)) { AppToast.error(result.payload || 'Không thể thêm người thân'); return }
-        AppToast.success(`Đã thêm hồ sơ người thân "${newMember.ho_ten}" vào Sổ sức khỏe gia đình!`)
-        setNewMember({ ho_ten: '', moi_quan_he: 'Con cái', ngay_sinh: '2015-05-10', gioi_tinh: 'Nam', so_dien_thoai: '' })
+        if (!addFamilyMemberAsync.fulfilled.match(result)) {
+            AppToast.error(result.payload || 'Không thể thêm người thân')
+            return
+        }
+        AppToast.success(`Đã thêm hồ sơ "${newMember.ho_ten}" vào Sổ sức khỏe gia đình`)
+        setNewMember({
+            ho_ten: '',
+            moi_quan_he: 'Con cái',
+            ngay_sinh: '2015-05-10',
+            gioi_tinh: 'Nam',
+            so_dien_thoai: '',
+        })
         setShowAddFamily(false)
         dispatch(fetchPatientPortalAsync())
     }
@@ -81,7 +124,7 @@ export default function PatientDashboardPage() {
     return (
         <>
             <PatientPageHeader
-                title="Tổng quan sức khỏe & Hồ sơ gia đình"
+                title="Tổng quan sức khỏe và hồ sơ gia đình"
                 description="Theo dõi lịch khám, tra cứu mã bệnh nhân và quản lý sổ sức khỏe người thân của bạn."
                 action={
                     <Link to="/dat-lich" className="medpro-btn-primary min-h-11">
@@ -91,109 +134,102 @@ export default function PatientDashboardPage() {
                 }
             />
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {cards.map(({ label, value, icon: Icon, to }) => (
+            <div className="medpro-card grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-clinic-border overflow-hidden tabular-nums">
+                {cards.map(({ label, value, to }) => (
                     <Link
                         key={label}
                         to={to}
-                        className="medpro-card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-[#8DDBF7]"
+                        className="p-4 bg-clinic-surface hover:bg-clinic-surface-tint transition-colors block"
                     >
-                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F4FD] text-[#00B5F1]">
-                            <Icon size={22} weight="duotone" />
-                        </span>
-                        <span>
-                            <strong className="block font-display text-2xl text-[#003553]">{value}</strong>
-                            <span className="text-xs text-slate-500">{label}</span>
-                        </span>
+                        <span className="text-xs font-medium text-clinic-text-secondary">{label}</span>
+                        <strong className="mt-1 block font-display text-2xl font-extrabold text-clinic-navy">
+                            {value}
+                        </strong>
                     </Link>
                 ))}
             </div>
 
-            {}
-            <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-sky-50 via-teal-50 to-indigo-50 border border-sky-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-                <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-2xl bg-[#003553] text-teal-300 flex items-center justify-center shrink-0 shadow-xs">
-                        <QrCode size={22} weight="bold" />
-                    </div>
-                    <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-display font-extrabold text-sm text-[#003553]">
-                                TRA CỨU VIỆN PHÍ &amp; HÓA ĐƠN
-                            </h3>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200">
-                                Dữ liệu Backend
-                            </span>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
-                            Tra cứu hóa đơn thực tế; trạng thái thanh toán do Backend xác nhận, không tự đánh dấu đã thu trên giao diện.
-                        </p>
-                    </div>
-                </div>
-                <Link
-                    to="/benh-nhan/hoa-don"
-                    className="medpro-btn-primary min-h-11 w-full justify-center text-xs px-4 py-2 shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer sm:min-h-0 sm:w-auto"
-                >
-                    <QrCode size={15} weight="bold" />
-                    <span>Tra cứu hóa đơn</span>
-                </Link>
-            </div>
-
-            <section className="mt-6">
+            <section className="mt-5">
                 <div className="mb-3 flex items-center justify-between">
-                    <h2 className="font-display text-lg font-bold text-[#003553]">Lịch hẹn sắp tới</h2>
-                    <Link to="/benh-nhan/lich-hen" className="text-xs font-bold text-[#008EC2] hover:underline">
+                    <h2 className="font-display text-lg font-bold text-clinic-navy">Lịch hẹn sắp tới</h2>
+                    <Link to="/benh-nhan/lich-hen" className="text-xs font-bold text-clinic-cta hover:underline">
                         Xem tất cả
                     </Link>
                 </div>
                 {upcoming ? (
                     <AppointmentCard appointment={upcoming} />
                 ) : (
-                    <div className="medpro-card p-6 text-center text-sm text-slate-500">
-                        Bạn chưa có lịch hẹn sắp tới.
+                    <div className="medpro-card p-6 text-center text-sm text-clinic-text-secondary">
+                        Hiện chưa có lịch khám nào đang chờ thực hiện.
                     </div>
                 )}
             </section>
 
-            {}
+            <div className="medpro-card mt-5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-[8px] bg-clinic-surface-alt text-clinic-cta flex items-center justify-center shrink-0">
+                        <QrCode size={20} weight="bold" />
+                    </div>
+                    <div>
+                        <h3 className="font-display font-bold text-sm text-clinic-navy">
+                            Tra cứu viện phí và biên lai thanh toán
+                        </h3>
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
+                            Xem chi tiết các khoản thu khám lâm sàng, xét nghiệm và trạng thái xác nhận từ bộ phận thu ngân.
+                        </p>
+                    </div>
+                </div>
+                <Link
+                    to="/benh-nhan/hoa-don"
+                    className="medpro-btn-outline text-xs px-3.5 py-2 shrink-0"
+                >
+                    <QrCode size={15} weight="bold" />
+                    <span>Tra cứu hóa đơn</span>
+                </Link>
+            </div>
+
             <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                {}
                 <section className="medpro-card p-5 flex flex-col justify-between">
                     <div>
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <Users size={20} className="text-[#008EC2]" />
-                                <h2 className="font-display font-bold text-[#003553]">
+                                <Users size={20} className="text-clinic-cta" />
+                                <h2 className="font-display font-bold text-clinic-navy tabular-nums">
                                     Hồ sơ Người thân ({familyList.length})
                                 </h2>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowAddFamily(!showAddFamily)}
-                                className="inline-flex min-h-10 items-center text-xs font-bold text-[#008EC2] hover:underline cursor-pointer sm:min-h-0"
+                                className="text-xs font-bold text-clinic-cta hover:underline cursor-pointer"
                             >
-                                {showAddFamily ? 'Đóng form' : '+ Thêm hồ sơ người thân'}
+                                {showAddFamily ? 'Đóng biểu mẫu' : '+ Thêm thành viên'}
                             </button>
                         </div>
 
                         {showAddFamily && (
                             <form
                                 onSubmit={handleAddFamilyMember}
-                                className="mb-4 p-3.5 rounded-xl bg-sky-50/70 border border-sky-200 space-y-2.5 text-xs"
+                                className="mb-4 p-3.5 rounded-[8px] bg-clinic-bg space-y-2.5 text-xs"
                             >
-                                <div className="font-bold text-[#003553]">Thêm thành viên vào Sổ sức khỏe gia đình</div>
+                                <div className="font-bold text-clinic-navy">
+                                    Thêm thành viên vào Sổ sức khỏe gia đình
+                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <input
                                         type="text"
-                                        placeholder="Họ và tên người thân *"
+                                        aria-label="Họ và tên thành viên gia đình"
+                                        placeholder="Nhập họ và tên thành viên *"
                                         value={newMember.ho_ten}
                                         onChange={(e) => setNewMember({ ...newMember, ho_ten: e.target.value })}
-                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white"
+                                        className="medpro-input text-xs py-2"
                                         required
                                     />
                                     <select
+                                        aria-label="Quan hệ với chủ tài khoản"
                                         value={newMember.moi_quan_he}
                                         onChange={(e) => setNewMember({ ...newMember, moi_quan_he: e.target.value })}
-                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white"
+                                        className="medpro-input text-xs py-2"
                                     >
                                         <option value="Con cái">Con cái</option>
                                         <option value="Bố / Mẹ">Bố / Mẹ</option>
@@ -202,103 +238,120 @@ export default function PatientDashboardPage() {
                                     </select>
                                     <input
                                         type="date"
+                                        aria-label="Ngày sinh thành viên"
                                         value={newMember.ngay_sinh}
                                         onChange={(e) => setNewMember({ ...newMember, ngay_sinh: e.target.value })}
-                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white"
+                                        className="medpro-input text-xs py-2 tabular-nums"
                                     />
                                     <input
                                         type="text"
+                                        aria-label="Số điện thoại liên hệ thành viên"
                                         placeholder="Số điện thoại liên hệ"
                                         value={newMember.so_dien_thoai}
                                         onChange={(e) => setNewMember({ ...newMember, so_dien_thoai: e.target.value })}
-                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white"
+                                        className="medpro-input text-xs py-2 tabular-nums"
                                     />
                                 </div>
                                 <div className="flex justify-end">
-                                    <button type="submit" disabled={familyMutation.loading} className="medpro-btn-primary text-xs py-1.5 px-4">
-                                        Lưu hồ sơ người thân
+                                    <button
+                                        type="submit"
+                                        disabled={familyMutation.loading}
+                                        className="medpro-btn-primary text-xs py-1.5 px-4"
+                                    >
+                                        Lưu thành viên
                                     </button>
                                 </div>
                             </form>
                         )}
 
-                        <div className="space-y-2.5">
-                            {familyList.map((m) => (
-                                <div
-                                    key={m.id}
-                                    className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="min-w-0">
-                                        <div className="font-bold text-[#003553] text-sm">
-                                            {m.ho_ten}{' '}
-                                            <span className="ml-1.5 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">
-                                                {m.quan_he}
-                                            </span>
-                                        </div>
-                                        <div className="text-slate-500 mt-0.5">
-                                            Hồ sơ người thân ·
-                                            Ngày sinh: {m.ngay_sinh}
-                                        </div>
-                                    </div>
-                                    <Link
-                                        to="/dat-lich"
-                                        className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#E8F4FD] px-3 py-1.5 font-bold text-[#008EC2] transition hover:bg-sky-200 sm:min-h-0 sm:shrink-0"
+                        {familyList.length > 0 ? (
+                            <div className="divide-y divide-clinic-border border-t border-clinic-border">
+                                {familyList.map((m) => (
+                                    <div
+                                        key={m.id}
+                                        className="py-3 flex items-center justify-between gap-3 text-xs"
                                     >
-                                        Đặt lịch cho bản thân
-                                    </Link>
-                                </div>
-                            ))}
-                        </div>
+                                        <div className="min-w-0">
+                                            <div className="font-bold text-clinic-navy text-sm flex flex-wrap items-center">
+                                                <span>{m.ho_ten}</span>
+                                                <span className="medpro-badge-info ml-2">{m.quan_he}</span>
+                                            </div>
+                                            <div className="text-clinic-text-secondary mt-0.5 tabular-nums">
+                                                Ngày sinh: {m.ngay_sinh}
+                                            </div>
+                                        </div>
+                                        <Link
+                                            to="/dat-lich"
+                                            className="text-xs font-bold text-clinic-cta hover:underline shrink-0"
+                                        >
+                                            Đặt lịch khám
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-clinic-text-muted pt-2">
+                                Chưa có thành viên nào được lưu trong sổ gia đình.
+                            </p>
+                        )}
                     </div>
                 </section>
 
-                {}
                 <section className="medpro-card p-5 flex flex-col justify-between">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <MagnifyingGlass size={20} className="text-[#008EC2]" />
-                            <h2 className="font-display font-bold text-[#003553]">
+                            <MagnifyingGlass size={20} className="text-clinic-cta" />
+                            <h2 className="font-display font-bold text-clinic-navy">
                                 Tìm lại Mã Hồ Sơ Bệnh Nhân bị quên
                             </h2>
                         </div>
-                        <p className="text-xs text-slate-500 mb-3">
+                        <p className="text-xs text-clinic-text-secondary mb-3">
                             Nhập đầy đủ số điện thoại, CCCD hoặc họ tên trên hồ sơ của bạn để xem mã bệnh nhân.
                         </p>
 
-                        <form onSubmit={handleFindLostCode} className="mb-3 flex flex-col gap-2 sm:flex-row">
+                        <form onSubmit={handleFindLostCode} className="flex gap-2 mb-3">
                             <input
                                 type="text"
+                                aria-label="Tra cứu mã hồ sơ bệnh nhân"
                                 placeholder="Số điện thoại, CCCD hoặc họ tên đầy đủ"
                                 value={lookupQuery}
                                 onChange={(e) => setLookupQuery(e.target.value)}
-                                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:border-[#008EC2] focus:outline-none sm:min-h-0"
+                                className="medpro-input flex-1 text-xs"
                             />
-                            <button type="submit" disabled={lookupLoading} className="medpro-btn-primary min-h-11 shrink-0 justify-center px-4 py-2 text-xs sm:min-h-0">
+                            <button
+                                type="submit"
+                                disabled={lookupLoading}
+                                className="medpro-btn-primary text-xs px-4 py-2 shrink-0"
+                            >
                                 Tìm mã BN
                             </button>
                         </form>
 
-                        {lookupError && <p role="alert" className="text-sm text-rose-700">{lookupError}</p>}
+                        {lookupError && (
+                            <p role="alert" className="text-sm text-clinic-danger">
+                                {lookupError}
+                            </p>
+                        )}
                         {lookupResults !== null && (
-                            <div className="space-y-2 mt-2">
+                            <div className="mt-2">
                                 {lookupResults.length > 0 ? (
-                                    lookupResults.map((r, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs"
-                                        >
-                                            <div>
-                                                <div className="font-bold text-slate-900">{r.ho_ten}</div>
+                                    <div className="divide-y divide-clinic-border border-t border-clinic-border mt-3">
+                                        {lookupResults.map((r, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="py-3 flex items-center justify-between gap-3 text-xs"
+                                            >
+                                                <div className="font-bold text-clinic-navy">{r.ho_ten}</div>
+                                                <span className="medpro-badge-success font-mono tabular-nums">
+                                                    {r.ma_ho_so}
+                                                </span>
                                             </div>
-                                            <span className="px-3 py-1 rounded-lg bg-emerald-700 text-white font-mono font-bold">
-                                                {r.ma_ho_so}
-                                            </span>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-xl">
-                                        Không tìm thấy hồ sơ bệnh nhân nào khớp với từ khóa &ldquo;{lookupQuery}&rdquo;.
+                                        ))}
                                     </div>
+                                ) : (
+                                    <p className="mt-3 rounded-[6px] bg-clinic-danger-bg p-3 text-xs text-clinic-danger">
+                                        Không tìm thấy hồ sơ bệnh nhân nào khớp với từ khóa &ldquo;{lookupQuery}&rdquo;.
+                                    </p>
                                 )}
                             </div>
                         )}
@@ -309,13 +362,13 @@ export default function PatientDashboardPage() {
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 <Recent
                     title="Lần khám gần nhất"
-                    empty="Chưa có lịch sử khám"
+                    empty="Chưa có dữ liệu lần khám trước"
                     item={portalData.medicalHistory[0]}
-                    to="/benh-nhan/benh-an"
+                    to="/benh-nhan/lich-su-kham"
                     render={(item) => (
                         <>
-                            <strong>{item.diagnosis}</strong>
-                            <span>
+                            <strong className="text-clinic-navy">{item.diagnosis}</strong>
+                            <span className="tabular-nums">
                                 {item.doctor} · {formatDate(item.date)}
                             </span>
                         </>
@@ -323,12 +376,12 @@ export default function PatientDashboardPage() {
                 />
                 <Recent
                     title="Kết quả mới nhất"
-                    empty="Chưa có kết quả cận lâm sàng"
+                    empty="Chưa có dữ liệu xét nghiệm mới"
                     item={portalData.labResults[0]}
                     to="/benh-nhan/ket-qua-can-lam-sang"
                     render={(item) => (
                         <>
-                            <strong>{item.name}</strong>
+                            <strong className="text-clinic-navy">{item.name}</strong>
                             <span>{item.summary}</span>
                         </>
                     )}
@@ -342,18 +395,21 @@ function Recent({ title, empty, item, to, render }) {
     return (
         <section className="medpro-card p-5">
             <div className="flex items-center justify-between">
-                <h2 className="font-display font-bold text-[#003553]">{title}</h2>
-                <Link to={to} className="text-xs font-bold text-[#008EC2]">
+                <h2 className="font-display font-bold text-clinic-navy">{title}</h2>
+                <Link to={to} className="text-xs font-bold text-clinic-cta hover:underline">
                     Chi tiết
                 </Link>
             </div>
             {item ? (
-                <div className="mt-4 grid gap-1 text-sm text-slate-600">{render(item)}</div>
+                <div className="mt-4 grid gap-1 text-sm text-clinic-text-secondary">
+                    {render(item)}
+                </div>
             ) : (
-                <p className="mt-4 text-sm text-slate-400">{empty}</p>
+                <p className="mt-4 text-sm text-clinic-text-muted">{empty}</p>
             )}
         </section>
     )
 }
 
-const formatDate = (value) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${String(value).slice(0, 10)}T00:00:00`)) : 'Chưa ghi nhận'
+const formatDate = (value) =>
+    value ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${String(value).slice(0, 10)}T00:00:00`)) : 'Chưa ghi nhận'

@@ -8,38 +8,38 @@ export default function CashierStatsHeader({
     onDailyClosing,
 }) {
     return (
-        <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+        <div className="medpro-card p-2 flex flex-wrap items-center justify-between gap-2 bg-clinic-surface">
+            <div className="flex flex-wrap items-center gap-1 bg-clinic-bg p-1 rounded-[6px] border border-clinic-border tabular-nums">
                 <button
                     type="button"
                     onClick={() => setActiveCashierTab('THU_CHI')}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer ${
                         activeCashierTab === 'THU_CHI'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-[#003553] hover:bg-white/80'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-navy hover:bg-clinic-surface'
                     }`}
                 >
                     <Receipt size={15} weight="bold" />
-                    <span>1. Quản lý Thu viện phí & Hóa đơn ({allVouchersCount})</span>
+                    <span>Thu viện phí và hóa đơn ({allVouchersCount})</span>
                 </button>
                 <button
                     type="button"
                     onClick={() => setActiveCashierTab('KHOA_SO')}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-[6px] text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer ${
                         activeCashierTab === 'KHOA_SO'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-[#003553] hover:bg-white/80'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-navy hover:bg-clinic-surface'
                     }`}
                 >
                     <FloppyDisk size={15} weight="bold" />
-                    <span>2. Quản lý Khóa sổ cuối ngày (/khoaso) ({cashierClosingsCount})</span>
+                    <span>Khóa sổ và đối soát cuối ngày ({cashierClosingsCount})</span>
                 </button>
             </div>
             {activeCashierTab === 'KHOA_SO' && (
                 <button
                     type="button"
                     onClick={onDailyClosing}
-                    className="medpro-btn-primary text-xs"
+                    className="medpro-btn-primary text-xs rounded-[6px]"
                 >
                     <span>Khóa sổ ca hôm nay</span>
                 </button>

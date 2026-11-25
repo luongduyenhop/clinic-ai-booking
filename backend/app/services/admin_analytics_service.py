@@ -37,10 +37,22 @@ logger = logging.getLogger(__name__)
 
 class AdminAnalyticsService:
 
-    async def get_dashboard_stats(self, query_date: Optional[date], db: AsyncSession) -> AdminDashboardStatsResponse:
-        d = query_date or date.today()
+    async def get_dashboard_stats(
+        self,
+        query_date: Optional[date],
+        db: AsyncSession,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+    ) -> AdminDashboardStatsResponse:
+        d_end = den_ngay or query_date or date.today()
+        d_start = tu_ngay or d_end
+        if d_start > d_end:
+            d_start, d_end = d_end, d_start
 
-        stmt_apts = select(LichKham).where(LichKham.ngay_kham == d)
+        stmt_apts = select(LichKham).where(
+            LichKham.ngay_kham >= d_start,
+            LichKham.ngay_kham <= d_end,
+        )
         apts = (await db.execute(stmt_apts)).scalars().all()
 
         tong_apts = len(apts)
@@ -50,7 +62,10 @@ class AdminAnalyticsService:
         so_huy = sum(1 for a in apts if a.trang_thai in ("da_huy", "tu_dong_huy"))
         so_noshow = sum(1 for a in apts if a.trang_thai == "no_show")
 
-        stmt_queue = select(HangDoiKham).where(HangDoiKham.ngay_kham == d)
+        stmt_queue = select(HangDoiKham).where(
+            HangDoiKham.ngay_kham >= d_start,
+            HangDoiKham.ngay_kham <= d_end,
+        )
         tickets = (await db.execute(stmt_queue)).scalars().all()
 
         so_cho_kham = sum(1 for t in tickets if t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value)
@@ -85,7 +100,8 @@ class AdminAnalyticsService:
         total_rooms = (await db.execute(stmt_total_rooms)).scalar() or 0
 
         stmt_used_rooms = select(func.count(func.distinct(LichLamViec.phong_kham_id))).where(
-            LichLamViec.ngay_lam_viec == d,
+            LichLamViec.ngay_lam_viec >= d_start,
+            LichLamViec.ngay_lam_viec <= d_end,
             LichLamViec.is_active.is_(True),
             LichLamViec.phong_kham_id.is_not(None)
         )
@@ -102,7 +118,8 @@ class AdminAnalyticsService:
         high_amendments = (await db.execute(stmt_high_amend)).scalar() or 0
 
         stmt_redflags = select(func.count(LichKham.id)).where(
-            LichKham.ngay_kham == d,
+            LichKham.ngay_kham >= d_start,
+            LichKham.ngay_kham <= d_end,
             or_(
                 LichKham.ly_do_kham.ilike("%cấp cứu%"),
                 LichKham.trieu_chung_ban_dau.ilike("%cấp cứu%")
@@ -115,7 +132,8 @@ class AdminAnalyticsService:
             .select_from(LichKham)
             .join(BacSi, LichKham.bac_si_id == BacSi.id)
             .where(
-                LichKham.ngay_kham == d,
+                LichKham.ngay_kham >= d_start,
+                LichKham.ngay_kham <= d_end,
                 LichKham.trang_thai.notin_([TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value])
             )
         )
@@ -127,7 +145,8 @@ class AdminAnalyticsService:
             .join(BacSi, LuotKham.bac_si_id == BacSi.id)
             .where(
                 LuotKham.lich_kham_id.is_(None),
-                func.date(LuotKham.thoi_gian_bat_dau) == d,
+                func.date(LuotKham.thoi_gian_bat_dau) >= d_start,
+                func.date(LuotKham.thoi_gian_bat_dau) <= d_end,
             )
         )
         walkin_rev = float((await db.execute(stmt_walkin_rev)).scalar() or 0.0)
@@ -140,12 +159,12 @@ class AdminAnalyticsService:
             .outerjoin(LichKham, LuotKham.lich_kham_id == LichKham.id)
             .where(
                 or_(
-                    LichKham.ngay_kham == d,
+                    and_(LichKham.ngay_kham >= d_start, LichKham.ngay_kham <= d_end),
                     and_(
                         LichKham.id.is_(None),
                         or_(
-                            func.date(LuotKham.thoi_gian_bat_dau) == d,
-                            func.date(ChiDinh.created_at) == d,
+                            and_(func.date(LuotKham.thoi_gian_bat_dau) >= d_start, func.date(LuotKham.thoi_gian_bat_dau) <= d_end),
+                            and_(func.date(ChiDinh.created_at) >= d_start, func.date(ChiDinh.created_at) <= d_end),
                         ),
                     ),
                 ),
@@ -163,10 +182,11 @@ class AdminAnalyticsService:
             .where(
                 HoaDon.trang_thai == "da_thu",
                 or_(
-                    func.date(HoaDon.ngay_thanh_toan) == d,
+                    and_(func.date(HoaDon.ngay_thanh_toan) >= d_start, func.date(HoaDon.ngay_thanh_toan) <= d_end),
                     and_(
                         HoaDon.ngay_thanh_toan.is_(None),
-                        func.date(HoaDon.created_at) == d,
+                        func.date(HoaDon.created_at) >= d_start,
+                        func.date(HoaDon.created_at) <= d_end,
                     ),
                 ),
             )
@@ -176,7 +196,7 @@ class AdminAnalyticsService:
         ty_le_noshow = round((so_noshow / tong_apts * 100.0), 1) if tong_apts > 0 else 0.0
 
         return AdminDashboardStatsResponse(
-            ngay_bao_cao=d,
+            ngay_bao_cao=d_end,
             tong_lich_hen_hom_nay=tong_apts,
             so_ca_da_check_in=so_check_in,
             so_ca_cho_kham=so_cho_kham,
@@ -474,7 +494,7 @@ class AdminAnalyticsService:
 
         items: List[DoctorPerformanceStatItem] = []
         for doc in docs:
-            d_encs = [e for e in encounters if e.bac_si_id == doc.id]
+            d_encs = [e for e in encounters if e.bac_si_id == doc.id and (e.is_locked or e.thoi_gian_ket_thuc is not None)]
             d_apts = [a for a in apts if a.bac_si_id == doc.id]
 
             so_tiep_nhan = len(d_apts)

@@ -38,7 +38,7 @@ export default function TemplateManagementPage() {
         const f = e.target.files?.[0]
         if (!f) return
         setForm(prev => ({ ...prev, tenFile: f.name }))
-        AppToast.success(`Đã tải lên tệp mẫu: ${f.name} thành công!`)
+        AppToast.success(`Đã tải lên tệp mẫu: ${f.name} thành công`)
         e.target.value = ''
     }
 
@@ -110,12 +110,12 @@ export default function TemplateManagementPage() {
             noiDung: '',
             trangThai: true,
         })
-        AppToast.info(`Đã khởi tạo ${currentTypeMeta.label} mới!`)
+        AppToast.info(`Đã khởi tạo ${currentTypeMeta.label} mới`)
     }
 
     const handleSaveTemplate = async () => {
         if (!form.tenMau?.trim()) {
-            AppToast.error('Vui lòng nhập Tên mẫu!')
+            AppToast.error('Vui lòng nhập Tên mẫu')
             return
         }
         const payload = { ...form, loaiMau }
@@ -140,7 +140,7 @@ export default function TemplateManagementPage() {
                 },
             })
         )
-        AppToast.success(exists ? 'Đã cập nhật biểu mẫu thành công!' : 'Đã thêm mới biểu mẫu thành công!')
+        AppToast.success(exists ? 'Đã cập nhật biểu mẫu thành công' : 'Đã thêm mới biểu mẫu thành công')
     }
 
     const handleDeleteTemplate = async () => {
@@ -149,14 +149,13 @@ export default function TemplateManagementPage() {
         await dispatch(updateClinicCollectionAsync({ collectionKey: 'templates', items: updated }))
         const remaining = updated.filter((t) => t.loaiMau === loaiMau)
         setForm(remaining[0] || { id: '', loaiMau, tenMau: '', tenFile: '', noiDung: '', trangThai: true })
-        AppToast.info('Đã xóa biểu mẫu!')
+        AppToast.info('Đã xóa biểu mẫu')
     }
 
     return (
         <div className="space-y-3.5">
-            
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
                     {templateTypes.map((t) => {
                         const count = templates.filter((x) => x.loaiMau === t.key).length
                         const active = loaiMau === t.key
@@ -165,10 +164,10 @@ export default function TemplateManagementPage() {
                                 key={t.key}
                                 to={`/admin/quan-ly-mau/${t.key}`}
                                 onClick={() => handleSwitchType(t.key)}
-                                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors ${
                                     active
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
                                 <ClinicIcon name={t.icon || 'FileText'} size={14} weight={active ? 'fill' : 'duotone'} />
@@ -179,11 +178,10 @@ export default function TemplateManagementPage() {
                         )
                     })}
                 </div>
-                <span className="text-xs text-slate-500">Quản lý các biểu mẫu và mẫu in nghiệp vụ phòng khám</span>
+                <span className="text-xs text-clinic-text-secondary">Quản lý các biểu mẫu và mẫu in nghiệp vụ phòng khám</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-                
                 <div className="lg:col-span-5 medpro-card p-3.5 flex flex-col h-[calc(100vh-145px)]">
                     <div className="medpro-section-title">
                         <span>DANH SÁCH {currentTypeMeta.label.toUpperCase()}</span>
@@ -193,25 +191,25 @@ export default function TemplateManagementPage() {
                     <div className="mb-3 relative">
                         <MagnifyingGlass
                             size={14}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none"
                         />
                         <input
                             type="text"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                             placeholder="Tìm tên mẫu, danh mục, tên file..."
-                            className="medpro-input !pl-8"
+                            className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
                         />
                     </div>
 
-                    <div className="flex-1 overflow-y-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table">
+                    <div className="flex-1 overflow-y-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2 [&_td]:!px-2 text-xs">
                             <thead>
                                 <tr>
-                                    <th>STT</th>
+                                    <th className="w-9 text-center">STT</th>
                                     <th>Tên mẫu nghiệp vụ</th>
                                     <th>Phân loại</th>
-                                    <th>Trạng thái</th>
+                                    <th className="w-[74px] whitespace-nowrap">TT</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -226,17 +224,22 @@ export default function TemplateManagementPage() {
                                         <tr
                                             key={item.id}
                                             onClick={() => setForm({ ...item })}
-                                            className={`cursor-pointer ${
-                                                form.id === item.id ? '!bg-[#E8F4FD] font-semibold border-l-4 border-l-[#00B5F1]' : ''
+                                            className={`cursor-pointer transition-colors ${
+                                                form.id === item.id ? '!bg-clinic-surface-alt font-semibold' : ''
                                             }`}
                                         >
                                             <td className="tabular-nums text-center font-bold">{idx + 1}</td>
                                             <td>
-                                                <div className="font-semibold text-[#12263F]">{item.tenMau}</div>
-                                                <div className="text-[11px] font-mono text-slate-400">{item.tenFile}</div>
+                                                <div className="font-semibold text-clinic-navy">{item.tenMau}</div>
+                                                <div
+                                                    className="text-[11px] font-mono text-clinic-text-muted truncate max-w-[175px]"
+                                                    title={item.tenFile}
+                                                >
+                                                    {item.tenFile}
+                                                </div>
                                             </td>
-                                            <td className="text-xs text-[#00B5F1] font-bold">{item.loaiDichVu}</td>
-                                            <td>
+                                            <td className="text-xs text-clinic-cta font-bold">{item.loaiDichVu}</td>
+                                            <td className="whitespace-nowrap">
                                                 <StatusBadge status={item.trangThai ? 'Hiển thị' : 'Ẩn'} compact />
                                             </td>
                                         </tr>
@@ -253,28 +256,27 @@ export default function TemplateManagementPage() {
                     </div>
                 </div>
 
-                
                 <div className="lg:col-span-7 medpro-card p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8F4FD] pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-border pb-3">
                         <div>
-                            <h2 className="font-display font-extrabold text-base text-[#003553] uppercase">
+                            <h2 className="font-display font-extrabold text-sm text-clinic-navy uppercase">
                                 {currentTypeMeta.title}
                             </h2>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-clinic-text-secondary">
                                 Tải lên file mẫu ({currentTypeMeta.fileExt}) hoặc chỉnh sửa trực tiếp nội dung mẫu
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={handleNewTemplate} className="medpro-btn-outline text-xs">
-                                <Plus size={14} weight="bold" className="text-[#00B5F1]" />
+                            <button type="button" onClick={handleNewTemplate} className="medpro-btn-outline !py-1.5 !px-3 text-xs">
+                                <Plus size={14} weight="bold" className="text-clinic-cta" />
                                 <span>Tạo mẫu mới</span>
                             </button>
-                            <button type="button" onClick={handleSaveTemplate} className="medpro-btn-primary text-xs">
+                            <button type="button" onClick={handleSaveTemplate} className="medpro-btn-primary !py-1.5 !px-3 text-xs">
                                 <FloppyDisk size={15} weight="bold" />
                                 <span>Lưu biểu mẫu</span>
                             </button>
                             {form.id && (
-                                <button type="button" onClick={handleDeleteTemplate} className="medpro-btn-danger text-xs">
+                                <button type="button" onClick={handleDeleteTemplate} className="medpro-btn-danger !py-1.5 !px-3 text-xs">
                                     <Trash size={14} weight="bold" />
                                     <span>Xóa</span>
                                 </button>
@@ -307,7 +309,7 @@ export default function TemplateManagementPage() {
                                 type="text"
                                 value={form.tenMau || ''}
                                 onChange={(e) => setForm({ ...form, tenMau: e.target.value })}
-                                className="medpro-input font-bold text-[#003553]"
+                                className="medpro-input font-bold text-clinic-navy"
                             />
                         </div>
 
@@ -325,7 +327,7 @@ export default function TemplateManagementPage() {
                                     onClick={() => templateInputRef.current?.click()}
                                     className="medpro-btn-outline text-xs"
                                 >
-                                    <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                                    <UploadSimple size={14} weight="bold" className="text-clinic-cta" />
                                     <span>Chọn file tải lên</span>
                                 </button>
                                 <button

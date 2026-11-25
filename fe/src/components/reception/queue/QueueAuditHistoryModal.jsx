@@ -85,8 +85,8 @@ export default function QueueAuditHistoryModal({
     return (
         <Modal
             title={
-                <span className="font-bold text-slate-800">
-                    Lịch sử chặng & thao tác: Vé {ticketNumber}
+                <span className="font-bold text-clinic-navy">
+                    Lịch sử chặng &amp; thao tác: Vé {ticketNumber}
                 </span>
             }
             open={open}
@@ -95,7 +95,7 @@ export default function QueueAuditHistoryModal({
             width={560}
         >
             <div className="py-3 text-xs space-y-4">
-                <h5 className="font-bold text-slate-700 uppercase">Hành trình khám thực tế</h5>
+                <h5 className="font-bold text-clinic-navy">Hành trình khám thực tế</h5>
                 {stages.length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có thông tin hành trình khám" />
                 ) : (
@@ -104,16 +104,16 @@ export default function QueueAuditHistoryModal({
                             color: stageItem.color,
                             children: (
                                 <div>
-                                    <span className="font-bold text-slate-800">{stageItem.stage}</span> -{' '}
-                                    <span className="text-slate-500">{stageItem.time}</span>
-                                    <div className="text-slate-400 text-[11px]">{stageItem.room}</div>
+                                    <span className="font-bold text-clinic-navy">{stageItem.stage}</span> -{' '}
+                                    <span className="text-clinic-text-secondary tabular-nums">{stageItem.time}</span>
+                                    <div className="text-clinic-text-muted text-[11px]">{stageItem.room}</div>
                                 </div>
                             ),
                         }))}
                     />
                 )}
 
-                <h5 className="font-bold text-slate-700 uppercase pt-2 border-t border-slate-100 flex items-center justify-between">
+                <h5 className="font-bold text-clinic-navy pt-2 border-t border-clinic-border flex items-center justify-between">
                     <span>Nhật ký thao tác chi tiết (Audit Trail)</span>
                     {isLoading && <Spin size="small" />}
                 </h5>
@@ -122,19 +122,19 @@ export default function QueueAuditHistoryModal({
                         <Spin tip="Đang tải nhật ký thao tác..." />
                     </div>
                 ) : logs.length === 0 ? (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center text-slate-400">
+                    <div className="bg-clinic-bg p-4 rounded-[6px] border border-clinic-border text-center text-clinic-text-muted">
                         Chưa ghi nhận thao tác điều phối nào cho vé này trong ngày hôm nay.
                     </div>
                 ) : (
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 max-h-60 overflow-y-auto text-[11px]">
+                    <div className="bg-clinic-bg p-3 rounded-[6px] border border-clinic-border space-y-2 max-h-60 overflow-y-auto text-[11px]">
                         {logs.map((log, index) => (
-                            <div key={log.id || index} className="pb-2 border-b border-slate-200/60 last:border-0 last:pb-0">
-                                <div className="flex items-center justify-between text-slate-500 font-mono text-[10px]">
+                            <div key={log.id || index} className="pb-2 border-b border-clinic-border last:border-0 last:pb-0">
+                                <div className="flex items-center justify-between text-clinic-text-secondary font-mono text-[10px] tabular-nums">
                                     <span>{log.timestamp}</span>
                                     <Tag color="cyan" className="text-[10px] mr-0">{log.action_type}</Tag>
                                 </div>
-                                <div className="font-semibold text-slate-700 mt-0.5">
-                                    {log.actor}: <span className="font-normal text-slate-600">{log.description}</span>
+                                <div className="font-semibold text-clinic-navy mt-0.5">
+                                    {log.actor}: <span className="font-normal text-clinic-text-secondary">{log.description}</span>
                                 </div>
                             </div>
                         ))}

@@ -1,24 +1,21 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useSelector } from 'react-redux'
 import { adminService } from '../../services/admin/AdminService'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 import { AppToast } from '../common/AppNotification'
 import { exportToExcel } from '../../utils/helpers/exportUtils'
 import {
-    CalendarPlus,
-    Clock,
-    CheckCircle,
     XCircle,
     Plus,
     ArrowsClockwise,
     MagnifyingGlass,
     DownloadSimple,
-    Funnel,
     CaretLeft,
     CaretRight,
     EmptyState,
-    Buildings,
     Copy,
     LockKey,
+    Warning,
 } from '../common/ClinicIcon'
 
 function getStartOfWeek(date) {
@@ -215,7 +212,7 @@ export default function DoctorScheduleManagementTab() {
             const data = await adminService.getDoctorScheduleMatrix(params)
             setMatrixRawData(data)
         } catch {
-            AppToast.error('Không thể tải ma trận phân ca trực!')
+            AppToast.error('Không thể tải ma trận phân ca trực')
         } finally {
             setLoading(false)
         }
@@ -476,7 +473,7 @@ export default function DoctorScheduleManagementTab() {
     const handleCreateShiftSubmit = async (e) => {
         e.preventDefault()
         if (!createShiftForm.bac_si_id || !createShiftForm.ngay || !createShiftForm.phong_kham_id) {
-            AppToast.error('Vui lòng chọn đầy đủ Bác sĩ, Ngày làm việc và Buồng khám!')
+            AppToast.error('Vui lòng chọn đầy đủ Bác sĩ, Ngày làm việc và Buồng khám')
             return
         }
 
@@ -500,11 +497,11 @@ export default function DoctorScheduleManagementTab() {
 
         try {
             await adminService.createShiftAdmin(payload)
-            AppToast.success('Phân ca làm việc cho bác sĩ thành công!')
+            AppToast.success('Phân ca làm việc cho bác sĩ thành công')
             setShowCreateModal(false)
             fetchMatrix()
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi phân ca trực khám!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Lỗi khi phân ca trực khám')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -520,11 +517,11 @@ export default function DoctorScheduleManagementTab() {
                 is_active: newStatus,
                 ghi_chu_nghi: newStatus ? '' : 'Tạm khóa ca trực',
             })
-            AppToast.success(newStatus ? 'Đã kích hoạt lại ca trực!' : 'Đã tạm khóa ca trực thành công!')
+            AppToast.success(newStatus ? 'Đã kích hoạt lại ca trực' : 'Đã tạm khóa ca trực thành công')
             setShowDetailModal(false)
             fetchMatrix()
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Không thể cập nhật trạng thái ca trực!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Không thể cập nhật trạng thái ca trực')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -546,11 +543,11 @@ export default function DoctorScheduleManagementTab() {
             })
             const data = res?.data || res
             const soTao = data?.so_ca_tao_thanh_cong ?? 0
-            AppToast.success(`Đã sao chép lịch sang tuần sau thành công! Đã tạo ${soTao} ca trực mới.`)
+            AppToast.success(`Đã sao chép lịch sang tuần sau thành công. Đã tạo ${soTao} ca trực mới.`)
             setShowCopyModal(false)
             setCurrentMonday(nextMonday)
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || 'Không thể sao chép lịch sang tuần sau!'
+            const errorMsg = toFriendlyErrorMessage(error, 'Không thể sao chép lịch sang tuần sau')
             AppToast.error(errorMsg)
         } finally {
             setActionLoading(false)
@@ -583,22 +580,19 @@ export default function DoctorScheduleManagementTab() {
             headers,
             rows,
         })
-        AppToast.success('Đã xuất báo cáo lịch trực (.xlsx) thành công!')
+        AppToast.success('Đã xuất báo cáo lịch trực (.xlsx) thành công')
     }
 
     return (
         <div className="space-y-3.5">
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs">
+            <div className="medpro-card p-4">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-base font-extrabold text-[#00263C]">Phân Lịch Trực & Điều Phối Ca Khám</h2>
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-[#00B5F1] border border-sky-200/60">
-                                OpenMRS Standard
-                            </span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                            Quản lý phân bổ bác sĩ theo buồng khám, kiểm soát slot trực tuyến và tại quầy đồng bộ thời gian thực.
+                        <h2 className="font-display text-sm lg:text-base font-extrabold text-clinic-navy uppercase">
+                            Phân lịch trực &amp; Điều phối ca khám
+                        </h2>
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
+                            Phân bổ bác sĩ theo buồng khám, kiểm soát slot đặt trước và tiếp nhận tại quầy theo thời gian thực.
                         </p>
                     </div>
 
@@ -606,27 +600,26 @@ export default function DoctorScheduleManagementTab() {
                         <button
                             type="button"
                             onClick={() => setShowCopyModal(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition cursor-pointer"
-                            title="Sao chép toàn bộ lịch tuần này sang tuần sau"
+                            className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                         >
-                            <Copy size={14} />
-                            <span>Sao chép tuần sau</span>
+                            <Copy size={14} weight="bold" className="text-clinic-cta" />
+                            <span>Sao chép sang tuần kế</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={handleExportExcel}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition cursor-pointer"
+                            className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                         >
-                            <DownloadSimple size={14} />
+                            <DownloadSimple size={14} weight="bold" className="text-clinic-cta" />
                             <span>Xuất Excel</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={fetchMatrix}
-                            className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition cursor-pointer"
-                            title="Tải lại dữ liệu"
+                            className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta text-clinic-text-secondary hover:text-clinic-cta flex items-center justify-center transition-colors cursor-pointer"
+                            title="Tải lại bảng lịch trực"
                         >
                             <ArrowsClockwise size={15} className={loading ? 'animate-spin' : ''} />
                         </button>
@@ -648,41 +641,41 @@ export default function DoctorScheduleManagementTab() {
                                 })
                                 setShowCreateModal(true)
                             }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#00B5F1] hover:bg-[#009EDB] text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+                            className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                         >
-                            <Plus size={15} weight="bold" />
+                            <Plus size={14} weight="bold" />
                             <span>Phân ca mới</span>
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 text-xs">
-                    <div className="flex items-center gap-1.5">
+                <div className="mt-3 pt-3 border-t border-clinic-border flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                    <div className="flex items-center gap-1.5 tabular-nums">
                         <button
                             type="button"
                             onClick={handlePreviousWeek}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
+                            className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta text-clinic-navy flex items-center justify-center transition-colors cursor-pointer"
                             title="Tuần trước"
                         >
-                            <CaretLeft size={14} />
+                            <CaretLeft size={14} weight="bold" />
                         </button>
                         <button
                             type="button"
                             onClick={handleCurrentWeek}
-                            className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 font-bold text-[#003553] transition cursor-pointer"
+                            className="h-8 px-2.5 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta font-bold text-clinic-navy transition-colors cursor-pointer"
                         >
                             Tuần này
                         </button>
                         <button
                             type="button"
                             onClick={handleNextWeek}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
+                            className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta text-clinic-navy flex items-center justify-center transition-colors cursor-pointer"
                             title="Tuần sau"
                         >
-                            <CaretRight size={14} />
+                            <CaretRight size={14} weight="bold" />
                         </button>
-                        <div className="font-extrabold text-[#00263C] px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-200">
-                            {tuNgay} → {denNgay}
+                        <div className="h-8 flex items-center font-mono font-bold text-clinic-navy px-2.5 bg-clinic-bg rounded-[6px] border border-clinic-border">
+                            {tuNgay} - {denNgay}
                         </div>
                     </div>
 
@@ -693,15 +686,15 @@ export default function DoctorScheduleManagementTab() {
                                 placeholder="Tìm bác sĩ..."
                                 value={searchDoctor}
                                 onChange={(e) => setSearchDoctor(e.target.value)}
-                                className="medpro-input !py-1 !pl-7 !pr-2 text-xs w-40"
+                                className="medpro-input !py-1.5 h-9 !pl-7 !pr-2 text-xs w-44"
                             />
-                            <MagnifyingGlass size={13} className="absolute left-2 top-2 text-slate-400" />
+                            <MagnifyingGlass size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
                         </div>
 
                         <select
                             value={selectedDepartment}
                             onChange={(e) => setSelectedDepartment(e.target.value)}
-                            className="medpro-select !py-1 text-xs"
+                            className="medpro-input !py-1.5 h-9 !px-2.5 text-xs font-semibold truncate w-44"
                         >
                             <option value="ALL">Tất cả chuyên khoa</option>
                             {departmentsList.map((dept) => (
@@ -712,7 +705,7 @@ export default function DoctorScheduleManagementTab() {
                         <select
                             value={selectedRoomFilter}
                             onChange={(e) => setSelectedRoomFilter(e.target.value)}
-                            className="medpro-select !py-1 text-xs"
+                            className="medpro-input !py-1.5 h-9 !px-2.5 text-xs font-semibold truncate w-44"
                         >
                             <option value="ALL">Tất cả buồng khám</option>
                             {rooms.map((r) => (
@@ -722,118 +715,109 @@ export default function DoctorScheduleManagementTab() {
                             ))}
                         </select>
 
-                        <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer font-bold text-slate-700 select-none">
+                        <label className="h-9 flex items-center gap-1.5 px-2.5 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-danger cursor-pointer font-bold text-clinic-danger select-none">
                             <input
                                 type="checkbox"
                                 checked={showConflictOnly}
                                 onChange={(e) => setShowConflictOnly(e.target.checked)}
-                                className="rounded text-rose-600 focus:ring-rose-500"
+                                className="rounded-[4px]"
                             />
-                            <span className="text-rose-600">Trùng lịch ⚠️</span>
+                            <Warning size={13} weight="bold" />
+                            <span>Trùng lịch</span>
                         </label>
                     </div>
                 </div>
 
-                <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500 select-none">
-                    <span className="font-bold text-[#00263C]">Chú giải:</span>
-                    <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-sky-100 border border-sky-300 inline-block"></span>
-                        <span>Ca hoạt động</span>
+                <div className="mt-2.5 pt-2.5 border-t border-clinic-border flex flex-wrap items-center gap-4 text-[11px] font-semibold text-clinic-text-secondary select-none">
+                    <span className="font-bold text-clinic-navy">Chú giải:</span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-[4px] bg-clinic-surface-alt border border-clinic-info-border inline-block" />
+                        <span>Ca sáng / Hoạt động</span>
                     </span>
-                    <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-amber-50 border border-amber-300 inline-block"></span>
-                        <span>Nghỉ phép</span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-[4px] bg-clinic-warning-bg border border-clinic-warning-border inline-block" />
+                        <span>Ca chiều / Nghỉ phép</span>
                     </span>
-                    <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-rose-50 border border-rose-400 inline-block"></span>
-                        <span className="text-rose-600 font-bold">Xung đột lịch ⚠️</span>
+                    <span className="flex items-center gap-1.5 text-clinic-danger font-bold">
+                        <span className="w-2.5 h-2.5 rounded-[4px] bg-clinic-danger-bg border border-clinic-danger-border inline-block" />
+                        <span>Xung đột lịch</span>
                     </span>
-                    <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded border border-dashed border-slate-300 bg-white inline-block"></span>
-                        <span>Chưa xếp ca (+)</span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-[4px] border border-dashed border-clinic-border-strong bg-clinic-surface inline-block" />
+                        <span>Chưa xếp ca</span>
                     </span>
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="bg-clinic-surface rounded-[6px] border border-clinic-border shadow-xs overflow-hidden">
                 <div className="max-h-[640px] overflow-auto relative">
-                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                    <table className="w-full text-left border-collapse min-w-[1000px] tabular-nums">
                         <thead>
-                            <tr className="border-b border-slate-200">
+                            <tr className="border-b border-clinic-border">
                                 <th
                                     rowSpan={2}
-                                    className="sticky top-0 left-0 bg-slate-50 z-40 p-2.5 text-xs font-black text-[#00263C] border-r border-slate-200 w-[220px] min-w-[220px] max-w-[220px] shadow-2xs"
+                                    className="sticky top-0 left-0 bg-clinic-bg-muted z-40 p-2.5 text-xs font-bold text-clinic-navy border-r border-clinic-border w-[220px] min-w-[220px] max-w-[220px]"
                                 >
-                                    Bác Sĩ & Chuyên Khoa
+                                    Bác sĩ &amp; Chuyên khoa
                                 </th>
                                 {daysOfWeek.map((day) => (
                                     <th
                                         key={day.isoDate}
                                         colSpan={2}
-                                        className={`sticky top-0 z-30 p-2 text-center text-xs font-bold border-l border-slate-200 ${
+                                        className={`sticky top-0 z-30 p-2 text-center text-xs font-bold border-l border-clinic-border ${
                                             day.isToday
-                                                ? 'bg-sky-100/90 text-[#00263C] ring-2 ring-[#00B5F1] ring-inset'
-                                                : day.isWeekend
-                                                ? 'bg-slate-100 text-slate-800'
-                                                : 'bg-slate-50 text-slate-700'
+                                                ? 'bg-clinic-surface-alt text-clinic-navy border-b-2 border-b-clinic-cta'
+                                                : 'bg-clinic-bg-muted text-clinic-navy'
                                         }`}
                                     >
-                                        <div className="flex items-center justify-center gap-1">
+                                        <div className="flex items-center justify-center gap-1.5">
                                             <span>{day.label}</span>
                                             {day.isToday && (
-                                                <span className="px-1 py-0.2 rounded bg-[#00B5F1] text-white text-[9px] font-black uppercase">
+                                                <span className="px-1.5 py-0.5 rounded-[4px] bg-clinic-cta text-clinic-surface text-[9.5px] font-bold uppercase">
                                                     Hôm nay
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="text-[11px] font-normal text-slate-500 mt-0.5">({day.displayDate})</div>
+                                        <div className="text-[11px] font-normal text-clinic-text-muted mt-0.5">({day.displayDate})</div>
                                     </th>
                                 ))}
                             </tr>
-                            <tr className="border-b border-slate-200">
+                            <tr className="border-b border-clinic-border">
                                 {daysOfWeek.map((day) => (
                                     <Fragment key={day.isoDate}>
-                                        <th
-                                            className={`sticky top-[35px] z-30 p-1 text-center text-[11px] font-bold border-l border-slate-200 ${
-                                                day.isWeekend ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-600'
-                                            }`}
-                                        >
+                                        <th className="sticky top-[41px] z-30 p-1 text-center text-[11px] font-bold border-l border-clinic-border bg-clinic-bg-muted text-clinic-text-secondary">
                                             Sáng
                                         </th>
-                                        <th
-                                            className={`sticky top-[35px] z-30 p-1 text-center text-[11px] font-bold border-l border-slate-200 ${
-                                                day.isWeekend ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-600'
-                                            }`}
-                                        >
+                                        <th className="sticky top-[41px] z-30 p-1 text-center text-[11px] font-bold border-l border-clinic-border bg-clinic-bg-muted text-clinic-text-secondary">
                                             Chiều
                                         </th>
                                     </Fragment>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-clinic-border">
                             {filteredDoctors.length === 0 ? (
                                 <tr>
-                                    <td colSpan={15} className="p-10 text-center text-slate-400">
+                                    <td colSpan={15} className="p-10 text-center text-clinic-text-muted">
                                         <div className="flex flex-col items-center justify-center gap-1.5">
-                                            <EmptyState size={32} className="text-slate-300" />
+                                            <EmptyState size={32} className="text-clinic-text-subtle" />
                                             <p className="text-xs">Không tìm thấy bác sĩ nào phù hợp điều kiện lọc</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredDoctors.map((doc) => (
-                                    <tr key={doc.id} className="hover:bg-slate-50/60 transition group/row">
-                                        <td className="sticky left-0 bg-white z-20 shadow-2xs p-2 border-r border-slate-200 align-middle w-[220px] min-w-[220px] max-w-[220px]">
+                                    <tr key={doc.id} className="hover:bg-clinic-bg transition-colors group/row">
+                                        <td className="sticky left-0 bg-clinic-surface z-20 p-2 border-r border-clinic-border align-middle w-[220px] min-w-[220px] max-w-[220px]">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003553] to-[#00B5F1] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                                <div className="w-7 h-7 rounded-[6px] bg-clinic-navy text-clinic-surface font-bold text-xs flex items-center justify-center shrink-0">
                                                     {getDoctorInitials(doc.ho_ten)}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="font-extrabold text-[#003553] text-xs truncate">
+                                                    <div className="font-bold text-clinic-navy text-xs truncate">
                                                         {doc.ho_ten}
                                                     </div>
-                                                    <div className="text-[11px] font-medium text-slate-500 truncate">
+                                                    <div className="text-[11px] text-clinic-text-secondary truncate">
                                                         {doc.chuyen_khoa || 'Đa khoa'}
                                                     </div>
                                                 </div>
@@ -855,8 +839,8 @@ export default function DoctorScheduleManagementTab() {
                                             return (
                                                 <Fragment key={day.isoDate}>
                                                     <td
-                                                        className={`p-1 border-l border-slate-200 align-top h-14 min-w-[55px] transition ${
-                                                            day.isWeekend ? 'bg-slate-50/40' : ''
+                                                        className={`p-1 border-l border-clinic-border align-top h-14 min-w-[55px] ${
+                                                            day.isWeekend ? 'bg-clinic-bg' : ''
                                                         }`}
                                                     >
                                                         {shiftSang ? (
@@ -865,30 +849,30 @@ export default function DoctorScheduleManagementTab() {
                                                                     setSelectedShiftForDetail(shiftSang)
                                                                     setShowDetailModal(true)
                                                                 }}
-                                                                className={`h-full p-1 rounded-lg border text-left cursor-pointer transition select-none flex flex-col justify-between ${
+                                                                className={`h-full p-1 rounded-[6px] border text-left cursor-pointer transition-colors select-none flex flex-col justify-between ${
                                                                     conflictSang
-                                                                        ? 'bg-rose-50 border-rose-300 ring-1 ring-rose-400 text-rose-900'
+                                                                        ? 'bg-clinic-danger-bg border-clinic-danger text-clinic-danger'
                                                                         : !shiftSang.is_active
-                                                                        ? 'bg-slate-100 border-slate-200 text-slate-500'
-                                                                        : 'bg-sky-50/80 border-sky-200 hover:border-[#00B5F1] text-sky-950'
+                                                                        ? 'bg-clinic-bg-muted border-clinic-border text-clinic-text-muted'
+                                                                        : 'bg-clinic-surface-alt border-clinic-info-border hover:border-clinic-cta text-clinic-navy'
                                                                 }`}
                                                                 title={conflictSang ? conflictSang.message : `${shiftSang.ten_phong_kham} (${shiftSang.so_cho_online} Onl / ${shiftSang.so_cho_quay} Quầy)`}
                                                             >
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="font-extrabold font-mono text-[10px] text-[#003553]">
+                                                                <div className="flex items-center justify-between gap-1">
+                                                                    <span className="font-bold font-mono text-[10px]">
                                                                         {shiftSang.short_room_code}
                                                                     </span>
                                                                     {conflictSang && (
-                                                                        <span className="text-[10px] text-rose-600 font-bold">⚠️</span>
+                                                                        <Warning size={11} weight="bold" className="text-clinic-danger shrink-0" />
                                                                     )}
                                                                 </div>
-                                                                <div className="text-[9.5px] text-slate-500 tabular-nums">
+                                                                <div className="text-[9.5px] text-clinic-text-secondary tabular-nums">
                                                                     {shiftSang.so_cho_tong} slot
                                                                 </div>
                                                             </div>
                                                         ) : leaveSang ? (
                                                             <div
-                                                                className="h-full p-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center text-[10px] font-bold"
+                                                                className="h-full p-1 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-clinic-warning flex items-center justify-center text-[10px] font-bold"
                                                                 title={leaveSang.ly_do || 'Bác sĩ nghỉ phép'}
                                                             >
                                                                 Nghỉ
@@ -896,17 +880,17 @@ export default function DoctorScheduleManagementTab() {
                                                         ) : (
                                                             <div
                                                                 onClick={() => handleOpenQuickAssign(doc, day.isoDate, 'sang')}
-                                                                className="h-full rounded-lg border border-dashed border-slate-200 hover:border-[#00B5F1] hover:bg-sky-50/40 flex items-center justify-center transition cursor-pointer group/cell"
+                                                                className="h-full rounded-[6px] border border-dashed border-clinic-border hover:border-clinic-cta hover:bg-clinic-surface-tint flex items-center justify-center transition-colors cursor-pointer group/cell"
                                                                 title={`Phân ca sáng cho ${doc.ho_ten}`}
                                                             >
-                                                                <Plus size={12} className="text-slate-300 group-hover/cell:text-[#00B5F1] transition" />
+                                                                <Plus size={12} className="text-clinic-text-subtle group-hover/cell:text-clinic-cta transition-colors" />
                                                             </div>
                                                         )}
                                                     </td>
 
                                                     <td
-                                                        className={`p-1 border-l border-slate-200 align-top h-14 min-w-[55px] transition ${
-                                                            day.isWeekend ? 'bg-slate-50/40' : ''
+                                                        className={`p-1 border-l border-clinic-border align-top h-14 min-w-[55px] ${
+                                                            day.isWeekend ? 'bg-clinic-bg' : ''
                                                         }`}
                                                     >
                                                         {shiftChieu ? (
@@ -915,30 +899,30 @@ export default function DoctorScheduleManagementTab() {
                                                                     setSelectedShiftForDetail(shiftChieu)
                                                                     setShowDetailModal(true)
                                                                 }}
-                                                                className={`h-full p-1 rounded-lg border text-left cursor-pointer transition select-none flex flex-col justify-between ${
+                                                                className={`h-full p-1 rounded-[6px] border text-left cursor-pointer transition-colors select-none flex flex-col justify-between ${
                                                                     conflictChieu
-                                                                        ? 'bg-rose-50 border-rose-300 ring-1 ring-rose-400 text-rose-900'
+                                                                        ? 'bg-clinic-danger-bg border-clinic-danger text-clinic-danger'
                                                                         : !shiftChieu.is_active
-                                                                        ? 'bg-slate-100 border-slate-200 text-slate-500'
-                                                                        : 'bg-amber-50/70 border-amber-200 hover:border-amber-400 text-amber-950'
+                                                                        ? 'bg-clinic-bg-muted border-clinic-border text-clinic-text-muted'
+                                                                        : 'bg-clinic-warning-bg border-clinic-warning-border hover:border-clinic-amber text-clinic-navy'
                                                                 }`}
                                                                 title={conflictChieu ? conflictChieu.message : `${shiftChieu.ten_phong_kham} (${shiftChieu.so_cho_online} Onl / ${shiftChieu.so_cho_quay} Quầy)`}
                                                             >
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="font-extrabold font-mono text-[10px] text-[#003553]">
+                                                                <div className="flex items-center justify-between gap-1">
+                                                                    <span className="font-bold font-mono text-[10px]">
                                                                         {shiftChieu.short_room_code}
                                                                     </span>
                                                                     {conflictChieu && (
-                                                                        <span className="text-[10px] text-rose-600 font-bold">⚠️</span>
+                                                                        <Warning size={11} weight="bold" className="text-clinic-danger shrink-0" />
                                                                     )}
                                                                 </div>
-                                                                <div className="text-[9.5px] text-slate-500 tabular-nums">
+                                                                <div className="text-[9.5px] text-clinic-text-secondary tabular-nums">
                                                                     {shiftChieu.so_cho_tong} slot
                                                                 </div>
                                                             </div>
                                                         ) : leaveChieu ? (
                                                             <div
-                                                                className="h-full p-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center text-[10px] font-bold"
+                                                                className="h-full p-1 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-clinic-warning flex items-center justify-center text-[10px] font-bold"
                                                                 title={leaveChieu.ly_do || 'Bác sĩ nghỉ phép'}
                                                             >
                                                                 Nghỉ
@@ -946,10 +930,10 @@ export default function DoctorScheduleManagementTab() {
                                                         ) : (
                                                             <div
                                                                 onClick={() => handleOpenQuickAssign(doc, day.isoDate, 'chieu')}
-                                                                className="h-full rounded-lg border border-dashed border-slate-200 hover:border-[#00B5F1] hover:bg-sky-50/40 flex items-center justify-center transition cursor-pointer group/cell"
+                                                                className="h-full rounded-[6px] border border-dashed border-clinic-border hover:border-clinic-cta hover:bg-clinic-surface-tint flex items-center justify-center transition-colors cursor-pointer group/cell"
                                                                 title={`Phân ca chiều cho ${doc.ho_ten}`}
                                                             >
-                                                                <Plus size={12} className="text-slate-300 group-hover/cell:text-[#00B5F1] transition" />
+                                                                <Plus size={12} className="text-clinic-text-subtle group-hover/cell:text-clinic-cta transition-colors" />
                                                             </div>
                                                         )}
                                                     </td>
@@ -965,31 +949,28 @@ export default function DoctorScheduleManagementTab() {
             </div>
 
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-sky-100 text-[#009EDB] flex items-center justify-center font-bold">
-                                    <Plus size={16} weight="bold" />
-                                </div>
-                                <h3 className="font-extrabold text-[#00263C] text-sm">Phân Công Ca Trực Bác Sĩ</h3>
-                            </div>
+                <div className="fixed inset-0 bg-clinic-navy-dark/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-clinic-surface rounded-[6px] max-w-md w-full p-5 shadow-xs border border-clinic-border">
+                        <div className="flex items-center justify-between pb-3 border-b border-clinic-border">
+                            <h3 className="font-display font-bold text-clinic-navy text-sm">
+                                Phân công ca trực bác sĩ
+                            </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowCreateModal(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                className="text-clinic-text-muted hover:text-clinic-navy cursor-pointer"
                             >
-                                <XCircle size={20} />
+                                <XCircle size={18} />
                             </button>
                         </div>
 
                         <form onSubmit={handleCreateShiftSubmit} className="space-y-3 mt-3.5 text-xs">
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">Bác sĩ phụ trách *</label>
+                                <label className="medpro-label">Bác sĩ phụ trách *</label>
                                 <select
                                     value={createShiftForm.bac_si_id}
                                     onChange={(e) => setCreateShiftForm({ ...createShiftForm, bac_si_id: e.target.value })}
-                                    className="medpro-select w-full"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                     required
                                 >
                                     <option value="">-- Chọn bác sĩ --</option>
@@ -1003,21 +984,21 @@ export default function DoctorScheduleManagementTab() {
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Ngày làm việc *</label>
+                                    <label className="medpro-label">Ngày làm việc *</label>
                                     <input
                                         type="date"
                                         value={createShiftForm.ngay}
                                         onChange={(e) => setCreateShiftForm({ ...createShiftForm, ngay: e.target.value })}
-                                        className="medpro-input w-full"
+                                        className="medpro-input !py-1.5 h-9 text-xs"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Ca trực *</label>
+                                    <label className="medpro-label">Ca trực *</label>
                                     <select
                                         value={createShiftForm.ca}
                                         onChange={(e) => setCreateShiftForm({ ...createShiftForm, ca: e.target.value })}
-                                        className="medpro-select w-full"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                         required
                                     >
                                         <option value="sang">Ca Sáng (07:30 - 11:30)</option>
@@ -1027,11 +1008,11 @@ export default function DoctorScheduleManagementTab() {
                             </div>
 
                             <div>
-                                <label className="block font-bold text-slate-700 mb-1">Buồng khám *</label>
+                                <label className="medpro-label">Buồng khám *</label>
                                 <select
                                     value={createShiftForm.phong_kham_id}
                                     onChange={(e) => setCreateShiftForm({ ...createShiftForm, phong_kham_id: e.target.value })}
-                                    className="medpro-select w-full"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                     required
                                 >
                                     <option value="">-- Chọn buồng khám --</option>
@@ -1043,41 +1024,41 @@ export default function DoctorScheduleManagementTab() {
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Slot trực tuyến (Online)</label>
+                                    <label className="medpro-label">Slot trực tuyến (Online)</label>
                                     <input
                                         type="number"
                                         min={0}
                                         max={50}
                                         value={createShiftForm.so_cho_online}
                                         onChange={(e) => setCreateShiftForm({ ...createShiftForm, so_cho_online: Number(e.target.value) })}
-                                        className="medpro-input w-full font-bold"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-bold tabular-nums"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-bold text-slate-700 mb-1">Slot tại quầy (Vãng lai)</label>
+                                    <label className="medpro-label">Slot tại quầy (Vãng lai)</label>
                                     <input
                                         type="number"
                                         min={0}
                                         max={50}
                                         value={createShiftForm.so_cho_quay}
                                         onChange={(e) => setCreateShiftForm({ ...createShiftForm, so_cho_quay: Number(e.target.value) })}
-                                        className="medpro-input w-full font-bold"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-bold tabular-nums"
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-clinic-border">
                                 <button
                                     type="button"
                                     onClick={() => setShowCreateModal(false)}
-                                    className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer font-bold"
+                                    className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                                 >
                                     Hủy
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={actionLoading}
-                                    className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-[#009EDB] text-white transition font-bold shadow-2xs cursor-pointer"
+                                    className="medpro-btn-primary !py-1.5 !px-3.5 text-xs"
                                 >
                                     {actionLoading ? 'Đang lưu...' : 'Lưu ca trực'}
                                 </button>
@@ -1088,71 +1069,65 @@ export default function DoctorScheduleManagementTab() {
             )}
 
             {showDetailModal && selectedShiftForDetail && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <div className="fixed inset-0 bg-clinic-navy-dark/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-clinic-surface rounded-[6px] max-w-sm w-full p-4 shadow-xs border border-clinic-border">
+                        <div className="flex items-center justify-between pb-2.5 border-b border-clinic-border">
                             <div>
-                                <h3 className="font-extrabold text-[#00263C] text-sm">Chi Tiết Ca Trực</h3>
-                                <p className="text-[11px] text-slate-500 font-mono">#{selectedShiftForDetail.id}</p>
+                                <h3 className="font-display font-bold text-clinic-navy text-sm">Chi tiết ca trực</h3>
+                                <p className="text-[11px] text-clinic-text-muted font-mono">#{selectedShiftForDetail.id}</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowDetailModal(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                className="text-clinic-text-muted hover:text-clinic-navy cursor-pointer"
                             >
                                 <XCircle size={18} />
                             </button>
                         </div>
 
-                        <div className="space-y-2 mt-3 text-xs">
-                            <div className="flex justify-between py-1 border-b border-slate-50">
-                                <span className="text-slate-500">Bác sĩ:</span>
-                                <span className="font-bold text-[#003553]">{selectedShiftForDetail.ten_bac_si}</span>
+                        <dl className="divide-y divide-clinic-border mt-2 text-xs tabular-nums">
+                            <div className="flex justify-between py-2">
+                                <dt className="text-clinic-text-secondary">Bác sĩ:</dt>
+                                <dd className="font-bold text-clinic-navy">{selectedShiftForDetail.ten_bac_si}</dd>
                             </div>
-                            <div className="flex justify-between py-1 border-b border-slate-50">
-                                <span className="text-slate-500">Chuyên khoa:</span>
-                                <span className="font-semibold text-slate-700">{selectedShiftForDetail.chuyen_khoa}</span>
+                            <div className="flex justify-between py-2">
+                                <dt className="text-clinic-text-secondary">Chuyên khoa:</dt>
+                                <dd className="font-semibold text-clinic-text">{selectedShiftForDetail.chuyen_khoa}</dd>
                             </div>
-                            <div className="flex justify-between py-1 border-b border-slate-50">
-                                <span className="text-slate-500">Thời gian:</span>
-                                <span className="font-bold text-slate-800">
-                                    {selectedShiftForDetail.ca === 'sang' ? 'Ca Sáng (07:30 - 11:30)' : 'Ca Chiều (13:30 - 17:00)'} · {selectedShiftForDetail.ngay}
-                                </span>
+                            <div className="flex justify-between py-2">
+                                <dt className="text-clinic-text-secondary">Thời gian:</dt>
+                                <dd className="font-bold text-clinic-navy">
+                                    {selectedShiftForDetail.ca === 'sang' ? 'Ca Sáng (07:30 - 11:30)' : 'Ca Chiều (13:30 - 17:00)'} &bull; {selectedShiftForDetail.ngay}
+                                </dd>
                             </div>
-                            <div className="flex justify-between py-1 border-b border-slate-50">
-                                <span className="text-slate-500">Buồng khám:</span>
-                                <span className="font-bold text-[#00263C]">
+                            <div className="flex justify-between py-2">
+                                <dt className="text-clinic-text-secondary">Buồng khám:</dt>
+                                <dd className="font-bold text-clinic-navy">
                                     {selectedShiftForDetail.short_room_code} - {selectedShiftForDetail.ten_phong_kham}
-                                </span>
+                                </dd>
                             </div>
-                            <div className="flex justify-between py-1 border-b border-slate-50">
-                                <span className="text-slate-500">Slot khám:</span>
-                                <span className="font-bold text-[#009EDB]">
+                            <div className="flex justify-between py-2">
+                                <dt className="text-clinic-text-secondary">Slot khám:</dt>
+                                <dd className="font-bold text-clinic-cta">
                                     {selectedShiftForDetail.so_cho_online} Onl / {selectedShiftForDetail.so_cho_quay} Quầy (Tổng {selectedShiftForDetail.so_cho_tong})
-                                </span>
+                                </dd>
                             </div>
-                            <div className="flex justify-between py-1">
-                                <span className="text-slate-500">Trạng thái:</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                    selectedShiftForDetail.is_active
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                }`}>
-                                    {selectedShiftForDetail.is_active ? 'Đang hoạt động' : 'Tạm khóa'}
-                                </span>
+                            <div className="flex justify-between items-center py-2">
+                                <dt className="text-clinic-text-secondary">Trạng thái:</dt>
+                                <dd>
+                                    <span className={selectedShiftForDetail.is_active ? 'medpro-badge-success' : 'medpro-badge-neutral'}>
+                                        {selectedShiftForDetail.is_active ? 'Đang hoạt động' : 'Tạm khóa'}
+                                    </span>
+                                </dd>
                             </div>
-                        </div>
+                        </dl>
 
-                        <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={handleToggleLockShift}
                                 disabled={actionLoading}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                                    selectedShiftForDetail.is_active
-                                        ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                                }`}
+                                className={selectedShiftForDetail.is_active ? 'medpro-btn-danger !py-1.5 !px-3 text-xs' : 'medpro-btn-outline !py-1.5 !px-3 text-xs'}
                             >
                                 <LockKey size={13} />
                                 <span>{selectedShiftForDetail.is_active ? 'Tạm khóa ca' : 'Kích hoạt lại'}</span>
@@ -1161,7 +1136,7 @@ export default function DoctorScheduleManagementTab() {
                             <button
                                 type="button"
                                 onClick={() => setShowDetailModal(false)}
-                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold transition cursor-pointer"
+                                className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 Đóng
                             </button>
@@ -1171,38 +1146,35 @@ export default function DoctorScheduleManagementTab() {
             )}
 
             {showCopyModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-sky-100 text-[#009EDB] flex items-center justify-center font-bold">
-                                    <Copy size={16} />
-                                </div>
-                                <h3 className="font-extrabold text-[#00263C] text-sm">Sao Chép Lịch Sang Tuần Sau</h3>
-                            </div>
+                <div className="fixed inset-0 bg-clinic-navy-dark/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-clinic-surface rounded-[6px] max-w-md w-full p-5 shadow-xs border border-clinic-border">
+                        <div className="flex items-center justify-between pb-3 border-b border-clinic-border">
+                            <h3 className="font-display font-bold text-clinic-navy text-sm">
+                                Xác nhận nhân bản ca trực tuần kế tiếp
+                            </h3>
                             <button
                                 type="button"
                                 onClick={() => setShowCopyModal(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                className="text-clinic-text-muted hover:text-clinic-navy cursor-pointer"
                             >
-                                <XCircle size={20} />
+                                <XCircle size={18} />
                             </button>
                         </div>
 
-                        <div className="py-3 text-xs text-slate-600 space-y-2">
+                        <div className="py-3 text-xs text-clinic-text-secondary space-y-2.5 tabular-nums">
                             <p>
-                                Bạn có chắc chắn muốn sao chép toàn bộ ca trực từ tuần hiện tại (<strong>{tuNgay} → {denNgay}</strong>) sang tuần tiếp theo?
+                                Tạo dữ liệu phân ca từ giai đoạn <strong className="text-clinic-navy">{tuNgay} - {denNgay}</strong> sang tuần tiếp theo?
                             </p>
-                            <div className="p-2.5 rounded-xl bg-sky-50 text-sky-800 border border-sky-100 text-[11px] leading-relaxed">
-                                ℹ️ Hệ thống sẽ tự động nhân bản các ca trực và kiểm tra điều kiện hành nghề CCHN của từng bác sĩ.
-                            </div>
+                            <p role="note" className="p-2.5 rounded-[6px] bg-clinic-surface-alt text-clinic-navy border border-clinic-info-border text-[11px] leading-relaxed">
+                                Hệ thống tự động nhân bản các ca hợp lệ và kiểm tra điều kiện chứng chỉ hành nghề (CCHN) của từng bác sĩ.
+                            </p>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={() => setShowCopyModal(false)}
-                                className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer font-bold text-xs"
+                                className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 Hủy
                             </button>
@@ -1210,7 +1182,7 @@ export default function DoctorScheduleManagementTab() {
                                 type="button"
                                 onClick={handleCopyScheduleToNextWeek}
                                 disabled={actionLoading}
-                                className="px-4 py-2 rounded-xl bg-[#00B5F1] hover:bg-[#009EDB] text-white transition font-bold shadow-2xs cursor-pointer text-xs"
+                                className="medpro-btn-primary !py-1.5 !px-3.5 text-xs"
                             >
                                 {actionLoading ? 'Đang sao chép...' : 'Xác nhận sao chép'}
                             </button>

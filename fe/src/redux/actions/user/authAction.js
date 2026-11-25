@@ -6,6 +6,7 @@ import { DEMO_PATIENT_ACCOUNT, isDemoPatientCredentials } from '../../../data/us
 import { getAuthSessionRevision, readAuthFromStorage } from '../../../utils/auth/authStorage'
 import { waitForPendingAuthRefresh } from '../../../services/BaseService'
 import { AppToast } from '../../../components/common/AppNotification'
+import { toFriendlyErrorMessage } from '../../../utils/helpers/clientErrorHelper.js'
 
 export const logoutUserAsync = createAsyncThunk(
     'auth/logoutUser',
@@ -77,7 +78,9 @@ export const loginUserAsync = createAsyncThunk(
                     user: DEMO_PATIENT_ACCOUNT.user,
                 }
             }
-            return rejectWithValue(error.response?.data?.message || error.response?.data?.Message || error.message)
+            return rejectWithValue(
+                toFriendlyErrorMessage(error, 'Đăng nhập chưa thành công. Vui lòng kiểm tra thông tin và thử lại.')
+            )
         }
     }
 )

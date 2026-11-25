@@ -27,17 +27,17 @@ export const PERMISSION_MODULES_23 = [
 export const DEFAULT_NAVIGATION_CONFIG = {
     headerWorkflowTabs: [
         {
-            label: 'Tổng quan BI',
+            label: 'Tổng quan',
             path: '/admin',
             icon: 'ChartBar',
             hasDropdown: true,
-            dropdownTitle: 'ĐIỀU HÀNH & BÁO CÁO QUẢN TRỊ',
+            dropdownTitle: 'ĐIỀU HÀNH VÀ BÁO CÁO QUẢN TRỊ',
             submenu: [
                 {
-                    label: 'Trung tâm Điều hành & BI',
+                    label: 'Tổng quan phòng khám',
                     path: '/admin',
                     icon: 'HouseLine',
-                    desc: 'Công suất khoa phòng, hiệu suất bác sĩ & chỉ số vận hành',
+                    desc: 'Công suất khoa phòng, hiệu suất bác sĩ và chỉ số vận hành',
                 },
                 {
                     label: 'Báo cáo Thống kê Tổng hợp',
@@ -168,11 +168,11 @@ export const DEFAULT_NAVIGATION_CONFIG = {
     sidebarSections: [
         {
             id: 'pillar-executive',
-            title: '1. ĐIỀU HÀNH & THỐNG KÊ BI',
+            title: 'ĐIỀU HÀNH VÀ THỐNG KÊ',
             menus: [
                 {
                     id: 'dashboard',
-                    title: 'Trung tâm Điều hành BI',
+                    title: 'Tổng quan',
                     icon: 'HouseLine',
                     path: '/admin',
                 },
@@ -192,7 +192,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-catalogs',
-            title: '2. QUẢN TRỊ DANH MỤC Y TẾ',
+            title: 'QUẢN TRỊ DANH MỤC Y TẾ',
             menus: [
                 {
                     id: 'catalogs',
@@ -223,7 +223,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-iam-hr',
-            title: '3. NHÂN SỰ & PHÂN QUYỀN (IAM)',
+            title: 'NHÂN SỰ VÀ PHÂN QUYỀN',
             menus: [
                 {
                     id: 'users',
@@ -246,7 +246,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
         },
         {
             id: 'pillar-compliance-settings',
-            title: '4. TUÂN THỦ & CẤU HÌNH HỆ THỐNG',
+            title: 'TUÂN THỦ VÀ CẤU HÌNH HỆ THỐNG',
             menus: [
                 {
                     id: 'compliance',
@@ -275,7 +275,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
     ],
     dashboardQuickModules: [
         {
-            step: 'Trụ cột 01',
+            step: 'Danh mục',
             title: 'Khoa phòng & Buồng khám',
             desc: 'Quản lý danh mục chuyên khoa, buồng khám lâm sàng/CLS và trạng thái vận hành',
             path: '/admin/danh-muc/khoa-phong',
@@ -283,7 +283,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Master Data',
         },
         {
-            step: 'Trụ cột 02',
+            step: 'Bảng giá',
             title: 'Dịch vụ & Giá niêm yết',
             desc: 'Cấu hình danh mục dịch vụ khám, xét nghiệm, CĐHA và niêm yết giá thu ngân',
             path: '/admin/danh-muc/dich-vu',
@@ -291,7 +291,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Bảng giá DV',
         },
         {
-            step: 'Trụ cột 03',
+            step: 'Dược và ICD-10',
             title: 'Thuốc BYT & Bệnh ICD-10',
             desc: 'Danh mục thuốc kê đơn ngoại trú (không quản lý kho) & từ điển bệnh lý ICD-10',
             path: '/admin/danh-muc/thuoc-vat-tu',
@@ -299,7 +299,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'Dược & ICD-10',
         },
         {
-            step: 'Trụ cột 04',
+            step: 'Nhân sự',
             title: 'Nhân sự, Lịch trực & CCHN',
             desc: 'Quản lý hồ sơ bác sĩ, kiểm soát hạn Chứng chỉ hành nghề & duyệt nghỉ phép',
             path: '/admin/nhan-vien',
@@ -307,7 +307,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'HR & CCHN',
         },
         {
-            step: 'Trụ cột 05',
+            step: 'Phân quyền',
             title: 'Ma trận Phân quyền (RBAC)',
             desc: 'Thiết lập ma trận phân quyền truy cập theo vai trò chuẩn Least Privilege',
             path: '/admin/phan-quyen',
@@ -315,7 +315,7 @@ export const DEFAULT_NAVIGATION_CONFIG = {
             badge: 'IAM & RBAC',
         },
         {
-            step: 'Trụ cột 06',
+            step: 'Tuân thủ',
             title: 'Tuân thủ, Audit & Cấu hình',
             desc: 'Giám sát liên thông Đơn thuốc QG (TT26), Nhật ký Audit EMR & Cài đặt phòng khám',
             path: '/admin/tuan-thu',
@@ -334,6 +334,75 @@ export function getPermissionModuleLabel(module, index = 0) {
     }
     return `Phân hệ ${index + 1}`
 }
+
+export const DEFAULT_CATALOG_ROUTE_MAP = {
+    'chuyen-khoa': {
+        title: 'Chuyên khoa',
+        path: '/admin/danh-muc/chuyen-khoa',
+        icon: 'FirstAid',
+    },
+    'khoa-phong': {
+        title: 'Khoa phòng',
+        path: '/admin/danh-muc/khoa-phong',
+        icon: 'Buildings',
+    },
+    'dich-vu': {
+        title: 'Dịch vụ',
+        path: '/admin/danh-muc/dich-vu',
+        icon: 'Stethoscope',
+    },
+    'thuoc-vat-tu': {
+        title: 'Thuốc & Vật tư',
+        path: '/admin/danh-muc/thuoc-vat-tu',
+        icon: 'Pill',
+    },
+    benh: {
+        title: 'Bệnh ICD-10',
+        path: '/admin/danh-muc/benh',
+        icon: 'Heartbeat',
+    },
+    chung: {
+        title: 'Danh mục chung',
+        path: '/admin/danh-muc/chung',
+        icon: 'SlidersHorizontal',
+    },
+    'dia-chi': {
+        title: 'Địa chỉ',
+        path: '/admin/danh-muc/dia-chi',
+        icon: 'MapPin',
+    },
+}
+
+export const DEFAULT_GENERAL_CATALOG_SUB_TABS = [
+    {
+        key: 'goTat',
+        label: 'Danh mục Gõ tắt',
+        codeLabel: 'Mã gõ tắt',
+        nameLabel: 'Nội dung diễn giải đầy đủ',
+        icon: 'Lightning',
+    },
+    {
+        key: 'donViTinh',
+        label: 'Đơn vị tính',
+        codeLabel: 'Mã ĐVT',
+        nameLabel: 'Tên đơn vị tính',
+        icon: 'Package',
+    },
+    {
+        key: 'khoanThu',
+        label: 'Danh mục Khoản thu',
+        codeLabel: 'Mã khoản thu',
+        nameLabel: 'Tên khoản thu viện phí',
+        icon: 'CurrencyCircleDollar',
+    },
+    {
+        key: 'phuongPhapTruDau',
+        label: 'Phương pháp trừ đau',
+        codeLabel: 'Mã PP',
+        nameLabel: 'Tên phương pháp vô cảm / trừ đau',
+        icon: 'Syringe',
+    },
+]
 
 export const INITIAL_CLINIC_DATA = {
     schemaVersion: '2.0.0-database',
@@ -362,7 +431,6 @@ export function getNavigationConfig(clinicData) {
             ? rawNav
             : DEFAULT_NAVIGATION_CONFIG
 
-    // Đảm bảo "Danh mục Chuyên khoa" luôn luôn có mặt trong sidebarSections (Danh mục Nền tảng)
     const enrichedSections = (nav.sidebarSections || []).map((section) => {
         if (section.id === 'pillar-catalogs' || (section.title && section.title.includes('DANH MỤC Y TẾ'))) {
             const enrichedMenus = (section.menus || []).map((menu) => {
@@ -393,7 +461,20 @@ export function getNavigationConfig(clinicData) {
 }
 
 export function getMasterOptions(clinicData) {
-    return clinicData?.masterOptions || {}
+    const raw = clinicData?.masterOptions || {}
+    const catalogRouteMap =
+        raw.catalogRouteMap && Object.keys(raw.catalogRouteMap).length > 0
+            ? raw.catalogRouteMap
+            : DEFAULT_CATALOG_ROUTE_MAP
+    const generalCatalogSubTabs =
+        Array.isArray(raw.generalCatalogSubTabs) && raw.generalCatalogSubTabs.length > 0
+            ? raw.generalCatalogSubTabs
+            : DEFAULT_GENERAL_CATALOG_SUB_TABS
+    return {
+        ...raw,
+        catalogRouteMap,
+        generalCatalogSubTabs,
+    }
 }
 
 export function getFormDefaults(clinicData) {

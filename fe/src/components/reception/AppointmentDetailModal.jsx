@@ -310,7 +310,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         <Modal
             title={
                 <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-[#003553] text-base font-display">
+                    <span className="font-extrabold text-clinic-navy text-base font-display tabular-nums">
                         Chi tiết lịch hẹn: {appointment.ma_lich_kham || appointment.appointmentCode || `APT-${appointment.id}`}
                     </span>
                     <Tag color={statusConfig.color} className="font-semibold">
@@ -330,12 +330,13 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         {canCancel && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button className="medpro-btn-outline text-xs font-semibold" danger onClick={() => setIsCancelling(true)} className="medpro-btn-danger text-xs font-semibold">
+                            <Button danger onClick={() => setIsCancelling(true)} className="medpro-btn-danger text-xs font-semibold">
                                 Hủy lịch hẹn
                             </Button>
                         )}
                         {canNoShow && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button className="medpro-btn-outline !text-amber-700 !border-amber-300 hover:!bg-amber-50 text-xs font-semibold"
+                            <Button
+                                className="medpro-btn-outline !text-clinic-warning !border-clinic-warning-border hover:!bg-clinic-warning-bg text-xs font-semibold"
                                 onClick={() => setIsNoShowing(true)}
                             >
                                 Báo vắng mặt (No-Show)
@@ -344,7 +345,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                     </div>
                     <div className="flex items-center gap-2">
                         {isPendingConfirm && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button type="primary" className="medpro-btn-primary text-xs font-bold"
+                            <Button
+                                type="primary"
+                                className="medpro-btn-primary text-xs font-bold"
                                 loading={isConfirming}
                                 onClick={handleConfirmAppointment}
                             >
@@ -352,7 +355,8 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             </Button>
                         )}
                         {canReschedule && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button className="medpro-btn-outline text-xs font-semibold"
+                            <Button
+                                className="medpro-btn-outline text-xs font-semibold"
                                 icon={<CalendarOutlined />}
                                 onClick={() => setIsRescheduling(true)}
                             >
@@ -360,27 +364,30 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             </Button>
                         )}
                         {canCheckIn && !isCancelling && !isRescheduling && !isNoShowing && (
-                            <Button type="primary" icon={<CheckCircleOutlined />}
-                                className="medpro-btn-primary text-xs font-bold shadow-sm"
+                            <Button
+                                type="primary"
+                                icon={<CheckCircleOutlined />}
+                                className="medpro-btn-primary text-xs font-bold"
                                 onClick={() => {
                                     onClose()
                                     if (onCheckInClick) {
-        onCheckInClick(appointment, {
-            id: patientId,
-            fullName: patientName,
-            phone: patientPhone,
-            patientCode: patientCode,
-            identityCard: patientCccd,
-            dob: patientDob,
-            gender: appointment.gioi_tinh || appointment.benh_nhan?.gioi_tinh || 'Nam',
-        })
-    }
+                                        onCheckInClick(appointment, {
+                                            id: patientId,
+                                            fullName: patientName,
+                                            phone: patientPhone,
+                                            patientCode: patientCode,
+                                            identityCard: patientCccd,
+                                            dob: patientDob,
+                                            gender: appointment.gioi_tinh || appointment.benh_nhan?.gioi_tinh || 'Nam',
+                                        })
+                                    }
                                 }}
                             >
                                 Tiếp nhận ngay (Check-in)
                             </Button>
                         )}
-                        <Button className="medpro-btn-outline text-xs font-semibold"
+                        <Button
+                            className="medpro-btn-outline text-xs font-semibold"
                             onClick={() => {
                                 setIsCancelling(false)
                                 setIsRescheduling(false)
@@ -396,9 +403,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
         >
             <div className="space-y-4 py-2">
                 {isNoShowing && (
-                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
-                        <h4 className="font-bold text-amber-900 text-sm">Xác nhận ghi nhận Vắng mặt (No-Show)</h4>
-                        <p className="text-xs text-amber-700">
+                    <div className="p-4 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border space-y-3">
+                        <h4 className="font-bold text-clinic-warning text-sm">Xác nhận ghi nhận Vắng mặt (No-Show)</h4>
+                        <p className="text-xs text-clinic-warning">
                             Hệ thống sẽ chuyển trạng thái lịch sang <strong>Vắng mặt</strong> và tự động cộng 1 điểm vi phạm No-show cho hồ sơ người bệnh. Nếu vi phạm ≥ 3 lần, tài khoản sẽ bị tự động khóa quyền đặt trực tuyến.
                         </p>
                         <Input.TextArea
@@ -411,10 +418,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsNoShowing(false)}>
                                 Quay lại
                             </Button>
-                            <Button className="medpro-btn-outline text-xs font-semibold"
+                            <Button
                                 size="small"
                                 type="primary"
-                                className="bg-amber-600 hover:bg-amber-700 font-semibold text-white"
+                                className="medpro-btn-amber text-xs font-semibold"
                                 loading={isNoShowLoading}
                                 onClick={handleConfirmNoShow}
                             >
@@ -425,10 +432,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                 )}
 
                 {isCancelling && (
-                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-3">
-                        <h4 className="font-bold text-red-800 text-sm">Xác nhận hủy lịch hẹn</h4>
-                        <p className="text-xs text-red-600">
-                            Lưu ý: Quy tắc an toàn y tế yêu cầu hủy trước tối thiểu 02 giờ. Sau khi hủy, slot sẽ tự động giải phóng và thông báo cho người đứng đầu Danh sách chờ (Waitlist).
+                    <div className="p-4 rounded-[6px] bg-clinic-danger-bg border border-clinic-danger-border space-y-3">
+                        <h4 className="font-bold text-clinic-danger text-sm">Xác nhận hủy lịch hẹn</h4>
+                        <p className="text-xs text-clinic-danger">
+                            Lưu ý: Quy tắc an toàn y tế yêu cầu hủy trước tối thiểu 2 giờ. Sau khi hủy, slot sẽ tự động giải phóng và thông báo cho người đứng đầu Danh sách chờ (Waitlist).
                         </p>
                         <Input.TextArea
                             rows={3}
@@ -440,7 +447,8 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsCancelling(false)}>
                                 Quay lại
                             </Button>
-                            <Button className="medpro-btn-outline text-xs font-semibold"
+                            <Button
+                                className="medpro-btn-danger text-xs font-semibold"
                                 size="small"
                                 type="primary"
                                 danger
@@ -454,10 +462,10 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                 )}
 
                 {isRescheduling && (
-                    <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 space-y-3">
+                    <div className="p-4 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border space-y-3">
                         <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-sky-900 text-sm">Đổi ngày / giờ / bác sĩ khám</h4>
-                            <span className="text-[11px] text-sky-600">Khoa: <strong>{departmentName}</strong></span>
+                            <h4 className="font-bold text-clinic-navy text-sm">Đổi ngày / giờ / bác sĩ khám</h4>
+                            <span className="text-[11px] text-clinic-cta">Khoa: <strong>{departmentName}</strong></span>
                         </div>
 
                         {slotError && (
@@ -466,9 +474,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                             <div>
-                                <label className="block font-medium text-slate-700 mb-1">
-                                    Ngày khám mới <span className="text-red-500">*</span>:
-                                </label>
+                                <span className="block font-medium text-clinic-navy mb-1">
+                                    Ngày khám mới <span className="text-clinic-danger">*</span>:
+                                </span>
                                 <DatePicker
                                     className="w-full"
                                     format="DD/MM/YYYY"
@@ -483,9 +491,9 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="block font-medium text-slate-700">
-                                        Khung giờ mới <span className="text-red-500">*</span>:
-                                    </label>
+                                    <span className="block font-medium text-clinic-navy">
+                                        Khung giờ mới <span className="text-clinic-danger">*</span>:
+                                    </span>
                                     {loadingSlots && <Spin size="small" />}
                                 </div>
                                 <Select
@@ -508,12 +516,12 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                             <div className="md:col-span-2">
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="block font-medium text-slate-700">Bác sĩ phụ trách:</label>
+                                    <span className="block font-medium text-clinic-navy">Bác sĩ phụ trách:</span>
                                     {loadingRescheduleDoctors && <Spin size="small" />}
                                 </div>
                                 <Select
                                     className="w-full"
-                                    placeholder={loadingRescheduleDoctors ? "Đang tải danh sách bác sĩ..." : "Chọn bác sĩ phụ trách"}
+                                    placeholder={loadingRescheduleDoctors ? 'Đang tải danh sách bác sĩ...' : 'Chọn bác sĩ phụ trách'}
                                     value={newDoctorId || doctorId || undefined}
                                     loading={loadingRescheduleDoctors}
                                     onChange={(val) => {
@@ -530,10 +538,11 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             </div>
 
                             <div className="md:col-span-2">
-                                <label className="block font-medium text-slate-700 mb-1">
-                                    Lý do đổi lịch <span className="text-red-500">*</span>:
+                                <label htmlFor="ad-reschedule-reason" className="block font-medium text-clinic-navy mb-1">
+                                    Lý do đổi lịch <span className="text-clinic-danger">*</span>:
                                 </label>
                                 <Input
+                                    id="ad-reschedule-reason"
                                     placeholder="Ví dụ: Bệnh nhân bận công tác đột xuất, đổi ca khám..."
                                     value={rescheduleReason}
                                     onChange={(e) => setRescheduleReason(e.target.value)}
@@ -545,7 +554,7 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                             <Button className="medpro-btn-outline text-xs font-semibold" size="small" onClick={() => setIsRescheduling(false)}>
                                 Hủy bỏ
                             </Button>
-                            <Button className="medpro-btn-outline text-xs font-semibold"
+                            <Button
                                 size="small"
                                 type="primary"
                                 loading={isRescheduleSubmitting}
@@ -560,26 +569,26 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                 <Descriptions title="Thông tin người bệnh" bordered size="small" column={{ xs: 1, sm: 2 }}>
                     <Descriptions.Item label="Mã bệnh nhân">
-                        <span className="font-mono font-bold text-sky-800">{patientCode}</span>
+                        <span className="font-mono font-bold text-clinic-cta tabular-nums">{patientCode}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Họ và tên">
-                        <span className="font-bold text-slate-900">{patientName}</span>
+                        <span className="font-bold text-clinic-navy">{patientName}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Số điện thoại">
-                        <span className="font-medium">{patientPhone}</span>
+                        <span className="font-medium tabular-nums">{patientPhone}</span>
                     </Descriptions.Item>
-                    <Descriptions.Item label="CCCD/Định danh">{patientCccd}</Descriptions.Item>
+                    <Descriptions.Item label="CCCD/Định danh"><span className="tabular-nums">{patientCccd}</span></Descriptions.Item>
                     <Descriptions.Item label="Ngày sinh">
-                        {patientDob ? dayjs(patientDob).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+                        <span className="tabular-nums">{patientDob ? dayjs(patientDob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Đối tượng khám">
                         {isWalkIn ? (
                             <Tag color="orange" className="font-semibold text-xs m-0">
-                                ⚡ Khám vãng lai (Tiếp nhận tại quầy)
+                                Khám vãng lai (Tiếp nhận tại quầy)
                             </Tag>
                         ) : (
                             <Tag color="blue" className="font-semibold text-xs m-0">
-                                📅 Khám theo lịch hẹn đặt trước (Online Booking)
+                                Khám theo lịch hẹn đặt trước (Online Booking)
                             </Tag>
                         )}
                     </Descriptions.Item>
@@ -587,16 +596,16 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
 
                 <Descriptions title="Thông tin lịch hẹn khám" bordered size="small" column={{ xs: 1, sm: 2 }}>
                     <Descriptions.Item label="Ngày khám">
-                        <strong>{appDate}</strong>
+                        <strong className="tabular-nums">{appDate}</strong>
                     </Descriptions.Item>
                     <Descriptions.Item label="Khung giờ khám">
-                        <span className="font-bold text-sky-700 text-sm">{appTime}</span>
+                        <span className="font-bold text-clinic-cta text-sm tabular-nums">{appTime}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Chuyên khoa">
-                        <span className="font-semibold text-slate-800">{departmentName}</span>
+                        <span className="font-semibold text-clinic-navy">{departmentName}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Bác sĩ phụ trách">
-                        <span className="font-semibold text-slate-800">{doctorName}</span>
+                        <span className="font-semibold text-clinic-navy">{doctorName}</span>
                     </Descriptions.Item>
                     {roomName && (
                         <Descriptions.Item label="Phòng khám">{roomName}</Descriptions.Item>
@@ -607,16 +616,16 @@ export default function AppointmentDetailModal({ appointment, open, onClose, onC
                         </Descriptions.Item>
                     )}
                     <Descriptions.Item label="Lý do đến khám" span={appointment.trieu_chung_ban_dau ? 1 : 2}>
-                        <span className="text-slate-800">{appointment.ly_do_kham || appointment.notes || 'Không có ghi chú'}</span>
+                        <span className="text-clinic-text">{appointment.ly_do_kham || appointment.notes || 'Không có ghi chú'}</span>
                     </Descriptions.Item>
                     {appointment.trieu_chung_ban_dau && (
                         <Descriptions.Item label="Triệu chứng ban đầu" span={1}>
-                            <span className="text-slate-800">{appointment.trieu_chung_ban_dau}</span>
+                            <span className="text-clinic-text">{appointment.trieu_chung_ban_dau}</span>
                         </Descriptions.Item>
                     )}
                     {(appointment.cancelReason || appointment.ly_do_huy) && (
                         <Descriptions.Item label="Lý do hủy" span={2}>
-                            <span className="text-red-600 font-semibold">
+                            <span className="text-clinic-danger font-semibold">
                                 {appointment.cancelReason || appointment.ly_do_huy}
                             </span>
                         </Descriptions.Item>

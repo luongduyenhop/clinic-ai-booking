@@ -27,7 +27,6 @@ const REFRESH_MS = 3000
 
 const todayIso = () => new Date().toLocaleDateString('en-CA')
 
-// Ca lịch sử có trạng thái 'hoan_thanh' được tính là đã có kết quả để bộ lọc khớp với nhãn hiển thị
 const displayStatus = (order) => (String(order?.trang_thai || '').toLowerCase() === 'hoan_thanh' ? 'da_co_ket_qua' : clsDisplayStatus(order))
 
 const isPendingWork = (order) => ['da_chi_dinh', 'dang_thuc_hien'].includes(displayStatus(order))
@@ -159,27 +158,37 @@ export default function ParaclinicalWorkPage() {
         }
     }
 
+    const pendingTotalCount = worklist.filter(
+        (o) =>
+            o.trang_thai === 'da_chi_dinh' ||
+            o.trang_thai === 'CHO_THUC_HIEN' ||
+            o.trang_thai === 'dang_thuc_hien'
+    ).length
+
     return (
-        <div className="flex flex-col gap-5">
-            <div className="medpro-card flex flex-wrap items-center gap-3 px-5 py-4">
+        <div className="flex flex-col gap-4">
+            <div className="medpro-card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-[220px] flex-1">
-                    <div className="flex items-center gap-2">
-                        <h1 className="text-[20px] font-bold text-[#003553]">
-                            {isLabTech ? "🔬 Bàn Làm Việc Xét Nghiệm (LIS)" : "Cận lâm sàng"}
-                        </h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display">
+                            Điều phối &amp; Trả kết quả Cận lâm sàng (LIS / PACS)
+                        </h2>
+                        <span className="medpro-badge-info tabular-nums">
+                            {pendingTotalCount} chờ thực hiện
+                        </span>
                         {isLabTech && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                Vai trò: KTV Xét nghiệm
+                            <span className="medpro-badge-neutral">
+                                KTV Xét nghiệm
                             </span>
                         )}
                     </div>
-                    <p className="text-[12px] text-slate-500">
+                    <p className="text-xs text-clinic-text-secondary mt-0.5">
                         {isLabTech
-                            ? "Khoa Xét nghiệm (Huyết học, Sinh hóa, Nước tiểu, Miễn dịch) · Tiếp nhận mẫu & trả kết quả LIS."
-                            : "Nhập và trả kết quả cho các chỉ định trong ngày."}
+                            ? 'Khoa Xét nghiệm (Huyết học, Sinh hóa, Nước tiểu, Miễn dịch) · Tiếp nhận mẫu & trả kết quả LIS.'
+                            : 'Tiếp nhận chỉ định trong ca trực, nhập chỉ số kết quả và ký duyệt trả về Bàn khám.'}
                     </p>
                 </div>
-                <div role="tablist" aria-label="Loại cận lâm sàng" className="flex flex-wrap gap-1 rounded-3xl bg-[#E8F4FD] p-1">
+                <div role="tablist" aria-label="Loại cận lâm sàng" className="flex flex-wrap gap-1 rounded-[6px] border border-clinic-border bg-clinic-bg-muted p-1">
                     {SERVICE_GROUPS.map((g) => {
                         const count = worklist.filter(
                             (o) => String(o.nhom_dich_vu || '').toUpperCase() === String(g.key || '').toUpperCase() && isPendingWork(o)
@@ -191,18 +200,18 @@ export default function ParaclinicalWorkPage() {
                                 role="tab"
                                 aria-selected={g.key === group}
                                 onClick={() => switchGroup(g.key)}
-                                className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition cursor-pointer ${
-                                    g.key === group ? 'bg-[#003553] text-white' : 'text-[#003553] hover:bg-white'
+                                className={`flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                                    g.key === group ? 'bg-clinic-navy text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
-                                <ClinicIcon name={g.icon} size={16} />
+                                <ClinicIcon name={g.icon} size={15} />
                                 <span>{g.label}</span>
                                 {count > 0 && (
                                     <span
-                                        className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 text-[11px] font-bold rounded-full ${
+                                        className={`inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 text-[11px] font-bold rounded-[4px] tabular-nums ${
                                             g.key === group
-                                                ? 'bg-rose-500 text-white'
-                                                : 'bg-rose-100 text-rose-700 border border-rose-300'
+                                                ? 'bg-clinic-cta text-clinic-surface'
+                                                : 'bg-clinic-danger-bg text-clinic-danger border border-clinic-danger-border'
                                         }`}
                                     >
                                         {count}
@@ -214,7 +223,7 @@ export default function ParaclinicalWorkPage() {
                 </div>
             </div>
 
-            <div className="flex flex-wrap items-start gap-5">
+            <div className="flex flex-wrap items-start gap-4">
                 <aside aria-label="Danh sách chỉ định" className="medpro-card flex w-full flex-col gap-3 p-4 lg:w-[340px] lg:shrink-0">
                     <input
                         type="search"
@@ -224,14 +233,14 @@ export default function ParaclinicalWorkPage() {
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                     />
-                    <div className="flex items-center justify-between gap-2 text-[12px]">
-                        <span className="font-semibold text-slate-600">Phạm vi ngày</span>
-                        <div className="flex rounded-lg bg-slate-100 p-0.5">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-semibold text-clinic-text-secondary">Phạm vi ngày</span>
+                        <div className="flex rounded-[6px] bg-clinic-bg-muted border border-clinic-border p-0.5">
                             <button
                                 type="button"
                                 onClick={() => setTatCaNgay(true)}
-                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
-                                    tatCaNgay ? 'bg-white text-[#003553] shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                                className={`px-2.5 py-1 rounded-[4px] text-[11px] font-bold transition-colors cursor-pointer ${
+                                    tatCaNgay ? 'bg-clinic-surface text-clinic-navy border border-clinic-border' : 'text-clinic-text-muted hover:text-clinic-navy'
                                 }`}
                             >
                                 Tất cả ngày
@@ -239,8 +248,8 @@ export default function ParaclinicalWorkPage() {
                             <button
                                 type="button"
                                 onClick={() => setTatCaNgay(false)}
-                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
-                                    !tatCaNgay ? 'bg-white text-[#003553] shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                                className={`px-2.5 py-1 rounded-[4px] text-[11px] font-bold transition-colors cursor-pointer ${
+                                    !tatCaNgay ? 'bg-clinic-surface text-clinic-navy border border-clinic-border' : 'text-clinic-text-muted hover:text-clinic-navy'
                                 }`}
                             >
                                 Theo ngày
@@ -248,11 +257,12 @@ export default function ParaclinicalWorkPage() {
                         </div>
                     </div>
                     {!tatCaNgay && (
-                        <label className="flex items-center gap-2 text-[12px] text-slate-500">
+                        <label htmlFor="cls-worklist-date" className="flex items-center gap-2 text-xs text-clinic-text-secondary">
                             Ngày chỉ định
                             <input
+                                id="cls-worklist-date"
                                 type="date"
-                                className="medpro-input flex-1"
+                                className="medpro-input flex-1 tabular-nums"
                                 aria-label="Ngày chỉ định"
                                 value={ngay}
                                 max={todayIso()}
@@ -269,8 +279,10 @@ export default function ParaclinicalWorkPage() {
                                     type="button"
                                     aria-pressed={statusFilter === f.key}
                                     onClick={() => setStatusFilter(f.key)}
-                                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition cursor-pointer ${
-                                        statusFilter === f.key ? 'bg-[#003553] text-white' : 'bg-[#E8F4FD] text-[#003553]'
+                                    className={`rounded-[6px] px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors cursor-pointer border ${
+                                        statusFilter === f.key
+                                            ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                                            : 'bg-clinic-bg text-clinic-navy border-clinic-border hover:bg-clinic-surface-alt'
                                     }`}
                                 >
                                     {f.label} {n}
@@ -294,24 +306,26 @@ export default function ParaclinicalWorkPage() {
                                     key={o.id}
                                     type="button"
                                     onClick={() => setSelectedId(o.id)}
-                                    className={`flex flex-col gap-1.5 rounded-xl p-3 text-left transition cursor-pointer ${
-                                        isSel ? 'bg-[#E8F4FD] ring-2 ring-[#00B5F1]' : 'bg-[#F5F9FC] hover:bg-[#EEF6FC]'
+                                    className={`flex flex-col gap-1.5 rounded-[6px] border p-3 text-left transition-colors cursor-pointer ${
+                                        isSel
+                                            ? 'border-clinic-cta bg-clinic-surface-alt'
+                                            : 'border-clinic-border bg-clinic-surface hover:bg-clinic-surface-tint hover:border-clinic-border-strong'
                                     }`}
                                 >
                                     <span className="flex items-center justify-between gap-2">
-                                        <span className="font-semibold text-[#003553]">
+                                        <span className="font-semibold text-clinic-navy">
                                             {o.benh_nhan?.ho_ten}{' '}
-                                            <span className="font-normal text-slate-500">
+                                            <span className="font-normal text-clinic-text-secondary tabular-nums">
                                                 · {o.benh_nhan?.gioi_tinh} {o.benh_nhan?.tuoi}t
                                             </span>
                                         </span>
                                         <span className={st.badge}>{st.label}</span>
                                     </span>
-                                    <span className="text-[13px]">{o.ten_dich_vu}</span>
+                                    <span className="text-[13px] text-clinic-text">{o.ten_dich_vu}</span>
                                     {o.chan_doan_so_bo && (
-                                        <span className="text-[12px] text-slate-600">Chẩn đoán sơ bộ: {o.chan_doan_so_bo}</span>
+                                        <span className="text-xs text-clinic-text-secondary">Chẩn đoán sơ bộ: {o.chan_doan_so_bo}</span>
                                     )}
-                                    <span className="text-[12px] text-slate-500">
+                                    <span className="text-xs text-clinic-text-muted tabular-nums">
                                         {o.bac_si_chi_dinh} chỉ định {formatDateTime(o.thoi_gian_chi_dinh)}
                                         {o.trang_thai === 'da_chi_dinh' && ` · ${waitLabel(o.thoi_gian_cho_phut)}`}
                                     </span>
@@ -325,18 +339,18 @@ export default function ParaclinicalWorkPage() {
                         <EmptyBlock icon="Microscope" title="Chọn một chỉ định để nhập kết quả" />
                     ) : (
                         <>
-                            <div className="flex flex-wrap items-center gap-3 bg-[#F5F9FC] px-5 py-4">
+                            <div className="flex flex-wrap items-center gap-3 bg-clinic-surface-tint border-b border-clinic-border px-5 py-4">
                                 <div className="flex min-w-[260px] flex-1 flex-col gap-1">
                                     <div className="flex flex-wrap items-baseline gap-x-3">
-                                        <h2 className="text-[19px] font-bold text-[#003553]">{selected.benh_nhan?.ho_ten}</h2>
-                                        <span className="text-[13px] text-slate-500">
+                                        <h2 className="text-[19px] font-bold text-clinic-navy">{selected.benh_nhan?.ho_ten}</h2>
+                                        <span className="text-[13px] text-clinic-text-secondary tabular-nums">
                                             {selected.benh_nhan?.gioi_tinh} · {selected.benh_nhan?.tuoi} tuổi · {selected.benh_nhan?.ma}
                                         </span>
                                     </div>
-                                    <span className="text-[13px]">
+                                    <span className="text-[13px] text-clinic-text">
                                         Lý do khám: <strong className="font-medium">{selected.ly_do || '—'}</strong> · {selected.bac_si_chi_dinh} chỉ định
                                     </span>
-                                    <span className="text-[13px]">
+                                    <span className="text-[13px] text-clinic-text">
                                         Chẩn đoán sơ bộ: <strong className="font-medium">{selected.chan_doan_so_bo || '—'}</strong>
                                     </span>
                                 </div>

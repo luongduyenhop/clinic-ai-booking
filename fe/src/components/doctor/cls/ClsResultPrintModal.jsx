@@ -19,7 +19,6 @@ const TITLE_BY_GROUP = {
 const PHAN_LOAI_LABEL = { BINH_THUONG: 'Bình thường', BAT_THUONG: 'Bất thường', NGUY_KICH: 'Nguy kịch' }
 const ARROW = { CAO: '↑', THAP: '↓' }
 
-// CSS riêng của phiếu (không dùng Tailwind) để bản xem trước và bản in trong iframe giống hệt nhau
 const SHEET_CSS = `
 .cls-sheet { box-sizing: border-box; background: #fff; color: #111; font-family: 'Times New Roman', Times, serif; font-size: 12.5px; line-height: 1.4; }
 .cls-sheet * { box-sizing: border-box; }
@@ -129,7 +128,6 @@ function LabTable({ rows }) {
     )
 }
 
-// Phiếu kết quả CLS theo mẫu phiếu y tế: tiêu đề cơ sở, hành chính bệnh nhân, kết quả, chân ký KTV + thời gian
 function ReportSheet({ report: r, images, paper, printedAt }) {
     const lab = r.loai_phieu === 'XET_NGHIEM'
     const bn = r.benh_nhan
@@ -262,7 +260,6 @@ function ReportSheet({ report: r, images, paper, printedAt }) {
     )
 }
 
-// Modal in phiếu kết quả CLS đã duyệt, chọn khổ A4/A5; in qua iframe riêng để chỉ có phiếu trên giấy
 export default function ClsResultPrintModal({ orderId, open, onClose }) {
     const [paperKey, setPaperKey] = useState('A4')
     const [report, setReport] = useState(null)
@@ -280,7 +277,6 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
         clinicalService
             .getClsReport(orderId)
             .then(async (data) => {
-                // Ảnh y tế cần token nên tải blob rồi nhúng dạng data URL (iframe in không gửi được Bearer token)
                 const urls = data.loai_phieu === 'XET_NGHIEM' ? [] : data.tep_dinh_kem_urls || []
                 const embedded = await Promise.all(
                     urls.map((u) =>
@@ -355,7 +351,7 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
             destroyOnHidden
         >
             <div className="mb-3 flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Khổ giấy">
-                <span className="text-[13px] text-slate-600">Khổ giấy:</span>
+                <span className="text-[13px] text-clinic-text-secondary">Khổ giấy:</span>
                 {PAPER_SIZES.map((p) => (
                     <button
                         key={p.key}
@@ -363,8 +359,8 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
                         role="radio"
                         aria-checked={paperKey === p.key}
                         onClick={() => setPaperKey(p.key)}
-                        className={`rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition cursor-pointer ${
-                            paperKey === p.key ? 'bg-[#003553] text-white' : 'bg-[#E8F4FD] text-[#003553]'
+                        className={`rounded-[6px] px-3.5 py-1.5 text-[12px] font-semibold transition cursor-pointer border ${
+                            paperKey === p.key ? 'bg-clinic-navy text-clinic-surface border-clinic-navy' : 'bg-clinic-surface-alt text-clinic-navy border-clinic-info-border'
                         }`}
                     >
                         {p.label}
@@ -388,10 +384,10 @@ export default function ClsResultPrintModal({ orderId, open, onClose }) {
                 </div>
             )}
             {report && (
-                <div className="max-h-[70vh] overflow-auto rounded-xl bg-slate-200 p-4">
+                <div className="max-h-[70vh] overflow-auto rounded-[6px] bg-clinic-bg-muted border border-clinic-border p-4">
                     <style>{SHEET_CSS}</style>
                     <div
-                        className="mx-auto bg-white shadow-md"
+                        className="mx-auto bg-clinic-surface border border-clinic-border"
                         style={{ width: paper.width, minHeight: paperKey === 'A4' ? '297mm' : '210mm', padding: paper.margin }}
                     >
                         <div ref={sheetRef}>

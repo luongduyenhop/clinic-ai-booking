@@ -68,7 +68,18 @@ export function mapMedicalRecords(records) {
             gioKham: dateTime ? dateTime.slice(11, 16) : 'Chưa ghi nhận',
             chuyenKhoa: record.chuyen_khoa,
             phongKham: record.phong_kham,
-            bacSi: [record.bac_si_hoc_vi, record.bac_si_ho_ten].filter(Boolean).join(' '),
+            bacSi: (() => {
+                const rawName = String(record.bac_si_ho_ten || '').trim()
+                const rawDegree = String(record.bac_si_hoc_vi || '').trim()
+                if (!rawDegree || !rawName) return rawName || rawDegree
+                if (
+                    rawName.toLowerCase().startsWith(rawDegree.toLowerCase()) ||
+                    /^(bs|p\.?gs|gs|ts|ths)/i.test(rawName)
+                ) {
+                    return rawName
+                }
+                return `${rawDegree} ${rawName}`
+            })(),
             trangThai: record.trang_thai_luot_kham,
             lyDoKham: record.ly_do_vao_kham || record.trieu_chung || 'Không ghi nhận',
             tienSu: record.benh_su || 'Không ghi nhận',

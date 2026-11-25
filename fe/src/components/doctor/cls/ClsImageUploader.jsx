@@ -24,7 +24,7 @@ function useAuthImage(url) {
     const [state, setState] = useState({ src: null, error: false })
     useEffect(() => {
         if (!url) return undefined
-        if (url.startsWith('http://') || url.startsWith('https://')) {
+        if (/^https?:/i.test(url)) {
             setState({ src: url, error: false })
             return undefined
         }
@@ -50,12 +50,12 @@ function AuthImage({ url, alt, className }) {
     const { src, error } = useAuthImage(url)
     if (error) {
         return (
-            <div className={`flex items-center justify-center bg-slate-100 text-[11px] text-slate-500 ${className}`}>
+            <div className={`flex items-center justify-center bg-clinic-bg-muted text-[11px] text-clinic-text-secondary ${className}`}>
                 Không tải được ảnh
             </div>
         )
     }
-    if (!src) return <div className={`animate-pulse bg-slate-200 ${className}`} />
+    if (!src) return <div className={`bg-clinic-bg-muted border border-clinic-border ${className}`} />
     return <img src={src} alt={alt} className={className} draggable={false} />
 }
 
@@ -104,12 +104,12 @@ function ImageLightbox({ urls, index, onIndex, onClose }) {
         if (drag.current) setOffset({ x: e.clientX - drag.current.x, y: e.clientY - drag.current.y })
     }
 
-    const btn = 'flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/25 cursor-pointer disabled:opacity-40'
+    const btn = 'flex h-10 w-10 items-center justify-center rounded-[6px] bg-clinic-navy/70 text-clinic-surface transition hover:bg-clinic-cta cursor-pointer disabled:opacity-40'
 
     return createPortal(
-        <div role="dialog" aria-modal="true" aria-label="Xem ảnh kết quả" className="fixed inset-0 z-[1000] flex flex-col bg-black/95">
-            <div className="flex items-center gap-2 px-4 py-3 text-white">
-                <span className="flex-1 text-[13px]">
+        <div role="dialog" aria-modal="true" aria-label="Xem ảnh kết quả" className="fixed inset-0 z-[1000] flex flex-col bg-clinic-navy-dark/95">
+            <div className="flex items-center gap-2 px-4 py-3 text-clinic-surface">
+                <span className="flex-1 text-[13px] tabular-nums">
                     Ảnh {index + 1}/{urls.length} · {Math.round(zoom * 100)}%
                 </span>
                 <button type="button" className={btn} onClick={() => step(-1)} disabled={zoom <= ZOOM_STEPS[0]} aria-label="Thu nhỏ">
@@ -117,7 +117,7 @@ function ImageLightbox({ urls, index, onIndex, onClose }) {
                 </button>
                 <button
                     type="button"
-                    className="rounded-full bg-white/10 px-3 py-2 text-[12px] font-semibold text-white hover:bg-white/25 cursor-pointer"
+                    className="rounded-[6px] bg-clinic-navy/70 px-3 py-2 text-[12px] font-semibold text-clinic-surface hover:bg-clinic-cta cursor-pointer"
                     onClick={() => {
                         setZoom(1)
                         setOffset({ x: 0, y: 0 })
@@ -170,7 +170,7 @@ export function ClsImageGallery({ urls, onDelete, deleting, className = '' }) {
                         <button
                             type="button"
                             onClick={() => setViewing(i)}
-                            className="block w-full overflow-hidden rounded-lg bg-slate-900 ring-1 ring-slate-200 cursor-zoom-in"
+                            className="block w-full overflow-hidden rounded-[6px] bg-clinic-navy-dark border border-clinic-border cursor-zoom-in"
                             aria-label={`Xem phóng to ảnh ${i + 1}`}
                         >
                             <AuthImage url={url} alt={`Ảnh kết quả ${i + 1}`} className="aspect-square w-full object-cover" />
@@ -181,7 +181,7 @@ export function ClsImageGallery({ urls, onDelete, deleting, className = '' }) {
                                 onClick={() => onDelete(url)}
                                 disabled={deleting === url}
                                 aria-label={`Xóa ảnh ${i + 1}`}
-                                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow transition hover:bg-rose-50 cursor-pointer disabled:opacity-50"
+                                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-[6px] bg-clinic-surface text-clinic-danger border border-clinic-danger-border transition hover:bg-clinic-danger-bg cursor-pointer disabled:opacity-50"
                             >
                                 <ClinicIcon name="Trash" size={14} />
                             </button>
@@ -281,7 +281,7 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
         <div className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
                 <span className="medpro-label !mb-0">Ảnh kết quả</span>
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-clinic-text-secondary tabular-nums">
                     {urls.length}/{MAX_IMAGES} ảnh
                 </span>
             </div>
@@ -303,12 +303,12 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
-                className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center text-[12px] transition ${
+                className={`flex flex-col items-center justify-center gap-1.5 rounded-[6px] border-2 border-dashed px-4 py-6 text-center text-[12px] transition ${
                     blocked
-                        ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+                        ? 'cursor-not-allowed border-clinic-border bg-clinic-bg text-clinic-text-muted'
                         : dragOver
-                          ? 'cursor-copy border-[#00B5F1] bg-[#E8F4FD] text-[#003553]'
-                          : 'cursor-pointer border-slate-300 text-slate-500 hover:border-[#00B5F1] hover:bg-[#F5F9FC]'
+                          ? 'cursor-copy border-clinic-cta bg-clinic-surface-alt text-clinic-navy'
+                          : 'cursor-pointer border-clinic-border-strong text-clinic-text-secondary hover:border-clinic-cta hover:bg-clinic-surface-tint'
                 }`}
             >
                 <ClinicIcon name="UploadSimple" size={24} />
@@ -331,7 +331,7 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
             </div>
 
             {errors.length > 0 && (
-                <div role="alert" className="flex flex-col gap-1 rounded-lg bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
+                <div role="alert" className="flex flex-col gap-1 rounded-[6px] bg-clinic-danger-bg border border-clinic-danger-border px-3 py-2 text-[12px] text-clinic-danger">
                     <span className="flex items-center gap-1.5 font-semibold">
                         <ClinicIcon name="WarningCircle" size={14} /> Không tải lên được {errors.length} tệp
                     </span>
@@ -344,13 +344,13 @@ export default function ClsImageUploader({ orderId, urls, onChange, disabled, di
             {uploads.length > 0 && (
                 <ul className="flex flex-col gap-2" aria-label="Ảnh đang tải lên">
                     {uploads.map((u) => (
-                        <li key={u.key} className="flex flex-col gap-1 text-[12px]">
+                        <li key={u.key} className="flex flex-col gap-1 text-[12px] tabular-nums">
                             <span className="flex justify-between gap-2">
                                 <span className="truncate">{u.file.name}</span>
-                                <span className="text-slate-500">{u.progress}%</span>
+                                <span className="text-clinic-text-secondary">{u.progress}%</span>
                             </span>
-                            <span className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-                                <span className="block h-full rounded-full bg-[#00B5F1] transition-all" style={{ width: `${u.progress}%` }} />
+                            <span className="h-1.5 overflow-hidden rounded-[4px] bg-clinic-bg-muted">
+                                <span className="block h-full rounded-[4px] bg-clinic-cta transition-all" style={{ width: `${u.progress}%` }} />
                             </span>
                         </li>
                     ))}

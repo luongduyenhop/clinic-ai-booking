@@ -104,13 +104,12 @@ function mapEncounterRecord(enc, fallbackTicket, user, idx) {
 
 export default function DoctorDashboardPage() {
     const dispatch = useDispatch()
-    const [searchParams, setSearchParams] = useSearchParams()
+    const [searchParams] = useSearchParams()
     const { user } = useSelector((state) => state.app.auth)
-    const { queue = [] } = useSelector((state) => state.doctor.clinical)
+    const { queue = [] } = useSelector((state) => state.doctor?.clinical || {})
 
     const tabParam = (searchParams.get('tab') || '').toUpperCase()
-    const initialTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
-    const [activeTab, setActiveTab] = useState(initialTab)
+    const activeTab = tabParam === 'SCHEDULE' ? 'SCHEDULE' : tabParam === 'HISTORY' ? 'HISTORY' : 'EXAM'
     const [serverHistory, setServerHistory] = useState([])
 
     const loadCompletedHistory = useCallback(async () => {
@@ -135,39 +134,13 @@ export default function DoctorDashboardPage() {
     }, [dispatch, loadCompletedHistory])
 
     useEffect(() => {
-        if (tabParam === 'SCHEDULE' || tabParam === 'HISTORY' || tabParam === 'EXAM') {
-            setActiveTab(tabParam)
-            if (tabParam === 'HISTORY') {
-                loadCompletedHistory()
-            }
-        }
-    }, [tabParam, loadCompletedHistory])
-
-    const handleTabChange = (newTab) => {
-        setActiveTab(newTab)
-        if (newTab === 'HISTORY') {
+        if (activeTab === 'HISTORY') {
             dispatch(fetchDoctorQueueAsync())
             loadCompletedHistory()
-        } else if (newTab === 'EXAM') {
+        } else if (activeTab === 'EXAM') {
             dispatch(fetchDoctorQueueAsync())
         }
-        const nextParams = new URLSearchParams(searchParams)
-        if (newTab === 'EXAM') {
-            nextParams.delete('tab')
-        } else {
-            nextParams.set('tab', newTab.toLowerCase())
-        }
-        setSearchParams(nextParams, { replace: true })
-    }
-
-    const activeQueueCount = useMemo(() => {
-        const allEncounters = clinicalService.getAllEncountersSync()
-        return queue.filter((t) => {
-            if (t.trang_thai === 'da_kham') return false
-            const enc = allEncounters[t.encounter_id] || allEncounters[String(t.encounter_id)]
-            return !enc?.is_locked
-        }).length
-    }, [queue])
+    }, [activeTab, dispatch, loadCompletedHistory])
 
     const examinedList = useMemo(() => {
         const seenServerIds = new Set()
@@ -205,80 +178,9 @@ export default function DoctorDashboardPage() {
 
     return (
         <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-1.5 w-fit">
-                <nav className="flex items-center gap-1.5" aria-label="Doctor Workstation Tabs">
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('EXAM')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'EXAM'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>🩺</span>
-                        <span>Khám Bệnh</span>
-                        <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                activeTab === 'EXAM'
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                            {activeQueueCount}
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('SCHEDULE')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'SCHEDULE'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>📅</span>
-                        <span>Lịch Làm Việc &amp; Ca Trực</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => handleTabChange('HISTORY')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                            activeTab === 'HISTORY'
-                                ? 'bg-gradient-to-r from-[#00A9E3] to-[#0077B6] text-white shadow-md shadow-sky-500/20'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        <span>📋</span>
-                        <span>Bệnh Nhân Đã Khám</span>
-                        <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                activeTab === 'HISTORY'
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                            {examinedList.length}
-                        </span>
-                    </button>
-                </nav>
-            </div>
-
-            <div>
-                {activeTab === 'EXAM' && (
-                    <ExamWorkstationPage />
-                )}
-
-                {activeTab === 'SCHEDULE' && (
-                    <DoctorScheduleTab doctorInfo={user} />
-                )}
-
-                {activeTab === 'HISTORY' && (
-                    <ExaminedHistoryTab examinedList={examinedList} />
-                )}
-            </div>
+            {activeTab === 'EXAM' && <ExamWorkstationPage />}
+            {activeTab === 'SCHEDULE' && <DoctorScheduleTab doctorInfo={user} />}
+            {activeTab === 'HISTORY' && <ExaminedHistoryTab examinedList={examinedList} doctorInfo={user} />}
         </div>
     )
 }

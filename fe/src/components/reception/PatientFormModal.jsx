@@ -9,6 +9,7 @@ import {
     updatePatientAsync,
     searchPatientsAsync,
 } from '../../redux/actions/reception/receptionAction'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 const BLOOD_TYPE_OPTIONS = [
     { value: 'O+', label: 'Nhóm máu O+' },
@@ -63,18 +64,16 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                     message.success('Tạo hồ sơ bệnh nhân mới thành công!')
                     if (onCreatedSuccess) onCreatedSuccess(result)
                 }
-                // Refresh danh bạ bệnh nhân
                 dispatch(searchPatientsAsync({ search: '', page: 1, pageSize: 15 }))
                 resetForm()
                 setDuplicateWarning(null)
                 onClose()
             } catch (err) {
-                message.error(err.message || 'Lỗi khi lưu hồ sơ bệnh nhân')
+                message.error(toFriendlyErrorMessage(err, 'Lỗi khi lưu hồ sơ bệnh nhân'))
             }
         },
     })
 
-    // Check duplicate suspect in real-time when typing CCCD or Phone
     useEffect(() => {
         if (isEdit) return
         const { identityCard, phone, fullName } = formik.values
@@ -102,7 +101,7 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
     return (
         <Modal
             title={
-                <span className="font-bold text-slate-800">
+                <span className="font-bold text-clinic-navy">
                     {isEdit ? `Chỉnh sửa hồ sơ: ${patientCode}` : 'Tạo mới hồ sơ người bệnh tại quầy'}
                 </span>
             }
@@ -116,7 +115,7 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
             footer={
                 <div className="flex justify-end gap-2">
                     <Button onClick={onClose}>Hủy bỏ</Button>
-                    <Button type="primary" onClick={formik.handleSubmit} className="bg-sky-600" loading={formik.isSubmitting}>
+                    <Button type="primary" onClick={formik.handleSubmit} className="medpro-btn-primary" loading={formik.isSubmitting}>
                         {isEdit ? 'Lưu thay đổi' : 'Tạo hồ sơ'}
                     </Button>
                 </div>
@@ -133,28 +132,28 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Full Name */}
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Họ và tên người bệnh <span className="text-red-500">*</span>
+                        <label htmlFor="pf-full-name" className="medpro-label">
+                            Họ và tên người bệnh <span className="text-clinic-danger">*</span>
                         </label>
                         <Input
+                            id="pf-full-name"
                             placeholder="Nhập đầy đủ họ và tên..."
                             value={formik.values.fullName}
                             onChange={(e) => formik.setFieldValue('fullName', e.target.value)}
                             status={formik.touched.fullName && formik.errors.fullName ? 'error' : ''}
                         />
                         {formik.touched.fullName && formik.errors.fullName && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.fullName}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.fullName}</span>
                         )}
                     </div>
 
-                    {/* Gender */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Giới tính <span className="text-red-500">*</span>
+                        <label htmlFor="pf-gender" className="medpro-label">
+                            Giới tính <span className="text-clinic-danger">*</span>
                         </label>
                         <Select
+                            id="pf-gender"
                             className="w-full"
                             value={formik.values.gender}
                             onChange={(val) => formik.setFieldValue('gender', val)}
@@ -166,44 +165,44 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                         />
                     </div>
 
-                    {/* DOB */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Ngày sinh <span className="text-red-500">*</span>
+                        <label htmlFor="pf-dob" className="medpro-label">
+                            Ngày sinh <span className="text-clinic-danger">*</span>
                         </label>
                         <DatePicker
+                            id="pf-dob"
                             className="w-full"
                             format="DD/MM/YYYY"
                             value={formik.values.dob ? dayjs(formik.values.dob) : null}
                             onChange={(date) => formik.setFieldValue('dob', date ? date.format('YYYY-MM-DD') : '')}
                         />
                         {formik.touched.dob && formik.errors.dob && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.dob}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.dob}</span>
                         )}
                     </div>
 
-                    {/* Phone */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Số điện thoại <span className="text-red-500">*</span>
+                        <label htmlFor="pf-phone" className="medpro-label">
+                            Số điện thoại <span className="text-clinic-danger">*</span>
                         </label>
                         <Input
+                            id="pf-phone"
                             placeholder="0912345678 (10 số)"
                             value={formik.values.phone}
                             onChange={(e) => formik.setFieldValue('phone', e.target.value)}
                             status={formik.touched.phone && formik.errors.phone ? 'error' : ''}
                         />
                         {formik.touched.phone && formik.errors.phone && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.phone}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.phone}</span>
                         )}
                     </div>
 
-                    {/* Blood Type */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Nhóm máu <span className="text-red-500">*</span>
+                        <label htmlFor="pf-blood-type" className="medpro-label">
+                            Nhóm máu <span className="text-clinic-danger">*</span>
                         </label>
                         <Select
+                            id="pf-blood-type"
                             className="w-full"
                             value={formik.values.bloodType}
                             onChange={(val) => formik.setFieldValue('bloodType', val)}
@@ -211,53 +210,53 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                         />
                     </div>
 
-                    {/* Identity Card */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <label htmlFor="pf-cccd" className="medpro-label">
                             Số CCCD / Định danh
                         </label>
                         <Input
+                            id="pf-cccd"
                             placeholder="12 chữ số CCCD"
                             value={formik.values.identityCard}
                             onChange={(e) => formik.setFieldValue('identityCard', e.target.value)}
                             status={formik.touched.identityCard && formik.errors.identityCard ? 'error' : ''}
                         />
                         {formik.touched.identityCard && formik.errors.identityCard && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.identityCard}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.identityCard}</span>
                         )}
                     </div>
 
-                    {/* Address */}
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <label htmlFor="pf-address" className="medpro-label">
                             Địa chỉ thường trú
                         </label>
                         <Input
+                            id="pf-address"
                             placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
                             value={formik.values.address}
                             onChange={(e) => formik.setFieldValue('address', e.target.value)}
                         />
                     </div>
 
-                    {/* Allergies / Tiền sử dị ứng */}
                     <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-rose-700 uppercase mb-1">
+                        <label htmlFor="pf-allergies" className="medpro-label !text-clinic-danger">
                             Tiền sử dị ứng (Thuốc, thức ăn, hóa chất...)
                         </label>
                         <Input
+                            id="pf-allergies"
                             placeholder="Ví dụ: Dị ứng Penicillin, Aspirin, hải sản (nếu không có thì để trống hoặc ghi 'Không')..."
                             value={formik.values.allergies}
                             onChange={(e) => formik.setFieldValue('allergies', e.target.value)}
-                            className="border-rose-200 focus:border-rose-500"
+                            className="border-clinic-danger-border focus:border-clinic-danger-solid"
                         />
                     </div>
 
-                    {/* Medical History / Tiền sử bệnh lý */}
                     <div className="md:col-span-3">
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <label htmlFor="pf-history" className="medpro-label">
                             Tiền sử bệnh lý (Bệnh nền, phẫu thuật trước đây...)
                         </label>
                         <Input.TextArea
+                            id="pf-history"
                             rows={2}
                             placeholder="Ví dụ: Viêm dạ dày Hp (+), Cao huyết áp, Đái tháo đường Type 2..."
                             value={formik.values.medicalHistory}
@@ -265,24 +264,24 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                         />
                     </div>
 
-                    {/* Guardian Name */}
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <label htmlFor="pf-guardian-name" className="medpro-label">
                             Người đại diện / Người giám hộ (nếu là trẻ em hoặc người cao tuổi)
                         </label>
                         <Input
+                            id="pf-guardian-name"
                             placeholder="Ví dụ: Nguyễn Văn B (Bố / Con)"
                             value={formik.values.guardianName}
                             onChange={(e) => formik.setFieldValue('guardianName', e.target.value)}
                         />
                     </div>
 
-                    {/* Guardian Phone */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <label htmlFor="pf-guardian-phone" className="medpro-label">
                             SĐT người đại diện
                         </label>
                         <Input
+                            id="pf-guardian-phone"
                             placeholder="SĐT liên hệ khẩn cấp"
                             value={formik.values.guardianPhone}
                             onChange={(e) => formik.setFieldValue('guardianPhone', e.target.value)}
@@ -290,11 +289,10 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                     </div>
                 </div>
 
-                {/* Missing documents checkboxes */}
-                <div className="pt-2 border-t border-slate-200">
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <div className="pt-2 border-t border-clinic-border">
+                    <span className="medpro-label">
                         Kiểm tra giấy tờ hành chính còn thiếu
-                    </label>
+                    </span>
                     <Checkbox.Group
                         value={formik.values.missingDocs}
                         onChange={(checkedValues) => formik.setFieldValue('missingDocs', checkedValues)}
@@ -304,12 +302,12 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                     </Checkbox.Group>
                 </div>
 
-                {/* Note */}
                 <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    <label htmlFor="pf-note" className="medpro-label">
                         Ghi chú hành chính / Tiếp đón
                     </label>
                     <Input.TextArea
+                        id="pf-note"
                         rows={2}
                         placeholder="Cần hỗ trợ xe lăn, phiên dịch viên, ưu tiên người già..."
                         value={formik.values.note}

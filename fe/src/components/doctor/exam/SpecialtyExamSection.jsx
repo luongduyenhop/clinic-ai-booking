@@ -1,8 +1,8 @@
 import { findSpecialtyExam } from '../../../utils/constants/clinical'
 
 const STATUS_OPTIONS = [
-    { code: 'BT', label: 'Bình thường', on: 'bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500' },
-    { code: 'BAT', label: 'Bất thường', on: 'bg-rose-50 text-rose-800 ring-2 ring-rose-500' },
+    { code: 'BT', label: 'Bình thường', on: 'bg-clinic-success-bg text-clinic-success border-clinic-success-border' },
+    { code: 'BAT', label: 'Bất thường', on: 'bg-clinic-danger-bg text-clinic-danger border-clinic-danger-border' },
 ]
 
 export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
@@ -29,7 +29,7 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                 <span>Khám chuyên khoa</span>
                 <span className="flex flex-wrap items-center gap-2">
                     <span
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#B8E6F7] bg-[#E8F4FD] px-3 py-1 text-[12px] font-bold text-[#003553]"
+                        className="inline-flex items-center gap-1.5 rounded-[6px] border border-clinic-info-border bg-clinic-surface-alt px-3 py-1 text-[12px] font-bold text-clinic-navy"
                         aria-label="Chuyên khoa khám"
                     >
                         <span>Chuyên khoa:</span>
@@ -42,17 +42,17 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                     )}
                 </span>
             </div>
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-clinic-text-secondary tabular-nums">
                 Đã khám {done}/{spec.items.length} mục. Mục bất thường cần ghi mô tả.
             </p>
 
-            <div className="flex flex-col divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
+            <div className="flex flex-col divide-y divide-clinic-border rounded-[6px] border border-clinic-border bg-clinic-surface">
                 {spec.items.map((label) => {
                     const it = exam.items?.[label] || {}
                     const missingNote = it.status === 'BAT' && !String(it.note || '').trim()
                     return (
                         <div key={label} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
-                            <span className="min-w-[150px] flex-1 font-semibold text-[#003553]">{label}</span>
+                            <span className="min-w-[150px] flex-1 font-semibold text-clinic-navy">{label}</span>
                             <div role="radiogroup" aria-label={label} className="flex gap-1.5">
                                 {STATUS_OPTIONS.map((o) => (
                                     <button
@@ -62,8 +62,10 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                                         aria-checked={it.status === o.code}
                                         disabled={locked}
                                         onClick={() => setItem(label, { status: it.status === o.code ? undefined : o.code })}
-                                        className={`rounded-full px-3 py-1 text-[12px] font-semibold transition cursor-pointer disabled:cursor-not-allowed ${
-                                            it.status === o.code ? o.on : 'bg-[#F5F9FC] text-slate-600 hover:bg-[#EEF6FC]'
+                                        className={`rounded-[6px] px-3 py-1 text-xs font-bold border transition cursor-pointer disabled:cursor-not-allowed ${
+                                            it.status === o.code
+                                                ? o.on
+                                                : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border hover:bg-clinic-surface-tint hover:text-clinic-navy'
                                         }`}
                                     >
                                         {o.label}
@@ -73,7 +75,7 @@ export default function SpecialtyExamSection({ formik, defaultKhoa, locked }) {
                             {it.status === 'BAT' && (
                                 <input
                                     aria-label={`Mô tả bất thường — ${label}`}
-                                    className={`medpro-input basis-full ${missingNote ? '!border-rose-400' : ''}`}
+                                    className={`medpro-input basis-full ${missingNote ? '!border-clinic-danger-solid' : ''}`}
                                     placeholder={`Mô tả bất thường ở mục ${label.toLowerCase()}…`}
                                     value={it.note || ''}
                                     onChange={(e) => setItem(label, { note: e.target.value })}

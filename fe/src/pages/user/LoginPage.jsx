@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppToast } from '../../components/common/AppNotification'
 import { loginUserAsync } from '../../redux/actions/user/authAction'
-import { Hospital, LockKey, PhoneCall, ShieldCheck } from '../../components/common/ClinicIcon'
+import { Hospital, LockKey, PhoneCall } from '../../components/common/ClinicIcon'
 import { buildPatientLoginCredentials, patientLoginValidationSchema } from '../../utils/auth/patientLoginValidation'
 
 export default function LoginPage() {
@@ -20,7 +20,7 @@ export default function LoginPage() {
                 loginUserAsync(buildPatientLoginCredentials(values))
             )
             if (loginUserAsync.fulfilled.match(result)) {
-                AppToast.success('Đăng nhập Cổng Bệnh Nhân thành công!')
+                AppToast.success('Đã đăng nhập')
                 const target = location.state?.from?.pathname || '/benh-nhan'
                 navigate(target, { replace: true })
             }
@@ -29,7 +29,7 @@ export default function LoginPage() {
 
     return (
         <AuthShell
-            title="Cổng Bệnh Nhân — Đăng Nhập"
+            title="Đăng nhập"
             description="Đăng nhập để đặt lịch khám, tra cứu đơn thuốc điện tử và theo dõi kết quả cận lâm sàng."
         >
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
@@ -53,16 +53,16 @@ export default function LoginPage() {
                 />
 
                 <div className="flex items-center justify-between text-xs">
-                    <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
-                        <input type="checkbox" className="rounded text-[#00B5F1]" /> Ghi nhớ đăng nhập
+                    <label className="flex items-center gap-2 text-clinic-text-secondary cursor-pointer">
+                        <input type="checkbox" /> Ghi nhớ đăng nhập
                     </label>
-                    <button type="button" className="font-bold text-[#008EC2] hover:underline cursor-pointer">
+                    <button type="button" className="font-bold text-clinic-cta hover:underline cursor-pointer">
                         Quên mật khẩu?
                     </button>
                 </div>
 
                 {authError && (
-                    <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                    <p role="alert" className="rounded-[8px] border border-clinic-danger-border bg-clinic-danger-bg p-3 text-xs text-clinic-danger">
                         {authError}
                     </p>
                 )}
@@ -71,33 +71,35 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={formik.isSubmitting}
-                        className="medpro-btn-primary w-full min-h-12 !text-sm font-bold cursor-pointer"
+                        className="medpro-btn-primary w-full min-h-11 !text-sm font-bold cursor-pointer"
                     >
-                        {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng Nhập'}
+                        {formik.isSubmitting ? 'Đang xác thực...' : 'Đăng nhập'}
                     </button>
                 </div>
 
                 {import.meta.env.VITE_DEMO_MODE === 'true' ? (
-                    <p className="text-center text-sm text-slate-500 pt-2">Dùng tài khoản demo do người tổ chức cung cấp.</p>
+                    <p className="text-center text-sm text-clinic-text-secondary pt-2">
+                        Dùng tài khoản demo do người tổ chức cung cấp.
+                    </p>
                 ) : (
-                <p className="text-center text-sm text-slate-500 pt-2">
-                    Chưa có tài khoản khám bệnh?{' '}
-                    <Link to="/register" className="font-bold text-[#008EC2] hover:underline">
-                        Đăng ký ngay
-                    </Link>
-                </p>
+                    <p className="text-center text-sm text-clinic-text-secondary pt-2">
+                        Chưa có tài khoản khám bệnh?{' '}
+                        <Link to="/register" className="font-bold text-clinic-cta hover:underline">
+                            Đăng ký ngay
+                        </Link>
+                    </p>
                 )}
 
-                <div className="mt-6 pt-4 border-t border-slate-200/80 text-center">
-                    <p className="text-xs text-slate-500 mb-1.5">
+                <div className="mt-6 pt-4 border-t border-clinic-border text-center">
+                    <p className="text-xs text-clinic-text-muted mb-2">
                         Bạn là Bác sĩ, Lễ tân, Thu ngân, KTV hoặc Ban Quản trị?
                     </p>
                     <Link
                         to="/staff/login"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00263C] hover:bg-[#003553] text-white text-xs font-bold transition shadow-xs"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-clinic-navy-dark hover:bg-clinic-navy text-clinic-surface text-xs font-bold transition-colors"
                     >
-                        <span>🔒 Đăng nhập Cổng Nhân Viên Y Tế (HIS)</span>
-                        <span>→</span>
+                        <LockKey size={14} weight="bold" />
+                        <span>Truy cập Hệ thống Nhân viên Y tế (HIS)</span>
                     </Link>
                 </div>
             </form>
@@ -105,46 +107,38 @@ export default function LoginPage() {
     )
 }
 
-export function AuthShell({ title, description, children }) {
+export function AuthShell({ title, description, maxWidthClass = 'max-w-[460px]', children }) {
     return (
-        <div className="min-h-[calc(100vh-72px)] bg-[#F7FBFE] py-10 px-4 flex items-center justify-center">
-            <div className="w-full max-w-[980px] grid lg:grid-cols-[.9fr_1.1fr] medpro-card overflow-hidden shadow-lg border border-[#E2EDF5]">
-                <div className="hidden lg:flex bg-[#003553] p-10 text-white flex-col justify-between">
-                    <div>
-                        <Link to="/" className="inline-flex items-center gap-2 font-display font-extrabold text-xl">
-                            <span className="w-10 h-10 rounded-xl bg-[#00B5F1] flex items-center justify-center text-white">
-                                <Hospital size={21} weight="fill" />
-                            </span>
-                            CLINIC-AI
-                        </Link>
-                        <h2 className="mt-16 font-display text-3xl font-extrabold leading-tight">
-                            Chủ động lịch khám.
-                            <br />
-                            An tâm chăm sóc.
-                        </h2>
-                        <p className="mt-4 text-sm leading-6 text-sky-100/80">
-                            Đặt lịch nhanh chóng, nhận thông báo kịp thời và quản lý thông tin khám bệnh trên một nền tảng.
-                        </p>
-                    </div>
-                    <div className="space-y-3 text-sm text-sky-50">
-                        {['Thông tin được bảo mật', 'Đội ngũ bác sĩ xác thực', 'Hỗ trợ đặt lịch 24/7'].map((item) => (
-                            <p key={item} className="flex items-center gap-2">
-                                <ShieldCheck size={18} weight="fill" className="text-[#00B5F1]" />
-                                {item}
-                            </p>
-                        ))}
-                    </div>
-                </div>
-                <div className="p-6 sm:p-10 lg:p-12">
-                    <div className="mb-8">
-                        <span className="lg:hidden inline-flex w-11 h-11 rounded-xl bg-[#00B5F1] text-white items-center justify-center mb-5">
-                            <Hospital size={22} weight="fill" />
+        <div className="min-h-[calc(100vh-102px)] bg-clinic-bg py-10 px-4 flex items-center justify-center">
+            <div className={`w-full ${maxWidthClass} mx-auto space-y-5`}>
+                <div className="text-center space-y-2">
+                    <Link
+                        to="/"
+                        className="inline-flex items-center gap-2 font-display font-extrabold text-base text-clinic-navy"
+                    >
+                        <span className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center shrink-0">
+                            <Hospital size={17} weight="fill" />
                         </span>
-                        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#003553]">{title}</h1>
-                        <p className="mt-2 text-sm text-slate-500">{description}</p>
-                    </div>
+                        <span>CLINIC-AI</span>
+                    </Link>
+                    <p className="text-xs font-semibold text-clinic-cta">
+                        Lịch hẹn và hồ sơ khám của bạn
+                    </p>
+                    <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-clinic-navy">
+                        {title}
+                    </h1>
+                    <p className="text-sm text-clinic-text-secondary">
+                        {description}
+                    </p>
+                </div>
+
+                <div className="medpro-card bg-clinic-surface p-6 sm:p-8">
                     {children}
                 </div>
+
+                <p className="text-center text-xs text-clinic-text-muted tabular-nums">
+                    Giờ tiếp nhận: 07:30 – 17:30 (Thứ 2 – Thứ 7) · Hotline 1900 6868
+                </p>
             </div>
         </div>
     )
@@ -158,7 +152,7 @@ function Field({ label, name, type, placeholder, autoComplete, formik, icon }) {
                 {label}
             </label>
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-clinic-text-muted">{icon}</span>
                 <input
                     id={name}
                     name={name}
@@ -168,12 +162,12 @@ function Field({ label, name, type, placeholder, autoComplete, formik, icon }) {
                     onBlur={formik.handleBlur}
                     placeholder={placeholder}
                     autoComplete={autoComplete}
-                    className="medpro-input !pl-10 min-h-12"
+                    className="medpro-input !pl-10 min-h-11"
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? `${name}-error` : undefined}
                 />
             </div>
-            {error && <p id={`${name}-error`} className="mt-1.5 text-xs text-rose-600">{error}</p>}
+            {error && <p id={`${name}-error`} className="mt-1.5 text-xs text-clinic-danger">{error}</p>}
         </div>
     )
 }

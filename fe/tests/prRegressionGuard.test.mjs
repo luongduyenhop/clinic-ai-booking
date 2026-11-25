@@ -91,7 +91,7 @@ test('Admin layout and dashboard maintain core structure and zero comments', asy
     const dashboardContent = await readFile(new URL('../src/pages/admin/DashboardAdminPage.jsx', import.meta.url), 'utf8')
     assert.ok(templateContent.includes('AdminHeader'), 'AdminTemplate must render AdminHeader')
     assert.ok(templateContent.includes('getNavigationConfig'), 'AdminTemplate must use getNavigationConfig')
-    assert.ok(templateContent.includes('Trung tâm Điều hành & Thống kê BI'), 'AdminTemplate must retain BI breadcrumb')
+    assert.ok(templateContent.includes("if (p === '/admin') return 'Tổng quan'"), 'AdminTemplate must render Tổng quan breadcrumb')
     assert.ok(!templateContent.includes('//') && !templateContent.includes('/*'), 'AdminTemplate must be clean without comments')
     assert.ok(dashboardContent.includes('getDashboardStatsAsync'), 'DashboardAdminPage must fetch dashboard stats')
     assert.ok(dashboardContent.includes('OPERATIONAL_PORTAL_LINKS'), 'DashboardAdminPage must define operational portal links')

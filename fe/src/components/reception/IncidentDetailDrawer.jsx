@@ -60,7 +60,7 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
     }, [open, incident?.nghi_phep_id])
 
     const doctorOptions = [
-        { value: null, label: '⚡ Tự động Cân bằng tải (BS ít người chờ nhất)' },
+        { value: null, label: 'Tự động cân bằng tải (BS ít người chờ nhất)' },
         ...(incident?.danh_sach_bac_si_thay_the || []).map((alt) => ({
             value: alt.bac_si_id,
             label: `BS. ${alt.ten_bac_si} (${alt.phong_kham || 'Buồng'} - Chờ: ${alt.so_benh_nhan_cho} BN)`,
@@ -159,7 +159,7 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                         {r.ma_lich_kham || `STT ${r.so_thu_tu_kham || r.ticket_id}`}
                     </Tag>
                     {r.loai_hang_doi && (
-                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                        <span className="text-[10px] text-clinic-text-muted block mt-0.5">
                             {r.loai_hang_doi === 'dung_hen' ? 'Đúng hẹn' : 'Vãng lai'}
                         </span>
                     )}
@@ -171,12 +171,12 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
             key: 'patient',
             render: (_, r) => (
                 <div className="space-y-0.5">
-                    <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                        <UserOutlined className="text-sky-600" />
+                    <div className="font-bold text-clinic-navy text-xs flex items-center gap-1.5">
+                        <UserOutlined className="text-clinic-cta" />
                         <span>{r.ten_benh_nhan}</span>
                     </div>
                     {r.so_dien_thoai && (
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <div className="text-[11px] text-clinic-text-secondary flex items-center gap-1 tabular-nums">
                             <PhoneOutlined />
                             <span>{r.so_dien_thoai}</span>
                         </div>
@@ -192,15 +192,15 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
             key: 'time',
             width: 130,
             render: (_, r) => (
-                <div className="text-xs text-slate-600 space-y-0.5">
+                <div className="text-xs text-clinic-text-secondary space-y-0.5 tabular-nums">
                     {r.gio_kham && (
                         <div className="flex items-center gap-1">
-                            <ClockCircleOutlined className="text-sky-600" />
+                            <ClockCircleOutlined className="text-clinic-cta" />
                             <span>Hẹn: <strong>{r.gio_kham}</strong></span>
                         </div>
                     )}
                     {r.thoi_gian_check_in && (
-                        <div className="text-[10.5px] text-slate-400">
+                        <div className="text-[10.5px] text-clinic-text-muted">
                             Check-in: {dayjs(r.thoi_gian_check_in).format('HH:mm')}
                         </div>
                     )}
@@ -236,9 +236,9 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
             key: 'patient',
             render: (_, r) => (
                 <div className="space-y-0.5">
-                    <span className="font-bold text-slate-800 text-xs block">{r.ten_benh_nhan}</span>
+                    <span className="font-bold text-clinic-navy text-xs block">{r.ten_benh_nhan}</span>
                     {r.so_dien_thoai && (
-                        <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <span className="text-[11px] text-clinic-text-secondary flex items-center gap-1 tabular-nums">
                             <PhoneOutlined />
                             <span>{r.so_dien_thoai}</span>
                         </span>
@@ -250,8 +250,8 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
             title: 'Ca & Ngày mong muốn',
             key: 'desired',
             render: (_, r) => (
-                <span className="text-xs text-slate-700">
-                    {r.ca_mong_muon === 'sang' ? 'Ca sáng' : r.ca_mong_muon === 'chieu' ? 'Ca chiều' : r.ca_mong_muon || 'Trong ngày'} • {r.ngay_mong_muon || 'Hôm nay'}
+                <span className="text-xs text-clinic-text tabular-nums">
+                    {r.ca_mong_muon === 'sang' ? 'Ca sáng' : r.ca_mong_muon === 'chieu' ? 'Ca chiều' : r.ca_mong_muon || 'Trong ngày'} · {r.ngay_mong_muon || 'Hôm nay'}
                 </span>
             ),
         },
@@ -262,13 +262,13 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
             <Drawer
                 title={
                     <div className="flex items-center gap-2">
-                        <SwapOutlined className="text-sky-600 text-base" />
+                        <SwapOutlined className="text-clinic-cta text-base" />
                         <div>
-                            <span className="font-bold text-slate-800 text-sm">
+                            <span className="font-bold text-clinic-navy text-sm">
                                 Chi tiết Bệnh nhân bị ảnh hưởng: BS {incident?.ten_bac_si}
                             </span>
-                            <span className="text-xs text-slate-400 block font-normal">
-                                {incident?.ten_chuyen_khoa} • {incident?.tu_ngay} {incident?.ca_lam_viec ? `(${incident.ca_lam_viec === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : ''}
+                            <span className="text-xs text-clinic-text-secondary block font-normal tabular-nums">
+                                {incident?.ten_chuyen_khoa} · {incident?.tu_ngay} {incident?.ca_lam_viec ? `(${incident.ca_lam_viec === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : ''}
                             </span>
                         </div>
                     </div>
@@ -295,19 +295,19 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                     />
                 ) : (
                     <div className="space-y-4">
-                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border flex flex-wrap items-center justify-between gap-3 text-xs">
                             <div className="space-y-1">
                                 <div>
-                                    <span className="text-slate-500">Lý do nghỉ: </span>
-                                    <strong className="text-slate-800">{incident?.ly_do || 'Nghỉ đột xuất'}</strong>
+                                    <span className="text-clinic-text-secondary">Lý do nghỉ: </span>
+                                    <strong className="text-clinic-navy">{incident?.ly_do || 'Nghỉ đột xuất'}</strong>
                                 </div>
-                                <div className="text-slate-500">
-                                    Bác sĩ thay thế sẵn sàng: <strong>{incident?.danh_sach_bac_si_thay_the?.length || 0} bác sĩ</strong> cùng chuyên khoa
+                                <div className="text-clinic-text-secondary tabular-nums">
+                                    Bác sĩ thay thế sẵn sàng: <strong className="text-clinic-navy">{incident?.danh_sach_bac_si_thay_the?.length || 0} bác sĩ</strong> cùng chuyên khoa
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className="text-slate-400 text-[11px]">Tổng bệnh nhân đang kẹt:</div>
-                                <div className="text-2xl font-black text-rose-600 font-mono">
+                            <div className="text-right tabular-nums">
+                                <div className="text-clinic-text-secondary text-[11px]">Tổng bệnh nhân đang kẹt:</div>
+                                <div className="text-2xl font-black text-clinic-danger font-mono">
                                     {totalStuck} lượt
                                 </div>
                             </div>
@@ -331,9 +331,9 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                                     label: `Hàng đợi khám (${hangDoiList.length})`,
                                     children: (
                                         <div className="space-y-3">
-                                            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#F0F7FC] rounded-xl border border-[#D5E6F2]">
-                                                <span className="text-xs text-slate-600 font-medium">
-                                                    Đã chọn: <strong className="text-sky-700">{selectedTicketIds.length}</strong> / {hangDoiList.length} bệnh nhân
+                                            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-clinic-surface-tint rounded-[6px] border border-clinic-info-border">
+                                                <span className="text-xs text-clinic-text-secondary font-medium tabular-nums">
+                                                    Đã chọn: <strong className="text-clinic-cta">{selectedTicketIds.length}</strong> / {hangDoiList.length} bệnh nhân
                                                 </span>
                                                 <div className="flex items-center gap-2">
                                                     <Button
@@ -355,7 +355,7 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                                                         onClick={handleRebalanceSelected}
                                                         className="medpro-btn-primary text-xs font-bold"
                                                     >
-                                                        ⚡ Điều chuyển vé đã chọn ({selectedTicketIds.length})
+                                                        Điều chuyển vé đã chọn ({selectedTicketIds.length})
                                                     </Button>
                                                 </div>
                                             </div>
@@ -380,9 +380,9 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                                     label: `Hàng chờ Waitlist (${waitlistList.length})`,
                                     children: (
                                         <div className="space-y-3">
-                                            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-amber-50/70 rounded-xl border border-amber-200">
-                                                <span className="text-xs text-amber-800 font-medium">
-                                                    Đã chọn: <strong className="text-amber-900">{selectedWaitlistIds.length}</strong> / {waitlistList.length} lượt chờ
+                                            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-clinic-warning-bg rounded-[6px] border border-clinic-warning-border">
+                                                <span className="text-xs text-clinic-warning font-medium tabular-nums">
+                                                    Đã chọn: <strong>{selectedWaitlistIds.length}</strong> / {waitlistList.length} lượt chờ
                                                 </span>
                                                 <Button
                                                     size="small"
@@ -419,7 +419,7 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
 
             <Modal
                 title={
-                    <div className="flex items-center gap-2 text-rose-600 font-bold">
+                    <div className="flex items-center gap-2 text-clinic-danger font-bold">
                         <CloseCircleOutlined />
                         <span>Hủy khám do sự cố bác sĩ nghỉ (Bảo vệ bệnh nhân)</span>
                     </div>
@@ -451,10 +451,10 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                     />
 
                     <div>
-                        <span className="font-bold text-slate-700 block mb-1">
+                        <span className="font-bold text-clinic-navy block mb-1">
                             Số lượng hủy:
                         </span>
-                        <Tag color="volcano" className="font-bold text-xs">
+                        <Tag color="volcano" className="font-bold text-xs tabular-nums">
                             {cancelMode === 'hang_doi'
                                 ? `${selectedTicketIds.length} lượt hàng đợi khám`
                                 : `${selectedWaitlistIds.length} lượt hàng chờ waitlist`}
@@ -462,10 +462,11 @@ export default function IncidentDetailDrawer({ incident, open, onClose, onSucces
                     </div>
 
                     <div>
-                        <label className="font-bold text-slate-700 block mb-1">
-                            Lý do hủy khám / dời lịch: <span className="text-red-500">*</span>
+                        <label htmlFor="incident-cancel-reason" className="medpro-label">
+                            Lý do hủy khám / dời lịch: <span className="text-clinic-danger">*</span>
                         </label>
                         <TextArea
+                            id="incident-cancel-reason"
                             rows={3}
                             value={cancelReason}
                             onChange={(e) => setCancelReason(e.target.value)}

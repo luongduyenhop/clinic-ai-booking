@@ -437,10 +437,12 @@ async def update_service(
 )
 async def get_dashboard_stats(
     query_date: Optional[date] = Query(None, description="Ngày báo cáo (mặc định hôm nay)"),
+    tu_ngay: Optional[date] = Query(None, description="Ngày bắt đầu kỳ thống kê"),
+    den_ngay: Optional[date] = Query(None, description="Ngày kết thúc kỳ thống kê"),
     current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    data = await admin_service.get_dashboard_stats(query_date, db)
+    data = await admin_service.get_dashboard_stats(query_date, db, tu_ngay=tu_ngay, den_ngay=den_ngay)
     return ResponseEnvelope.success_response(data=data, message="Lấy số liệu thống kê vận hành thành công")
 @router.get(
     "/amendments",

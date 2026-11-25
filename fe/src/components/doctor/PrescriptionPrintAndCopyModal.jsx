@@ -461,7 +461,7 @@ export default function PrescriptionPrintAndCopyModal({
         if (onApplyOldPrescription) {
             onApplyOldPrescription(oldRx.items, oldRx.ghi_chu, oldRx.id)
         }
-        AppToast.success(`Đã sao chép ${oldRx.items.length} thuốc từ đơn cũ #${oldRx.id} (${oldRx.ngay_ke})!`)
+        AppToast.success(`Đã sao chép ${oldRx.items.length} thuốc từ đơn cũ #${oldRx.id} (${oldRx.ngay_ke}).`)
         onClose()
     }
 
@@ -469,7 +469,7 @@ export default function PrescriptionPrintAndCopyModal({
         if (onApplySampleTemplate) {
             onApplySampleTemplate(tmpl.items, tmpl.notes, tmpl.id)
         }
-        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ toa mẫu "${tmpl.name}" vào đơn nháp. Bác sĩ vui lòng rà soát lại trước khi lưu!`)
+        AppToast.warning(`Đã nạp ${tmpl.items.length} thuốc từ toa mẫu "${tmpl.name}" vào đơn nháp. Bác sĩ vui lòng rà soát lại trước khi lưu.`)
         onClose()
     }
 
@@ -515,7 +515,7 @@ export default function PrescriptionPrintAndCopyModal({
                 document.execCommand('copy')
                 document.body.removeChild(ta)
             }
-            AppToast.success('Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm! Bạn có thể dán vào Zalo/SMS để gửi.')
+            AppToast.success('Đã sao chép tóm tắt đơn thuốc vào bộ nhớ tạm. Bạn có thể dán vào Zalo hoặc SMS để gửi.')
         } catch (e) {
             console.error('Clipboard copy error:', e)
             AppToast.error('Không thể truy cập Clipboard trình duyệt. Vui lòng thử lại.')
@@ -633,7 +633,7 @@ export default function PrescriptionPrintAndCopyModal({
                                             : 'text-slate-700 hover:text-teal-700 hover:bg-slate-50'
                                     }`}
                                 >
-                                    📄 Khổ A4 (Laser)
+                                    Khổ A4 (Laser)
                                 </button>
                                 <button
                                     type="button"
@@ -644,7 +644,7 @@ export default function PrescriptionPrintAndCopyModal({
                                             : 'text-slate-700 hover:text-teal-700 hover:bg-slate-50'
                                     }`}
                                 >
-                                    📋 Khổ A5 (Laser)
+                                    Khổ A5 (Laser)
                                 </button>
                                 <button
                                     type="button"
@@ -655,7 +655,7 @@ export default function PrescriptionPrintAndCopyModal({
                                             : 'text-slate-700 hover:text-teal-700 hover:bg-slate-50'
                                     }`}
                                 >
-                                    🧾 In nhiệt K80
+                                    In nhiệt K80
                                 </button>
                             </div>
                         )}
@@ -923,7 +923,7 @@ export default function PrescriptionPrintAndCopyModal({
                                     </div>
 
                                     <div className="sheet-footer-notice">
-                                        <span>Khám lại xin mang theo đơn này. Đơn thuốc có giá trị mua trong vòng 05 ngày kể từ ngày kê đơn theo quy định Bộ Y Tế.</span>
+                                        <span>Khám lại xin mang theo đơn này. Đơn thuốc có giá trị mua trong vòng 5 ngày kể từ ngày kê đơn theo quy định Bộ Y Tế.</span>
                                         <span>Mã ĐT quốc gia: <strong>{rxCode}-VN</strong></span>
                                     </div>
                                 </div>

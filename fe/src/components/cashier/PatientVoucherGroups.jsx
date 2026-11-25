@@ -29,20 +29,20 @@ export default function PatientVoucherGroups({
     }
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-clinic-border">
             {groupedPatients.map((group) => {
                 const isExpanded = expandedPatients.has(group.key)
                 const isSelectedGroup =
                     form?.maBN === group.maBN || form?.hoTenBN === group.hoTenBN
 
                 return (
-                    <div key={group.key} className="bg-white">
+                    <div key={group.key} className="bg-clinic-surface">
                         <div
                             onClick={() => onSelectPatientCombined(group)}
-                            className={`p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition border-l-4 ${
+                            className={`p-2.5 flex items-center justify-between cursor-pointer hover:bg-clinic-surface-tint transition border-l-4 ${
                                 isSelectedGroup
-                                    ? 'bg-[#F0F9FF] border-l-[#00B5F1] font-semibold'
-                                    : 'border-l-transparent hover:border-l-slate-300'
+                                    ? 'bg-clinic-surface-alt border-l-clinic-cta font-semibold'
+                                    : 'border-l-transparent hover:border-l-clinic-border-strong'
                             }`}
                         >
                             <div className="flex items-center gap-2 min-w-0">
@@ -52,7 +52,7 @@ export default function PatientVoucherGroups({
                                         e.stopPropagation()
                                         togglePatient(group.key)
                                     }}
-                                    className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+                                    className="p-1 text-clinic-text-muted hover:text-clinic-navy rounded-[4px] transition cursor-pointer"
                                 >
                                     {isExpanded ? (
                                         <CaretDown size={14} weight="bold" />
@@ -60,34 +60,34 @@ export default function PatientVoucherGroups({
                                         <CaretRight size={14} weight="bold" />
                                     )}
                                 </button>
-                                <div className="w-7 h-7 rounded-full bg-sky-100 text-[#00B5F1] flex items-center justify-center shrink-0">
+                                <div className="w-7 h-7 rounded-[6px] bg-clinic-surface-alt text-clinic-cta border border-clinic-info-border flex items-center justify-center shrink-0">
                                     <User size={15} weight="bold" />
                                 </div>
                                 <div className="min-w-0">
-                                    <div className="font-bold text-xs text-[#003553] truncate">
+                                    <div className="font-bold text-xs text-clinic-navy truncate">
                                         {group.hoTenBN}
                                     </div>
-                                    <div className="text-[11px] text-slate-400 truncate">
+                                    <div className="text-[11px] text-clinic-text-secondary truncate tabular-nums">
                                         {group.maBN ? `Mã: ${group.maBN}` : 'Vãng lai'}
                                         {group.soDienThoai ? ` • ${group.soDienThoai}` : ''}
                                     </div>
                                 </div>
                             </div>
-                            <div className="text-right shrink-0">
-                                <div className="text-xs font-bold tabular-nums text-[#003553]">
+                            <div className="text-right shrink-0 tabular-nums">
+                                <div className="text-xs font-bold text-clinic-navy">
                                     {group.totalAmount.toLocaleString('vi-VN')} đ
                                 </div>
                                 <div className="flex items-center justify-end gap-1 mt-0.5">
-                                    <span className="text-[10px] text-slate-400 font-semibold">
+                                    <span className="text-[10px] text-clinic-text-secondary font-semibold">
                                         {group.vouchers.length} phiếu
                                     </span>
                                     {group.unpaidCount > 0 && (
-                                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold bg-clinic-warning-bg text-clinic-warning border border-clinic-warning-border">
                                             {group.unpaidCount} chờ thu
                                         </span>
                                     )}
                                     {group.paidCount > 0 && (
-                                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold bg-clinic-success-bg text-clinic-success border border-clinic-success-border">
                                             {group.paidCount} đã thu
                                         </span>
                                     )}
@@ -117,7 +117,7 @@ export default function PatientVoucherGroups({
                                                 }
                                                 onOpenQr(combinedInvoice)
                                             }}
-                                            className="px-2 py-0.5 rounded-md bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold cursor-pointer transition shadow-xs flex items-center gap-1"
+                                            className="px-2 py-0.5 rounded-[4px] bg-clinic-navy hover:bg-clinic-navy-dark text-clinic-surface text-[10px] font-bold cursor-pointer transition flex items-center gap-1"
                                             title="Quét mã QR (SePay / VietQR) thu gộp toàn bộ"
                                         >
                                             <QrCode size={11} weight="bold" />
@@ -129,7 +129,7 @@ export default function PatientVoucherGroups({
                                                 e.stopPropagation()
                                                 onPayAllForPatient(group)
                                             }}
-                                            className="px-2 py-0.5 rounded-md bg-[#00B5F1] hover:bg-[#0095c8] text-white text-[10px] font-bold cursor-pointer transition shadow-xs"
+                                            className="px-2 py-0.5 rounded-[4px] bg-clinic-cta hover:bg-clinic-cta-hover text-clinic-surface text-[10px] font-bold cursor-pointer transition"
                                             title="Thu tiền toàn bộ các dịch vụ của bệnh nhân này cùng lúc"
                                         >
                                             Thu tất cả ({group.unpaidCount})
@@ -140,7 +140,7 @@ export default function PatientVoucherGroups({
                         </div>
 
                         {isExpanded && (
-                            <div className="bg-slate-50/70 pl-8 pr-2.5 py-1.5 space-y-1.5 border-t border-slate-100">
+                            <div className="bg-clinic-bg pl-8 pr-2.5 py-1.5 space-y-1.5 border-t border-clinic-border">
                                 {group.vouchers.map((voucher) => {
                                     const isSelected =
                                         form.id === voucher.id ||
@@ -153,30 +153,30 @@ export default function PatientVoucherGroups({
                                                     : voucher.id || voucher.maPhieu
                                             }
                                             onClick={() => onSelectVoucher(voucher)}
-                                            className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between border ${
+                                            className={`p-2 rounded-[6px] cursor-pointer transition flex items-center justify-between border ${
                                                 isSelected
-                                                    ? 'bg-[#E8F4FD] border-[#00B5F1] shadow-xs'
-                                                    : 'bg-white border-slate-200 hover:border-sky-300'
+                                                    ? 'bg-clinic-surface-alt border-clinic-cta'
+                                                    : 'bg-clinic-surface border-clinic-border hover:border-clinic-cta'
                                             }`}
                                         >
                                             <div className="min-w-0 pr-2">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-[11px] font-bold text-[#00B5F1]">
+                                                    <span className="font-mono text-[11px] font-bold text-clinic-cta">
                                                         {voucher.maPhieu}
                                                     </span>
-                                                    <span className="text-xs font-medium text-slate-700 truncate max-w-[140px]">
+                                                    <span className="text-xs font-medium text-clinic-navy truncate max-w-[140px]">
                                                         {voucher.tenPhieu || 'Hóa đơn dịch vụ'}
                                                     </span>
                                                 </div>
                                                 {voucher.ngayThu && (
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                                    <div className="text-[10px] text-clinic-text-muted mt-0.5 tabular-nums">
                                                         {voucher.ngayThu}
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="text-right shrink-0 flex items-center gap-1.5">
+                                            <div className="text-right shrink-0 flex items-center gap-1.5 tabular-nums">
                                                 <div>
-                                                    <div className="text-xs font-bold tabular-nums text-[#003553]">
+                                                    <div className="text-xs font-bold text-clinic-navy">
                                                         {Number(voucher.tongTien).toLocaleString('vi-VN')} đ
                                                     </div>
                                                     <div className="mt-0.5 flex justify-end">
@@ -192,7 +192,7 @@ export default function PatientVoucherGroups({
                                                         e.stopPropagation()
                                                         onOpenQr(voucher)
                                                     }}
-                                                    className="p-1 text-teal-600 hover:text-teal-900 transition cursor-pointer"
+                                                    className="p-1 text-clinic-cta hover:text-clinic-navy transition cursor-pointer"
                                                     title="Mã QR (SePay / VietQR)"
                                                 >
                                                     <QrCode size={14} weight="bold" />

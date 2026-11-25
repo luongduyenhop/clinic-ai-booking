@@ -6,7 +6,7 @@ import { audioAnnouncer } from '../../../utils/audioAnnouncer'
 
 const FILTERS = [
     { key: 'cho_kham', label: 'Chờ khám' },
-    { key: 'co_ket_qua', label: 'Có KQ CLS ⭐' },
+    { key: 'co_ket_qua', label: 'Có KQ CLS' },
     { key: 'tam_hoan', label: 'Chờ CLS' },
     { key: 'da_kham', label: 'Đã xong' },
 ]
@@ -64,8 +64,8 @@ export default function QueuePanel({
             t.trang_thai !== 'da_kham' &&
             (t.trang_thai === 'co_ket_qua_cls' ||
                 (t.ghi_chu && (
-                    t.ghi_chu.startsWith('⭐ CÓ KQ CLS') ||
-                    t.ghi_chu.startsWith('🚨 KQ CLS') ||
+                    /có\s+kq\s+cls/i.test(t.ghi_chu) ||
+                    /kq\s+cls/i.test(t.ghi_chu) ||
                     t.ghi_chu.toLowerCase().includes('đã có kết quả')
                 )))
         )
@@ -111,22 +111,22 @@ export default function QueuePanel({
     return (
         <aside
             aria-label="Hàng đợi bệnh nhân"
-            className="flex flex-col gap-3 w-full lg:w-[280px] lg:shrink-0 bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 h-fit"
+            className="medpro-card flex flex-col gap-3 w-full lg:w-[280px] lg:shrink-0 bg-clinic-surface p-3.5 h-fit"
         >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
                 <div>
-                    <h2 className="text-sm font-extrabold text-[#003553] flex items-center gap-1.5">
-                        <ClinicIcon name="UsersThree" size={17} className="text-[#00A9E3]" />
+                    <h2 className="text-sm font-extrabold text-clinic-navy flex items-center gap-1.5">
+                        <ClinicIcon name="UsersThree" size={17} className="text-clinic-cta" />
                         Hàng Đợi Khám
                     </h2>
-                    <span className="text-[11px] text-slate-500">Phân luồng 5 bậc ưu tiên</span>
+                    <span className="text-[11px] text-clinic-text-secondary">Phân luồng 5 bậc ưu tiên</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <button
                         type="button"
                         onClick={handleToggleVoice}
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
-                            voiceEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-[6px] border transition cursor-pointer flex items-center gap-1 ${
+                            voiceEnabled ? 'bg-clinic-success-bg text-clinic-success border-clinic-success-border' : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border'
                         }`}
                         title={voiceEnabled ? 'Đang bật loa đọc tên bệnh nhân (Click để tắt)' : 'Đang tắt loa đọc tên (Click để bật)'}
                     >
@@ -134,7 +134,7 @@ export default function QueuePanel({
                         <span>{voiceEnabled ? 'Loa' : 'Mute'}</span>
                     </button>
                     {currentTicket && (
-                        <span className="text-[11px] font-bold bg-[#E8F4FD] text-[#0077B6] px-2 py-0.5 rounded-full">
+                        <span className="medpro-badge-info text-[11px] font-bold px-2 py-0.5 tabular-nums">
                             {`#${currentTicket.so_thu_tu_kham}`}
                         </span>
                     )}
@@ -147,29 +147,29 @@ export default function QueuePanel({
                         type="button"
                         onClick={handleCallNextWithVoice}
                         disabled={calling}
-                        className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#00A9E3] text-white font-bold text-xs shadow-xs hover:bg-[#0092c4] active:scale-[0.99] transition cursor-pointer disabled:opacity-50"
+                        className="medpro-btn-primary w-full flex items-center justify-between py-2 px-3 rounded-[6px] font-bold text-xs cursor-pointer disabled:opacity-50"
                         title="Gọi bệnh nhân tiếp theo (Phím tắt: F2 hoặc Alt+N)"
                     >
                         <div className="flex items-center gap-2">
                             <ClinicIcon name="ArrowRight" size={15} weight="bold" />
                             <span>{calling ? 'Đang gọi số…' : 'Gọi số tiếp theo (Ưu tiên)'}</span>
                         </div>
-                        <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-mono">F2</span>
+                        <span className="text-[10px] bg-clinic-navy/25 px-1.5 py-0.5 rounded-[4px] text-clinic-surface font-mono tabular-nums">F2</span>
                     </button>
 
                     <button
                         type="button"
                         onClick={handleRecallWithVoice}
                         disabled={!currentTicket}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
+                        className="medpro-btn-outline w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-[6px] font-semibold text-xs cursor-pointer disabled:opacity-40"
                     >
                         <ClinicIcon name="Bell" size={14} />
-                        <span>Gọi lại số #{currentTicket?.so_thu_tu_kham || '—'}</span>
+                        <span className="tabular-nums">Gọi lại số #{currentTicket?.so_thu_tu_kham || '—'}</span>
                     </button>
                 </div>
             )}
 
-            <div role="group" aria-label="Lọc hàng đợi" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+            <div role="group" aria-label="Lọc hàng đợi" className="grid grid-cols-2 gap-1 rounded-[6px] bg-clinic-bg border border-clinic-border p-1">
                 {FILTERS.map((f) => {
                     const c = count(f.key)
                     const isActive = filter === f.key
@@ -179,8 +179,8 @@ export default function QueuePanel({
                             type="button"
                             aria-pressed={isActive}
                             onClick={() => setFilter(f.key)}
-                            className={`rounded-lg py-1 px-1.5 text-[11px] font-bold transition text-center cursor-pointer ${
-                                isActive ? 'bg-white text-[#003553] shadow-2xs' : 'text-slate-600 hover:text-[#003553]'
+                            className={`rounded-[4px] py-1 px-1.5 text-[11px] font-bold transition text-center cursor-pointer tabular-nums ${
+                                isActive ? 'bg-clinic-navy text-clinic-surface' : 'text-clinic-text-secondary hover:text-clinic-navy hover:bg-clinic-surface'
                             }`}
                         >
                             {f.label} ({c})
@@ -208,29 +208,29 @@ export default function QueuePanel({
                             type="button"
                             disabled={!t.encounter_id}
                             onClick={() => onSelect(t.encounter_id)}
-                            className={`flex w-full gap-2.5 rounded-xl p-2.5 text-left transition cursor-pointer border ${
+                            className={`flex w-full gap-2.5 rounded-[6px] p-2.5 text-left transition cursor-pointer border ${
                                 selected
-                                    ? 'bg-[#E8F4FD] border-[#00B5F1] ring-2 ring-[#00B5F1]/20'
+                                    ? 'bg-clinic-surface-alt border-clinic-cta'
                                     : hasClsReady
-                                    ? 'bg-emerald-50/70 border-emerald-300 hover:bg-emerald-50'
+                                    ? 'bg-clinic-success-bg border-clinic-success-border hover:border-clinic-success'
                                     : isExamining
-                                    ? 'bg-sky-50/80 border-sky-300 hover:bg-sky-50'
-                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70'
+                                    ? 'bg-clinic-surface-tint border-clinic-info-border hover:border-clinic-cta'
+                                    : 'bg-clinic-surface border-clinic-border hover:border-clinic-border-strong hover:bg-clinic-bg'
                             }`}
                         >
                             <span
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] text-xs font-black tabular-nums ${
                                     selected
-                                        ? 'bg-[#00A9E3] text-white shadow-xs'
+                                        ? 'bg-clinic-cta text-clinic-surface'
                                         : t.trang_thai === 'da_kham'
-                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                        ? 'bg-clinic-success-bg text-clinic-success border border-clinic-success-border'
                                         : hasClsReady
-                                        ? 'bg-emerald-600 text-white'
+                                        ? 'bg-clinic-success text-clinic-surface'
                                         : isWaitingCls(t)
-                                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                        ? 'bg-clinic-warning-bg text-clinic-warning border border-clinic-warning-border'
                                         : isExamining
-                                        ? 'bg-sky-600 text-white'
-                                        : 'bg-slate-100 text-[#003553]'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'bg-clinic-bg-muted text-clinic-navy border border-clinic-border'
                                 }`}
                             >
                                 {`#${String(t.so_thu_tu_kham).padStart(2, '0')}`}
@@ -238,35 +238,36 @@ export default function QueuePanel({
 
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <div className="flex items-center justify-between gap-1">
-                                    <span className="truncate text-xs font-bold text-[#003553]">{t.ten_benh_nhan}</span>
-                                    <span className="shrink-0 text-[10px] text-slate-500 font-medium">
+                                    <span className="truncate text-xs font-bold text-clinic-navy">{t.ten_benh_nhan}</span>
+                                    <span className="shrink-0 text-[10px] text-clinic-text-secondary font-medium tabular-nums">
                                         {t.gioi_tinh} · {t.tuoi}t
                                     </span>
                                 </div>
 
-                                {t.ly_do && <span className="truncate text-[11px] text-slate-500">{t.ly_do}</span>}
+                                {t.ly_do && <span className="truncate text-[11px] text-clinic-text-secondary">{t.ly_do}</span>}
 
                                 <div className="flex flex-wrap items-center gap-1 mt-0.5">
                                     {t.trang_thai === 'da_kham' ? (
-                                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <span className="medpro-badge-success text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-1">
                                             <ClinicIcon name="Check" size={11} weight="bold" /> Đã khám
                                         </span>
                                     ) : hasClsReady ? (
-                                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white animate-pulse">
-                                            ⭐ CÓ KQ CLS
+                                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-[4px] bg-clinic-success text-clinic-surface inline-flex items-center gap-1">
+                                            <ClinicIcon name="CheckCircle" size={11} weight="bold" />
+                                            <span>CÓ KQ CLS</span>
                                         </span>
                                     ) : isWaitingCls(t) ? (
-                                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded">
+                                        <span className="medpro-badge-warning text-[10px] font-bold px-1.5 py-0.5">
                                             Chờ CLS
                                         </span>
                                     ) : (
-                                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${tier.badge}`}>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-[4px] font-semibold ${tier.badge}`}>
                                             {tier.label}
                                         </span>
                                     )}
 
                                     {isExamining && !isWaitingCls(t) && !hasClsReady && (
-                                        <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-1 rounded">
+                                        <span className="medpro-badge-info text-[10px] font-bold px-1.5 py-0.5">
                                             Đang khám
                                         </span>
                                     )}

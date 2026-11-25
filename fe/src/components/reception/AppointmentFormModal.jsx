@@ -13,22 +13,18 @@ import PatientFormModal from './PatientFormModal'
 export default function AppointmentFormModal({ open, onClose, defaultPatientId }) {
     const dispatch = useDispatch()
 
-    // ── 1. State danh mục động nạp 100% từ API backend ────────────────
     const [specialtiesList, setSpecialtiesList] = useState([])
     const [loadingSpecialties, setLoadingSpecialties] = useState(false)
 
-    // Doctors by department (API /api/v1/medical/doctors?specialty_id=...)
     const [departmentDoctors, setDepartmentDoctors] = useState([])
     const [loadingDoctors, setLoadingDoctors] = useState(false)
 
-    // Patient search state (API /api/v1/reception/patients)
     const [patientList, setPatientList] = useState([])
     const [selectedPatientObj, setSelectedPatientObj] = useState(null)
     const [isSearchingPatient, setIsSearchingPatient] = useState(false)
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
     const searchTimeoutRef = useRef(null)
 
-    // Doctor slots state (API /api/v1/appointments/doctors/{id}/slots)
     const [doctorSlots, setDoctorSlots] = useState([])
     const [loadingSlots, setLoadingSlots] = useState(false)
     const [slotError, setSlotError] = useState(null)
@@ -86,7 +82,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         },
     })
 
-    // ── 2. Tải danh sách bệnh nhân từ backend qua API tìm kiếm ─────────
     const fetchPatients = useCallback(async (query = '') => {
         setIsSearchingPatient(true)
         try {
@@ -120,7 +115,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }, [defaultPatientId, selectedPatientObj])
 
-    // Tải danh mục chuyên khoa trực tiếp từ API backend khi mở modal
     const loadSpecialties = useCallback(async () => {
         setLoadingSpecialties(true)
         try {
@@ -142,7 +136,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }, [])
 
-    // Khi mở modal, tải dữ liệu từ API
     useEffect(() => {
         if (open) {
             loadSpecialties()
@@ -150,7 +143,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }, [open, loadSpecialties, fetchPatients])
 
-    // Debounce tìm kiếm bệnh nhân
     const handlePatientSearch = (value) => {
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current)
@@ -160,14 +152,12 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }, 350)
     }
 
-    // Khi chọn người bệnh
     const handleSelectPatient = (val) => {
         formik.setFieldValue('patientId', val)
         const pat = patientList.find((p) => String(p.id) === String(val))
         setSelectedPatientObj(pat || null)
     }
 
-    // ── 3. Tải danh sách khung giờ 30 phút theo ca trực của Bác sĩ ────
     const fetchSlots = useCallback(async (docId, dateStr) => {
         if (!docId || !dateStr) {
             setDoctorSlots([])
@@ -192,7 +182,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }, [])
 
-    // ── 4. Khi chọn Chuyên khoa: Bắt buộc gọi API lấy danh sách Bác sĩ ─
     const handleDepartmentChange = async (depId) => {
         formik.setFieldValue('departmentId', depId)
         formik.setFieldValue('doctorId', '')
@@ -207,7 +196,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
 
         setLoadingDoctors(true)
 
-        // Gọi API lấy danh sách bác sĩ thuộc chuyên khoa
         try {
             const docsRes = await receptionService.getDoctors({
                 specialty_id: Number(depId),
@@ -226,7 +214,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
             }))
             setDepartmentDoctors(doctorsFound)
 
-            // Nếu chuyên khoa chỉ có đúng 1 bác sĩ, tự động chọn luôn bác sĩ đó
             if (doctorsFound.length === 1 && doctorsFound[0].status !== 'ON_LEAVE') {
                 const singleDoc = doctorsFound[0]
                 formik.setFieldValue('doctorId', singleDoc.id)
@@ -241,7 +228,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }
 
-    // Khi chọn Bác sĩ
     const handleDoctorChange = (docId) => {
         formik.setFieldValue('doctorId', docId)
         formik.setFieldValue('timeSlot', '')
@@ -250,7 +236,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }
 
-    // Khi chọn Ngày khám
     const handleDateChange = (date) => {
         const dateStr = date ? date.format('YYYY-MM-DD') : ''
         formik.setFieldValue('appointmentDate', dateStr)
@@ -260,7 +245,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
         }
     }
 
-    // Render danh sách slots với status: available, booked, past từ API
     const slotOptions = doctorSlots.length > 0
         ? doctorSlots.map((slot) => {
             const isAvailable = slot.status === 'available' || slot.is_available === true
@@ -293,8 +277,8 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
             <Modal
                 title={
                     <div className="flex items-center gap-2">
-                        <UserOutlined className="text-sky-600" />
-                        <span className="font-bold text-slate-800">Đặt lịch hẹn khám cho bệnh nhân (Lễ tân)</span>
+                        <UserOutlined className="text-clinic-cta" />
+                        <span className="font-bold text-clinic-navy">Đặt lịch hẹn khám cho bệnh nhân (Lễ tân)</span>
                     </div>
                 }
                 open={open}
@@ -313,7 +297,7 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                         <Button
                             type="primary"
                             onClick={formik.handleSubmit}
-                            className="bg-sky-600 font-semibold"
+                            className="medpro-btn-primary font-semibold"
                             loading={formik.isSubmitting}
                         >
                             Xác nhận đặt lịch
@@ -322,24 +306,24 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                 }
             >
                 <form onSubmit={formik.handleSubmit} className="space-y-4 py-2">
-                    {/* ── BỆNH NHÂN ────────────────────────────────────────── */}
                     <div>
                         <div className="flex items-center justify-between mb-1">
-                            <label className="block text-xs font-bold text-slate-700 uppercase">
-                                Bệnh nhân <span className="text-red-500">*</span>
+                            <label htmlFor="af-patient" className="medpro-label !mb-0">
+                                Bệnh nhân <span className="text-clinic-danger">*</span>
                             </label>
                             <Button
                                 type="link"
                                 size="small"
                                 icon={<UserAddOutlined />}
                                 onClick={() => setIsCreatePatientOpen(true)}
-                                className="text-xs p-0 text-sky-600 font-semibold"
+                                className="text-xs p-0 text-clinic-cta font-semibold"
                             >
                                 + Thêm bệnh nhân mới
                             </Button>
                         </div>
 
                         <Select
+                            id="af-patient"
                             showSearch
                             className="w-full"
                             placeholder="Gõ tên, SĐT, Mã BN hoặc CCCD để tìm kiếm..."
@@ -352,8 +336,8 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                 isSearchingPatient ? (
                                     <div className="text-center py-2"><Spin size="small" /> Đang tìm...</div>
                                 ) : (
-                                    <div className="text-center py-2 text-xs text-slate-400">
-                                        Không tìm thấy bệnh nhân. Bấm <strong>"+ Thêm bệnh nhân mới"</strong> để tạo hồ sơ.
+                                    <div className="text-center py-2 text-xs text-clinic-text-secondary">
+                                        Không tìm thấy bệnh nhân. Bấm <strong>&ldquo;+ Thêm bệnh nhân mới&rdquo;</strong> để tạo hồ sơ.
                                     </div>
                                 )
                             }
@@ -364,22 +348,21 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                             status={formik.touched.patientId && formik.errors.patientId ? 'error' : ''}
                         />
                         {formik.touched.patientId && formik.errors.patientId && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.patientId}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.patientId}</span>
                         )}
 
-                        {/* Thẻ thông tin bệnh nhân đã chọn */}
                         {selectedPatientObj && (
-                            <Card size="small" className="mt-2 bg-sky-50/70 border-sky-200">
+                            <Card size="small" className="mt-2 bg-clinic-surface-tint border-clinic-info-border">
                                 <div className="flex items-center justify-between text-xs">
                                     <div className="space-y-0.5">
-                                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                                            <CheckCircleOutlined className="text-emerald-600" />
+                                        <div className="font-bold text-clinic-navy flex items-center gap-2">
+                                            <CheckCircleOutlined className="text-clinic-success" />
                                             <span>{selectedPatientObj.fullName}</span>
-                                            <Tag color="blue" className="font-mono text-[10px] m-0">
+                                            <Tag color="blue" className="font-mono text-[10px] m-0 tabular-nums">
                                                 {selectedPatientObj.patientCode}
                                             </Tag>
                                         </div>
-                                        <div className="text-slate-500 text-[11px] flex gap-3">
+                                        <div className="text-clinic-text-secondary text-[11px] flex gap-3 tabular-nums">
                                             <span>SĐT: <strong>{selectedPatientObj.phone || 'Chưa cập nhật'}</strong></span>
                                             {selectedPatientObj.identityCard && <span>CCCD: <strong>{selectedPatientObj.identityCard}</strong></span>}
                                             {selectedPatientObj.dob && <span>NS: <strong>{dayjs(selectedPatientObj.dob).format('DD/MM/YYYY')}</strong></span>}
@@ -388,7 +371,7 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                     <Button
                                         size="small"
                                         type="text"
-                                        className="text-xs text-slate-400 hover:text-red-500"
+                                        className="text-xs text-clinic-text-muted hover:text-clinic-danger"
                                         onClick={() => {
                                             formik.setFieldValue('patientId', '')
                                             setSelectedPatientObj(null)
@@ -401,16 +384,16 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                         )}
                     </div>
 
-                    {/* ── CHUYÊN KHOA & BÁC SĨ (API ĐỘNG 100%) ─────────────── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <div className="flex items-center justify-between mb-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase">
-                                    Chuyên khoa <span className="text-red-500">*</span>
+                                <label htmlFor="af-department" className="medpro-label !mb-0">
+                                    Chuyên khoa <span className="text-clinic-danger">*</span>
                                 </label>
                                 {loadingSpecialties && <Spin size="small" />}
                             </div>
                             <Select
+                                id="af-department"
                                 className="w-full"
                                 placeholder={loadingSpecialties ? 'Đang tải chuyên khoa...' : 'Chọn chuyên khoa khám'}
                                 value={formik.values.departmentId || undefined}
@@ -424,18 +407,19 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                 status={formik.touched.departmentId && formik.errors.departmentId ? 'error' : ''}
                             />
                             {formik.touched.departmentId && formik.errors.departmentId && (
-                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.departmentId}</span>
+                                <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.departmentId}</span>
                             )}
                         </div>
 
                         <div>
                             <div className="flex items-center justify-between mb-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase">
-                                    Bác sĩ phụ trách <span className="text-red-500">*</span>
+                                <label htmlFor="af-doctor" className="medpro-label !mb-0">
+                                    Bác sĩ phụ trách <span className="text-clinic-danger">*</span>
                                 </label>
                                 {loadingDoctors && <Spin size="small" />}
                             </div>
                             <Select
+                                id="af-doctor"
                                 className="w-full"
                                 placeholder={
                                     loadingDoctors
@@ -452,24 +436,24 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                 disabled={!formik.values.departmentId || loadingDoctors}
                                 options={departmentDoctors.map((d) => ({
                                     value: d.id,
-                                    label: `${d.title ? `${d.title} ` : ''}${d.name} ${d.status === 'ON_LEAVE' ? '⚠️ (Nghỉ)' : ''}`,
+                                    label: `${d.title ? `${d.title} ` : ''}${d.name} ${d.status === 'ON_LEAVE' ? '(Nghỉ)' : ''}`,
                                     disabled: d.status === 'ON_LEAVE',
                                 }))}
                                 status={formik.touched.doctorId && formik.errors.doctorId ? 'error' : ''}
                             />
                             {formik.touched.doctorId && formik.errors.doctorId && (
-                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.doctorId}</span>
+                                <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.doctorId}</span>
                             )}
                         </div>
                     </div>
 
-                    {/* ── NGÀY KHÁM & KHUNG GIỜ ────────────────────────────── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                                Ngày khám <span className="text-red-500">*</span>
+                            <label htmlFor="af-date" className="medpro-label">
+                                Ngày khám <span className="text-clinic-danger">*</span>
                             </label>
                             <DatePicker
+                                id="af-date"
                                 className="w-full"
                                 format="DD/MM/YYYY"
                                 value={formik.values.appointmentDate ? dayjs(formik.values.appointmentDate) : null}
@@ -479,18 +463,19 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                 status={formik.touched.appointmentDate && formik.errors.appointmentDate ? 'error' : ''}
                             />
                             {formik.touched.appointmentDate && formik.errors.appointmentDate && (
-                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.appointmentDate}</span>
+                                <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.appointmentDate}</span>
                             )}
                         </div>
 
                         <div>
                             <div className="flex items-center justify-between mb-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase">
-                                    Khung giờ khám (Slot 30p) <span className="text-red-500">*</span>
+                                <label htmlFor="af-slot" className="medpro-label !mb-0">
+                                    Khung giờ khám (Slot 30p) <span className="text-clinic-danger">*</span>
                                 </label>
                                 {loadingSlots && <Spin size="small" />}
                             </div>
                             <Select
+                                id="af-slot"
                                 className="w-full"
                                 placeholder={
                                     loadingSlots
@@ -509,7 +494,7 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                                 status={formik.touched.timeSlot && formik.errors.timeSlot ? 'error' : ''}
                             />
                             {formik.touched.timeSlot && formik.errors.timeSlot && (
-                                <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.timeSlot}</span>
+                                <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.timeSlot}</span>
                             )}
                         </div>
                     </div>
@@ -524,12 +509,12 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                         />
                     )}
 
-                    {/* ── LÝ DO KHÁM (Bắt buộc theo API spec) ────────────────── */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Lý do khám <span className="text-red-500">*</span>
+                        <label htmlFor="af-reason" className="medpro-label">
+                            Lý do khám <span className="text-clinic-danger">*</span>
                         </label>
                         <Input
+                            id="af-reason"
                             placeholder="Ví dụ: Tức ngực, đau đầu, tái khám theo hẹn..."
                             value={formik.values.reason}
                             onChange={(e) => formik.setFieldValue('reason', e.target.value)}
@@ -537,16 +522,16 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                             status={formik.touched.reason && formik.errors.reason ? 'error' : ''}
                         />
                         {formik.touched.reason && formik.errors.reason && (
-                            <span className="text-red-500 text-xs mt-0.5 block">{formik.errors.reason}</span>
+                            <span className="text-clinic-danger text-xs mt-0.5 block">{formik.errors.reason}</span>
                         )}
                     </div>
 
-                    {/* ── TRIỆU CHỨNG BAN ĐẦU (Tùy chọn) ─────────────────────── */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Triệu chứng ban đầu <span className="text-slate-400 font-normal lowercase">(tùy chọn)</span>
+                        <label htmlFor="af-symptoms" className="medpro-label">
+                            Triệu chứng ban đầu <span className="text-clinic-text-muted font-normal">(tùy chọn)</span>
                         </label>
                         <Input.TextArea
+                            id="af-symptoms"
                             rows={2}
                             placeholder="Mô tả triệu chứng ban đầu (VD: Bắt đầu xuất hiện từ 2 ngày trước, kèm sốt nhẹ...)"
                             value={formik.values.symptoms}
@@ -556,7 +541,6 @@ export default function AppointmentFormModal({ open, onClose, defaultPatientId }
                 </form>
             </Modal>
 
-            {/* Modal tạo nhanh hồ sơ bệnh nhân nếu bệnh nhân chưa có trong hệ thống */}
             <PatientFormModal
                 open={isCreatePatientOpen}
                 onClose={() => setIsCreatePatientOpen(false)}

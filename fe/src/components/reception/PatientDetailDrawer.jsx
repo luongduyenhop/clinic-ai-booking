@@ -53,11 +53,9 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
         }
     }, [dispatch, patientId, open])
 
-    // Kết hợp thông tin từ API chi tiết (5.2) và danh sách tìm kiếm (5.1)
     const patientInList = patients.find((p) => p.id === patientId)
     const patient = selectedPatientDetail || patientInList || {}
 
-    // Gọi API tra cứu tất cả lịch hẹn của bệnh nhân này từ CSDL (không chỉ riêng ngày hôm nay)
     useEffect(() => {
         if (!open || !patientId) return
         const targetKw = patient.phone || patient.so_dien_thoai || patient.patientCode || patient.ma_dinh_danh_y_te
@@ -124,7 +122,7 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
             title={
                 <div className="flex items-center justify-between pr-4">
                     <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800">Hồ sơ bệnh nhân: {patientCode}</span>
+                        <span className="font-bold text-clinic-navy">Hồ sơ bệnh nhân: {patientCode}</span>
                         {patient.isDuplicateSuspect && (
                             <Tag color="red" icon={<WarningOutlined />}>
                                 Nghi vấn trùng
@@ -155,7 +153,7 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                     <Button
                         size="small"
                         type="primary"
-                        className="bg-sky-600"
+                        className="medpro-btn-primary"
                         icon={<PlusOutlined />}
                         onClick={() => {
                             if (onNewAppointmentClick) onNewAppointmentClick(patientId)
@@ -168,7 +166,6 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
         >
             <Spin spinning={patientDetailLoading}>
                 <div className="space-y-4">
-                    {/* Cảnh báo khóa tài khoản nếu No-show nhiều */}
                     {isBlocked && (
                         <Alert
                             message="Cảnh báo tiếp đón (Vi phạm No-show)"
@@ -178,22 +175,21 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                         />
                     )}
 
-                    {/* Overview Header Card */}
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-50 via-teal-50 to-emerald-50 border border-sky-100 flex flex-wrap items-center justify-between gap-3">
+                    <div className="p-4 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 leading-tight">{fullName}</h3>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 mt-1">
+                            <h3 className="text-lg font-bold text-clinic-navy leading-tight">{fullName}</h3>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-clinic-text-secondary mt-1 tabular-nums">
                                 <span>Giới tính: <strong>{genderText}</strong></span>
-                                <span>•</span>
+                                <span>·</span>
                                 <span>Ngày sinh: <strong>{dobText}</strong></span>
-                                <span>•</span>
+                                <span>·</span>
                                 <span>SĐT: <strong className="font-mono">{phone}</strong></span>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="text-[11px] text-slate-400 block font-medium">Vắng mặt (No-show)</span>
-                            <span className="text-base font-black text-rose-600">
-                                {noShowCount} <span className="text-xs font-normal text-slate-400">({noShowRate}%)</span>
+                        <div className="text-right tabular-nums">
+                            <span className="text-[11px] text-clinic-text-secondary block font-medium">Vắng mặt (No-show)</span>
+                            <span className="text-base font-black text-clinic-danger">
+                                {noShowCount} <span className="text-xs font-normal text-clinic-text-muted">({noShowRate}%)</span>
                             </span>
                         </div>
                     </div>
@@ -213,13 +209,13 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                     <div className="space-y-4">
                                         <Descriptions bordered size="small" column={1} labelStyle={{ width: '160px', fontWeight: 600 }}>
                                             <Descriptions.Item label="Mã định danh BN">
-                                                <span className="font-mono font-bold text-sky-700">{patientCode}</span>
+                                                <span className="font-mono font-bold text-clinic-cta tabular-nums">{patientCode}</span>
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Mã CCCD / Định danh">
                                                 {cccd ? (
-                                                    <span className="font-mono font-semibold">{cccd}</span>
+                                                    <span className="font-mono font-semibold tabular-nums">{cccd}</span>
                                                 ) : (
-                                                    <span className="text-slate-400 italic">Chưa có thông tin</span>
+                                                    <span className="text-clinic-text-muted">Chưa có thông tin</span>
                                                 )}
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Nhóm máu">
@@ -227,25 +223,25 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Email">
                                                 {email ? (
-                                                    <span className="text-slate-700">{email}</span>
+                                                    <span className="text-clinic-text">{email}</span>
                                                 ) : (
-                                                    <span className="text-slate-400 italic">Chưa cập nhật</span>
+                                                    <span className="text-clinic-text-muted">Chưa cập nhật</span>
                                                 )}
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Địa chỉ thường trú">
-                                                {address || <span className="text-slate-400 italic">Chưa cập nhật</span>}
+                                                {address || <span className="text-clinic-text-muted">Chưa cập nhật</span>}
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Tiền sử dị ứng">
                                                 {allergies ? (
-                                                    <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                                    <span className="text-clinic-danger font-bold bg-clinic-danger-bg px-2 py-0.5 rounded-[4px] border border-clinic-danger-border">
                                                         {allergies}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-emerald-600">Không ghi nhận dị ứng</span>
+                                                    <span className="text-clinic-success">Không ghi nhận dị ứng</span>
                                                 )}
                                             </Descriptions.Item>
                                             <Descriptions.Item label="Tiền sử bệnh lý">
-                                                {medicalHistory || <span className="text-slate-400 italic">Không có ghi nhận đặc biệt</span>}
+                                                {medicalHistory || <span className="text-clinic-text-muted">Không có ghi nhận đặc biệt</span>}
                                             </Descriptions.Item>
                                         </Descriptions>
                                     </div>
@@ -261,30 +257,30 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                 children: (
                                     <div className="space-y-2.5">
                                         {clinicalHistory.length === 0 ? (
-                                            <div className="text-center py-6 text-slate-400 text-xs">
+                                            <div className="text-center py-6 text-clinic-text-muted text-xs">
                                                 Chưa có dữ liệu lịch sử khám bệnh trước đây
                                             </div>
                                         ) : (
                                             clinicalHistory.map((item, idx) => (
                                                 <div
                                                     key={item.lich_kham_id || idx}
-                                                    className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5"
+                                                    className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1.5"
                                                 >
                                                     <div className="flex items-center justify-between">
-                                                        <span className="font-bold text-slate-800 text-sm">
+                                                        <span className="font-bold text-clinic-navy text-sm">
                                                             {item.chuyen_khoa || 'Khám chuyên khoa'}
                                                         </span>
                                                         <Tag color="cyan">
                                                             {item.trang_thai || 'Hoàn thành'}
                                                         </Tag>
                                                     </div>
-                                                    <div className="text-slate-600 flex justify-between">
-                                                        <span>Bác sĩ: <strong>{item.bac_si || 'N/A'}</strong></span>
-                                                        <span className="text-slate-400">{item.ngay_kham}</span>
+                                                    <div className="text-clinic-text-secondary flex justify-between tabular-nums">
+                                                        <span>Bác sĩ: <strong className="text-clinic-navy">{item.bac_si || 'N/A'}</strong></span>
+                                                        <span className="text-clinic-text-muted">{item.ngay_kham}</span>
                                                     </div>
-                                                    <div className="pt-1.5 border-t border-slate-200 text-slate-700">
-                                                        <span className="text-slate-500 font-medium">Chẩn đoán: </span>
-                                                        <strong className="text-sky-900">{item.chan_doan || 'Không có ghi chú chẩn đoán'}</strong>
+                                                    <div className="pt-1.5 border-t border-clinic-border text-clinic-text">
+                                                        <span className="text-clinic-text-secondary font-medium">Chẩn đoán: </span>
+                                                        <strong className="text-clinic-navy">{item.chan_doan || 'Không có ghi chú chẩn đoán'}</strong>
                                                     </div>
                                                 </div>
                                             ))
@@ -302,7 +298,7 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                 children: (
                                     <div className="space-y-2.5">
                                         {patientPackages.length === 0 ? (
-                                            <div className="text-center py-6 text-slate-400 text-xs">
+                                            <div className="text-center py-6 text-clinic-text-muted text-xs">
                                                 Bệnh nhân chưa đăng ký gói khám sức khỏe nào
                                             </div>
                                         ) : (
@@ -317,23 +313,23 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                                 return (
                                                     <div
                                                         key={pkg.id || pkg.goi_dich_vu_id || idx}
-                                                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5"
+                                                        className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1.5 tabular-nums"
                                                     >
                                                         <div className="flex items-center justify-between">
-                                                            <span className="font-bold text-slate-800 text-sm">
+                                                            <span className="font-bold text-clinic-navy text-sm">
                                                                 {packageName}
                                                             </span>
                                                             <Tag color={isExpired ? 'default' : 'success'}>
                                                                 {isExpired ? 'Hết hạn' : 'Đang hiệu lực'}
                                                             </Tag>
                                                         </div>
-                                                        <div className="text-slate-500 text-[11px] flex justify-between">
+                                                        <div className="text-clinic-text-secondary text-[11px] flex justify-between">
                                                             <span>Ngày mua: {buyDate}</span>
-                                                            <span>Hạn dùng: <strong className={isExpired ? 'text-rose-500' : 'text-slate-700'}>{expiryDate}</strong></span>
+                                                            <span>Hạn dùng: <strong className={isExpired ? 'text-clinic-danger' : 'text-clinic-navy'}>{expiryDate}</strong></span>
                                                         </div>
-                                                        <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 font-medium">
-                                                            <span className="text-slate-600">Số dịch vụ còn lại:</span>
-                                                            <span className="font-bold text-sky-700">
+                                                        <div className="flex justify-between items-center pt-1 border-t border-clinic-border font-medium">
+                                                            <span className="text-clinic-text-secondary">Số dịch vụ còn lại:</span>
+                                                            <span className="font-bold text-clinic-cta">
                                                                 {remaining !== undefined ? `${remaining} / ${total}` : `${total} dịch vụ`}
                                                             </span>
                                                         </div>
@@ -355,7 +351,7 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                     <Spin spinning={loadingAppointments}>
                                         <div className="space-y-2.5">
                                             {patientAppointments.length === 0 ? (
-                                                <div className="text-center py-6 text-slate-400 text-xs">Chưa có lịch hẹn nào</div>
+                                                <div className="text-center py-6 text-clinic-text-muted text-xs">Chưa có lịch hẹn nào</div>
                                             ) : (
                                                 patientAppointments.map((app) => {
                                                     const dep = departments.find((d) => d.id === (app.departmentId || app.chuyen_khoa_id))
@@ -365,17 +361,17 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                                         color: 'default',
                                                     }
                                                     return (
-                                                        <div key={app.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                                                        <div key={app.id} className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1 tabular-nums">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-slate-800">
+                                                                <span className="font-bold text-clinic-navy">
                                                                     {app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`}
                                                                 </span>
                                                                 <Tag color={status.color}>{status.label}</Tag>
                                                             </div>
-                                                            <div className="text-slate-600">
-                                                                {app.appointmentDate || app.ngay_kham} ({app.timeSlot || app.gio_kham}) - {app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'}
+                                                            <div className="text-clinic-text-secondary">
+                                                                {app.appointmentDate || app.ngay_kham} ({app.timeSlot || app.gio_kham}) · {app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'}
                                                             </div>
-                                                            <div className="text-slate-400 text-[11px]">Bác sĩ: {app.ten_bac_si || doc?.name}</div>
+                                                            <div className="text-clinic-text-muted text-[11px]">Bác sĩ: {app.ten_bac_si || doc?.name}</div>
                                                         </div>
                                                     )
                                                 })
@@ -394,21 +390,21 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                 children: (
                                     <div className="space-y-2.5">
                                         {patientQueue.length === 0 ? (
-                                            <div className="text-center py-6 text-slate-400 text-xs">Chưa có lượt tiếp nhận nào</div>
+                                            <div className="text-center py-6 text-clinic-text-muted text-xs">Chưa có lượt tiếp nhận nào</div>
                                         ) : (
                                             patientQueue.map((q) => {
                                                 const srv = services.find((s) => s.id === q.serviceId)
                                                 const st = QUEUE_STATUS_LABELS[q.status] || { label: q.status, color: 'default' }
                                                 return (
-                                                    <div key={q.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                                                    <div key={q.id} className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1 tabular-nums">
                                                         <div className="flex items-center justify-between">
-                                                            <span className="font-extrabold text-sky-600">Số vé: {q.ticketNumber || q.so_thu_tu_kham}</span>
+                                                            <span className="font-extrabold text-clinic-cta">Số vé: {q.ticketNumber || q.so_thu_tu_kham}</span>
                                                             <Tag color={st.color}>{st.label}</Tag>
                                                         </div>
-                                                        <div className="text-slate-600">
-                                                            Phòng: {q.roomName || q.phong_kham || 'N/A'} - Giờ check-in: {q.checkInTime || q.gio_tiep_nhan || 'N/A'}
+                                                        <div className="text-clinic-text-secondary">
+                                                            Phòng: {q.roomName || q.phong_kham || 'N/A'} · Giờ check-in: {q.checkInTime || q.gio_tiep_nhan || 'N/A'}
                                                         </div>
-                                                        {srv && <div className="text-slate-400 text-[11px]">Dịch vụ: {srv.name}</div>}
+                                                        {srv && <div className="text-clinic-text-muted text-[11px]">Dịch vụ: {srv.name}</div>}
                                                     </div>
                                                 )
                                             })

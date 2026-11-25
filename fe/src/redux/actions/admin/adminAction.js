@@ -1,14 +1,15 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { adminService } from '../../../services/admin/AdminService'
+import { toFriendlyErrorMessage } from '../../../utils/helpers/clientErrorHelper.js'
 
 export const getDashboardStatsAsync = createAsyncThunk(
     'admin/getDashboardStats',
-    async (_, { rejectWithValue }) => {
+    async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await adminService.getDashboardStats()
+            const response = await adminService.getDashboardStats(params)
             return response.data
         } catch (error) {
-            return rejectWithValue(error.response?.data?.message || error.message)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Không thể tải số liệu tổng quan.'))
         }
     }
 )
@@ -20,7 +21,7 @@ export const loadClinicDataAsync = createAsyncThunk(
             const response = await adminService.getAllClinicData()
             return response.data
         } catch (error) {
-            return rejectWithValue(error.message)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Không thể tải dữ liệu phòng khám.'))
         }
     }
 )
@@ -32,7 +33,7 @@ export const updateClinicCollectionAsync = createAsyncThunk(
             const response = await adminService.updateCollection(payload)
             return response.data
         } catch (error) {
-            return rejectWithValue(error.message)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Không thể cập nhật dữ liệu phòng khám.'))
         }
     }
 )
@@ -44,8 +45,7 @@ export const updateCatalogSubCollectionAsync = createAsyncThunk(
             const response = await adminService.updateCatalogSubCollection(payload)
             return response.data
         } catch (error) {
-            const msg = error.response?.data?.message || error.response?.data?.detail || error.message
-            return rejectWithValue(msg)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Không thể cập nhật danh mục.'))
         }
     }
 )
@@ -57,7 +57,7 @@ export const resetClinicDemoDataAsync = createAsyncThunk(
             const response = await adminService.resetClinicDemoData()
             return response.data
         } catch (error) {
-            return rejectWithValue(error.message)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Không thể khôi phục dữ liệu mẫu.'))
         }
     }
 )
@@ -69,7 +69,7 @@ export const suggestSpecialtyByAIAsync = createAsyncThunk(
             const response = await adminService.suggestSpecialtyByAI(symptomsText)
             return response.data
         } catch (error) {
-            return rejectWithValue(error.message)
+            return rejectWithValue(toFriendlyErrorMessage(error, 'Chưa thể gợi ý chuyên khoa lúc này.'))
         }
     }
 )

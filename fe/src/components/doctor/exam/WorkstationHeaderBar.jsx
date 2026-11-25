@@ -9,34 +9,36 @@ export default function WorkstationHeaderBar({
     locked,
     savedAt,
 }) {
+    if (!encounterId) {
+        return null
+    }
+
     return (
-        <div className="medpro-card flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-white border border-slate-200">
-            <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003553] text-white font-extrabold text-sm shadow-xs">
-                    HIS
+        <div className="medpro-card flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-clinic-surface rounded-[6px] text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-clinic-text-secondary tabular-nums">
+                <span className="font-bold text-clinic-navy">
+                    Phiên khám #{encounter?.ma_kcb || encounterId}
                 </span>
-                <div>
-                    <h1 className="text-[17px] font-extrabold text-[#003553] leading-tight">
-                        Bàn Khám Lâm Sàng TT32
-                    </h1>
-                    <p className="text-[12px] text-slate-500">
-                        Khoa: <strong className="text-slate-700">{resolvedSpecialty?.label || 'Khoa Nội tổng quát'}</strong> · {currentUser?.room || encounter?.ten_phong_kham || 'Buồng khám chuyên khoa'} · Phòng khám Đa khoa Clinic-AI
-                    </p>
-                </div>
+                <span>·</span>
+                <span>{resolvedSpecialty?.label || 'Khoa Nội tổng quát'}</span>
+                <span>·</span>
+                <span>{currentUser?.room || encounter?.ten_phong_kham || 'Buồng khám chuyên khoa'}</span>
             </div>
 
-            {encounterId && (
-                <div className="flex items-center gap-3">
-                    <span className="text-[12px] text-slate-500 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className={`h-2 w-2 rounded-full ${savedAt ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                        {locked
-                            ? 'Bệnh án đã khóa (Chỉ đọc)'
-                            : savedAt
-                            ? `Đã lưu nháp ${formatDateTime(savedAt).slice(-8)}`
-                            : 'Tự động lưu nháp'}
-                    </span>
-                </div>
-            )}
+            <span className="text-xs text-clinic-text-secondary inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-clinic-bg border border-clinic-border tabular-nums">
+                <span
+                    className={`h-2 w-2 rounded-full ${
+                        savedAt ? 'bg-clinic-success' : 'bg-clinic-border-strong'
+                    }`}
+                />
+                <span>
+                    {locked
+                        ? 'Bệnh án đã khóa (Chỉ đọc)'
+                        : savedAt
+                          ? `Đã lưu nháp ${formatDateTime(savedAt).slice(-8)}`
+                          : 'Tự động lưu nháp'}
+                </span>
+            </span>
         </div>
     )
 }

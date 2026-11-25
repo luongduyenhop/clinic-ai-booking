@@ -182,7 +182,7 @@ export function useCatalogManagementLogic() {
                 setExportedServices(localExport)
             }
         } catch {
-            AppToast.error('Không thể kết nối danh mục kỹ thuật y tế!')
+            AppToast.error('Không thể kết nối danh mục kỹ thuật y tế')
         } finally {
             setExportLoading(false)
         }
@@ -190,7 +190,7 @@ export function useCatalogManagementLogic() {
 
     const handleOpenPriceHistory = async () => {
         if (!form.id || typeof form.id !== 'number') {
-            AppToast.info('Vui lòng chọn dịch vụ từ danh sách để tra cứu lịch sử giá!')
+            AppToast.info('Vui lòng chọn dịch vụ từ danh sách để tra cứu lịch sử giá')
             return
         }
         setIsPriceHistoryOpen(true)
@@ -199,7 +199,7 @@ export function useCatalogManagementLogic() {
             const history = await catalogService.getPriceHistory(form.id)
             setPriceHistory(history || [])
         } catch {
-            AppToast.error('Không thể tải lịch sử biến động giá!')
+            AppToast.error('Không thể tải lịch sử biến động giá')
         } finally {
             setPriceHistoryLoading(false)
         }
@@ -218,7 +218,7 @@ export function useCatalogManagementLogic() {
             } else {
                 const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0)
                 if (lines.length <= 1) {
-                    AppToast.error('Tệp CSV không chứa dữ liệu hợp lệ!')
+                    AppToast.error('Tệp CSV không chứa dữ liệu hợp lệ')
                     return
                 }
                 const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
@@ -233,7 +233,7 @@ export function useCatalogManagementLogic() {
             }
 
             if (!parsedItems.length) {
-                AppToast.error('Không tìm thấy bản ghi nào trong tệp tải lên!')
+                AppToast.error('Không tìm thấy bản ghi nào trong tệp tải lên')
                 return
             }
 
@@ -260,15 +260,15 @@ export function useCatalogManagementLogic() {
                     },
                 })
             )
-            AppToast.success(`Đã nạp ${parsedItems.length} bản ghi vào danh mục thành công!`)
+            AppToast.success(`Đã nạp ${parsedItems.length} bản ghi vào danh mục thành công`)
         } catch {
-            AppToast.error('Lỗi phân tích cú pháp tệp danh mục!')
+            AppToast.error('Lỗi phân tích cú pháp tệp danh mục')
         }
     }
 
     const handleDownloadServicesCsv = () => {
         if (!exportedServices.length) {
-            AppToast.info('Không có dữ liệu dịch vụ kỹ thuật để xuất!')
+            AppToast.info('Không có dữ liệu dịch vụ kỹ thuật để xuất')
             return
         }
         const configuredClinicName = settings.tenPhongKham || 'Clinic-AI Phòng Khám Đa Khoa'
@@ -310,7 +310,7 @@ export function useCatalogManagementLogic() {
             rows,
             signOff: true,
         })
-        AppToast.success('Đã tải bảng giá dịch vụ chuẩn y tế dạng file Excel (.xlsx) thành công!')
+        AppToast.success('Đã tải bảng giá dịch vụ chuẩn y tế dạng file Excel (.xlsx) thành công')
     }
 
     const handleNewItem = () => {
@@ -436,7 +436,7 @@ export function useCatalogManagementLogic() {
         }
 
         if (!codeToCheck) {
-            AppToast.warning(`${codeLabel} không được để trống!`)
+            AppToast.warning(`${codeLabel} không được để trống`)
             return
         }
 
@@ -458,7 +458,7 @@ export function useCatalogManagementLogic() {
         })
 
         if (isDuplicate) {
-            AppToast.error(`${codeLabel} "${codeToCheck}" đã tồn tại trong hệ thống! Vui lòng chọn hoặc nhập mã khác.`)
+            AppToast.error(`${codeLabel} "${codeToCheck}" đã tồn tại trong hệ thống. Vui lòng chọn hoặc nhập mã khác.`)
             return
         }
 
@@ -543,12 +543,12 @@ export function useCatalogManagementLogic() {
         }
 
         await loadLiveCatalogData()
-        AppToast.success('Đã lưu dữ liệu danh mục thành công!')
+        AppToast.success('Đã lưu dữ liệu danh mục thành công')
     }
 
     const handleDeleteItem = async () => {
         if (!form.id) {
-            AppToast.info('Vui lòng chọn một bản ghi để xóa!')
+            AppToast.info('Vui lòng chọn một bản ghi để xóa')
             return
         }
 
@@ -582,7 +582,7 @@ export function useCatalogManagementLogic() {
                 return
             }
 
-            AppToast.success('Đã xóa bản ghi danh mục thành công!')
+            AppToast.success('Đã xóa bản ghi danh mục thành công')
             setForm(remaining[0] || {})
             await loadLiveCatalogData()
         } catch (err) {
@@ -597,7 +597,7 @@ export function useCatalogManagementLogic() {
     const handleExportCatalog = () => {
         const rowsToExport = filteredList.length > 0 ? filteredList : listData
         if (!rowsToExport.length) {
-            AppToast.info('Không có dữ liệu danh mục để xuất file!')
+            AppToast.info('Không có dữ liệu danh mục để xuất file')
             return
         }
         const configuredClinicName = settings.tenPhongKham || 'Clinic-AI Phòng Khám Đa Khoa'
@@ -683,7 +683,7 @@ export function useCatalogManagementLogic() {
             rows,
             signOff: true,
         })
-        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xlsx) thành công!`)
+        AppToast.success(`Đã xuất ${rows.length} bản ghi danh mục ra file Excel (.xlsx) thành công`)
     }
 
     const filteredList = useMemo(() => {

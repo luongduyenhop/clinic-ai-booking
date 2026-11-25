@@ -15,15 +15,15 @@ export default function QueueFilterToolbar({
     onSearchChange,
 }) {
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2EDF5] pb-2.5">
-            <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-border pb-2.5">
+            <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
                 <button
                     type="button"
                     onClick={() => onTabChange('ALL')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
                         activeTab === 'ALL'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
                     }`}
                 >
                     Tất cả ({tabCounts.ALL})
@@ -31,10 +31,10 @@ export default function QueueFilterToolbar({
                 <button
                     type="button"
                     onClick={() => onTabChange('WAITING')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
                         activeTab === 'WAITING'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
                     }`}
                 >
                     Đang chờ ({tabCounts.WAITING})
@@ -42,10 +42,10 @@ export default function QueueFilterToolbar({
                 <button
                     type="button"
                     onClick={() => onTabChange('IN_CONSULTATION')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
                         activeTab === 'IN_CONSULTATION'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
                     }`}
                 >
                     Đang khám ({tabCounts.IN_CONSULTATION})
@@ -53,10 +53,10 @@ export default function QueueFilterToolbar({
                 <button
                     type="button"
                     onClick={() => onTabChange('DEFERRED')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
                         activeTab === 'DEFERRED'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
                     }`}
                 >
                     Tạm hoãn ({tabCounts.DEFERRED})
@@ -64,10 +64,10 @@ export default function QueueFilterToolbar({
                 <button
                     type="button"
                     onClick={() => onTabChange('COMPLETED')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
                         activeTab === 'COMPLETED'
-                            ? 'bg-[#00B5F1] text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-clinic-navy text-clinic-surface'
+                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
                     }`}
                 >
                     Hoàn tất ({tabCounts.COMPLETED})
@@ -75,18 +75,18 @@ export default function QueueFilterToolbar({
                 <button
                     type="button"
                     onClick={() => onTabChange('WAITLIST')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
                         activeTab === 'WAITLIST'
-                            ? 'bg-amber-600 text-white shadow-xs'
-                            : 'text-amber-700 hover:bg-amber-50'
+                            ? 'bg-clinic-amber text-clinic-navy'
+                            : 'text-clinic-warning hover:bg-clinic-warning-bg'
                     }`}
                 >
                     <span>Danh sách chờ (Waitlist)</span>
                     <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        className={`text-[10px] px-1.5 py-0.5 rounded-[4px] font-mono ${
                             activeTab === 'WAITLIST'
-                                ? 'bg-amber-700 text-white'
-                                : 'bg-amber-100 text-amber-800'
+                                ? 'bg-clinic-navy text-clinic-surface'
+                                : 'bg-clinic-warning-bg text-clinic-warning border border-clinic-warning-border'
                         }`}
                     >
                         {tabCounts.WAITLIST}
@@ -103,7 +103,7 @@ export default function QueueFilterToolbar({
                     }}
                     format="DD/MM/YYYY"
                     allowClear={false}
-                    className="w-32 text-xs rounded-xl"
+                    className="w-32 text-xs rounded-[6px]"
                 />
                 <Segmented
                     value={selectedShift}
@@ -113,15 +113,15 @@ export default function QueueFilterToolbar({
                         { label: 'Ca sáng', value: 'sang' },
                         { label: 'Ca chiều', value: 'chieu' },
                     ]}
-                    className="text-xs bg-slate-100 p-0.5 rounded-xl font-medium"
+                    className="text-xs bg-clinic-bg-muted p-0.5 rounded-[6px] font-medium"
                 />
                 <Input
                     placeholder="Số vé (A101, TMH-01), tên BN, SĐT..."
-                    prefix={<SearchOutlined className="text-slate-400" />}
+                    prefix={<SearchOutlined className="text-clinic-text-muted" />}
                     value={searchQuery}
                     onChange={(event) => onSearchChange(event.target.value)}
                     allowClear
-                    className="w-64 text-xs rounded-xl"
+                    className="w-64 text-xs rounded-[6px]"
                 />
             </div>
         </div>

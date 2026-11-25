@@ -54,7 +54,7 @@ export default function VietQrModal({
                 const detail = await cashierService.getInvoiceDetail(invoiceId)
                 if (active && (detail?.trang_thai === 'da_thu' || detail?.status === 'PAID')) {
                     clearInterval(timer)
-                    AppToast.success('Cổng SePay: Đã nhận thanh toán trực tuyến thành công!')
+                    AppToast.success('Cổng SePay: Đã nhận thanh toán trực tuyến thành công')
                     if (onConfirmPayment) {
                         await onConfirmPayment(detail)
                     }
@@ -76,11 +76,11 @@ export default function VietQrModal({
             if (type === 'content') {
                 setCopiedContent(true)
                 setTimeout(() => setCopiedContent(false), 2000)
-                AppToast.success('Đã sao chép nội dung chuyển khoản!')
+                AppToast.success('Đã sao chép nội dung chuyển khoản')
             } else {
                 setCopiedAccount(true)
                 setTimeout(() => setCopiedAccount(false), 2000)
-                AppToast.success('Đã sao chép số tài khoản!')
+                AppToast.success('Đã sao chép số tài khoản')
             }
         } catch {
             AppToast.error('Không thể tự động sao chép. Vui lòng copy thủ công.')
@@ -89,14 +89,14 @@ export default function VietQrModal({
 
     const handleConfirm = async () => {
         if (!onConfirmPayment) {
-            AppToast.success('Đã đối soát thông tin chuyển khoản thành công!')
+            AppToast.success('Đã đối soát thông tin chuyển khoản thành công')
             onClose()
             return
         }
         setIsConfirming(true)
         try {
             await onConfirmPayment(invoice)
-            AppToast.success(`Hóa đơn #${invoiceId} đã được xác nhận thanh toán thành công!`)
+            AppToast.success(`Hóa đơn #${invoiceId} đã được xác nhận thanh toán thành công`)
             onClose()
         } catch (err) {
             if (!err?.response) {

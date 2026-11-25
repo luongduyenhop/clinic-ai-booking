@@ -3,6 +3,7 @@ import { Modal, Input, Button, message, Descriptions, Tag } from 'antd'
 import { useDispatch } from 'react-redux'
 import { resolveTaskAsync } from '../../redux/actions/reception/receptionAction'
 import { TASK_SEVERITY_LABELS } from '../../utils/constants/receptionConstants'
+import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 
 export default function TaskActionModal({ open, onClose, task }) {
     const dispatch = useDispatch()
@@ -31,7 +32,7 @@ export default function TaskActionModal({ open, onClose, task }) {
             setResolutionNote('')
             onClose()
         } catch (err) {
-            message.error(err.message || 'Lỗi khi xử lý sự cố')
+            message.error(toFriendlyErrorMessage(err, 'Lỗi khi xử lý sự cố'))
         } finally {
             setIsSubmitting(false)
         }

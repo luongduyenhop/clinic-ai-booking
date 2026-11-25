@@ -32,6 +32,7 @@ import {
     MagnifyingGlass,
     Funnel,
     Sparkle,
+    Star,
     Robot,
     Camera,
     UploadSimple,
@@ -149,6 +150,7 @@ const ICON_MAP = {
     MagnifyingGlass,
     Funnel,
     Sparkle,
+    Star,
     Robot,
     Camera,
     UploadSimple,
@@ -372,17 +374,17 @@ export function StatusBadge({ status, text, showText = true, compact = false, cl
     }
 
     const styles = {
-        success: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/20',
-        warning: 'bg-amber-50 text-amber-700 border-amber-200 ring-amber-500/20',
-        danger: 'bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/20',
-        info: 'bg-[#E8F4FD] text-[#003553] border-[#B8E5FA] ring-[#00B5F1]/20',
+        success: 'bg-clinic-success-bg text-clinic-success border-clinic-success-border',
+        warning: 'bg-clinic-warning-bg text-clinic-warning border-clinic-warning-border',
+        danger: 'bg-clinic-danger-bg text-clinic-danger border-clinic-danger-border',
+        info: 'bg-clinic-surface-alt text-clinic-navy border-clinic-info-border',
     }
 
     const dotStyles = {
-        success: 'bg-emerald-500 ring-2 ring-emerald-200',
-        warning: 'bg-amber-500 ring-2 ring-amber-200',
-        danger: 'bg-rose-500 ring-2 ring-rose-200',
-        info: 'bg-[#00B5F1] ring-2 ring-[#B8E5FA]',
+        success: 'bg-clinic-success',
+        warning: 'bg-clinic-warning',
+        danger: 'bg-clinic-danger',
+        info: 'bg-clinic-cta',
     }
 
     if (!showText) {
@@ -416,11 +418,11 @@ export function EmptyState({
 }) {
     return (
         <div className="py-8 px-4 text-center flex flex-col items-center justify-center">
-            <div className="w-11 h-11 rounded-2xl bg-[#E8F4FD] text-[#00B5F1] flex items-center justify-center mb-2.5 shadow-2xs border border-[#CBE9FA]">
+            <div className="w-11 h-11 rounded-[8px] bg-clinic-surface-alt text-clinic-cta flex items-center justify-center mb-2.5 border border-clinic-info-border">
                 <ClinicIcon name={icon} size={22} weight="duotone" />
             </div>
-            <p className="text-xs font-bold text-[#003553]">{title}</p>
-            {description && <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">{description}</p>}
+            <p className="text-xs font-bold text-clinic-navy">{title}</p>
+            {description && <p className="text-[11px] text-clinic-text-muted mt-0.5 max-w-xs">{description}</p>}
         </div>
     )
 }
@@ -459,6 +461,7 @@ export {
     MagnifyingGlass,
     Funnel,
     Sparkle,
+    Star,
     Robot,
     Camera,
     UploadSimple,

@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
-import { getNavigationConfig, getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
+import { getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
 import {
     ClinicIcon,
     ArrowsClockwise,
@@ -23,14 +23,14 @@ const SPECIALIZED_PORTALS = [
         path: '/reception/dashboard',
         icon: 'ClipboardText',
         badge: 'Lễ tân',
-        desc: 'Tiếp đón SĐT/CCCD, hàng chờ realtime & lịch hẹn',
+        desc: 'Tiếp đón SĐT/CCCD, hàng chờ & lịch hẹn',
     },
     {
         label: 'Cổng Bác Sĩ Lâm Sàng',
         path: '/doctor',
         icon: 'Stethoscope',
         badge: 'Bác sĩ',
-        desc: 'Bàn khám chuyên khoa, chẩn đoán ICD-10 & kê đơn',
+        desc: 'Bàn khám chuyên khoa, ICD-10 & kê đơn',
     },
     {
         label: 'Cổng Kỹ Thuật Viên CLS',
@@ -44,33 +44,24 @@ const SPECIALIZED_PORTALS = [
         path: '/staff/cashier',
         icon: 'Receipt',
         badge: 'Thu ngân',
-        desc: 'Thu tiền VietQR/Tiền mặt, hóa đơn & đối soát ca',
+        desc: 'Thu tiền VietQR/Tiền mặt, hóa đơn & khóa sổ',
     },
 ]
 
-export default function AdminHeader() {
-    const location = useLocation()
+export default function AdminHeader({ pageTitle = 'Tổng quan' }) {
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const { user, isLoggingOut } = useSelector((state) => state.app.auth)
     const { clinicData } = useSelector((state) => state.app.admin)
 
-    const { headerWorkflowTabs = [] } = getNavigationConfig(clinicData)
     const defaultUser = getAuthSeed()?.user || {}
     const systemNotifications = clinicData?.systemNotifications || []
 
-    const [activeDropdown, setActiveDropdown] = useState(null)
     const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false)
     const [isNotifOpen, setIsNotifOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [currentLang, setCurrentLang] = useState('VIE')
-
-    const toggleLanguage = () => {
-        const nextLang = currentLang === 'VIE' ? 'ENG' : 'VIE'
-        setCurrentLang(nextLang)
-        AppToast.info(`Đã chuyển ngôn ngữ sang: ${nextLang === 'VIE' ? 'Tiếng Việt' : 'English'}`)
-    }
     const [notifications, setNotifications] = useState(systemNotifications)
 
     const headerRef = useRef(null)
@@ -86,7 +77,6 @@ export default function AdminHeader() {
     useEffect(() => {
         function handleClickOutside(e) {
             if (headerRef.current && !headerRef.current.contains(e.target)) {
-                setActiveDropdown(null)
                 setIsPortalMenuOpen(false)
                 setIsNotifOpen(false)
                 setIsUserMenuOpen(false)
@@ -104,6 +94,12 @@ export default function AdminHeader() {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }, [])
 
+    const toggleLanguage = () => {
+        const nextLang = currentLang === 'VIE' ? 'ENG' : 'VIE'
+        setCurrentLang(nextLang)
+        AppToast.info(`Đã chuyển ngôn ngữ sang: ${nextLang === 'VIE' ? 'Tiếng Việt' : 'English'}`)
+    }
+
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(() => {})
@@ -114,13 +110,13 @@ export default function AdminHeader() {
 
     const handleResetDemo = async () => {
         await dispatch(resetClinicDemoDataAsync())
-        AppToast.success('Đã đồng bộ lại dữ liệu cấu hình chuẩn từ máy chủ!')
+        AppToast.success('Đã đồng bộ lại dữ liệu cấu hình chuẩn từ máy chủ')
     }
 
     const handleLogout = async () => {
         const result = await dispatch(logoutUserAsync())
         if (result.payload?.sessionChanged || result.meta.condition) return
-        navigate('/login')
+        navigate('/staff/login')
     }
 
     const handleMarkAllNotifsRead = () => {
@@ -138,158 +134,38 @@ export default function AdminHeader() {
         }
     }
 
-    const isTabActive = (tab) => {
-        const currentFull = location.pathname + (location.search || '')
-        if (location.pathname === tab.path) return true
-        if (tab.submenu && tab.submenu.length > 0) {
-            return tab.submenu.some((sub) => {
-                const [subBase] = sub.path.split('?')
-                return currentFull === sub.path || location.pathname === subBase
-            })
-        }
-        return tab.path !== '/admin' && location.pathname.startsWith(`${tab.path}/`)
-    }
+    const displayName = user?.shortName || user?.fullName || defaultUser.shortName || 'Quản trị viên HIS'
+    const fullName = user?.fullName || defaultUser.fullName || 'Quản trị viên Hệ thống'
 
     return (
         <header
             ref={headerRef}
-            className="h-14 bg-white border-b border-[#E2EDF5] px-3 lg:px-4 flex items-center justify-between gap-3 shrink-0 shadow-2xs z-30 select-none"
+            className="h-14 bg-clinic-surface border-b border-clinic-border px-3 lg:px-4 flex items-center justify-between gap-3 shrink-0 z-30 select-none"
         >
-            <div className="flex items-center gap-1.5 overflow-visible py-1">
-                {headerWorkflowTabs.map((tab) => {
-                    const active = isTabActive(tab)
-                    const isDropdownOpen = activeDropdown === tab.path
-
-                    if (tab.hasDropdown && tab.submenu && tab.submenu.length > 0) {
-                        return (
-                            <div key={tab.path} className="relative">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsPortalMenuOpen(false)
-                                        setIsNotifOpen(false)
-                                        setIsUserMenuOpen(false)
-                                        setActiveDropdown(isDropdownOpen ? null : tab.path)
-                                    }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                                        active || isDropdownOpen
-                                            ? 'bg-[#00B5F1] text-white shadow-xs ring-2 ring-[#00B5F1]/20'
-                                            : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/12 hover:text-[#00B5F1]'
-                                    }`}
-                                >
-                                    <ClinicIcon
-                                        name={tab.icon}
-                                        size={15}
-                                        weight={active || isDropdownOpen ? 'fill' : 'duotone'}
-                                        className={active || isDropdownOpen ? 'text-white' : 'text-[#00B5F1]'}
-                                    />
-                                    <span>{tab.label}</span>
-                                    <CaretDown
-                                        size={11}
-                                        weight="bold"
-                                        className={`transition-transform duration-150 ${
-                                            isDropdownOpen ? 'rotate-180' : ''
-                                        }`}
-                                    />
-                                </button>
-
-                                {isDropdownOpen && (
-                                    <div className="absolute left-0 top-full mt-2 w-76 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                                        <div className="px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
-                                            <span>{tab.dropdownTitle || tab.label}</span>
-                                            <span className="text-[9px] font-semibold text-[#00B5F1] lowercase">
-                                                {tab.submenu.length} phân mục
-                                            </span>
-                                        </div>
-                                        <div className="max-h-80 overflow-y-auto py-0.5 space-y-0.5">
-                                            {tab.submenu.map((sub) => {
-                                                const currentFull = location.pathname + (location.search || '')
-                                                const isSubActive = currentFull === sub.path
-
-                                                return (
-                                                    <Link
-                                                        key={sub.path}
-                                                        to={sub.path}
-                                                        onClick={() => setActiveDropdown(null)}
-                                                        className={`flex items-start gap-2.5 px-3 py-2 text-xs transition rounded-lg mx-1 ${
-                                                            isSubActive
-                                                                ? 'bg-[#E8F4FD] text-[#00B5F1] font-bold'
-                                                                : 'text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1]'
-                                                        }`}
-                                                    >
-                                                        <div
-                                                            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                                                                isSubActive
-                                                                    ? 'bg-[#00B5F1] text-white'
-                                                                    : 'bg-[#F0F7FC] text-[#00B5F1]'
-                                                            }`}
-                                                        >
-                                                            <ClinicIcon
-                                                                name={sub.icon || tab.icon}
-                                                                size={13}
-                                                                weight={isSubActive ? 'fill' : 'bold'}
-                                                            />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-[12px] truncate">
-                                                                {sub.label}
-                                                            </div>
-                                                            {sub.desc && (
-                                                                <div className="text-[10px] text-slate-400 truncate font-normal leading-tight">
-                                                                    {sub.desc}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </Link>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    }
-
-                    return (
-                        <Link
-                            key={tab.path}
-                            to={tab.path}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all ${
-                                active
-                                    ? 'bg-[#00B5F1] text-white shadow-xs ring-2 ring-[#00B5F1]/20'
-                                    : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/12 hover:text-[#00B5F1]'
-                            }`}
-                        >
-                            <ClinicIcon
-                                name={tab.icon}
-                                size={15}
-                                weight={active ? 'fill' : 'duotone'}
-                                className={active ? 'text-white' : 'text-[#00B5F1]'}
-                            />
-                            <span>{tab.label}</span>
-                        </Link>
-                    )
-                })}
+            <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
+                <h1 className="font-display text-sm font-extrabold text-clinic-navy truncate">
+                    {pageTitle}
+                </h1>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
                 <div className="relative hidden md:block">
                     <button
                         type="button"
                         onClick={() => {
-                            setActiveDropdown(null)
                             setIsNotifOpen(false)
                             setIsUserMenuOpen(false)
                             setIsPortalMenuOpen(!isPortalMenuOpen)
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
                             isPortalMenuOpen
-                                ? 'bg-[#003553] text-white border-[#003553]'
-                                : 'bg-slate-50 text-[#003553] border-slate-200 hover:border-[#00B5F1] hover:text-[#00B5F1]'
+                                ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
+                                : 'bg-clinic-bg text-clinic-navy border-clinic-border hover:border-clinic-cta hover:text-clinic-cta'
                         }`}
                     >
                         <ClinicIcon name="Buildings" size={14} weight="duotone" />
-                        <span>Giám sát Cổng Nghiệp Vụ</span>
+                        <span>Cổng nghiệp vụ</span>
                         <CaretDown
                             size={11}
                             weight="bold"
@@ -298,30 +174,30 @@ export default function AdminHeader() {
                     </button>
 
                     {isPortalMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50">
-                            <div className="px-3.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
-                                <span>CHUYỂN CỔNG TÁC NGHIỆP CHUYÊN BIỆT</span>
-                                <span className="text-[9px] font-bold text-emerald-600">4 Phân hệ</span>
+                        <div className="absolute right-0 top-full mt-1.5 w-80 bg-clinic-surface rounded-[6px] border border-clinic-border shadow-xs py-1.5 z-50">
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-clinic-text-muted border-b border-clinic-border flex items-center justify-between">
+                                <span>Chuyển phân hệ tác nghiệp</span>
+                                <span className="text-[10px] font-bold text-clinic-success">4 Cổng</span>
                             </div>
-                            <div className="py-0.5 space-y-0.5">
+                            <div className="py-1 space-y-0.5">
                                 {SPECIALIZED_PORTALS.map((portal) => (
                                     <Link
                                         key={portal.path}
                                         to={portal.path}
                                         onClick={() => setIsPortalMenuOpen(false)}
-                                        className="flex items-start gap-2.5 px-3 py-2 text-xs text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition rounded-lg mx-1"
+                                        className="flex items-start gap-2.5 px-3 py-2 text-xs text-clinic-navy hover:bg-clinic-surface-tint hover:text-clinic-cta transition-colors"
                                     >
-                                        <div className="w-7 h-7 rounded-lg bg-[#F0F7FC] text-[#00B5F1] flex items-center justify-center shrink-0 mt-0.5">
+                                        <div className="w-7 h-7 rounded-[6px] bg-clinic-surface-alt text-clinic-cta flex items-center justify-center shrink-0 mt-0.5">
                                             <ClinicIcon name={portal.icon} size={14} weight="bold" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between gap-1">
-                                                <span className="font-bold text-[12px] truncate">{portal.label}</span>
-                                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-[#00B5F1] shrink-0">
+                                                <span className="font-bold text-xs truncate">{portal.label}</span>
+                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px] bg-clinic-surface-alt text-clinic-cta border border-clinic-info-border shrink-0">
                                                     {portal.badge}
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] text-slate-400 truncate font-normal leading-tight mt-0.5">
+                                            <div className="text-[11px] text-clinic-text-secondary truncate leading-tight mt-0.5">
                                                 {portal.desc}
                                             </div>
                                         </div>
@@ -335,79 +211,84 @@ export default function AdminHeader() {
                 <button
                     type="button"
                     onClick={handleResetDemo}
-                    className="p-1.5 rounded-full text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD] transition cursor-pointer"
-                    title="Đồng bộ lại dữ liệu chuẩn từ máy chủ"
+                    className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface text-clinic-text-secondary hover:text-clinic-cta hover:border-clinic-cta flex items-center justify-center transition-colors cursor-pointer"
+                    title="Đồng bộ lại dữ liệu cấu hình chuẩn"
                 >
-                    <ArrowsClockwise size={16} weight="bold" />
+                    <ArrowsClockwise size={15} weight="bold" />
                 </button>
 
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => {
-                            setActiveDropdown(null)
                             setIsPortalMenuOpen(false)
                             setIsUserMenuOpen(false)
                             setIsNotifOpen(!isNotifOpen)
                         }}
-                        className={`relative p-1.5 rounded-full transition cursor-pointer ${
+                        className={`relative w-8 h-8 rounded-[6px] border flex items-center justify-center transition-colors cursor-pointer ${
                             isNotifOpen
-                                ? 'bg-[#E8F4FD] text-[#00B5F1]'
-                                : 'text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD]'
+                                ? 'bg-clinic-surface-alt border-clinic-cta text-clinic-cta'
+                                : 'bg-clinic-surface border-clinic-border text-clinic-text-secondary hover:text-clinic-cta hover:border-clinic-cta'
                         }`}
-                        title="Thông báo hệ thống quản trị"
+                        title="Cảnh báo vận hành"
                     >
-                        <Bell size={17} weight={unreadCount > 0 ? 'fill' : 'bold'} />
+                        <Bell size={16} weight={unreadCount > 0 ? 'fill' : 'bold'} />
                         {unreadCount > 0 && (
-                            <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9.5px] font-black flex items-center justify-center ring-2 ring-white">
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-[4px] bg-clinic-danger-solid text-clinic-surface text-[10px] font-bold flex items-center justify-center tabular-nums">
                                 {unreadCount}
                             </span>
                         )}
                     </button>
 
                     {isNotifOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                            <div className="px-3.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                                <span className="text-xs font-black text-[#003553] uppercase tracking-wide">
-                                    THÔNG BÁO HỆ THỐNG ({unreadCount} MỚI)
+                        <div className="absolute right-0 top-full mt-1.5 w-80 bg-clinic-surface rounded-[6px] border border-clinic-border shadow-xs py-1.5 z-50">
+                            <div className="px-3 py-1.5 border-b border-clinic-border flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-clinic-navy uppercase tracking-wide">
+                                    Thông báo hệ thống ({unreadCount})
                                 </span>
                                 {unreadCount > 0 && (
                                     <button
                                         type="button"
                                         onClick={handleMarkAllNotifsRead}
-                                        className="text-[10px] font-bold text-[#00B5F1] hover:underline cursor-pointer"
+                                        className="text-[11px] font-semibold text-clinic-cta hover:underline cursor-pointer"
                                     >
                                         Đã đọc tất cả
                                     </button>
                                 )}
                             </div>
-                            <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 py-1">
-                                {notifications.map((notif) => (
-                                    <div
-                                        key={notif.id}
-                                        onClick={() => handleNotificationClick(notif)}
-                                        className={`px-3.5 py-2.5 transition flex items-start gap-2.5 cursor-pointer hover:bg-[#F8FCFF] ${
-                                            notif.unread ? 'bg-[#F0F8FE]/60' : ''
-                                        }`}
-                                    >
-                                        <span
-                                            className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                                                notif.unread ? 'bg-[#00B5F1]' : 'bg-transparent'
+                            <div className="max-h-72 overflow-y-auto divide-y divide-clinic-border py-0.5">
+                                {notifications.length === 0 ? (
+                                    <div className="px-3 py-6 text-center text-xs text-clinic-text-muted">
+                                        Không có thông báo mới
+                                    </div>
+                                ) : (
+                                    notifications.map((notif) => (
+                                        <div
+                                            key={notif.id}
+                                            onClick={() => handleNotificationClick(notif)}
+                                            className={`px-3 py-2.5 transition-colors flex items-start gap-2 cursor-pointer hover:bg-clinic-bg ${
+                                                notif.unread ? 'bg-clinic-surface-tint' : ''
                                             }`}
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-[11.5px] font-bold text-[#003553] flex items-center justify-between">
-                                                <span className="truncate">{notif.title}</span>
-                                                <span className="text-[9.5px] text-slate-400 font-normal shrink-0 ml-1">
-                                                    {notif.time}
-                                                </span>
-                                            </div>
-                                            <div className="text-[11px] text-slate-600 line-clamp-2 mt-0.5 leading-snug">
-                                                {notif.content}
+                                        >
+                                            <span
+                                                className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                                                    notif.unread ? 'bg-clinic-cta' : 'bg-transparent'
+                                                }`}
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-[11.5px] font-bold text-clinic-navy flex items-center justify-between gap-2">
+                                                    <span className="truncate">{notif.title}</span>
+                                                    <span className="text-[10px] text-clinic-text-muted font-normal shrink-0 tabular-nums">
+                                                        {notif.time}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-clinic-text-secondary line-clamp-2 mt-0.5 leading-snug">
+                                                    {notif.content}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     )}
@@ -416,78 +297,77 @@ export default function AdminHeader() {
                 <button
                     type="button"
                     onClick={toggleFullscreen}
-                    className="p-1.5 rounded-full text-slate-500 hover:text-[#00B5F1] hover:bg-[#E8F4FD] transition cursor-pointer hidden sm:flex"
-                    title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình (Fullscreen)'}
+                    className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface text-clinic-text-secondary hover:text-clinic-cta hover:border-clinic-cta items-center justify-center transition-colors cursor-pointer hidden sm:flex"
+                    title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Toàn màn hình'}
                 >
-                    {isFullscreen ? <ArrowsIn size={16} weight="bold" /> : <ArrowsOut size={16} weight="bold" />}
+                    {isFullscreen ? <ArrowsIn size={15} weight="bold" /> : <ArrowsOut size={15} weight="bold" />}
                 </button>
 
                 <button
                     type="button"
                     onClick={toggleLanguage}
-                    className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-200 hover:border-[#00B5F1] text-[11px] font-black text-[#003553] hover:text-[#00B5F1] transition cursor-pointer"
-                    title="Chuyển đổi ngôn ngữ giao diện"
+                    className="hidden sm:inline-flex items-center gap-1 h-8 px-2 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta text-[11px] font-bold text-clinic-navy hover:text-clinic-cta transition-colors cursor-pointer"
+                    title="Ngôn ngữ giao diện"
                 >
-                    <Globe size={13} weight="bold" className="text-[#00B5F1]" />
+                    <Globe size={13} weight="bold" className="text-clinic-cta" />
                     <span>{currentLang}</span>
                 </button>
 
-                <div className="relative pl-1.5 border-l border-slate-200 shrink-0">
+                <div className="relative pl-1.5 border-l border-clinic-border shrink-0">
                     <button
                         type="button"
                         onClick={() => {
-                            setActiveDropdown(null)
                             setIsPortalMenuOpen(false)
                             setIsNotifOpen(false)
                             setIsUserMenuOpen(!isUserMenuOpen)
                         }}
-                        className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F0F7FC] transition cursor-pointer shrink-0 whitespace-nowrap"
+                        className="flex items-center gap-2 px-1.5 py-1 rounded-[6px] hover:bg-clinic-bg transition-colors cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003553] to-[#00B5F1] text-white flex items-center justify-center font-black text-xs shadow-2xs ring-2 ring-[#00B5F1]/20 shrink-0">
+                        <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center font-bold text-xs shrink-0">
                             QT
                         </div>
                         <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
-                            <div className="text-[11.5px] font-bold text-[#003553] max-w-[140px] truncate">
-                                {user?.shortName || user?.fullName || defaultUser.shortName || 'Quản trị viên HIS'}
+                            <div className="text-xs font-bold text-clinic-navy max-w-[180px] truncate">
+                                {displayName}
                             </div>
-                            <div className="text-[10px] text-[#00B5F1] font-semibold">
-                                Quản trị Hệ thống (Admin)
+                            <div className="text-[10px] text-clinic-cta font-semibold">
+                                Quản trị viên
                             </div>
                         </div>
                         <CaretDown
                             size={11}
                             weight="bold"
-                            className={`text-slate-400 transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
+                            className={`text-clinic-text-muted transition-transform shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`}
                         />
                     </button>
 
                     {isUserMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#D5E6F2] py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                            <div className="px-3.5 py-2 border-b border-slate-100">
-                                <div className="text-xs font-bold text-[#003553]">
-                                    {user?.fullName || defaultUser.fullName || 'Quản trị viên Hệ thống'}
+                        <div className="absolute right-0 top-full mt-1.5 w-64 bg-clinic-surface rounded-[6px] border border-clinic-border shadow-xs py-1.5 z-50">
+                            <div className="px-3 py-2 border-b border-clinic-border">
+                                <div className="text-xs font-bold text-clinic-navy truncate">
+                                    {fullName}
                                 </div>
-                                <div className="text-[10.5px] text-slate-500 font-medium mt-0.5">
-                                    Phòng Khám Đa Khoa Clinic-AI &bull; Vai trò: ADMIN
+                                <div className="text-[11px] text-clinic-text-secondary mt-0.5">
+                                    Phòng Khám Clinic-AI &bull; Vai trò ADMIN
                                 </div>
-                                <div className="text-[10px] text-emerald-600 font-bold mt-1 inline-flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <span>Quyền Quản trị Toàn hệ thống</span>
+                                <div className="text-[10.5px] text-clinic-success font-bold mt-1 inline-flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
+                                    <span>Toàn quyền điều hành hệ thống</span>
                                 </div>
                             </div>
                             <div className="py-1">
                                 <Link
                                     to="/admin/cai-dat"
                                     onClick={() => setIsUserMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
+                                    className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-clinic-navy hover:bg-clinic-surface-tint hover:text-clinic-cta transition-colors"
                                 >
                                     <ClinicIcon name="SlidersHorizontal" size={14} weight="bold" />
-                                    <span>Cấu hình phòng khám (/cai-dat)</span>
+                                    <span>Cấu hình phòng khám</span>
                                 </Link>
                                 <Link
                                     to="/admin/phan-quyen"
                                     onClick={() => setIsUserMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
+                                    className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-clinic-navy hover:bg-clinic-surface-tint hover:text-clinic-cta transition-colors"
                                 >
                                     <ShieldCheck size={14} weight="bold" />
                                     <span>Phân quyền Vai trò (RBAC)</span>
@@ -495,18 +375,18 @@ export default function AdminHeader() {
                                 <Link
                                     to="/admin/nhan-vien"
                                     onClick={() => setIsUserMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#003553] hover:bg-[#F0F7FC] hover:text-[#00B5F1] transition"
+                                    className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-clinic-navy hover:bg-clinic-surface-tint hover:text-clinic-cta transition-colors"
                                 >
                                     <ClinicIcon name="Users" size={14} weight="bold" />
-                                    <span>Quản lý Nhân sự & CCHN</span>
+                                    <span>Nhân sự &amp; Chứng chỉ CCHN</span>
                                 </Link>
                             </div>
-                            <div className="border-t border-slate-100 pt-1">
+                            <div className="border-t border-clinic-border pt-1">
                                 <button
                                     type="button"
                                     onClick={handleLogout}
                                     disabled={isLoggingOut}
-                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-clinic-danger hover:bg-clinic-danger-bg transition-colors cursor-pointer"
                                 >
                                     <SignOut size={14} weight="bold" />
                                     <span>Đăng xuất khỏi hệ thống</span>

@@ -5,15 +5,12 @@ import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import {
     StatusBadge,
-    Package,
     Storefront,
     PlusCircle,
     MagnifyingGlass,
-    Receipt,
     CheckCircle,
     X,
     Eye,
-    Tag,
 } from '../../components/common/ClinicIcon'
 
 export default function ServicePackagesPage() {
@@ -40,7 +37,6 @@ export default function ServicePackagesPage() {
     const [selectedPackageTemplate, setSelectedPackageTemplate] = useState(null)
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
 
-    // Danh mục mẫu gói khám lâm sàng & CLS
     const packageTemplates = useMemo(() => [
         {
             id: 'MAU-GDV-01',
@@ -115,7 +111,6 @@ export default function ServicePackagesPage() {
         })
     }, [servicePackages, searchText, statusFilter])
 
-    // Form đăng ký gói mới
     const [regForm, setRegForm] = useState({
         tenBN: '',
         maBN: 'BN0000155',
@@ -125,7 +120,7 @@ export default function ServicePackagesPage() {
 
     const handleCreatePackageReg = () => {
         if (!regForm.tenBN.trim()) {
-            AppToast.error('Vui lòng nhập tên bệnh nhân!')
+            AppToast.error('Vui lòng nhập tên bệnh nhân')
             return
         }
         const template = packageTemplates.find((t) => t.id === regForm.selectedGoiId) || packageTemplates[0]
@@ -156,86 +151,97 @@ export default function ServicePackagesPage() {
             })
         )
         setIsRegisterModalOpen(false)
-        AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}!`)
+        AppToast.success(`Kích hoạt thành công ${template.tenGoi} cho bệnh nhân ${newReg.tenBN}`)
     }
 
     return (
         <div className="space-y-4">
-            {/* Top Navigation & Operational Summary */}
-            <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="medpro-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
-                        <Storefront size={24} weight="fill" />
+                    <span className="w-10 h-10 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-cta flex items-center justify-center shrink-0">
+                        <Storefront size={22} weight="duotone" />
                     </span>
                     <div>
-                        <h1 className="text-lg font-black text-[#003553] tracking-wide flex items-center gap-2">
-                            GÓI DỊCH VỤ KHÁM SỨC KHỎE
-                            <span className="px-2 py-0.5 rounded-full bg-sky-100 text-[#00B5F1] text-[11px] font-bold">
-                                Tiết kiệm & Toàn diện
+                        <h1 className="font-display text-base font-extrabold text-clinic-navy tracking-tight flex flex-wrap items-center gap-2">
+                            <span>Gói dịch vụ Khám sức khỏe</span>
+                            <span className="medpro-badge-info">
+                                Tiết kiệm &amp; Toàn diện
                             </span>
                         </h1>
-                        <p className="text-xs text-slate-500">
-                            Quản lý các gói khám sức khỏe tổng quát, tầm soát ung thư, mẫu gói xét nghiệm và kích hoạt gói cho bệnh nhân
+                        <p className="text-xs text-clinic-text-secondary mt-0.5">
+                            Quản lý các gói khám sức khỏe tổng quát, tầm soát bệnh lý, định mức xét nghiệm và kích hoạt gói cho người bệnh
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
                         onClick={() => setIsRegisterModalOpen(true)}
-                        className="medpro-btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 cursor-pointer"
+                        className="medpro-btn-primary !py-2 !px-3.5 text-xs"
                     >
-                        <PlusCircle size={16} weight="bold" />
+                        <PlusCircle size={15} weight="bold" />
                         <span>Kích hoạt gói mới cho BN</span>
                     </button>
                 </div>
             </div>
 
-            {/* Sub-Tabs bar (Chuẩn tClinic) */}
-            <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
-                {[
-                    { id: 'GOI_DICH_VU', label: '1. Gói dịch vụ đã đăng ký' },
-                    { id: 'MAU_GOI', label: '2. Mẫu gói dịch vụ & Định mức CLS' },
-                    { id: 'THANH_TOAN', label: '3. Quyết toán thanh toán gói' },
-                    { id: 'HOA_DON', label: '4. Hóa đơn gói dịch vụ' },
-                ].map((t) => (
-                    <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setActiveTab(t.id)}
-                        className={`px-3.5 py-2 text-xs font-bold transition border-b-2 cursor-pointer ${
-                            activeTab === t.id
-                                ? 'border-[#00B5F1] text-[#00B5F1]'
-                                : 'border-transparent text-slate-500 hover:text-[#003553]'
-                        }`}
-                    >
-                        {t.label}
-                    </button>
-                ))}
+            <div className="medpro-card p-2.5">
+                <div className="inline-flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
+                    {[
+                        { id: 'GOI_DICH_VU', label: '1. Gói dịch vụ đã đăng ký' },
+                        { id: 'MAU_GOI', label: '2. Mẫu gói dịch vụ & Định mức CLS' },
+                        { id: 'THANH_TOAN', label: '3. Quyết toán thanh toán gói' },
+                        { id: 'HOA_DON', label: '4. Hóa đơn gói dịch vụ' },
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setActiveTab(t.id)}
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors duration-75 cursor-pointer whitespace-nowrap ${
+                                activeTab === t.id
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-transparent text-clinic-text-secondary hover:text-clinic-navy'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* TAB 1: DANH SÁCH BỆNH NHÂN ĐĂNG KÝ GÓI */}
             {activeTab === 'GOI_DICH_VU' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
+                <div className="medpro-card p-4 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="text-xs font-black text-[#003553] uppercase">
+                        <div className="text-xs font-extrabold text-clinic-navy uppercase tabular-nums">
                             DANH SÁCH BỆNH NHÂN SỬ DỤNG GÓI ({filteredPackages.length})
                         </div>
-                        <div className="relative w-72">
-                            <MagnifyingGlass size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                placeholder="Tìm theo tên BN, Mã BN, Mã LH..."
-                                className="w-full text-xs pl-8 pr-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
-                            />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="medpro-input !py-1.5 h-9 !w-44 text-xs font-semibold truncate"
+                            >
+                                <option value="ALL">Tất cả trạng thái</option>
+                                <option value="Đã xác nhận">Đã xác nhận</option>
+                                <option value="Đang thực hiện">Đang thực hiện</option>
+                                <option value="Hoàn thành">Hoàn thành</option>
+                            </select>
+                            <div className="relative w-72">
+                                <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none" />
+                                <input
+                                    type="text"
+                                    value={searchText}
+                                    onChange={(e) => setSearchText(e.target.value)}
+                                    placeholder="Tìm theo tên BN, Mã BN, Mã LH..."
+                                    className="medpro-input !py-1.5 h-9 !pl-8 text-xs"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã LH</th>
@@ -254,35 +260,35 @@ export default function ServicePackagesPage() {
                             <tbody>
                                 {filteredPackages.map((pkg) => (
                                     <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{pkg.maLH}</td>
-                                        <td className="font-mono text-xs">{pkg.maBN}</td>
-                                        <td className="font-bold text-[#003553]">{pkg.tenBN}</td>
-                                        <td className="font-semibold text-slate-700">{pkg.tenGoi}</td>
-                                        <td className="text-slate-500 font-mono">{pkg.ngayKham}</td>
-                                        <td className="font-mono line-through text-slate-400">
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{pkg.maLH}</td>
+                                        <td className="font-mono text-xs whitespace-nowrap">{pkg.maBN}</td>
+                                        <td className="font-bold text-clinic-navy">{pkg.tenBN}</td>
+                                        <td className="font-semibold text-clinic-text">{pkg.tenGoi}</td>
+                                        <td className="text-clinic-text-secondary font-mono whitespace-nowrap">{pkg.ngayKham}</td>
+                                        <td className="font-mono line-through text-clinic-text-muted whitespace-nowrap">
                                             {(pkg.tongTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td className="font-mono text-emerald-600 font-bold">
+                                        <td className="font-mono text-clinic-success font-bold whitespace-nowrap">
                                             -{(pkg.giamGia || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td className="font-mono font-black text-[#00B5F1]">
+                                        <td className="font-mono font-extrabold text-clinic-cta whitespace-nowrap">
                                             {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
                                         <td>
                                             <StatusBadge status={pkg.trangThai} compact />
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <span
-                                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                className={
                                                     pkg.thanhToan === 'Đã thu tiền'
-                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                }`}
+                                                        ? 'medpro-badge-success'
+                                                        : 'medpro-badge-warning'
+                                                }
                                             >
                                                 {pkg.thanhToan}
                                             </span>
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => AppToast.success(`Mở hồ sơ thực hiện gói của BN ${pkg.tenBN}`)}
@@ -299,44 +305,43 @@ export default function ServicePackagesPage() {
                 </div>
             )}
 
-            {/* TAB 2: MẪU GÓI DỊCH VỤ (Định mức CLS) */}
             {activeTab === 'MAU_GOI' && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {packageTemplates.map((tpl) => (
                             <div
                                 key={tpl.id}
-                                className="bg-white rounded-xl border border-[#E5EEF5] p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between"
+                                className="medpro-card p-4 flex flex-col justify-between transition-colors hover:border-clinic-cta"
                             >
                                 <div className="space-y-2">
                                     <div className="flex items-start justify-between gap-2">
-                                        <span className="px-2 py-0.5 rounded bg-sky-100 text-[#00B5F1] font-mono text-[11px] font-bold">
+                                        <span className="medpro-badge-info font-mono">
                                             {tpl.maGoi}
                                         </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                                        <span className="medpro-badge-success tabular-nums">
                                             Tiết kiệm {tpl.tietKiem}
                                         </span>
                                     </div>
-                                    <h3 className="font-black text-sm text-[#003553]">{tpl.tenGoi}</h3>
-                                    <p className="text-xs text-slate-500 line-clamp-2">{tpl.moTa}</p>
-                                    <div className="text-xs text-slate-600 flex items-center gap-1 font-semibold">
-                                        <span>Gồm {tpl.soDichVu} dịch vụ kỹ thuật & xét nghiệm</span>
+                                    <h3 className="font-bold text-sm text-clinic-navy">{tpl.tenGoi}</h3>
+                                    <p className="text-xs text-clinic-text-secondary line-clamp-2">{tpl.moTa}</p>
+                                    <div className="text-xs text-clinic-text flex items-center gap-1 font-semibold tabular-nums">
+                                        <span>Gồm {tpl.soDichVu} dịch vụ kỹ thuật &amp; xét nghiệm</span>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+                                <div className="mt-4 pt-3 border-t border-clinic-border space-y-3 tabular-nums">
                                     <div className="flex items-baseline justify-between">
-                                        <span className="text-xs text-slate-400 line-through">
+                                        <span className="text-xs text-clinic-text-muted line-through font-mono">
                                             {tpl.giaGoc.toLocaleString('vi-VN')} đ
                                         </span>
-                                        <span className="text-base font-black text-[#00B5F1] font-mono">
+                                        <span className="text-base font-extrabold text-clinic-cta font-mono">
                                             {tpl.giaGoi.toLocaleString('vi-VN')} đ
                                         </span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedPackageTemplate(tpl)}
-                                        className="w-full py-1.5 rounded-lg border border-[#00B5F1] text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
+                                        className="medpro-btn-outline !py-1.5 w-full text-xs"
                                     >
                                         <Eye size={14} />
                                         <span>Xem định mức {tpl.soDichVu} dịch vụ</span>
@@ -346,32 +351,31 @@ export default function ServicePackagesPage() {
                         ))}
                     </div>
 
-                    {/* Drawer/Modal chi tiết định mức dịch vụ trong gói */}
                     {selectedPackageTemplate && (
-                        <div className="bg-white rounded-xl border border-[#00B5F1] p-4 space-y-3 animate-scaleUp">
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="medpro-card border-clinic-cta p-4 space-y-3">
+                            <div className="flex items-center justify-between pb-2.5 border-b border-clinic-border">
                                 <div>
-                                    <div className="text-sm font-black text-[#003553]">
+                                    <div className="text-sm font-extrabold text-clinic-navy">
                                         ĐỊNH MỨC DỊCH VỤ TRONG GÓI: {selectedPackageTemplate.tenGoi}
                                     </div>
-                                    <div className="text-xs text-slate-500 font-mono">
+                                    <div className="text-xs text-clinic-text-secondary font-mono mt-0.5">
                                         Mã gói: {selectedPackageTemplate.maGoi} &bull; Chuyên khoa: {selectedPackageTemplate.chuyenKhoa}
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setSelectedPackageTemplate(null)}
-                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                    className="w-7 h-7 rounded-[6px] bg-clinic-bg-muted text-clinic-text-secondary hover:text-clinic-navy flex items-center justify-center cursor-pointer"
                                 >
-                                    <X size={18} weight="bold" />
+                                    <X size={16} weight="bold" />
                                 </button>
                             </div>
 
-                            <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                                <table className="medpro-table text-xs">
+                            <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                                <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                                     <thead>
                                         <tr>
-                                            <th>STT</th>
+                                            <th className="w-10 text-center">STT</th>
                                             <th>Tên dịch vụ kỹ thuật / Xét nghiệm</th>
                                             <th>Phân loại</th>
                                             <th>Phòng thực hiện chỉ định</th>
@@ -382,15 +386,15 @@ export default function ServicePackagesPage() {
                                         {selectedPackageTemplate.danhMucDichVu.map((dv) => (
                                             <tr key={dv.stt}>
                                                 <td className="font-bold text-center">{dv.stt}</td>
-                                                <td className="font-bold text-[#003553]">{dv.ten}</td>
+                                                <td className="font-bold text-clinic-navy">{dv.ten}</td>
                                                 <td>
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-[#00B5F1]">
+                                                    <span className="medpro-badge-info">
                                                         {dv.loai}
                                                     </span>
                                                 </td>
-                                                <td className="font-semibold text-slate-600">{dv.phong}</td>
+                                                <td className="font-semibold text-clinic-text-secondary">{dv.phong}</td>
                                                 <td>
-                                                    <span className="text-emerald-600 font-bold text-[11px] flex items-center gap-1">
+                                                    <span className="text-clinic-success font-bold text-xs inline-flex items-center gap-1">
                                                         <CheckCircle size={13} weight="fill" />
                                                         Bắt buộc trong gói
                                                     </span>
@@ -405,12 +409,13 @@ export default function ServicePackagesPage() {
                 </div>
             )}
 
-            {/* TAB 3: THANH TOÁN */}
             {activeTab === 'THANH_TOAN' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
-                    <div className="text-sm font-bold text-[#003553]">QUYẾT TOÁN THU VIỆN PHÍ GÓI DỊCH VỤ TRỌN GÓI</div>
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
+                <div className="medpro-card p-4 space-y-4">
+                    <div className="text-sm font-extrabold text-clinic-navy uppercase">
+                        QUYẾT TOÁN THU VIỆN PHÍ GÓI DỊCH VỤ TRỌN GÓI
+                    </div>
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Mã LH</th>
@@ -426,17 +431,17 @@ export default function ServicePackagesPage() {
                             <tbody>
                                 {servicePackages.map((pkg) => (
                                     <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">{pkg.maLH}</td>
-                                        <td className="font-bold text-[#003553]">{pkg.tenBN}</td>
-                                        <td className="font-semibold text-slate-700">{pkg.tenGoi}</td>
-                                        <td className="font-mono font-black text-emerald-600">
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">{pkg.maLH}</td>
+                                        <td className="font-bold text-clinic-navy">{pkg.tenBN}</td>
+                                        <td className="font-semibold text-clinic-text">{pkg.tenGoi}</td>
+                                        <td className="font-mono font-extrabold text-clinic-success whitespace-nowrap">
                                             {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
                                         <td>Chuyển khoản VietQR</td>
                                         <td>Vũ Thu Hà (TN-01)</td>
-                                        <td className="text-slate-500 font-mono">12/10/2026 08:35</td>
-                                        <td>
-                                            <span className="text-[#00B5F1] font-mono font-bold hover:underline cursor-pointer">
+                                        <td className="text-clinic-text-secondary font-mono whitespace-nowrap">12/10/2026 08:35</td>
+                                        <td className="whitespace-nowrap">
+                                            <span className="text-clinic-cta font-mono font-bold hover:underline cursor-pointer">
                                                 HD-GDV-00{pkg.id.slice(-2)}
                                             </span>
                                         </td>
@@ -448,12 +453,13 @@ export default function ServicePackagesPage() {
                 </div>
             )}
 
-            {/* TAB 4: HÓA ĐƠN */}
             {activeTab === 'HOA_DON' && (
-                <div className="bg-white rounded-xl border border-[#E5EEF5] p-4 space-y-4">
-                    <div className="text-sm font-bold text-[#003553]">DANH SÁCH HÓA ĐƠN GÓI DỊCH VỤ ĐÃ PHÁT HÀNH</div>
-                    <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
-                        <table className="medpro-table text-xs">
+                <div className="medpro-card p-4 space-y-4">
+                    <div className="text-sm font-extrabold text-clinic-navy uppercase">
+                        DANH SÁCH HÓA ĐƠN GÓI DỊCH VỤ ĐÃ PHÁT HÀNH
+                    </div>
+                    <div className="overflow-x-auto border border-clinic-border rounded-[6px]">
+                        <table className="medpro-table w-full [&_th]:!px-2.5 [&_td]:!px-2.5 text-xs tabular-nums">
                             <thead>
                                 <tr>
                                     <th>Số hóa đơn</th>
@@ -469,20 +475,20 @@ export default function ServicePackagesPage() {
                             <tbody>
                                 {servicePackages.map((pkg, idx) => (
                                     <tr key={pkg.id}>
-                                        <td className="font-mono font-bold text-[#00B5F1]">0000{310 + idx}</td>
-                                        <td className="font-bold text-[#003553]">{pkg.tenBN}</td>
-                                        <td className="text-slate-700">{pkg.tenGoi}</td>
-                                        <td className="font-mono">{(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ</td>
-                                        <td className="font-mono">0 đ</td>
-                                        <td className="font-mono font-black text-[#00B5F1]">
+                                        <td className="font-mono font-bold text-clinic-cta whitespace-nowrap">0000{310 + idx}</td>
+                                        <td className="font-bold text-clinic-navy">{pkg.tenBN}</td>
+                                        <td className="text-clinic-text">{pkg.tenGoi}</td>
+                                        <td className="font-mono whitespace-nowrap">{(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ</td>
+                                        <td className="font-mono whitespace-nowrap">0 đ</td>
+                                        <td className="font-mono font-extrabold text-clinic-cta whitespace-nowrap">
                                             {(pkg.thanhTien || 0).toLocaleString('vi-VN')} đ
                                         </td>
-                                        <td>
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <td className="whitespace-nowrap">
+                                            <span className="medpro-badge-success">
                                                 Đã xuất HĐĐT
                                             </span>
                                         </td>
-                                        <td>
+                                        <td className="whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => AppToast.success(`Đang tải hóa đơn 0000${310 + idx}...`)}
@@ -499,39 +505,38 @@ export default function ServicePackagesPage() {
                 </div>
             )}
 
-            {/* MODAL KÍCH HOẠT GÓI MỚI CHO BỆNH NHÂN */}
             {isRegisterModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-5 space-y-4 animate-scaleUp">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <h3 className="text-sm font-black text-[#003553] uppercase">KÍCH HOẠT GÓI KHÁM CHO BỆNH NHÂN</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-clinic-navy/45 p-4">
+                    <div className="medpro-card w-full max-w-md p-5 space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-clinic-border">
+                            <h3 className="text-sm font-extrabold text-clinic-navy uppercase">KÍCH HOẠT GÓI KHÁM CHO BỆNH NHÂN</h3>
                             <button
                                 type="button"
                                 onClick={() => setIsRegisterModalOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                className="w-7 h-7 rounded-[6px] bg-clinic-bg-muted text-clinic-text-secondary hover:text-clinic-navy flex items-center justify-center cursor-pointer"
                             >
-                                <X size={18} weight="bold" />
+                                <X size={16} weight="bold" />
                             </button>
                         </div>
 
                         <div className="space-y-3 text-xs">
                             <div>
-                                <label className="block text-slate-600 font-bold mb-1">Tên bệnh nhân:</label>
+                                <label className="medpro-label">Tên bệnh nhân:</label>
                                 <input
                                     type="text"
                                     value={regForm.tenBN}
                                     onChange={(e) => setRegForm({ ...regForm, tenBN: e.target.value })}
                                     placeholder="Nhập tên bệnh nhân..."
-                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    className="medpro-input !py-1.5 h-9 text-xs"
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 gap-2.5">
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-slate-600 font-bold mb-0">Mã bệnh nhân:</label>
-                                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                            Hệ thống tự sinh
+                                        <label className="medpro-label !mb-0">Mã bệnh nhân:</label>
+                                        <span className="medpro-badge-info !text-[10px]">
+                                            Tự sinh
                                         </span>
                                     </div>
                                     <input
@@ -539,28 +544,28 @@ export default function ServicePackagesPage() {
                                         value={regForm.maBN || ''}
                                         readOnly
                                         disabled
-                                        className="w-full p-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 font-mono font-bold cursor-not-allowed select-none"
+                                        className="medpro-input !py-1.5 h-9 text-xs font-mono font-bold bg-clinic-bg-muted text-clinic-text-muted cursor-not-allowed select-none"
                                         title="Mã bệnh nhân do hệ thống cấp phát, không được sửa"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-slate-600 font-bold mb-1">Số điện thoại:</label>
+                                    <label className="medpro-label">Số điện thoại:</label>
                                     <input
                                         type="text"
                                         value={regForm.dienThoai}
                                         onChange={(e) => setRegForm({ ...regForm, dienThoai: e.target.value })}
                                         placeholder="09..."
-                                        className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                        className="medpro-input !py-1.5 h-9 text-xs tabular-nums"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-slate-600 font-bold mb-1">Chọn gói dịch vụ:</label>
+                                <label className="medpro-label">Chọn gói dịch vụ:</label>
                                 <select
                                     value={regForm.selectedGoiId}
                                     onChange={(e) => setRegForm({ ...regForm, selectedGoiId: e.target.value })}
-                                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-[#00B5F1]"
+                                    className="medpro-input !py-1.5 h-9 text-xs font-semibold truncate"
                                 >
                                     {packageTemplates.map((t) => (
                                         <option key={t.id} value={t.id}>
@@ -571,18 +576,18 @@ export default function ServicePackagesPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-clinic-border">
                             <button
                                 type="button"
                                 onClick={() => setIsRegisterModalOpen(false)}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                                className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                             >
                                 Hủy
                             </button>
                             <button
                                 type="button"
                                 onClick={handleCreatePackageReg}
-                                className="medpro-btn-primary !py-1.5 !px-4 text-xs cursor-pointer"
+                                className="medpro-btn-primary !py-1.5 !px-4 text-xs"
                             >
                                 Xác nhận kích hoạt
                             </button>

@@ -4,74 +4,127 @@
   --font-sans: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-display: "Montserrat", "Roboto", sans-serif;
 
-  /* Medpro Design System Tokens (medpro.vn-DESIGN.md) */
+  --color-clinic-navy: #003553;
+  --color-clinic-navy-dark: #00263D;
+  --color-clinic-cta: #0077AA;
+  --color-clinic-cta-hover: #005F8A;
+  --color-clinic-cyan: #00B5F1;
+  --color-clinic-amber: #FFB54A;
+  --color-clinic-amber-hover: #E59B30;
+  --color-clinic-bg: #F8FAFC;
+  --color-clinic-bg-muted: #F1F5F9;
+  --color-clinic-surface: #FFFFFF;
+  --color-clinic-surface-tint: #F0F7FC;
+  --color-clinic-surface-alt: #E8F4FD;
+  --color-clinic-text: #0F172A;
+  --color-clinic-text-secondary: #475569;
+  --color-clinic-text-muted: #64748B;
+  --color-clinic-text-subtle: #94A3B8;
+  --color-clinic-border: #E2E8F0;
+  --color-clinic-border-strong: #CBD5E1;
+  --color-clinic-info-border: #BAE6FD;
+  --color-clinic-success: #047857;
+  --color-clinic-success-bg: #ECFDF5;
+  --color-clinic-success-border: #A7F3D0;
+  --color-clinic-warning: #B45309;
+  --color-clinic-warning-bg: #FFFBEB;
+  --color-clinic-warning-border: #FDE68A;
+  --color-clinic-danger: #BE123C;
+  --color-clinic-danger-solid: #E11D48;
+  --color-clinic-danger-bg: #FFF1F2;
+  --color-clinic-danger-border: #FECDD3;
+  --color-clinic-on-navy-muted: #CBD5E1;
+  --color-clinic-on-navy-subtle: #94A3B8;
+
   --color-medpro-cyan: #00B5F1;
-  --color-medpro-cyan-hover: #009FD4;
+  --color-medpro-cyan-hover: #0077AA;
   --color-medpro-navy: #003553;
   --color-medpro-navy-dark: #00263D;
   --color-medpro-surface-alt: #E8F4FD;
   --color-medpro-amber: #FFB54A;
-  --color-medpro-orange: #FBA342;
-  --color-medpro-label: #12263F;
-  --color-medpro-border: #D9D9D9;
+  --color-medpro-orange: #FFB54A;
+  --color-medpro-label: #0F172A;
+  --color-medpro-border: #E2E8F0;
+}
+
+:root {
+  --clinic-radius: 8px;
+  --shadow-clinic-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --focus-ring-clinic: 0 0 0 3px rgba(0, 119, 170, 0.14);
+  --focus-ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.14);
+  --clinic-nav-hover: rgba(255, 255, 255, 0.1);
+  --clinic-nav-divider: rgba(255, 255, 255, 0.14);
+  --clinic-hero-scrim: linear-gradient(90deg, rgba(0, 38, 61, 0.92) 0%, rgba(0, 38, 61, 0.74) 48%, rgba(0, 38, 61, 0.22) 100%);
+  --clinic-hero-secondary-bg: rgba(0, 38, 61, 0.56);
+  --clinic-hero-secondary-border: rgba(255, 255, 255, 0.36);
+  --clinic-hero-secondary-border-hover: rgba(255, 255, 255, 0.72);
+}
+
+[data-density="clinical"] {
+  --clinic-radius: 6px;
 }
 
 @layer base {
   body {
-    @apply bg-[#F4F8FB] text-[#0F172A] antialiased selection:bg-[#E8F4FD] selection:text-[#003553];
+    background-color: var(--color-clinic-bg);
+    color: var(--color-clinic-text);
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body ::selection {
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-navy);
   }
 
   h1, h2, .font-display {
     font-family: var(--font-display);
   }
 
-  /* Custom subtle scrollbars for clinical tables & sidebars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #F1F5F9;
+    background: var(--color-clinic-bg-muted);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
+    background: var(--color-clinic-border-strong);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #00B5F1;
+    background: var(--color-clinic-cta);
   }
 
   input[type="checkbox"],
   input[type="radio"] {
-    accent-color: #00B5F1;
+    accent-color: var(--color-clinic-cta);
     cursor: pointer;
   }
 }
 
 @layer components {
-  /* Medpro Elevated Card (medpro.vn-DESIGN.md Section 4) */
   .medpro-card {
-    background-color: #FFFFFF;
-    border-radius: 14px;
-    box-shadow: 0 4px 20px -2px rgba(0, 53, 83, 0.06), 0 2px 6px -1px rgba(0, 181, 241, 0.04);
-    border: 1px solid #E2EDF5;
+    background-color: var(--color-clinic-surface);
+    border-radius: var(--clinic-radius);
+    box-shadow: var(--shadow-clinic-sm);
+    border: 1px solid var(--color-clinic-border);
   }
 
-  /* Medpro Pill CTA Button */
   .medpro-btn-primary {
-    background-color: #00B5F1;
-    color: #FFFFFF;
-    border-radius: 9999px;
-    padding: 6px 15px;
-    font-family: "Roboto", sans-serif;
-    font-size: 12.5px;
+    background-color: var(--color-clinic-cta);
+    color: var(--color-clinic-surface);
+    border-radius: var(--clinic-radius);
+    padding: 8px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 600;
-    box-shadow: 0 3px 10px rgba(0, 181, 241, 0.24);
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-clinic-sm);
+    transition: background-color 0.16s ease, border-color 0.16s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -80,31 +133,24 @@
     white-space: nowrap;
   }
   .medpro-btn-primary:hover {
-    background-color: #009ED4;
-    box-shadow: 0 5px 14px rgba(0, 181, 241, 0.32);
-    transform: translateY(-1px);
-  }
-  .medpro-btn-primary:active {
-    transform: translateY(0);
+    background-color: var(--color-clinic-cta-hover);
   }
   .medpro-btn-primary:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    transform: none;
     box-shadow: none;
   }
 
-  /* Medpro Warm Accent CTA Button */
   .medpro-btn-amber {
-    background-color: #FFB54A;
-    color: #003553;
-    border-radius: 9999px;
-    padding: 6px 15px;
-    font-family: "Roboto", sans-serif;
-    font-size: 12.5px;
+    background-color: var(--color-clinic-amber);
+    color: var(--color-clinic-navy);
+    border-radius: var(--clinic-radius);
+    padding: 8px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 700;
-    box-shadow: 0 3px 10px rgba(255, 181, 74, 0.25);
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-clinic-sm);
+    transition: background-color 0.16s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -113,26 +159,23 @@
     white-space: nowrap;
   }
   .medpro-btn-amber:hover {
-    background-color: #FBA342;
-    transform: translateY(-1px);
+    background-color: var(--color-clinic-amber-hover);
   }
   .medpro-btn-amber:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    transform: none;
   }
 
-  /* Medpro Danger Action Button */
   .medpro-btn-danger {
-    background-color: #FFF1F2;
-    color: #E11D48;
-    border: 1px solid #FECDD3;
-    border-radius: 9999px;
-    padding: 6px 14px;
-    font-family: "Roboto", sans-serif;
-    font-size: 12.5px;
+    background-color: var(--color-clinic-danger-bg);
+    color: var(--color-clinic-danger);
+    border: 1px solid var(--color-clinic-danger-border);
+    border-radius: var(--clinic-radius);
+    padding: 7px 14px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 600;
-    transition: all 0.18s ease;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -141,22 +184,21 @@
     white-space: nowrap;
   }
   .medpro-btn-danger:hover {
-    background-color: #E11D48;
-    border-color: #E11D48;
-    color: #FFFFFF;
+    background-color: var(--color-clinic-danger-solid);
+    border-color: var(--color-clinic-danger-solid);
+    color: var(--color-clinic-surface);
   }
 
-  /* Medpro Secondary Outline Button */
   .medpro-btn-outline {
-    background-color: #FFFFFF;
-    color: #003553;
-    border: 1px solid #CBD5E1;
-    border-radius: 9999px;
-    padding: 6px 14px;
-    font-family: "Roboto", sans-serif;
-    font-size: 12.5px;
+    background-color: var(--color-clinic-surface);
+    color: var(--color-clinic-navy);
+    border: 1px solid var(--color-clinic-border-strong);
+    border-radius: var(--clinic-radius);
+    padding: 7px 14px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 600;
-    transition: all 0.18s ease;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -165,55 +207,70 @@
     white-space: nowrap;
   }
   .medpro-btn-outline:hover {
-    border-color: #00B5F1;
-    color: #00B5F1;
-    background-color: #E8F4FD;
+    border-color: var(--color-clinic-cta);
+    color: var(--color-clinic-cta);
+    background-color: var(--color-clinic-surface-tint);
   }
   .medpro-btn-outline:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  /* Medpro Compact Clinical Input (medpro.vn-DESIGN.md Section 4 - Input Fields) */
   .medpro-input {
     width: 100%;
-    background-color: #FFFFFF;
-    border: 1px solid #CBD5E1;
-    border-radius: 3px;
-    padding: 11px 12px;
+    background-color: var(--color-clinic-surface);
+    border: 1px solid var(--color-clinic-border-strong);
+    border-radius: var(--clinic-radius);
+    padding: 10px 12px;
     font-size: 14px;
-    color: #0F172A;
+    color: var(--color-clinic-text);
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   }
   .medpro-input::placeholder {
-    color: #94A3B8;
+    color: var(--color-clinic-text-subtle);
   }
   .medpro-input:hover:not(:disabled) {
-    border-color: #00B5F1;
+    border-color: var(--color-clinic-cta);
   }
   .medpro-input:focus {
-    border-color: #00B5F1;
-    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.14);
+    border-color: var(--color-clinic-cta);
+    box-shadow: var(--focus-ring-clinic);
   }
   .medpro-input:disabled,
   .medpro-input[readonly] {
-    background-color: #F1F5F9;
-    color: #475569;
-    border-color: #E2E8F0;
+    background-color: var(--color-clinic-bg-muted);
+    color: var(--color-clinic-text-secondary);
+    border-color: var(--color-clinic-border);
   }
 
   .medpro-label {
     display: block;
     font-size: 11.5px;
     font-weight: 700;
-    color: #12263F;
+    color: var(--color-clinic-text);
     margin-bottom: 4px;
     letter-spacing: 0.01em;
   }
-  .auth-label { display: block; margin-bottom: 8px; color: #12263F; font-size: 14px; font-weight: 700; }
-  .booking-title { font-family: "Montserrat", "Roboto", sans-serif; font-size: 18px; line-height: 1.35; font-weight: 800; color: #003553; }
-  .booking-description { margin-top: 4px; color: #64748B; font-size: 13px; }
+  .auth-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-clinic-text);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .booking-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 800;
+    color: var(--color-clinic-navy);
+  }
+  .booking-description {
+    margin-top: 4px;
+    color: var(--color-clinic-text-secondary);
+    font-size: 13px;
+  }
 
   .public-container {
     width: 100%;
@@ -221,30 +278,112 @@
     margin-inline: auto;
     padding-inline: 16px;
   }
-  .public-section-heading { max-width: 680px; margin-inline: auto; text-align: center; }
-  .public-section-heading > span { color: #008EC2; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-  .public-section-heading h2 { margin-top: 10px; color: #003553; font-size: clamp(25px, 3vw, 31px); line-height: 1.25; font-weight: 800; }
-  .public-section-heading p { margin-top: 10px; color: #64748B; font-size: 15px; }
-  .public-section-heading-dark > span { color: #68D5FA; }
-  .public-section-heading-dark h2 { color: #FFFFFF; }
-  .public-section-heading-dark p { color: #BAE6F7; }
-  @media (min-width: 640px) { .public-container { padding-inline: 24px; } }
+  .public-section-heading {
+    max-width: 680px;
+    margin-inline: auto;
+    text-align: center;
+  }
+  .public-section-heading > span {
+    color: var(--color-clinic-cta);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .public-section-heading h2 {
+    margin-top: 10px;
+    color: var(--color-clinic-navy);
+    font-size: clamp(25px, 3vw, 31px);
+    line-height: 1.25;
+    font-weight: 800;
+  }
+  .public-section-heading p {
+    margin-top: 10px;
+    color: var(--color-clinic-text-secondary);
+    font-size: 15px;
+  }
+  .public-section-heading-dark > span {
+    color: var(--color-clinic-info-border);
+  }
+  .public-section-heading-dark h2 {
+    color: var(--color-clinic-surface);
+  }
+  .public-section-heading-dark p {
+    color: var(--color-clinic-on-navy-muted);
+  }
+  @media (min-width: 640px) {
+    .public-container {
+      padding-inline: 24px;
+    }
+  }
 
-  .medpro-section-title {
-    font-family: "Montserrat", "Roboto", sans-serif;
+  .hero-clinic-scrim {
+    background: var(--clinic-hero-scrim);
+  }
+  .hero-photo-position {
+    object-fit: cover;
+    object-position: center 28%;
+  }
+  .panel-photo-position {
+    object-fit: cover;
+    object-position: center 25%;
+  }
+  .hero-clinic-secondary {
+    background: var(--clinic-hero-secondary-bg);
+    border: 1px solid var(--clinic-hero-secondary-border);
+    color: var(--color-clinic-surface);
+    border-radius: var(--clinic-radius);
+    transition: border-color 0.16s ease, background-color 0.16s ease;
+  }
+  .hero-clinic-secondary:hover {
+    border-color: var(--clinic-hero-secondary-border-hover);
+  }
+
+  .clinical-slot-btn {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-clinic-border-strong);
+    border-radius: 6px;
+    background-color: var(--color-clinic-bg);
+    color: var(--color-clinic-navy);
     font-size: 12.5px;
     font-weight: 700;
-    color: #003553;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+    cursor: pointer;
+  }
+  .clinical-slot-btn:hover {
+    border-color: var(--color-clinic-cta);
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-cta);
+  }
+  .clinical-slot-btn-featured {
+    border-color: var(--color-clinic-cta);
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-cta);
+  }
+  .clinical-slot-btn-featured:hover {
+    background-color: var(--color-clinic-cta);
+    color: var(--color-clinic-surface);
+  }
+
+  .medpro-section-title {
+    font-family: var(--font-display);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--color-clinic-navy);
     padding-bottom: 6px;
     margin-bottom: 10px;
-    border-bottom: 1.5px solid #E8F4FD;
+    border-bottom: 1px solid var(--color-clinic-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
 
-  /* Medpro Enterprise Clinical Data Table (UI/UX Pro Max) */
   .medpro-table {
     width: 100%;
     border-collapse: separate;
@@ -256,30 +395,30 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: #F0F7FC;
-    color: #003553;
+    background-color: var(--color-clinic-bg-muted);
+    color: var(--color-clinic-navy);
     font-weight: 700;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     padding: 8px 10px;
-    border-bottom: 1.5px solid #CBE9FA;
+    border-bottom: 1px solid var(--color-clinic-border);
     white-space: nowrap;
   }
   .medpro-table tbody td {
     padding: 8px 10px;
-    border-bottom: 1px solid #F1F5F9;
-    color: #1E293B;
+    border-bottom: 1px solid var(--color-clinic-bg-muted);
+    color: var(--color-clinic-text);
     vertical-align: middle;
+    font-variant-numeric: tabular-nums;
   }
   .medpro-table tbody tr {
     transition: background-color 0.12s ease;
   }
   .medpro-table tbody tr:hover {
-    background-color: #F8FCFF;
+    background-color: var(--color-clinic-bg);
   }
 
-  /* Semantic Status Badges (Medpro + WCAG) */
   .medpro-badge {
     display: inline-flex;
     align-items: center;
@@ -301,9 +440,9 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
-    background-color: #E8F4FD;
-    color: #003553;
-    border: 1px solid #B8E5FA;
+    background-color: var(--color-clinic-surface-alt);
+    color: var(--color-clinic-navy);
+    border: 1px solid var(--color-clinic-info-border);
   }
   .medpro-badge-success {
     display: inline-flex;
@@ -314,9 +453,9 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
-    background-color: #ECFDF5;
-    color: #047857;
-    border: 1px solid #A7F3D0;
+    background-color: var(--color-clinic-success-bg);
+    color: var(--color-clinic-success);
+    border: 1px solid var(--color-clinic-success-border);
   }
   .medpro-badge-warning {
     display: inline-flex;
@@ -327,9 +466,9 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
-    background-color: #FFFBEB;
-    color: #B45309;
-    border: 1px solid #FDE68A;
+    background-color: var(--color-clinic-warning-bg);
+    color: var(--color-clinic-warning);
+    border: 1px solid var(--color-clinic-warning-border);
   }
   .medpro-badge-danger {
     display: inline-flex;
@@ -340,131 +479,172 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
-    background-color: #FEF2F2;
-    color: #BE123C;
-    border: 1px solid #FECDD3;
+    background-color: var(--color-clinic-danger-bg);
+    color: var(--color-clinic-danger);
+    border: 1px solid var(--color-clinic-danger-border);
   }
 
-  /* Reusable Status Badge Component */
   .status-badge {
-    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 9999px;
+    border: 1px solid var(--color-clinic-border);
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
   }
   .status-dot {
-    @apply w-1.5 h-1.5 rounded-full;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
   }
 
-  /* Admin Action Buttons */
   .admin-action-btn {
-    @apply inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-full border whitespace-nowrap text-xs font-bold transition-all cursor-pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--clinic-radius);
+    border: 1px solid var(--color-clinic-border-strong);
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 700;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+    cursor: pointer;
   }
   .admin-action-btn-edit {
-    @apply border-[#FFB54A] bg-[#FFF8EB] text-[#D97706] hover:bg-[#FFB54A] hover:text-white;
+    border-color: var(--color-clinic-amber);
+    background-color: var(--color-clinic-warning-bg);
+    color: var(--color-clinic-warning);
+  }
+  .admin-action-btn-edit:hover {
+    background-color: var(--color-clinic-amber);
+    color: var(--color-clinic-navy);
   }
   .admin-action-btn-delete {
-    @apply border-red-200 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white;
+    border-color: var(--color-clinic-danger-border);
+    background-color: var(--color-clinic-danger-bg);
+    color: var(--color-clinic-danger);
+  }
+  .admin-action-btn-delete:hover {
+    background-color: var(--color-clinic-danger-solid);
+    border-color: var(--color-clinic-danger-solid);
+    color: var(--color-clinic-surface);
   }
 
-  /* Form Inputs (legacy compatibility) */
   .custom-admin-input {
-    @apply w-full rounded-[6px] border border-[#CBD5E1] bg-white px-3 py-2 text-[13px] font-normal text-black outline-none transition hover:border-[#00A5EC] focus:border-[#11A2F3] focus:ring-2 focus:ring-[#00B5F1]/20;
+    width: 100%;
+    border-radius: var(--clinic-radius);
+    border: 1px solid var(--color-clinic-border-strong);
+    background-color: var(--color-clinic-surface);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--color-clinic-text);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .custom-admin-input:hover:not(:disabled) {
+    border-color: var(--color-clinic-cta);
+  }
+  .custom-admin-input:focus {
+    border-color: var(--color-clinic-cta);
+    box-shadow: var(--focus-ring-clinic);
   }
   .custom-admin-input-error {
-    @apply border-red-400 focus:border-red-500 focus:ring-red-200;
+    border-color: var(--color-clinic-danger-solid);
+  }
+  .custom-admin-input-error:focus {
+    border-color: var(--color-clinic-danger);
+    box-shadow: var(--focus-ring-danger);
   }
 
-  /* ==========================================================================
-     ANT DESIGN MEDPRO HIS GLOBAL THEME OVERRIDES (UI/UX PRO MAX)
-     ========================================================================== */
-  
-  /* Buttons */
   .ant-btn {
     font-family: var(--font-sans);
     font-weight: 600 !important;
-    border-radius: 9999px !important;
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    border-radius: var(--clinic-radius) !important;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
   }
 
   .ant-btn-primary:not(.ant-btn-dangerous) {
-    background-color: #00B5F1 !important;
-    border-color: #00B5F1 !important;
-    color: #FFFFFF !important;
-    box-shadow: 0 3px 10px rgba(0, 181, 241, 0.24) !important;
+    background-color: var(--color-clinic-cta) !important;
+    border-color: var(--color-clinic-cta) !important;
+    color: var(--color-clinic-surface) !important;
+    box-shadow: var(--shadow-clinic-sm) !important;
   }
   .ant-btn-primary:not(.ant-btn-dangerous):hover {
-    background-color: #009ED4 !important;
-    border-color: #009ED4 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgba(0, 181, 241, 0.32) !important;
+    background-color: var(--color-clinic-cta-hover) !important;
+    border-color: var(--color-clinic-cta-hover) !important;
   }
 
   .ant-btn-default:not(.ant-btn-dangerous) {
-    border-color: #CBD5E1 !important;
-    color: #003553 !important;
-    background-color: #FFFFFF !important;
+    border-color: var(--color-clinic-border-strong) !important;
+    color: var(--color-clinic-navy) !important;
+    background-color: var(--color-clinic-surface) !important;
   }
   .ant-btn-default:not(.ant-btn-dangerous):hover {
-    border-color: #00B5F1 !important;
-    color: #00B5F1 !important;
-    background-color: #E8F4FD !important;
+    border-color: var(--color-clinic-cta) !important;
+    color: var(--color-clinic-cta) !important;
+    background-color: var(--color-clinic-surface-tint) !important;
   }
 
   .ant-btn-dangerous.ant-btn-primary {
-    background-color: #E11D48 !important;
-    border-color: #E11D48 !important;
-    color: #FFFFFF !important;
-    box-shadow: 0 3px 10px rgba(225, 29, 72, 0.24) !important;
+    background-color: var(--color-clinic-danger-solid) !important;
+    border-color: var(--color-clinic-danger-solid) !important;
+    color: var(--color-clinic-surface) !important;
+    box-shadow: var(--shadow-clinic-sm) !important;
   }
   .ant-btn-dangerous.ant-btn-primary:hover {
-    background-color: #BE123C !important;
-    border-color: #BE123C !important;
+    background-color: var(--color-clinic-danger) !important;
+    border-color: var(--color-clinic-danger) !important;
   }
 
   .ant-btn-dangerous:not(.ant-btn-primary) {
-    background-color: #FFF1F2 !important;
-    border-color: #FECDD3 !important;
-    color: #E11D48 !important;
+    background-color: var(--color-clinic-danger-bg) !important;
+    border-color: var(--color-clinic-danger-border) !important;
+    color: var(--color-clinic-danger) !important;
   }
   .ant-btn-dangerous:not(.ant-btn-primary):hover {
-    background-color: #E11D48 !important;
-    border-color: #E11D48 !important;
-    color: #FFFFFF !important;
+    background-color: var(--color-clinic-danger-solid) !important;
+    border-color: var(--color-clinic-danger-solid) !important;
+    color: var(--color-clinic-surface) !important;
   }
 
-  /* Table Header & Rows */
   .ant-table-wrapper .ant-table {
-    border-radius: 12px;
+    border-radius: var(--clinic-radius);
     overflow: hidden;
-    border: 1px solid #E2EDF5;
-    background: #FFFFFF;
+    border: 1px solid var(--color-clinic-border);
+    background: var(--color-clinic-surface);
   }
   .ant-table-wrapper .ant-table-thead > tr > th {
-    background-color: #F0F7FC !important;
-    color: #003553 !important;
+    background-color: var(--color-clinic-bg-muted) !important;
+    color: var(--color-clinic-navy) !important;
     font-weight: 700 !important;
     font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.03em !important;
-    border-bottom: 1.5px solid #CBE9FA !important;
-    padding: 10px 12px !important;
+    border-bottom: 1px solid var(--color-clinic-border) !important;
   }
   .ant-table-wrapper .ant-table-tbody > tr > td {
-    padding: 10px 12px !important;
-    border-bottom: 1px solid #F1F5F9 !important;
-    color: #1E293B !important;
+    border-bottom: 1px solid var(--color-clinic-bg-muted) !important;
+    color: var(--color-clinic-text) !important;
     font-size: 12.5px !important;
+    font-variant-numeric: tabular-nums;
   }
   .ant-table-wrapper .ant-table-tbody > tr:hover > td {
-    background-color: #F8FCFF !important;
+    background-color: var(--color-clinic-bg) !important;
   }
 
-  /* Input, Select, DatePicker */
   .ant-input,
   .ant-input-affix-wrapper,
   .ant-select-selector,
   .ant-picker {
-    border-radius: 8px !important;
-    border-color: #CBD5E1 !important;
-    transition: all 0.15s ease !important;
+    border-radius: var(--clinic-radius) !important;
+    border-color: var(--color-clinic-border-strong) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
   }
   .ant-input:focus,
   .ant-input-focused,
@@ -472,63 +652,65 @@
   .ant-input-affix-wrapper-focused,
   .ant-select-focused .ant-select-selector,
   .ant-picker-focused {
-    border-color: #00B5F1 !important;
-    box-shadow: 0 0 0 3px rgba(0, 181, 241, 0.14) !important;
+    border-color: var(--color-clinic-cta) !important;
+    box-shadow: var(--focus-ring-clinic) !important;
+  }
+  .ant-input-affix-wrapper .ant-input:focus,
+  .ant-input-affix-wrapper .ant-input-focused {
+    border-color: transparent !important;
+    box-shadow: none !important;
   }
 
-  /* Descriptions */
   .ant-descriptions-bordered {
-    border-radius: 12px !important;
+    border-radius: var(--clinic-radius) !important;
     overflow: hidden;
-    border-color: #E2EDF5 !important;
+    border-color: var(--color-clinic-border) !important;
   }
   .ant-descriptions-bordered .ant-descriptions-item-label {
-    background-color: #F0F7FC !important;
-    color: #003553 !important;
+    background-color: var(--color-clinic-bg-muted) !important;
+    color: var(--color-clinic-navy) !important;
     font-weight: 700 !important;
     font-size: 12px !important;
-    border-color: #E2EDF5 !important;
+    border-color: var(--color-clinic-border) !important;
   }
   .ant-descriptions-bordered .ant-descriptions-item-content {
-    border-color: #E2EDF5 !important;
+    border-color: var(--color-clinic-border) !important;
     font-size: 12.5px !important;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Modal */
   .ant-modal-content {
-    border-radius: 16px !important;
-    border: 1px solid #E2EDF5 !important;
-    box-shadow: 0 10px 30px -5px rgba(0, 53, 83, 0.14) !important;
+    border-radius: var(--clinic-radius) !important;
+    border: 1px solid var(--color-clinic-border) !important;
+    box-shadow: var(--shadow-clinic-sm) !important;
     overflow: hidden;
   }
   .ant-modal-header {
-    border-bottom: 1px solid #E2EDF5 !important;
+    border-bottom: 1px solid var(--color-clinic-border) !important;
     padding-bottom: 12px !important;
     margin-bottom: 16px !important;
   }
   .ant-modal-title {
-    color: #003553 !important;
+    color: var(--color-clinic-navy) !important;
     font-family: var(--font-display) !important;
     font-weight: 800 !important;
   }
 
-  /* Segmented */
   .ant-segmented {
-    background-color: #E8F4FD !important;
+    background-color: var(--color-clinic-bg-muted) !important;
     padding: 3px !important;
-    border-radius: 9999px !important;
+    border-radius: var(--clinic-radius) !important;
   }
   .ant-segmented-thumb {
-    background-color: #FFFFFF !important;
-    border-radius: 9999px !important;
-    box-shadow: 0 2px 6px rgba(0, 53, 83, 0.1) !important;
+    background-color: var(--color-clinic-surface) !important;
+    border-radius: calc(var(--clinic-radius) - 2px) !important;
+    box-shadow: var(--shadow-clinic-sm) !important;
   }
   .ant-segmented-item-selected {
-    color: #003553 !important;
+    color: var(--color-clinic-navy) !important;
     font-weight: 700 !important;
   }
 
-  /* Tag */
   .ant-tag {
     border-radius: 9999px !important;
     font-weight: 600 !important;
@@ -536,14 +718,40 @@
     padding: 1px 8px !important;
   }
 
-  /* Card */
   .ant-card {
-    border-radius: 14px !important;
-    border-color: #E2EDF5 !important;
+    border-radius: var(--clinic-radius) !important;
+    border-color: var(--color-clinic-border) !important;
   }
 }
 
+.ant-select-dropdown,
+.ant-dropdown .ant-dropdown-menu,
+.ant-picker-dropdown .ant-picker-panel-container {
+  background-color: var(--color-clinic-surface) !important;
+  border: 1px solid var(--color-clinic-border) !important;
+  border-radius: var(--clinic-radius) !important;
+  box-shadow: var(--shadow-clinic-sm) !important;
+}
+
+.ant-select-dropdown .ant-select-item {
+  background-color: var(--color-clinic-surface);
+  color: var(--color-clinic-text);
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background-color: var(--color-clinic-surface-tint) !important;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: var(--color-clinic-surface-alt) !important;
+  color: var(--color-clinic-navy) !important;
+  font-weight: 600;
+}
+
 @layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -553,8 +761,6 @@
   }
 }
 
-
-/* Tránh trình duyệt tự đổ màu xanh lên ô nhập sinh hiệu */
 input[name*="mach"],
 input[name*="nhiet_do"],
 input[name*="nhip_tho"],
@@ -562,6 +768,7 @@ input[name*="huyet_ap"],
 input[name*="can_nang"],
 input[name*="chieu_cao"] {
   background-color: transparent !important;
+  font-variant-numeric: tabular-nums;
 }
 
 input[name*="mach"]:-webkit-autofill,
@@ -571,6 +778,6 @@ input[name*="huyet_ap"]:-webkit-autofill,
 input[name*="can_nang"]:-webkit-autofill,
 input[name*="chieu_cao"]:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
-  -webkit-text-fill-color: #003553 !important;
+  -webkit-text-fill-color: var(--color-clinic-navy) !important;
   transition: background-color 5000s ease-in-out 0s;
 }

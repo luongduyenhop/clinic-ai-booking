@@ -111,7 +111,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                     <label>
                         <span className="medpro-label">Kết luận</span>
                         <textarea name="ket_luan" rows={2} disabled={locked} className="medpro-input" value={values.ket_luan} onChange={handleChange} />
-                        {touched.ket_luan && errors.ket_luan && <p className="mt-1 text-[12px] text-rose-600">{errors.ket_luan}</p>}
+                        {touched.ket_luan && errors.ket_luan && <p className="mt-1 text-[12px] text-clinic-danger">{errors.ket_luan}</p>}
                     </label>
                     <label>
                         <span className="medpro-label">Đề nghị</span>
@@ -132,23 +132,23 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
 
                 <div className="flex flex-[1_1_240px] flex-col gap-2">
                     <span className="medpro-label !mb-0">Ảnh nội soi (ghép thành 1 tệp)</span>
-                    <div className="grid aspect-square grid-cols-2 gap-2 rounded-xl bg-[#12263F] p-2">
+                    <div className="grid aspect-square grid-cols-2 gap-2 rounded-[6px] bg-clinic-navy-dark p-2">
                         {Array.from({ length: 4 }).map((_, i) =>
                             previews[i] ? (
-                                <div key={i} className="relative overflow-hidden rounded-lg bg-black">
+                                <div key={i} className="relative overflow-hidden rounded-[6px] bg-clinic-navy">
                                     <img src={previews[i]} alt={tpl.sites[i] || `Khung ${i + 1}`} className="h-full w-full object-cover" />
                                     <button
                                         type="button"
                                         aria-label={`Bỏ khung hình ${i + 1}`}
                                         disabled={locked}
                                         onClick={() => setFrames((prev) => prev.filter((_, idx) => idx !== i))}
-                                        className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-slate-700 cursor-pointer"
+                                        className="absolute right-1 top-1 rounded-[4px] bg-clinic-surface p-1 text-clinic-text cursor-pointer"
                                     >
                                         <ClinicIcon name="X" size={12} />
                                     </button>
                                 </div>
                             ) : (
-                                <div key={i} className="flex items-center justify-center rounded-lg bg-white/5 text-[12px] text-slate-300">
+                                <div key={i} className="flex items-center justify-center rounded-[6px] bg-clinic-navy text-[12px] text-clinic-on-navy-muted">
                                     {tpl.sites[i] || `Khung ${i + 1}`}
                                 </div>
                             )
@@ -158,7 +158,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
                         Chọn ảnh để ghép
                         <input type="file" accept="image/*" multiple className="sr-only" disabled={locked} onChange={addFrames} />
                     </label>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-clinic-text-secondary">
                         Chọn tối đa 4 khung hình theo thứ tự vị trí. Hệ thống tự ghép thành 1 ảnh khi lưu.
                         {order.tep_dinh_kem_url && frames.length === 0 ? ' Đã có ảnh ghép từ lần lưu trước.' : ''}
                     </span>

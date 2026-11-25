@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import {
     Table,
-    Tag,
     Button,
     Modal,
     Select,
@@ -120,13 +119,13 @@ export default function TasksPage() {
             render: (_, record) => {
                 const resolved = isIncidentResolved(record, resolvedIncidentKeys)
                 return resolved ? (
-                    <Tag color="success" icon={<CheckCircleOutlined />} className="font-bold text-xs">
-                        Đã giải quyết
-                    </Tag>
+                    <span className="medpro-badge-success inline-flex items-center gap-1 font-bold text-xs">
+                        <CheckCircleOutlined /> Đã giải quyết
+                    </span>
                 ) : (
-                    <Tag color="error" className="font-bold text-xs">
+                    <span className="medpro-badge-danger font-bold text-xs">
                         Khẩn cấp
-                    </Tag>
+                    </span>
                 )
             },
         },
@@ -135,19 +134,22 @@ export default function TasksPage() {
             key: 'title',
             render: (_, record) => (
                 <div className="space-y-1">
-                    <span className="font-bold text-slate-800 text-sm block">
+                    <span className="font-bold text-clinic-navy text-sm block">
                         Bác sĩ {record.ten_bac_si} ({record.ten_chuyen_khoa || 'Chuyên khoa'})
                     </span>
-                    <p className="text-slate-600 text-xs">
-                        Lý do: <strong>{record.ly_do}</strong> • Thời gian: {record.tu_ngay} {record.ca_lam_viec ? `(${record.ca_lam_viec === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : ''}
+                    <p className="text-clinic-text-secondary text-xs tabular-nums">
+                        Lý do: <strong className="text-clinic-navy">{record.ly_do}</strong> · Thời gian: {record.tu_ngay} {record.ca_lam_viec ? `(${record.ca_lam_viec === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : ''}
                     </p>
                     {record.danh_sach_bac_si_thay_the && record.danh_sach_bac_si_thay_the.length > 0 && (
-                        <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <div className="text-[11px] text-clinic-text-secondary flex flex-wrap items-center gap-1.5 pt-0.5 tabular-nums">
                             <span>BS thay thế gợi ý:</span>
                             {record.danh_sach_bac_si_thay_the.map((alt) => (
-                                <Tag key={alt.bac_si_id} color="cyan" className="mr-0">
+                                <span
+                                    key={alt.bac_si_id}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-[4px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy font-semibold"
+                                >
                                     {alt.ten_bac_si} ({alt.phong_kham || 'Buồng'} - Chờ: {alt.so_benh_nhan_cho})
-                                </Tag>
+                                </span>
                             ))}
                         </div>
                     )}
@@ -162,11 +164,11 @@ export default function TasksPage() {
             render: (count, record) => {
                 const total = count ?? record?.so_benh_nhan_bi_anh_huong ?? 0
                 return (
-                    <div>
-                        <span className="font-bold text-red-600 text-base font-mono block">
+                    <div className="tabular-nums">
+                        <span className="font-bold text-clinic-danger text-base font-mono block">
                             {total} bệnh nhân
                         </span>
-                        <span className="text-[10px] text-slate-400">Đang chờ khám</span>
+                        <span className="text-[10.5px] text-clinic-text-muted">Đang chờ khám</span>
                     </div>
                 )
             },
@@ -188,7 +190,7 @@ export default function TasksPage() {
                             onClick={() => setDrawerIncident(record)}
                             className="medpro-btn-outline text-xs font-semibold"
                         >
-                            📋 Chi tiết & Xử lý lẻ
+                            Chi tiết &amp; Xử lý lẻ
                         </Button>
                         {resolved ? (
                             <Button
@@ -205,7 +207,7 @@ export default function TasksPage() {
                                 type="primary"
                                 icon={<CheckCircleOutlined />}
                                 onClick={() => handleMarkResolved(record)}
-                                className="!bg-emerald-600 hover:!bg-emerald-700 !border-emerald-600 text-xs font-bold"
+                                className="!bg-clinic-success hover:!bg-clinic-navy !border-clinic-success text-xs font-bold"
                             >
                                 Hoàn thành
                             </Button>
@@ -220,7 +222,7 @@ export default function TasksPage() {
                                     setSelectedTargetDoctor(null)
                                 }}
                             >
-                                ⚡ Chuyển nhanh
+                                Chuyển nhanh
                             </Button>
                         )}
                     </div>
@@ -230,16 +232,16 @@ export default function TasksPage() {
     ]
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
-                            <WarningOutlined className="text-amber-500" />
-                            Trung tâm Sự cố & Cân bằng tải hàng đợi
+                        <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display flex items-center gap-2">
+                            <WarningOutlined className="text-clinic-warning" />
+                            Xử lý sự cố ca trực &amp; Cân bằng hàng đợi
                         </h2>
-                        <span className="text-xs text-slate-500">
-                            Rà soát sự cố Bác sĩ khai báo nghỉ đột xuất, giải phóng bệnh nhân bị kẹt và tái cân bằng tải hàng loạt sang Bác sĩ khác cùng chuyên khoa
+                        <span className="text-xs text-clinic-text-secondary">
+                            Rà soát sự cố bác sĩ khai báo nghỉ đột xuất, giải phóng bệnh nhân bị kẹt và tái cân bằng tải sang bác sĩ cùng chuyên khoa
                         </span>
                     </div>
                     <div className="flex gap-2">
@@ -257,14 +259,14 @@ export default function TasksPage() {
             <div className="space-y-4">
                 <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-3">
-                        <span className="text-slate-400">Ngày rà soát sự cố:</span>
+                        <span className="text-clinic-text-secondary font-medium">Ngày rà soát sự cố:</span>
                         <DatePicker
                             format="DD/MM/YYYY"
                             value={dayjs(incidentDate)}
                             onChange={(d) => setIncidentDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
                         />
                     </div>
-                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                    <div className="flex items-center gap-1 bg-clinic-bg-muted border border-clinic-border p-1 rounded-[6px]">
                         {[
                             { key: 'ALL', label: `Tất cả (${doctorAbsences.length})` },
                             { key: 'PENDING', label: `Cần xử lý (${pendingAbsences.length})` },
@@ -274,10 +276,10 @@ export default function TasksPage() {
                                 key={tab.key}
                                 type="button"
                                 onClick={() => setStatusFilter(tab.key)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                className={`px-3 py-1 rounded-[4px] text-xs font-bold transition cursor-pointer tabular-nums ${
                                     statusFilter === tab.key
-                                        ? 'bg-[#00263C] text-white shadow-2xs'
-                                        : 'text-slate-600 hover:text-[#00263C]'
+                                        ? 'bg-clinic-navy text-clinic-surface'
+                                        : 'text-clinic-text-secondary hover:text-clinic-navy'
                                 }`}
                             >
                                 {tab.label}
@@ -314,7 +316,7 @@ export default function TasksPage() {
                         loading={loading}
                         pagination={{ pageSize: 10 }}
                         size="middle"
-                        scroll={{ x: 700 }}
+                        scroll={filteredAbsences.length > 0 ? { x: 700 } : undefined}
                         locale={{ emptyText: 'Không có sự cố nào phù hợp bộ lọc' }}
                     />
                 </div>
@@ -323,7 +325,7 @@ export default function TasksPage() {
             <Modal
                 title={
                     <div className="flex items-center gap-2">
-                        <SwapOutlined className="text-sky-600" />
+                        <SwapOutlined className="text-clinic-cta" />
                         <span>Điều chuyển hàng loạt: BS {selectedIncident?.ten_bac_si}</span>
                     </div>
                 }
@@ -346,22 +348,22 @@ export default function TasksPage() {
             >
                 {selectedIncident && (
                     <div className="space-y-4 py-2 text-xs">
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                        <div className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-1">
                             <div><strong>Bác sĩ xin nghỉ:</strong> {selectedIncident.ten_bac_si}</div>
                             <div><strong>Chuyên khoa:</strong> {selectedIncident.ten_chuyen_khoa}</div>
-                            <div><strong>Số bệnh nhân đang kẹt:</strong> <span className="font-bold text-red-600">{selectedIncident.so_benh_nhan_cho || 0} người</span></div>
+                            <div className="tabular-nums"><strong>Số bệnh nhân đang kẹt:</strong> <span className="font-bold text-clinic-danger">{selectedIncident.so_benh_nhan_cho || 0} người</span></div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="font-bold text-slate-700 block">Chọn bác sĩ tiếp nhận thay thế:</label>
+                            <label className="font-bold text-clinic-navy block">Chọn bác sĩ tiếp nhận thay thế:</label>
                             <Select
                                 className="w-full"
-                                placeholder="-- Chọn bác sĩ hoặc để hệ thống Tự động Cân bằng tải --"
+                                placeholder="-- Chọn bác sĩ hoặc để hệ thống Tự động cân bằng tải --"
                                 value={selectedTargetDoctor}
                                 onChange={(val) => setSelectedTargetDoctor(val)}
                                 allowClear
                                 options={[
-                                    { value: null, label: '⚡ Tự động Cân bằng tải đều (Phân phối xoay vòng cho BS ít người chờ nhất)' },
+                                    { value: null, label: 'Tự động cân bằng tải đều (Phân phối xoay vòng cho BS ít người chờ nhất)' },
                                     ...(selectedIncident.danh_sach_bac_si_thay_the || []).map((alt) => ({
                                         value: alt.bac_si_id,
                                         label: `BS ${alt.ten_bac_si} (${alt.phong_kham || 'Buồng khám'} - Đang chờ: ${alt.so_benh_nhan_cho} BN)`,

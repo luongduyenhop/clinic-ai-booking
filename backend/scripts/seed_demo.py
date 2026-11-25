@@ -23,7 +23,7 @@ from seed_data import seed_catalogs
 
 DEMO_ACCOUNTS = (
     ("admin.demo", "Quản trị viên [DEMO]", VaiTroEnum.ADMIN),
-    ("doctor.demo", "Bác sĩ Nội tổng quát [DEMO]", VaiTroEnum.BAC_SI),
+    ("doctor.demo", "BS.CKI Nguyễn Văn An", VaiTroEnum.BAC_SI),
     ("letan.demo", "Lễ tân [DEMO]", VaiTroEnum.LE_TAN),
     ("ktv.demo", "Kỹ thuật viên [DEMO]", VaiTroEnum.KY_THUAT_VIEN),
     ("thungan.demo", "Thu ngân [DEMO]", VaiTroEnum.THU_NGAN),
@@ -47,6 +47,8 @@ async def seed_accounts(session, password):
             )
             session.add(person)
             await session.flush()
+        elif name == "doctor.demo" and person.ho_ten in ("Bác sĩ Nội tổng quát [DEMO]", "Bác sĩ Nội tổng quát"):
+            person.ho_ten = full_name
         account = await session.scalar(select(TaiKhoan).where(TaiKhoan.email == email))
         if account is None:
             session.add(TaiKhoan(

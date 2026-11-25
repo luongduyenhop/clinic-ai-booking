@@ -24,45 +24,47 @@ export default function CatalogNavigationTabs({
     return (
         <div className="space-y-3.5">
             <div className="medpro-card p-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {Object.entries(catalogRouteMap).map(([key, meta]) => {
-                        const active = loaiDanhMuc === key
-                        return (
-                            <Link
-                                key={key}
-                                to={meta.path}
-                                onClick={() =>
-                                    handleSwitchCatalogView(
-                                        catalogs[key === 'chung' ? activeGeneralSubTab : key] || []
-                                    )
-                                }
-                                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
-                                    active
-                                        ? 'bg-[#00B5F1] text-white shadow-xs'
-                                        : 'bg-[#F0F7FC] text-[#003553] hover:bg-[#00B5F1]/15'
-                                }`}
-                            >
-                                <ClinicIcon name={meta.icon || 'Folders'} size={14} weight={active ? 'fill' : 'duotone'} />
-                                <span>{meta.title}</span>
-                            </Link>
-                        )
-                    })}
-                </div>
+                {Object.keys(catalogRouteMap || {}).length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 bg-clinic-bg-muted p-1 rounded-[6px] border border-clinic-border">
+                        {Object.entries(catalogRouteMap).map(([key, meta]) => {
+                            const active = loaiDanhMuc === key
+                            return (
+                                <Link
+                                    key={key}
+                                    to={meta.path}
+                                    onClick={() =>
+                                        handleSwitchCatalogView(
+                                            catalogs[key === 'chung' ? activeGeneralSubTab : key] || []
+                                        )
+                                    }
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] text-xs font-bold whitespace-nowrap transition-colors ${
+                                        active
+                                            ? 'bg-clinic-navy text-clinic-surface'
+                                            : 'text-clinic-text-secondary hover:text-clinic-navy'
+                                    }`}
+                                >
+                                    <ClinicIcon name={meta.icon || 'Folders'} size={14} weight={active ? 'fill' : 'duotone'} />
+                                    <span>{meta.title}</span>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                )}
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="medpro-btn-outline !py-1 !px-3 text-xs"
+                        className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                     >
-                        <UploadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                        <UploadSimple size={14} weight="bold" className="text-clinic-cta" />
                         <span>Nạp dữ liệu (Import)</span>
                     </button>
                     <button
                         type="button"
                         onClick={handleExportCatalog}
-                        className="medpro-btn-outline !py-1 !px-3 text-xs"
+                        className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                     >
-                        <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
+                        <DownloadSimple size={14} weight="bold" className="text-clinic-cta" />
                         <span>Xuất Excel</span>
                     </button>
                     <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.json" className="hidden" onChange={handleImportFile} />
@@ -70,7 +72,7 @@ export default function CatalogNavigationTabs({
             </div>
 
             {loaiDanhMuc === 'chung' && (
-                <div className="medpro-card p-2.5 flex flex-wrap items-center gap-1.5 bg-[#F8FBFE]">
+                <div className="medpro-card p-2 flex flex-wrap items-center gap-1.5 bg-clinic-surface-tint">
                     {generalSubTabs.map((sub) => {
                         const active = activeGeneralSubTab === sub.key
                         return (
@@ -81,14 +83,14 @@ export default function CatalogNavigationTabs({
                                     setActiveGeneralSubTab(sub.key)
                                     handleSwitchCatalogView(catalogs[sub.key] || [])
                                 }}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors cursor-pointer ${
                                     active
-                                        ? 'bg-white text-[#00B5F1] shadow-xs border border-[#00B5F1]/40'
-                                        : 'text-slate-600 hover:bg-white/80'
+                                        ? 'bg-clinic-surface text-clinic-cta border border-clinic-cta'
+                                        : 'text-clinic-text-secondary hover:bg-clinic-surface hover:text-clinic-navy border border-transparent'
                                 }`}
                             >
                                 <ClinicIcon name={sub.icon || 'Dot'} size={14} weight={active ? 'fill' : 'regular'} />
-                                <span>{sub.title}</span>
+                                <span>{sub.label || sub.title}</span>
                             </button>
                         )
                     })}
@@ -96,70 +98,70 @@ export default function CatalogNavigationTabs({
             )}
 
             {loaiDanhMuc === 'khoa-phong' && (
-                <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2 bg-[#F8FBFE]">
-                    <div className="flex items-center gap-2">
+                <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2 bg-clinic-surface-tint">
+                    <div className="flex flex-wrap items-center gap-1.5">
                         <button
                             type="button"
                             onClick={() => setActiveKhoaPhongView('rooms')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                                 activeKhoaPhongView === 'rooms'
-                                    ? 'bg-[#003553] text-white shadow-xs'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-clinic-surface text-clinic-text-secondary border border-clinic-border hover:border-clinic-cta hover:text-clinic-navy'
                             }`}
                         >
                             <ClinicIcon name="Buildings" size={14} weight="bold" />
-                            <span>Buồng khám vật lý & Phòng chức năng (/rooms)</span>
+                            <span>Buồng khám vật lý &amp; Phòng chức năng</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveKhoaPhongView('departments')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                                 activeKhoaPhongView === 'departments'
-                                    ? 'bg-[#003553] text-white shadow-xs'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'bg-clinic-surface text-clinic-text-secondary border border-clinic-border hover:border-clinic-cta hover:text-clinic-navy'
                             }`}
                         >
                             <ClinicIcon name="Folders" size={14} weight="bold" />
-                            <span>Khoa / Chuyên khoa khám bệnh (/departments)</span>
+                            <span>Khoa / Chuyên khoa khám bệnh</span>
                         </button>
                     </div>
-                    <span className="text-xs text-slate-500 font-semibold">
-                        Lưu trữ quan hệ PostgreSQL thời gian thực
+                    <span className="text-xs text-clinic-text-secondary font-medium">
+                        Đồng bộ cơ sở dữ liệu phòng khám theo thời gian thực
                     </span>
                 </div>
             )}
 
             {loaiDanhMuc === 'dich-vu' && (
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-sky-50 via-[#E8F4FD] to-indigo-50/60 p-3 rounded-xl border border-[#00B5F1]/30">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface-tint p-3 rounded-[6px] border border-clinic-info-border">
                     <div className="flex items-center gap-2.5">
-                        <span className="w-8 h-8 rounded-lg bg-[#003553] text-[#00B5F1] flex items-center justify-center shrink-0">
-                            <ClinicIcon name="Hospital" size={18} weight="duotone" />
+                        <span className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center shrink-0">
+                            <ClinicIcon name="Hospital" size={17} weight="duotone" />
                         </span>
                         <div>
-                            <div className="text-xs font-extrabold text-[#003553]">
-                                DANH MỤC DỊCH VỤ KỸ THUẬT & BẢNG GIÁ Y TẾ NIÊM YẾT
+                            <div className="text-xs font-extrabold text-clinic-navy uppercase">
+                                Danh mục dịch vụ kỹ thuật &amp; Bảng giá y tế niêm yết
                             </div>
-                            <div className="text-[11px] text-slate-500">
-                                Quản lý Đơn vị tính (Lần/Test/Răng), Thuế suất VAT theo Luật Thuế GTGT, Thời gian thực hiện và Doanh thu tích lũy.
+                            <div className="text-[11px] text-clinic-text-secondary">
+                                Quản lý đơn vị tính (Lần/Test/Răng), thuế suất VAT, thời gian thực hiện và doanh thu tích lũy.
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
                             onClick={handleOpenPriceHistory}
-                            className="px-3.5 py-1.5 rounded-lg bg-[#003553] hover:bg-[#002235] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                            className="medpro-btn-outline !py-1.5 !px-3 text-xs"
                         >
-                            <ClinicIcon name="ClockCounterClockwise" size={14} weight="bold" />
-                            <span>Lịch sử điều chỉnh giá bất biến</span>
+                            <ClinicIcon name="ClockCounterClockwise" size={14} weight="bold" className="text-clinic-cta" />
+                            <span>Lịch sử điều chỉnh giá</span>
                         </button>
                         <button
                             type="button"
                             onClick={handleOpenExportModal}
-                            className="px-3.5 py-1.5 rounded-lg bg-[#00B5F1] hover:bg-[#009cd1] text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                            className="medpro-btn-primary !py-1.5 !px-3 text-xs"
                         >
                             <DownloadSimple size={14} weight="bold" />
-                            <span>Xuất Bảng giá Dịch vụ Chuẩn y tế (Excel/CSV)</span>
+                            <span>Xem bảng giá &amp; Xuất Excel</span>
                         </button>
                     </div>
                 </div>

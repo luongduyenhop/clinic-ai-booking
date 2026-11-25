@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Table, Tag, Input, Select, Progress, Button, DatePicker, Spin, Empty } from 'antd'
+import { Table, Input, Select, Progress, Button, DatePicker, Spin, Empty } from 'antd'
 import {
     SearchOutlined,
     SyncOutlined,
@@ -15,29 +15,29 @@ import {
     fetchAuditLogsAsync,
 } from '../../redux/actions/reception/receptionAction'
 
-const ACTION_TYPE_COLOR_MAP = {
-    CHECK_IN: 'blue',
-    WALK_IN_CREATE: 'orange',
-    APPOINTMENT_RESCHEDULE: 'cyan',
-    APPOINTMENT_CANCEL: 'red',
-    QUEUE_TRANSFER_ROOM: 'geekblue',
-    QUEUE_CALL: 'purple',
-    QUEUE_DEFER: 'warning',
-    LEAVE_QUEUE: 'volcano',
-    CLOSE_TICKET: 'magenta',
+const ACTION_TYPE_META = {
+    CHECK_IN: { label: 'Tiếp nhận đặt trước', badge: 'medpro-badge-info' },
+    WALK_IN_CREATE: { label: 'Tiếp nhận vãng lai', badge: 'medpro-badge-warning' },
+    APPOINTMENT_RESCHEDULE: { label: 'Đổi lịch khám', badge: 'medpro-badge-info' },
+    APPOINTMENT_CANCEL: { label: 'Hủy lịch hẹn', badge: 'medpro-badge-danger' },
+    QUEUE_TRANSFER_ROOM: { label: 'Chuyển buồng khám', badge: 'medpro-badge-info' },
+    QUEUE_CALL: { label: 'Gọi số vào khám', badge: 'medpro-badge-success' },
+    QUEUE_DEFER: { label: 'Tạm hoãn lượt', badge: 'medpro-badge-warning' },
+    LEAVE_QUEUE: { label: 'Rời hàng đợi', badge: 'medpro-badge-danger' },
+    CLOSE_TICKET: { label: 'Hoàn tất lượt', badge: 'medpro-badge-neutral' },
 }
 
 const ACTION_TYPE_OPTIONS = [
-    { value: '', label: 'Tất cả loại hành động' },
-    { value: 'CHECK_IN', label: 'CHECK_IN (Tiếp nhận đặt trước)' },
-    { value: 'WALK_IN_CREATE', label: 'WALK_IN_CREATE (Tiếp nhận vãng lai)' },
-    { value: 'APPOINTMENT_RESCHEDULE', label: 'APPOINTMENT_RESCHEDULE (Đổi lịch khám)' },
-    { value: 'APPOINTMENT_CANCEL', label: 'APPOINTMENT_CANCEL (Hủy lịch hẹn)' },
-    { value: 'QUEUE_TRANSFER_ROOM', label: 'QUEUE_TRANSFER_ROOM (Chuyển buồng khám)' },
-    { value: 'QUEUE_CALL', label: 'QUEUE_CALL (Bác sĩ gọi số)' },
-    { value: 'QUEUE_DEFER', label: 'QUEUE_DEFER (Tạm hoãn lượt)' },
-    { value: 'LEAVE_QUEUE', label: 'LEAVE_QUEUE (Bỏ khám)' },
-    { value: 'CLOSE_TICKET', label: 'CLOSE_TICKET (Đóng vé)' },
+    { value: '', label: 'Tất cả loại thao tác' },
+    { value: 'CHECK_IN', label: 'Tiếp nhận đặt trước' },
+    { value: 'WALK_IN_CREATE', label: 'Tiếp nhận vãng lai' },
+    { value: 'APPOINTMENT_RESCHEDULE', label: 'Đổi lịch khám' },
+    { value: 'APPOINTMENT_CANCEL', label: 'Hủy lịch hẹn' },
+    { value: 'QUEUE_TRANSFER_ROOM', label: 'Chuyển buồng khám' },
+    { value: 'QUEUE_CALL', label: 'Gọi số vào khám' },
+    { value: 'QUEUE_DEFER', label: 'Tạm hoãn lượt' },
+    { value: 'LEAVE_QUEUE', label: 'Rời hàng đợi' },
+    { value: 'CLOSE_TICKET', label: 'Hoàn tất lượt' },
 ]
 
 export default function ReportsPage() {
@@ -116,7 +116,11 @@ export default function ReportsPage() {
         so_no_show: 0,
     }
 
-    const specialtyBreakdown = reportSummary?.phan_bo_chuyen_khoa || []
+    const rawSpecialtyBreakdown = reportSummary?.phan_bo_chuyen_khoa || []
+    const realSpecialties = rawSpecialtyBreakdown.filter(
+        (item) => !String(item.ten_chuyen_khoa || '').toLowerCase().includes('(demo)')
+    )
+    const specialtyBreakdown = realSpecialties.length > 0 ? realSpecialties : rawSpecialtyBreakdown
 
     const columns = [
         {
@@ -125,8 +129,8 @@ export default function ReportsPage() {
             key: 'timestamp',
             width: 160,
             render: (time) => (
-                <span className="font-mono text-slate-600 text-xs flex items-center gap-1">
-                    <ClockCircleOutlined className="text-slate-400 text-[11px]" />
+                <span className="font-mono text-clinic-text-secondary text-xs flex items-center gap-1 tabular-nums">
+                    <ClockCircleOutlined className="text-clinic-text-muted text-[11px]" />
                     {time || 'N/A'}
                 </span>
             ),
@@ -137,8 +141,8 @@ export default function ReportsPage() {
             key: 'actor',
             width: 170,
             render: (actor) => (
-                <span className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
-                    <UserOutlined className="text-sky-600 text-xs" />
+                <span className="font-semibold text-clinic-navy text-xs flex items-center gap-1.5">
+                    <UserOutlined className="text-clinic-cta text-xs" />
                     {actor || 'Lễ tân tiếp đón'}
                 </span>
             ),
@@ -147,13 +151,13 @@ export default function ReportsPage() {
             title: 'Hành động',
             dataIndex: 'action_type',
             key: 'action_type',
-            width: 180,
+            width: 185,
             render: (act) => {
-                const color = ACTION_TYPE_COLOR_MAP[act] || 'default'
+                const meta = ACTION_TYPE_META[act] || { label: act || 'Thao tác khác', badge: 'medpro-badge-neutral' }
                 return (
-                    <Tag color={color} className="font-mono text-[11px] font-bold m-0">
-                        {act}
-                    </Tag>
+                    <span className={`${meta.badge} text-[11px] font-bold`}>
+                        {meta.label}
+                    </span>
                 )
             },
         },
@@ -162,20 +166,20 @@ export default function ReportsPage() {
             key: 'target',
             width: 220,
             render: (_, record) => (
-                <div className="text-xs space-y-0.5">
-                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                <div className="text-xs space-y-0.5 tabular-nums">
+                    <div className="font-bold text-clinic-navy flex items-center gap-1.5">
                         {record.ticket_number && (
-                            <span className="font-mono text-sky-700 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">
+                            <span className="font-mono text-clinic-cta bg-clinic-surface-alt px-1.5 py-0.5 rounded-[4px] border border-clinic-info-border">
                                 {record.ticket_number}
                             </span>
                         )}
                         <span>{record.patient_name || 'Khách vãng lai'}</span>
                     </div>
                     {record.phone && (
-                        <div className="text-[11px] text-slate-500">SĐT: {record.phone}</div>
+                        <div className="text-[11px] text-clinic-text-secondary">SĐT: {record.phone}</div>
                     )}
                     {record.room_name && (
-                        <div className="text-[11px] text-slate-600 font-medium">{record.room_name}</div>
+                        <div className="text-[11px] text-clinic-text-secondary font-medium">{record.room_name}</div>
                     )}
                 </div>
             ),
@@ -185,7 +189,7 @@ export default function ReportsPage() {
             dataIndex: 'description',
             key: 'description',
             render: (desc) => (
-                <div className="text-xs text-slate-700 leading-relaxed font-normal">
+                <div className="text-xs text-clinic-text leading-relaxed font-normal">
                     {desc || 'Không có mô tả chi tiết'}
                 </div>
             ),
@@ -196,12 +200,12 @@ export default function ReportsPage() {
         <div className="space-y-4">
             <div className="medpro-card p-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide flex items-center gap-2">
-                        <FieldTimeOutlined className="text-sky-600" />
-                        Báo cáo Đối soát & Nhật ký Kiểm toán
-                    </h1>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                        Phân hệ đối soát chất lượng phục vụ tiếp đón (SLA), tỷ lệ phân bổ và truy vết thao tác điều phối
+                    <h2 className="text-sm lg:text-base font-extrabold text-clinic-navy font-display flex items-center gap-2">
+                        <FieldTimeOutlined className="text-clinic-cta" />
+                        Báo cáo Đối soát &amp; Nhật ký Thao tác Ca trực
+                    </h2>
+                    <p className="text-xs text-clinic-text-secondary mt-0.5">
+                        Đối soát chất lượng phục vụ tiếp đón (SLA), tỷ lệ phân bổ chuyên khoa và truy vết thao tác điều phối
                     </p>
                 </div>
 
@@ -211,14 +215,14 @@ export default function ReportsPage() {
                         onChange={(d) => setSelectedDate(d || dayjs())}
                         format="DD/MM/YYYY"
                         allowClear={false}
-                        className="w-36 rounded-xl font-medium"
-                        prefix={<CalendarOutlined className="text-slate-400 mr-1" />}
+                        className="w-36 rounded-[6px] font-medium"
+                        prefix={<CalendarOutlined className="text-clinic-text-muted mr-1" />}
                     />
 
                     <Select
                         value={selectedShift}
                         onChange={(val) => setSelectedShift(val)}
-                        className="w-44 rounded-xl"
+                        className="w-48 rounded-[6px]"
                         options={[
                             { value: '', label: 'Cả ngày (Tất cả ca)' },
                             { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
@@ -237,62 +241,62 @@ export default function ReportsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="bg-clinic-surface rounded-[6px] border border-clinic-border grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-clinic-border">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary block">
                         Tổng lượt tiếp nhận
                     </span>
-                    <div className="text-3xl font-black text-sky-700 mt-2">
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {reportLoading ? <Spin size="small" /> : `${kpi.tong_luot_tiep_nhan} lượt`}
                     </div>
-                    <span className="text-[11px] text-slate-500 font-medium mt-1 inline-block">
-                        <strong>{kpi.so_lich_hen}</strong> Lịch hẹn • <strong>{kpi.so_vang_lai}</strong> Vãng lai
+                    <span className="text-[11px] text-clinic-text-secondary font-medium mt-0.5 inline-block tabular-nums">
+                        <strong>{kpi.so_lich_hen}</strong> Lịch hẹn · <strong>{kpi.so_vang_lai}</strong> Vãng lai
                     </span>
                 </div>
 
-                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary block">
                         Thời gian chờ TB (SLA)
                     </span>
-                    <div className="text-3xl font-black text-amber-600 mt-2">
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {reportLoading ? <Spin size="small" /> : `${kpi.thoi_gian_cho_trung_binh_phut} phút`}
                     </div>
-                    <span className="text-[11px] text-amber-700 font-medium mt-1 inline-block">
-                        Tính từ check-in đến lúc bác sĩ gọi số
+                    <span className="text-[11px] text-clinic-text-muted font-medium mt-0.5 inline-block">
+                        Từ check-in đến lúc bác sĩ gọi số
                     </span>
                 </div>
 
-                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary block">
                         Hủy lịch trong ca
                     </span>
-                    <div className="text-3xl font-black text-red-600 mt-2">
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {reportLoading ? <Spin size="small" /> : `${kpi.so_lich_huy} ca`}
                     </div>
-                    <span className="text-[11px] text-red-500 font-medium mt-1 inline-block">
+                    <span className="text-[11px] text-clinic-text-muted font-medium mt-0.5 inline-block">
                         Có lý do hành chính hợp lệ
                     </span>
                 </div>
 
-                <div className="medpro-card p-4 border-l-4 border-l-[#00B5F1]">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                        Bùng hẹn (No-show)
+                <div className="p-4">
+                    <span className="text-xs font-semibold text-clinic-text-secondary block">
+                        Vắng mặt (No-show)
                     </span>
-                    <div className="text-3xl font-black text-slate-700 mt-2">
+                    <div className="text-xl font-extrabold text-clinic-navy mt-1 tabular-nums">
                         {reportLoading ? <Spin size="small" /> : `${kpi.so_no_show} ca`}
                     </div>
-                    <span className="text-[11px] text-slate-500 font-medium mt-1 inline-block">
+                    <span className="text-[11px] text-clinic-text-muted font-medium mt-0.5 inline-block">
                         Quá khung giờ không đến quầy
                     </span>
                 </div>
             </div>
 
             <div className="medpro-card p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-bold text-slate-800">
-                        Phân bổ lượt tiếp nhận theo Chuyên khoa & Thời gian chờ TB (SLA)
+                <div className="flex items-center justify-between border-b border-clinic-border pb-3">
+                    <h3 className="text-sm font-bold text-clinic-navy">
+                        Phân bổ lượt tiếp nhận theo Chuyên khoa &amp; Thời gian chờ TB (SLA)
                     </h3>
-                    <span className="text-xs text-slate-400 font-medium">
+                    <span className="text-xs text-clinic-text-secondary font-medium tabular-nums">
                         Ngày {selectedDate.format('DD/MM/YYYY')} {selectedShift ? `(${selectedShift === 'sang' ? 'Ca sáng' : 'Ca chiều'})` : '(Toàn ngày)'}
                     </span>
                 </div>
@@ -306,24 +310,24 @@ export default function ReportsPage() {
                         {specialtyBreakdown.map((item) => (
                             <div
                                 key={item.chuyen_khoa_id || item.ma_chuyen_khoa}
-                                className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs"
+                                className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border space-y-2 text-xs tabular-nums"
                             >
-                                <span className="font-bold text-slate-800 block truncate" title={item.ten_chuyen_khoa}>
+                                <span className="font-bold text-clinic-navy block truncate" title={item.ten_chuyen_khoa}>
                                     {item.ten_chuyen_khoa}
                                 </span>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-xl font-black text-sky-700">{item.so_luot} lượt</span>
-                                    <span className="text-slate-500 font-semibold">{item.ti_le_phan_tram}%</span>
+                                    <span className="text-lg font-extrabold text-clinic-cta">{item.so_luot} lượt</span>
+                                    <span className="text-clinic-text-secondary font-semibold">{item.ti_le_phan_tram}%</span>
                                 </div>
                                 <Progress
                                     percent={item.ti_le_phan_tram}
                                     showInfo={false}
                                     size="small"
-                                    strokeColor="#0284c7"
+                                    strokeColor="var(--color-clinic-cta)"
                                 />
-                                <div className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                                <div className="text-[11px] text-clinic-text-secondary font-medium pt-1 border-t border-clinic-border flex items-center justify-between">
                                     <span>Chờ trung bình:</span>
-                                    <strong className="font-mono">{item.thoi_gian_cho_tb_phut || 0} phút</strong>
+                                    <strong className="font-mono text-clinic-navy">{item.thoi_gian_cho_tb_phut || 0} phút</strong>
                                 </div>
                             </div>
                         ))}
@@ -334,43 +338,46 @@ export default function ReportsPage() {
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-bold text-slate-800">
-                            Nhật ký kiểm toán thao tác tiếp đón (Audit Trail)
-                        </h2>
-                        <span className="text-xs text-slate-500">
-                            Truy vết đầy đủ người thực hiện, thời điểm, loại hành động, số vé và lý do điều phối từ cơ sở dữ liệu
+                        <h3 className="text-sm lg:text-base font-bold text-clinic-navy">
+                            Nhật ký kiểm toán thao tác tiếp đón
+                        </h3>
+                        <span className="text-xs text-clinic-text-secondary">
+                            Truy vết đầy đủ người thực hiện, thời điểm, loại thao tác, số thứ tự và nội dung điều phối
                         </span>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-clinic-border text-xs">
                     <Input
-                        prefix={<SearchOutlined className="text-slate-400" />}
+                        prefix={<SearchOutlined className="text-clinic-text-muted" />}
                         placeholder="Tìm kiếm theo Tên BN, SĐT, Số vé, Lễ tân..."
                         value={searchKeyword}
                         onChange={(e) => setSearchKeyword(e.target.value)}
-                        className="w-72 rounded-xl"
+                        className="w-72 rounded-[6px]"
                         allowClear
                     />
 
                     <Select
-                        className="w-64 rounded-xl"
-                        placeholder="Loại hành động kiểm toán"
+                        className="w-60 rounded-[6px]"
+                        placeholder="Lọc theo loại nghiệp vụ"
                         value={actionFilter || undefined}
                         onChange={(val) => setActionFilter(val || '')}
                         allowClear
                         options={ACTION_TYPE_OPTIONS}
                     />
 
-                    <span className="text-xs text-slate-400 ml-auto font-mono">
-                        Tổng cộng: <strong>{auditPagination?.total_items ?? auditPagination?.totalItems ?? auditLogs.length}</strong> bản ghi
+                    <span className="text-xs text-clinic-text-secondary ml-auto font-mono tabular-nums">
+                        Tổng cộng: <strong className="text-clinic-navy">{auditPagination?.total_items ?? auditPagination?.totalItems ?? auditLogs.length}</strong> bản ghi
                     </span>
                 </div>
 
                 <Table
                     columns={columns}
                     dataSource={auditLogs}
-                    rowKey={(record) => record.id || `${record.timestamp}-${record.action_type}-${Math.random()}`}
+                    rowKey={(record) =>
+                        record.id ||
+                        `${record.timestamp || ''}-${record.action_type || ''}-${record.ticket_number || ''}-${record.patient_name || ''}`
+                    }
                     loading={auditLoading}
                     pagination={{
                         current: currentPage,

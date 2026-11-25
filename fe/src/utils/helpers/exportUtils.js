@@ -1,5 +1,3 @@
-import ExcelJS from 'exceljs'
-
 function getResolvedClinicInfo() {
     try {
         const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('CLINIC_AI_MANAGEMENT_DB_V3_CLINICAL') : null
@@ -161,6 +159,8 @@ export async function exportToExcel(optionsOrFilename, optionalHeaders, optional
         return inferColumnWidth(h, columnTypes[i])
     })
 
+    const excelModule = await import('exceljs')
+    const ExcelJS = excelModule.default || excelModule
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'Clinic-AI Healthcare HIS'
     workbook.lastModifiedBy = 'Clinic-AI Admin'

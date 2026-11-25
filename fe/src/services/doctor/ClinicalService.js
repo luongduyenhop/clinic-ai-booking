@@ -2,6 +2,7 @@ import { BaseServices } from '../BaseService'
 import { clinicalEventBridge, CLINICAL_EVENTS } from '../clinicalEventBridge'
 import { AppToast } from '../../components/common/AppNotification'
 import { pickErrorMessage } from '../../utils/helpers/apiHelper'
+import { filterSyncableEncounters } from '../../utils/helpers/clinicalDeltaSync'
 
 
 export const USE_MOCK = false
@@ -301,19 +302,6 @@ const mergeRemoteAndLocalEncounter = (rEnc, lEnc, preferLocalDraft = false) => {
     return merged
 }
 
-const filterSyncableEncounters = (encountersMap = {}, queueList = []) => {
-    const queueStatusByEncId = new Map(queueList.map((t) => [String(t.encounter_id), t.trang_thai]))
-    return Object.fromEntries(
-        Object.entries(encountersMap || {}).filter(([k, enc]) => {
-            if (!enc || enc.is_locked) return false
-            if (enc.luot_kham_server_id || enc.thoi_gian_bat_dau) return true
-            if ((enc.danh_sach_chi_dinh || []).length > 0) return true
-            const qStatus = queueStatusByEncId.get(String(k))
-            return Boolean(qStatus && qStatus !== 'cho_kham' && qStatus !== 'da_kham')
-        })
-    )
-}
-
 export class ClinicalService extends BaseServices {
     _hydratedFromPg = false
     _returnedSince = null
@@ -395,21 +383,30 @@ export class ClinicalService extends BaseServices {
         }
     }
 
-    persistToPostgres = async (changes = {}) => {
-        const role = String(localStorage.getItem('userRole') || '').toUpperCase()
-        if (role && role !== 'BAC_SI' && role !== 'ADMIN' && role !== 'DOCTOR') return
-        if (demoMode) {
-            if (!changes.queue?.length && !Object.keys(changes.encounters || {}).length) return
-            await this.put('/api/v1/clinical/workspace-state', changes, { __skipGlobalLoading: true, __skipGlobalError: true })
-            return
-        }
+    saveLocalWorkspaceCache = () => {
+        if (demoMode) return
         try {
             localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(db))
         } catch {
         }
+    }
+
+    persistToPostgres = async (changes = {}) => {
+        this.saveLocalWorkspaceCache()
+        const role = String(localStorage.getItem('userRole') || '').toUpperCase()
+        if (role && role !== 'BAC_SI' && role !== 'ADMIN' && role !== 'DOCTOR') return
+        const queueDelta = Array.isArray(changes?.queue) ? changes.queue : []
+        const encountersDelta = demoMode
+            ? changes?.encounters || {}
+            : filterSyncableEncounters(changes?.encounters || {}, db.queue, db.encounters)
+        if (queueDelta.length === 0 && Object.keys(encountersDelta).length === 0) return
         const payload = {
-            ...db,
-            encounters: filterSyncableEncounters(db.encounters, db.queue),
+            queue: queueDelta,
+            encounters: encountersDelta,
+        }
+        if (demoMode) {
+            await this.put('/api/v1/clinical/workspace-state', payload, { __skipGlobalLoading: true, __skipGlobalError: true })
+            return
         }
         try {
             await this.put('/api/v1/clinical/workspace-state', payload, { __skipGlobalLoading: true, __skipGlobalError: true })
@@ -621,7 +618,7 @@ export class ClinicalService extends BaseServices {
             enc.thoi_gian_bat_dau = new Date().toISOString()
         }
         Object.assign(enc, patch)
-        await this.persistToPostgres()
+        await this.persistToPostgres({ encounters: { [encounterId]: patch } })
         return delay({ saved_at: new Date().toISOString() }, 120)
     }
 
@@ -683,7 +680,7 @@ export class ClinicalService extends BaseServices {
             enc.danh_sach_chi_dinh = (enc.danh_sach_chi_dinh || []).filter((o) => Boolean(o.server_order_id))
             throw e
         }
-        await this.persistToPostgres()
+        await this.persistToPostgres({ queue: ticket ? [ticket] : [] })
         try {
             clinicalEventBridge.emit(CLINICAL_EVENTS.CLS_ORDERED, {
                 encounterId,
@@ -704,7 +701,7 @@ export class ClinicalService extends BaseServices {
             await this.post(`/api/v1/subclinical/orders/${o.server_order_id}/cancel?ly_do=${encodeURIComponent('Bác sĩ hủy chỉ định')}`, {})
         }
         enc.danh_sach_chi_dinh = enc.danh_sach_chi_dinh.filter((x) => x.id !== orderId)
-        await this.persistToPostgres()
+        this.saveLocalWorkspaceCache()
         return delay(enc.danh_sach_chi_dinh)
     }
 
@@ -764,7 +761,7 @@ export class ClinicalService extends BaseServices {
                 ticket.trang_thai = 'da_kham'
                 ticket.ghi_chu = 'Đã khám xong'
             }
-            await this.persistToPostgres()
+            this.saveLocalWorkspaceCache()
         }
         const finalEnc = db.encounters[encounterId] || db.encounters[String(encounterId)] || enc
         try {
@@ -791,7 +788,7 @@ export class ClinicalService extends BaseServices {
         } catch {
             if (!db.encounters[encounterId]?.is_locked) return reject('Chỉ tạo biên bản đính chính cho bệnh án đã khóa.')
             const amendment = { id: db.nextId++, trang_thai: 'CHO_PHE_DUYET', ...payload }
-            await this.persistToPostgres()
+            this.saveLocalWorkspaceCache()
             return delay(amendment)
         }
     }
@@ -818,7 +815,7 @@ export class ClinicalService extends BaseServices {
             nhan_xet: payload.nhan_xet || null,
         })
         if (enc) enc.danh_gia_ai = { ...payload, phan_tich_ai_id: analysisId, id: response?.data?.data?.id }
-        await this.persistToPostgres()
+        this.saveLocalWorkspaceCache()
         return delay(enc.danh_gia_ai, 150)
     }
 
@@ -891,7 +888,7 @@ export class ClinicalService extends BaseServices {
         const mirror = findMirrorOrder(orderId)
         if (mirror && mirror.order.trang_thai === 'da_chi_dinh') {
             mirror.order.trang_thai = trangThai
-            await this.persistToPostgres()
+            this.saveLocalWorkspaceCache()
         }
         return { data: { id: orderId, trang_thai: trangThai } }
     }
@@ -931,7 +928,7 @@ export class ClinicalService extends BaseServices {
                     ticket.muc_do_uu_tien = 0
                     ticket.ghi_chu = `⭐ CÓ KQ CLS: ${mirror.order.ten_dich_vu}`
                 }
-                await this.persistToPostgres()
+                this.saveLocalWorkspaceCache()
             }
         } catch {}
 
@@ -1020,7 +1017,7 @@ export class ClinicalService extends BaseServices {
                     ...(db.encounters[encounterId].specialtyExams || {}),
                     [deptCode]: res?.data?.data ?? data,
                 }
-                await this.persistToPostgres()
+                this.saveLocalWorkspaceCache()
             }
             return res?.data?.data ?? data
         } catch {
@@ -1029,7 +1026,7 @@ export class ClinicalService extends BaseServices {
                     ...(db.encounters[encounterId].specialtyExams || {}),
                     [deptCode]: data,
                 }
-                await this.persistToPostgres()
+                this.saveLocalWorkspaceCache()
             }
             return data
         }
@@ -1051,7 +1048,14 @@ export class ClinicalService extends BaseServices {
                     ghi_chu_don_thuoc: `[Sao chép từ đơn thuốc cũ #${sourcePrescriptionId}]`,
                     danh_sach_chi_tiet: structuredClone(fallbackItems),
                 }
-                await this.persistToPostgres()
+                await this.persistToPostgres({
+                    encounters: {
+                        [encounterId]: {
+                            don_thuoc: enc.don_thuoc,
+                            danh_sach_thuoc: enc.don_thuoc.danh_sach_chi_tiet,
+                        },
+                    },
+                })
                 return enc.don_thuoc
             }
             return null
@@ -1320,7 +1324,7 @@ export class ClinicalService extends BaseServices {
             } catch {}
         }
 
-        if (dirty) await this.persistToPostgres()
+        if (dirty) this.saveLocalWorkspaceCache()
         return changed
     }
 
@@ -1335,7 +1339,7 @@ export class ClinicalService extends BaseServices {
                     const patch = { ...result }
                     delete patch.id
                     applyReturnedResult(mirror, patch)
-                    await this.persistToPostgres()
+                    this.saveLocalWorkspaceCache()
                 }
             } catch {}
         }

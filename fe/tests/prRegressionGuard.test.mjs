@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
@@ -99,9 +100,10 @@ test('Admin layout and dashboard maintain core structure and zero comments', asy
 
 test('ClinicalService completes backend encounter outside demoMode and ExaminedHistoryTab uses real vitals and doctorName', async () => {
     const clinicalSrc = await readFile(new URL('../src/services/doctor/ClinicalService.js', import.meta.url), 'utf8')
+    const deltaSyncSrc = await readFile(new URL('../src/utils/helpers/clinicalDeltaSync.js', import.meta.url), 'utf8')
     const historySrc = await readFile(new URL('../src/components/doctor/ExaminedHistoryTab.jsx', import.meta.url), 'utf8')
     const cashierHookSrc = await readFile(new URL('../src/hooks/useCashierPageLogic.js', import.meta.url), 'utf8')
-    assert.ok(clinicalSrc.includes('if (!enc || enc.is_locked) return false'), 'filterSyncableEncounters must exclude locked encounters')
+    assert.ok(deltaSyncSrc.includes('if (!enc || enc.is_locked) return false'), 'filterSyncableEncounters must exclude locked encounters')
     assert.ok(clinicalSrc.includes('/api/v1/clinical/encounters/${enc.luot_kham_server_id}/complete'), 'completeEncounter must post to backend complete endpoint when luot_kham_server_id exists')
     assert.ok(!clinicalSrc.includes('CLINIC_AI_MANAGEMENT_DB_V2_PROMAX'), 'ClinicalService must not write fake vouchers to V2_PROMAX localStorage')
     assert.ok(!clinicalSrc.includes('clinic_patient_completed_encounters_v1'), 'ClinicalService must not write fake patient history to localStorage')
@@ -117,7 +119,7 @@ test('ClinicalService completes backend encounter outside demoMode and ExaminedH
 
 test('Admin routes connect guide and QA management pages without dead redirects', async () => {
     const appContent = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-    assert.ok(appContent.includes("import GuideAndQaManagementPage from './pages/admin/GuideAndQaManagementPage'"), 'App.jsx must import GuideAndQaManagementPage')
+    assert.ok(appContent.includes("./pages/admin/GuideAndQaManagementPage") && appContent.includes('GuideAndQaManagementPage'), 'App.jsx must load GuideAndQaManagementPage')
     assert.ok(appContent.includes('<Route path="huong-dan" element={<GuideAndQaManagementPage />} />'), 'huong-dan must route to GuideAndQaManagementPage')
     assert.ok(appContent.includes('<Route path="hoi-dap" element={<GuideAndQaManagementPage />} />'), 'hoi-dap must route to GuideAndQaManagementPage')
     assert.ok(appContent.includes('<Route path="dang-ky-kham" element={<CheckInPage />} />'), 'dang-ky-kham must route to unified CheckInPage')
@@ -182,6 +184,57 @@ test('P2 real prescription gateway, master patient/appointment unification and p
         ['PatientsPage.jsx', patientsSrc],
         ['PatientPortalLayout.jsx', patientLayoutSrc],
         ['AdminService.js', adminSvcSrc],
+    ]) {
+        assert.ok(!src.includes('//') && !src.includes('/*'), `${name} must be clean without comments`)
+    }
+})
+
+test('P3 delta workspace sync, 30s polling, lazy route splitting and dead legacy page removal stay enforced', async () => {
+    const clinicalSrc = await readFile(new URL('../src/services/doctor/ClinicalService.js', import.meta.url), 'utf8')
+    const deltaSyncSrc = await readFile(new URL('../src/utils/helpers/clinicalDeltaSync.js', import.meta.url), 'utf8')
+    const adminTemplateSrc = await readFile(new URL('../src/layouts/AdminTemplate.jsx', import.meta.url), 'utf8')
+    const dashboardSrc = await readFile(new URL('../src/pages/admin/DashboardAdminPage.jsx', import.meta.url), 'utf8')
+    const appSrc = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+    const loadingSrc = await readFile(new URL('../src/components/loading/Loading.jsx', import.meta.url), 'utf8')
+    const exportSrc = await readFile(new URL('../src/utils/helpers/exportUtils.js', import.meta.url), 'utf8')
+    const viteSrc = await readFile(new URL('../vite.config.js', import.meta.url), 'utf8')
+
+    assert.ok(!clinicalSrc.includes('this.persistToPostgres()'), 'ClinicalService must never call persistToPostgres() without explicit delta')
+    assert.ok(clinicalSrc.includes('await this.persistToPostgres({ encounters: { [encounterId]: patch } })'), 'saveEncounterDraft must send single-encounter delta')
+    assert.ok(clinicalSrc.includes('saveLocalWorkspaceCache'), 'ClinicalService must use saveLocalWorkspaceCache for dedicated REST mutations')
+    assert.ok(adminTemplateSrc.includes('setInterval(syncClinicData, 30000)'), 'AdminTemplate fallback polling must be 30000ms')
+    assert.ok(!adminTemplateSrc.includes('setInterval(syncClinicData, 3000)'), 'AdminTemplate must not poll every 3000ms')
+    assert.ok(dashboardSrc.includes('setInterval(refreshStats, 30000)'), 'DashboardAdminPage fallback polling must be 30000ms')
+    assert.ok(!dashboardSrc.includes('setInterval(refreshStats, 5000)'), 'DashboardAdminPage must not poll every 5000ms')
+
+    assert.ok(appSrc.includes('<Suspense fallback={<Loading forceVisible />}>'), 'App.jsx must wrap Routes in Suspense with Loading forceVisible')
+    assert.ok(appSrc.includes("lazy(() => import('./pages/doctor/ExamWorkstationPage'))"), 'App.jsx must lazy-load ExamWorkstationPage')
+    assert.ok(loadingSrc.includes('forceVisible = false'), 'Loading.jsx must support forceVisible prop')
+    assert.ok(exportSrc.includes("await import('exceljs')"), 'exportUtils.js must dynamically import exceljs')
+    assert.ok(viteSrc.includes('codeSplitting'), 'vite.config.js must configure vendor codeSplitting')
+
+    const removedLegacyPages = [
+        '../src/pages/admin/ReceptionRegistrationPage.jsx',
+        '../src/pages/admin/SpecialtyExamPage.jsx',
+        '../src/pages/admin/ClinicalExamPage.jsx',
+        '../src/pages/admin/AppointmentManagementPage.jsx',
+        '../src/pages/user/patient/MedicalHistoryPage.jsx',
+    ]
+    for (const relPath of removedLegacyPages) {
+        await assert.rejects(
+            access(new URL(relPath, import.meta.url), constants.F_OK),
+            `${relPath} must remain deleted`
+        )
+    }
+
+    for (const [name, src] of [
+        ['ClinicalService.js', clinicalSrc],
+        ['clinicalDeltaSync.js', deltaSyncSrc],
+        ['AdminTemplate.jsx', adminTemplateSrc],
+        ['App.jsx', appSrc],
+        ['Loading.jsx', loadingSrc],
+        ['exportUtils.js', exportSrc],
+        ['vite.config.js', viteSrc],
     ]) {
         assert.ok(!src.includes('//') && !src.includes('/*'), `${name} must be clean without comments`)
     }

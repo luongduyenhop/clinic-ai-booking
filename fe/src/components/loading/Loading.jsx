@@ -1,10 +1,10 @@
 import { useSelector } from 'react-redux'
 import { Spin } from 'antd'
 
-export default function Loading() {
+export default function Loading({ forceVisible = false }) {
     const loadingCount = useSelector((state) => state.app.ui.loadingCount)
 
-    if (loadingCount <= 0) return null
+    if (!forceVisible && loadingCount <= 0) return null
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-xs transition-opacity duration-200">

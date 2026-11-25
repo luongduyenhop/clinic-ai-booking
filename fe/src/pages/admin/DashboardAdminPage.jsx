@@ -151,7 +151,7 @@ export default function DashboardAdminPage() {
         }
 
         refreshStats()
-        const timer = setInterval(refreshStats, 5000)
+        const timer = setInterval(refreshStats, 30000)
 
         const unsubCheckIn = clinicalEventBridge.on(CLINICAL_EVENTS.PATIENT_CHECKED_IN, refreshStats)
         const unsubApptCreated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_CREATED, refreshStats)
@@ -159,6 +159,7 @@ export default function DashboardAdminPage() {
         const unsubRegCreated = clinicalEventBridge.on(CLINICAL_EVENTS.REGISTRATION_CREATED, refreshStats)
         const unsubEncounter = clinicalEventBridge.on(CLINICAL_EVENTS.ENCOUNTER_COMPLETED, refreshStats)
         const unsubBill = clinicalEventBridge.on(CLINICAL_EVENTS.BILL_PAID, refreshStats)
+        window.addEventListener('focus', refreshStats)
 
         return () => {
             clearInterval(timer)
@@ -168,6 +169,7 @@ export default function DashboardAdminPage() {
             unsubRegCreated()
             unsubEncounter()
             unsubBill()
+            window.removeEventListener('focus', refreshStats)
         }
     }, [dispatch])
 

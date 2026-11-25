@@ -36,7 +36,7 @@ export default function AdminTemplate() {
         }
 
         syncClinicData()
-        const timer = setInterval(syncClinicData, 3000)
+        const timer = setInterval(syncClinicData, 30000)
 
         const unsubCheckIn = clinicalEventBridge.on(CLINICAL_EVENTS.PATIENT_CHECKED_IN, syncClinicData)
         const unsubApptCreated = clinicalEventBridge.on(CLINICAL_EVENTS.APPOINTMENT_CREATED, syncClinicData)

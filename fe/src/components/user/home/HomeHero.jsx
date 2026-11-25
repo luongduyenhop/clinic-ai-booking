@@ -7,6 +7,13 @@ import {
     getDefaultScheduleDate,
     getTodayIsoDate,
 } from '../../../utils/helpers/quickBookingHelpers'
+import { CalendarCheck } from '../../common/ClinicIcon'
+
+function formatIsoToVnShort(isoDate = '') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || '').trim())
+    if (!match) return isoDate
+    return `${match[3]}/${match[2]}/${match[1]}`
+}
 
 export default function HomeHero({
     selectedSpecialtyId,
@@ -90,19 +97,19 @@ export default function HomeHero({
                 <div className="hero-clinic-scrim absolute inset-0" aria-hidden="true" />
 
                 <div className="public-container relative z-10">
-                    <div className="max-w-[610px] pt-14 pb-20 sm:pt-16 sm:pb-24 lg:pt-[76px] lg:pb-28 text-clinic-surface">
-                        <h1 className="font-display text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.18] font-extrabold tracking-[-0.02em] text-clinic-surface">
+                    <div className="max-w-[620px] pt-14 pb-20 sm:pt-16 sm:pb-24 lg:pt-[76px] lg:pb-28 text-clinic-surface">
+                        <h1 className="font-display text-[28px] sm:text-[36px] lg:text-[40px] leading-[1.24] font-bold tracking-[-0.015em] text-clinic-surface">
                             Đặt lịch khám chuyên khoa, kiểm tra triệu chứng trước khi đến
                         </h1>
 
-                        <p className="mt-4 max-w-[540px] text-[15px] leading-[1.65] text-clinic-on-navy-muted">
+                        <p className="mt-4 max-w-[540px] text-[15px] leading-[1.68] text-clinic-on-navy-muted">
                             Sàng lọc triệu chứng AI để định hướng đúng chuyên khoa, giữ trước khung giờ bác sĩ 30 phút thực tế và lưu trữ kết quả xét nghiệm, đơn thuốc điện tử cho bản thân cùng gia đình.
                         </p>
 
                         <div className="mt-6">
                             <Link
                                 to="/khao-sat-trieu-chung"
-                                className="hero-clinic-secondary inline-flex items-center px-4 py-2 text-[13px] font-semibold"
+                                className="hero-clinic-secondary inline-flex items-center px-4 py-2 text-[13px] font-medium"
                             >
                                 Kiểm tra triệu chứng để chọn đúng khoa
                             </Link>
@@ -176,14 +183,21 @@ export default function HomeHero({
                             <label htmlFor="hero-date" className="medpro-label">
                                 Ngày khám
                             </label>
-                            <input
-                                id="hero-date"
-                                type="date"
-                                min={todayDate}
-                                value={appointmentDate}
-                                onChange={(event) => updateDate(event.target.value)}
-                                className="medpro-input min-h-[42px] py-0 tabular-nums"
-                            />
+                            <div className="relative">
+                                <div className="medpro-input min-h-[42px] py-0 flex items-center justify-between gap-2 tabular-nums pointer-events-none">
+                                    <span>{formatIsoToVnShort(appointmentDate)}</span>
+                                    <CalendarCheck size={16} className="text-clinic-text-muted shrink-0" />
+                                </div>
+                                <input
+                                    id="hero-date"
+                                    type="date"
+                                    min={todayDate}
+                                    value={appointmentDate}
+                                    onClick={(event) => event.currentTarget.showPicker?.()}
+                                    onChange={(event) => updateDate(event.target.value)}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                            </div>
                         </div>
 
                         <button type="submit" className="medpro-btn-primary min-h-[42px] px-5 text-sm sm:col-span-2 lg:col-span-1">

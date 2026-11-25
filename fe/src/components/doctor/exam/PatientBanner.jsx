@@ -1,18 +1,13 @@
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { findSpecialtyExam } from '../../../utils/constants/clinical'
-
-const initials = (name = '') =>
-    name
-        .split(' ')
-        .filter(Boolean)
-        .slice(-2)
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase()
+import { formatDateTime } from '../../../utils/helpers/formatDate'
+import { getAvatarInitials, stripDemoTag } from '../../../utils/helpers/doctorNameHelper'
 
 export default function PatientBanner({
     encounter,
     onShowHistory,
+    onBack,
+    savedAt,
     activeTicket,
     isWaitingCls: externalIsWaitingCls,
     hasClsReady: externalHasClsReady,
@@ -20,6 +15,11 @@ export default function PatientBanner({
     calling,
 }) {
     const bn = encounter?.benh_nhan || {}
+    const cleanName = stripDemoTag(bn.ho_ten || 'Người bệnh')
+    const allergyText = String(bn.di_ung_thuoc || '').trim()
+    const hasRealAllergy = Boolean(
+        allergyText && !['không', 'khong', 'không có', 'chưa ghi nhận'].includes(allergyText.toLowerCase())
+    )
 
     const pendingOrders = (encounter?.danh_sach_chi_dinh || []).filter(
         (o) =>
@@ -53,57 +53,68 @@ export default function PatientBanner({
     )
 
     return (
-        <div className="medpro-card bg-clinic-surface p-4 flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3.5">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] bg-clinic-navy text-[15px] font-extrabold text-clinic-surface">
-                    {initials(bn.ho_ten || 'BN')}
+        <div className="medpro-card bg-clinic-surface px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                {onBack && (
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        aria-label="Quay lại bàn khám"
+                        title="Đóng ca khám và quay về bàn trống (Esc)"
+                        className="w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-bg hover:border-clinic-cta hover:text-clinic-cta text-clinic-text-secondary flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                    >
+                        <ClinicIcon name="ArrowLeft" size={15} weight="bold" />
+                    </button>
+                )}
+
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-clinic-navy text-xs font-semibold text-clinic-surface">
+                    {getAvatarInitials(cleanName, 'BN')}
                 </span>
 
-                <div className="flex min-w-[240px] flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                        <h1 className="text-[18px] font-extrabold text-clinic-navy tracking-tight">
-                            {bn.ho_ten}
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h1 className="text-[15px] font-bold text-clinic-navy tracking-tight truncate">
+                            {cleanName}
                         </h1>
-                        <span className="text-xs font-semibold text-clinic-text-secondary tabular-nums">
-                            {bn.gioi_tinh} · {bn.tuoi} tuổi · Mã:{' '}
-                            <strong className="text-clinic-navy">{bn.ma || 'BN-2026'}</strong> · Mã LK:{' '}
-                            <strong className="text-clinic-navy">{encounter?.ma_lich_kham}</strong>
+                        <span className="text-xs text-clinic-text-secondary tabular-nums">
+                            {bn.gioi_tinh} · {bn.tuoi} tuổi · <span className="font-medium text-clinic-text">{bn.ma || 'BN-2026'}</span>
+                            {encounter?.ma_lich_kham ? ` · ${encounter.ma_lich_kham}` : ''}
                         </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
                         {encounter?.chuyen_khoa_kham && (
-                            <span className="medpro-badge-info">
+                            <span className="text-clinic-text-secondary font-medium">
                                 {findSpecialtyExam(encounter.chuyen_khoa_kham).label}
                             </span>
                         )}
 
-                        {bn.di_ung_thuoc ? (
-                            <span className="medpro-badge-danger inline-flex items-center gap-1 font-extrabold">
-                                <ClinicIcon name="Warning" size={13} weight="bold" />
-                                <span>DỊ ỨNG: {bn.di_ung_thuoc}</span>
+                        {hasRealAllergy ? (
+                            <span className="medpro-badge-danger inline-flex items-center gap-1">
+                                <ClinicIcon name="Warning" size={12} weight="bold" />
+                                <span>Dị ứng: {allergyText}</span>
                             </span>
                         ) : (
-                            <span className="medpro-badge-neutral">Chưa ghi nhận dị ứng</span>
+                            <span className="text-clinic-text-muted">Không ghi nhận dị ứng</span>
                         )}
 
                         {encounter?.is_locked ? (
-                            <span className="medpro-badge-neutral inline-flex items-center gap-1 font-bold">
+                            <span className="medpro-badge-neutral inline-flex items-center gap-1">
                                 <ClinicIcon name="LockKey" size={12} />
-                                <span>Bệnh án đã khóa</span>
+                                <span>Đã khóa bệnh án</span>
                             </span>
                         ) : isWaitingCls ? (
                             <span className="medpro-badge-warning inline-flex items-center gap-1">
                                 <ClinicIcon name="Clock" size={12} />
-                                <span>Đang làm Cận lâm sàng</span>
+                                <span>Chờ kết quả CLS</span>
                             </span>
                         ) : hasClsReady ? (
                             <span className="medpro-badge-success inline-flex items-center gap-1">
                                 <ClinicIcon name="CheckCircle" size={12} weight="fill" />
-                                <span>Đã có kết quả CLS</span>
+                                <span>Đã có KQ CLS</span>
                             </span>
                         ) : isExamining ? (
-                            <span className="medpro-badge-success">Đang khám</span>
+                            <span className="medpro-badge-info">Đang khám</span>
                         ) : (
                             <span className="medpro-badge-warning inline-flex items-center gap-1">
                                 <ClinicIcon name="Clock" size={11} />
@@ -112,35 +123,50 @@ export default function PatientBanner({
                         )}
                     </div>
                 </div>
+            </div>
 
-                <div className="flex items-center gap-2">
-                    {!encounter?.is_locked &&
-                        !isExamining &&
-                        !isWaitingCls &&
-                        !hasClsReady &&
-                        onStartExam && (
-                            <button
-                                type="button"
-                                onClick={onStartExam}
-                                disabled={calling}
-                                className="medpro-btn-primary rounded-[6px] px-3 py-1.5 text-xs font-bold cursor-pointer disabled:opacity-50"
-                                title="Gọi bệnh nhân này vào khám"
-                            >
-                                <ClinicIcon name="SpeakerHigh" size={14} />
-                                <span>{calling ? 'Đang gọi…' : 'Gọi vào khám'}</span>
-                            </button>
-                        )}
-                    {onShowHistory && (
+            <div className="flex items-center gap-2 shrink-0">
+                <span className="hidden xl:inline-flex items-center gap-1.5 text-[11px] text-clinic-text-muted tabular-nums mr-1">
+                    <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                            savedAt ? 'bg-clinic-success' : 'bg-clinic-border-strong'
+                        }`}
+                    />
+                    <span>
+                        {encounter?.is_locked
+                            ? 'Chỉ đọc'
+                            : savedAt
+                              ? `Đã lưu ${formatDateTime(savedAt).slice(-8)}`
+                              : 'Tự động lưu'}
+                    </span>
+                </span>
+
+                {!encounter?.is_locked &&
+                    !isExamining &&
+                    !isWaitingCls &&
+                    !hasClsReady &&
+                    onStartExam && (
                         <button
                             type="button"
-                            onClick={onShowHistory}
-                            className="medpro-btn-outline rounded-[6px] px-3 py-1.5 text-xs font-bold cursor-pointer"
+                            onClick={onStartExam}
+                            disabled={calling}
+                            className="medpro-btn-primary h-8 px-3 text-xs"
+                            title="Gọi bệnh nhân này vào khám"
                         >
-                            <ClinicIcon name="Clock" size={14} />
-                            <span>Hồ sơ cũ</span>
+                            <ClinicIcon name="SpeakerHigh" size={14} />
+                            <span>{calling ? 'Đang gọi…' : 'Gọi vào khám'}</span>
                         </button>
                     )}
-                </div>
+                {onShowHistory && (
+                    <button
+                        type="button"
+                        onClick={onShowHistory}
+                        className="medpro-btn-outline h-8 px-3 text-xs"
+                    >
+                        <ClinicIcon name="ClockCounterClockwise" size={14} />
+                        <span>Hồ sơ cũ</span>
+                    </button>
+                )}
             </div>
         </div>
     )

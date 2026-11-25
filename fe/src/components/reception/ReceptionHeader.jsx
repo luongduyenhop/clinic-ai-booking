@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import {
-    Clock,
     LockKey,
     Bell,
     ArrowsOut,
@@ -10,13 +9,13 @@ import {
     CaretDown,
     SignOut,
     MagnifyingGlass,
-    Check,
-    Hospital,
+    ArrowRight,
     ShieldCheck,
 } from '../common/ClinicIcon'
 import { readAuthFromStorage } from '../../utils/auth/authStorage'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { isIncidentResolved } from '../../redux/slices/reception/receptionSlice'
+import { getAvatarInitials, stripDemoTag } from '../../utils/helpers/doctorNameHelper'
 import CloseShiftModal from './CloseShiftModal'
 
 const ROUTE_NAMES = {
@@ -49,7 +48,6 @@ export default function ReceptionHeader() {
     const currentUser = authUser || storedAuth?.user
     const role = authRole || storedAuth?.role
 
-    const [currentTime, setCurrentTime] = useState(new Date())
     const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
@@ -58,11 +56,6 @@ export default function ReceptionHeader() {
 
     const headerRef = useRef(null)
     const searchRef = useRef(null)
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-        return () => clearInterval(timer)
-    }, [])
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -103,45 +96,30 @@ export default function ReceptionHeader() {
     const pendingIncidentsCount = doctorAbsences.filter((inc) => !isIncidentResolved(inc, resolvedIncidentKeys)).length
     const pendingTasksCount = tasks.filter((t) => t.status === 'PENDING').length + pendingIncidentsCount
 
-    const formattedTime = new Intl.DateTimeFormat('vi-VN', {
-        weekday: 'short',
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    }).format(currentTime)
-
-    const staffName =
+    const staffName = stripDemoTag(
         currentUser?.fullName ||
-        currentUser?.ho_ten ||
-        currentUser?.name ||
-        currentUser?.username ||
-        'Nhân viên Tiếp đón'
+            currentUser?.ho_ten ||
+            currentUser?.name ||
+            currentUser?.username ||
+            'Nhân viên Tiếp đón'
+    )
 
     const roleNameMap = {
-        LE_TAN: 'Lễ tân chính',
-        THU_NGAN: 'Lễ tân thu ngân',
+        LE_TAN: 'Lễ tân tiếp đón',
+        THU_NGAN: 'Thu ngân viện phí',
+        DIEU_DUONG: 'Điều dưỡng',
         ADMIN: 'Quản trị viên',
-        BAC_SI: 'Bác sĩ tiếp đón',
+        BAC_SI: 'Bác sĩ',
     }
 
+    const normalizedRoleKey = String(role || currentUser?.vai_tro || '').trim().toUpperCase()
     const staffRole =
-        (role && roleNameMap[role]) ||
+        roleNameMap[normalizedRoleKey] ||
         (currentUser?.vai_tro && !['Lễ tân chính', 'Lễ tân kiêm thu ngân'].includes(currentUser.vai_tro)
             ? currentUser.vai_tro
-            : 'Lễ tân ca trực')
+            : 'Lễ tân tiếp đón')
 
-    const staffInitials = (() => {
-        const normRole = String(role || '').toUpperCase()
-        if (normRole === 'THU_NGAN' || normRole === 'CASHIER') return 'TN'
-        const words = String(staffName || '').trim().split(/\s+/).filter(Boolean)
-        if (words.length >= 2) {
-            return `${words[words.length - 2][0] || ''}${words[words.length - 1][0] || ''}`.toUpperCase()
-        }
-        if (words.length === 1 && words[0]) return words[0].slice(0, 2).toUpperCase()
-        return 'LT'
-    })()
+    const staffInitials = getAvatarInitials(staffName, 'LT')
 
     const filteredPatients = searchQuery.trim()
         ? patients
@@ -157,23 +135,19 @@ export default function ReceptionHeader() {
     return (
         <header
             ref={headerRef}
-            className="h-14 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-5 flex items-center justify-between shrink-0 sticky top-0 z-30 select-none"
+            className="h-[52px] bg-clinic-surface border-b border-clinic-border px-4 flex items-center justify-between shrink-0 sticky top-0 z-30 select-none"
         >
             <div className="flex items-center gap-3 shrink-0">
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-clinic-cta" />
-                    <h1 className="text-sm lg:text-base font-extrabold text-clinic-navy tracking-tight whitespace-nowrap font-display">
-                        {pageTitle}
-                    </h1>
-                </div>
+                <h1 className="text-sm font-semibold text-clinic-navy tracking-tight whitespace-nowrap">
+                    {pageTitle}
+                </h1>
             </div>
 
-            <div className="hidden md:flex flex-1 max-w-md mx-4 relative" ref={searchRef}>
+            <div className="hidden md:flex flex-1 max-w-sm mx-4 relative" ref={searchRef}>
                 <div className="relative w-full">
                     <MagnifyingGlass
-                        size={15}
-                        weight="bold"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-clinic-text-muted"
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-clinic-text-muted pointer-events-none"
                     />
                     <input
                         type="text"
@@ -184,19 +158,19 @@ export default function ReceptionHeader() {
                             setIsSearchOpen(true)
                         }}
                         onFocus={() => setIsSearchOpen(true)}
-                        placeholder="Tìm nhanh BN, Tên, SĐT, Mã..."
-                        className="w-full bg-clinic-bg hover:bg-clinic-surface focus:bg-clinic-surface border border-clinic-border-strong focus:border-clinic-cta rounded-[6px] py-1.5 pl-9 pr-3 text-xs text-clinic-navy outline-none transition placeholder:text-clinic-text-muted"
+                        placeholder="Tra nhanh bệnh nhân (SĐT, tên, mã BN)..."
+                        className="w-full h-8 bg-clinic-bg hover:bg-clinic-surface focus:bg-clinic-surface border border-clinic-border focus:border-clinic-cta rounded-[6px] pl-8 pr-3 text-xs text-clinic-text outline-none transition placeholder:text-clinic-text-muted"
                     />
                 </div>
 
                 {isSearchOpen && searchQuery.trim() && (
                     <div className="absolute left-0 right-0 top-full mt-1.5 bg-clinic-surface rounded-[6px] border border-clinic-border py-2 z-50 max-h-72 overflow-y-auto">
-                        <div className="px-3 py-1 text-[11px] font-bold text-clinic-text-secondary tabular-nums">
-                            Kết quả tìm kiếm bệnh nhân ({filteredPatients.length})
+                        <div className="px-3 py-1 text-[11px] font-medium text-clinic-text-secondary tabular-nums">
+                            Kết quả bệnh nhân ({filteredPatients.length})
                         </div>
                         {filteredPatients.length === 0 ? (
                             <div className="px-3 py-2 text-xs text-clinic-text-secondary text-center">
-                                Không tìm thấy bệnh nhân nào
+                                Không tìm thấy hồ sơ khớp từ khóa
                             </div>
                         ) : (
                             filteredPatients.map((p) => (
@@ -210,42 +184,38 @@ export default function ReceptionHeader() {
                                     className="flex items-center justify-between px-3 py-1.5 hover:bg-clinic-surface-tint transition text-xs"
                                 >
                                     <div>
-                                        <span className="font-bold text-clinic-navy">{p.fullName}</span>
-                                        <span className="text-clinic-text-muted ml-2 font-mono text-[11px] tabular-nums">{p.patientCode}</span>
+                                        <span className="font-semibold text-clinic-navy">{p.fullName}</span>
+                                        <span className="text-clinic-text-muted ml-2 text-[11px] tabular-nums">{p.patientCode}</span>
                                     </div>
-                                    <span className="text-[11px] text-clinic-cta font-semibold tabular-nums">{p.phone}</span>
+                                    <span className="text-[11px] text-clinic-cta font-medium tabular-nums">{p.phone}</span>
                                 </Link>
                             ))
                         )}
-                        <div className="border-t border-clinic-border mt-1 pt-1 px-3">
+                        <div className="border-t border-clinic-border mt-1 pt-1.5 px-3">
                             <Link
                                 to={`/reception/check-in?search=${encodeURIComponent(searchQuery)}`}
                                 onClick={() => {
                                     setIsSearchOpen(false)
                                     setSearchQuery('')
                                 }}
-                                className="text-[11px] font-bold text-clinic-cta hover:underline"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-clinic-cta hover:underline"
                             >
-                                Mở màn hình tiếp nhận với từ khóa này &rarr;
+                                <span>Mở tiếp nhận với từ khóa này</span>
+                                <ArrowRight size={12} weight="bold" />
                             </Link>
                         </div>
                     </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold shrink-0 whitespace-nowrap">
-                    <Clock size={13} weight="bold" className="text-clinic-cta" />
-                    <span className="tabular-nums">{formattedTime}</span>
-                </div>
-
+            <div className="flex items-center gap-2 shrink-0">
                 <button
                     type="button"
                     onClick={() => setIsCloseShiftOpen(true)}
-                    className="medpro-btn-danger rounded-[6px] text-xs !py-1 !px-3 font-bold cursor-pointer shrink-0"
+                    className="h-8 px-3 rounded-[6px] border border-clinic-border-strong bg-clinic-surface hover:border-clinic-danger-border hover:bg-clinic-danger-bg hover:text-clinic-danger text-clinic-navy text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
                 >
-                    <LockKey size={13} weight="bold" />
-                    <span className="hidden xs:inline">Đóng ca trực</span>
+                    <LockKey size={14} />
+                    <span className="hidden sm:inline">Đóng ca</span>
                 </button>
 
                 <Link

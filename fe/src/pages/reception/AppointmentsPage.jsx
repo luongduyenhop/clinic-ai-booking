@@ -28,7 +28,7 @@ import {
     CheckOutlined,
     UserDeleteOutlined,
     QrcodeOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
 import AppointmentDetailModal from '../../components/reception/AppointmentDetailModal'

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, Tag, Button, Popconfirm, Empty } from 'antd'
-import { CheckCircleOutlined, PhoneOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, PhoneOutlined } from '../../common/ClinicIcon'
 import dayjs from 'dayjs'
 import { formatDoctorName } from '../../../utils/doctorHelper'
 

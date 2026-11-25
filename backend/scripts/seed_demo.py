@@ -22,12 +22,12 @@ from scripts.seed_one_week_realistic import seed_one_week_realistic
 from seed_data import seed_catalogs
 
 DEMO_ACCOUNTS = (
-    ("admin.demo", "Quản trị viên [DEMO]", VaiTroEnum.ADMIN),
+    ("admin.demo", "Trần Minh Quân", VaiTroEnum.ADMIN),
     ("doctor.demo", "BS.CKI Nguyễn Văn An", VaiTroEnum.BAC_SI),
-    ("letan.demo", "Lễ tân [DEMO]", VaiTroEnum.LE_TAN),
-    ("ktv.demo", "Kỹ thuật viên [DEMO]", VaiTroEnum.KY_THUAT_VIEN),
-    ("thungan.demo", "Thu ngân [DEMO]", VaiTroEnum.THU_NGAN),
-    ("patient01", "Bệnh nhân mẫu 01 [DEMO]", VaiTroEnum.BENH_NHAN),
+    ("letan.demo", "Nguyễn Thảo Vy", VaiTroEnum.LE_TAN),
+    ("ktv.demo", "Lê Quốc Bảo", VaiTroEnum.KY_THUAT_VIEN),
+    ("thungan.demo", "Phạm Thu Trang", VaiTroEnum.THU_NGAN),
+    ("patient01", "Đặng Minh Khôi", VaiTroEnum.BENH_NHAN),
 )
 
 
@@ -42,12 +42,12 @@ async def seed_accounts(session, password):
                 email=email,
                 so_dien_thoai=f"00000000{index:02d}",
                 ngay_sinh=date(1990, 1, 1),
-                gioi_tinh="Khác",
-                dia_chi="Dữ liệu tổng hợp dùng để trình diễn",
+                gioi_tinh="Nữ" if role in (VaiTroEnum.LE_TAN, VaiTroEnum.THU_NGAN) else "Nam",
+                dia_chi="TP. Thủ Đức, TP. Hồ Chí Minh",
             )
             session.add(person)
             await session.flush()
-        elif name == "doctor.demo" and person.ho_ten in ("Bác sĩ Nội tổng quát [DEMO]", "Bác sĩ Nội tổng quát"):
+        elif "[DEMO]" in (person.ho_ten or "") or (name == "doctor.demo" and person.ho_ten == "Bác sĩ Nội tổng quát"):
             person.ho_ten = full_name
         account = await session.scalar(select(TaiKhoan).where(TaiKhoan.email == email))
         if account is None:

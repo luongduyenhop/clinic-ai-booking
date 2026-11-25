@@ -146,9 +146,8 @@ export default function AdminTemplate() {
                     {(sidebarSections.length > 0 ? sidebarSections : [{ id: 'default', menus: sidebarMenus }]).map((section) => (
                         <div key={section.id} className="space-y-1">
                             {!isCollapsed && section.title && (
-                                <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-extrabold tracking-wider uppercase text-clinic-on-navy-muted flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-clinic-cyan" />
-                                    <span className="truncate">{section.title}</span>
+                                <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-clinic-on-navy-subtle truncate">
+                                    {section.title}
                                 </div>
                             )}
                             {isCollapsed && section.title && (

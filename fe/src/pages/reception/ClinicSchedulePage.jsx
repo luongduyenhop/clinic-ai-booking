@@ -14,7 +14,7 @@ import {
     UnorderedListOutlined,
     SearchOutlined,
     SlidersOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import {

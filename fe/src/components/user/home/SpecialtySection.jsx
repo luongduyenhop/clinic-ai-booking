@@ -55,7 +55,7 @@ export default function SpecialtySection() {
             <div className="public-container">
                 <div className="flex flex-wrap items-baseline justify-between gap-4 pb-4 border-b border-clinic-border">
                     <div>
-                        <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
+                        <h2 className="font-display text-[21px] sm:text-[25px] font-bold tracking-tight text-clinic-navy">
                             Chuyên khoa khám ngoại trú và bảng giá niêm yết
                         </h2>
                         <p className="mt-1 text-[13px] text-clinic-text-secondary">

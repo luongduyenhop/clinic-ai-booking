@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Modal, Tag, Descriptions, Button, Input, DatePicker, Select, message, Alert, Spin } from 'antd'
-import { CalendarOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '../common/ClinicIcon'
 import { useDispatch, useSelector } from 'react-redux'
 import dayjs from 'dayjs'
 import {

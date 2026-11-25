@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { AppToast } from '../components/common/AppNotification'
 import { getFormDefaults } from '../utils/helpers/clinicConfigHelpers'
 import { cashierService } from '../services/cashierService'
-import { groupVouchersByPatient } from '../utils/helpers/cashierInvoiceHelpers'
+import { groupVouchersByPatient, resolveInvoicePayableAmount } from '../utils/helpers/cashierInvoiceHelpers'
 
 const METHOD_LABEL_MAP = {
     tien_mat: 'Tiền mặt',
@@ -23,9 +23,10 @@ const METHOD_API_MAP = {
 
 function mapInvoiceToVoucher(inv, defaultCashier) {
     const rawTime = inv.ngay_thanh_toan || inv.created_at
-    const amount = Number(inv.thuc_thu ?? inv.tong_tien ?? 0)
+    const amount = resolveInvoicePayableAmount(inv)
     const methodKey = String(inv.phuong_thuc_thanh_toan || 'tien_mat').toLowerCase()
     const patientName = inv.benh_nhan?.ho_ten || 'Chưa rõ'
+    const collectedAmount = inv.trang_thai === 'da_thu' ? (Number(inv.thuc_thu) || amount) : 0
     return {
         id: inv.id,
         invoiceId: inv.id,
@@ -37,7 +38,7 @@ function mapInvoiceToVoucher(inv, defaultCashier) {
         hoTenBN: patientName,
         soDienThoai: inv.benh_nhan?.so_dien_thoai || '',
         tongTien: amount,
-        thuc_thu: amount,
+        thuc_thu: collectedAmount,
         daThu: inv.trang_thai === 'da_thu',
         trangThai: inv.trang_thai,
         ngayThu: rawTime ? new Date(rawTime).toLocaleString('vi-VN') : '',

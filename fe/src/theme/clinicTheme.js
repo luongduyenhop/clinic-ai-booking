@@ -6,9 +6,6 @@ const LOCKED_BASE_TOKENS = {
     colorText: '#0F172A',
     colorTextSecondary: '#475569',
     colorTextTertiary: '#64748B',
-    colorBorder: '#E2E8F0',
-    colorBorderSecondary: '#E2E8F0',
-    colorBgLayout: '#F8FAFC',
     colorBgContainer: '#FFFFFF',
     colorBgElevated: '#FFFFFF',
     colorLink: '#0077AA',
@@ -26,16 +23,29 @@ const LOCKED_BASE_TOKENS = {
     colorInfo: '#0077AA',
     colorInfoBg: '#E8F4FD',
     colorInfoBorder: '#BAE6FD',
-    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
-    boxShadowSecondary: '0 1px 2px rgba(15, 23, 42, 0.06)',
-    fontFamily: '"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
+    boxShadowSecondary: '0 1px 2px rgba(15, 23, 42, 0.05)',
     fontFamilyCode: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 }
 
-function buildAntdTheme({ radius, controlHeight, tablePaddingBlock, tablePaddingInline }) {
+function buildAntdTheme({
+    radius,
+    controlHeight,
+    tablePaddingBlock,
+    tablePaddingInline,
+    fontFamily,
+    bgLayout,
+    bgMuted,
+    bgHover,
+    borderColor,
+}) {
     return {
         token: {
             ...LOCKED_BASE_TOKENS,
+            fontFamily,
+            colorBgLayout: bgLayout,
+            colorBorder: borderColor,
+            colorBorderSecondary: borderColor,
             borderRadius: radius,
             borderRadiusLG: radius,
             borderRadiusSM: Math.max(4, radius - 2),
@@ -54,19 +64,19 @@ function buildAntdTheme({ radius, controlHeight, tablePaddingBlock, tablePadding
                 dangerShadow: 'none',
             },
             Table: {
-                headerBg: '#F1F5F9',
+                headerBg: bgMuted,
                 headerColor: '#003553',
-                headerSplitColor: '#E2E8F0',
-                borderColor: '#E2E8F0',
-                rowHoverBg: '#F8FAFC',
+                headerSplitColor: borderColor,
+                borderColor,
+                rowHoverBg: bgHover,
                 borderRadius: radius,
                 cellPaddingBlock: tablePaddingBlock,
                 cellPaddingInline: tablePaddingInline,
             },
             Descriptions: {
-                labelBg: '#F1F5F9',
+                labelBg: bgMuted,
                 colorTextLabel: '#003553',
-                colorSplit: '#E2E8F0',
+                colorSplit: borderColor,
                 borderRadiusLG: radius,
             },
             Modal: {
@@ -76,12 +86,12 @@ function buildAntdTheme({ radius, controlHeight, tablePaddingBlock, tablePadding
             },
             Card: {
                 borderRadiusLG: radius,
-                colorBorderSecondary: '#E2E8F0',
+                colorBorderSecondary: borderColor,
             },
             Segmented: {
                 itemSelectedBg: '#FFFFFF',
                 itemSelectedColor: '#003553',
-                trackBg: '#F1F5F9',
+                trackBg: bgMuted,
                 borderRadius: radius,
                 borderRadiusSM: Math.max(4, radius - 2),
             },
@@ -118,6 +128,11 @@ export const PATIENT_ANTD_THEME = buildAntdTheme({
     controlHeight: 40,
     tablePaddingBlock: 12,
     tablePaddingInline: 14,
+    fontFamily: '"Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+    bgLayout: '#FAF9F5',
+    bgMuted: '#F3F1EC',
+    bgHover: '#FAF9F5',
+    borderColor: '#E7E5E0',
 })
 
 export const CLINICAL_ANTD_THEME = buildAntdTheme({
@@ -125,6 +140,11 @@ export const CLINICAL_ANTD_THEME = buildAntdTheme({
     controlHeight: 32,
     tablePaddingBlock: 8,
     tablePaddingInline: 10,
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+    bgLayout: '#F8FAFC',
+    bgMuted: '#F1F5F9',
+    bgHover: '#F8FAFC',
+    borderColor: '#E2E8F0',
 })
 
 export const CLINICAL_WORKBENCH_PREFIXES = ['/admin', '/doctor', '/reception', '/staff']

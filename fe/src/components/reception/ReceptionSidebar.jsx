@@ -31,7 +31,7 @@ export default function ReceptionSidebar() {
             items: [
                 {
                     to: '/reception/dashboard',
-                    label: 'Tổng quan (Dashboard)',
+                    label: 'Tổng quan',
                     icon: HouseLine,
                 },
                 {
@@ -41,15 +41,14 @@ export default function ReceptionSidebar() {
                 },
                 {
                     to: '/reception/queue',
-                    label: 'Quản lý hàng đợi',
+                    label: 'Điều phối hàng đợi',
                     icon: UserList,
+                    badge: waitingCount > 0 ? String(waitingCount) : null,
                 },
                 {
                     to: '/reception/cashier',
                     label: 'Thu viện phí & VietQR',
                     icon: Receipt,
-                    badge: 'VietQR',
-                    badgeColor: 'bg-clinic-success text-clinic-surface',
                 },
                 {
                     to: '/reception/appointments',
@@ -122,9 +121,8 @@ export default function ReceptionSidebar() {
                 {sections.map((section) => (
                     <div key={section.id} className="space-y-1">
                         {!isCollapsed && section.title && (
-                            <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-clinic-on-navy-subtle flex items-center gap-1.5">
-                                <span className="w-1 h-1 rounded-full bg-clinic-cyan" />
-                                <span className="truncate">{section.title}</span>
+                            <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-clinic-on-navy-subtle truncate">
+                                {section.title}
                             </div>
                         )}
                         {isCollapsed && section.title && (
@@ -197,9 +195,9 @@ export default function ReceptionSidebar() {
                     <>
                         <div className="flex items-center justify-between pt-1 text-[10px]">
                             <span>Cổng ĐTQG (TT 26):</span>
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-success text-clinic-surface font-bold">
-                                <span className="w-1.5 h-1.5 rounded-full bg-clinic-surface" />
-                                ONLINE
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-clinic-navy text-clinic-surface font-semibold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-clinic-success" />
+                                Trực tuyến
                             </span>
                         </div>
                         <Link

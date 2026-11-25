@@ -1,4 +1,5 @@
-import { Printer, XCircle, CheckCircle, Receipt, QrCode } from './ClinicIcon'
+import { Printer, X, CheckCircle, Receipt, QrCode } from './ClinicIcon'
+import { resolveInvoicePayableAmount } from '../../utils/helpers/cashierInvoiceHelpers'
 
 export default function ReceiptModal({
     isOpen,
@@ -8,62 +9,57 @@ export default function ReceiptModal({
 }) {
     if (!isOpen) return null
 
-    const clinicName = clinicInfo.tenPhongKham || 'PHÒNG KHÁM ĐA KHOA QUỐC TẾ CLINIC AI'
-    const clinicAddress = clinicInfo.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Cầu Giấy, Hà Nội'
-    const clinicPhone = clinicInfo.dienThoai || '1900 2115'
-    const clinicCode = clinicInfo.maCoSoKCB || '01-08924'
+    const clinicName = clinicInfo.tenPhongKham || 'PHÒNG KHÁM ĐA KHOA CLINIC-AI'
+    const clinicAddress = clinicInfo.diaChi || 'Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh'
+    const clinicPhone = clinicInfo.dienThoai || '1900 6868'
+    const clinicCode = clinicInfo.maCoSoKCB || '79-08924'
 
     const voucherCode = voucher.maPhieu || voucher.id || 'PT-DEFAULT'
     const receiptDate = voucher.ngayThu || voucher.ngayLap || new Date().toLocaleString('vi-VN')
     const patientName = voucher.hoTenBN || voucher.ten_benh_nhan || voucher.benh_nhan?.ho_ten || 'Khách vãng lai'
     const patientCode = voucher.maBN || voucher.ma_benh_nhan || voucher.benh_nhan?.mabn || 'N/A'
     const encounterCode = voucher.maKCB || voucher.luot_kham_id || 'N/A'
-    const cashierName = voucher.nguoiThu || 'Trần Thu Ngân'
+    const cashierName = voucher.nguoiThu || 'Phạm Thu Trang'
     const paymentMethod = voucher.hinhThuc || voucher.phuong_thuc_thanh_toan || 'Tiền mặt'
 
     const lineItems = Array.isArray(voucher.items) && voucher.items.length > 0
         ? voucher.items
         : Array.isArray(voucher.chi_tiet_hoa_don) && voucher.chi_tiet_hoa_don.length > 0
-        ? voucher.chi_tiet_hoa_don.map((it, idx) => ({
-            id: it.id || idx,
-            tenKhoan: it.ten_khoan_thu,
-            soTien: Number(it.thanh_tien || 0),
-            soLuong: it.so_luong || 1,
-            donGia: Number(it.don_gia || 0),
-            ghiChu: it.ghi_chu,
-        }))
-        : [
-            {
-                id: 1,
-                tenKhoan: voucher.tenPhieu || 'Công khám & Dịch vụ y tế',
-                soTien: Number(voucher.tongTien || voucher.tong_tien || 0),
-                soLuong: 1,
-                donGia: Number(voucher.tongTien || voucher.tong_tien || 0),
-            }
-        ]
+          ? voucher.chi_tiet_hoa_don.map((it, idx) => ({
+                id: it.id || idx,
+                tenKhoan: it.ten_khoan_thu,
+                soTien: Number(it.thanh_tien || 0),
+                soLuong: it.so_luong || 1,
+                donGia: Number(it.don_gia || 0),
+                ghiChu: it.ghi_chu,
+            }))
+          : [
+                {
+                    id: 1,
+                    tenKhoan: voucher.tenPhieu || 'Công khám & Dịch vụ y tế',
+                    soTien: resolveInvoicePayableAmount(voucher),
+                    soLuong: 1,
+                    donGia: resolveInvoicePayableAmount(voucher),
+                },
+            ]
 
-    const totalAmount = Number(voucher.tongTien || voucher.tong_tien || 0)
+    const itemsTotal = lineItems.reduce((sum, item) => sum + (Number(item.soTien) || 0), 0)
+    const totalAmount = Number(voucher.tongTien || voucher.tong_tien || 0) || itemsTotal
     const discountAmount = Number(voucher.mienGiam || voucher.mien_giam || 0)
-    const finalAmount = voucher.thucThu !== undefined
-        ? Number(voucher.thucThu)
-        : voucher.thuc_thu !== undefined
-        ? Number(voucher.thuc_thu)
-        : Math.max(0, totalAmount - discountAmount)
+    const finalAmount = resolveInvoicePayableAmount(voucher) || Math.max(0, totalAmount - discountAmount)
 
-    const isPaid = voucher.daThu || voucher.trang_thai === 'da_thu'
+    const isPaid = Boolean(voucher.daThu || voucher.trang_thai === 'da_thu')
     const invoiceRef = voucher.invoiceId || voucher.id || voucher.maPhieu || '001'
-    const transferContent = `CLINIC HD ${invoiceRef} ${patientCode !== 'N/A' ? patientCode : ''}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
+    const transferContent = `CLINIC HD ${invoiceRef} ${patientCode !== 'N/A' ? patientCode : ''}`
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]/g, '')
     const bankAccount = clinicInfo.bankInfo?.accountNumber || '0901234567'
     const bankName = clinicInfo.bankInfo?.bankName || 'MBBank (Ngân hàng TMCP Quân Đội)'
     const bankAccountName = clinicInfo.bankInfo?.accountName || clinicName
     const qrUrl = `https://qr.sepay.vn/img?acc=${bankAccount}&bank=MBBank&amount=${finalAmount}&des=${encodeURIComponent(transferContent)}&template=compact`
 
-    const handlePrint = () => {
-        window.print()
-    }
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-clinic-navy/50 overflow-y-auto">
             <style>{`
                 @media print {
                     body * {
@@ -90,183 +86,189 @@ export default function ReceiptModal({
                 }
             `}</style>
 
-            <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col my-8">
-                <div className="bg-gradient-to-r from-[#003553] via-[#004A73] to-[#00B5F1] p-4 text-white flex items-center justify-between no-print">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-teal-300">
-                            <Receipt size={22} weight="bold" />
-                        </div>
+            <div className="relative w-full max-w-2xl bg-clinic-surface rounded-[8px] border border-clinic-border overflow-hidden flex flex-col my-8">
+                <div className="bg-clinic-navy px-5 py-3.5 text-clinic-surface flex items-center justify-between no-print">
+                    <div className="flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-[6px] bg-clinic-surface/10 flex items-center justify-center text-clinic-surface">
+                            <Receipt size={18} weight="bold" />
+                        </span>
                         <div>
-                            <h3 className="text-sm font-extrabold uppercase tracking-wide">Xem trước & In Biên lai Viện phí</h3>
-                            <p className="text-xs text-sky-100">Mẫu chứng từ tài chính chuẩn hóa cho phòng khám ngoại trú</p>
+                            <h3 className="text-sm font-semibold">Biên lai viện phí</h3>
+                            <p className="text-xs text-clinic-on-navy-muted">Xem trước chứng từ trước khi in</p>
                         </div>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition cursor-pointer"
+                        aria-label="Đóng biên lai"
+                        className="w-8 h-8 rounded-[6px] hover:bg-clinic-surface/15 flex items-center justify-center text-clinic-surface transition-colors cursor-pointer"
                     >
-                        <XCircle size={20} weight="bold" />
+                        <X size={18} weight="bold" />
                     </button>
                 </div>
 
-                <div id="receipt-print-area" className="p-8 text-slate-800 bg-white">
-                    <div className="flex items-start justify-between border-b border-slate-200 pb-4 mb-5">
-                        <div className="space-y-1">
-                            <h2 className="text-base font-black tracking-tight text-[#003553] uppercase">{clinicName}</h2>
-                            <p className="text-xs text-slate-600">{clinicAddress}</p>
-                            <p className="text-xs text-slate-600">Hotline: <span className="font-bold">{clinicPhone}</span> | Mã cơ sở KCB: <span className="font-bold">{clinicCode}</span></p>
+                <div id="receipt-print-area" className="p-6 sm:p-8 text-clinic-text bg-clinic-surface">
+                    <div className="flex items-start justify-between border-b border-clinic-border pb-4 mb-5 gap-4">
+                        <div className="space-y-0.5">
+                            <h2 className="text-sm font-bold text-clinic-navy uppercase">{clinicName}</h2>
+                            <p className="text-xs text-clinic-text-secondary">{clinicAddress}</p>
+                            <p className="text-xs text-clinic-text-secondary tabular-nums">
+                                Tổng đài: <span className="font-semibold text-clinic-text">{clinicPhone}</span> · Mã KCB: <span className="font-semibold text-clinic-text">{clinicCode}</span>
+                            </p>
                         </div>
-                        <div className="text-right space-y-1">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Mã chứng từ</span>
-                            <span className="font-mono text-sm font-black text-rose-600">{voucherCode}</span>
-                            <span className="text-[11px] text-slate-500 block">{receiptDate}</span>
+                        <div className="text-right space-y-0.5 shrink-0 tabular-nums">
+                            <span className="text-[11px] font-medium text-clinic-text-muted block">Số chứng từ</span>
+                            <span className="text-sm font-bold text-clinic-navy block">{voucherCode}</span>
+                            <span className="text-[11px] text-clinic-text-muted block">{receiptDate}</span>
                         </div>
                     </div>
 
                     <div className="text-center my-4">
-                        <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">BIÊN LAI THU VIỆN PHÍ</h1>
-                        <p className="text-xs text-slate-500 italic mt-0.5">(Liên dành cho người bệnh & lưu trữ nội bộ phòng khám)</p>
+                        <h1 className="text-lg font-bold text-clinic-navy uppercase">Biên lai thu viện phí</h1>
+                        <p className="text-xs text-clinic-text-muted mt-0.5">Liên giao người bệnh &amp; lưu đối soát nội bộ</p>
                     </div>
 
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 grid grid-cols-2 gap-3 text-xs mb-5">
+                    <dl className="bg-clinic-bg rounded-[6px] p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-5">
                         <div>
-                            <span className="text-slate-500 block">Họ và tên người bệnh:</span>
-                            <span className="font-bold text-slate-900 text-sm">{patientName}</span>
+                            <dt className="text-clinic-text-muted">Người bệnh</dt>
+                            <dd className="font-semibold text-clinic-text text-sm mt-0.5">{patientName}</dd>
+                        </div>
+                        <div className="tabular-nums">
+                            <dt className="text-clinic-text-muted">Mã bệnh nhân</dt>
+                            <dd className="font-semibold text-clinic-text mt-0.5">{patientCode}</dd>
+                        </div>
+                        <div className="tabular-nums">
+                            <dt className="text-clinic-text-muted">Mã lượt khám</dt>
+                            <dd className="font-semibold text-clinic-navy mt-0.5">{encounterCode}</dd>
                         </div>
                         <div>
-                            <span className="text-slate-500 block">Mã định danh y tế (Mã BN):</span>
-                            <span className="font-mono font-bold text-slate-900">{patientCode}</span>
+                            <dt className="text-clinic-text-muted">Phương thức thanh toán</dt>
+                            <dd className="font-semibold text-clinic-text mt-0.5">{paymentMethod}</dd>
                         </div>
-                        <div>
-                            <span className="text-slate-500 block">Mã lượt khám (KCB):</span>
-                            <span className="font-mono font-bold text-sky-900">{encounterCode}</span>
-                        </div>
-                        <div>
-                            <span className="text-slate-500 block">Hình thức thu:</span>
-                            <span className="font-bold text-slate-800">{paymentMethod}</span>
-                        </div>
-                    </div>
+                    </dl>
 
-                    <div className="border border-slate-200 rounded-xl overflow-hidden mb-5">
-                        <table className="w-full text-left border-collapse text-xs">
-                            <thead className="bg-[#003553] text-white">
-                                <tr>
-                                    <th className="py-2.5 px-3 font-bold w-12 text-center">STT</th>
-                                    <th className="py-2.5 px-3 font-bold">Nội dung khoản thu viện phí</th>
-                                    <th className="py-2.5 px-3 font-bold w-16 text-center">SL</th>
-                                    <th className="py-2.5 px-3 font-bold w-24 text-right">Đơn giá</th>
-                                    <th className="py-2.5 px-3 font-bold w-28 text-right">Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {lineItems.map((item, index) => {
-                                    const qty = item.soLuong || 1
-                                    const unitPrice = item.donGia || (item.soTien ? item.soTien / qty : 0)
-                                    const itemTotal = item.soTien || (qty * unitPrice)
-                                    return (
-                                        <tr key={item.id || index} className="hover:bg-slate-50">
-                                            <td className="py-2 px-3 text-center text-slate-500">{index + 1}</td>
-                                            <td className="py-2 px-3 font-semibold text-slate-900">
-                                                {item.tenKhoan}
-                                                {item.ghiChu && <span className="block text-[10px] text-slate-400 font-normal">{item.ghiChu}</span>}
-                                            </td>
-                                            <td className="py-2 px-3 text-center">{qty}</td>
-                                            <td className="py-2 px-3 text-right font-mono text-slate-600">{Number(unitPrice).toLocaleString('vi-VN')} đ</td>
-                                            <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{Number(itemTotal).toLocaleString('vi-VN')} đ</td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                    <table className="w-full text-left border-collapse text-xs mb-5">
+                        <thead>
+                            <tr className="bg-clinic-bg-muted border-y border-clinic-border text-clinic-navy">
+                                <th className="py-2.5 px-3 font-semibold w-12 text-center">STT</th>
+                                <th className="py-2.5 px-3 font-semibold">Khoản thu</th>
+                                <th className="py-2.5 px-3 font-semibold w-14 text-center">SL</th>
+                                <th className="py-2.5 px-3 font-semibold w-28 text-right">Đơn giá</th>
+                                <th className="py-2.5 px-3 font-semibold w-28 text-right">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-clinic-border">
+                            {lineItems.map((item, index) => {
+                                const qty = item.soLuong || 1
+                                const unitPrice = item.donGia || (item.soTien ? item.soTien / qty : 0)
+                                const itemTotal = item.soTien || qty * unitPrice
+                                return (
+                                    <tr key={item.id || index}>
+                                        <td className="py-2.5 px-3 text-center text-clinic-text-muted tabular-nums">{index + 1}</td>
+                                        <td className="py-2.5 px-3 font-medium text-clinic-text">
+                                            {item.tenKhoan}
+                                            {item.ghiChu && (
+                                                <span className="block text-[11px] text-clinic-text-muted font-normal">{item.ghiChu}</span>
+                                            )}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-center tabular-nums">{qty}</td>
+                                        <td className="py-2.5 px-3 text-right text-clinic-text-secondary tabular-nums">
+                                            {Number(unitPrice).toLocaleString('vi-VN')} đ
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right font-semibold text-clinic-text tabular-nums">
+                                            {Number(itemTotal).toLocaleString('vi-VN')} đ
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
 
-                    <div className="flex items-start justify-between gap-6 mb-6">
+                    <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
                         {!isPaid && finalAmount > 0 ? (
-                            <div className="flex items-center gap-3 p-3 rounded-2xl border border-teal-200 bg-teal-50/40 max-w-sm">
+                            <div className="flex items-center gap-3 p-3 rounded-[6px] bg-clinic-surface-tint max-w-sm">
                                 <img
                                     src={qrUrl}
-                                    alt="Mã QR SePay"
-                                    className="w-28 h-28 object-contain rounded-xl border border-slate-200 bg-white p-1 shrink-0"
+                                    alt="Mã QR thanh toán viện phí"
+                                    className="w-24 h-24 object-contain rounded-[6px] border border-clinic-border bg-clinic-surface p-1 shrink-0"
                                     crossOrigin="anonymous"
                                 />
-                                <div className="space-y-1 text-[11px] text-slate-700">
-                                    <div className="font-extrabold text-teal-800 uppercase tracking-wide flex items-center gap-1 text-xs">
-                                        <QrCode size={14} weight="bold" />
-                                        <span>Quét mã QR thanh toán</span>
+                                <div className="space-y-1 text-[11px] text-clinic-text-secondary tabular-nums">
+                                    <div className="font-semibold text-clinic-navy flex items-center gap-1 text-xs">
+                                        <QrCode size={14} weight="bold" className="text-clinic-cta" />
+                                        <span>Quét QR thanh toán</span>
                                     </div>
-                                    <div>Ngân hàng: <span className="font-bold">{bankName}</span></div>
-                                    <div>Số tài khoản: <span className="font-mono font-bold text-slate-900">{bankAccount}</span></div>
-                                    <div>Chủ TK: <span className="font-bold text-slate-900">{bankAccountName}</span></div>
-                                    <div>Cú pháp: <span className="font-mono font-black text-teal-900">{transferContent}</span></div>
-                                    <div className="text-[10px] text-slate-500 italic">Quét bằng ứng dụng ngân hàng bất kỳ để tự động gạch nợ viện phí</div>
+                                    <div>Ngân hàng: <span className="font-semibold text-clinic-text">{bankName}</span></div>
+                                    <div>Số TK: <span className="font-semibold text-clinic-text">{bankAccount}</span></div>
+                                    <div>Chủ TK: <span className="font-semibold text-clinic-text">{bankAccountName}</span></div>
+                                    <div>Nội dung: <span className="font-bold text-clinic-navy">{transferContent}</span></div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-xs text-slate-400 italic flex items-center gap-1.5 pt-4">
-                                {isPaid ? 'Biên lai đã được thanh toán và lưu vào hồ sơ tài chính phòng khám.' : ''}
+                            <div className="text-xs text-clinic-text-muted pt-2">
+                                {isPaid ? 'Chứng từ đã ghi nhận thanh toán trong sổ quỹ phòng khám.' : ''}
                             </div>
                         )}
 
-                        <div className="w-72 space-y-1.5 text-xs shrink-0">
-                            <div className="flex justify-between text-slate-600">
-                                <span>Tổng cộng chi phí:</span>
-                                <span className="font-mono font-bold text-slate-800">{totalAmount.toLocaleString('vi-VN')} đ</span>
+                        <div className="w-64 space-y-1.5 text-xs shrink-0 tabular-nums ml-auto">
+                            <div className="flex justify-between text-clinic-text-secondary">
+                                <span>Tổng chi phí:</span>
+                                <span className="font-semibold text-clinic-text">{totalAmount.toLocaleString('vi-VN')} đ</span>
                             </div>
-                            <div className="flex justify-between text-emerald-700">
-                                <span>Miễn giảm / Ưu đãi:</span>
-                                <span className="font-mono font-bold">-{discountAmount.toLocaleString('vi-VN')} đ</span>
+                            {discountAmount > 0 && (
+                                <div className="flex justify-between text-clinic-success">
+                                    <span>Miễn giảm:</span>
+                                    <span className="font-semibold">-{discountAmount.toLocaleString('vi-VN')} đ</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-sm font-bold text-clinic-navy border-t border-clinic-border pt-2">
+                                <span>{isPaid ? 'Đã thu:' : 'Cần thanh toán:'}</span>
+                                <span>{finalAmount.toLocaleString('vi-VN')} đ</span>
                             </div>
-                            <div className="flex justify-between text-sm font-black text-rose-600 border-t border-slate-300 pt-2">
-                                <span>SỐ TIỀN THỰC THU:</span>
-                                <span className="font-mono text-base">{finalAmount.toLocaleString('vi-VN')} đ</span>
-                            </div>
-                            <div className="flex items-center justify-end gap-1 text-[11px] mt-1">
+                            <div className="flex justify-end pt-1">
                                 {isPaid ? (
-                                    <span className="inline-flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        <CheckCircle size={14} weight="fill" />
-                                        ĐÃ THANH TOÁN HOÀN TẤT
+                                    <span className="medpro-badge-success">
+                                        <CheckCircle size={13} weight="fill" />
+                                        <span>Đã thanh toán</span>
                                     </span>
                                 ) : (
-                                    <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                        CHƯA THU TIỀN
-                                    </span>
+                                    <span className="medpro-badge-warning">Chờ thu tiền</span>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8 text-center text-xs pt-4 border-t border-dashed border-slate-200">
+                    <div className="grid grid-cols-2 gap-8 text-center text-xs pt-4 border-t border-clinic-border">
                         <div className="space-y-1">
-                            <div className="font-bold uppercase text-slate-700">Người nộp tiền</div>
-                            <div className="text-[10px] text-slate-400 italic">(Ký và ghi rõ họ tên)</div>
-                            <div className="h-16"></div>
-                            <div className="font-semibold text-slate-800">{patientName}</div>
+                            <div className="font-semibold text-clinic-text">Người nộp tiền</div>
+                            <div className="text-[11px] text-clinic-text-muted">(Ký, ghi rõ họ tên)</div>
+                            <div className="h-14" />
+                            <div className="font-medium text-clinic-text">{patientName}</div>
                         </div>
                         <div className="space-y-1">
-                            <div className="font-bold uppercase text-slate-700">Người thu tiền (Thu ngân)</div>
-                            <div className="text-[10px] text-slate-400 italic">(Ký và ghi rõ họ tên)</div>
-                            <div className="h-16"></div>
-                            <div className="font-semibold text-slate-800">{cashierName}</div>
+                            <div className="font-semibold text-clinic-text">Thu ngân</div>
+                            <div className="text-[11px] text-clinic-text-muted">(Ký, ghi rõ họ tên)</div>
+                            <div className="h-14" />
+                            <div className="font-medium text-clinic-text">{cashierName}</div>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between no-print">
+                <div className="px-5 py-3 bg-clinic-bg border-t border-clinic-border flex items-center justify-between no-print">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
+                        className="medpro-btn-outline h-8 px-3.5 text-xs"
                     >
-                        Đóng lại
+                        Đóng
                     </button>
                     <button
                         type="button"
-                        onClick={handlePrint}
-                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-md"
+                        onClick={() => window.print()}
+                        className="medpro-btn-primary h-8 px-4 text-xs"
                     >
-                        <Printer size={16} weight="bold" />
-                        <span>Kích hoạt lệnh in</span>
+                        <Printer size={15} weight="bold" />
+                        <span>In biên lai</span>
                     </button>
                 </div>
             </div>

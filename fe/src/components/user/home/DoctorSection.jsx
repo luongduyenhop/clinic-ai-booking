@@ -104,7 +104,7 @@ export default function DoctorSection({
         <section id="bac-si" className="bg-clinic-bg py-10 sm:py-12 scroll-mt-20 border-b border-clinic-border">
             <div className="public-container">
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-clinic-border">
-                    <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
+                    <h2 className="font-display text-[21px] sm:text-[25px] font-bold tracking-tight text-clinic-navy">
                         Lịch bác sĩ và khung giờ còn trống
                     </h2>
 
@@ -290,7 +290,7 @@ export default function DoctorSection({
                                             size="md"
                                         />
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="font-display text-base font-extrabold text-clinic-navy leading-snug truncate">
+                                            <h3 className="font-display text-base font-bold text-clinic-navy leading-snug truncate">
                                                 {formatDoctorHeading(doctor)}
                                             </h3>
                                             <p className="mt-0.5 text-[13px] font-semibold text-clinic-cta">

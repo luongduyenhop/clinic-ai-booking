@@ -43,12 +43,12 @@ from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_DA_DUYET
 from scripts.run_migrations import DEPLOYMENT_LOCK, require_demo_database
 from seed_data import seed_catalogs
 CORE_STAFF = [
-    ("admin.demo", "Quản trị viên [DEMO]", VaiTroEnum.ADMIN, "0000000001"),
+    ("admin.demo", "Trần Minh Quân", VaiTroEnum.ADMIN, "0000000001"),
     ("doctor.demo", "BS.CKI Nguyễn Văn An", VaiTroEnum.BAC_SI, "0000000002"),
-    ("letan.demo", "Lễ tân [DEMO]", VaiTroEnum.LE_TAN, "0000000003"),
-    ("ktv.demo", "Kỹ thuật viên [DEMO]", VaiTroEnum.KY_THUAT_VIEN, "0000000004"),
-    ("thungan.demo", "Thu ngân [DEMO]", VaiTroEnum.THU_NGAN, "0000000005"),
-    ("patient01", "Bệnh nhân mẫu 01 [DEMO]", VaiTroEnum.BENH_NHAN, "0000000006"),
+    ("letan.demo", "Nguyễn Thảo Vy", VaiTroEnum.LE_TAN, "0000000003"),
+    ("ktv.demo", "Lê Quốc Bảo", VaiTroEnum.KY_THUAT_VIEN, "0000000004"),
+    ("thungan.demo", "Phạm Thu Trang", VaiTroEnum.THU_NGAN, "0000000005"),
+    ("patient01", "Đặng Minh Khôi", VaiTroEnum.BENH_NHAN, "0000000006"),
 ]
 ADDITIONAL_DOCTORS = [
     ("hoang.doctor", "BS.CKII Nguyễn Minh Hoàng", "KHOA_NOI", "P102", "0988000102", "hoang.doctor@clinic-ai.test", 200000.0),
@@ -100,7 +100,7 @@ async def seed_all_doctors_and_staff(session, password, dept_map, room_map):
             )
             session.add(person)
             await session.flush()
-        elif name == "doctor.demo" and person.ho_ten in ("Bác sĩ Nội tổng quát [DEMO]", "Bác sĩ Nội tổng quát"):
+        elif "[DEMO]" in (person.ho_ten or "") or (name == "doctor.demo" and person.ho_ten == "Bác sĩ Nội tổng quát"):
             person.ho_ten = full_name
         account = await session.scalar(select(TaiKhoan).where(TaiKhoan.email == email))
         if account is None:

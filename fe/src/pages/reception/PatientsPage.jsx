@@ -8,7 +8,7 @@ import {
     WarningOutlined,
     EyeOutlined,
     SyncOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'

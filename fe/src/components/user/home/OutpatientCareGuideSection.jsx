@@ -66,7 +66,7 @@ export default function OutpatientCareGuideSection() {
     return (
         <section id="huong-dan-kham" className="bg-clinic-bg py-10 sm:py-12 scroll-mt-20 border-t border-clinic-border">
             <div className="public-container">
-                <h2 className="font-display text-[22px] sm:text-[26px] font-extrabold tracking-tight text-clinic-navy">
+                <h2 className="font-display text-[21px] sm:text-[25px] font-bold tracking-tight text-clinic-navy">
                     Quy trình khám và chuẩn bị trước khi đến
                 </h2>
 

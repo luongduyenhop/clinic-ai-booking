@@ -4,7 +4,7 @@ import {
     ClearOutlined,
     EnvironmentOutlined,
     UserOutlined,
-} from '@ant-design/icons'
+} from '../../common/ClinicIcon'
 
 export default function RoomDepartmentFilter({
     departmentTabs,

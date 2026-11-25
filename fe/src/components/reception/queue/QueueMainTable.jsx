@@ -12,7 +12,7 @@ import {
     PhoneOutlined,
     MoreOutlined,
     UserOutlined,
-} from '@ant-design/icons'
+} from '../../common/ClinicIcon'
 
 const getQueueTypeTag = (record) => {
     const rawType = String(record.loai_hang_doi || '').toLowerCase().trim()

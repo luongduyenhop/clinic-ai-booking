@@ -1,5 +1,5 @@
 import { Modal, Button } from 'antd'
-import { PrinterOutlined, QrcodeOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { PrinterOutlined, QrcodeOutlined, CheckCircleOutlined } from '../common/ClinicIcon'
 import { useSelector } from 'react-redux'
 import dayjs from 'dayjs'
 

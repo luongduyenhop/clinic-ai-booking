@@ -1,3 +1,27 @@
+export const resolveInvoicePayableAmount = (record = {}) => {
+    if (!record || typeof record !== 'object') return 0
+    const lineSource = Array.isArray(record.items) && record.items.length > 0
+        ? record.items
+        : Array.isArray(record.cac_khoan_thu) && record.cac_khoan_thu.length > 0
+          ? record.cac_khoan_thu
+          : Array.isArray(record.chi_tiet_hoa_don)
+            ? record.chi_tiet_hoa_don
+            : []
+    const itemsSum = lineSource.reduce(
+        (sum, item) => sum + (Number(item?.soTien ?? item?.thanh_tien ?? 0) || 0),
+        0
+    )
+    const gross = Number(record.so_tien_phai_thu ?? record.tong_tien ?? record.tongTien ?? 0) || itemsSum
+    const discount = Number(record.mien_giam ?? record.mienGiam ?? 0) || 0
+    const expectedPayable = Math.max(0, gross - discount)
+    const isPaid = Boolean(
+        record.daThu || record.trang_thai === 'da_thu' || record.status === 'PAID'
+    )
+    const collected = Number(record.thuc_thu ?? record.thucThu ?? 0) || 0
+    if (isPaid && collected > 0) return collected
+    return expectedPayable > 0 ? expectedPayable : collected
+}
+
 export const normalizeCode = (val) => {
     if (!val) return ''
     let s = String(val).trim().toUpperCase()

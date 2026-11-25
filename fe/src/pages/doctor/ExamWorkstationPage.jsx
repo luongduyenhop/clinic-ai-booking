@@ -13,7 +13,6 @@ import StepPrescription from '../../components/doctor/exam/StepPrescription'
 import AmendmentModal from '../../components/doctor/exam/AmendmentModal'
 import PrescriptionPrintAndCopyModal from '../../components/doctor/PrescriptionPrintAndCopyModal'
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '../../components/doctor/clinical/StateBlocks'
-import WorkstationHeaderBar from '../../components/doctor/exam/WorkstationHeaderBar'
 import WorkstationEmptyState from '../../components/doctor/exam/WorkstationEmptyState'
 import ExamActionBar from '../../components/doctor/exam/ExamActionBar'
 import { clinicalService } from '../../services/doctor/ClinicalService'
@@ -21,7 +20,6 @@ import { printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocu
 
 export default function ExamWorkstationPage() {
     const {
-        currentUser,
         queue,
         queueLoading,
         queueError,
@@ -76,17 +74,8 @@ export default function ExamWorkstationPage() {
     }
 
     return (
-        <div className="flex flex-col gap-4 max-w-[1720px] mx-auto w-full">
-            <WorkstationHeaderBar
-                resolvedSpecialty={resolvedSpecialty}
-                currentUser={currentUser}
-                encounter={encounter}
-                encounterId={encounterId}
-                locked={locked}
-                savedAt={savedAt}
-            />
-
-            <div className="flex flex-col lg:flex-row items-start gap-4">
+        <div className="flex flex-col gap-3 max-w-[1720px] mx-auto w-full">
+            <div className="flex flex-col lg:flex-row items-start gap-3.5">
                 <QueuePanel
                     queue={queue}
                     loading={queueLoading}
@@ -102,7 +91,7 @@ export default function ExamWorkstationPage() {
                     onFilterChange={setQueueFilter}
                 />
 
-                <section aria-label="Hồ sơ lượt khám" className="flex min-w-0 flex-1 flex-col gap-4 w-full">
+                <section aria-label="Hồ sơ lượt khám" className="flex min-w-0 flex-1 flex-col gap-3 w-full">
                     {!encounterId && (
                         <WorkstationEmptyState
                             queue={queue}
@@ -129,55 +118,11 @@ export default function ExamWorkstationPage() {
 
                     {encounterId && encounter && !encounterError && (
                         <>
-                            <div className="flex flex-wrap items-center justify-between gap-3 bg-clinic-surface px-4 py-2.5 rounded-[6px] border border-clinic-border">
-                                <button
-                                    type="button"
-                                    onClick={() => selectEncounter(null)}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] border border-clinic-border bg-clinic-bg text-clinic-navy hover:text-clinic-cta hover:border-clinic-cta font-bold text-xs transition-colors cursor-pointer"
-                                    title="Đóng hồ sơ ca này và quay về Bàn khám trống (Phím tắt: Esc)"
-                                >
-                                    <ClinicIcon
-                                        name="ArrowLeft"
-                                        size={15}
-                                        weight="bold"
-                                        className="text-clinic-text-secondary"
-                                    />
-                                    <span>Quay lại Bàn khám</span>
-                                </button>
-
-                                <div className="flex items-center gap-2">
-                                    {locked ? (
-                                        <span className="medpro-badge-neutral inline-flex items-center gap-1.5">
-                                            <ClinicIcon name="LockKey" size={13} />
-                                            <span>Bệnh án đã hoàn tất &amp; khóa</span>
-                                        </span>
-                                    ) : isWaitingCls ? (
-                                        <span className="medpro-badge-warning inline-flex items-center gap-1.5">
-                                            <ClinicIcon name="Clock" size={13} />
-                                            <span>Đang làm Cận lâm sàng (Chờ kết quả)</span>
-                                        </span>
-                                    ) : hasClsReady ? (
-                                        <span className="medpro-badge-success inline-flex items-center gap-1.5">
-                                            <ClinicIcon name="CheckCircle" size={13} weight="fill" />
-                                            <span>Đã có kết quả CLS · Sẵn sàng chẩn đoán</span>
-                                        </span>
-                                    ) : (activeTicket?.trang_thai === 'dang_kham' || (encounter?.thoi_gian_bat_dau && !locked && !isWaitingCls && !hasClsReady)) ? (
-                                        <span className="medpro-badge-success inline-flex items-center gap-1.5">
-                                            <ClinicIcon name="Stethoscope" size={13} weight="bold" />
-                                            <span>Đang trong phiên khám</span>
-                                        </span>
-                                    ) : (
-                                        <span className="medpro-badge-warning inline-flex items-center gap-1.5">
-                                            <ClinicIcon name="Clock" size={13} />
-                                            <span>Chờ khám</span>
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
                             <PatientBanner
                                 encounter={encounter}
                                 vitals={formik.values}
+                                onBack={() => selectEncounter(null)}
+                                savedAt={savedAt}
                                 onShowHistory={() => setHistoryOpen(true)}
                                 activeTicket={activeTicket}
                                 isWaitingCls={isWaitingCls}
@@ -187,14 +132,14 @@ export default function ExamWorkstationPage() {
                             />
 
                             {locked && (
-                                <div role="status" className="flex flex-wrap items-center gap-3 rounded-[6px] bg-clinic-navy px-5 py-3.5 text-clinic-surface">
-                                    <ClinicIcon name="LockKey" size={20} className="text-clinic-surface" />
-                                    <span className="min-w-[260px] flex-1 text-[13px] leading-relaxed">
-                                        <strong>Bệnh án đã khóa lúc {formatDateTime(encounter.thoi_gian_khoa)}</strong> theo Thông tư 32/2023/TT-BYT. Hồ sơ chuyển sang chế độ chỉ đọc. Mọi thay đổi bắt buộc lập biên bản đính chính.
+                                <div role="status" className="flex flex-wrap items-center gap-3 rounded-[6px] bg-clinic-navy px-4 py-2.5 text-clinic-surface">
+                                    <ClinicIcon name="LockKey" size={18} className="text-clinic-surface" />
+                                    <span className="min-w-[260px] flex-1 text-xs leading-relaxed">
+                                        <strong>Bệnh án đã khóa lúc {formatDateTime(encounter.thoi_gian_khoa)}</strong> theo Thông tư 32/2023/TT-BYT. Hồ sơ ở chế độ chỉ đọc; mọi chỉnh sửa cần lập biên bản đính chính.
                                     </span>
                                     <button
                                         type="button"
-                                        className="medpro-btn-amber text-xs !py-1.5"
+                                        className="medpro-btn-amber h-7 px-3 text-xs"
                                         onClick={() => setAmendmentOpen(true)}
                                     >
                                         Biên bản đính chính
@@ -202,21 +147,22 @@ export default function ExamWorkstationPage() {
                                 </div>
                             )}
 
-                            <ExamStepTabs
-                                step={step}
-                                locked={isReadOnly}
-                                onChange={handleStepChange}
-                                counts={{
-                                    cls:
-                                        (encounter.danh_sach_chi_dinh || []).filter((order) => order.trang_thai !== 'da_huy').length +
-                                        (pickedOrders?.length || 0),
-                                    diagnosis: (formik.values.danh_sach_chan_doan || []).length,
-                                    rx: (formik.values.danh_sach_thuoc || []).length,
-                                }}
-                            />
+                            <div className="medpro-card overflow-hidden">
+                                <ExamStepTabs
+                                    step={step}
+                                    locked={isReadOnly}
+                                    onChange={handleStepChange}
+                                    counts={{
+                                        cls:
+                                            (encounter.danh_sach_chi_dinh || []).filter((order) => order.trang_thai !== 'da_huy').length +
+                                            (pickedOrders?.length || 0),
+                                        diagnosis: (formik.values.danh_sach_chan_doan || []).length,
+                                        rx: (formik.values.danh_sach_thuoc || []).length,
+                                    }}
+                                />
 
-                            <div className="medpro-card flex flex-col gap-5 p-5">
-                                {step === 1 && (
+                                <div className="flex flex-col gap-5 p-4 sm:p-5">
+                                    {step === 1 && (
                                     <StepClinical
                                         formik={formik}
                                         encounter={encounter}
@@ -259,6 +205,7 @@ export default function ExamWorkstationPage() {
                                         onOpenRxModal={(tab) => setRxModalState({ open: true, tab: tab || 'print' })}
                                     />
                                 )}
+                                </div>
                             </div>
 
                             <ExamActionBar

@@ -16,7 +16,7 @@ import {
     UnorderedListOutlined,
     CheckCircleOutlined,
     RollbackOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import IncidentDetailDrawer from '../../components/reception/IncidentDetailDrawer'
 import {

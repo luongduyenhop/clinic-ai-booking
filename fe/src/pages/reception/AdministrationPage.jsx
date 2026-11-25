@@ -5,7 +5,7 @@ import {
     SearchOutlined,
     PrinterOutlined,
     DollarCircleOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import PrintReceiptModal from '../../components/reception/PrintReceiptModal'
 import { QrCode } from '../../components/common/ClinicIcon'
 import { PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '../../utils/constants/receptionConstants'

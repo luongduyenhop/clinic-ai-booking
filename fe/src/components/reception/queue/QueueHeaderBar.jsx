@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Tooltip } from 'antd'
-import { SyncOutlined } from '@ant-design/icons'
+import { SyncOutlined } from '../../common/ClinicIcon'
 
 export default function QueueHeaderBar({ totalWaitingCount, isRefreshing, onRefresh }) {
     return (

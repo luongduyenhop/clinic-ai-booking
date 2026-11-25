@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
+import viVN from 'antd/locale/vi_VN'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import {
@@ -86,7 +87,7 @@ function App() {
     }, [isClinicalWorkbench])
 
     return (
-        <ConfigProvider theme={isClinicalWorkbench ? CLINICAL_ANTD_THEME : PATIENT_ANTD_THEME}>
+        <ConfigProvider locale={viVN} theme={isClinicalWorkbench ? CLINICAL_ANTD_THEME : PATIENT_ANTD_THEME}>
             <ToastContainer position="top-right" autoClose={3500} />
             <RealtimeNotificationHandler />
             <Loading />

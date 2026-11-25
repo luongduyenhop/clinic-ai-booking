@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-display: "Montserrat", "Roboto", sans-serif;
+  --font-sans: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 
   --color-clinic-navy: #003553;
   --color-clinic-navy-dark: #00263D;
@@ -11,17 +11,17 @@
   --color-clinic-cyan: #00B5F1;
   --color-clinic-amber: #FFB54A;
   --color-clinic-amber-hover: #E59B30;
-  --color-clinic-bg: #F8FAFC;
-  --color-clinic-bg-muted: #F1F5F9;
+  --color-clinic-bg: #FAF9F5;
+  --color-clinic-bg-muted: #F3F1EC;
   --color-clinic-surface: #FFFFFF;
-  --color-clinic-surface-tint: #F0F7FC;
+  --color-clinic-surface-tint: #F2F7FA;
   --color-clinic-surface-alt: #E8F4FD;
   --color-clinic-text: #0F172A;
   --color-clinic-text-secondary: #475569;
   --color-clinic-text-muted: #64748B;
   --color-clinic-text-subtle: #94A3B8;
-  --color-clinic-border: #E2E8F0;
-  --color-clinic-border-strong: #CBD5E1;
+  --color-clinic-border: #E7E5E0;
+  --color-clinic-border-strong: #D6D3CB;
   --color-clinic-info-border: #BAE6FD;
   --color-clinic-success: #047857;
   --color-clinic-success-bg: #ECFDF5;
@@ -36,6 +36,22 @@
   --color-clinic-on-navy-muted: #CBD5E1;
   --color-clinic-on-navy-subtle: #94A3B8;
 
+  --color-avatar-plum-bg: #F3F0FA;
+  --color-avatar-plum-text: #3B2F63;
+  --color-avatar-plum-border: #DDD6F0;
+  --color-avatar-ochre-bg: #FEF6E7;
+  --color-avatar-ochre-text: #7A4A0B;
+  --color-avatar-ochre-border: #F2DFBA;
+  --color-avatar-teal-bg: #EDF6F7;
+  --color-avatar-teal-text: #124E57;
+  --color-avatar-teal-border: #C7E2E5;
+  --color-avatar-sage-bg: #ECF7F2;
+  --color-avatar-sage-text: #0F5132;
+  --color-avatar-sage-border: #C5E6D7;
+  --color-avatar-sky-bg: #EBF4FA;
+  --color-avatar-sky-text: #003553;
+  --color-avatar-sky-border: #CBE0EE;
+
   --color-medpro-cyan: #00B5F1;
   --color-medpro-cyan-hover: #0077AA;
   --color-medpro-navy: #003553;
@@ -44,17 +60,17 @@
   --color-medpro-amber: #FFB54A;
   --color-medpro-orange: #FFB54A;
   --color-medpro-label: #0F172A;
-  --color-medpro-border: #E2E8F0;
+  --color-medpro-border: #E7E5E0;
 }
 
 :root {
   --clinic-radius: 8px;
-  --shadow-clinic-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-clinic-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --focus-ring-clinic: 0 0 0 3px rgba(0, 119, 170, 0.14);
   --focus-ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.14);
   --clinic-nav-hover: rgba(255, 255, 255, 0.1);
-  --clinic-nav-divider: rgba(255, 255, 255, 0.14);
-  --clinic-hero-scrim: linear-gradient(90deg, rgba(0, 38, 61, 0.92) 0%, rgba(0, 38, 61, 0.74) 48%, rgba(0, 38, 61, 0.22) 100%);
+  --clinic-nav-divider: rgba(255, 255, 255, 0.12);
+  --clinic-hero-scrim: linear-gradient(90deg, rgba(0, 38, 61, 0.92) 0%, rgba(0, 38, 61, 0.72) 48%, rgba(0, 38, 61, 0.2) 100%);
   --clinic-hero-secondary-bg: rgba(0, 38, 61, 0.56);
   --clinic-hero-secondary-border: rgba(255, 255, 255, 0.36);
   --clinic-hero-secondary-border-hover: rgba(255, 255, 255, 0.72);
@@ -62,6 +78,14 @@
 
 [data-density="clinical"] {
   --clinic-radius: 6px;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --color-clinic-bg: #F8FAFC;
+  --color-clinic-bg-muted: #F1F5F9;
+  --color-clinic-surface-tint: #F0F7FC;
+  --color-clinic-border: #E2E8F0;
+  --color-clinic-border-strong: #CBD5E1;
+  --color-medpro-border: #E2E8F0;
 }
 
 @layer base {
@@ -246,24 +270,23 @@
 
   .medpro-label {
     display: block;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--color-clinic-text);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-clinic-text-secondary);
     margin-bottom: 4px;
-    letter-spacing: 0.01em;
   }
   .auth-label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: var(--color-clinic-text);
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13.5px;
+    font-weight: 600;
   }
   .booking-title {
     font-family: var(--font-display);
     font-size: 18px;
     line-height: 1.35;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--color-clinic-navy);
   }
   .booking-description {
@@ -286,16 +309,16 @@
   .public-section-heading > span {
     color: var(--color-clinic-cta);
     font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.14em;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .public-section-heading h2 {
     margin-top: 10px;
     color: var(--color-clinic-navy);
-    font-size: clamp(25px, 3vw, 31px);
-    line-height: 1.25;
-    font-weight: 800;
+    font-size: clamp(24px, 3vw, 30px);
+    line-height: 1.28;
+    font-weight: 700;
   }
   .public-section-heading p {
     margin-top: 10px;
@@ -477,11 +500,24 @@
     padding: 2px 8px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
     background-color: var(--color-clinic-danger-bg);
     color: var(--color-clinic-danger);
     border: 1px solid var(--color-clinic-danger-border);
+  }
+  .medpro-badge-neutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    background-color: var(--color-clinic-bg-muted);
+    color: var(--color-clinic-text-secondary);
+    border: 1px solid var(--color-clinic-border);
   }
 
   .status-badge {
@@ -693,7 +729,7 @@
   .ant-modal-title {
     color: var(--color-clinic-navy) !important;
     font-family: var(--font-display) !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
   }
 
   .ant-segmented {

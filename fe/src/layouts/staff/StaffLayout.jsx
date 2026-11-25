@@ -5,7 +5,8 @@ import StaffSidebar from './StaffSidebar'
 import { getStaffRoleConfig, normalizeStaffRole } from '../../utils/constants/staffRoles'
 import { loadClinicDataAsync } from '../../redux/actions/admin/adminAction'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
-import { Clock, SignOut } from '../../components/common/ClinicIcon'
+import { SignOut } from '../../components/common/ClinicIcon'
+import { getAvatarInitials, stripDemoTag } from '../../utils/helpers/doctorNameHelper'
 
 const ROUTE_TITLES = {
     '/staff': 'Tổng quan Cổng Nhân Viên',
@@ -40,16 +41,10 @@ export default function StaffLayout() {
     const { user, role: authRole, isLoggingOut } = useSelector((state) => state.app.auth)
 
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const [currentTime, setCurrentTime] = useState(() => new Date())
 
     useEffect(() => {
         dispatch(loadClinicDataAsync())
     }, [dispatch, authRole, user?.id])
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-        return () => clearInterval(timer)
-    }, [])
 
     const realRole = authRole || user?.role
     const effectiveRole = normalizeStaffRole(realRole)
@@ -66,14 +61,8 @@ export default function StaffLayout() {
         navigate('/staff/login')
     }
 
-    const formattedTime = new Intl.DateTimeFormat('vi-VN', {
-        weekday: 'short',
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    }).format(currentTime)
+    const cleanStaffName = stripDemoTag(user?.fullName || user?.username || 'Nhân viên')
+    const staffInitials = getAvatarInitials(cleanStaffName, 'NV')
 
     return (
         <div className="h-screen h-[100dvh] flex bg-clinic-bg text-clinic-text overflow-hidden antialiased">
@@ -85,36 +74,26 @@ export default function StaffLayout() {
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="h-14 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-5 flex items-center justify-between gap-4 shrink-0 sticky top-0 z-30 select-none">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
-                        <h1 className="text-sm lg:text-base font-extrabold text-clinic-navy tracking-tight truncate font-display">
-                            {currentTitle}
-                        </h1>
-                    </div>
+                <header className="h-[52px] bg-clinic-surface border-b border-clinic-border px-4 flex items-center justify-between gap-4 shrink-0 sticky top-0 z-30 select-none">
+                    <h1 className="text-sm font-semibold text-clinic-navy tracking-tight truncate">
+                        {currentTitle}
+                    </h1>
 
                     <div className="flex items-center gap-2.5 shrink-0">
-                        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold shrink-0 whitespace-nowrap">
-                            <Clock size={13} weight="bold" className="text-clinic-cta" />
-                            <span className="tabular-nums">{formattedTime}</span>
-                        </div>
-
-                        <div
-                            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-bold border ${currentRoleConfig.color}`}
-                        >
+                        <span className="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[6px] bg-clinic-bg-muted border border-clinic-border text-xs font-medium text-clinic-text-secondary">
                             <span className={`w-1.5 h-1.5 rounded-full ${currentRoleConfig.dotColor}`} />
                             <span>{currentRoleConfig.label}</span>
-                        </div>
+                        </span>
 
-                        <div className="flex items-center gap-2 pl-2 border-l border-clinic-border">
-                            <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface font-black text-xs flex items-center justify-center shrink-0">
-                                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'NV'}
+                        <div className="flex items-center gap-2 pl-2.5 border-l border-clinic-border">
+                            <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface font-semibold text-xs flex items-center justify-center shrink-0">
+                                {staffInitials}
                             </div>
                             <div className="hidden md:block text-left min-w-0 leading-tight">
-                                <span className="block text-[11.5px] font-bold text-clinic-navy truncate max-w-[220px]">
-                                    {user?.fullName || user?.username || 'Nhân viên'}
+                                <span className="block text-xs font-semibold text-clinic-navy truncate max-w-[200px]">
+                                    {cleanStaffName}
                                 </span>
-                                <span className="block text-[10px] text-clinic-cta font-semibold truncate">
+                                <span className="block text-[11px] text-clinic-text-muted truncate">
                                     {user?.email || realRole}
                                 </span>
                             </div>

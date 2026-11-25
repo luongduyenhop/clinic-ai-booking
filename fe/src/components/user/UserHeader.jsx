@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { Hospital, LockKey, SignOut, UserCheck, X } from '../common/ClinicIcon'
 import { getRoleDefaultPath } from '../../utils/constants/System'
+import { stripDemoTag } from '../../utils/helpers/doctorNameHelper'
 
 const PUBLIC_NAV_LINKS = [
     { label: 'Giới thiệu', to: '/#gioi-thieu', isAnchor: true },
@@ -72,14 +73,14 @@ export default function UserHeader() {
 
             <header className="sticky top-0 z-40 bg-clinic-surface border-b border-clinic-border">
                 <div className="public-container h-[68px] flex items-center justify-between gap-4">
-                    <Link to="/" className="flex items-center gap-2.5 font-display font-extrabold text-xl tracking-tight hover:opacity-90 transition-opacity shrink-0">
+                    <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-xl tracking-tight hover:opacity-90 transition-opacity shrink-0">
                         <span className="w-9 h-9 rounded-[8px] bg-clinic-navy text-clinic-surface flex items-center justify-center">
                             <Hospital size={19} weight="fill" />
                         </span>
-                        <span className="text-clinic-navy">CLINIC<span className="text-clinic-cta">-AI</span></span>
+                        <span className="text-clinic-navy">Clinic<span className="text-clinic-cta">-AI</span></span>
                     </Link>
 
-                    <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-clinic-navy">
+                    <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-clinic-navy">
                         {PUBLIC_NAV_LINKS.map((item) =>
                             renderNavLink(item, 'hover:text-clinic-cta transition-colors')
                         )}
@@ -91,10 +92,10 @@ export default function UserHeader() {
                                 <Link
                                     to={portalUrl}
                                     title={isStaff ? 'Đến không gian làm việc chuyên môn' : 'Đến Cổng Bệnh Nhân'}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-clinic-navy max-w-[200px] truncate bg-clinic-surface-alt px-3 py-1.5 rounded-[8px] border border-clinic-info-border hover:border-clinic-cta transition-colors"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-clinic-navy max-w-[200px] truncate bg-clinic-surface-alt px-3 py-1.5 rounded-[8px] border border-clinic-info-border hover:border-clinic-cta transition-colors"
                                 >
                                     <UserCheck size={15} weight="duotone" className="text-clinic-cta" />
-                                    <span className="truncate">{user?.shortName || user?.fullName || (isStaff ? 'Nhân viên Y tế' : 'Bệnh nhân')}</span>
+                                    <span className="truncate">{stripDemoTag(user?.shortName || user?.fullName) || (isStaff ? 'Nhân viên Y tế' : 'Bệnh nhân')}</span>
                                 </Link>
                                 <button
                                     type="button"

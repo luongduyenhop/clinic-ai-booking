@@ -1,46 +1,35 @@
-import { stripDoctorTitles } from '../../utils/helpers/doctorNameHelper'
+import { getAvatarInitials } from '../../utils/helpers/doctorNameHelper'
 
 const SIZE_CLASSES = {
-    sm: 'w-12 h-12 text-sm',
-    md: 'w-14 h-14 text-base',
-    lg: 'w-16 h-16 sm:w-[76px] sm:h-[76px] text-lg sm:text-xl',
+    sm: 'w-11 h-11 text-xs',
+    md: 'w-13 h-13 text-sm',
+    lg: 'w-16 h-16 sm:w-[72px] sm:h-[72px] text-base sm:text-lg',
 }
 
 function resolveSpecialtyTone(specialtyCode = '', specialty = '') {
     const key = `${specialtyCode} ${specialty}`.toLowerCase()
     if (key.includes('khoa_tmh') || key.includes('tai mũi họng') || key.includes('tmh')) {
-        return 'bg-[#F3F0FA] text-[#3B2F63] border-[#DDD6F0]'
+        return 'bg-avatar-plum-bg text-avatar-plum-text border-avatar-plum-border'
     }
     if (key.includes('khoa_rang') || key.includes('răng') || key.includes('nha khoa')) {
-        return 'bg-[#FEF6E7] text-[#7A4A0B] border-[#F2DFBA]'
+        return 'bg-avatar-ochre-bg text-avatar-ochre-text border-avatar-ochre-border'
     }
     if (key.includes('khoa_mat') || key.includes('mắt') || key.includes('nhãn khoa')) {
-        return 'bg-[#EDF6F7] text-[#124E57] border-[#C7E2E5]'
+        return 'bg-avatar-teal-bg text-avatar-teal-text border-avatar-teal-border'
     }
     if (key.includes('khoa_ngoai') || key.includes('ngoại')) {
-        return 'bg-[#ECF7F2] text-[#0F5132] border-[#C5E6D7]'
+        return 'bg-avatar-sage-bg text-avatar-sage-text border-avatar-sage-border'
     }
     if (key.includes('khoa_noi') || key.includes('nội')) {
-        return 'bg-[#EBF4FA] text-[#003553] border-[#CBE0EE]'
+        return 'bg-avatar-sky-bg text-avatar-sky-text border-avatar-sky-border'
     }
     return 'bg-clinic-surface-alt text-clinic-navy border-clinic-border'
 }
 
 function resolveAvatarInitials(name = '', initials = '') {
-    const provided = String(initials || '').trim()
+    const provided = String(initials || '').replace(/[^A-Za-zÀ-ỹ]/g, '').trim()
     if (provided) return provided.slice(0, 2).toUpperCase()
-    const { bareName } = stripDoctorTitles(name)
-    const words = String(bareName || name)
-        .trim()
-        .split(/\s+/)
-        .filter((word) => /^[A-Za-zÀ-ỹ]/i.test(word))
-    if (!words.length) return 'BS'
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-    return words
-        .slice(-2)
-        .map((word) => word[0])
-        .join('')
-        .toUpperCase()
+    return getAvatarInitials(name, 'BS')
 }
 
 export default function DoctorAvatar({
@@ -59,7 +48,7 @@ export default function DoctorAvatar({
         <span
             role="img"
             aria-label={name ? `Đại diện ${name}` : 'Đại diện bác sĩ'}
-            className={`inline-flex items-center justify-center rounded-[8px] border font-display font-extrabold tracking-tight shrink-0 select-none ${toneClass} ${sizeClass} ${className}`.trim()}
+            className={`inline-flex items-center justify-center rounded-[8px] border font-display font-bold tracking-tight shrink-0 select-none ${toneClass} ${sizeClass} ${className}`.trim()}
         >
             {labelText}
         </span>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { MedicineBoxOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { MedicineBoxOutlined, AppstoreOutlined } from '../../common/ClinicIcon'
 
 export default function QueueRoomActiveBanner({
     selectedRoomObject,

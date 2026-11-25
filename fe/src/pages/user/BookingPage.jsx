@@ -154,7 +154,7 @@ export default function BookingPage() {
         <section className="bg-clinic-bg py-8 sm:py-12 min-h-[calc(100vh-72px)]">
             <div className="public-container">
                 <div className="max-w-2xl">
-                    <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-clinic-navy">Đặt lịch khám trong 3 bước</h1>
+                    <h1 className="font-display text-2xl sm:text-[28px] font-bold tracking-tight text-clinic-navy">Đặt lịch khám trong 3 bước</h1>
                     <p className="mt-2 text-sm text-clinic-text-secondary">Chọn lịch phù hợp và nhận mã hẹn ngay sau khi hoàn tất.</p>
                     {aiRecommendation && (
                         <div className="mt-3 inline-flex items-center gap-2 rounded-[8px] border border-clinic-info-border bg-clinic-surface-alt px-3 py-1.5 text-xs text-clinic-navy">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal, Select, DatePicker, Input, Button, message, Alert, Spin, Tag, Card } from 'antd'
-import { UserAddOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { UserAddOutlined, UserOutlined, CheckCircleOutlined } from '../common/ClinicIcon'
 import { useDispatch } from 'react-redux'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'

@@ -7,7 +7,7 @@ import {
     ClockCircleOutlined,
     PhoneOutlined,
     UserOutlined,
-} from '@ant-design/icons'
+} from '../common/ClinicIcon'
 import dayjs from 'dayjs'
 import { receptionService } from '../../services/reception/receptionService'
 import { unwrapApi } from '../../utils/helpers/apiHelper'

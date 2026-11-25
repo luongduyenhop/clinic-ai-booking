@@ -40,7 +40,7 @@ export default function ClinicIntroSection() {
                 </div>
 
                 <div>
-                    <h2 className="font-display text-[24px] sm:text-[28px] font-extrabold tracking-tight text-clinic-navy leading-[1.25]">
+                    <h2 className="font-display text-[23px] sm:text-[27px] font-bold tracking-tight text-clinic-navy leading-[1.28]">
                         Về Phòng khám Đa khoa Clinic-AI
                     </h2>
                     <p className="mt-4 text-[15px] leading-7 text-clinic-text-secondary">
@@ -53,7 +53,7 @@ export default function ClinicIntroSection() {
                     <dl className="mt-6 pt-5 border-t border-clinic-border grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                         {PLATFORM_STRENGTHS.map((item) => (
                             <div key={item.title}>
-                                <dt className="font-display text-sm font-extrabold text-clinic-navy">
+                                <dt className="font-display text-sm font-bold text-clinic-navy">
                                     {item.title}
                                 </dt>
                                 <dd className="mt-1 text-[13px] leading-6 text-clinic-text-secondary">

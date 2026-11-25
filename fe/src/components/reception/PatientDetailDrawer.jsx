@@ -10,7 +10,7 @@ import {
     WarningOutlined,
     MedicineBoxOutlined,
     ClockCircleOutlined,
-} from '@ant-design/icons'
+} from '../common/ClinicIcon'
 import dayjs from 'dayjs'
 import { APPOINTMENT_STATUS_LABELS, QUEUE_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import {

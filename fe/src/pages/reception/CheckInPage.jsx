@@ -13,7 +13,7 @@ import {
     MedicineBoxOutlined,
     ClockCircleOutlined,
     ExclamationCircleOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import {
     checkInAppointmentAsync,
@@ -173,6 +173,22 @@ export default function CheckInPage() {
     const [quickWalkInDoctors, setQuickWalkInDoctors] = useState([])
     const [loadingQuickDocs, setLoadingQuickDocs] = useState(false)
     const [patientNotFoundForPhone, setPatientNotFoundForPhone] = useState(false)
+    const [isQuickWalkInOpen, setIsQuickWalkInOpen] = useState(false)
+
+    const openQuickWalkInWithSeed = (rawSeed = searchKeyword) => {
+        const trimmed = String(rawSeed || '').trim()
+        const digitsOnly = trimmed.replace(/\D/g, '')
+        setQuickWalkInForm((prev) => ({
+            ...prev,
+            phone: /^\d{6,11}$/.test(digitsOnly) ? digitsOnly : prev.phone,
+            fullName:
+                trimmed && !/^\d+$/.test(trimmed) && !/^(?:APT|LK|BN)-/i.test(trimmed)
+                    ? trimmed
+                    : prev.fullName,
+        }))
+        setIsQuickWalkInOpen(true)
+        setIsSearchOpen(false)
+    }
 
     const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false)
     const [isReceiptOpen, setIsReceiptOpen] = useState(false)
@@ -878,162 +894,174 @@ export default function CheckInPage() {
             )}
 
             <div className="medpro-card p-4 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <div className="flex items-center gap-2.5">
-                            <h2 className="text-sm font-extrabold text-clinic-navy">Quầy tiếp nhận bệnh nhân (Check-in)</h2>
-                        </div>
-                        <span className="text-xs text-clinic-text-secondary">
-                            Tra cứu SĐT, Họ tên, Mã lịch hẹn hoặc CCCD để tự động nạp hồ sơ và check-in ngay
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="primary"
-                            icon={<UserAddOutlined />}
-                            onClick={() => setIsCreatePatientOpen(true)}
-                            className="medpro-btn-primary !h-8 !px-4"
-                        >
-                            Tạo hồ sơ mới (30s)
-                        </Button>
-                    </div>
-                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="relative flex-1 min-w-[260px]" ref={searchContainerRef}>
+                        <Input
+                            prefix={<SearchOutlined className="text-clinic-text-muted mr-1" />}
+                            suffix={isSearching ? <Spin size="small" /> : null}
+                            placeholder="Tìm theo SĐT, tên bệnh nhân, CCCD hoặc mã lịch hẹn (LK-...)..."
+                            value={searchKeyword}
+                            onFocus={() => {
+                                if (searchKeyword.trim().length > 0) {
+                                    setIsSearchOpen(true)
+                                }
+                            }}
+                            onChange={(e) => {
+                                setSearchKeyword(e.target.value)
+                                if (e.target.value.trim().length > 0) {
+                                    setIsSearchOpen(true)
+                                } else {
+                                    setIsSearchOpen(false)
+                                }
+                            }}
+                            className="rounded-[6px]"
+                            allowClear
+                        />
 
-                <div className="relative" ref={searchContainerRef}>
-                    <Input
-                        size="large"
-                        prefix={<SearchOutlined className="text-clinic-text-muted text-lg mr-1" />}
-                        suffix={isSearching ? <Spin size="small" /> : null}
-                        placeholder="Gõ SĐT, họ tên, mã lịch hẹn (APT-...), CCCD hoặc mã BN để tra cứu..."
-                        value={searchKeyword}
-                        onFocus={() => {
-                            if (searchKeyword.trim().length > 0) {
-                                setIsSearchOpen(true)
-                            }
-                        }}
-                        onChange={(e) => {
-                            setSearchKeyword(e.target.value)
-                            if (e.target.value.trim().length > 0) {
-                                setIsSearchOpen(true)
-                            } else {
-                                setIsSearchOpen(false)
-                            }
-                        }}
-                        className="rounded-[6px]"
-                        allowClear
-                    />
+                        {isSearchOpen && hasSearchResults && searchKeyword.trim().length > 0 && (
+                            <div className="absolute top-10 left-0 right-0 bg-clinic-surface border border-clinic-border rounded-[6px] z-30 p-2 max-h-80 overflow-y-auto space-y-2 shadow-sm">
+                                {searchAppointmentResults.length > 0 && (
+                                    <div className="space-y-1">
+                                        <div className="px-3 py-1 text-[11px] font-semibold text-clinic-navy bg-clinic-surface-tint rounded-[4px] flex justify-between items-center tabular-nums">
+                                            <span className="flex items-center gap-1.5"><CalendarOutlined /> Lịch hẹn hôm nay ({searchAppointmentResults.length})</span>
+                                            <span className="text-[11px] text-clinic-cta font-normal">Chọn để tiếp nhận</span>
+                                        </div>
+                                        {searchAppointmentResults.map((app) => {
+                                            const statusMeta = getAppointmentStatusMeta(app)
 
-                    {isSearchOpen && hasSearchResults && searchKeyword.trim().length > 0 && (
-                        <div className="absolute top-12 left-0 right-0 bg-clinic-surface border border-clinic-border rounded-[6px] z-30 p-2 max-h-80 overflow-y-auto space-y-2">
-                            {searchAppointmentResults.length > 0 && (
-                                <div className="space-y-1">
-                                    <div className="px-3 py-1 text-[11px] font-bold text-clinic-cta bg-clinic-surface-tint rounded-[6px] flex justify-between items-center tabular-nums">
-                                        <span className="flex items-center gap-1.5"><CalendarOutlined /> Lịch hẹn hôm nay ({searchAppointmentResults.length}):</span>
-                                        <span className="text-[10px] text-clinic-cta font-normal">Bấm để Check-in ngay</span>
-                                    </div>
-                                    {searchAppointmentResults.map((app) => {
-                                        const statusMeta = getAppointmentStatusMeta(app)
-
-                                        return (
-                                            <div
-                                                key={app.id}
-                                                onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
-                                                className="p-3 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
-                                            >
-                                                <div className="space-y-1">
-                                                    <div className="font-bold text-clinic-navy flex items-center gap-2 flex-wrap">
-                                                        <span className="font-mono text-clinic-cta tabular-nums">{app.ma_lich_kham || `APT-${app.id}`}</span>
-                                                        <span>·</span>
-                                                        <span>{app.ten_benh_nhan}</span>
-                                                        <Tag color={statusMeta.tagColor} className="text-[10px] mr-0 font-medium">
-                                                            {statusMeta.label}
-                                                        </Tag>
+                                            return (
+                                                <div
+                                                    key={app.id}
+                                                    onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
+                                                    className="p-2.5 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
+                                                >
+                                                    <div className="space-y-0.5">
+                                                        <div className="font-semibold text-clinic-navy flex items-center gap-2 flex-wrap tabular-nums">
+                                                            <span className="text-clinic-cta">{app.ma_lich_kham || `APT-${app.id}`}</span>
+                                                            <span>·</span>
+                                                            <span>{app.ten_benh_nhan}</span>
+                                                            <Tag color={statusMeta.tagColor} className="text-[10px] mr-0 font-medium">
+                                                                {statusMeta.label}
+                                                            </Tag>
+                                                        </div>
+                                                        <div className="text-clinic-text-secondary text-[11px] flex items-center gap-2 flex-wrap tabular-nums">
+                                                            <span>SĐT: <strong className="text-clinic-navy">{app.so_dien_thoai || 'N/A'}</strong></span>
+                                                            <span>·</span>
+                                                            <span>Giờ khám: <strong className="text-clinic-navy">{app.gio_kham || 'Theo ca'}</strong></span>
+                                                            <span>·</span>
+                                                            <span>Khoa: <strong className="text-clinic-navy">{app.chuyen_khoa || 'Chưa gán khoa'}</strong> {app.ten_bac_si ? `(${formatDoctorName(app.ten_bac_si)})` : ''}</span>
+                                                            {app.phong_kham && (
+                                                                <>
+                                                                    <span>·</span>
+                                                                    <span>Phòng: <strong className="text-clinic-cta">{app.phong_kham}</strong></span>
+                                                                </>
+                                                            )}
+                                                            {app.ticket_id && (
+                                                                <>
+                                                                    <span>·</span>
+                                                                    <span className="text-clinic-success font-semibold">Vé #{app.ticket_id}</span>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="text-clinic-text-secondary text-[11px] flex items-center gap-2 flex-wrap tabular-nums">
-                                                        <span>SĐT: <strong className="text-clinic-navy">{app.so_dien_thoai || 'N/A'}</strong></span>
-                                                        <span>·</span>
-                                                        <span>Giờ khám: <strong className="text-clinic-navy">{app.gio_kham || 'Theo ca'}</strong></span>
-                                                        <span>·</span>
-                                                        <span>Khoa: <strong className="text-clinic-navy">{app.chuyen_khoa || 'Chưa gán khoa'}</strong> {app.ten_bac_si ? `(${formatDoctorName(app.ten_bac_si)})` : ''}</span>
-                                                        {app.phong_kham && (
-                                                            <>
-                                                                <span>·</span>
-                                                                <span>Phòng: <strong className="text-clinic-cta">{app.phong_kham}</strong></span>
-                                                            </>
+                                                    <Button
+                                                        size="small"
+                                                        type={statusMeta.btnType}
+                                                        className={statusMeta.btnClass}
+                                                    >
+                                                        {statusMeta.btnText}
+                                                    </Button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+
+                                {searchPatientResults.length > 0 && (
+                                    <div className="space-y-1">
+                                        <div className="px-3 py-1 text-[11px] font-semibold text-clinic-text-secondary bg-clinic-bg rounded-[4px] tabular-nums">
+                                            Hồ sơ bệnh nhân ({searchPatientResults.length})
+                                        </div>
+                                        {searchPatientResults.map((p) => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => handleSelectPatient(p)}
+                                                className="p-2.5 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
+                                            >
+                                                <div>
+                                                    <div className="font-semibold text-clinic-navy flex items-center gap-2">
+                                                        <span>{p.fullName || p.ho_ten}</span>
+                                                        {p.isDuplicateSuspect && (
+                                                            <Tag color="red" className="mr-0 text-[10px]">
+                                                                Nghi vấn trùng
+                                                            </Tag>
                                                         )}
-                                                        {app.ticket_id && (
-                                                            <>
-                                                                <span>·</span>
-                                                                <span className="text-clinic-success font-mono font-semibold">Vé #{app.ticket_id}</span>
-                                                            </>
-                                                        )}
+                                                    </div>
+                                                    <div className="text-clinic-text-secondary text-[11px] mt-0.5 tabular-nums">
+                                                        Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> · SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> · CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
                                                     </div>
                                                 </div>
-                                                <Button
-                                                    size="small"
-                                                    type={statusMeta.btnType}
-                                                    className={statusMeta.btnClass}
-                                                >
-                                                    {statusMeta.btnText}
+                                                <Button size="small" type="primary" className="medpro-btn-primary !h-7 !px-3 text-xs font-semibold">
+                                                    Chọn tiếp nhận
                                                 </Button>
                                             </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
-
-                            {searchPatientResults.length > 0 && (
-                                <div className="space-y-1">
-                                    <div className="px-3 py-1 text-[11px] font-bold text-clinic-text-secondary bg-clinic-bg rounded-[6px] tabular-nums">
-                                        Hồ sơ bệnh nhân ({searchPatientResults.length}):
+                                        ))}
                                     </div>
-                                    {searchPatientResults.map((p) => (
-                                        <div
-                                            key={p.id}
-                                            onClick={() => handleSelectPatient(p)}
-                                            className="p-3 rounded-[6px] hover:bg-clinic-surface-tint border border-clinic-border flex items-center justify-between cursor-pointer transition text-xs"
-                                        >
-                                            <div>
-                                                <div className="font-bold text-clinic-navy flex items-center gap-2">
-                                                    <span>{p.fullName || p.ho_ten}</span>
-                                                    {p.isDuplicateSuspect && (
-                                                        <Tag color="red" className="mr-0 text-[10px]">
-                                                            Nghi vấn trùng
-                                                        </Tag>
-                                                    )}
-                                                </div>
-                                                <div className="text-clinic-text-secondary text-[11px] mt-0.5 tabular-nums">
-                                                    Mã: <strong>{p.patientCode || p.ma_dinh_danh_y_te || `BN-${p.id}`}</strong> · SĐT: <strong>{p.phone || p.so_dien_thoai}</strong> · CCCD: {p.identityCard || p.cccd_so || 'Chưa có'}
-                                                </div>
-                                            </div>
-                                            <Button size="small" type="primary" className="medpro-btn-primary !h-7 !px-3 text-xs font-bold">
-                                                Chọn tiếp nhận
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        {!selectedPatient && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    isQuickWalkInOpen
+                                        ? setIsQuickWalkInOpen(false)
+                                        : openQuickWalkInWithSeed(searchKeyword)
+                                }
+                                className="medpro-btn-outline h-8 px-3 text-xs"
+                            >
+                                <ThunderboltOutlined />
+                                <span>{isQuickWalkInOpen ? 'Ẩn form vãng lai' : 'Tiếp nhận vãng lai'}</span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setIsCreatePatientOpen(true)}
+                            className="medpro-btn-primary h-8 px-3.5 text-xs"
+                        >
+                            <UserAddOutlined />
+                            <span>Tạo hồ sơ mới</span>
+                        </button>
+                    </div>
                 </div>
 
                 {isSearchOpen && patientNotFoundForPhone && searchKeyword.trim().length > 0 && (
-                    <div className="p-3.5 rounded-[6px] bg-clinic-warning-bg border border-clinic-warning-border text-clinic-warning flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2.5">
-                            <PhoneOutlined className="text-clinic-warning text-base" />
-                            <div>
-                                <span className="font-bold tabular-nums">Số điện thoại {searchKeyword} chưa có hồ sơ (Bệnh nhân mới)</span>
-                                <div className="text-[11px] text-clinic-warning">Lễ tân có thể tạo hồ sơ nhanh trong 30 giây hoặc sử dụng form tiếp nhận nhanh bên dưới.</div>
-                            </div>
+                    <div className="p-3 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border text-clinic-navy flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                            <PhoneOutlined className="text-clinic-cta" />
+                            <span className="tabular-nums">
+                                Số điện thoại <strong>{searchKeyword}</strong> chưa có hồ sơ bệnh nhân.
+                            </span>
                         </div>
-                        <Button
-                            type="primary"
-                            icon={<UserAddOutlined />}
-                            className="medpro-btn-amber font-bold text-xs"
-                            onClick={() => setIsCreatePatientOpen(true)}
-                        >
-                            Tạo hồ sơ nhanh trong 30 giây
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                className="medpro-btn-primary h-7 px-3 text-xs"
+                                onClick={() => openQuickWalkInWithSeed(searchKeyword)}
+                            >
+                                Cấp số vãng lai (điền sẵn SĐT)
+                            </button>
+                            <button
+                                type="button"
+                                className="medpro-btn-outline h-7 px-3 text-xs"
+                                onClick={() => setIsCreatePatientOpen(true)}
+                            >
+                                Lập hồ sơ đầy đủ
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -1327,27 +1355,40 @@ export default function CheckInPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                    <div className="lg:col-span-7 medpro-card p-4 space-y-3">
+                    <div className={`${isQuickWalkInOpen ? 'lg:col-span-7' : 'lg:col-span-12'} medpro-card p-4 space-y-3`}>
                         <div className="flex items-center justify-between border-b border-clinic-border pb-2.5">
                             <div className="flex items-center gap-2">
-                                <CalendarOutlined className="text-clinic-cta text-sm" />
-                                <h3 className="text-xs font-extrabold text-clinic-navy">
-                                    Lịch hẹn chờ tiếp đón trong ngày ({waitingCheckInAppointments.length})
+                                <CalendarOutlined className="text-clinic-cta" />
+                                <h3 className="text-xs font-semibold text-clinic-navy tabular-nums">
+                                    Lịch hẹn chờ tiếp đón hôm nay ({waitingCheckInAppointments.length})
                                 </h3>
                             </div>
-                            <span className="text-[11px] text-clinic-text-secondary tabular-nums">
-                                Chọn để nạp hồ sơ check-in ngay
-                            </span>
+                            {!isQuickWalkInOpen && (
+                                <button
+                                    type="button"
+                                    onClick={() => openQuickWalkInWithSeed(searchKeyword)}
+                                    className="text-xs font-semibold text-clinic-cta hover:underline cursor-pointer"
+                                >
+                                    + Tiếp nhận khách vãng lai
+                                </button>
+                            )}
                         </div>
 
                         {waitingCheckInAppointments.length === 0 ? (
-                            <div className="py-10 px-4 text-center rounded-[6px] bg-clinic-bg border border-clinic-border space-y-1.5">
-                                <p className="text-xs font-bold text-clinic-navy">
-                                    Chưa có lịch hẹn đặt trước chờ tiếp đón trong ca
+                            <div className="py-8 px-4 text-center rounded-[6px] bg-clinic-bg/70 space-y-2">
+                                <p className="text-xs font-medium text-clinic-text-secondary">
+                                    Hiện chưa có lịch hẹn đặt trước chờ tiếp đón trong ca trực.
                                 </p>
-                                <p className="text-[11px] text-clinic-text-secondary max-w-md mx-auto">
-                                    Gõ số điện thoại, CCCD hoặc họ tên vào thanh tìm kiếm phía trên để tra cứu hồ sơ cũ, hoặc cấp số khám vãng lai tại biểu mẫu bên cạnh.
-                                </p>
+                                {!isQuickWalkInOpen && (
+                                    <button
+                                        type="button"
+                                        onClick={() => openQuickWalkInWithSeed(searchKeyword)}
+                                        className="medpro-btn-outline h-8 px-3.5 text-xs"
+                                    >
+                                        <ThunderboltOutlined />
+                                        <span>Cấp số khám cho khách vãng lai</span>
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface overflow-hidden">
@@ -1367,9 +1408,9 @@ export default function CheckInPage() {
                                         >
                                             <div className="min-w-0 space-y-0.5">
                                                 <div className="flex items-center gap-2 flex-wrap tabular-nums">
-                                                    <span className="font-mono font-bold text-clinic-cta">{appCode}</span>
-                                                    <span className="font-bold text-clinic-navy">{patientName}</span>
-                                                    <span className="medpro-badge-info text-[10px] font-bold">{visitTime}</span>
+                                                    <span className="font-semibold text-clinic-cta">{appCode}</span>
+                                                    <span className="font-semibold text-clinic-navy">{patientName}</span>
+                                                    <span className="medpro-badge-info text-[10.5px]">{visitTime}</span>
                                                 </div>
                                                 <div className="text-[11px] text-clinic-text-secondary flex items-center gap-2 flex-wrap tabular-nums">
                                                     <span>SĐT: <strong className="text-clinic-navy">{phone}</strong></span>
@@ -1381,9 +1422,9 @@ export default function CheckInPage() {
                                                 size="small"
                                                 type="primary"
                                                 onClick={() => handleSelectAppointmentSearchResult(app, statusMeta)}
-                                                className="medpro-btn-primary !h-7 !px-3 text-xs font-bold shrink-0"
+                                                className="medpro-btn-primary !h-8 !px-3 text-xs font-semibold shrink-0"
                                             >
-                                                Chọn tiếp nhận
+                                                Tiếp nhận
                                             </Button>
                                         </div>
                                     )
@@ -1392,13 +1433,20 @@ export default function CheckInPage() {
                         )}
                     </div>
 
+                    {isQuickWalkInOpen && (
                     <div className="lg:col-span-5 medpro-card p-4 space-y-3 text-xs">
-                        <div className="flex items-center gap-2 border-b border-clinic-border pb-2.5">
-                            <ThunderboltOutlined className="text-clinic-warning text-base" />
-                            <div>
-                                <h3 className="font-extrabold text-clinic-navy text-xs">Tiếp nhận nhanh bệnh nhân vãng lai (Quick Walk-in)</h3>
-                                <p className="text-[11px] text-clinic-text-secondary mt-0.5">Cấp số thứ tự khám ngay tại quầy — Chọn Bác sĩ trực &amp; Mức độ ưu tiên</p>
+                        <div className="flex items-center justify-between gap-2 border-b border-clinic-border pb-2.5">
+                            <div className="flex items-center gap-2">
+                                <ThunderboltOutlined className="text-clinic-cta" />
+                                <h3 className="font-semibold text-clinic-navy text-xs">Tiếp nhận khám vãng lai</h3>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsQuickWalkInOpen(false)}
+                                className="text-xs font-medium text-clinic-text-muted hover:text-clinic-navy cursor-pointer"
+                            >
+                                Đóng
+                            </button>
                         </div>
 
                         <div className="space-y-3">
@@ -1571,9 +1619,9 @@ export default function CheckInPage() {
                                 <Checkbox
                                     checked={quickAutoWaitlist}
                                     onChange={(e) => setQuickAutoWaitlist(e.target.checked)}
-                                    className="text-xs text-clinic-warning font-medium"
+                                    className="text-xs text-clinic-text-secondary font-medium"
                                 >
-                                    Đăng ký Danh sách chờ (Waitlist) nếu bác sĩ đã đủ chỉ tiêu tiếp nhận
+                                    Tự động đưa vào danh sách chờ nếu bác sĩ đủ chỉ tiêu ca trực
                                 </Checkbox>
                             </div>
 
@@ -1583,12 +1631,13 @@ export default function CheckInPage() {
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleQuickWalkInSubmit}
                                 loading={isSubmitting}
-                                className="medpro-btn-primary w-full !h-10 text-sm font-bold mt-2"
+                                className="medpro-btn-primary w-full !h-9 text-xs font-semibold mt-1"
                             >
-                                Cấp STT Khám Nhanh &amp; In Phiếu
+                                Cấp số khám &amp; In phiếu
                             </Button>
                         </div>
                     </div>
+                    )}
                 </div>
             )}
 

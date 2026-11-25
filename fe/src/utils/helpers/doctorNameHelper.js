@@ -6,9 +6,25 @@ const GENERIC_SHORT_TITLE_REGEX = /^(?:BS\.?|Bác\s+sĩ)$/i
 
 export function stripDemoTag(value = '') {
     return String(value || '')
-        .replace(/\s*\[DEMO\]\s*/gi, ' ')
+        .replace(/\s*\[[^\]]*\]\s*/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
+}
+
+export function getAvatarInitials(rawName = '', fallback = 'NV') {
+    const { bareName } = stripDoctorTitles(rawName)
+    const cleanSource = String(bareName || stripDemoTag(rawName))
+        .replace(/\([^)]*\)/g, ' ')
+        .replace(/[^A-Za-zÀ-ỹ\s]/g, ' ')
+        .trim()
+    const words = cleanSource.split(/\s+/).filter(Boolean)
+    if (!words.length) return fallback
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+    return words
+        .slice(-2)
+        .map((word) => word[0])
+        .join('')
+        .toUpperCase()
 }
 
 export function stripDoctorTitles(rawName = '') {

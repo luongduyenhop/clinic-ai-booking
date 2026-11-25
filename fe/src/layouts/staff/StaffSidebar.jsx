@@ -32,7 +32,7 @@ export const getStaffMenuForRole = (role) => {
                 group: 'Lâm sàng & Bàn khám',
                 items: [
                     { to: '/staff/doctor-dashboard', label: 'Tổng quan ca trực', icon: HouseLine },
-                    { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng', icon: Stethoscope, badge: 'Ưu tiên' },
+                    { to: '/staff/exam-workstation', label: 'Bàn khám lâm sàng', icon: Stethoscope },
                 ],
             },
             {
@@ -57,9 +57,9 @@ export const getStaffMenuForRole = (role) => {
                 group: 'Tiếp đón, Hàng chờ & Thu ngân',
                 items: [
                     { to: '/reception/dashboard', label: 'Tổng quan tiếp đón', icon: HouseLine },
-                    { to: '/reception/check-in', label: 'Tiếp đón & Check-in', icon: IdentificationCard, badge: 'Cốt lõi' },
+                    { to: '/reception/check-in', label: 'Tiếp đón & Check-in', icon: IdentificationCard },
                     { to: '/reception/queue', label: 'Điều phối hàng chờ', icon: Clock },
-                    { to: '/reception/cashier', label: 'Thu viện phí & Quyết toán', icon: Receipt, badge: 'VietQR' },
+                    { to: '/reception/cashier', label: 'Thu viện phí & Quyết toán', icon: Receipt },
                     { to: '/reception/appointments', label: 'Quản lý lịch hẹn', icon: CalendarCheck },
                 ],
             },
@@ -85,7 +85,7 @@ export const getStaffMenuForRole = (role) => {
             {
                 group: 'Phân hệ Kỹ thuật viên (LIS & PACS)',
                 items: [
-                    { to: '/staff/paraclinical-work', label: 'Bàn làm việc CLS & Ký duyệt', icon: Microscope, badge: 'Chính' },
+                    { to: '/staff/paraclinical-work', label: 'Bàn làm việc CLS & Ký duyệt', icon: Microscope },
                     { to: '/staff/paraclinical', label: 'Khoảng tham chiếu & Danh mục kỹ thuật', icon: ClipboardText },
                 ],
             },
@@ -127,7 +127,7 @@ export const getStaffMenuForRole = (role) => {
         {
             group: 'Nhân sự và phân quyền',
             items: [
-                { to: '/staff/permissions', label: 'Nhân sự, CCHN và phân quyền', icon: ShieldCheck, badge: 'RBAC' },
+                { to: '/staff/permissions', label: 'Nhân sự, CCHN và phân quyền', icon: ShieldCheck },
                 { to: '/admin/phan-lich', label: 'Phân lịch trực và ca làm việc', icon: CalendarPlus },
                 { to: '/admin/nghi-phep', label: 'Duyệt nghỉ phép bác sĩ', icon: CalendarCheck },
                 { to: '/staff/patients', label: 'Hồ sơ bệnh nhân', icon: Users },
@@ -195,9 +195,8 @@ export default function StaffSidebar({
                 {menuSections.map((section, sIdx) => (
                     <div key={sIdx} className="space-y-1">
                         {!isCollapsed && section.group && (
-                            <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-clinic-on-navy-subtle flex items-center gap-1.5">
-                                <span className="w-1 h-1 rounded-full bg-clinic-cyan" />
-                                <span className="truncate">{section.group}</span>
+                            <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-clinic-on-navy-subtle truncate">
+                                {section.group}
                             </div>
                         )}
                         {isCollapsed && section.group && (

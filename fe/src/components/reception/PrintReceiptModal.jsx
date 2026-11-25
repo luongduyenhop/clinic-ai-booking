@@ -1,5 +1,5 @@
 import { Modal, Button, Tag, message } from 'antd'
-import { PrinterOutlined } from '@ant-design/icons'
+import { PrinterOutlined } from '../common/ClinicIcon'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateInvoiceStatusAsync } from '../../redux/actions/reception/receptionAction'
 import { formatCurrency } from '../../utils/helpers/formatCurrency'

@@ -21,6 +21,8 @@ import {
     isValidFutureOrTodayIsoDate,
     resolveBookingPrefill,
 } from '../src/utils/helpers/quickBookingHelpers.js'
+import { getAvatarInitials } from '../src/utils/helpers/doctorNameHelper.js'
+import { resolveInvoicePayableAmount } from '../src/utils/helpers/cashierInvoiceHelpers.js'
 
 const MODIFIED_FILES = [
     '../src/theme/clinicTheme.js',
@@ -54,12 +56,16 @@ const MODIFIED_FILES = [
     '../src/pages/user/LoginPage.jsx',
     '../src/pages/user/RegisterPage.jsx',
     '../src/utils/helpers/doctorNameHelper.js',
+    '../src/utils/helpers/cashierInvoiceHelpers.js',
+    '../src/hooks/useCashierPageLogic.js',
     '../src/utils/doctorHelper.js',
     '../src/utils/helpers/quickBookingHelpers.js',
     '../src/utils/helpers/clientErrorHelper.js',
     '../src/utils/helpers/patientMedicalMapping.js',
     '../src/components/common/ClinicIcon.jsx',
     '../src/components/common/DoctorAvatar.jsx',
+    '../src/components/common/ReceiptModal.jsx',
+    '../src/components/common/VietQrModal.jsx',
     '../src/pages/user/BookingWizardPage.jsx',
     '../src/components/user/triage/TriageStepper.jsx',
     '../src/components/user/triage/MainSymptomStep.jsx',
@@ -192,13 +198,19 @@ test('isClinicalWorkbenchPath classifies clinical routes and handles null/lookal
     assert.equal(isClinicalWorkbenchPath(null), false)
 })
 
-test('PATIENT_ANTD_THEME and CLINICAL_ANTD_THEME share locked tokens with 8px vs 6px density', () => {
+test('PATIENT_ANTD_THEME and CLINICAL_ANTD_THEME enforce dual-personality fonts, warm/crisp surfaces and 8px vs 6px density', () => {
     assert.equal(PATIENT_ANTD_THEME.token.colorPrimary, '#0077AA')
     assert.equal(CLINICAL_ANTD_THEME.token.colorPrimary, '#0077AA')
     assert.equal(PATIENT_ANTD_THEME.token.colorTextHeading, '#003553')
     assert.equal(CLINICAL_ANTD_THEME.token.colorTextHeading, '#003553')
     assert.equal(PATIENT_ANTD_THEME.token.colorText, '#0F172A')
     assert.equal(CLINICAL_ANTD_THEME.token.colorText, '#0F172A')
+    assert.equal(PATIENT_ANTD_THEME.token.colorBgLayout, '#FAF9F5')
+    assert.equal(CLINICAL_ANTD_THEME.token.colorBgLayout, '#F8FAFC')
+    assert.equal(PATIENT_ANTD_THEME.token.colorBorder, '#E7E5E0')
+    assert.equal(CLINICAL_ANTD_THEME.token.colorBorder, '#E2E8F0')
+    assert.ok(PATIENT_ANTD_THEME.token.fontFamily.includes('Be Vietnam Pro'))
+    assert.ok(CLINICAL_ANTD_THEME.token.fontFamily.includes('Inter'))
     assert.equal(PATIENT_ANTD_THEME.token.borderRadius, 8)
     assert.equal(CLINICAL_ANTD_THEME.token.borderRadius, 6)
     assert.equal(PATIENT_ANTD_THEME.components.Button.borderRadius, 8)
@@ -207,6 +219,49 @@ test('PATIENT_ANTD_THEME and CLINICAL_ANTD_THEME share locked tokens with 8px vs
     assert.equal(CLINICAL_ANTD_THEME.components.Table.cellPaddingBlock, 8)
     assert.equal(PATIENT_ANTD_THEME.components.Button.primaryShadow, 'none')
     assert.equal(CLINICAL_ANTD_THEME.components.Button.primaryShadow, 'none')
+})
+
+test('getAvatarInitials and resolveInvoicePayableAmount protect avatar badges and unpaid invoice totals', async () => {
+    assert.equal(getAvatarInitials('Lễ tân [DEMO]', 'LT'), 'LT')
+    assert.equal(getAvatarInitials('Bệnh nhân mẫu 01 [DEMO]', 'BN'), 'NM')
+    assert.equal(getAvatarInitials('BS.CKI Nguyễn Văn An', 'BS'), 'VA')
+    assert.equal(getAvatarInitials('Đặng Minh Khôi', 'BN'), 'MK')
+    assert.equal(getAvatarInitials('', 'NV'), 'NV')
+
+    assert.equal(
+        resolveInvoicePayableAmount({
+            trang_thai: 'chua_thu',
+            thuc_thu: 0,
+            tong_tien: 180000,
+            so_tien_phai_thu: 180000,
+        }),
+        180000
+    )
+    assert.equal(
+        resolveInvoicePayableAmount({
+            daThu: false,
+            thuc_thu: 0,
+            items: [{ soTien: 180000 }],
+        }),
+        180000
+    )
+    assert.equal(
+        resolveInvoicePayableAmount({
+            trang_thai: 'da_thu',
+            thuc_thu: 150000,
+            tong_tien: 180000,
+            mien_giam: 30000,
+        }),
+        150000
+    )
+
+    const srcRoot = fileURLToPath(new URL('../src', import.meta.url))
+    const jsxFiles = await collectJsxFiles(srcRoot)
+    for (const filePath of jsxFiles) {
+        const rel = path.relative(srcRoot, filePath)
+        const content = await readFile(filePath, 'utf8')
+        assert.ok(!content.includes('@ant-design/icons'), `${rel} must use unified Phosphor ClinicIcon instead of @ant-design/icons`)
+    }
 })
 
 test('PR 1 files contain zero comments and zero banned Design Lock patterns', async () => {

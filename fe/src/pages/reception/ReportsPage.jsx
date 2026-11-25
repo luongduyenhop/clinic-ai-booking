@@ -8,7 +8,7 @@ import {
     ClockCircleOutlined,
     FieldTimeOutlined,
     UserOutlined,
-} from '@ant-design/icons'
+} from '../../components/common/ClinicIcon'
 import dayjs from 'dayjs'
 import {
     fetchReportSummaryAsync,

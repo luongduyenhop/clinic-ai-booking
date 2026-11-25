@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { AppToast } from '../common/AppNotification'
 import { ClinicIcon } from '../common/ClinicIcon'
+import { stripDemoTag } from '../../utils/helpers/doctorNameHelper'
 import DoctorEditProfileModal from './DoctorEditProfileModal'
 import DoctorCertificateModal from './DoctorCertificateModal'
 
@@ -18,7 +19,7 @@ export default function DoctorHeaderProfile() {
     const menuRef = useRef(null)
 
     const [doctorInfo, setDoctorInfo] = useState({
-        name: user?.fullName || 'Bác sĩ',
+        name: stripDemoTag(user?.fullName || 'Bác sĩ'),
         specialty: user?.specialty || 'Khoa Khám Bệnh',
         code: user?.doctorCode || 'DOC',
         room: user?.room || 'Bàn khám',
@@ -34,7 +35,7 @@ export default function DoctorHeaderProfile() {
         if (user) {
             setDoctorInfo((prev) => ({
                 ...prev,
-                name: user.fullName || prev.name,
+                name: stripDemoTag(user.fullName || prev.name),
                 email: user.email || prev.email,
                 specialty: user.specialty || prev.specialty,
                 code: user.doctorCode || prev.code,

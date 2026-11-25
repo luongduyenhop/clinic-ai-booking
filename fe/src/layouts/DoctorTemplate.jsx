@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import DoctorHeaderProfile from '../components/doctor/DoctorHeaderProfile'
@@ -8,7 +8,6 @@ import {
     CaretLeft,
     CaretRight,
     ClipboardText,
-    Clock,
     Microscope,
     Stethoscope,
 } from '../components/common/ClinicIcon'
@@ -18,12 +17,6 @@ export default function DoctorTemplate() {
     const { user } = useSelector((state) => state.app.auth)
     const { queue = [] } = useSelector((state) => state.doctor?.clinical || {})
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const [currentTime, setCurrentTime] = useState(() => new Date())
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-        return () => clearInterval(timer)
-    }, [])
 
     const searchParams = new URLSearchParams(location.search)
     const activeTabParam = (searchParams.get('tab') || '').toLowerCase()
@@ -48,15 +41,6 @@ export default function DoctorTemplate() {
             return !enc?.is_locked
         }).length
     }, [queue])
-
-    const formattedTime = new Intl.DateTimeFormat('vi-VN', {
-        weekday: 'short',
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    }).format(currentTime)
 
     const menuSections = [
         {
@@ -129,9 +113,8 @@ export default function DoctorTemplate() {
                     {menuSections.map((section) => (
                         <div key={section.id} className="space-y-1">
                             {!isCollapsed && section.title && (
-                                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-clinic-on-navy-subtle flex items-center gap-1.5">
-                                    <span className="w-1 h-1 rounded-full bg-clinic-cyan" />
-                                    <span className="truncate">{section.title}</span>
+                                <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-clinic-on-navy-subtle truncate">
+                                    {section.title}
                                 </div>
                             )}
                             {isCollapsed && section.title && (
@@ -203,24 +186,16 @@ export default function DoctorTemplate() {
             </aside>
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="h-14 bg-clinic-surface border-b border-clinic-border px-3.5 lg:px-5 flex items-center justify-between gap-4 shrink-0 sticky top-0 z-30 select-none">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
-                        <h1 className="text-sm lg:text-base font-extrabold text-clinic-navy tracking-tight truncate font-display">
-                            {pageTitle}
-                        </h1>
-                    </div>
+                <header className="h-[52px] bg-clinic-surface border-b border-clinic-border px-4 flex items-center justify-between gap-4 shrink-0 sticky top-0 z-30 select-none">
+                    <h1 className="text-sm font-semibold text-clinic-navy tracking-tight truncate">
+                        {pageTitle}
+                    </h1>
 
                     <div className="flex items-center gap-2.5 shrink-0">
-                        <span className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-surface-alt border border-clinic-info-border text-clinic-navy text-[11.5px] font-bold whitespace-nowrap shrink-0">
+                        <span className="hidden xl:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[6px] bg-clinic-bg-muted border border-clinic-border text-clinic-text-secondary text-xs font-medium whitespace-nowrap shrink-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-clinic-success shrink-0" />
-                            {roomDisplay}
+                            <span>{roomDisplay}</span>
                         </span>
-
-                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-clinic-bg border border-clinic-border text-clinic-text-secondary text-[11.5px] font-semibold shrink-0 whitespace-nowrap tabular-nums">
-                            <Clock size={13} weight="bold" className="text-clinic-cta" />
-                            <span>{formattedTime}</span>
-                        </div>
 
                         <DoctorHeaderProfile />
                     </div>

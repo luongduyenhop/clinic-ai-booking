@@ -90,12 +90,33 @@ import {
     Globe,
     Translate,
     Cloud,
+    CloudArrowUp,
     Gear,
     Question,
     Storefront,
     Tag,
     Tooth,
     Ear,
+    SpeakerHigh,
+    BookmarkSimple,
+    Calendar,
+    CalendarX,
+    Certificate,
+    GraduationCap,
+    PaperPlaneTilt,
+    Pen,
+    Phone,
+    PushPin,
+    UserCircle,
+    ArrowsLeftRight,
+    ArrowCounterClockwise,
+    DotsThreeVertical,
+    ListBullets,
+    SquaresFour,
+    PlayCircle,
+    UserMinus,
+    Table,
+    TreeStructure,
 } from '@phosphor-icons/react'
 
 const ICON_MAP = {
@@ -116,9 +137,31 @@ const ICON_MAP = {
     Globe,
     Translate,
     Cloud,
+    CloudArrowUp,
     Gear,
     Tooth,
     Ear,
+    SpeakerHigh,
+    BookmarkSimple,
+    Calendar,
+    CalendarX,
+    Certificate,
+    GraduationCap,
+    PaperPlaneTilt,
+    Pen,
+    Phone,
+    PushPin,
+    UserCircle,
+    ArrowsLeftRight,
+    ArrowCounterClockwise,
+    DotsThreeVertical,
+    ListBullets,
+    SquaresFour,
+    PlayCircle,
+    UserMinus,
+    Table,
+    TreeStructure,
+    CaretLeft,
     Question,
     Storefront,
     Bicycle,
@@ -523,9 +566,86 @@ export {
     Tag,
     Question,
     Cloud,
+    CloudArrowUp,
     Tooth,
     Ear,
+    SpeakerHigh,
+    BookmarkSimple,
+    Calendar,
+    CalendarX,
+    Certificate,
+    GraduationCap,
+    PaperPlaneTilt,
+    Pen,
+    Phone,
+    PushPin,
+    UserCircle,
+    ArrowsLeftRight,
+    ArrowCounterClockwise,
+    DotsThreeVertical,
+    ListBullets,
+    SquaresFour,
+    PlayCircle,
+    UserMinus,
+    Table,
+    TreeStructure,
 }
+
+function createInlineIcon(IconComp, defaultWeight = 'regular') {
+    return function InlinePhosphorIcon({ size = 15, weight = defaultWeight, spin = false, className = '', style }) {
+        return (
+            <IconComp
+                size={size}
+                weight={weight}
+                style={style}
+                className={`inline-block align-[-0.125em] shrink-0 ${spin ? 'animate-spin' : ''} ${className}`.trim()}
+                aria-hidden="true"
+            />
+        )
+    }
+}
+
+export const AlertOutlined = createInlineIcon(Warning)
+export const ApartmentOutlined = createInlineIcon(TreeStructure)
+export const AppstoreOutlined = createInlineIcon(SquaresFour)
+export const CalendarOutlined = createInlineIcon(CalendarCheck)
+export const CheckCircleOutlined = createInlineIcon(CheckCircle)
+export const CheckOutlined = createInlineIcon(Check, 'bold')
+export const ClearOutlined = createInlineIcon(Broom)
+export const ClockCircleOutlined = createInlineIcon(Clock)
+export const CloseCircleOutlined = createInlineIcon(XCircle)
+export const DollarCircleOutlined = createInlineIcon(CurrencyCircleDollar)
+export const DollarOutlined = createInlineIcon(CurrencyCircleDollar)
+export const EditOutlined = createInlineIcon(PencilSimple)
+export const EnvironmentOutlined = createInlineIcon(MapPin)
+export const ExclamationCircleOutlined = createInlineIcon(WarningCircle)
+export const EyeOutlined = createInlineIcon(Eye)
+export const FieldTimeOutlined = createInlineIcon(Clock)
+export const HistoryOutlined = createInlineIcon(ClockCounterClockwise)
+export const LeftOutlined = createInlineIcon(CaretLeft, 'bold')
+export const LockOutlined = createInlineIcon(LockKey)
+export const MedicineBoxOutlined = createInlineIcon(FirstAidKit)
+export const MoreOutlined = createInlineIcon(DotsThreeVertical, 'bold')
+export const PhoneOutlined = createInlineIcon(PhoneCall)
+export const PlayCircleOutlined = createInlineIcon(PlayCircle)
+export const PlusOutlined = createInlineIcon(Plus, 'bold')
+export const PrinterOutlined = createInlineIcon(Printer)
+export const QrcodeOutlined = createInlineIcon(QrCode)
+export const ReloadOutlined = createInlineIcon(ArrowsClockwise)
+export const RightOutlined = createInlineIcon(CaretRight, 'bold')
+export const RollbackOutlined = createInlineIcon(ArrowCounterClockwise)
+export const SearchOutlined = createInlineIcon(MagnifyingGlass)
+export const SlidersOutlined = createInlineIcon(SlidersHorizontal)
+export const SoundOutlined = createInlineIcon(SpeakerHigh)
+export const SwapOutlined = createInlineIcon(ArrowsLeftRight)
+export const SyncOutlined = createInlineIcon(ArrowsClockwise)
+export const TableOutlined = createInlineIcon(Table)
+export const ThunderboltOutlined = createInlineIcon(Lightning)
+export const UnorderedListOutlined = createInlineIcon(ListBullets)
+export const UserAddOutlined = createInlineIcon(UserPlus)
+export const UserDeleteOutlined = createInlineIcon(UserMinus)
+export const UserOutlined = createInlineIcon(User)
+export const WarningOutlined = createInlineIcon(Warning)
 
 export default ClinicIcon
 

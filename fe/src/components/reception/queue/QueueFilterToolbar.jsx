@@ -1,6 +1,6 @@
 import React from 'react'
 import { DatePicker, Segmented, Input } from 'antd'
-import { SearchOutlined } from '@ant-design/icons'
+import { SearchOutlined } from '../../common/ClinicIcon'
 import dayjs from 'dayjs'
 
 export default function QueueFilterToolbar({
@@ -14,84 +14,35 @@ export default function QueueFilterToolbar({
     searchQuery,
     onSearchChange,
 }) {
+    const statusTabs = [
+        { key: 'ALL', label: `Tất cả (${tabCounts.ALL})` },
+        { key: 'WAITING', label: `Đang chờ (${tabCounts.WAITING})` },
+        { key: 'IN_CONSULTATION', label: `Đang khám (${tabCounts.IN_CONSULTATION})` },
+        { key: 'DEFERRED', label: `Tạm hoãn (${tabCounts.DEFERRED})` },
+        { key: 'COMPLETED', label: `Hoàn tất (${tabCounts.COMPLETED})` },
+        { key: 'WAITLIST', label: `Danh sách chờ (${tabCounts.WAITLIST})` },
+    ]
+
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-border pb-2.5">
-            <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
-                <button
-                    type="button"
-                    onClick={() => onTabChange('ALL')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
-                        activeTab === 'ALL'
-                            ? 'bg-clinic-navy text-clinic-surface'
-                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
-                    }`}
-                >
-                    Tất cả ({tabCounts.ALL})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('WAITING')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
-                        activeTab === 'WAITING'
-                            ? 'bg-clinic-navy text-clinic-surface'
-                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
-                    }`}
-                >
-                    Đang chờ ({tabCounts.WAITING})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('IN_CONSULTATION')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
-                        activeTab === 'IN_CONSULTATION'
-                            ? 'bg-clinic-navy text-clinic-surface'
-                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
-                    }`}
-                >
-                    Đang khám ({tabCounts.IN_CONSULTATION})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('DEFERRED')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
-                        activeTab === 'DEFERRED'
-                            ? 'bg-clinic-navy text-clinic-surface'
-                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
-                    }`}
-                >
-                    Tạm hoãn ({tabCounts.DEFERRED})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('COMPLETED')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer ${
-                        activeTab === 'COMPLETED'
-                            ? 'bg-clinic-navy text-clinic-surface'
-                            : 'text-clinic-text-secondary hover:bg-clinic-bg-muted'
-                    }`}
-                >
-                    Hoàn tất ({tabCounts.COMPLETED})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('WAITLIST')}
-                    className={`px-3 py-1.5 rounded-[6px] text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                        activeTab === 'WAITLIST'
-                            ? 'bg-clinic-amber text-clinic-navy'
-                            : 'text-clinic-warning hover:bg-clinic-warning-bg'
-                    }`}
-                >
-                    <span>Danh sách chờ (Waitlist)</span>
-                    <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-[4px] font-mono ${
-                            activeTab === 'WAITLIST'
-                                ? 'bg-clinic-navy text-clinic-surface'
-                                : 'bg-clinic-warning-bg text-clinic-warning border border-clinic-warning-border'
-                        }`}
-                    >
-                        {tabCounts.WAITLIST}
-                    </span>
-                </button>
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-clinic-border pb-2.5">
+            <div className="flex flex-wrap items-center gap-1 tabular-nums">
+                {statusTabs.map((tab) => {
+                    const isActive = activeTab === tab.key
+                    return (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => onTabChange(tab.key)}
+                            className={`h-8 px-3 rounded-[6px] text-xs font-semibold transition-colors cursor-pointer inline-flex items-center ${
+                                isActive
+                                    ? 'bg-clinic-navy text-clinic-surface'
+                                    : 'text-clinic-text-secondary hover:bg-clinic-bg-muted hover:text-clinic-navy'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    )
+                })}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -109,19 +60,19 @@ export default function QueueFilterToolbar({
                     value={selectedShift}
                     onChange={onShiftChange}
                     options={[
-                        { label: 'Tất cả ca', value: 'all' },
+                        { label: 'Mọi ca', value: 'all' },
                         { label: 'Ca sáng', value: 'sang' },
                         { label: 'Ca chiều', value: 'chieu' },
                     ]}
-                    className="text-xs bg-clinic-bg-muted p-0.5 rounded-[6px] font-medium"
+                    className="text-xs bg-clinic-bg-muted rounded-[6px] font-medium"
                 />
                 <Input
-                    placeholder="Số vé (A101, TMH-01), tên BN, SĐT..."
+                    placeholder="Tìm số vé, tên BN, SĐT..."
                     prefix={<SearchOutlined className="text-clinic-text-muted" />}
                     value={searchQuery}
                     onChange={(event) => onSearchChange(event.target.value)}
                     allowClear
-                    className="w-64 text-xs rounded-[6px]"
+                    className="w-56 text-xs rounded-[6px]"
                 />
             </div>
         </div>

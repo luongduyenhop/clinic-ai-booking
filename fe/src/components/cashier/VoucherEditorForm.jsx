@@ -1,11 +1,13 @@
 import { QrCode } from '@phosphor-icons/react'
 import {
     Plus,
+    Check,
     FloppyDisk,
     Printer,
     Trash,
     EmptyState,
 } from '../common/ClinicIcon'
+import { resolveInvoicePayableAmount } from '../../utils/helpers/cashierInvoiceHelpers'
 
 export default function VoucherEditorForm({
     form,
@@ -28,109 +30,95 @@ export default function VoucherEditorForm({
     onOpenReceiptModal,
     onResetForm,
 }) {
+    const computedTotal = resolveInvoicePayableAmount(form)
+
     return (
-        <div className="lg:col-span-8 medpro-card p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-clinic-border">
-                <div>
-                    <h2 className="font-display text-base font-extrabold text-clinic-navy">
-                        Quản lý Thu viện phí &amp; Biên lai phòng khám
-                    </h2>
-                    <p className="text-xs text-clinic-text-secondary">
-                        Lập phiếu thu viện phí tự động từ chỉ định dịch vụ và in biên lai thu tiền
-                    </p>
+        <div className="lg:col-span-7 xl:col-span-8 medpro-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-clinic-border">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-clinic-navy">
+                            Chi tiết phiếu thu viện phí
+                        </h2>
+                        <span className={form.daThu ? 'medpro-badge-success' : 'medpro-badge-warning'}>
+                            {form.daThu ? 'Đã thu tiền' : 'Chờ thanh toán'}
+                        </span>
+                    </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                     <button
                         type="button"
                         onClick={onResetForm}
-                        className="medpro-btn-outline rounded-[6px] !px-2.5 !py-1.5 text-xs"
+                        className="medpro-btn-outline h-8 !px-3 text-xs"
                     >
-                        <Plus size={14} weight="bold" className="text-clinic-cta" />
-                        <span>Lập phiếu thu mới</span>
+                        <Plus size={13} weight="bold" />
+                        <span>Phiếu mới</span>
                     </button>
                     <button
                         type="button"
-                        onClick={onSaveVoucher}
-                        className="medpro-btn-primary rounded-[6px] !px-2.5 !py-1.5 text-xs"
-                    >
-                        <FloppyDisk size={15} weight="bold" />
-                        <span>Lưu phiếu</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onOpenQr(form)}
-                        className="medpro-btn-outline rounded-[6px] !px-2.5 !py-1.5 text-xs font-bold border-clinic-cta text-clinic-cta hover:bg-clinic-surface-alt flex items-center gap-1.5 cursor-pointer"
+                        onClick={() => onOpenQr({ ...form, tongTien: computedTotal })}
+                        className="medpro-btn-outline h-8 !px-3 text-xs"
                         title="Tạo mã QR thanh toán viện phí (SePay / VietQR)"
                     >
-                        <QrCode size={15} weight="bold" />
-                        <span>Mã QR SePay / VietQR</span>
+                        <QrCode size={14} weight="bold" />
+                        <span>Mã QR</span>
                     </button>
                     <button
                         type="button"
                         onClick={onOpenReceiptModal}
-                        className="medpro-btn-amber rounded-[6px] !px-2.5 !py-1.5 text-xs font-bold"
+                        className="medpro-btn-outline h-8 !px-3 text-xs"
                     >
-                        <Printer size={15} weight="bold" />
-                        <span>In biên lai thu tiền</span>
+                        <Printer size={14} />
+                        <span>In biên lai</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSaveVoucher}
+                        className="medpro-btn-primary h-8 !px-3.5 text-xs tabular-nums"
+                    >
+                        {form.daThu ? <FloppyDisk size={14} weight="bold" /> : <Check size={14} weight="bold" />}
+                        <span>
+                            {form.daThu
+                                ? 'Lưu cập nhật'
+                                : computedTotal > 0
+                                  ? `Xác nhận thu ${computedTotal.toLocaleString('vi-VN')} đ`
+                                  : 'Lưu phiếu thu'}
+                        </span>
                     </button>
                     {form.id && (
                         <button
                             type="button"
                             onClick={onDeleteVoucher}
-                            className="medpro-btn-danger rounded-[6px] !px-2.5 !py-1.5 text-xs"
+                            title="Xóa phiếu thu"
+                            aria-label="Xóa phiếu thu"
+                            className="h-8 w-8 rounded-[6px] border border-transparent hover:border-clinic-danger-border hover:bg-clinic-danger-bg text-clinic-text-muted hover:text-clinic-danger flex items-center justify-center transition-colors cursor-pointer"
                         >
-                            <Trash size={14} weight="bold" />
-                            <span>Xóa</span>
+                            <Trash size={14} />
                         </button>
                     )}
                 </div>
             </div>
 
             {form.isCombined && (
-                <div className="p-3 bg-clinic-surface-alt border border-clinic-info-border rounded-[6px] flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-clinic-navy font-semibold tabular-nums">
-                        <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
-                        <span>
-                            Đang thu gộp toàn bộ {form.items?.length || 0} dịch vụ của BN {form.hoTenBN}. Bấm &quot;Lưu phiếu&quot; hoặc &quot;Mã VietQR&quot; để thanh toán tất cả cùng lúc.
-                        </span>
-                    </div>
-                    <div className="font-extrabold tabular-nums text-clinic-navy text-sm bg-clinic-surface px-2.5 py-1 rounded-[6px] border border-clinic-border">
-                        Tổng thu gộp: {Number(form.tongTien || 0).toLocaleString('vi-VN')} đ
-                    </div>
+                <div className="px-3.5 py-2.5 bg-clinic-surface-tint border border-clinic-info-border rounded-[6px] flex flex-wrap items-center justify-between gap-2 text-xs tabular-nums">
+                    <span className="text-clinic-navy font-medium">
+                        Đang gộp {form.items?.length || 0} khoản dịch vụ của bệnh nhân <strong>{form.hoTenBN}</strong>
+                    </span>
+                    <span className="font-semibold text-clinic-navy">
+                        Tổng gộp: {computedTotal.toLocaleString('vi-VN')} đ
+                    </span>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
-                <div className="lg:col-span-3">
-                    <label className="medpro-label mb-1">Loại chứng từ</label>
-                    <div className="h-9 flex items-center px-2.5 rounded-[6px] border border-clinic-info-border bg-clinic-surface-alt text-clinic-navy font-bold text-xs select-none whitespace-nowrap">
-                        Phiếu thu viện phí
-                    </div>
-                </div>
-                <div className="lg:col-span-3">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                        <label className="medpro-label !mb-0 whitespace-nowrap">Mã phiếu thu</label>
-                        <span className="text-[10px] font-semibold text-clinic-cta whitespace-nowrap">
-                            Tự sinh
-                        </span>
-                    </div>
-                    <input
-                        type="text"
-                        value={form.maPhieu || ''}
-                        readOnly
-                        disabled
-                        className="medpro-input !py-0 !px-2.5 h-9 text-xs font-mono font-bold bg-clinic-bg text-clinic-text-secondary cursor-not-allowed select-none tabular-nums"
-                        title="Mã phiếu thu do hệ thống tự sinh, không thể chỉnh sửa"
-                    />
-                </div>
-                <div className="lg:col-span-3">
-                    <label className="medpro-label mb-1">Hồ sơ bệnh nhân</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
+                <div className="xl:col-span-4">
+                    <label className="medpro-label">Hồ sơ bệnh nhân</label>
                     <select
                         value={form.maBN || ''}
                         onChange={(e) => onSelectPatientAutoFill(e.target.value)}
-                        className="medpro-input !py-1.5 !px-2.5 h-9 text-xs font-semibold truncate"
+                        className="medpro-input !py-0 !px-2.5 h-8 text-xs font-medium"
                     >
-                        <option value="">-- Chọn BN hoặc nhập tay --</option>
+                        <option value="">Chọn hồ sơ hoặc nhập trực tiếp</option>
                         {patients.map((patient) => (
                             <option key={patient.id} value={patient.maBN}>
                                 {patient.maBN} — {patient.hoTen}
@@ -138,51 +126,48 @@ export default function VoucherEditorForm({
                         ))}
                     </select>
                 </div>
-                <div className="lg:col-span-3">
-                    <label className="medpro-label mb-1">Họ tên người nộp</label>
+                <div className="xl:col-span-4">
+                    <label className="medpro-label">Người nộp tiền</label>
                     <input
                         type="text"
                         value={form.hoTenBN || ''}
                         onChange={(e) => setForm({ ...form, hoTenBN: e.target.value })}
-                        className="medpro-input !py-0 !px-2.5 h-9 text-xs font-semibold"
+                        className="medpro-input !py-0 !px-2.5 h-8 text-xs font-medium"
+                    />
+                </div>
+                <div className="xl:col-span-4">
+                    <label className="medpro-label">Mã chứng từ</label>
+                    <input
+                        type="text"
+                        value={form.maPhieu || ''}
+                        readOnly
+                        disabled
+                        className="medpro-input !py-0 !px-2.5 h-8 text-xs font-medium tabular-nums"
                     />
                 </div>
 
-                <div className="sm:col-span-2 lg:col-span-6">
-                    <label className="medpro-label mb-1">Diễn giải nội dung *</label>
+                <div className="sm:col-span-2 xl:col-span-5">
+                    <label className="medpro-label">Nội dung chứng từ</label>
                     <input
                         type="text"
                         value={form.tenPhieu || ''}
                         onChange={(e) => setForm({ ...form, tenPhieu: e.target.value })}
-                        placeholder="VD: Khám chuyên khoa và dịch vụ cận lâm sàng..."
-                        className="medpro-input !py-0 h-9 text-xs font-semibold"
+                        placeholder="Khám chuyên khoa và cận lâm sàng..."
+                        className="medpro-input !py-0 !px-2.5 h-8 text-xs"
                     />
                 </div>
-                <div className="lg:col-span-3">
-                    <div className="flex items-center justify-between mb-1">
-                        <label className="medpro-label !mb-0">Hình thức thanh toán</label>
-                        {(form.hinhThuc === 'Chuyển khoản' ||
-                            form.hinhThuc === 'Chuyển khoản QR (SePay / VietQR)') && (
-                            <button
-                                type="button"
-                                onClick={() => onOpenQr(form)}
-                                className="text-xs font-bold text-clinic-cta hover:text-clinic-navy flex items-center gap-1 cursor-pointer"
-                            >
-                                <QrCode size={14} weight="bold" />
-                                <span>Mở mã QR</span>
-                            </button>
-                        )}
-                    </div>
+                <div className="xl:col-span-4">
+                    <label className="medpro-label">Phương thức thanh toán</label>
                     <select
                         value={form.hinhThuc || paymentMethods[0]?.value}
                         onChange={(e) => {
                             const val = e.target.value
                             setForm({ ...form, hinhThuc: val })
                             if (val === 'Chuyển khoản') {
-                                onOpenQr({ ...form, hinhThuc: val })
+                                onOpenQr({ ...form, hinhThuc: val, tongTien: computedTotal })
                             }
                         }}
-                        className="medpro-input !py-1.5 !px-2.5 h-9 text-xs font-semibold truncate"
+                        className="medpro-input !py-0 !px-2.5 h-8 text-xs font-medium"
                     >
                         {paymentMethods.map((method) => (
                             <option key={method.value} value={method.value}>
@@ -191,9 +176,12 @@ export default function VoucherEditorForm({
                         ))}
                     </select>
                 </div>
-                <div className="lg:col-span-3">
-                    <label className="medpro-label mb-1">Trạng thái thanh toán</label>
-                    <div className="h-9 flex items-center gap-2 px-3 rounded-[6px] border border-clinic-border-strong bg-clinic-bg">
+                <div className="xl:col-span-3">
+                    <label className="medpro-label">Ghi nhận thu tiền</label>
+                    <label
+                        htmlFor="chk-dathu"
+                        className="h-8 flex items-center gap-2 px-2.5 rounded-[6px] border border-clinic-border-strong bg-clinic-surface cursor-pointer select-none"
+                    >
                         <input
                             id="chk-dathu"
                             type="checkbox"
@@ -201,24 +189,23 @@ export default function VoucherEditorForm({
                             onChange={(e) => setForm({ ...form, daThu: e.target.checked })}
                             className="w-4 h-4 accent-clinic-cta"
                         />
-                        <label
-                            htmlFor="chk-dathu"
-                            className="text-xs font-bold text-clinic-navy cursor-pointer whitespace-nowrap truncate"
-                        >
-                            {form.daThu ? 'Đã thu tiền' : 'Chưa thu tiền'}
-                        </label>
-                    </div>
+                        <span className="text-xs font-medium text-clinic-navy truncate">
+                            {form.daThu ? 'Đã thu đủ' : 'Chưa thu'}
+                        </span>
+                    </label>
                 </div>
             </div>
 
-            <div>
-                <div className="medpro-section-title">
-                    <span>CHI TIẾT CÁC KHOẢN VIỆN PHÍ TRONG PHIẾU ({form.items?.length || 0} KHOẢN)</span>
+            <div className="pt-2 border-t border-clinic-border space-y-3">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold text-clinic-navy tabular-nums">
+                        Khoản thu chi tiết ({form.items?.length || 0})
+                    </h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end mb-3 p-3 rounded-[6px] bg-clinic-bg border border-clinic-border">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                     <div className="sm:col-span-5">
-                        <label className="medpro-label mb-1">Chọn hoặc nhập tên khoản thu</label>
+                        <label className="medpro-label">Tên dịch vụ / khoản thu</label>
                         <input
                             type="text"
                             list="khoan-muc-datalist"
@@ -228,7 +215,7 @@ export default function VoucherEditorForm({
                                 const matched = khoanThuCatalog.find((k) => k.ten === e.target.value)
                                 if (matched) setNewItemAmount(matched.donGiaMacDinh)
                             }}
-                            className="medpro-input !py-0 h-9 text-xs"
+                            className="medpro-input !py-0 h-8 text-xs"
                         />
                         <datalist id="khoan-muc-datalist">
                             {khoanThuCatalog.map((k) => (
@@ -237,31 +224,32 @@ export default function VoucherEditorForm({
                         </datalist>
                     </div>
                     <div className="sm:col-span-3">
-                        <label className="medpro-label mb-1">Số tiền (VNĐ)</label>
+                        <label className="medpro-label">Đơn giá (VNĐ)</label>
                         <input
                             type="number"
                             value={newItemAmount}
                             onChange={(e) => setNewItemAmount(e.target.value)}
-                            className="medpro-input !py-0 h-9 text-xs tabular-nums font-bold"
+                            className="medpro-input !py-0 h-8 text-xs tabular-nums font-medium"
                         />
                     </div>
                     <div className="sm:col-span-2">
-                        <label className="medpro-label mb-1">Ghi chú</label>
+                        <label className="medpro-label">Ghi chú</label>
                         <input
                             type="text"
                             value={newItemNote}
                             onChange={(e) => setNewItemNote(e.target.value)}
-                            className="medpro-input !py-0 h-9 text-xs"
+                            placeholder="Tùy chọn"
+                            className="medpro-input !py-0 h-8 text-xs"
                         />
                     </div>
                     <div className="sm:col-span-2">
                         <button
                             type="button"
                             onClick={onAddLineItem}
-                            className="medpro-btn-primary h-9 w-full rounded-[6px] text-xs whitespace-nowrap"
+                            className="medpro-btn-outline h-8 w-full text-xs"
                         >
-                            <Plus size={14} weight="bold" />
-                            <span>Thêm khoản</span>
+                            <Plus size={13} weight="bold" />
+                            <span>Thêm dòng</span>
                         </button>
                     </div>
                 </div>
@@ -270,29 +258,29 @@ export default function VoucherEditorForm({
                     <table className="medpro-table">
                         <thead>
                             <tr>
-                                <th>STT</th>
+                                <th className="w-12">STT</th>
                                 <th>Nội dung khoản thu</th>
-                                <th>Số tiền (VNĐ)</th>
-                                <th>Ghi chú</th>
-                                <th>Xóa</th>
+                                <th className="text-right">Thành tiền</th>
+                                <th>Phân nhóm</th>
+                                <th className="w-16 text-right">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="tabular-nums">
                             {(form.items || []).map((lineItem, idx) => (
                                 <tr key={lineItem.id}>
-                                    <td className="font-bold">{idx + 1}</td>
-                                    <td className="font-semibold text-clinic-navy">{lineItem.tenKhoan}</td>
-                                    <td className="font-bold text-clinic-navy">
+                                    <td className="text-clinic-text-muted">{idx + 1}</td>
+                                    <td className="font-medium text-clinic-navy">{lineItem.tenKhoan}</td>
+                                    <td className="text-right font-semibold text-clinic-navy whitespace-nowrap">
                                         {Number(lineItem.soTien).toLocaleString('vi-VN')} đ
                                     </td>
-                                    <td>{lineItem.ghiChu}</td>
-                                    <td>
+                                    <td className="text-clinic-text-secondary">{lineItem.ghiChu || '—'}</td>
+                                    <td className="text-right">
                                         <button
                                             type="button"
                                             onClick={() => onRemoveLineItem(lineItem.id)}
-                                            className="inline-flex items-center gap-1 text-clinic-danger text-xs font-bold hover:underline cursor-pointer"
+                                            className="inline-flex items-center gap-1 text-clinic-text-muted hover:text-clinic-danger text-xs font-medium cursor-pointer transition-colors"
                                         >
-                                            <Trash size={13} weight="bold" />
+                                            <Trash size={13} />
                                             <span>Xóa</span>
                                         </button>
                                     </td>
@@ -304,7 +292,7 @@ export default function VoucherEditorForm({
                                         <EmptyState
                                             icon="Receipt"
                                             title="Chưa có khoản thu nào"
-                                            description="Chọn bệnh nhân để tự động lấy dịch vụ hoặc thêm khoản thu ở trên."
+                                            description="Chọn ca khám bên trái để nạp dịch vụ hoặc thêm khoản thu thủ công."
                                         />
                                     </td>
                                 </tr>
@@ -313,12 +301,12 @@ export default function VoucherEditorForm({
                     </table>
                 </div>
 
-                <div className="mt-3 p-3.5 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-between tabular-nums">
-                    <span className="font-bold text-xs">
-                        TỔNG THANH TOÁN:
+                <div className="px-4 py-3 rounded-[6px] bg-clinic-bg-muted/80 border border-clinic-border flex items-center justify-between tabular-nums">
+                    <span className="text-xs font-medium text-clinic-text-secondary">
+                        {form.daThu ? 'Tổng tiền đã thu' : 'Tổng tiền cần thanh toán'}
                     </span>
-                    <span className="font-display text-xl font-extrabold text-clinic-amber">
-                        {Number(form.tongTien || 0).toLocaleString('vi-VN')} VNĐ
+                    <span className="text-lg font-bold text-clinic-navy">
+                        {computedTotal.toLocaleString('vi-VN')} đ
                     </span>
                 </div>
             </div>

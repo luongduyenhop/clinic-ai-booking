@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Modal, Input, Select, Button, message, Alert } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
-import { AlertOutlined } from '@ant-design/icons'
+import { AlertOutlined } from '../common/ClinicIcon'
 import { emergencyHandoverAsync } from '../../redux/actions/reception/receptionAction'
 import { toFriendlyErrorMessage } from '../../utils/helpers/clientErrorHelper'
 

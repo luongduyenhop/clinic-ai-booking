@@ -5,6 +5,7 @@ import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { resetClinicDemoDataAsync } from '../../redux/actions/admin/adminAction'
 import { AppToast } from '../common/AppNotification'
 import { getAuthSeed } from '../../utils/helpers/clinicConfigHelpers'
+import { getAvatarInitials, stripDemoTag } from '../../utils/helpers/doctorNameHelper'
 import {
     ClinicIcon,
     ArrowsClockwise,
@@ -134,17 +135,17 @@ export default function AdminHeader({ pageTitle = 'Tổng quan' }) {
         }
     }
 
-    const displayName = user?.shortName || user?.fullName || defaultUser.shortName || 'Quản trị viên HIS'
-    const fullName = user?.fullName || defaultUser.fullName || 'Quản trị viên Hệ thống'
+    const displayName = stripDemoTag(user?.shortName || user?.fullName || defaultUser.shortName || 'Quản trị viên HIS')
+    const fullName = stripDemoTag(user?.fullName || defaultUser.fullName || 'Quản trị viên Hệ thống')
+    const adminInitials = getAvatarInitials(fullName, 'QT')
 
     return (
         <header
             ref={headerRef}
-            className="h-14 bg-clinic-surface border-b border-clinic-border px-3 lg:px-4 flex items-center justify-between gap-3 shrink-0 z-30 select-none"
+            className="h-[52px] bg-clinic-surface border-b border-clinic-border px-4 flex items-center justify-between gap-3 shrink-0 z-30 select-none"
         >
             <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-clinic-cta shrink-0" />
-                <h1 className="font-display text-sm font-extrabold text-clinic-navy truncate">
+                <h1 className="text-sm font-semibold text-clinic-navy truncate">
                     {pageTitle}
                 </h1>
             </div>
@@ -323,8 +324,8 @@ export default function AdminHeader({ pageTitle = 'Tổng quan' }) {
                         }}
                         className="flex items-center gap-2 px-1.5 py-1 rounded-[6px] hover:bg-clinic-bg transition-colors cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                        <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center font-bold text-xs shrink-0">
-                            QT
+                        <div className="w-8 h-8 rounded-[6px] bg-clinic-navy text-clinic-surface flex items-center justify-center font-semibold text-xs shrink-0">
+                            {adminInitials}
                         </div>
                         <div className="text-left hidden lg:block leading-tight shrink-0 whitespace-nowrap">
                             <div className="text-xs font-bold text-clinic-navy max-w-[180px] truncate">

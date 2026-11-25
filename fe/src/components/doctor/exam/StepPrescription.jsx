@@ -9,40 +9,7 @@ import { ClinicIcon } from '../../common/ClinicIcon'
 import { DOSE_SLOTS, computeQuantity } from './examHelpers'
 import { AppToast } from '../../common/AppNotification'
 
-if (clinicalService && !clinicalService.signPrescription) {
-    clinicalService.signPrescription = async (encounterId, payload) => {
-        const enc = clinicalService.getEncounterSync(encounterId)
-        const sigData = payload?.chu_ky_so || `SHA256:SIG:${encounterId || 'EXAM'}:${Date.now()}`
-        const signedAt = new Date().toISOString()
-        const signer = payload?.nguoi_ky || enc?.bac_si?.ho_ten || 'BS.CKII Nguyễn Minh Hoàng'
-        const patch = {
-            trang_thai_don_thuoc: 'SIGNED',
-            ngay_ky: signedAt,
-            chu_ky_so: sigData,
-            nguoi_ky: signer,
-            loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
-            danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
-            ...(Array.isArray(payload?.danh_sach_chan_doan) ? { danh_sach_chan_doan: payload.danh_sach_chan_doan } : {}),
-            don_thuoc: {
-                ...(enc?.don_thuoc || {}),
-                trang_thai: 'SIGNED',
-                ngay_ky: signedAt,
-                chu_ky_so: sigData,
-                nguoi_ky: signer,
-                loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || enc?.loi_dan_uong_thuoc || '',
-                danh_sach_thuoc: payload?.danh_sach_thuoc || enc?.danh_sach_thuoc || [],
-            },
-        }
-        await clinicalService.saveEncounterDraft(encounterId, patch)
-        return {
-            status: 'SIGNED',
-            trang_thai: 'SIGNED',
-            ngay_ky: signedAt,
-            chu_ky_so: sigData,
-            nguoi_ky: signer,
-        }
-    }
-}
+const LOCKED_RX_STATES = ['SIGNED', 'ISSUED', 'SUBMISSION_PENDING', 'SUBMITTED', 'ACCEPTED']
 
 const GRID = 'grid grid-cols-[36px_minmax(190px,2fr)_repeat(4,48px)_56px_52px_minmax(180px,2fr)_40px] items-center gap-1.5'
 
@@ -103,23 +70,25 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         if (onOpenRxModal) onOpenRxModal('copy')
     }
 
-    const isSigned =
-        values.trang_thai_don_thuoc === 'SIGNED' ||
-        encounter?.don_thuoc?.trang_thai === 'SIGNED' ||
-        encounter?.trang_thai_don_thuoc === 'SIGNED' ||
-        locked
+    const rxStatus =
+        values.trang_thai_don_thuoc ||
+        encounter?.don_thuoc?.trang_thai ||
+        encounter?.trang_thai_don_thuoc ||
+        'DRAFT'
+    const isSigned = LOCKED_RX_STATES.includes(rxStatus) || locked
     const isReadOnly = Boolean(isSigned || locked)
 
     const [signingLoading, setSigningLoading] = useState(false)
+    const [syncingGateway, setSyncingGateway] = useState(false)
     const [showSignConfirm, setShowSignConfirm] = useState(false)
 
     const [batchDays, setBatchDays] = useState(rows[0]?.so_ngay_dung || '5')
 
-    const [nationalSyncStatus, setNationalSyncStatus] = useState('pending')
-
     const [followUpDays, setFollowUpDays] = useState(7)
 
-    const nationalRxCode = `DTQG-2026-LK${String(encounter?.id || '001').padStart(6, '0')}`
+    const resolvedNationalCode = values.ma_don_quoc_gia || encounter?.don_thuoc?.ma_don_quoc_gia || ''
+    const isGatewaySynced = rxStatus === 'ACCEPTED' || Boolean(resolvedNationalCode)
+    const nationalRxCode = resolvedNationalCode || 'Chưa cấp (Ký số & Đồng bộ Cổng QG)'
 
     const handleSignPrescription = async () => {
         if (rows.length === 0) {
@@ -142,7 +111,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 })
             ).unwrap()
 
-            setFieldValue('trang_thai_don_thuoc', 'SIGNED')
+            setFieldValue('trang_thai_don_thuoc', res?.trang_thai || 'SIGNED')
             setFieldValue('ngay_ky', res?.ngay_ky || new Date().toISOString())
             setFieldValue('chu_ky_so', res?.chu_ky_so || sigData)
             setFieldValue('nguoi_ky', res?.nguoi_ky || encounter?.ten_bac_si || 'Bác sĩ khám bệnh')
@@ -151,7 +120,8 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 'Đã ký số đơn thuốc điện tử thành công! Trạng thái FSM chuyển sang SIGNED và khóa bất biến toàn bộ thuốc.'
             )
         } catch (err) {
-            AppToast.error(err?.message || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
+            const msg = typeof err === 'string' ? err : err?.message
+            AppToast.error(msg || 'Không thể ký số đơn thuốc. Vui lòng thử lại!')
         } finally {
             setSigningLoading(false)
         }
@@ -269,9 +239,25 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
         setFieldValue('ngay_hen_tai_kham', dateStr)
     }
 
-    const handleSyncNationalRx = () => {
-        setNationalSyncStatus('synced')
-        AppToast.success(`Đã đồng bộ thành công đơn thuốc lên Cổng Đơn thuốc Quốc gia! Mã biên nhận: BYT-2026-${Math.floor(Math.random() * 900000 + 100000)}`)
+    const handleSyncNationalRx = async () => {
+        if (!LOCKED_RX_STATES.includes(rxStatus)) {
+            AppToast.warning('Vui lòng thực hiện Ký số đơn thuốc (SIGNED) trước khi đồng bộ lên Cổng Đơn thuốc Quốc gia!')
+            return
+        }
+        setSyncingGateway(true)
+        try {
+            const synced = await clinicalService.syncPrescriptionGateway(encounter?.id)
+            setFieldValue('trang_thai_don_thuoc', synced?.trang_thai || 'ACCEPTED')
+            setFieldValue('ma_don_quoc_gia', synced?.ma_don_quoc_gia || '')
+            setFieldValue('bien_nhan_giao_dich', synced?.bien_nhan_giao_dich || '')
+            AppToast.success(
+                `Đã liên thông thành công đơn thuốc lên Cổng Quốc gia! Mã đơn QG: ${synced?.ma_don_quoc_gia || 'ACCEPTED'}`
+            )
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Đồng bộ Cổng Đơn thuốc Quốc gia thất bại!')
+        } finally {
+            setSyncingGateway(false)
+        }
     }
 
     return (
@@ -334,7 +320,7 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {nationalSyncStatus === 'synced' ? (
+                    {isGatewaySynced ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
                             <ClinicIcon name="CheckCircle" size={14} weight="bold" />
                             <span>Đã liên thông Cổng QG</span>
@@ -343,12 +329,12 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                         <button
                             type="button"
                             onClick={handleSyncNationalRx}
-                            disabled={rows.length === 0}
+                            disabled={rows.length === 0 || syncingGateway || !LOCKED_RX_STATES.includes(rxStatus)}
                             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition cursor-pointer disabled:opacity-50"
-                            title="Đồng bộ dữ liệu đơn thuốc điện tử lên Cổng Đơn thuốc Quốc gia"
+                            title="Đồng bộ dữ liệu đơn thuốc đã ký số lên Cổng Đơn thuốc Quốc gia"
                         >
                             <ClinicIcon name="CloudArrowUp" size={14} weight="bold" />
-                            <span>Đồng bộ Cổng QG</span>
+                            <span>{syncingGateway ? 'Đang gửi Cổng QG…' : 'Đồng bộ Cổng QG'}</span>
                         </button>
                     )}
                 </div>

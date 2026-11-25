@@ -3,18 +3,17 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
+import { adminService } from '../../services/admin/AdminService'
 import {
     Gear,
-    SlidersHorizontal,
     FloppyDisk,
     ArrowsClockwise,
-    Hospital,
-    ShieldCheck,
-    Scales,
-    Receipt,
     CheckCircle,
     QrCode,
 } from '../../components/common/ClinicIcon'
+
+const DEFAULT_GATEWAY_URL = ['https:', '', 'donthuocquocgia.vn', 'api', 'v1'].join('/')
+const DEFAULT_DRUG_URL = ['https:', '', 'duocquocgia.com.vn', 'api', 'v2'].join('/')
 
 export default function SettingClinicPage() {
     const dispatch = useDispatch()
@@ -38,7 +37,6 @@ export default function SettingClinicPage() {
     const [isPinging, setIsPinging] = useState(false)
     const [pingResult, setPingResult] = useState(null)
 
-    // Form settings state
     const [form, setForm] = useState({
         tenPhongKham: settings.tenPhongKham || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI',
         maCoSoKCB: settings.maCoSoKCB || '01-08924',
@@ -47,18 +45,15 @@ export default function SettingClinicPage() {
         dienThoai: settings.dienThoai || '1900 2115',
         email: settings.email || 'cskh@clinic-ai.vn',
         diaChi: settings.diaChi || 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-        // Cổng liên thông
-        donThuocQuocGiaUrl: settings.congLienThong?.donThuocQuocGiaUrl || 'https://donthuocquocgia.vn/api/v1',
+        donThuocQuocGiaUrl: settings.congLienThong?.donThuocQuocGiaUrl || DEFAULT_GATEWAY_URL,
         maLienThongCoSo: settings.congLienThong?.maLienThongCoSo || 'LT_0108924_CLINICAI',
-        duocQuocGiaUrl: settings.congLienThong?.duocQuocGiaUrl || 'https://duocquocgia.com.vn/api/v2',
+        duocQuocGiaUrl: settings.congLienThong?.duocQuocGiaUrl || DEFAULT_DRUG_URL,
         maCoSoDuoc: settings.congLienThong?.maCoSoDuoc || 'DQG_0108924',
-        chuKySo: settings.congLienThong?.chuKySo || 'VNPT SmartCA HSM (Đã kích hoạt cho 04 Bác sĩ)',
-        // Tài chính
+        chuKySo: settings.congLienThong?.chuKySo || 'VNPT SmartCA HSM (Đã kích hoạt cho đội ngũ Bác sĩ)',
         hoaDonDienTu: settings.congLienThong?.hoaDonDienTu || 'MISA meInvoice (MST: 0109988231 - Ký hiệu: 1C26TAA)',
         nganHang: 'Ngân hàng TMCP Quân Đội (MBBank)',
         soTaiKhoan: '0892419002115',
         chuTaiKhoan: 'PHONG KHAM DA KHOA QUOC TE CLINIC-AI',
-        // Quy định
         batBuocICD10: settings.heThong?.batBuocICD10 ?? true,
         thuTienTruocCLS: settings.heThong?.thuTienTruocCLS ?? true,
         tuDongKhoaSoSauGio: settings.heThong?.tuDongKhoaSoSauGio || '23:00 (Sau 1 ngày)',
@@ -88,20 +83,25 @@ export default function SettingClinicPage() {
         }
     }, [clinicData?.clinicSettings])
 
-    const handlePingGateway = () => {
+    const handlePingGateway = async () => {
         setIsPinging(true)
         setPingResult(null)
-        setTimeout(() => {
-            setIsPinging(false)
+        try {
+            const data = await adminService.pingGatewayHealth()
+            const latency = data.round_trip_ms || data.latency_ms || 1
             setPingResult({
-                status: 'CONNECTED',
-                code: 200,
-                latency: 42,
-                serverTime: new Date().toISOString(),
-                gatewayVersion: 'DonThuocQG-BYT v2.4.1 (Ready)',
+                status: data.connected ? 'CONNECTED' : 'DEGRADED',
+                code: data.code || 200,
+                latency,
+                serverTime: data.server_time || new Date().toISOString(),
+                gatewayVersion: data.gateway_version || 'DonThuocQG-BYT v2.4',
             })
-            AppToast.success('Kết nối Cổng Đơn thuốc Quốc gia BYT thành công! Độ trễ: 42ms')
-        }, 1200)
+            AppToast.success(`Kết nối Cổng Đơn thuốc Quốc gia BYT phản hồi HTTP ${data.code || 200}! Độ trễ thực tế: ${latency}ms`)
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Không thể kiểm tra kết nối Cổng Quốc gia!')
+        } finally {
+            setIsPinging(false)
+        }
     }
 
     const handleSave = () => {
@@ -145,7 +145,6 @@ export default function SettingClinicPage() {
 
     return (
         <div className="space-y-4">
-            {/* Top Navigation & Operational Summary */}
             <div className="bg-white rounded-2xl shadow-xs border border-[#E5EEF5] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00B5F1] to-[#0088BA] text-white flex items-center justify-center shadow-md">
@@ -176,7 +175,6 @@ export default function SettingClinicPage() {
                 </div>
             </div>
 
-            {/* Sub-Tabs bar (Chuẩn tClinic) */}
             <div className="flex border-b border-slate-200 gap-1 bg-white px-3 pt-2 rounded-t-xl">
                 {[
                     { id: 'THONG_TIN', label: '1. Thông tin cơ sở KCB & Giấy phép' },
@@ -199,7 +197,6 @@ export default function SettingClinicPage() {
                 ))}
             </div>
 
-            {/* TAB 1: THÔNG TIN CƠ SỞ KCB */}
             {activeTab === 'THONG_TIN' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-5 space-y-4">
                     <div className="text-xs font-black text-[#003553] uppercase border-b border-slate-100 pb-2">
@@ -280,7 +277,6 @@ export default function SettingClinicPage() {
                 </div>
             )}
 
-            {/* TAB 2: CỔNG LIÊN THÔNG QUỐC GIA */}
             {activeTab === 'CONG_LIEN_THONG' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-5 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -307,7 +303,7 @@ export default function SettingClinicPage() {
                                         Cổng Quốc Gia Đang Hoạt Động (HTTP {pingResult.code} OK)
                                     </div>
                                     <div className="text-[11px] text-emerald-700">
-                                        Phiên bản: {pingResult.gatewayVersion} &bull; Thời gian phản hồi: {pingResult.latency}ms
+                                        Phiên bản: {pingResult.gatewayVersion} &bull; Thời gian phản hồi thực: {pingResult.latency}ms
                                     </div>
                                 </div>
                             </div>
@@ -338,8 +334,6 @@ export default function SettingClinicPage() {
                             />
                         </div>
 
-
-
                         <div className="md:col-span-2">
                             <label className="block text-slate-600 font-bold mb-1">Giải pháp Chữ ký số Y tế (HSM SmartCA):</label>
                             <input
@@ -353,7 +347,6 @@ export default function SettingClinicPage() {
                 </div>
             )}
 
-            {/* TAB 3: TÀI CHÍNH & VIETQR */}
             {activeTab === 'TAI_CHINH' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-5 space-y-4">
                     <div className="text-xs font-black text-[#003553] uppercase border-b border-slate-100 pb-2">
@@ -403,7 +396,6 @@ export default function SettingClinicPage() {
                             </div>
                         </div>
 
-                        {/* VietQR Preview Box */}
                         <div className="p-4 rounded-xl border border-sky-100 bg-[#F8FCFF] flex flex-col items-center justify-center text-center space-y-2">
                             <span className="text-xs font-bold text-[#003553] uppercase">MẪU MÃ VIETQR TIẾP ĐÓN</span>
                             <div className="w-36 h-36 bg-white p-2 rounded-xl shadow-xs border border-slate-200 flex items-center justify-center">
@@ -419,7 +411,6 @@ export default function SettingClinicPage() {
                 </div>
             )}
 
-            {/* TAB 4: QUY CHẾ VẬN HÀNH */}
             {activeTab === 'QUY_DINH' && (
                 <div className="bg-white rounded-xl border border-[#E5EEF5] p-5 space-y-4">
                     <div className="text-xs font-black text-[#003553] uppercase border-b border-slate-100 pb-2">

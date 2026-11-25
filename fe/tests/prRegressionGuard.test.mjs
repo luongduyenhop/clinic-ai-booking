@@ -148,3 +148,41 @@ test('P1 guest booking, unified sidebar and 30-day doctor history stay wired and
         assert.ok(!src.includes('//') && !src.includes('/*'), `${name} must be clean without comments`)
     }
 })
+
+test('P2 real prescription gateway, master patient/appointment unification and patient portal nav stay clean', async () => {
+    const appContent = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+    const stepRxSrc = await readFile(new URL('../src/components/doctor/exam/StepPrescription.jsx', import.meta.url), 'utf8')
+    const complianceSrc = await readFile(new URL('../src/pages/admin/ComplianceAndAuditPage.jsx', import.meta.url), 'utf8')
+    const settingSrc = await readFile(new URL('../src/pages/admin/SettingClinicPage.jsx', import.meta.url), 'utf8')
+    const patientsSrc = await readFile(new URL('../src/pages/reception/PatientsPage.jsx', import.meta.url), 'utf8')
+    const patientLayoutSrc = await readFile(new URL('../src/layouts/PatientPortalLayout.jsx', import.meta.url), 'utf8')
+    const adminSvcSrc = await readFile(new URL('../src/services/admin/AdminService.js', import.meta.url), 'utf8')
+
+    assert.ok(appContent.includes('<Route path="benh-nhan" element={<PatientsPage />} />'), 'admin benh-nhan must route to unified PatientsPage')
+    assert.ok(appContent.includes('<Route path="lich-hen" element={<AppointmentsPage />} />'), 'admin lich-hen must route to unified AppointmentsPage')
+    assert.ok(appContent.includes('<Route path="patients" element={<PatientsPage />} />'), 'staff patients must route to unified PatientsPage')
+    assert.ok(appContent.includes('<Route path="lich-su-kham" element={<Navigate to="/benh-nhan/benh-an" replace />} />'), 'lich-su-kham must redirect to unified benh-an')
+
+    assert.ok(patientLayoutSrc.includes("to: '/benh-nhan/hoa-don'"), 'PatientPortalLayout must link to /benh-nhan/hoa-don')
+    assert.ok(patientLayoutSrc.includes("to: '/benh-nhan/ho-so'"), 'PatientPortalLayout must link to /benh-nhan/ho-so')
+
+    assert.ok(stepRxSrc.includes('clinicalService.syncPrescriptionGateway'), 'StepPrescription must sync via real backend gateway')
+    assert.ok(!stepRxSrc.includes('Math.random'), 'StepPrescription must not use Math.random')
+
+    assert.ok(complianceSrc.includes('adminService.getCompliancePrescriptions'), 'ComplianceAndAuditPage must load real prescriptions from backend')
+    assert.ok(complianceSrc.includes('adminService.pingGatewayHealth'), 'ComplianceAndAuditPage must ping real gateway health')
+    assert.ok(!complianceSrc.includes('Math.random') && !complianceSrc.includes('setTimeout'), 'ComplianceAndAuditPage must not use Math.random or fake setTimeout')
+
+    assert.ok(settingSrc.includes('adminService.pingGatewayHealth') && !settingSrc.includes('setTimeout'), 'SettingClinicPage must ping real gateway without setTimeout')
+    assert.ok(patientsSrc.includes('canMutatePatient'), 'PatientsPage must enforce role-based mutation controls')
+
+    for (const [name, src] of [
+        ['ComplianceAndAuditPage.jsx', complianceSrc],
+        ['SettingClinicPage.jsx', settingSrc],
+        ['PatientsPage.jsx', patientsSrc],
+        ['PatientPortalLayout.jsx', patientLayoutSrc],
+        ['AdminService.js', adminSvcSrc],
+    ]) {
+        assert.ok(!src.includes('//') && !src.includes('/*'), `${name} must be clean without comments`)
+    }
+})

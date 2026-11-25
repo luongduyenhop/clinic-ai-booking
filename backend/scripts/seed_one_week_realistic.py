@@ -113,6 +113,22 @@ async def seed_all_doctors_and_staff(session, password, dept_map, room_map):
             account.mat_khau_hash = hash_password(password)
         people[role] = person
     await session.flush()
+    demo_patient_person = people.get(VaiTroEnum.BENH_NHAN)
+    if demo_patient_person is not None:
+        existing_demo_bn = await session.scalar(
+            select(BenhNhan).where(BenhNhan.nguoi_dung_id == demo_patient_person.id)
+        )
+        if existing_demo_bn is None:
+            session.add(
+                BenhNhan(
+                    nguoi_dung_id=demo_patient_person.id,
+                    ma_dinh_danh_y_te="BN-DEMO-0001",
+                    nhom_mau="O+",
+                    di_ung_thuoc="Không",
+                    tien_su_benh="Không",
+                )
+            )
+            await session.flush()
     doctor_entities = []
     doctor_person = people[VaiTroEnum.BAC_SI]
     primary_doc = await session.scalar(select(BacSi).where(BacSi.nguoi_dung_id == doctor_person.id))
@@ -725,8 +741,10 @@ async def seed_week_and_today_cases(
                         luot_kham_id=encounter.id,
                         bac_si_ke_don_id=doctor.id,
                         ngay_ke_don=end_dt,
+                        ngay_ky=end_dt,
+                        chu_ky_so=f"SHA256:SEED:RX:{encounter.id}",
                         so_ngay_dung=7,
-                        trang_thai="COMPLETED",
+                        trang_thai="SIGNED",
                         loi_dan_uong_thuoc="Uống thuốc đều đặn sau bữa ăn, hạn chế thức khuya và kiêng rượu bia.",
                     )
                     session.add(rx)

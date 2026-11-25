@@ -371,18 +371,6 @@ export class AdminService extends BaseServices {
         return this.generateShiftsFromRosterAdmin(body)
     }
 
-    getDepartmentsAdmin = async () => {
-        try {
-            const res = await this.get('/api/v1/admin/departments', {
-                __skipGlobalLoading: true,
-                __skipRefresh: true,
-            })
-            return res.data?.data || res.data || []
-        } catch {
-            return []
-        }
-    }
-
     exportShiftReportAdmin = async ({ tuNgay, denNgay, chuyenKhoaId } = {}) => {
         try {
             const params = new URLSearchParams()
@@ -623,6 +611,59 @@ export class AdminService extends BaseServices {
     rejectAmendment = async (id, payload) => {
         const res = await this.post(`/api/v1/clinical/amendments/${id}/reject`, payload)
         return res.data?.data || res.data
+    }
+
+    getComplianceDashboard = async () => {
+        const res = await this.get('/api/v1/compliance/dashboard', {
+            __skipGlobalLoading: true,
+            __skipRefresh: true,
+        })
+        return res.data?.data || res.data || null
+    }
+
+    getCompliancePrescriptions = async ({ status = 'ALL', q = '' } = {}) => {
+        const params = new URLSearchParams()
+        if (status) params.set('status', status)
+        if (q && q.trim()) params.set('q', q.trim())
+        const query = params.toString() ? `?${params.toString()}` : ''
+        const res = await this.get(`/api/v1/compliance/prescriptions${query}`, {
+            __skipGlobalLoading: true,
+            __skipRefresh: true,
+        })
+        return res.data?.data || res.data || { summary: { total: 0, accepted: 0, signed_pending_sync: 0, draft: 0 }, items: [] }
+    }
+
+    syncSinglePrescriptionGateway = async (prescriptionId) => {
+        const res = await this.post(`/api/v1/compliance/prescriptions/${prescriptionId}/sync`, {})
+        return res.data?.data || res.data
+    }
+
+    syncAllPrescriptionsGateway = async () => {
+        const res = await this.post('/api/v1/compliance/prescriptions/sync-all', {})
+        return res.data?.data || res.data
+    }
+
+    getHsskRecords = async () => {
+        const res = await this.get('/api/v1/compliance/hssk-records', {
+            __skipGlobalLoading: true,
+            __skipRefresh: true,
+        })
+        return res.data?.data || res.data || []
+    }
+
+    pingGatewayHealth = async () => {
+        const started = performance.now()
+        const res = await this.get('/api/v1/compliance/gateway-ping', {
+            __skipGlobalLoading: true,
+            __skipRefresh: true,
+        })
+        const data = res.data?.data || res.data || {}
+        const roundTripMs = Math.max(1, Math.round(performance.now() - started))
+        return {
+            ...data,
+            latency_ms: data.latency_ms ?? roundTripMs,
+            round_trip_ms: roundTripMs,
+        }
     }
 }
 

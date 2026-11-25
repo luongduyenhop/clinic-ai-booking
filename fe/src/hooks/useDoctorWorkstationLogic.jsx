@@ -122,6 +122,8 @@ const extractPrescriptionItems = (enc) => {
     }))
 }
 
+const LOCKED_RX_STATES = ['SIGNED', 'ISSUED', 'SUBMISSION_PENDING', 'SUBMITTED', 'ACCEPTED']
+
 const toFormValues = (enc) => ({
     ly_do_vao_kham: sanitizeReason(enc?.ly_do_vao_kham),
     benh_su: enc?.benh_su || '',
@@ -132,9 +134,11 @@ const toFormValues = (enc) => ({
     ket_luan_dieu_tri: enc?.ket_luan_dieu_tri || '',
     danh_sach_thuoc: extractPrescriptionItems(enc),
     loi_dan_uong_thuoc: enc?.loi_dan_uong_thuoc || enc?.don_thuoc?.loi_dan_uong_thuoc || '',
-    trang_thai_don_thuoc: enc?.trang_thai_don_thuoc || enc?.don_thuoc?.trang_thai || 'DRAFT',
-    ngay_ky: enc?.ngay_ky || enc?.don_thuoc?.ngay_ky || '',
-    chu_ky_so: enc?.chu_ky_so || enc?.don_thuoc?.chu_ky_so || '',
+    trang_thai_don_thuoc: enc?.don_thuoc?.trang_thai || enc?.trang_thai_don_thuoc || 'DRAFT',
+    ma_don_quoc_gia: enc?.don_thuoc?.ma_don_quoc_gia || enc?.ma_don_quoc_gia || '',
+    bien_nhan_giao_dich: enc?.don_thuoc?.bien_nhan_giao_dich || enc?.bien_nhan_giao_dich || '',
+    ngay_ky: enc?.don_thuoc?.ngay_ky || enc?.ngay_ky || '',
+    chu_ky_so: enc?.don_thuoc?.chu_ky_so || enc?.chu_ky_so || '',
     nguoi_ky: enc?.nguoi_ky || enc?.don_thuoc?.nguoi_ky || '',
     ngay_hen_tai_kham: enc?.ngay_hen_tai_kham || '',
     loi_dan_bac_si: enc?.loi_dan_bac_si || '',
@@ -410,7 +414,7 @@ export function useDoctorWorkstationLogic() {
     const draft = useMemo(
         () => ({
             encounterId: encounter?.id,
-            isRxSigned: formik.values.trang_thai_don_thuoc === 'SIGNED',
+            isRxSigned: LOCKED_RX_STATES.includes(formik.values.trang_thai_don_thuoc),
             fields: Object.fromEntries(DRAFT_FIELDS.map((k) => [k, formik.values[k]])),
         }),
         [encounter?.id, formik.values]

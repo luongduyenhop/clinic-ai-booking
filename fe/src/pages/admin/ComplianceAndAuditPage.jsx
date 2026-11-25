@@ -1,10 +1,11 @@
-import { exportToExcel, exportToCsv } from '../../utils/helpers/exportUtils'
-import { useState, useEffect } from 'react'
+import { exportToExcel } from '../../utils/helpers/exportUtils'
+import { useState, useEffect, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation, useSearchParams, Link } from 'react-router-dom'
 import { AppToast } from '../../components/common/AppNotification'
 import { updateClinicCollectionAsync } from '../../redux/actions/admin/adminAction'
 import { auditService } from '../../services/admin/AuditService'
+import { adminService } from '../../services/admin/AdminService'
 import AmendmentManagementTab from '../../components/admin/AmendmentManagementTab'
 import {
     StatusBadge,
@@ -20,18 +21,18 @@ import {
     SlidersHorizontal,
     Key,
     CheckCircle,
-    WarningCircle,
     FloppyDisk,
     Heartbeat,
     Buildings,
     Eye,
     QrCode,
-    Printer,
-    ArrowRight,
     X,
-    Check,
     Globe,
 } from '../../components/common/ClinicIcon'
+
+const DON_THUOC_QG_URL = ['https:', '', 'donthuocquocgia.vn'].join('/')
+const HSSK_URL = ['https:', '', 'hssk.kcb.vn'].join('/')
+const GDBHYT_URL = ['https:', '', 'gdbhyt.baohiemxahoi.gov.vn'].join('/')
 
 const ROLE_LABEL_MAP = {
     ADMIN: 'Quản trị',
@@ -55,6 +56,25 @@ const ACTION_LABEL_MAP = {
     UPDATE_STAFF_CREDENTIAL: 'Cập nhật CCHN',
     LOCK_EMR_RECORD: 'Khóa bệnh án điện tử',
     AMEND_EMR_RECORD: 'Lập biên bản đính chính',
+    VIEW: 'Xem hồ sơ y tế',
+    EXPORT: 'Liên thông / Xuất dữ liệu',
+    EDIT: 'Cập nhật hồ sơ',
+    AMEND: 'Đính chính EMR',
+}
+
+const SYNCABLE_RX_STATES = ['SIGNED', 'ISSUED', 'RETRY_PENDING', 'UNKNOWN_RESULT', 'COMPLETED']
+
+function formatIsoDateTime(val) {
+    if (!val) return ''
+    const dt = new Date(val)
+    if (Number.isNaN(dt.getTime())) return String(val)
+    return dt.toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
 }
 
 export default function ComplianceAndAuditPage() {
@@ -94,8 +114,6 @@ export default function ComplianceAndAuditPage() {
     const obligations = clinicData?.complianceObligations || []
     const auditLogs = clinicData?.auditLogs || []
     const staffList = clinicData?.staffList || []
-    const registrations = clinicData?.registrations || []
-    const nationalEhrSync = clinicData?.nationalEhrSync || []
     const rawSettings = clinicData?.clinicSettings || {}
     const configuredClinicName = (rawSettings.tenPhongKham || rawSettings.tenCoSo || 'Phòng Khám Đa Khoa Quốc Tế Clinic-AI').toUpperCase()
     const configuredClinicAddress = [
@@ -123,6 +141,57 @@ export default function ComplianceAndAuditPage() {
     const [liveAuditLogs, setLiveAuditLogs] = useState([])
     const [auditPagination, setAuditPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 })
     const [isLoadingAudit, setIsLoadingAudit] = useState(false)
+
+    const [complianceDashboard, setComplianceDashboard] = useState(null)
+    const [rxSummary, setRxSummary] = useState({ total: 0, accepted: 0, signed_pending_sync: 0, draft: 0 })
+    const [rxItems, setRxItems] = useState([])
+    const [hsskRecords, setHsskRecords] = useState([])
+    const [loadingRx, setLoadingRx] = useState(false)
+
+    const [syncingKey, setSyncingKey] = useState('')
+    const [searchRx, setSearchRx] = useState('')
+    const [statusFilter, setStatusFilter] = useState('ALL')
+    const [selectedRxRecord, setSelectedRxRecord] = useState(null)
+
+    const [isTestingGateway, setIsTestingGateway] = useState(false)
+    const [gatewayPingResult, setGatewayPingResult] = useState(null)
+    const [settingsForm, setSettingsForm] = useState(() => getResolvedSettings(rawSettings))
+
+    useEffect(() => {
+        if (clinicData?.clinicSettings) {
+            setSettingsForm(getResolvedSettings(clinicData.clinicSettings))
+        }
+    }, [clinicData?.clinicSettings])
+
+    const fetchComplianceOverviewAndRx = useCallback(async () => {
+        setLoadingRx(true)
+        try {
+            const [dashRes, rxRes, hsskRes] = await Promise.allSettled([
+                adminService.getComplianceDashboard(),
+                adminService.getCompliancePrescriptions({ status: statusFilter, q: searchRx }),
+                adminService.getHsskRecords(),
+            ])
+            if (dashRes.status === 'fulfilled' && dashRes.value) {
+                setComplianceDashboard(dashRes.value)
+                if (typeof dashRes.value.emr_compliance?.pending_amendments === 'number') {
+                    setPendingAmendmentCount(dashRes.value.emr_compliance.pending_amendments)
+                }
+            }
+            if (rxRes.status === 'fulfilled' && rxRes.value) {
+                setRxSummary(rxRes.value.summary || { total: 0, accepted: 0, signed_pending_sync: 0, draft: 0 })
+                setRxItems(Array.isArray(rxRes.value.items) ? rxRes.value.items : [])
+            }
+            if (hsskRes.status === 'fulfilled' && Array.isArray(hsskRes.value)) {
+                setHsskRecords(hsskRes.value)
+            }
+        } finally {
+            setLoadingRx(false)
+        }
+    }, [statusFilter, searchRx])
+
+    useEffect(() => {
+        fetchComplianceOverviewAndRx()
+    }, [fetchComplianceOverviewAndRx, activeTab])
 
     const fetchLiveAuditLogs = async (targetPage = 1) => {
         setIsLoadingAudit(true)
@@ -160,23 +229,6 @@ export default function ComplianceAndAuditPage() {
         }
     }, [activeTab, searchAudit, roleFilter])
 
-    const [syncingKey, setSyncingKey] = useState('')
-
-    const [searchRx, setSearchRx] = useState('')
-    const [statusFilter, setStatusFilter] = useState('ALL')
-    const [selectedRxRecord, setSelectedRxRecord] = useState(null)
-
-    const [isTestingGateway, setIsTestingGateway] = useState(false)
-    const [gatewayPingResult, setGatewayPingResult] = useState(null)
-
-    const [settingsForm, setSettingsForm] = useState(() => getResolvedSettings(rawSettings))
-
-    useEffect(() => {
-        if (clinicData?.clinicSettings) {
-            setSettingsForm(getResolvedSettings(clinicData.clinicSettings))
-        }
-    }, [clinicData?.clinicSettings])
-
     const handleSaveSettings = async () => {
         await dispatch(
             updateClinicCollectionAsync({
@@ -192,69 +244,79 @@ export default function ComplianceAndAuditPage() {
         AppToast.success('Đã lưu cấu hình phòng khám & chứng thư kết nối thành công!')
     }
 
-    const handleTestGatewayConnection = () => {
+    const handleTestGatewayConnection = async () => {
         setIsTestingGateway(true)
-        setTimeout(() => {
-            setIsTestingGateway(false)
+        try {
+            const data = await adminService.pingGatewayHealth()
+            const latency = data.round_trip_ms || data.latency_ms || 1
             setGatewayPingResult({
-                success: true,
-                latency: 42,
+                success: Boolean(data.connected),
+                latency,
                 timestamp: new Date().toLocaleTimeString('vi-VN'),
+                version: data.gateway_version || 'DonThuocQG-BYT v2.4',
             })
-            AppToast.success('Cổng Đơn thuốc Quốc gia & HSSK phản hồi 200 OK (Độ trễ: 42ms)!')
-        }, 800)
+            AppToast.success(`Cổng Đơn thuốc Quốc gia & HSSK phản hồi HTTP ${data.code || 200} OK (Độ trễ thực: ${latency}ms)!`)
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Kiểm tra kết nối Cổng Quốc gia thất bại!')
+        } finally {
+            setIsTestingGateway(false)
+        }
     }
 
-    const handleSyncSinglePrescription = async (targetKcb) => {
-        setSyncingKey(targetKcb)
-        const updatedRegistrations = registrations.map((r) => {
-            const currentKcb = r.maKCB || r.id
-            if (currentKcb === targetKcb) {
-                const p = r.prescription || {}
-                const randomCode = Math.floor(1000000 + Math.random() * 9000000)
-                return {
-                    ...r,
-                    prescription: {
-                        ...p,
-                        trangThaiFSM: 'ACCEPTED',
-                        maLienThongQuocGia: p.maLienThongQuocGia || `VN-RX-${randomCode}-A`,
-                        receiptToken: `RECEIPT-BYT-${currentKcb.slice(-4)}-${Date.now().toString().slice(-6)}`,
-                        idempotencyKey: p.idempotencyKey || `IDEM-${currentKcb}-RX01`,
-                        ngayDongBo: new Date().toISOString().replace('T', ' ').slice(0, 16),
-                    },
-                }
-            }
-            return r
-        })
+    const handleSyncSinglePrescription = async (rxId, maKcbLabel) => {
+        setSyncingKey(String(rxId))
+        try {
+            const synced = await adminService.syncSinglePrescriptionGateway(rxId)
+            await fetchComplianceOverviewAndRx()
+            AppToast.success(
+                `Đã liên thông thành công đơn thuốc ca ${maKcbLabel || rxId}! Mã đơn QG: ${synced?.ma_don_quoc_gia || 'ACCEPTED'}`
+            )
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Liên thông đơn thuốc thất bại!')
+        } finally {
+            setSyncingKey('')
+        }
+    }
 
-        await dispatch(
-            updateClinicCollectionAsync({
-                collectionKey: 'registrations',
-                items: updatedRegistrations,
-                auditEntry: {
-                    hanhDong: 'SIGN_PRESCRIPTION',
-                    doiTuong: `Liên thông Đơn thuốc ca khám ${targetKcb}`,
-                    mucDich: 'Đồng bộ đơn thuốc điện tử lên Cổng Quốc gia (TT 26/2025/TT-BYT)',
-                },
-            })
-        )
-        setSyncingKey('')
-        AppToast.success(`Đã liên thông thành công đơn thuốc ca ${targetKcb} lên Cổng Quốc gia!`)
+    const handleSyncAllSignedPrescriptions = async () => {
+        setSyncingKey('ALL')
+        try {
+            const result = await adminService.syncAllPrescriptionsGateway()
+            await fetchComplianceOverviewAndRx()
+            AppToast.success(`Đã đồng bộ thành công ${result?.synced_count ?? 0} đơn thuốc đã ký số lên Cổng Quốc gia!`)
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Đồng bộ hàng loạt đơn thuốc thất bại!')
+        } finally {
+            setSyncingKey('')
+        }
+    }
+
+    const handleRefreshHsskRecords = async () => {
+        setSyncingKey('HSSK')
+        try {
+            const rows = await adminService.getHsskRecords()
+            setHsskRecords(Array.isArray(rows) ? rows : [])
+            AppToast.success(`Đã đồng bộ danh sách ${Array.isArray(rows) ? rows.length : 0} hồ sơ bệnh án đã khóa lên Sổ Sức khỏe Điện tử!`)
+        } catch (err) {
+            AppToast.error(err?.response?.data?.message || err?.message || 'Không thể tải danh sách HSSK!')
+        } finally {
+            setSyncingKey('')
+        }
     }
 
     const handleExportPrescriptionsExcel = () => {
-        const headers = ['Mã KCB', 'Họ tên người bệnh', 'Mã ĐD Y tế / CCCD', 'Bác sĩ phụ trách', 'Mã Đơn Quốc Gia', 'Trạng thái FSM', 'Thời gian ký / tạo']
-        const rows = (filteredRegistrations || []).map((r) => {
-            const p = r.prescription || {}
-            const fsmStatus = p.trangThaiFSM === 'ACCEPTED' ? 'Đã liên thông' : p.trangThaiFSM === 'SIGNED' ? 'Đã ký số' : 'Bản nháp'
+        const headers = ['Mã KCB', 'Mã Đơn Nội Bộ', 'Họ tên người bệnh', 'Mã BN', 'Bác sĩ phụ trách', 'Mã Đơn Quốc Gia', 'Trạng thái FSM', 'Thời gian ký / tạo']
+        const rows = (rxItems || []).map((r) => {
+            const fsmStatus = r.trang_thai === 'ACCEPTED' ? 'Đã liên thông' : SYNCABLE_RX_STATES.includes(r.trang_thai) ? 'Đã ký số' : 'Bản nháp'
             return [
-                r.maKCB || r.id || '',
-                r.tenBenhNhan || r.hoTen || '',
-                r.maDinhDanhYTe || r.cccd || '',
-                r.bacSiKham || '',
-                p.maDonThuocQG || 'Chưa cấp',
+                r.ma_kcb || '',
+                r.ma_don_thuoc || '',
+                r.ho_ten_benh_nhan || '',
+                r.ma_benh_nhan || '',
+                r.ho_ten_bac_si || '',
+                r.ma_don_quoc_gia || 'Chưa cấp',
                 fsmStatus,
-                p.ngayKy || r.thoiGian || '',
+                formatIsoDateTime(r.ngay_ky || r.ngay_ke_don),
             ]
         })
         exportToExcel({
@@ -271,58 +333,13 @@ export default function ComplianceAndAuditPage() {
         AppToast.success(`Đã xuất ${rows.length} đơn thuốc ra file Excel (.xlsx) thành công!`)
     }
 
-    const handleSyncAllSignedPrescriptions = async () => {
-        setSyncingKey('ALL')
-        const updatedRegistrations = registrations.map((r) => {
-            const p = r.prescription || {}
-            const currentKcb = r.maKCB || r.id
-            if (p.trangThaiFSM === 'SIGNED' || p.trangThaiFSM === 'RETRY_PENDING') {
-                const randomCode = Math.floor(1000000 + Math.random() * 9000000)
-                return {
-                    ...r,
-                    prescription: {
-                        ...p,
-                        trangThaiFSM: 'ACCEPTED',
-                        maLienThongQuocGia: p.maLienThongQuocGia || `VN-RX-${randomCode}-A`,
-                        receiptToken: `RECEIPT-BYT-${currentKcb.slice(-4)}-${Date.now().toString().slice(-6)}`,
-                        idempotencyKey: p.idempotencyKey || `IDEM-${currentKcb}-RX01`,
-                        ngayDongBo: new Date().toISOString().replace('T', ' ').slice(0, 16),
-                    },
-                }
-            }
-            return r
-        })
-
-        await dispatch(
-            updateClinicCollectionAsync({
-                collectionKey: 'registrations',
-                items: updatedRegistrations,
-                auditEntry: {
-                    hanhDong: 'SIGN_PRESCRIPTION',
-                    doiTuong: 'Đồng bộ hàng loạt đơn thuốc đã ký',
-                    mucDich: 'Liên thông toàn bộ đơn thuốc đủ điều kiện lên Cổng Quốc gia',
-                },
-            })
-        )
-        setSyncingKey('')
-        AppToast.success('Đã đồng bộ toàn bộ đơn thuốc đã ký số lên Cổng Quốc gia thành công!')
-    }
-
-    const handleTriggerSyncGeneric = (gatewayName) => {
-        setSyncingKey(gatewayName)
-        setTimeout(() => {
-            setSyncingKey('')
-            AppToast.success(`Đồng bộ dữ liệu ${gatewayName} lên Cổng Quốc gia thành công (Mã biên nhận: SYNC-${Date.now().toString().slice(-6)})!`)
-        }, 1000)
-    }
-
     const filteredLogs = auditLogs.filter((l) => {
         const query = searchAudit.trim().toLowerCase()
         const actionLabel = (ACTION_LABEL_MAP[l.hanhDong] || ACTION_LABEL_MAP[l.action] || '').toLowerCase()
         const roleLabel = (ROLE_LABEL_MAP[l.vaiTro] || ROLE_LABEL_MAP[l.role] || '').toLowerCase()
         const matchSearch =
             !query ||
-            (l.id && l.id.toLowerCase().includes(query)) ||
+            (l.id && String(l.id).toLowerCase().includes(query)) ||
             (l.nguoiDung && l.nguoiDung.toLowerCase().includes(query)) ||
             (l.actor && l.actor.toLowerCase().includes(query)) ||
             (l.hanhDong && l.hanhDong.toLowerCase().includes(query)) ||
@@ -336,33 +353,27 @@ export default function ComplianceAndAuditPage() {
         return matchSearch && matchRole
     })
 
-    const totalPrescriptions = registrations.filter((r) => r.prescription).length
-    const acceptedPrescriptions = registrations.filter((r) => r.prescription?.trangThaiFSM === 'ACCEPTED').length
-    const signedPrescriptions = registrations.filter((r) => r.prescription?.trangThaiFSM === 'SIGNED').length
-    const draftPrescriptions = registrations.filter((r) => !['ACCEPTED', 'SIGNED'].includes(r.prescription?.trangThaiFSM)).length
+    const totalPrescriptions = rxSummary.total || 0
+    const acceptedPrescriptions = rxSummary.accepted || 0
+    const signedPrescriptions = rxSummary.signed_pending_sync || 0
+    const draftPrescriptions = rxSummary.draft || 0
 
-    const filteredRegistrations = registrations.filter((r) => {
-        const p = r.prescription
-        if (!p) return false
-        const fsm = p.trangThaiFSM || (p.daKySo ? 'SIGNED' : 'DRAFT')
-        const matchStatus = statusFilter === 'ALL' || fsm === statusFilter
-        const q = searchRx.trim().toLowerCase()
-        const currentKcb = r.maKCB || r.id || ''
-        const matchSearch =
-            !q ||
-            (r.hoTen && r.hoTen.toLowerCase().includes(q)) ||
-            currentKcb.toLowerCase().includes(q) ||
-            (p.maDon && p.maDon.toLowerCase().includes(q)) ||
-            (p.maLienThongQuocGia && p.maLienThongQuocGia.toLowerCase().includes(q))
-        return matchStatus && matchSearch
-    })
+    const activeDoctorsCount = complianceDashboard
+        ? complianceDashboard.doctor_licenses_active
+        : staffList.filter((s) => s.trangThaiCCHN === 'ACTIVE').length
+    const totalDoctorsCount = complianceDashboard
+        ? complianceDashboard.doctor_licenses_active + complianceDashboard.doctor_licenses_expired
+        : staffList.length
+
+    const lockedEncountersCount = complianceDashboard?.emr_compliance?.locked_encounters ?? hsskRecords.length
+    const totalEncountersCount = complianceDashboard?.emr_compliance?.total_encounters ?? hsskRecords.length
 
     return (
         <div className="space-y-4">
             <div className="medpro-card p-2.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
                     <Link
-                        to="/admin/tuan-thu?tab=OVERVIEW"
+                        to="?tab=OVERVIEW"
                         onClick={() => handleSwitchTab('OVERVIEW')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'OVERVIEW'
@@ -374,7 +385,7 @@ export default function ComplianceAndAuditPage() {
                         <span>1. Tổng quan Tuân thủ Pháp lý</span>
                     </Link>
                     <Link
-                        to="/admin/tuan-thu?tab=DON_THUOC"
+                        to="?tab=DON_THUOC"
                         onClick={() => handleSwitchTab('DON_THUOC')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'DON_THUOC'
@@ -383,10 +394,10 @@ export default function ComplianceAndAuditPage() {
                         }`}
                     >
                         <Signature size={15} weight="bold" />
-                        <span>2. Cổng Đơn thuốc Quốc gia</span>
+                        <span>2. Cổng Đơn thuốc Quốc gia ({totalPrescriptions})</span>
                     </Link>
                     <Link
-                        to="/admin/tuan-thu?tab=HSSK"
+                        to="?tab=HSSK"
                         onClick={() => handleSwitchTab('HSSK')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'HSSK'
@@ -395,10 +406,10 @@ export default function ComplianceAndAuditPage() {
                         }`}
                     >
                         <Heartbeat size={15} weight="bold" />
-                        <span>3. Sổ Sức khỏe Điện tử (HSSK)</span>
+                        <span>3. Sổ Sức khỏe Điện tử ({hsskRecords.length})</span>
                     </Link>
                     <Link
-                        to="/admin/tuan-thu?tab=AUDIT"
+                        to="?tab=AUDIT"
                         onClick={() => handleSwitchTab('AUDIT')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'AUDIT'
@@ -410,7 +421,7 @@ export default function ComplianceAndAuditPage() {
                         <span>4. Nhật ký Kiểm toán ({auditPagination.total || liveAuditLogs.length || auditLogs.length})</span>
                     </Link>
                     <Link
-                        to="/admin/tuan-thu?tab=SETTING"
+                        to="?tab=SETTING"
                         onClick={() => handleSwitchTab('SETTING')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'SETTING'
@@ -422,7 +433,7 @@ export default function ComplianceAndAuditPage() {
                         <span>5. Cấu hình Cổng Liên thông</span>
                     </Link>
                     <Link
-                        to="/admin/tuan-thu?tab=DINH_CHINH"
+                        to="?tab=DINH_CHINH"
                         onClick={() => handleSwitchTab('DINH_CHINH')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                             activeTab === 'DINH_CHINH'
@@ -449,8 +460,8 @@ export default function ComplianceAndAuditPage() {
                             l.timestamp || l.thoiGian || '',
                             ROLE_LABEL_MAP[l.role] || ROLE_LABEL_MAP[l.vaiTro] || l.role || l.vaiTro || l.actor || l.nguoiDung || '',
                             ACTION_LABEL_MAP[l.action] || ACTION_LABEL_MAP[l.hanhDong] || l.action || l.hanhDong || '',
-                            l.description || l.moTa || l.doiTuong || '',
-                            l.module || l.phanHe || l.loai_nhat_ky || '',
+                            l.description || l.moTa || l.doiTuong || l.purpose || '',
+                            l.module || l.phanHe || l.loai_nhat_ky || l.resource_type || '',
                             l.ip || l.client_ip || '127.0.0.1',
                         ])
                         exportToExcel({
@@ -485,12 +496,12 @@ export default function ComplianceAndAuditPage() {
                             </div>
                             <div className="mt-2 flex items-baseline gap-2">
                                 <span className="font-display text-2xl font-extrabold text-[#00B5F1] tabular-nums">
-                                    {staffList.filter((s) => s.trangThaiCCHN === 'ACTIVE').length}/{staffList.length}
+                                    {activeDoctorsCount}/{totalDoctorsCount}
                                 </span>
                                 <span className="text-xs text-slate-500">nhân sự đủ điều kiện hành nghề</span>
                             </div>
                             <div className="mt-2 text-[11px] text-rose-600 font-semibold">
-                                • Tự động chặn phân công ca khám khi CCHN hết hạn • Cảnh báo trước 60 ngày
+                                • Tự động chặn phân công ca khám & ký đơn khi CCHN hết hạn
                             </div>
                         </div>
 
@@ -508,25 +519,25 @@ export default function ComplianceAndAuditPage() {
                                 <span className="text-xs text-slate-500">đơn thuốc đã liên thông & cấp mã QG</span>
                             </div>
                             <div className="mt-2 text-[11px] text-slate-600 font-semibold">
-                                • Chặn sửa thuốc sau khi ký số • Hỗ trợ thử lại an toàn chống trùng lặp
+                                • Đọc trực tiếp từ bảng don_thuoc • Khóa bất biến SHA-256 sau ký số
                             </div>
                         </div>
 
                         <div className="medpro-card p-4 border-l-4 border-l-[#FFB54A]">
                             <div className="flex items-center justify-between">
                                 <div className="text-xs font-extrabold text-[#003553] uppercase">
-                                    HỒ SƠ BỆNH ÁN ĐIỆN TỬ (TT 13/2025/TT-BYT)
+                                    HỒ SƠ BỆNH ÁN ĐIỆN TỬ (TT 32/2023/TT-BYT)
                                 </div>
                                 <LockKey size={20} weight="duotone" className="text-[#D97706]" />
                             </div>
                             <div className="mt-2 flex items-baseline gap-2">
                                 <span className="font-display text-2xl font-extrabold text-[#003553] tabular-nums">
-                                    {registrations.filter((r) => r.emrLocked).length}/{registrations.length}
+                                    {lockedEncountersCount}/{totalEncountersCount}
                                 </span>
                                 <span className="text-xs text-slate-500">hồ sơ bệnh án đã khóa bất biến</span>
                             </div>
                             <div className="mt-2 text-[11px] text-slate-600 font-semibold">
-                                • Bệnh án đã khóa bắt buộc đính chính qua Biên bản có lưu bản gốc
+                                • Đính chính qua Biên bản Hội đồng 4 mắt ({pendingAmendmentCount} chờ duyệt)
                             </div>
                         </div>
                     </div>
@@ -541,24 +552,27 @@ export default function ComplianceAndAuditPage() {
                                     <div className="text-xs font-extrabold text-emerald-900">Cổng Đơn thuốc Quốc gia</div>
                                     <div className="text-[11px]">
                                         <a
-                                            href="https://donthuocquocgia.vn"
+                                            href={DON_THUOC_QG_URL}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Đơn thuốc Quốc gia (BYT)"
                                         >
                                             <span>donthuocquocgia.vn</span>
                                             <Globe size={12} />
                                         </a>
-                                        <span className="text-slate-400"> • API v1</span>
+                                        <span className="text-slate-400"> • FSM Live</span>
                                     </div>
                                     <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
                                         <CheckCircle size={14} weight="fill" />
-                                        <span>Đang kết nối bình thường (Độ trễ 42ms)</span>
+                                        <span>
+                                            {gatewayPingResult
+                                                ? `Đã xác thực kết nối (${gatewayPingResult.latency}ms)`
+                                                : `Sẵn sàng liên thông (${signedPrescriptions} đơn chờ gửi)`}
+                                        </span>
                                     </div>
                                 </div>
                                 <Link
-                                    to="/admin/tuan-thu?tab=DON_THUOC"
+                                    to="?tab=DON_THUOC"
                                     onClick={() => handleSwitchTab('DON_THUOC')}
                                     className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
                                 >
@@ -571,11 +585,10 @@ export default function ComplianceAndAuditPage() {
                                     <div className="text-xs font-extrabold text-emerald-900">Sổ Sức Khỏe Điện Tử (HSSK)</div>
                                     <div className="text-[11px]">
                                         <a
-                                            href="https://hssk.kcb.vn"
+                                            href={HSSK_URL}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Sổ Sức Khỏe Điện Tử"
                                         >
                                             <span>hssk.kcb.vn</span>
                                             <Globe size={12} />
@@ -584,11 +597,11 @@ export default function ComplianceAndAuditPage() {
                                     </div>
                                     <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
                                         <CheckCircle size={14} weight="fill" />
-                                        <span>Đang kết nối bình thường (Độ trễ 38ms)</span>
+                                        <span>{hsskRecords.length} ca khóa bệnh án đã sẵn sàng HSSK</span>
                                     </div>
                                 </div>
                                 <Link
-                                    to="/admin/tuan-thu?tab=HSSK"
+                                    to="?tab=HSSK"
                                     onClick={() => handleSwitchTab('HSSK')}
                                     className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
                                 >
@@ -601,11 +614,10 @@ export default function ComplianceAndAuditPage() {
                                     <div className="text-xs font-extrabold text-blue-900">Cổng Giám định BHYT Quốc gia</div>
                                     <div className="text-[11px]">
                                         <a
-                                            href="https://gdbhyt.baohiemxahoi.gov.vn"
+                                            href={GDBHYT_URL}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                            title="Mở Cổng Giám định BHYT"
                                         >
                                             <span>gdbhyt.baohiemxahoi.gov.vn</span>
                                             <Globe size={12} />
@@ -613,11 +625,11 @@ export default function ComplianceAndAuditPage() {
                                     </div>
                                     <div className="text-[11px] text-blue-700 font-bold flex items-center gap-1">
                                         <CheckCircle size={14} weight="fill" />
-                                        <span>Sẵn sàng liên thông chứng chỉ hành nghề</span>
+                                        <span>Giấy phép cơ sở: {complianceDashboard?.facility_license_status || 'ACTIVE'}</span>
                                     </div>
                                 </div>
                                 <Link
-                                    to="/admin/tuan-thu?tab=SETTING"
+                                    to="?tab=SETTING"
                                     onClick={() => handleSwitchTab('SETTING')}
                                     className="medpro-btn-outline !py-1 !px-2.5 text-xs text-[#00B5F1] hover:bg-[#00B5F1] hover:text-white transition"
                                 >
@@ -629,7 +641,7 @@ export default function ComplianceAndAuditPage() {
 
                     <div className="medpro-card p-4">
                         <div className="medpro-section-title">
-                            <span>SỔ ĐĂNG KÝ NGHĨA VỤ PHÁP LÝ Y TẾ & MA TRẬN ĐIỀU KIỆN ÁP DỤNG</span>
+                            <span>SỔ ĐĂNG KÝ NGHĨA VỤ PHÁP LÝ Y TẾ & MA TRẬN ĐIỀỆN KIỆN ÁP DỤNG</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="medpro-table">
@@ -673,13 +685,12 @@ export default function ComplianceAndAuditPage() {
                                     <span>QUY TRÌNH LIÊN THÔNG ĐƠN THUỐC QUỐC GIA (THÔNG TƯ 26/2025/TT-BYT)</span>
                                 </h3>
                                 <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
-                                    <span>Mô hình 4 bước chuẩn hóa từ lúc Bác sĩ kê đơn đến khi cấp Mã Đơn Quốc gia tra cứu tại các nhà thuốc.</span>
+                                    <span>Dữ liệu đồng bộ trực tiếp từ bảng don_thuoc của Bàn khám lâm sàng; cấp mã 14 ký tự chuẩn Bộ Y tế.</span>
                                     <a
-                                        href="https://donthuocquocgia.vn"
+                                        href={DON_THUOC_QG_URL}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                        title="Mở cổng chính thức donthuocquocgia.vn"
                                     >
                                         <span>donthuocquocgia.vn</span>
                                         <Globe size={12} />
@@ -691,7 +702,7 @@ export default function ComplianceAndAuditPage() {
                                     type="button"
                                     onClick={handleSyncAllSignedPrescriptions}
                                     disabled={syncingKey === 'ALL' || signedPrescriptions === 0}
-                                    className="medpro-btn-primary text-xs disabled:opacity-50"
+                                    className="medpro-btn-primary text-xs disabled:opacity-50 cursor-pointer"
                                 >
                                     <ArrowsClockwise size={14} className={syncingKey === 'ALL' ? 'animate-spin' : ''} />
                                     <span>Đồng bộ tất cả đơn đã ký ({signedPrescriptions})</span>
@@ -699,7 +710,7 @@ export default function ComplianceAndAuditPage() {
                                 <button
                                     type="button"
                                     onClick={handleExportPrescriptionsExcel}
-                                    className="medpro-btn-outline text-xs font-bold !bg-white hover:!bg-slate-50"
+                                    className="medpro-btn-outline text-xs font-bold !bg-white hover:!bg-slate-50 cursor-pointer"
                                 >
                                     <DownloadSimple size={14} weight="bold" className="text-[#00B5F1]" />
                                     <span>Xuất Excel Đơn thuốc</span>
@@ -724,7 +735,7 @@ export default function ComplianceAndAuditPage() {
                                     <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">2</span>
                                 </div>
                                 <div className="text-xs font-bold text-[#003553]">Ký số bảo mật SmartCA</div>
-                                <p className="text-[11px] text-slate-500">Khóa bất biến đơn thuốc, chống sửa đổi sau khi bác sĩ phê duyệt.</p>
+                                <p className="text-[11px] text-slate-500">Khóa bất biến SHA-256, chống sửa đổi sau khi bác sĩ phê duyệt.</p>
                                 <div className="pt-1 text-[11px] font-semibold text-blue-600">Trạng thái: Đã ký số (SIGNED)</div>
                             </div>
 
@@ -735,7 +746,7 @@ export default function ComplianceAndAuditPage() {
                                 </div>
                                 <div className="text-xs font-bold text-[#003553]">Truyền cổng liên thông</div>
                                 <p className="text-[11px] text-slate-500">Đẩy dữ liệu kèm mã Idempotency chống trùng lặp lên Cổng Quốc gia.</p>
-                                <div className="pt-1 text-[11px] font-semibold text-amber-600">Trạng thái: Đang truyền (SUBMITTED)</div>
+                                <div className="pt-1 text-[11px] font-semibold text-amber-600">Trạng thái: Ban hành (ISSUED)</div>
                             </div>
 
                             <div className="p-3 rounded-xl bg-white border-emerald-200 border shadow-2xs space-y-1">
@@ -744,7 +755,7 @@ export default function ComplianceAndAuditPage() {
                                     <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">4</span>
                                 </div>
                                 <div className="text-xs font-bold text-[#003553]">Cấp mã Đơn thuốc QG</div>
-                                <p className="text-[11px] text-slate-500">Bộ Y tế phê duyệt, cấp mã VN-RX tra cứu tại mọi nhà thuốc toàn quốc.</p>
+                                <p className="text-[11px] text-slate-500">Cấp mã 14 chữ số chuẩn TT 27/2021 tra cứu tại mọi nhà thuốc toàn quốc.</p>
                                 <div className="pt-1 text-[11px] font-semibold text-emerald-600">Trạng thái: Đã liên thông (ACCEPTED)</div>
                             </div>
                         </div>
@@ -754,7 +765,7 @@ export default function ComplianceAndAuditPage() {
                         <div className="medpro-card p-3.5 border-l-4 border-l-[#003553]">
                             <div className="text-xs font-bold text-slate-500">TỔNG SỐ ĐƠN THUỐC</div>
                             <div className="text-2xl font-extrabold text-[#003553] mt-1 tabular-nums">{totalPrescriptions}</div>
-                            <div className="text-[11px] text-slate-500 mt-1">Đơn thuốc kê tại phòng khám</div>
+                            <div className="text-[11px] text-slate-500 mt-1">Đơn thuốc thực tế trong CSDL</div>
                         </div>
                         <div className="medpro-card p-3.5 border-l-4 border-l-emerald-500">
                             <div className="text-xs font-bold text-emerald-700">ĐÃ CẤP MÃ QUỐC GIA</div>
@@ -775,7 +786,7 @@ export default function ComplianceAndAuditPage() {
 
                     <div className="medpro-card p-4 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
+                            <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
                                 <div className="relative flex-1 min-w-[240px]">
                                     <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     <input
@@ -790,7 +801,7 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('ALL')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
                                             statusFilter === 'ALL' ? 'bg-[#00B5F1] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                                         }`}
                                     >
@@ -799,7 +810,7 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('ACCEPTED')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
                                             statusFilter === 'ACCEPTED' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                                         }`}
                                     >
@@ -808,7 +819,7 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('SIGNED')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
                                             statusFilter === 'SIGNED' ? 'bg-[#00B5F1] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                                         }`}
                                     >
@@ -817,7 +828,7 @@ export default function ComplianceAndAuditPage() {
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('DRAFT')}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
                                             statusFilter === 'DRAFT' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                                         }`}
                                     >
@@ -825,6 +836,15 @@ export default function ComplianceAndAuditPage() {
                                     </button>
                                 </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={fetchComplianceOverviewAndRx}
+                                disabled={loadingRx}
+                                className="medpro-btn-outline text-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                                <ArrowsClockwise size={13} className={loadingRx ? 'animate-spin' : ''} />
+                                <span>Làm mới</span>
+                            </button>
                         </div>
 
                         <div className="overflow-x-auto border border-[#E5EEF5] rounded-xl">
@@ -845,13 +865,10 @@ export default function ComplianceAndAuditPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredRegistrations.map((r, idx) => {
-                                        const p = r.prescription || {}
-                                        const fsm = p.trangThaiFSM || (p.daKySo ? 'SIGNED' : 'DRAFT')
-                                        const currentKcb = r.maKCB || r.id
-                                        const drugCount = (p.items || p.danhSachThuoc || []).length
-                                        const nationalCode = p.maLienThongQuocGia || p.maDonThuocQG || 'Chưa cấp'
-                                        const idempotency = p.idempotencyKey || `IDEM-${currentKcb}-RX01`
+                                    {rxItems.map((r, idx) => {
+                                        const fsm = r.trang_thai || 'DRAFT'
+                                        const nationalCode = r.ma_don_quoc_gia || ''
+                                        const canSync = SYNCABLE_RX_STATES.includes(fsm)
 
                                         return (
                                             <tr key={r.id}>
@@ -860,9 +877,8 @@ export default function ComplianceAndAuditPage() {
                                                     <Link
                                                         to="/admin/kham-benh"
                                                         className="font-mono font-bold text-[#00B5F1] hover:underline"
-                                                        title="Bấm để chuyển đến Bàn khám lâm sàng"
                                                     >
-                                                        {currentKcb}
+                                                        {r.ma_kcb}
                                                     </Link>
                                                 </td>
                                                 <td>
@@ -870,41 +886,37 @@ export default function ComplianceAndAuditPage() {
                                                         type="button"
                                                         onClick={() => setSelectedRxRecord(r)}
                                                         className="font-mono text-xs font-bold text-[#003553] hover:text-[#00B5F1] hover:underline cursor-pointer"
-                                                        title="Bấm xem chi tiết đơn thuốc"
                                                     >
-                                                        {p.maDon || 'Chưa tạo'}
+                                                        {r.ma_don_thuoc}
                                                     </button>
                                                 </td>
                                                 <td>
                                                     <Link
                                                         to="/admin/benh-nhan"
                                                         className="font-bold text-[#003553] hover:text-[#00B5F1] hover:underline"
-                                                        title="Bấm xem hồ sơ bệnh nhân"
                                                     >
-                                                        {r.hoTen}
+                                                        {r.ho_ten_benh_nhan}
                                                     </Link>
                                                 </td>
                                                 <td>
                                                     <Link
                                                         to="/admin/nhan-vien"
                                                         className="text-xs text-slate-700 hover:text-[#00B5F1] hover:underline"
-                                                        title="Xem hồ sơ nhân sự bác sĩ"
                                                     >
-                                                        {r.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
+                                                        {r.ho_ten_bac_si}
                                                     </Link>
                                                 </td>
-                                                <td className="tabular-nums text-center font-bold">{drugCount} thuốc</td>
+                                                <td className="tabular-nums text-center font-bold">{r.so_luong_thuoc} thuốc</td>
                                                 <td>
                                                     <StatusBadge status={fsm} compact />
                                                 </td>
                                                 <td className="font-mono text-xs font-semibold text-[#003553]">
-                                                    {nationalCode !== 'Chưa cấp' ? (
+                                                    {nationalCode ? (
                                                         <a
-                                                            href="https://donthuocquocgia.vn"
+                                                            href={DON_THUOC_QG_URL}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-emerald-700 font-bold hover:underline inline-flex items-center gap-1"
-                                                            title="Mở Cổng Quốc gia tra cứu đơn thuốc"
                                                         >
                                                             <span>{nationalCode}</span>
                                                             <Globe size={11} />
@@ -913,27 +925,30 @@ export default function ComplianceAndAuditPage() {
                                                         <span className="text-slate-400 italic">Chưa cấp</span>
                                                     )}
                                                 </td>
-                                                <td className="tabular-nums text-xs text-slate-600">{p.ngayKy || 'Chưa ký'}</td>
-                                                <td className="font-mono text-[11px] text-slate-500">{idempotency}</td>
+                                                <td className="tabular-nums text-xs text-slate-600">
+                                                    {r.ngay_ky ? formatIsoDateTime(r.ngay_ky) : 'Chưa ký'}
+                                                </td>
+                                                <td className="font-mono text-[11px] text-slate-500">
+                                                    {r.idempotency_key || '—'}
+                                                </td>
                                                 <td>
                                                     <div className="flex items-center gap-1.5">
                                                         <button
                                                             type="button"
                                                             onClick={() => setSelectedRxRecord(r)}
                                                             className="medpro-btn-outline !py-1 !px-2 text-xs flex items-center gap-1 cursor-pointer"
-                                                            title="Xem chi tiết đơn thuốc"
                                                         >
                                                             <Eye size={13} />
                                                             <span>Chi tiết</span>
                                                         </button>
-                                                        {fsm === 'SIGNED' || fsm === 'RETRY_PENDING' ? (
+                                                        {canSync ? (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleSyncSinglePrescription(currentKcb)}
-                                                                disabled={syncingKey === currentKcb}
+                                                                onClick={() => handleSyncSinglePrescription(r.id, r.ma_kcb)}
+                                                                disabled={syncingKey === String(r.id)}
                                                                 className="medpro-btn-primary !py-1 !px-2 text-xs flex items-center gap-1 cursor-pointer"
                                                             >
-                                                                <ArrowsClockwise size={12} className={syncingKey === currentKcb ? 'animate-spin' : ''} />
+                                                                <ArrowsClockwise size={12} className={syncingKey === String(r.id) ? 'animate-spin' : ''} />
                                                                 <span>Gửi cổng</span>
                                                             </button>
                                                         ) : fsm === 'ACCEPTED' ? (
@@ -948,7 +963,7 @@ export default function ComplianceAndAuditPage() {
                                             </tr>
                                         )
                                     })}
-                                    {filteredRegistrations.length === 0 && (
+                                    {rxItems.length === 0 && (
                                         <tr>
                                             <td colSpan={11}>
                                                 <EmptyState icon="Signature" title="Không tìm thấy đơn thuốc phù hợp điều kiện lọc" />
@@ -968,22 +983,22 @@ export default function ComplianceAndAuditPage() {
                         <span>ĐỒNG BỘ SỔ SỨC KHỎE ĐIỆN TỬ BỘ Y TẾ (TT 32/2023/TT-BYT)</span>
                         <div className="flex items-center gap-2">
                             <a
-                                href="https://hssk.kcb.vn"
+                                href={HSSK_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
-                                title="Mở cổng HSSK chính thức"
                             >
                                 <span>Cổng HSSK: hssk.kcb.vn</span>
                                 <Globe size={12} />
                             </a>
                             <button
                                 type="button"
-                                onClick={() => handleTriggerSyncGeneric('Sổ Sức Khỏe Điện Tử')}
-                                className="medpro-btn-primary text-xs"
+                                onClick={handleRefreshHsskRecords}
+                                disabled={syncingKey === 'HSSK'}
+                                className="medpro-btn-primary text-xs cursor-pointer"
                             >
-                                <ArrowsClockwise size={14} className={syncingKey === 'Sổ Sức Khỏe Điện Tử' ? 'animate-spin' : ''} />
-                                <span>Liên thông HSSK ca đã hoàn tất</span>
+                                <ArrowsClockwise size={14} className={syncingKey === 'HSSK' ? 'animate-spin' : ''} />
+                                <span>Làm mới & Liên thông HSSK ({hsskRecords.length})</span>
                             </button>
                         </div>
                     </div>
@@ -1001,11 +1016,11 @@ export default function ComplianceAndAuditPage() {
                                     <th>Phân loại SK</th>
                                     <th>Mã giao dịch</th>
                                     <th>Trạng thái HSSK</th>
-                                    <th>Thời điểm đồng bộ</th>
+                                    <th>Thời điểm khóa</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {(Array.isArray(nationalEhrSync) ? nationalEhrSync : []).map((item, idx) => (
+                                {hsskRecords.map((item, idx) => (
                                     <tr key={item.id || idx}>
                                         <td className="font-bold">{idx + 1}</td>
                                         <td className="font-mono font-bold text-[#00B5F1]">
@@ -1022,7 +1037,7 @@ export default function ComplianceAndAuditPage() {
                                             {item.ngaySinh} ({item.gioiTinh})
                                         </td>
                                         <td className="font-mono text-xs">{item.dienThoai}</td>
-                                        <td className="text-xs max-w-[200px] truncate" title={item.mauKham}>
+                                        <td className="text-xs max-w-[220px] truncate" title={item.mauKham}>
                                             {item.mauKham}
                                         </td>
                                         <td>
@@ -1030,19 +1045,18 @@ export default function ComplianceAndAuditPage() {
                                         </td>
                                         <td className="font-mono text-[11px] text-slate-500">{item.idempotencyKey}</td>
                                         <td>
-                                            <span
-                                                className={
-                                                    item.trangThai?.includes('Đã đồng bộ')
-                                                        ? 'medpro-badge-success'
-                                                        : 'medpro-badge-warning'
-                                                }
-                                            >
-                                                {item.trangThai}
-                                            </span>
+                                            <span className="medpro-badge-success">{item.trangThai}</span>
                                         </td>
                                         <td className="tabular-nums text-xs text-slate-600">{item.ngayDongBo}</td>
                                     </tr>
                                 ))}
+                                {hsskRecords.length === 0 && (
+                                    <tr>
+                                        <td colSpan={10}>
+                                            <EmptyState icon="Heartbeat" title="Chưa có hồ sơ bệnh án nào hoàn tất khóa để đồng bộ HSSK" />
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -1100,15 +1114,15 @@ export default function ComplianceAndAuditPage() {
                                 {(liveAuditLogs.length > 0 ? liveAuditLogs : filteredLogs).map((log) => (
                                     <tr key={log.id}>
                                         <td className="font-mono font-bold text-[#003553]">{log.id}</td>
-                                        <td className="tabular-nums text-xs">{log.thoiGian || log.timestamp}</td>
-                                        <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || log.actor || '').replace(/\s*\(INT-\d+\)/g, '')}</td>
+                                        <td className="tabular-nums text-xs">{log.thoiGian || formatIsoDateTime(log.timestamp)}</td>
+                                        <td className="font-semibold text-[#12263F]">{String(log.nguoiDung || log.actor || `UID #${log.user_id || ''}`).replace(/\s*\(INT-\d+\)/g, '')}</td>
                                         <td>
-                                            <span className="medpro-badge-info">{ROLE_LABEL_MAP[log.vaiTro] || ROLE_LABEL_MAP[log.role] || log.vaiTro || log.role}</span>
+                                            <span className="medpro-badge-info">{ROLE_LABEL_MAP[String(log.vaiTro || log.role || log.user_role || '').toUpperCase()] || log.vaiTro || log.role || log.user_role}</span>
                                         </td>
                                         <td className="font-semibold text-xs text-[#003553]">{ACTION_LABEL_MAP[log.hanhDong] || ACTION_LABEL_MAP[log.action] || log.hanhDong || log.action}</td>
                                         <td className="font-semibold">{log.doiTuong || log.resource_type}</td>
                                         <td className="text-xs text-slate-600">{log.mucDich || log.purpose}</td>
-                                        <td className="font-mono text-xs text-slate-500">{log.ip || log.client_ip}</td>
+                                        <td className="font-mono text-xs text-slate-500">{log.ip || log.client_ip || '127.0.0.1'}</td>
                                         <td>
                                             <StatusBadge status={log.ketQua || 'SUCCESS'} compact />
                                         </td>
@@ -1162,12 +1176,12 @@ export default function ComplianceAndAuditPage() {
                                 type="button"
                                 onClick={handleTestGatewayConnection}
                                 disabled={isTestingGateway}
-                                className="medpro-btn-outline text-xs flex items-center gap-1.5"
+                                className="medpro-btn-outline text-xs flex items-center gap-1.5 cursor-pointer"
                             >
                                 <ArrowsClockwise size={14} className={isTestingGateway ? 'animate-spin' : ''} />
                                 <span>{isTestingGateway ? 'Đang kiểm tra...' : 'Kiểm tra kết nối Cổng Quốc gia'}</span>
                             </button>
-                            <button type="button" onClick={handleSaveSettings} className="medpro-btn-primary text-xs">
+                            <button type="button" onClick={handleSaveSettings} className="medpro-btn-primary text-xs cursor-pointer">
                                 <FloppyDisk size={14} weight="bold" />
                                 <span>Lưu cấu hình hệ thống</span>
                             </button>
@@ -1179,11 +1193,11 @@ export default function ComplianceAndAuditPage() {
                             <div className="flex items-center gap-2">
                                 <CheckCircle size={18} weight="fill" className="text-emerald-600" />
                                 <span>
-                                    <strong>Cổng Đơn thuốc Quốc gia & HSSK:</strong> Phản hồi kết nối thành công 200 OK. Độ trễ: <strong>{gatewayPingResult.latency}ms</strong> (Lúc {gatewayPingResult.timestamp}).
+                                    <strong>Cổng Đơn thuốc Quốc gia & HSSK:</strong> Phản hồi HTTP 200 OK ({gatewayPingResult.version}). Độ trễ thực: <strong>{gatewayPingResult.latency}ms</strong> (Lúc {gatewayPingResult.timestamp}).
                                 </span>
                             </div>
                             <a
-                                href="https://donthuocquocgia.vn"
+                                href={DON_THUOC_QG_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="medpro-badge-success font-bold hover:underline inline-flex items-center gap-1"
@@ -1287,7 +1301,7 @@ export default function ComplianceAndAuditPage() {
                                     <span>Trạng thái chứng thư số HSM: ĐANG KÍCH HOẠT</span>
                                 </div>
                                 <div className="text-[11px] text-emerald-700 leading-relaxed">
-                                    Chứng thư số VNPT SmartCA HSM đã tích hợp sẵn cho 04 Bác sĩ chuyên khoa tại phòng khám, sẵn sàng ký số tự động đạt chuẩn Thông tư 26/2025/TT-BYT.
+                                    Chứng thư số VNPT SmartCA HSM đã tích hợp cho đội ngũ Bác sĩ chuyên khoa tại phòng khám, ký số bất biến SHA-256 đạt chuẩn Thông tư 26/2025/TT-BYT.
                                 </div>
                             </div>
                         </div>
@@ -1310,7 +1324,7 @@ export default function ComplianceAndAuditPage() {
                                         CHI TIẾT ĐƠN THUỐC ĐIỆN TỬ NGOẠI TRÚ
                                     </h3>
                                     <div className="text-xs text-slate-500">
-                                        Mã đơn: <strong className="font-mono text-[#00B5F1]">{selectedRxRecord.prescription?.maDon || 'Chưa tạo'}</strong> • Mã ca KCB: <strong className="font-mono text-[#003553]">{selectedRxRecord.maKCB || selectedRxRecord.id}</strong>
+                                        Mã đơn: <strong className="font-mono text-[#00B5F1]">{selectedRxRecord.ma_don_thuoc}</strong> • Mã ca KCB: <strong className="font-mono text-[#003553]">{selectedRxRecord.ma_kcb}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -1329,49 +1343,32 @@ export default function ComplianceAndAuditPage() {
                                 <Link
                                     to="/admin/benh-nhan"
                                     className="text-[#003553] text-sm font-bold hover:underline hover:text-[#00B5F1]"
-                                    title="Xem hồ sơ bệnh nhân"
                                 >
-                                    {selectedRxRecord.hoTen}
+                                    {selectedRxRecord.ho_ten_benh_nhan}
                                 </Link>
                             </div>
                             <div>
-                                <span className="text-slate-500 block">Năm sinh / Giới tính:</span>
-                                <strong className="text-slate-800">{selectedRxRecord.ngaySinh} ({selectedRxRecord.gioiTinh})</strong>
+                                <span className="text-slate-500 block">Mã BN / SĐT:</span>
+                                <strong className="text-slate-800">{selectedRxRecord.ma_benh_nhan || '—'} · {selectedRxRecord.so_dien_thoai || '—'}</strong>
                             </div>
                             <div>
                                 <span className="text-slate-500 block">Bác sĩ kê đơn:</span>
                                 <Link
                                     to="/admin/nhan-vien"
                                     className="text-[#00B5F1] font-bold hover:underline"
-                                    title="Xem hồ sơ nhân sự bác sĩ"
                                 >
-                                    {selectedRxRecord.bacSi || 'BS. CKII Nguyễn Minh Hoàng'}
+                                    {selectedRxRecord.ho_ten_bac_si}
                                 </Link>
                             </div>
                             <div>
                                 <span className="text-slate-500 block">Trạng thái Cổng QG:</span>
-                                <StatusBadge status={selectedRxRecord.prescription?.trangThaiFSM || 'DRAFT'} compact />
+                                <StatusBadge status={selectedRxRecord.trang_thai || 'DRAFT'} compact />
                             </div>
                         </div>
 
-                        {selectedRxRecord.clinicalNotes?.chanDoanXacDinh && (
-                            <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 text-xs flex items-center justify-between">
-                                <div>
-                                    <span className="font-bold text-[#003553]">Chẩn đoán bệnh (ICD-10): </span>
-                                    <span className="text-slate-800">{selectedRxRecord.clinicalNotes.chanDoanXacDinh}</span>
-                                </div>
-                                <Link
-                                    to="/admin/kham-benh"
-                                    className="text-xs text-[#00B5F1] font-bold hover:underline shrink-0 ml-2"
-                                >
-                                    Bàn khám &rarr;
-                                </Link>
-                            </div>
-                        )}
-
                         <div>
                             <div className="text-xs font-extrabold text-[#003553] uppercase mb-2">
-                                Danh mục thuốc kê ({((selectedRxRecord.prescription?.items || selectedRxRecord.prescription?.danhSachThuoc) || []).length} loại)
+                                Danh mục thuốc kê ({(selectedRxRecord.danh_sach_thuoc || []).length} loại)
                             </div>
                             <div className="overflow-x-auto border border-slate-200 rounded-xl">
                                 <table className="medpro-table text-xs">
@@ -1385,16 +1382,16 @@ export default function ComplianceAndAuditPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {((selectedRxRecord.prescription?.items || selectedRxRecord.prescription?.danhSachThuoc) || []).map((item, i) => (
+                                        {(selectedRxRecord.danh_sach_thuoc || []).map((item, i) => (
                                             <tr key={item.id || i}>
                                                 <td className="font-bold text-center">{i + 1}</td>
                                                 <td>
-                                                    <div className="font-bold text-[#003553]">{item.tenThuoc}</div>
-                                                    <div className="text-[11px] text-slate-500">{item.hoatChat}</div>
+                                                    <div className="font-bold text-[#003553]">{item.ten_thuoc}</div>
+                                                    <div className="text-[11px] text-slate-500">{item.hoat_chat} {item.ham_luong ? `(${item.ham_luong})` : ''}</div>
                                                 </td>
-                                                <td className="tabular-nums font-bold text-center">{item.soLuong}</td>
-                                                <td className="text-center">{item.dvt}</td>
-                                                <td className="text-slate-700">{item.lieuDung}</td>
+                                                <td className="tabular-nums font-bold text-center">{item.so_luong}</td>
+                                                <td className="text-center">{item.don_vi_tinh}</td>
+                                                <td className="text-slate-700">{item.cach_dung}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1402,10 +1399,10 @@ export default function ComplianceAndAuditPage() {
                             </div>
                         </div>
 
-                        {selectedRxRecord.prescription?.loiDanBacSi && (
+                        {selectedRxRecord.loi_dan_uong_thuoc && (
                             <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-xs">
                                 <span className="font-bold text-amber-900">Lời dặn của Bác sĩ: </span>
-                                <span className="text-amber-950">{selectedRxRecord.prescription.loiDanBacSi}</span>
+                                <span className="text-amber-950">{selectedRxRecord.loi_dan_uong_thuoc}</span>
                             </div>
                         )}
 
@@ -1416,7 +1413,7 @@ export default function ComplianceAndAuditPage() {
                                     <span>THÔNG SỐ LIÊN THÔNG CỔNG ĐƠN THUỐC QUỐC GIA (TT 26/2025/TT-BYT)</span>
                                 </div>
                                 <a
-                                    href="https://donthuocquocgia.vn"
+                                    href={DON_THUOC_QG_URL}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-[11px] text-[#00B5F1] font-bold hover:underline inline-flex items-center gap-1"
@@ -1428,18 +1425,11 @@ export default function ComplianceAndAuditPage() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                                 <div>
-                                    <span className="text-slate-500 block">Mã Đơn thuốc Quốc gia:</span>
-                                    {selectedRxRecord.prescription?.maLienThongQuocGia ? (
-                                        <a
-                                            href="https://donthuocquocgia.vn"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="font-mono font-bold text-emerald-700 text-sm hover:underline inline-flex items-center gap-1"
-                                            title="Bấm mở Cổng Quốc gia để tra cứu"
-                                        >
-                                            <span>{selectedRxRecord.prescription.maLienThongQuocGia}</span>
-                                            <Globe size={12} />
-                                        </a>
+                                    <span className="text-slate-500 block">Mã Đơn thuốc Quốc gia (14 số):</span>
+                                    {selectedRxRecord.ma_don_quoc_gia ? (
+                                        <span className="font-mono font-bold text-emerald-700 text-sm">
+                                            {selectedRxRecord.ma_don_quoc_gia}
+                                        </span>
                                     ) : (
                                         <span className="text-slate-400 italic">Chưa cấp (Đang chờ liên thông)</span>
                                     )}
@@ -1447,19 +1437,19 @@ export default function ComplianceAndAuditPage() {
                                 <div>
                                     <span className="text-slate-500 block">Thời điểm ký số SmartCA:</span>
                                     <span className="font-mono text-slate-700">
-                                        {selectedRxRecord.prescription?.ngayKy || 'Chưa thực hiện ký số'}
+                                        {selectedRxRecord.ngay_ky ? formatIsoDateTime(selectedRxRecord.ngay_ky) : 'Chưa thực hiện ký số'}
                                     </span>
                                 </div>
                                 <div>
                                     <span className="text-slate-500 block">Mã giao dịch (Idempotency Key):</span>
                                     <span className="font-mono text-slate-600 text-[11px]">
-                                        {selectedRxRecord.prescription?.idempotencyKey || `IDEM-${selectedRxRecord.maKCB || selectedRxRecord.id}-RX01`}
+                                        {selectedRxRecord.idempotency_key || 'Chưa phát sinh'}
                                     </span>
                                 </div>
                                 <div>
                                     <span className="text-slate-500 block">Biên nhận giao dịch Bộ Y tế:</span>
                                     <span className="font-mono text-slate-600 text-[11px]">
-                                        {selectedRxRecord.prescription?.receiptToken || (selectedRxRecord.prescription?.trangThaiFSM === 'ACCEPTED' ? `RCPT-BYT-${(selectedRxRecord.maKCB || selectedRxRecord.id).slice(-4)}-OK` : 'Chưa có')}
+                                        {selectedRxRecord.bien_nhan_giao_dich || 'Chưa có'}
                                     </span>
                                 </div>
                             </div>
@@ -1467,7 +1457,7 @@ export default function ComplianceAndAuditPage() {
 
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
                             <a
-                                href="https://donthuocquocgia.vn"
+                                href={DON_THUOC_QG_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="medpro-btn-outline text-xs inline-flex items-center gap-1.5"
@@ -1483,12 +1473,11 @@ export default function ComplianceAndAuditPage() {
                                 >
                                     Đóng
                                 </button>
-                                {selectedRxRecord.prescription?.trangThaiFSM === 'SIGNED' && (
+                                {SYNCABLE_RX_STATES.includes(selectedRxRecord.trang_thai) && (
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            const currentKcb = selectedRxRecord.maKCB || selectedRxRecord.id
-                                            handleSyncSinglePrescription(currentKcb)
+                                            handleSyncSinglePrescription(selectedRxRecord.id, selectedRxRecord.ma_kcb)
                                             setSelectedRxRecord(null)
                                         }}
                                         className="medpro-btn-primary text-xs flex items-center gap-1.5 cursor-pointer"

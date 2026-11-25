@@ -29,7 +29,6 @@ import SymptomSurveyPage from './pages/user/SymptomSurveyPage'
 import PatientPortalLayout from './layouts/PatientPortalLayout'
 import PatientDashboardPage from './pages/user/patient/PatientDashboardPage'
 import PatientAppointmentsPage from './pages/user/patient/PatientAppointmentsPage'
-import MedicalHistoryPage from './pages/user/patient/MedicalHistoryPage'
 import PrescriptionsPage from './pages/user/patient/PrescriptionsPage'
 import LabResultsPage from './pages/user/patient/LabResultsPage'
 import DoctorSchedulesPage from './pages/user/patient/DoctorSchedulesPage'
@@ -42,7 +41,6 @@ import PatientBillingPage from './pages/user/PatientBillingPage'
 import DashboardAdminPage from './pages/admin/DashboardAdminPage'
 import PatientManagementPage from './pages/admin/PatientManagementPage'
 import ParaclinicalPage from './pages/admin/ParaclinicalPage'
-import AppointmentManagementPage from './pages/admin/AppointmentManagementPage'
 import CashierManagementPage from './pages/admin/CashierManagementPage'
 import NewsManagementPage from './pages/admin/NewsManagementPage'
 import CatalogManagementPage from './pages/admin/CatalogManagementPage'
@@ -113,7 +111,7 @@ function App() {
                         <Route path="/benh-nhan" element={<PatientPortalLayout />}>
                             <Route index element={<PatientDashboardPage />} />
                             <Route path="lich-hen" element={<PatientAppointmentsPage />} />
-                            <Route path="lich-su-kham" element={<MedicalHistoryPage />} />
+                            <Route path="lich-su-kham" element={<Navigate to="/benh-nhan/benh-an" replace />} />
                             <Route path="don-thuoc" element={<PrescriptionsPage />} />
                             <Route path="ket-qua-can-lam-sang" element={<LabResultsPage />} />
                             <Route path="lich-bac-si" element={<DoctorSchedulesPage />} />
@@ -132,8 +130,8 @@ function App() {
 
                         <Route path="dang-ky-kham" element={<CheckInPage />} />
 
-                        <Route path="benh-nhan" element={<PatientManagementPage />} />
-                        <Route path="benh-nhan/them-moi" element={<PatientManagementPage />} />
+                        <Route path="benh-nhan" element={<PatientsPage />} />
+                        <Route path="benh-nhan/them-moi" element={<PatientsPage />} />
 
                         <Route path="kham-benh" element={<ExamWorkstationPage />} />
                         <Route path="khambenh" element={<ExamWorkstationPage />} />
@@ -143,7 +141,7 @@ function App() {
                         <Route path="can-lam-sang" element={<ParaclinicalWorkPage />} />
                         <Route path="pt-tt" element={<ParaclinicalWorkPage />} />
 
-                        <Route path="lich-hen" element={<AppointmentManagementPage />} />
+                        <Route path="lich-hen" element={<AppointmentsPage />} />
 
                         <Route path="thu-chi" element={<CashierManagementPage />} />
                         <Route path="thu-ngan-vietqr" element={<CashierBillingAuditDashboard />} />
@@ -210,7 +208,7 @@ function App() {
                         <Route path="check-in" element={<CheckInPage />} />
                         <Route path="queue" element={<QueueManagementPage />} />
                         <Route path="appointments" element={<AppointmentsPage />} />
-                        <Route path="patients" element={<PatientManagementPage />} />
+                        <Route path="patients" element={<PatientsPage />} />
                         <Route path="exam-workstation" element={<ExamWorkstationPage />} />
                         <Route path="specialty-exam" element={<Navigate to="/staff/exam-workstation" replace />} />
                         <Route path="specialty-exam/:deptKey" element={<Navigate to="/staff/exam-workstation" replace />} />

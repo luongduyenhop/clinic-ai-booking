@@ -742,7 +742,8 @@ export class ClinicalService extends BaseServices {
         }
         if (enc.luot_kham_server_id) {
             const syncPatch = { ...payload }
-            if ((enc?.don_thuoc?.trang_thai || enc?.trang_thai_don_thuoc) === 'SIGNED') {
+            const currentRxState = enc?.don_thuoc?.trang_thai || enc?.trang_thai_don_thuoc || ''
+            if (['SIGNED', 'ISSUED', 'SUBMISSION_PENDING', 'SUBMITTED', 'ACCEPTED'].includes(currentRxState)) {
                 delete syncPatch.danh_sach_thuoc
                 delete syncPatch.don_thuoc
             }
@@ -1118,6 +1119,107 @@ export class ClinicalService extends BaseServices {
         })
         const items = res?.data?.data
         return Array.isArray(items) ? items : []
+    }
+
+    signPrescription = async (encounterId, payload) => {
+        const drugRows = Array.isArray(payload?.danh_sach_thuoc) ? payload.danh_sach_thuoc : []
+        if (drugRows.length === 0) {
+            return reject('Vui lòng kê ít nhất 1 loại thuốc vào đơn trước khi ký số!')
+        }
+
+        const sigData = payload?.chu_ky_so || `SHA256:SIG:${encounterId || 'EXAM'}:${Date.now()}`
+        const draftPatch = {
+            danh_sach_thuoc: drugRows,
+            loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || '',
+            ...(Array.isArray(payload?.danh_sach_chan_doan) ? { danh_sach_chan_doan: payload.danh_sach_chan_doan } : {}),
+        }
+        await this.saveEncounterDraft(encounterId, draftPatch)
+        await this.reloadFromPostgres()
+
+        const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
+        if (!enc?.luot_kham_server_id) {
+            return reject('Cần bắt đầu phiên khám trên hệ thống trước khi ký số đơn thuốc!')
+        }
+
+        let rxId = enc?.don_thuoc?.id
+        let rxState = enc?.don_thuoc?.trang_thai || 'DRAFT'
+
+        if (!rxId) {
+            const formattedItems = drugRows.map((m) => {
+                const sang = String(m.sang ?? m.lieu_sang ?? '')
+                const trua = String(m.trua ?? m.lieu_trua ?? '')
+                const chieu = String(m.chieu ?? m.lieu_chieu ?? '')
+                const toi = String(m.toi ?? m.lieu_toi ?? '')
+                const days = Math.max(1, parseInt(m.so_ngay_dung, 10) || 5)
+                const slotSum = [sang, trua, chieu, toi].reduce((acc, v) => acc + (parseFloat(v) || 0), 0)
+                const qty = Math.max(1, parseInt(m.so_luong, 10) || Math.round(slotSum * days) || 1)
+                return {
+                    ten_thuoc: m.ten_thuoc,
+                    hoat_chat: m.hoat_chat || null,
+                    ham_luong: m.ham_luong || null,
+                    don_vi_tinh: m.don_vi_tinh || 'Viên',
+                    so_luong: qty,
+                    lieu_sang: sang,
+                    lieu_trua: trua,
+                    lieu_chieu: chieu,
+                    lieu_toi: toi,
+                    cach_dung: m.cach_dung || 'Uống theo chỉ định bác sĩ',
+                    so_ngay_dung: days,
+                }
+            })
+            const createRes = await this.post(`/api/v1/clinical/encounters/${enc.luot_kham_server_id}/prescriptions`, {
+                so_ngay_dung: formattedItems[0]?.so_ngay_dung || 5,
+                loi_dan_uong_thuoc: payload?.loi_dan_uong_thuoc || '',
+                danh_sach_thuoc: formattedItems,
+            })
+            const createdRx = createRes?.data?.data || createRes?.data
+            rxId = createdRx?.id
+            rxState = createdRx?.trang_thai || 'DRAFT'
+        }
+
+        if (!rxId) {
+            return reject('Không thể khởi tạo đơn thuốc trên máy chủ để ký số!')
+        }
+
+        if (rxState === 'DRAFT') {
+            await this.post(`/api/v1/clinical/prescriptions/${rxId}/validate`, {})
+            rxState = 'VALIDATED'
+        }
+
+        let signedRx = enc?.don_thuoc
+        if (rxState === 'VALIDATED') {
+            const signRes = await this.post(`/api/v1/clinical/prescriptions/${rxId}/sign`, {
+                chu_ky_so: sigData,
+            })
+            signedRx = signRes?.data?.data || signRes?.data
+        }
+
+        await this.reloadFromPostgres()
+        const refreshedEnc = db.encounters[encounterId] || db.encounters[String(encounterId)] || enc
+        const finalRx = refreshedEnc?.don_thuoc || signedRx || {}
+        return {
+            data: {
+                ...finalRx,
+                status: finalRx.trang_thai || 'SIGNED',
+                trang_thai: finalRx.trang_thai || 'SIGNED',
+                ngay_ky: finalRx.ngay_ky || new Date().toISOString(),
+                chu_ky_so: finalRx.chu_ky_so || sigData,
+                nguoi_ky: refreshedEnc?.ten_bac_si || refreshedEnc?.bac_si?.ho_ten || 'Bác sĩ điều trị',
+            },
+        }
+    }
+
+    syncPrescriptionGateway = async (encounterId) => {
+        await this.reloadFromPostgres()
+        const enc = db.encounters[encounterId] || db.encounters[String(encounterId)]
+        const rxId = enc?.don_thuoc?.id
+        if (!rxId) {
+            throw new Error('Vui lòng kê thuốc và thực hiện Ký số điện tử trước khi đồng bộ lên Cổng Quốc gia!')
+        }
+        const res = await this.post(`/api/v1/compliance/prescriptions/${rxId}/sync`, {})
+        const synced = res?.data?.data || res?.data
+        await this.reloadFromPostgres()
+        return synced
     }
 
     pollReturnedResults = async () => {

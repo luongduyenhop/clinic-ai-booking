@@ -13,14 +13,21 @@ import dayjs from 'dayjs'
 import PatientFormModal from '../../components/reception/PatientFormModal'
 import PatientDetailDrawer from '../../components/reception/PatientDetailDrawer'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
+import { normalizeStaffRole } from '../../utils/constants/staffRoles'
 import {
     searchPatientsAsync,
     fetchAppointmentsAsync,
     fetchFlowBoardAsync,
 } from '../../redux/actions/reception/receptionAction'
 
+const MUTABLE_PATIENT_ROLES = ['ADMIN', 'LE_TAN', 'RECEPTIONIST', 'RECEPTION_SUPERVISOR']
+
 export default function PatientsPage() {
     const dispatch = useDispatch()
+    const authUser = useSelector((state) => state.app?.auth?.user)
+    const normalizedRole = normalizeStaffRole(authUser?.role || authUser?.vai_tro || '')
+    const canMutatePatient = MUTABLE_PATIENT_ROLES.includes(normalizedRole)
+
     const {
         patients = [],
         patientPagination = { page: 1, pageSize: 15, totalItems: 0 },
@@ -88,8 +95,12 @@ export default function PatientsPage() {
                 <div>
                     <span className="font-bold text-slate-900 block">{name}</span>
                     <span className="text-[11px] text-slate-400">
-                        {record.gender === 'MALE' ? 'Nam' : record.gender === 'FEMALE' ? 'Nữ' : 'Khác'} •{' '}
-                        {record.dob ? dayjs(record.dob).format('DD/MM/YYYY') : 'Chưa có ngày sinh'}
+                        {record.gender === 'MALE' || record.gender === 'Nam'
+                            ? 'Nam'
+                            : record.gender === 'FEMALE' || record.gender === 'Nữ'
+                            ? 'Nữ'
+                            : 'Khác'}{' '}
+                        • {record.dob ? dayjs(record.dob).format('DD/MM/YYYY') : 'Chưa có ngày sinh'}
                     </span>
                 </div>
             ),
@@ -117,16 +128,18 @@ export default function PatientsPage() {
             width: 140,
             render: (_, record) => {
                 const appCount = appointments.filter(
-                    (a) => (a.patientId && a.patientId === record.id) ||
-                           (a.benh_nhan_id && a.benh_nhan_id === record.id) ||
-                           (record.phone && a.so_dien_thoai === record.phone) ||
-                           (record.patientCode && a.patientCode === record.patientCode)
+                    (a) =>
+                        (a.patientId && a.patientId === record.id) ||
+                        (a.benh_nhan_id && a.benh_nhan_id === record.id) ||
+                        (record.phone && a.so_dien_thoai === record.phone) ||
+                        (record.patientCode && a.patientCode === record.patientCode)
                 ).length
                 const queueCount = queueEntries.filter(
-                    (q) => (q.patientId && q.patientId === record.id) ||
-                           (q.benh_nhan_id && q.benh_nhan_id === record.id) ||
-                           (record.phone && q.phone === record.phone) ||
-                           (record.patientCode && q.patientCode === record.patientCode)
+                    (q) =>
+                        (q.patientId && q.patientId === record.id) ||
+                        (q.benh_nhan_id && q.benh_nhan_id === record.id) ||
+                        (record.phone && q.phone === record.phone) ||
+                        (record.patientCode && q.patientCode === record.patientCode)
                 ).length
                 return (
                     <div className="text-xs text-slate-600 space-y-0.5">
@@ -155,14 +168,16 @@ export default function PatientsPage() {
                     >
                         Chi tiết
                     </Button>
-                    <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => setEditPatient(record)}
-                        className="text-xs"
-                    >
-                        Sửa
-                    </Button>
+                    {canMutatePatient && (
+                        <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setEditPatient(record)}
+                            className="text-xs"
+                        >
+                            Sửa
+                        </Button>
+                    )}
                 </Space>
             ),
         },
@@ -173,9 +188,11 @@ export default function PatientsPage() {
             <div className="medpro-card p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">Quản lý hồ sơ bệnh nhân (Master Patient Index)</h2>
+                        <h2 className="text-sm font-extrabold text-[#003553] uppercase tracking-wide">
+                            Quản lý hồ sơ bệnh nhân (Master Patient Index)
+                        </h2>
                         <span className="text-xs text-slate-500">
-                            Tra cứu hồ sơ hành chính từ CSDL, kiểm tra mã định danh, người đại diện và cảnh báo trùng lặp
+                            Tra cứu hồ sơ hành chính trực tiếp từ CSDL, kiểm tra mã định danh và lịch sử khám chữa bệnh
                         </span>
                     </div>
                     <div className="flex gap-2">
@@ -190,14 +207,16 @@ export default function PatientsPage() {
                         >
                             Làm mới
                         </Button>
-                        <Button
-                            type="primary"
-                            icon={<UserAddOutlined />}
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
-                        >
-                            Tạo hồ sơ mới
-                        </Button>
+                        {canMutatePatient && (
+                            <Button
+                                type="primary"
+                                icon={<UserAddOutlined />}
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="medpro-btn-primary !h-8 !px-4 text-xs font-bold"
+                            >
+                                Tạo hồ sơ mới
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -241,31 +260,39 @@ export default function PatientsPage() {
                 />
             </div>
 
-            <PatientFormModal
-                open={isCreateModalOpen || Boolean(editPatient)}
-                editPatient={editPatient}
-                onClose={() => {
-                    setIsCreateModalOpen(false)
-                    setEditPatient(null)
-                }}
-            />
+            {canMutatePatient && (
+                <PatientFormModal
+                    open={isCreateModalOpen || Boolean(editPatient)}
+                    editPatient={editPatient}
+                    onClose={() => {
+                        setIsCreateModalOpen(false)
+                        setEditPatient(null)
+                    }}
+                />
+            )}
 
             <PatientDetailDrawer
                 patientId={selectedPatientId}
                 open={Boolean(selectedPatientId)}
                 onClose={() => setSelectedPatientId(null)}
-                onEditClick={(pat) => {
-                    setSelectedPatientId(null)
-                    setEditPatient(pat)
-                }}
-                onNewAppointmentClick={(patId) => setNewAppPatientId(patId)}
+                onEditClick={
+                    canMutatePatient
+                        ? (pat) => {
+                              setSelectedPatientId(null)
+                              setEditPatient(pat)
+                          }
+                        : null
+                }
+                onNewAppointmentClick={canMutatePatient ? (patId) => setNewAppPatientId(patId) : null}
             />
 
-            <AppointmentFormModal
-                open={Boolean(newAppPatientId)}
-                defaultPatientId={newAppPatientId}
-                onClose={() => setNewAppPatientId(null)}
-            />
+            {canMutatePatient && (
+                <AppointmentFormModal
+                    open={Boolean(newAppPatientId)}
+                    defaultPatientId={newAppPatientId}
+                    onClose={() => setNewAppPatientId(null)}
+                />
+            )}
         </div>
     )
 }

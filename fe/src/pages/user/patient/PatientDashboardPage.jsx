@@ -44,7 +44,7 @@ export default function PatientDashboardPage() {
 
     const cards = [
         { label: 'Lịch hẹn', value: portalData.appointments.length, icon: CalendarCheck, to: '/benh-nhan/lich-hen' },
-        { label: 'Lần khám', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/lich-su-kham' },
+        { label: 'Bệnh án điện tử', value: portalData.medicalHistory.length, icon: ClipboardText, to: '/benh-nhan/benh-an' },
         { label: 'Đơn thuốc', value: portalData.prescriptionError ? '—' : (portalData.prescriptionMeta?.total_items ?? portalData.prescriptions.length), icon: Pill, to: '/benh-nhan/don-thuoc' },
         { label: 'Kết quả CLS', value: portalData.labError ? '—' : (portalData.labMeta?.total_items ?? portalData.labResults.length), icon: Microscope, to: '/benh-nhan/ket-qua-can-lam-sang' },
     ]
@@ -311,7 +311,7 @@ export default function PatientDashboardPage() {
                     title="Lần khám gần nhất"
                     empty="Chưa có lịch sử khám"
                     item={portalData.medicalHistory[0]}
-                    to="/benh-nhan/lich-su-kham"
+                    to="/benh-nhan/benh-an"
                     render={(item) => (
                         <>
                             <strong>{item.diagnosis}</strong>

@@ -211,7 +211,8 @@ class NationalGatewayService:
                     rx.trang_thai, TrangThaiDonThuoc.ACCEPTED.value
                 )
                 rx.bien_nhan_giao_dich = result.transaction_receipt
-                rx.ma_don_quoc_gia = result.transaction_receipt
+                if not rx.ma_don_quoc_gia or len(rx.ma_don_quoc_gia) != 14:
+                    rx.ma_don_quoc_gia = self.generate_national_prescription_code("01", "08924", rx.id)
                 rx.ma_ket_qua_cong = "200"
                 rx.thong_diep_cong = result.message
         elif result.status == TrangThaiDonThuoc.UNKNOWN_RESULT.value:

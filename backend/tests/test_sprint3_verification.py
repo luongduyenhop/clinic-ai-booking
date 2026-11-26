@@ -29,7 +29,7 @@ from app.schemas.production_billing import (
     BankWebhookPayload,
     ProdInvoiceCreateRequest,
 )
-from app.services.production_cashier_service import (
+from app.services.billing.production_cashier_service import (
     _calculate_emvco_crc16,
     production_cashier_service,
 )

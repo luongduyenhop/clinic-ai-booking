@@ -17,7 +17,7 @@ from app.schemas.production_billing import (
     ProdInvoiceResponse,
     VietQrGenerateResponse,
 )
-from app.services.production_cashier_service import production_cashier_service
+from app.services.billing.production_cashier_service import production_cashier_service
 
 billing_router = APIRouter(prefix="/billing", tags=["7.1 Cổng Viện Phí & VietQR (Billing Gateway)"])
 payments_router = APIRouter(prefix="/payments", tags=["7.2 Cổng Thanh Toán & Webhook (Payment Gateway)"])

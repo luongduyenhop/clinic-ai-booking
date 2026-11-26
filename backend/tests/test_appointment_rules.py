@@ -60,7 +60,7 @@ async def test_get_patient_appointments_forbidden_for_non_patient():
     """Kiểm tra service ném ForbiddenException nếu tài khoản không mang vai trò Bệnh nhân (UC-B04)"""
     from app.core.exceptions import ForbiddenException
     from app.models.user import TaiKhoan, VaiTroEnum
-    from app.services.appointment_service import appointment_service
+    from app.services.appointment.appointment_service import appointment_service
 
     # Trường hợp 1: Tài khoản có vai trò Bác sĩ
     doctor_user = TaiKhoan(id=99, email="doctor@clinic.com", vai_tro=VaiTroEnum.BAC_SI.value, is_active=True)

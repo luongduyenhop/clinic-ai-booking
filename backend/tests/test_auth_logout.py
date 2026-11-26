@@ -10,7 +10,7 @@ from app.core.security import create_access_token, hash_password
 from app.core.exceptions import UnauthorizedException
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.auth import RefreshTokenRequest
-from app.services.auth_service import auth_service
+from app.services.auth.auth_service import auth_service
 
 
 @pytest_asyncio.fixture(loop_scope="function")

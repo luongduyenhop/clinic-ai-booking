@@ -7,8 +7,8 @@ from app.core.dependencies import get_current_user
 from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
-from app.services.national_gateway_service import national_gateway_service
-from app.services.prescription_fsm_service import prescription_fsm_service
+from app.services.compliance.national_gateway_service import national_gateway_service
+from app.services.compliance.prescription_fsm_service import prescription_fsm_service
 
 integration_router = APIRouter()
 

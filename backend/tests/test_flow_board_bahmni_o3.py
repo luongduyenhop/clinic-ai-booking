@@ -8,7 +8,7 @@ from app.schemas.queue import (
     QueueTicketResponse,
     PatientFlowBoardItem,
 )
-from app.services.appointment_service import CANCELLABLE_STATUSES
+from app.services.appointment.appointment_service import CANCELLABLE_STATUSES
 
 
 def test_bahmni_reschedule_after_checkin_cancels_old_queue_ticket():

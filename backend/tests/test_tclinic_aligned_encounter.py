@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, time, datetime, timezone
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from decimal import Decimal
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.models.medical import DichVu
@@ -12,7 +12,7 @@ from app.schemas.clinical import (
     PrescriptionCreateRequest,
     PrescriptionItemCreateRequest,
 )
-from app.services.clinical_service import ClinicalService
+from app.services.clinical.clinical_service import ClinicalService
 
 
 from sqlalchemy import select

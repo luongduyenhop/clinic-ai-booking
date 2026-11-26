@@ -162,7 +162,7 @@ export default function CheckInReceiptModal({ open, onClose, queueEntry }) {
 
                 <div className="text-center pt-1 space-y-1.5">
                     <div className="text-[11px] text-black font-normal leading-relaxed">
-                        Quý khách vui lòng chú ý lắng nghe loa gọi số hoặc theo dõi bảng điện tử hiển thị mã <strong className="font-black">{ticketNumber}</strong> để vào buồng khám.
+                        Quý khách vui lòng chú ý lắng nghe nhân viên y tế gọi mã số thứ tự <strong className="font-black">{ticketNumber}</strong> trước cửa buồng khám.
                     </div>
                     <div className="flex items-center justify-center gap-2 text-black text-xs pt-1">
                         <QrcodeOutlined className="text-base" />

@@ -22,8 +22,8 @@ from app.schemas.appointment import (
     AutoProcessNoShowResponse,
     AppointmentRescheduleRequest,
 )
-from app.services.appointment_guest_service import guest_appointment_service
-from app.services.appointment_service import appointment_service
+from app.services.appointment.appointment_guest_service import guest_appointment_service
+from app.services.appointment.appointment_service import appointment_service
 
 router = APIRouter(prefix="/appointments", tags=["2. Đặt Lịch & Điều Phối Slot (Package B)"])
 

@@ -112,7 +112,7 @@ def _forbid_bff(monkeypatch) -> list:
         raise AssertionError("AI Triage không được gọi bff_admin_service")
 
     monkeypatch.setattr(
-        "app.services.bff_admin_service.BffAdminService.get_bootstrap_data",
+        "app.services.admin.bff.bff_admin_service.BffAdminService.get_bootstrap_data",
         forbidden,
     )
     return calls

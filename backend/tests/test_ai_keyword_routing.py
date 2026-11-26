@@ -78,7 +78,7 @@ async def test_keyword_route_bypasses_low_model_confidence(
     api_client, db_session, monkeypatch
 ):
     await _ensure_specialty(db_session, "KHOA_RANG_LOW_CONF", "Răng Hàm Mặt")
-    service_module = import_module("app.services.ai_service")
+    service_module = import_module("app.services.ai_triage.ai_service")
     low_confidence_result = {
         "specialties": [{"specialty": "Nội tổng quát", "probability": 0.05}],
         "diseases": [],
@@ -108,7 +108,7 @@ async def test_keyword_route_still_works_when_model_is_unavailable(
     api_client, db_session, monkeypatch
 ):
     await _ensure_specialty(db_session, "KHOA_RANG_MODEL_DOWN", "Răng Hàm Mặt")
-    service_module = import_module("app.services.ai_service")
+    service_module = import_module("app.services.ai_triage.ai_service")
 
     def _broken_model():
         raise service_module.AITriageModelError("model unavailable in test")

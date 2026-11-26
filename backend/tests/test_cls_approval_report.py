@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.models.compliance import NhatKyTruyCapDuLieuYTe
 from app.models.medical import ChiDinh, KetQuaCLS, PhieuKetQuaCLS
 from app.models.user import NguoiDung
-from app.services.auth_service import map_vai_tro_to_role
+from app.services.auth.auth_service import map_vai_tro_to_role
 from tests.test_cls_imaging_upload import JPG, _tao_ca_cdha, _upload
 from tests.test_cls_lab_result import _tao_ca_xet_nghiem
 

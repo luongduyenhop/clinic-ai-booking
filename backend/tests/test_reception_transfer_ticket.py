@@ -1,7 +1,7 @@
 import pytest
 import uuid
 from datetime import date, time
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from app.models.user import VaiTroEnum, NguoiDung, TaiKhoan, BenhNhan, BacSi, PhongKham
 from app.models.appointment import (
     HangDoiKham,
@@ -12,7 +12,7 @@ from app.models.appointment import (
     LoaiHangDoiEnum,
 )
 from app.schemas.queue import TransferTicketRequest
-from app.services.queue_service import queue_service
+from app.services.reception.queue_service import queue_service
 from app.core.exceptions import ConflictException, NotFoundException
 
 

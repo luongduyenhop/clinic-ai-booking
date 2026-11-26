@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.models.medical import ChiDinh, DichVu
-from app.services.patient_service import PatientService
+from app.services.patient.patient_service import PatientService
 
 
 @pytest.mark.parametrize('group,report_type,files,expected', [

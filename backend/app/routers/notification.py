@@ -7,7 +7,7 @@ from app.core.dependencies import get_current_user
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan
 from app.schemas.notification import NotificationResponse, UnreadCountResponse
-from app.services.notification_service import notification_service
+from app.services.integrations.notification_service import notification_service
 
 router = APIRouter(prefix="/notifications", tags=["9. Thông Báo Hệ Thống & Nhắc Lịch (Notification Center)"])
 

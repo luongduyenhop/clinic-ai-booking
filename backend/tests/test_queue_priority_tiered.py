@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, datetime, timedelta, timezone
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from sqlalchemy import select
 from app.models.user import TaiKhoan
 from app.models.appointment import (
@@ -8,7 +8,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     LoaiHangDoiEnum,
 )
-from app.services.queue_service import queue_service
+from app.services.reception.queue_service import queue_service
 
 
 def tiered_priority_sort_key(ticket):

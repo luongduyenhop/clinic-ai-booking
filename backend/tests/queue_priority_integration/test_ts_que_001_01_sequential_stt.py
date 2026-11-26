@@ -21,7 +21,7 @@ from app.models.user import (
     VaiTroEnum,
 )
 from app.schemas.queue import WalkInCheckInRequest, CheckInRequest
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 
 async def _tao_benh_nhan_moi(db_session, suffix: str, idx: int) -> BenhNhan:

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 import pytest
 from app.schemas.compliance import TrangThaiDonThuoc
-from app.services.national_gateway_service import national_gateway_service
-from app.services.prescription_fsm_service import prescription_fsm_service, VALID_TRANSITIONS
+from app.services.compliance.national_gateway_service import national_gateway_service
+from app.services.compliance.prescription_fsm_service import prescription_fsm_service, VALID_TRANSITIONS
 from app.core.exceptions import ConflictException
 
 def test_exhaustive_fsm_transition_matrix():

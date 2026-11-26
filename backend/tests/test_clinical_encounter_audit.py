@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.models.user import VaiTroEnum
-from app.services.clinical_service import ClinicalService
+from app.services.clinical.clinical_service import ClinicalService
 
 
 class _FakeResult:

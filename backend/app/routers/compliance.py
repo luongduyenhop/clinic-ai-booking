@@ -21,10 +21,10 @@ from app.schemas.compliance import (
     LicenseAuditHistoryResponse,
     LicenseExpiryAlertResponse,
 )
-from app.services.audit_trail_service import audit_trail_service
-from app.services.compliance_dashboard_service import compliance_dashboard_service
-from app.services.compliance_gateway_service import compliance_gateway_service
-from app.services.credential_service import credential_service
+from app.services.compliance.audit_trail_service import audit_trail_service
+from app.services.compliance.compliance_dashboard_service import compliance_dashboard_service
+from app.services.compliance.compliance_gateway_service import compliance_gateway_service
+from app.services.auth.credential_service import credential_service
 
 router = APIRouter(prefix="/compliance", tags=["Compliance & Credentialing (INT-05)"])
 

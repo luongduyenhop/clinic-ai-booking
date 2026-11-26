@@ -5,7 +5,7 @@ import pytest
 from app.core.security import decode_access_token, hash_password
 from app.models.user import NguoiDung, TaiKhoan, VaiTroEnum
 from app.schemas.auth import LoginRequest, RefreshTokenRequest
-from app.services.auth_service import auth_service
+from app.services.auth.auth_service import auth_service
 
 
 @pytest.mark.asyncio

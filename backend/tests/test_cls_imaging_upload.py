@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.models.medical import ChiDinh, DichVu, KetQuaCLS, PhieuKetQuaCLS
 from app.models.user import VaiTroEnum
-from app.services import cls_file_service as cls_file_module
+from app.services.subclinical import cls_file_service as cls_file_module
 
 JPG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x11" * 200
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x22" * 200

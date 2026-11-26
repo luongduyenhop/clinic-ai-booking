@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from datetime import datetime, timedelta, time
 from app.models.appointment import TrangThaiLichEnum, TrangThaiWaitlistEnum, CaLamViecEnum, DanhSachCho
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 
 

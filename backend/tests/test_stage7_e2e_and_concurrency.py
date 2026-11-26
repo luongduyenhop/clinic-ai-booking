@@ -35,11 +35,11 @@ from app.schemas.clinical import VitalsCreateRequest
 from app.schemas.production_billing import BankWebhookPayload
 from app.schemas.reception import EncounterCreateRequest, ReceptionPatientCreateRequest
 from app.schemas.subclinical import ParaclinicalResultInput, ParaclinicalResultSubmitRequest
-from app.services.clinical_service import clinical_service
-from app.services.national_gateway_service import national_gateway_service
-from app.services.production_cashier_service import production_cashier_service
-from app.services.reception_service import reception_service
-from app.services.subclinical_service import subclinical_service
+from app.services.clinical.clinical_service import clinical_service
+from app.services.compliance.national_gateway_service import national_gateway_service
+from app.services.billing.production_cashier_service import production_cashier_service
+from app.services.reception.reception_service import reception_service
+from app.services.subclinical.subclinical_service import subclinical_service
 
 
 async def _create_test_staff(db, suffix):

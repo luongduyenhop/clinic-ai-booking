@@ -13,8 +13,8 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
     LoaiHangDoiEnum,
 )
-from app.services.queue_service import queue_service
-from app.services.cashier_service import cashier_service
+from app.services.reception.queue_service import queue_service
+from app.services.billing.cashier_service import cashier_service
 from app.core.exceptions import ConflictException, ForbiddenException
 
 

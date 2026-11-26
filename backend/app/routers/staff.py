@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.dependencies import require_roles
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.core.response import ResponseEnvelope
-from app.services.staff_portal_service import staff_portal_service
+from app.services.auth.staff_portal_service import staff_portal_service
 
 
 router = APIRouter(prefix="/staff", tags=["Staff portal"])

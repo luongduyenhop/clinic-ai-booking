@@ -9,7 +9,7 @@ from app.core.account_status import ACCOUNT_DISABLED_MESSAGE, OTP_PENDING_MESSAG
 from app.core.rate_limit import limiter
 from app.core.security import create_access_token, hash_password
 from app.models.user import BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
-from app.services.email_service import email_service
+from app.services.integrations.email_service import email_service
 
 
 STAFF_ROLES = [role.value for role in VaiTroEnum if role != VaiTroEnum.BENH_NHAN]

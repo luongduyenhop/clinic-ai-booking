@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 from app.models.user import VaiTroEnum
 from app.models.appointment import TrangThaiLichEnum, CANCELLED_STATUSES
-from app.services.appointment_service import CANCELLABLE_STATUSES
+from app.services.appointment.appointment_service import CANCELLABLE_STATUSES
 from app.schemas.appointment import AppointmentRescheduleRequest
 
 
@@ -69,7 +69,7 @@ def test_reschedule_rbac_rules():
 
 import pytest
 from app.models.appointment import CaLamViecEnum, LichLamViec
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from datetime import timedelta
 
 

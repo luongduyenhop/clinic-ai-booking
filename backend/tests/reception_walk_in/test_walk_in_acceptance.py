@@ -6,8 +6,8 @@ from sqlalchemy import select, update
 from app.models.appointment import HangDoiKham, LichKham, LichLamViec, TrangThaiHangDoiEnum, TrangThaiLichEnum, LoaiHangDoiEnum
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
 from app.schemas.queue import WalkInCheckInRequest, WalkInQuickRequest
-from app.services.appointment_service import clinic_now
-from app.services.queue_service import queue_service
+from app.services.appointment.appointment_service import clinic_now
+from app.services.reception.queue_service import queue_service
 
 
 @pytest.mark.asyncio

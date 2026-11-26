@@ -17,7 +17,7 @@ from app.schemas.auth import (
     VerifyOtpRequest,
 )
 from app.schemas.patient import PatientRegisterRequest
-from app.services.auth_service import auth_service
+from app.services.auth.auth_service import auth_service
 
 router = APIRouter(prefix="/auth", tags=["1. Xác thực & Tài khoản (Package A)"])
 

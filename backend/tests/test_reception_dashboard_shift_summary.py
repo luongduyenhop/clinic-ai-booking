@@ -1,7 +1,7 @@
 import pytest
 from datetime import date
-from app.services.appointment_service import clinic_now
-from app.services.queue_service import queue_service
+from app.services.appointment.appointment_service import clinic_now
+from app.services.reception.queue_service import queue_service
 from app.schemas.queue import ShiftDashboardResponse
 
 

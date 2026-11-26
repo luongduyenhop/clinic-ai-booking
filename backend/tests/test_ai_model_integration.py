@@ -48,7 +48,7 @@ def test_extra_red_flags_respect_negation_and_accent_collisions(text):
 async def test_api_confidence_threshold_boundary(api_client, monkeypatch, confidence, expected_fallback):
     from types import SimpleNamespace
     from importlib import import_module
-    service_module = import_module("app.services.ai_service")
+    service_module = import_module("app.services.ai_triage.ai_service")
     monkeypatch.setattr(service_module.settings, "AI_CONFIDENCE_THRESHOLD", 0.40)
 
     result = {

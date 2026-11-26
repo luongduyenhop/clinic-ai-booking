@@ -9,9 +9,9 @@ from app.models.medical import HoaDon, ChiTietHoaDon, PhieuThuChi, LuotKham
 from app.models.specialized import DangKyGoiKham, GoiDichVu
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.schemas.cashier import RefundInvoiceRequest
-from app.services.cashier_service import cashier_service
-from app.services.queue_service import queue_service
-from app.services.appointment_service import appointment_service
+from app.services.billing.cashier_service import cashier_service
+from app.services.reception.queue_service import queue_service
+from app.services.appointment.appointment_service import appointment_service
 from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException
 
 

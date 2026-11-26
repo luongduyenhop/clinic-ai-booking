@@ -39,9 +39,9 @@ from app.models.medical import (
     Thuoc,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
-from app.services.cls_result_state import PHIEU_CHO_DUYET, PHIEU_DA_DUYET
+from app.services.subclinical.cls_result_state import PHIEU_CHO_DUYET, PHIEU_DA_DUYET
 from scripts.run_migrations import DEPLOYMENT_LOCK, require_demo_database
-from seed_data import seed_catalogs
+from scripts.seed_data import seed_catalogs
 CORE_STAFF = [
     ("admin.demo", "Trần Minh Quân", VaiTroEnum.ADMIN, "0000000001"),
     ("doctor.demo", "BS.CKI Nguyễn Văn An", VaiTroEnum.BAC_SI, "0000000002"),

@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.main import app
 from app.models.appointment import LichLamViec, TrangThaiLichEnum
 from app.models.user import VaiTroEnum
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 client = TestClient(app)
 APPOINTMENT_API = f"{settings.API_V1_STR}/appointments"

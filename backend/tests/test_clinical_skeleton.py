@@ -5,7 +5,7 @@ from app.models.medical import ChanDoan, DichVu, KhaiNiem
 from app.models.appointment import TrangThaiLichEnum
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.core.exceptions import ForbiddenException
-from app.services.clinical_service import clinical_service
+from app.services.clinical.clinical_service import clinical_service
 
 
 def test_clinical_service_non_doctor_forbidden():

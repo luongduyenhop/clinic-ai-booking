@@ -8,7 +8,7 @@ from app.models.user import BacSi, ChuyenKhoa, PhongKham, TaiKhoan, VaiTroEnum
 from app.models.appointment import LichLamViec
 from app.core.database import AsyncSessionLocal, engine
 from scripts.seed_admin_demo import seed_admin_demo
-from app.services.prescription_fsm_service import prescription_fsm_service
+from app.services.compliance.prescription_fsm_service import prescription_fsm_service
 
 @pytest.mark.asyncio
 async def test_wp01_dashboard_stats_empty_and_zero_counts(api_client: AsyncClient, booking):

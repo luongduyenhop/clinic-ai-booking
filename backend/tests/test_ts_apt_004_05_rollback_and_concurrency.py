@@ -12,7 +12,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
     CANCELLED_STATUSES,
 )
-from app.services.appointment_service import clinic_now, appointment_service
+from app.services.appointment.appointment_service import clinic_now, appointment_service
 
 APPOINTMENT_API = f"{settings.API_V1_STR}/appointments"
 

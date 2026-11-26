@@ -29,12 +29,12 @@ from app.schemas.subclinical import (
     ParaclinicalVerifyResponse,
 )
 from app.schemas.cls_lab_result import LabResultResponse, LabResultSubmitRequest, LabTemplateResponse
-from app.services.cls_approval_service import cls_approval_service
-from app.services.clinical_service import clinical_service
-from app.services.cls_file_service import cls_file_service
-from app.services.cls_lab_result_service import cls_lab_result_service
-from app.services.cls_service_group import CLS_GROUPS
-from app.services.subclinical_service import subclinical_service
+from app.services.subclinical.cls_approval_service import cls_approval_service
+from app.services.clinical.clinical_service import clinical_service
+from app.services.subclinical.cls_file_service import cls_file_service
+from app.services.subclinical.cls_lab_result_service import cls_lab_result_service
+from app.services.subclinical.cls_service_group import CLS_GROUPS
+from app.services.subclinical.subclinical_service import subclinical_service
 
 router = APIRouter(prefix="/subclinical", tags=["8. Cận Lâm Sàng & Xét Nghiệm / CĐHA (LIS & PACS)"])
 

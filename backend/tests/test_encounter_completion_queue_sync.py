@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, datetime, timezone
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from sqlalchemy import select
 from app.models.appointment import HangDoiKham, CaLamViecEnum, TrangThaiHangDoiEnum
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10

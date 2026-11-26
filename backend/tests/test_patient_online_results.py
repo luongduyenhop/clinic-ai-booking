@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.medical import ChiDinh, DichVu
-from app.services.patient_service import patient_service
+from app.services.patient.patient_service import patient_service
 
 
 @pytest.mark.asyncio

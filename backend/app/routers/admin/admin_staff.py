@@ -19,10 +19,10 @@ from app.schemas.admin import (
     DoctorLeaveResponse,
     DoctorLeaveApproveRequest,
 )
-from app.services.admin_doctor_service import admin_doctor_service
-from app.services.admin_shift_service import admin_shift_service
-from app.services.bff_admin_service import bff_admin_service
-from app.services.credential_service import DoctorLicenseInvalidException
+from app.services.admin.admin_doctor_service import admin_doctor_service
+from app.services.admin.admin_shift_service import admin_shift_service
+from app.services.admin.bff.bff_admin_service import bff_admin_service
+from app.services.auth.credential_service import DoctorLicenseInvalidException
 
 staff_router = APIRouter()
 

@@ -136,7 +136,6 @@ const MODIFIED_FILES = [
     '../src/components/reception/PatientDetailDrawer.jsx',
     '../src/components/reception/PatientFormModal.jsx',
     '../src/components/reception/PrintReceiptModal.jsx',
-    '../src/components/reception/TvQueueDisplayModal.jsx',
     '../src/pages/admin/CashierManagementPage.jsx',
     '../src/pages/admin/CashierBillingAuditDashboard.jsx',
     '../src/pages/reception/QueueManagementPage.jsx',

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.core.exceptions import BadRequestException, ForbiddenException
 from app.models.user import VaiTroEnum
-from app.services.credential_service import credential_service
+from app.services.auth.credential_service import credential_service
 
 
 # ==============================================================================

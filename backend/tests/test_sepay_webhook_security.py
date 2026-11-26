@@ -6,14 +6,14 @@ from pydantic import ValidationError
 from app.core.config import DEFAULT_PAYMENT_WEBHOOK_SECRET, Settings
 from app.core.exceptions import ForbiddenException
 from app.schemas.sepay import SepayWebhookPayload
-from app.services.sepay_service import SepayService
+from app.services.billing.sepay_service import SepayService
 
 
 @pytest.mark.asyncio
 async def test_hosted_missing_sepay_webhook_token_fails_closed():
     svc = SepayService()
     for empty_token in (None, "", "   "):
-        with patch("app.services.sepay_service.settings") as mock_settings:
+        with patch("app.services.billing.sepay_service.settings") as mock_settings:
             mock_settings.is_hosted = True
             mock_settings.SEPAY_WEBHOOK_TOKEN = empty_token
             assert svc.verify_token(None) is False
@@ -22,7 +22,7 @@ async def test_hosted_missing_sepay_webhook_token_fails_closed():
                 await svc.process_webhook(SepayWebhookPayload(transferType="in"), None, AsyncMock())
             assert exc.value.code == 403
 
-    with patch("app.services.sepay_service.settings") as mock_settings:
+    with patch("app.services.billing.sepay_service.settings") as mock_settings:
         mock_settings.is_hosted = False
         mock_settings.SEPAY_WEBHOOK_TOKEN = None
         assert svc.verify_token(None) is True
@@ -31,7 +31,7 @@ async def test_hosted_missing_sepay_webhook_token_fails_closed():
 @pytest.mark.asyncio
 async def test_hosted_wrong_or_missing_sepay_header_rejected():
     svc = SepayService()
-    with patch("app.services.sepay_service.settings") as mock_settings:
+    with patch("app.services.billing.sepay_service.settings") as mock_settings:
         mock_settings.is_hosted = True
         mock_settings.SEPAY_WEBHOOK_TOKEN = "live_sepay_token_2026"
         invalid_headers = (
@@ -53,7 +53,7 @@ async def test_hosted_wrong_or_missing_sepay_header_rejected():
 
 def test_hosted_valid_sepay_headers_accepted():
     svc = SepayService()
-    with patch("app.services.sepay_service.settings") as mock_settings:
+    with patch("app.services.billing.sepay_service.settings") as mock_settings:
         mock_settings.is_hosted = True
         mock_settings.SEPAY_WEBHOOK_TOKEN = "live_sepay_token_2026"
         valid_headers = (
@@ -127,7 +127,7 @@ def test_hosted_settings_rejects_default_or_empty_payment_webhook_secret(monkeyp
 
 @pytest.mark.asyncio
 async def test_http_sepay_webhook_endpoint_enforces_hosted_token(api_client):
-    with patch("app.services.cashier_modules.cashier_webhook_service.settings") as mock_settings:
+    with patch("app.services.billing.cashier_webhook_service.settings") as mock_settings:
         mock_settings.is_hosted = True
         mock_settings.SEPAY_WEBHOOK_TOKEN = None
         mock_settings.SEPAY_API_KEY = None

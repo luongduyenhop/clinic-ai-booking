@@ -8,8 +8,8 @@ from app.core.dependencies import get_optional_current_user
 from app.core.response import ResponseEnvelope
 from app.models.user import BacSi, ChuyenKhoa, NguoiDung, PhongKham, TaiKhoan
 from app.schemas.ai import SpecialtySuggestion, SymptomTriageRequest, SymptomTriageResponse
-from app.services.ai_service import ai_service
-from app.services.medical_service import medical_service
+from app.services.ai_triage.ai_service import ai_service
+from app.services.patient.medical_service import medical_service
 
 router = APIRouter(prefix="/ai", tags=["3. Trí Tuệ Nhân Tạo & Red Flags (Package C)"])
 fe_triage_router = APIRouter(prefix="/ai-triage", tags=["3. Trí Tuệ Nhân Tạo & Red Flags (Package C)"])

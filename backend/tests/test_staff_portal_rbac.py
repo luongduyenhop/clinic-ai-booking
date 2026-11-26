@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 
 from app.models.user import VaiTroEnum
-from app.services.bff_admin_service import bff_admin_service
-from app.services.staff_portal_service import READ_COLLECTIONS, staff_portal_service
+from app.services.admin.bff.bff_admin_service import bff_admin_service
+from app.services.auth.staff_portal_service import READ_COLLECTIONS, staff_portal_service
 
 
 ADMIN_REQUESTS = [

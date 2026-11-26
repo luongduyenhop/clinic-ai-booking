@@ -3,7 +3,7 @@ from datetime import time, timedelta
 from sqlalchemy import func, select
 from app.core.config import settings
 from app.models.appointment import CaLamViecEnum, LichKham, LichLamViec, CANCELLED_STATUSES
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 APPOINTMENT_API = f"{settings.API_V1_STR}/appointments"
 

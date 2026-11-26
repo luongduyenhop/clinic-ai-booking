@@ -18,10 +18,10 @@ from app.models.production_models import (
 from app.schemas.reception import CccdQrParseRequest, ReceptionPatientCreateRequest, EncounterCreateRequest
 from app.schemas.clinical import VitalsCreateRequest, AllergyCheckRequest
 from app.schemas.subclinical import ParaclinicalResultSubmitRequest, ParaclinicalResultInput
-from app.services.reception_service import reception_service
-from app.services.clinical_service import clinical_service
-from app.services.subclinical_service import subclinical_service
-from app.services.national_gateway_service import national_gateway_service
+from app.services.reception.reception_service import reception_service
+from app.services.clinical.clinical_service import clinical_service
+from app.services.subclinical.subclinical_service import subclinical_service
+from app.services.compliance.national_gateway_service import national_gateway_service
 from app.core.exceptions import ConflictException, ForbiddenException, UnprocessableEntityException
 
 

@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, time, timedelta
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from app.models.appointment import LichLamViec, CaLamViecEnum
 from app.schemas.queue import WalkInQuickRequest
 

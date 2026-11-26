@@ -8,7 +8,7 @@ from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
 from app.models.user import TaiKhoan, VaiTroEnum
 from app.schemas.admin import AdminDashboardStatsResponse, ServiceExportResponse
-from app.services.admin_service import admin_service
+from app.services.admin.admin_service import admin_service
 
 bi_router = APIRouter()
 

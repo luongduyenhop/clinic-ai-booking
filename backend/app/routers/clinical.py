@@ -41,11 +41,11 @@ from app.schemas.compliance import (
 )
 from app.schemas.subclinical import PhysicalExamRequest, PhysicalExamResponse
 from app.schemas.queue import CallNextResponse, QueueTicketResponse
-from app.services.clinical_modules.doctor_history_service import get_doctor_completed_encounters
-from app.services.clinical_service import clinical_service
-from app.services.national_gateway_service import national_gateway_service
-from app.services.prescription_fsm_service import prescription_fsm_service
-from app.services.queue_service import queue_service
+from app.services.clinical.doctor_history_service import get_doctor_completed_encounters
+from app.services.clinical.clinical_service import clinical_service
+from app.services.compliance.national_gateway_service import national_gateway_service
+from app.services.compliance.prescription_fsm_service import prescription_fsm_service
+from app.services.reception.queue_service import queue_service
 
 router = APIRouter(prefix="/clinical", tags=["5. Khám Lâm Sàng & Bệnh Án Điện Tử (Package D)"])
 clinical_staff = require_roles([VaiTroEnum.BAC_SI, VaiTroEnum.ADMIN])

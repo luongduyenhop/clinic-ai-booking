@@ -13,7 +13,7 @@ from app.schemas.admin import (
     DoctorLeaveApproveRequest,
     AffectedBookingItem,
 )
-from app.services.schedule_service import schedule_service
+from app.services.appointment.schedule_service import schedule_service
 
 router = APIRouter(prefix="/schedules", tags=["Schedules & Leaves"])
 

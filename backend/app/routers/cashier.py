@@ -34,8 +34,8 @@ from app.schemas.production_billing import (
     ProdInvoiceResponse,
     VietQrGenerateResponse,
 )
-from app.services.cashier_service import cashier_service
-from app.services.production_cashier_service import production_cashier_service
+from app.services.billing.cashier_service import cashier_service
+from app.services.billing.production_cashier_service import production_cashier_service
 
 router = APIRouter(prefix="/cashier", tags=["7. Thu Ngân & Quản Lý Viện Phí (Cashier & Billing)"])
 cashier_role_guard = require_roles([VaiTroEnum.THU_NGAN, VaiTroEnum.ADMIN, VaiTroEnum.LE_TAN])

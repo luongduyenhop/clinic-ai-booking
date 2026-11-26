@@ -1,0 +1,432 @@
+import logging
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import and_, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from app.core.account_status import ensure_account_active
+from app.core.config import settings
+from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException, UnauthorizedException
+from app.core.security import create_access_token, create_refresh_token, generate_otp, hash_password, verify_password
+from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
+from app.schemas.auth import (
+    LoginRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    TokenResponse,
+    UpdateUserProfileRequest,
+    UserProfileResponse,
+    VerifyOtpRequest,
+)
+from app.schemas.patient import PatientRegisterRequest
+from app.services.integrations.email_service import email_service
+
+logger = logging.getLogger("clinic_backend")
+
+ROLE_MAP = {
+    "bac_si": "DOCTOR",
+    "le_tan": "RECEPTIONIST",
+    "thu_ngan": "CASHIER",
+    "ky_thuat_vien": "TECHNICIAN",
+    "admin": "ADMIN",
+    "benh_nhan": "PATIENT",
+}
+
+
+def map_vai_tro_to_role(vai_tro: str | None) -> str:
+    if not vai_tro:
+        return "PATIENT"
+    return ROLE_MAP.get(str(vai_tro).lower(), "PATIENT")
+
+
+class AuthService:
+
+    async def register_user(self, payload: RegisterRequest, db: AsyncSession) -> dict:
+        stmt_check = select(TaiKhoan).where(TaiKhoan.email == payload.email)
+        existing_account = (await db.execute(stmt_check)).scalar_one_or_none()
+        if existing_account:
+            raise ConflictException(f"Địa chỉ email '{payload.email}' đã được đăng ký trong hệ thống!")
+
+        otp_code = generate_otp(6)
+        otp_expired_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+
+        nguoi_dung = NguoiDung(
+            ho_ten=payload.ho_ten,
+            email=payload.email,
+            so_dien_thoai=payload.so_dien_thoai,
+            ngay_sinh=payload.ngay_sinh,
+            gioi_tinh=payload.gioi_tinh,
+        )
+        db.add(nguoi_dung)
+        await db.flush()
+
+        tai_khoan = TaiKhoan(
+            nguoi_dung_id=nguoi_dung.id,
+            email=payload.email,
+            mat_khau_hash=hash_password(payload.mat_khau),
+            vai_tro=VaiTroEnum.BENH_NHAN.value,
+            is_active=False,
+            otp_code=otp_code,
+            otp_expired_at=otp_expired_at,
+        )
+        db.add(tai_khoan)
+        await db.commit()
+
+        try:
+            await email_service.send_otp_email(recipient_email=payload.email, otp_code=otp_code)
+        except Exception:
+            logger.warning("Không thể gửi email OTP.")
+
+        return {
+            "email": payload.email,
+            "message": "Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
+            "expires_in_seconds": 300,
+        }
+
+    async def register_patient(self, payload: PatientRegisterRequest, db: AsyncSession) -> TokenResponse:
+        login_ident = str(payload.email).strip().lower()
+        stmt_check = select(TaiKhoan).where(TaiKhoan.email == login_ident)
+        existing_account = (await db.execute(stmt_check)).scalar_one_or_none()
+        if existing_account:
+            raise ConflictException(f"Tài khoản với email '{login_ident}' đã tồn tại trong hệ thống!")
+
+        nguoi_dung = NguoiDung(
+            ho_ten=payload.ho_ten,
+            so_dien_thoai=payload.so_dien_thoai,
+            email=payload.email,
+            ngay_sinh=payload.ngay_sinh,
+            gioi_tinh=payload.gioi_tinh,
+            dia_chi=payload.dia_chi,
+            cccd_so=payload.cccd_so,
+        )
+        db.add(nguoi_dung)
+        await db.flush()
+
+        ma_bn = f"BN-{datetime.now().year}-{nguoi_dung.id:04d}"
+        benh_nhan = BenhNhan(
+            nguoi_dung_id=nguoi_dung.id,
+            ma_dinh_danh_y_te=ma_bn,
+            nhom_mau=payload.nhom_mau or "O+",
+            tien_su_benh=payload.tien_su_benh,
+            di_ung_thuoc=payload.di_ung_thuoc,
+        )
+        db.add(benh_nhan)
+
+        tai_khoan = TaiKhoan(
+            nguoi_dung_id=nguoi_dung.id,
+            email=login_ident,
+            mat_khau_hash=hash_password(payload.mat_khau),
+            vai_tro=VaiTroEnum.BENH_NHAN.value,
+            is_active=True,
+            last_login_at=datetime.now(timezone.utc),
+        )
+        db.add(tai_khoan)
+        await db.flush()
+
+        refresh_token = create_refresh_token()
+        refresh_token_exp = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        tai_khoan.refresh_token = refresh_token
+        tai_khoan.refresh_token_expired_at = refresh_token_exp
+        await db.commit()
+        await db.refresh(nguoi_dung)
+
+        access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            vai_tro=tai_khoan.vai_tro,
+            role=map_vai_tro_to_role(tai_khoan.vai_tro),
+            expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            user_id=tai_khoan.id,
+            accessToken=access_token,
+            refreshToken=refresh_token,
+            user={
+                "id": tai_khoan.id,
+                "ho_ten": nguoi_dung.ho_ten,
+                "email": login_ident,
+                "vai_tro": "benh_nhan",
+                "phone": nguoi_dung.so_dien_thoai,
+                "so_dien_thoai": nguoi_dung.so_dien_thoai,
+                "ma_benh_nhan": ma_bn,
+            },
+        )
+
+    async def verify_otp(self, payload: VerifyOtpRequest, db: AsyncSession) -> TokenResponse:
+        stmt = select(TaiKhoan).where(TaiKhoan.email == payload.email)
+        tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
+
+        if not tai_khoan:
+            raise NotFoundException("Không tìm thấy thông tin tài khoản tương ứng với email này!")
+
+        if tai_khoan.vai_tro != VaiTroEnum.BENH_NHAN.value:
+            raise ForbiddenException("Tài khoản nhân viên không được kích hoạt qua OTP. Vui lòng liên hệ quản trị viên.")
+
+        if tai_khoan.is_active:
+            raise ConflictException("Tài khoản này đã được kích hoạt trước đó!")
+
+        now_utc = datetime.now(timezone.utc)
+        otp_exp = tai_khoan.otp_expired_at
+        if otp_exp is not None and otp_exp.tzinfo is None:
+            otp_exp = otp_exp.replace(tzinfo=timezone.utc)
+        if not otp_exp or now_utc > otp_exp:
+            raise UnauthorizedException("Mã OTP đã hết hạn hiệu lực (5 phút). Vui lòng yêu cầu mã mới!")
+
+        if tai_khoan.otp_code != payload.otp_code:
+            raise UnauthorizedException("Mã OTP nhập vào không chính xác!")
+
+        tai_khoan.is_active = True
+        tai_khoan.otp_code = None
+        tai_khoan.otp_expired_at = None
+
+        refresh_token = create_refresh_token()
+        tai_khoan.refresh_token = refresh_token
+        tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+
+        stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+        benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+        if not benh_nhan:
+            ma_y_te = f"BN-{datetime.now().strftime('%Y%m')}-{tai_khoan.nguoi_dung_id:04d}"
+            benh_nhan = BenhNhan(
+                nguoi_dung_id=tai_khoan.nguoi_dung_id,
+                ma_dinh_danh_y_te=ma_y_te,
+            )
+            db.add(benh_nhan)
+
+        await db.commit()
+
+        access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            vai_tro=tai_khoan.vai_tro,
+            role=map_vai_tro_to_role(tai_khoan.vai_tro),
+            expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            user_id=tai_khoan.id,
+            accessToken=access_token,
+            refreshToken=refresh_token,
+        )
+
+    async def login_user(self, payload: LoginRequest, db: AsyncSession) -> TokenResponse:
+        email_or_user = payload.email.strip()
+        stmt = (
+            select(TaiKhoan)
+            .outerjoin(NguoiDung, TaiKhoan.nguoi_dung_id == NguoiDung.id)
+            .where(
+                or_(
+                    TaiKhoan.email == email_or_user,
+                    NguoiDung.so_dien_thoai == email_or_user,
+                )
+            )
+        )
+        tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
+
+        if not tai_khoan:
+            raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
+
+        is_valid_pw = verify_password(payload.mat_khau, tai_khoan.mat_khau_hash)
+        if not is_valid_pw:
+            raise UnauthorizedException("Email hoặc mật khẩu không chính xác!")
+
+        ensure_account_active(tai_khoan)
+
+        stmt_nd = select(NguoiDung).where(NguoiDung.id == tai_khoan.nguoi_dung_id)
+        nguoi_dung = (await db.execute(stmt_nd)).scalar_one_or_none()
+        full_name = nguoi_dung.ho_ten if nguoi_dung else tai_khoan.email
+
+        doctor_id = None
+        phong_kham_id = None
+        chuyen_khoa_id = None
+        chuyen_khoa_ma = None
+        ten_chuyen_khoa = None
+        ten_phong = None
+        if tai_khoan.vai_tro == VaiTroEnum.BAC_SI.value or str(tai_khoan.vai_tro).lower() in ("bac_si", "doctor"):
+            stmt_bs = (
+                select(BacSi)
+                .options(selectinload(BacSi.chuyen_khoa), selectinload(BacSi.phong_kham))
+                .where(BacSi.nguoi_dung_id == tai_khoan.nguoi_dung_id)
+            )
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs:
+                doctor_id = bs.id
+                phong_kham_id = bs.phong_kham_id
+                chuyen_khoa_id = bs.chuyen_khoa_id
+                if bs.chuyen_khoa:
+                    chuyen_khoa_ma = bs.chuyen_khoa.ma_chuyen_khoa
+                    ten_chuyen_khoa = bs.chuyen_khoa.ten_chuyen_khoa
+                if bs.phong_kham:
+                    ten_phong = bs.phong_kham.ten_phong
+
+        access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+        refresh_token = create_refresh_token()
+
+        tai_khoan.refresh_token = refresh_token
+        tai_khoan.refresh_token_expired_at = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        await db.commit()
+
+        mapped_role = map_vai_tro_to_role(tai_khoan.vai_tro)
+        resolved_dept = ten_chuyen_khoa or (
+            "Ban Giám Đốc / Nội Tổng Quát"
+            if mapped_role == "ADMIN"
+            else "Quầy Tiếp Đón & Viện Phí"
+            if mapped_role == "RECEPTIONIST"
+            else "Chuyên khoa Lâm sàng"
+        )
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            vai_tro=tai_khoan.vai_tro,
+            role=mapped_role,
+            expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            user_id=tai_khoan.id,
+            accessToken=access_token,
+            refreshToken=refresh_token,
+            user={
+                "id": tai_khoan.id,
+                "doctorId": doctor_id or tai_khoan.id,
+                "doctor_id": doctor_id or tai_khoan.id,
+                "bac_si_id": doctor_id or tai_khoan.id,
+                "phong_kham_id": phong_kham_id,
+                "chuyen_khoa_id": chuyen_khoa_id,
+                "chuyen_khoa_ma": chuyen_khoa_ma,
+                "chuyen_khoa": ten_chuyen_khoa,
+                "specialty": ten_chuyen_khoa,
+                "room": ten_phong,
+                "fullName": full_name,
+                "shortName": full_name,
+                "email": tai_khoan.email,
+                "phone": nguoi_dung.so_dien_thoai if nguoi_dung else None,
+                "so_dien_thoai": nguoi_dung.so_dien_thoai if nguoi_dung else None,
+                "role": mapped_role,
+                "vai_tro": tai_khoan.vai_tro,
+                "department": resolved_dept,
+            },
+        )
+
+    async def logout_user(self, user: TaiKhoan, db: AsyncSession) -> None:
+        await db.execute(
+            update(TaiKhoan).where(TaiKhoan.id == user.id).values(
+                refresh_token_hash=None,
+                refresh_token_expired_at=None,
+            )
+        )
+        await db.commit()
+
+    async def get_user_profile(self, user: TaiKhoan, db: AsyncSession) -> UserProfileResponse:
+        stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id)
+        nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
+
+        stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id)
+        benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+
+        chuyen_khoa_id = None
+        if user.vai_tro == VaiTroEnum.BAC_SI.value:
+            stmt_bs = select(BacSi).where(BacSi.nguoi_dung_id == user.nguoi_dung_id)
+            bs = (await db.execute(stmt_bs)).scalar_one_or_none()
+            if bs:
+                chuyen_khoa_id = bs.chuyen_khoa_id
+
+        return UserProfileResponse(
+            id=user.id,
+            ho_ten=nguoi_dung.ho_ten,
+            email=user.email,
+            so_dien_thoai=nguoi_dung.so_dien_thoai,
+            vai_tro=user.vai_tro,
+            role=map_vai_tro_to_role(user.vai_tro),
+            ngay_sinh=nguoi_dung.ngay_sinh,
+            gioi_tinh=nguoi_dung.gioi_tinh,
+            dia_chi=nguoi_dung.dia_chi,
+            ma_dinh_danh_y_te=benh_nhan.ma_dinh_danh_y_te if benh_nhan else None,
+            nhom_mau=benh_nhan.nhom_mau if benh_nhan else None,
+            tien_su_benh=benh_nhan.tien_su_benh if benh_nhan else None,
+            di_ung_thuoc=benh_nhan.di_ung_thuoc if benh_nhan else None,
+            chuyen_khoa_id=chuyen_khoa_id,
+        )
+
+    async def update_user_profile(
+        self,
+        payload: UpdateUserProfileRequest,
+        user: TaiKhoan,
+        db: AsyncSession,
+    ) -> UserProfileResponse:
+        stmt_ng = select(NguoiDung).where(NguoiDung.id == user.nguoi_dung_id).with_for_update()
+        nguoi_dung = (await db.execute(stmt_ng)).scalar_one()
+
+        if payload.so_dien_thoai and payload.so_dien_thoai != nguoi_dung.so_dien_thoai:
+            stmt_phone = select(NguoiDung).where(
+                and_(
+                    NguoiDung.so_dien_thoai == payload.so_dien_thoai,
+                    NguoiDung.id != user.nguoi_dung_id,
+                )
+            )
+            phone_exists = (await db.execute(stmt_phone)).scalar_one_or_none()
+            if phone_exists:
+                raise ConflictException(f"Số điện thoại '{payload.so_dien_thoai}' đã được sử dụng bởi người dùng khác!")
+            nguoi_dung.so_dien_thoai = payload.so_dien_thoai
+
+        if payload.ho_ten is not None:
+            nguoi_dung.ho_ten = payload.ho_ten
+        if payload.ngay_sinh is not None:
+            nguoi_dung.ngay_sinh = payload.ngay_sinh
+        if payload.gioi_tinh is not None:
+            nguoi_dung.gioi_tinh = payload.gioi_tinh
+        if payload.dia_chi is not None:
+            nguoi_dung.dia_chi = payload.dia_chi
+
+        if user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+            stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == user.nguoi_dung_id).with_for_update()
+            benh_nhan = (await db.execute(stmt_bn)).scalar_one_or_none()
+            if benh_nhan:
+                if payload.nhom_mau is not None:
+                    benh_nhan.nhom_mau = payload.nhom_mau
+                if payload.tien_su_benh is not None:
+                    benh_nhan.tien_su_benh = payload.tien_su_benh
+                if payload.di_ung_thuoc is not None:
+                    benh_nhan.di_ung_thuoc = payload.di_ung_thuoc
+
+        await db.commit()
+        await db.refresh(nguoi_dung)
+
+        logger.info("Đã cập nhật hồ sơ tài khoản %s.", user.id)
+        return await self.get_user_profile(user, db)
+
+    async def refresh_access_token(self, payload: RefreshTokenRequest, db: AsyncSession) -> TokenResponse:
+        stmt = select(TaiKhoan).where(TaiKhoan.refresh_token == payload.refresh_token).with_for_update()
+        tai_khoan = (await db.execute(stmt)).scalar_one_or_none()
+
+        if not tai_khoan:
+            raise UnauthorizedException("Refresh token không hợp lệ hoặc tài khoản đã bị khóa")
+
+        ensure_account_active(tai_khoan)
+
+        now_utc = datetime.now(timezone.utc)
+        exp_dt = tai_khoan.refresh_token_expired_at
+        if exp_dt is not None and exp_dt.tzinfo is None:
+            exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+        if not exp_dt or now_utc > exp_dt:
+            raise UnauthorizedException("Refresh token đã hết hạn, vui lòng đăng nhập lại")
+
+        access_token = create_access_token(subject=tai_khoan.id, role=tai_khoan.vai_tro)
+        new_refresh_token = create_refresh_token()
+
+        tai_khoan.refresh_token = new_refresh_token
+        tai_khoan.refresh_token_expired_at = now_utc + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        await db.commit()
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            vai_tro=tai_khoan.vai_tro,
+            role=map_vai_tro_to_role(tai_khoan.vai_tro),
+            expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            user_id=tai_khoan.id,
+            accessToken=access_token,
+            refreshToken=new_refresh_token,
+        )
+
+
+auth_service = AuthService()

@@ -19,8 +19,8 @@ from app.models.medical import (
 )
 from app.models.specialty_exam import KhamNoiKhoa
 from app.models.user import ChuyenKhoa
-from app.services.appointment_service import clinic_now
-from app.services.clinical_service import ClinicalService
+from app.services.appointment.appointment_service import clinic_now
+from app.services.clinical.clinical_service import ClinicalService
 
 
 async def _ensure_khoa_noi(db_session):

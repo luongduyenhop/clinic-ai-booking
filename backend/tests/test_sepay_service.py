@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 from app.schemas.sepay import SepayWebhookPayload
-from app.services.sepay_service import SepayService
+from app.services.billing.sepay_service import SepayService
 
 
 def test_sepay_parse_invoice_reference():
@@ -15,7 +15,7 @@ def test_sepay_parse_invoice_reference():
 
 def test_sepay_verify_token():
     svc = SepayService()
-    with patch("app.services.sepay_service.settings") as mock_settings:
+    with patch("app.services.billing.sepay_service.settings") as mock_settings:
         mock_settings.is_hosted = False
         mock_settings.SEPAY_WEBHOOK_TOKEN = "secret123"
         assert svc.verify_token("Apikey secret123") is True

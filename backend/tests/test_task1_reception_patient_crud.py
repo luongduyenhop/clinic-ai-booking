@@ -7,7 +7,7 @@ from app.schemas.reception import (
     ReceptionPatientCreateRequest,
     ReceptionPatientUpdateRequest,
 )
-from app.services.reception_service import reception_service
+from app.services.reception.reception_service import reception_service
 
 
 @pytest.mark.asyncio

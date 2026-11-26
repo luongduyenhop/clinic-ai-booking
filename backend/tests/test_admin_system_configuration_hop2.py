@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.models.user import ChuyenKhoa, PhongKham, BacSi, TaiKhoan, VaiTroEnum
 from app.models.appointment import LichLamViec
 from app.models.medical import DichVu, Thuoc
-from seed_data import seed_database
+from scripts.seed_data import seed_database
 
 
 @pytest.mark.asyncio

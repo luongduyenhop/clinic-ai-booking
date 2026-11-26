@@ -18,7 +18,7 @@ from app.schemas.admin import (
     ServiceItemAdminResponse,
     ServiceUpdateRequest,
 )
-from app.services.admin_catalog_service import admin_catalog_service
+from app.services.admin.admin_catalog_service import admin_catalog_service
 
 catalog_router = APIRouter()
 

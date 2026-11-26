@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 import pytest
 from app.core.config import settings
 from app.models.appointment import CaLamViecEnum, LichLamViec, TrangThaiLichEnum
-from app.services.appointment_service import build_day_slots, clinic_now
+from app.services.appointment.appointment_service import build_day_slots, clinic_now
 
 APPOINTMENT_API = f"{settings.API_V1_STR}/appointments"
 NGAY = date(2026, 10, 1)

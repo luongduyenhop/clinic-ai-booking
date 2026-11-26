@@ -6,8 +6,8 @@ from sqlalchemy import select
 
 from app.models.medical import ChiDinh, DichVu, KetQuaCLS
 from app.models.user import NguoiDung, VaiTroEnum
-from app.services.cls_lab_result_service import danh_gia_chi_so, phan_loai_tong_hop
-from app.services.cls_lab_templates import NAM, NU, find_lab_template, normalize_gioi_tinh
+from app.services.subclinical.cls_lab_result_service import danh_gia_chi_so, phan_loai_tong_hop
+from app.services.subclinical.cls_lab_templates import NAM, NU, find_lab_template, normalize_gioi_tinh
 
 # ==============================================================================
 # PJ2026-141 — Nhập kết quả xét nghiệm máu & cảnh báo chỉ số vượt ngưỡng

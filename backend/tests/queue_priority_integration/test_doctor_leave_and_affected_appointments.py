@@ -13,7 +13,7 @@ from app.models.appointment import (
 )
 from app.models.user import ChuyenKhoa, PhongKham, NguoiDung, BenhNhan
 from app.schemas.admin import DoctorLeaveCreateRequest, DoctorLeaveApproveRequest
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 
 async def _tao_benh_nhan_moi(db_session, suffix: str, idx: int) -> BenhNhan:

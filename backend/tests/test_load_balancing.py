@@ -17,9 +17,9 @@ from app.models.appointment import (
 )
 from app.schemas.queue import CheckInRequest, WalkInCheckInRequest
 from app.schemas.appointment import AppointmentCreateRequest
-from app.services.load_balancing_service import load_balancing_service
-from app.services.queue_service import queue_service
-from app.services.appointment_service import appointment_service, clinic_now
+from app.services.appointment.load_balancing_service import load_balancing_service
+from app.services.reception.queue_service import queue_service
+from app.services.appointment.appointment_service import appointment_service, clinic_now
 from app.core.exceptions import ConflictException, ForbiddenException, BadRequestException
 
 

@@ -90,7 +90,8 @@ backend/
 ├── Dockerfile                   # Build image backend Python 3.11
 ├── docker-compose.yml           # Khởi chạy PostgreSQL 15 + FastAPI
 ├── requirements.txt             # Danh mục thư viện Python
-└── seed_data.py                 # Script tự động nạp CSDL mẫu hoàn chỉnh
+└── scripts/
+    └── seed_data.py             # Script tự động nạp CSDL mẫu hoàn chỉnh
 ```
 
 ---
@@ -171,7 +172,7 @@ Docker sẽ tự động:
    ```
 4. **Khởi tạo dữ liệu mẫu (Seed Data) vào PostgreSQL:**
    ```bash
-   python seed_data.py
+   python -m scripts.seed_data
    ```
 5. **Khởi chạy máy chủ phát triển (Development Server):**
    ```bash

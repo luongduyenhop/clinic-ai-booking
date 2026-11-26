@@ -68,7 +68,7 @@ from app.schemas.admin import (
     RolePermissionUpdateRequest,
 )
 from app.schemas.clinical import AmendmentResponse
-from app.services.admin_service import admin_service
+from app.services.admin.admin_service import admin_service
 router = APIRouter(prefix="/admin", tags=["7. Quản Trị Phòng Khám & Phân Ca (Admin Portal)"])
 async def _require_admin(
     request: Request,
@@ -80,7 +80,7 @@ async def _require_admin(
     path = request.url.path
     if path.startswith("/api/v1/admin/rbac/"):
         raise ForbiddenException("Chỉ Admin được quản lý ma trận phân quyền.")
-    from app.services.admin_rbac_service import admin_rbac_service
+    from app.services.admin.admin_rbac_service import admin_rbac_service
     await admin_rbac_service._ensure_catalog(db)
     if any(segment in path for segment in ("/staff", "/doctors", "/accounts")):
         module = "ROLE_RBAC"
@@ -635,7 +635,7 @@ async def cancel_leave(
     current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    from app.services.admin_shift_service import admin_shift_service
+    from app.services.admin.admin_shift_service import admin_shift_service
     data = await admin_shift_service.cancel_leave_admin(leave_id, current_user, db)
     return ResponseEnvelope.success_response(data=data, message="Đã hủy đơn nghỉ phép và mở lại ca trực liên quan!")
 @router.delete(
@@ -648,7 +648,7 @@ async def delete_leave(
     current_user: TaiKhoan = Depends(_require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    from app.services.admin_shift_service import admin_shift_service
+    from app.services.admin.admin_shift_service import admin_shift_service
     await admin_shift_service.delete_leave_admin(leave_id, db)
     return ResponseEnvelope.success_response(data=None, message="Đã xóa đơn nghỉ phép thành công!")
 @router.get(
@@ -896,7 +896,7 @@ async def update_patient_status(
     )
 from typing import Any
 from pydantic import BaseModel
-from app.services.bff_admin_service import bff_admin_service
+from app.services.admin.bff.bff_admin_service import bff_admin_service
 class BffCollectionUpdatePayload(BaseModel):
     collectionKey: Optional[str] = None
     items: Any = None

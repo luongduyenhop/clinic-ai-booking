@@ -48,8 +48,8 @@ from app.schemas.incident import (
     CancelIncidentTicketsRequest,
     CancelIncidentTicketsResponse,
 )
-from app.services.queue_service import queue_service
-from app.services.incident_service import incident_service
+from app.services.reception.queue_service import queue_service
+from app.services.reception.incident_service import incident_service
 from app.schemas.reception import (
     ReceptionPatientCreateRequest,
     ReceptionPatientUpdateRequest,
@@ -60,7 +60,7 @@ from app.schemas.reception import (
     EncounterCreateRequest,
     EncounterResponse,
 )
-from app.services.reception_service import reception_service
+from app.services.reception.reception_service import reception_service
 
 router = APIRouter(prefix="/reception", tags=["6. Tiếp Đón & Điều Phối Hàng Đợi (Bahmni Queue Module)"])
 

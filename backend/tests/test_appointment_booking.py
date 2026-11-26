@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.models.appointment import CaLamViecEnum, LichKham, LichLamViec, TrangThaiLichEnum, OCCUPYING_SLOT_STATUSES
 from app.models.user import ChuyenKhoa, NguoiDung
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 APPOINTMENT_API = f"{settings.API_V1_STR}/appointments"
 

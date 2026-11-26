@@ -1,5 +1,5 @@
 import pytest
-from app.services.ai_service import ai_service
+from app.services.ai_triage.ai_service import ai_service
 
 
 def test_negation_detection_basic():

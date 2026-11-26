@@ -21,9 +21,9 @@ from app.models.medical import (
     PhieuThuChi,
 )
 from app.models.user import TaiKhoan, VaiTroEnum
-from app.services.admin_service import admin_service
-from app.services.cls_approval_service import cls_approval_service
-from app.services.queue_service import queue_service
+from app.services.admin.admin_service import admin_service
+from app.services.subclinical.cls_approval_service import cls_approval_service
+from app.services.reception.queue_service import queue_service
 from scripts.seed_one_week_realistic import seed_week_and_today_cases
 
 

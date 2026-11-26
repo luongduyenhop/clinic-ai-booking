@@ -22,7 +22,7 @@ from app.schemas.patient import (
     ServiceFeedbackCreateRequest,
     ServiceFeedbackResponse,
 )
-from app.services.patient_service import patient_service
+from app.services.patient.patient_service import patient_service
 
 router = APIRouter(prefix="/patient", tags=["8. Cổng Khách Hàng / Bệnh Nhân (Patient Portal)"])
 

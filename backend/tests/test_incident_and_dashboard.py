@@ -23,8 +23,8 @@ from app.schemas.incident import (
     SingleTicketAssignment,
     CancelIncidentTicketsRequest,
 )
-from app.services.queue_service import queue_service
-from app.services.incident_service import incident_service
+from app.services.reception.queue_service import queue_service
+from app.services.reception.incident_service import incident_service
 from app.core.exceptions import BadRequestException
 
 

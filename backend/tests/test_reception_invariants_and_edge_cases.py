@@ -1,11 +1,11 @@
 import pytest
 from datetime import date, time, datetime, timedelta
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from app.models.user import VaiTroEnum, NguoiDung, TaiKhoan, BenhNhan, BacSi
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.schemas.queue import CheckInRequest, WalkInQuickRequest
-from app.services.queue_service import queue_service
-from app.services.appointment_service import build_day_slots
+from app.services.reception.queue_service import queue_service
+from app.services.appointment.appointment_service import build_day_slots
 from app.core.exceptions import BadRequestException
 
 

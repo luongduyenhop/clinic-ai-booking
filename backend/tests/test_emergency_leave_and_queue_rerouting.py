@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, datetime, time, timezone
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from app.models.appointment import LichLamViec, HangDoiKham, LichKham, CaLamViecEnum, TrangThaiHangDoiEnum, TrangThaiLichEnum
 from app.models.medical import LuotKham
 from app.models.user import ChuyenKhoa

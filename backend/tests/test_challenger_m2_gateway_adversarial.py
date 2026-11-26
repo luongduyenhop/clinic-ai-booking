@@ -7,8 +7,8 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.schemas.compliance import TrangThaiDonThuoc
-from app.services.national_gateway_service import NationalGatewayService, national_gateway_service
-from app.services.prescription_fsm_service import (
+from app.services.compliance.national_gateway_service import NationalGatewayService, national_gateway_service
+from app.services.compliance.prescription_fsm_service import (
     PrescriptionFSMService,
     VALID_TRANSITIONS,
 )

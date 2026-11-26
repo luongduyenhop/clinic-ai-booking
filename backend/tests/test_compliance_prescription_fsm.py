@@ -209,7 +209,7 @@ async def test_gateway_rejects_accepted_status_without_valid_receipt():
 @pytest.mark.asyncio
 async def test_cross_feature_expired_doctor_cannot_sign_prescription():
     from app.models.compliance import TrangThaiGiayPhep
-    from app.services.credential_service import credential_service
+    from app.services.auth.credential_service import credential_service
     expired_doctor = BacSi(id=99, trang_thai_giay_phep=TrangThaiGiayPhep.EXPIRED.value, is_active=False)
 
     class MockDB:
@@ -300,7 +300,7 @@ async def test_real_world_scenario_post_sign_modification_triggers_superseding()
 
 @pytest.mark.asyncio
 async def test_api_fsm_full_lifecycle_and_immutability(api_client, booking, db_session):
-    from app.services.national_gateway_service import national_gateway_service
+    from app.services.compliance.national_gateway_service import national_gateway_service
     national_gateway_service.timeout_mode = False
     national_gateway_service.invalid_receipt_mode = False
     token_bs = booking.tokens['bs_x']
@@ -372,7 +372,7 @@ async def test_api_fsm_supersede_and_replacement_workflow(api_client, booking, d
 
 @pytest.mark.asyncio
 async def test_api_gateway_timeout_and_retry_recovery(api_client, booking, db_session):
-    from app.services.national_gateway_service import national_gateway_service
+    from app.services.compliance.national_gateway_service import national_gateway_service
     token_bs = booking.tokens['bs_x']
     now = datetime.now(timezone.utc)
     lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)

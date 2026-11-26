@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from app.models.medical import ChiDinh, DichVu, LuotKham
 from app.models.user import VaiTroEnum
-from app.services.cls_service_group import CLINIC_TZ, nhom_dich_vu_of
+from app.services.subclinical.cls_service_group import CLINIC_TZ, nhom_dich_vu_of
 
 
 @pytest.mark.asyncio

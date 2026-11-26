@@ -88,7 +88,7 @@ def require_permission(permission_code: str):
             return current_user
         # Initialize defaults on first use so persisted permissions are
         # effective even before an administrator opens the RBAC screen.
-        from app.services.admin_rbac_service import admin_rbac_service
+        from app.services.admin.admin_rbac_service import admin_rbac_service
         await admin_rbac_service._ensure_catalog(db)
         stmt = (
             select(Quyen.id)
@@ -125,7 +125,7 @@ def require_module_permission(module_code: str):
     ) -> TaiKhoan:
         if current_user.vai_tro == VaiTroEnum.ADMIN.value:
             return current_user
-        from app.services.admin_rbac_service import admin_rbac_service
+        from app.services.admin.admin_rbac_service import admin_rbac_service
         await admin_rbac_service._ensure_catalog(db)
         permission_code = f"{module_code}.{permission_action_for_request(request)}"
         stmt = (

@@ -198,7 +198,7 @@ async def test_walk_in_validation_nonexistent_department(api_client, booking, db
 async def test_incident_rebalance_multi_tenancy_check(db_session, booking):
     from datetime import date
     import uuid
-    from app.services.incident_service import incident_service
+    from app.services.reception.incident_service import incident_service
     from app.schemas.incident import RebalanceQueueRequest
     from app.models.appointment import NghiPhepBacSi, TrangThaiNghiPhepEnum, LoaiNghiPhepEnum
     from app.models.user import PhongKham, TaiKhoan

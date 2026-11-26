@@ -4,7 +4,7 @@ from app.models.appointment import PhanTichAI
 from app.models.user import ChuyenKhoa
 from app.routers import ai_triage
 from app.schemas.ai import SymptomTriageResponse
-from app.services.ai_service import ai_service
+from app.services.ai_triage.ai_service import ai_service
 
 
 def test_vietnamese_normalization():

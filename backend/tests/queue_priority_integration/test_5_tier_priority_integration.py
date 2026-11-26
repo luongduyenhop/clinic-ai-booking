@@ -10,7 +10,7 @@ from app.models.appointment import (
     TrangThaiHangDoiEnum,
 )
 from app.models.user import BenhNhan, ChuyenKhoa, NguoiDung
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 
 
 async def _tao_benh_nhan(db_session, suffix: str, index: int) -> BenhNhan:

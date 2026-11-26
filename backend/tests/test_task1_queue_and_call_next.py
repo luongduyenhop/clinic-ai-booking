@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.services.appointment_service import clinic_now
+from app.services.appointment.appointment_service import clinic_now
 from app.models.appointment import (
     CaLamViecEnum,
     HangDoiKham,

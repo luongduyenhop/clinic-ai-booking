@@ -15,14 +15,14 @@ from app.schemas.compliance import (
     DoctorLicenseStatusUpdateRequest,
     DoctorLicenseUpdateRequest,
 )
-from app.services.credential_service import (
+from app.services.auth.credential_service import (
     DoctorLicenseInvalidException,
     ScopeMismatchException,
     credential_service,
 )
-from app.services.appointment_service import appointment_service
-from app.services.clinical_service import clinical_service
-from app.services.admin_service import admin_service
+from app.services.appointment.appointment_service import appointment_service
+from app.services.clinical.clinical_service import clinical_service
+from app.services.admin.admin_service import admin_service
 
 
 client = TestClient(app)

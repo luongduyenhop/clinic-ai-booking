@@ -19,7 +19,7 @@ from app.models.medical import (
 from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 from scripts.run_migrations import DEPLOYMENT_LOCK, require_demo_database
 from scripts.seed_one_week_realistic import seed_one_week_realistic
-from seed_data import seed_catalogs
+from scripts.seed_data import seed_catalogs
 
 DEMO_ACCOUNTS = (
     ("admin.demo", "Trần Minh Quân", VaiTroEnum.ADMIN),

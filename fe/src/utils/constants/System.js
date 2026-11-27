@@ -1,5 +1,4 @@
 export const DOMAIN = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
-export const SIGNALR_HUB = import.meta.env.VITE_SIGNALR_HUB_URL || ''
 
 export const TOKEN = 'accessToken'
 export const REFRESH_TOKEN = 'refreshToken'

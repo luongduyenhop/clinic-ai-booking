@@ -2,6 +2,7 @@
 
 - **Địa chỉ truy cập chính thức (HTTPS):** [https://clinic-ai.luongduyenhop.me](https://clinic-ai.luongduyenhop.me)
 - **Địa chỉ IP máy chủ (HTTP):** [http://3.27.138.183](http://3.27.138.183)
+- **Đường dẫn đăng nhập:** Nhân sự & Bác sĩ tại `/staff/login` · Bệnh nhân tại `/login` · Tài liệu API Swagger tại `/docs`
 - **MẬT KHẨU DÙNG CHUNG CHO TẤT CẢ CÁC TÀI KHOẢN DƯỚI ĐÂY:** **`Demo@12345678`**
 
 ---
@@ -10,10 +11,10 @@
 
 | STT | Phân hệ / Vai trò | Họ tên hiển thị | Email đăng nhập | Mật khẩu | Chức năng chính |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Quản trị viên (Admin)** | Quản trị viên [DEMO] | `admin.demo@clinic-ai.test` | `Demo@12345678` | Quản trị viện phí, dashboard 7 ngày, duyệt biên bản đính chính bệnh án EMR, cấu hình hệ thống. |
-| **2** | **Lễ tân & Điều phối** | Lễ tân [DEMO] | `letan.demo@clinic-ai.test` | `Demo@12345678` | Tiếp đón, phân luồng triệu chứng AI, cấp số thứ tự, điều phối bệnh nhân vào các phòng. |
-| **3** | **Thu ngân viện phí** | Thu ngân [DEMO] | `thungan.demo@clinic-ai.test` | `Demo@12345678` | Quầy thu ngân, hiển thị mã VietQR SePay động, in phiếu hóa đơn kèm mã QR tự quét. |
-| **4** | **Kỹ thuật viên Cận lâm sàng** | Kỹ thuật viên [DEMO] | `ktv.demo@clinic-ai.test` | `Demo@12345678` | Nhận mẫu xét nghiệm, nhập kết quả sinh hóa, upload ảnh X-quang/siêu âm lên Cloudinary, duyệt trả kết quả. |
+| **1** | **Quản trị viên (Admin)** | Trần Minh Quân | `admin.demo@clinic-ai.test` | `Demo@12345678` | Quản trị viện phí, dashboard 7 ngày, duyệt biên bản đính chính bệnh án EMR, cấu hình hệ thống. |
+| **2** | **Lễ tân & Điều phối** | Nguyễn Thảo Vy | `letan.demo@clinic-ai.test` | `Demo@12345678` | Tiếp đón, phân luồng triệu chứng AI, cấp số thứ tự, điều phối bệnh nhân vào các phòng. |
+| **3** | **Thu ngân viện phí** | Phạm Thu Trang | `thungan.demo@clinic-ai.test` | `Demo@12345678` | Quầy thu ngân, hiển thị mã VietQR SePay động, in phiếu hóa đơn kèm mã QR tự quét. |
+| **4** | **Kỹ thuật viên Cận lâm sàng** | Lê Quốc Bảo | `ktv.demo@clinic-ai.test` | `Demo@12345678` | Nhận mẫu xét nghiệm, nhập kết quả sinh hóa, upload ảnh X-quang/siêu âm lên Cloudinary, duyệt trả kết quả. |
 
 ---
 
@@ -36,7 +37,7 @@
 
 | STT | Họ tên Bệnh nhân | Mã Y Tế (Mã BN) | Trạng thái hiện tại | Email đăng nhập | Mật khẩu |
 | :---: | :--- | :---: | :--- | :--- | :--- |
-| **1** | Bệnh nhân mẫu 01 | `BN-DEMO-001` | Lịch sử khám 7 ngày | `patient01@clinic-ai.test` | `Demo@12345678` |
+| **1** | Đặng Minh Khôi | `BN-DEMO-0001` | Lịch sử khám 7 ngày | `patient01@clinic-ai.test` | `Demo@12345678` |
 | **2** | Lê Văn Tiến | `BN-TODAY-001` | Đang trong phòng khám P101 (`DANG_KHAM`) | `patient_p101_curr@clinic-ai.test` | `Demo@12345678` |
 | **3** | Nguyễn Hải Đăng | `BN-TODAY-002` | Đang ngồi chờ gọi số P101 (`CHO_KHAM`) | `patient_p101_waiting@clinic-ai.test` | `Demo@12345678` |
 | **4** | Trần Thu Hà | `BN-TODAY-003` | Đang chờ thực hiện xét nghiệm tại Lab | `patient_lab_wait@clinic-ai.test` | `Demo@12345678` |

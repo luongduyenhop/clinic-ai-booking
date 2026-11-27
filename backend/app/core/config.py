@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     ENVIRONMENT: str = "development"
+    ENABLE_API_DOCS: Optional[bool] = None
     BACKEND_CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://127.0.0.1:3000"]
     ENABLE_DEMO_SEED: bool = False
     ENABLE_OUTBOUND_NOTIFICATIONS: bool = True
@@ -60,6 +61,12 @@ class Settings(BaseSettings):
     @property
     def is_hosted(self) -> bool:
         return self.is_demo or self.ENVIRONMENT.strip().lower() in ("production", "prod", "staging")
+
+    @property
+    def docs_enabled(self) -> bool:
+        if self.ENABLE_API_DOCS is not None:
+            return self.ENABLE_API_DOCS
+        return (not self.is_hosted) or self.is_demo
 
     SECRET_KEY: str
     ALGORITHM: str = "HS256"

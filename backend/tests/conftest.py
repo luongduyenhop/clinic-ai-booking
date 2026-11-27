@@ -13,45 +13,46 @@ from app.main import app
 from app.models.appointment import LichKham, TrangThaiLichEnum
 from app.models.user import BacSi, BenhNhan, NguoiDung, TaiKhoan, VaiTroEnum
 
-# ------------------------------------------------------------------------------
-# Fixture dùng chung cho kiểm thử tích hợp trên PostgreSQL thật - rollback toàn bộ sau mỗi test
-# ------------------------------------------------------------------------------
-
-# Ghi nhớ lần kết nối thất bại đầu tiên để các test sau skip ngay, không phải chờ kết nối lại
-_skip_integration_reason = None
+_postgres_unavailable = False
 
 
 def _new_engine():
-    return create_async_engine(settings.async_database_url, poolclass=NullPool, connect_args={"timeout": 5})
+    return create_async_engine(settings.async_database_url, poolclass=NullPool, connect_args={"timeout": 2})
+
+
+def _new_sqlite_engine():
+    return create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
 
 async def _connect_or_skip(engine):
-    """Thử kết nối PostgreSQL; nếu máy local chưa bật PostgreSQL thì fallback sang SQLite in-memory để chạy test."""
+    global _postgres_unavailable
+    if _postgres_unavailable and not os.getenv("CI") and not settings.async_database_url.startswith("sqlite"):
+        sqlite_engine = _new_sqlite_engine()
+        conn = await sqlite_engine.connect()
+        return conn, sqlite_engine
     try:
         conn = await engine.connect()
         return conn, engine
     except Exception:
         if os.getenv("CI"):
             raise
-        sqlite_engine = create_async_engine(
-            "sqlite+aiosqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool
-        )
+        _postgres_unavailable = True
+        sqlite_engine = _new_sqlite_engine()
         conn = await sqlite_engine.connect()
         return conn, sqlite_engine
 
 
-# Các fixture async ghim loop_scope="function" để chạy chung event loop với test
 @pytest_asyncio.fixture(loop_scope="function")
 async def db_session():
-    """Phiên CSDL bọc trong 1 transaction được rollback khi kết thúc nên không để lại dữ liệu test."""
     engine = _new_engine()
     conn, actual_engine = await _connect_or_skip(engine)
 
     transaction = await conn.begin()
     await conn.run_sync(Base.metadata.create_all)
-    # Service gọi commit() chỉ giải phóng SAVEPOINT; transaction ngoài vẫn được rollback khi kết thúc test
     session = AsyncSession(bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint")
     try:
         yield session
@@ -66,7 +67,6 @@ async def db_session():
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def api_client(db_session):
-    """HTTP client gọi thẳng vào app FastAPI, dùng chung phiên CSDL của test"""
     async def override_get_db():
         yield db_session
 
@@ -79,8 +79,6 @@ async def api_client(db_session):
 
 
 class Booking:
-    """Dữ liệu mẫu cho luồng đặt/hủy lịch: 2 bệnh nhân, 2 bác sĩ, 1 admin và hàm tạo lịch hẹn"""
-
     def __init__(self, db, suffix):
         self.db = db
         self.suffix = suffix
@@ -140,15 +138,8 @@ async def booking(db_session):
     return await _seed_booking(db_session)
 
 
-# ------------------------------------------------------------------------------
-# Fixture cho kiểm thử khóa dòng SELECT FOR UPDATE (UC-B03): các request chạy song song trên nhiều kết nối
-# riêng nên dữ liệu mẫu phải được COMMIT thật (transaction rollback ở trên không nhìn thấy được từ kết nối khác)
-# ------------------------------------------------------------------------------
-
 @pytest_asyncio.fixture(loop_scope="function")
 async def committed_booking():
-    """Dữ liệu mẫu giống fixture booking nhưng đã commit; data.session_factory mở phiên mới trên kết nối riêng.
-    Tự xóa toàn bộ dữ liệu của test khi kết thúc (lọc theo hậu tố email riêng của lần chạy)."""
     engine = _new_engine()
     conn, actual_engine = await _connect_or_skip(engine)
     if actual_engine.dialect.name == "sqlite":
@@ -173,7 +164,6 @@ async def committed_booking():
         async with actual_engine.begin() as cleanup:
             bac_si_ids = [data.bs_x.id, data.bs_y.id]
             benh_nhan_ids = [data.bn_a.id, data.bn_b.id]
-            # lich_kham tham chiếu RESTRICT nên xóa trước; ca làm việc/hồ sơ/tài khoản xóa theo CASCADE của nguoi_dung
             await cleanup.execute(delete(LichKham).where(
                 or_(LichKham.bac_si_id.in_(bac_si_ids), LichKham.benh_nhan_id.in_(benh_nhan_ids))
             ))
@@ -185,8 +175,6 @@ async def committed_booking():
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def concurrent_api_client(committed_booking):
-    """HTTP client mà mỗi request có phiên CSDL riêng (như môi trường chạy thật) để các request song song
-    tranh chấp khóa dòng thật sự trên PostgreSQL"""
     async def override_get_db():
         async with committed_booking.session_factory() as session:
             yield session

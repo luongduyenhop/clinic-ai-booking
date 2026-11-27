@@ -10,10 +10,9 @@ logger = logging.getLogger("clinic_backend")
 
 
 class AppException(Exception):
-    """Exception nền tảng cho mọi lỗi nghiệp vụ trong hệ thống"""
     def __init__(
-        self, 
-        message: str = "Đã xảy ra lỗi nghiệp vụ", 
+        self,
+        message: str = "Đã xảy ra lỗi nghiệp vụ",
         code: int = status.HTTP_400_BAD_REQUEST,
         errors: Optional[List[dict]] = None
     ):
@@ -49,19 +48,16 @@ class ForbiddenException(AppException):
 
 
 class UnprocessableEntityException(AppException):
-    """Dữ liệu đúng định dạng nhưng không thỏa ràng buộc nghiệp vụ (tách biệt với 404 không tìm thấy tài nguyên)"""
     def __init__(self, message: str = "Dữ liệu không thỏa mãn ràng buộc nghiệp vụ"):
-        super().__init__(message=message, code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        super().__init__(message=message, code=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 class EmergencyAlertException(AppException):
-    """Lỗi đặc thù y tế khi phát hiện dấu hiệu cấp cứu cần ngắt luồng đặt lịch"""
     def __init__(self, message: str = "Phát hiện dấu hiệu cấp cứu! Đề nghị gọi 115 ngay lập tức."):
         super().__init__(message=message, code=status.HTTP_400_BAD_REQUEST)
 
 
 def setup_exception_handlers(app: FastAPI) -> None:
-    """Đăng ký các bộ xử lý lỗi toàn cục, đảm bảo Response luôn ở dạng Envelope chuẩn"""
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
@@ -85,10 +81,10 @@ def setup_exception_handlers(app: FastAPI) -> None:
             })
         envelope = ResponseEnvelope.error_response(
             message="Dữ liệu đầu vào không hợp lệ",
-            code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             errors=formatted_errors
         )
-        return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=envelope.model_dump())
+        return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content=envelope.model_dump())
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(request: Request, exc: RateLimitExceeded):

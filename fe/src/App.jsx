@@ -11,7 +11,6 @@ import {
 } from './theme/clinicTheme'
 import Loading from './components/loading/Loading'
 import ApiErrorModal from './components/error/ApiErrorModal'
-import RealtimeNotificationHandler from './components/notification/RealtimeNotificationHandler'
 import UserTemplate from './layouts/UserTemplate'
 import ProtectedRoute from './utils/route/ProtectedRoute'
 import {
@@ -89,7 +88,6 @@ function App() {
     return (
         <ConfigProvider locale={viVN} theme={isClinicalWorkbench ? CLINICAL_ANTD_THEME : PATIENT_ANTD_THEME}>
             <ToastContainer position="top-right" autoClose={3500} />
-            <RealtimeNotificationHandler />
             <Loading />
             <ApiErrorModal />
             <Suspense fallback={<Loading forceVisible />}>

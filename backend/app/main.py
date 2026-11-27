@@ -85,9 +85,9 @@ app = FastAPI(
     debug=settings.DEBUG,
     description="He Thong Quan Ly & Dat Lich Kham Benh Truc Tuyen Tich Hop AI",
     version="1.0.0",
-    docs_url=None if settings.is_hosted else "/docs",
-    redoc_url=None if settings.is_hosted else "/redoc",
-    openapi_url=None if settings.is_hosted else f"{settings.API_V1_STR}/openapi.json",
+    docs_url="/docs" if settings.docs_enabled else None,
+    redoc_url="/redoc" if settings.docs_enabled else None,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.docs_enabled else None,
     lifespan=lifespan
 )
 

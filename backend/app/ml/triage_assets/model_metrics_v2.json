@@ -1,7 +1,16 @@
 {
-  "accuracy": 1.0,
-  "balanced_accuracy": 1.0,
-  "macro_f1": 1.0,
-  "weighted_f1": 1.0,
-  "oob_score": 1.0
+  "accuracy": 0.965,
+  "top3_disease_accuracy": 0.9884375,
+  "balanced_accuracy": 0.9649999999999999,
+  "macro_f1": 0.9651183810252627,
+  "weighted_f1": 0.9651183810252627,
+  "oob_score": 0.963515625,
+  "specialty_accuracy": 0.993125,
+  "specialty_macro_f1": 0.9931301742399548,
+  "train_samples": 12800,
+  "test_samples": 3200,
+  "leakage_free_holdout": true,
+  "nl_benchmark_passed": 24,
+  "nl_benchmark_cases": 25,
+  "nl_benchmark_accuracy": 0.96
 }

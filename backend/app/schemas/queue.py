@@ -329,13 +329,6 @@ class AppointmentReceptionSearchResult(BaseModel):
 
 
 
-# Alias tương thích ngược cho các test cũ (Đã gộp endpoint vào WalkInCheckInRequest)
-WalkInQuickRequest = WalkInCheckInRequest
-
-
-
-
-
 class HourlyCheckInDensityItem(BaseModel):
     """Mật độ check-in theo khung giờ (FC-10)"""
     khung_gio: str

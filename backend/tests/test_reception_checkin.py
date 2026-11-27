@@ -14,7 +14,7 @@ from app.models.appointment import (
     TrangThaiLichEnum,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham
-from app.schemas.queue import CheckInRequest, WalkInCheckInRequest, WalkInQuickRequest
+from app.schemas.queue import CheckInRequest, WalkInCheckInRequest
 
 
 def _get_clinic_now():

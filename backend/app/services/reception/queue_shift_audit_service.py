@@ -1,66 +1,38 @@
 import logging
-import uuid
 from datetime import date, datetime, time, timezone, timedelta
-from typing import List, Optional, Union, Any, Tuple
-from sqlalchemy import func, select, or_, and_
+from typing import List, Optional
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
 from app.core.exceptions import (
     BadRequestException,
-    ForbiddenException,
-    NotFoundException,
     ConflictException,
 )
 from app.models.appointment import (
     HangDoiKham,
     LichKham,
     LichLamViec,
-    LichDinhKyBacSi,
-    CaLamViecEnum,
     LoaiHangDoiEnum,
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
     DanhSachCho,
     TrangThaiWaitlistEnum,
-    LyDoUuTienEnum,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
 from app.services.appointment.appointment_service import clinic_now
-from app.models.specialized import DangKyGoiKham, GoiDichVu
+from app.services.reception.doctor_schedule_guard import (
+    find_room_shift_doctor,
+    is_doctor_on_approved_leave,
+)
+from app.services.reception.timezone_utils import (
+    clinic_tz,
+    to_clinic_aware,
+    to_clinic_naive,
+    utc_now,
+)
 from app.models.medical import KhoaSoCaTruc
 from app.schemas.queue import (
-    ReceptionWaitlistItem,
-    ReceptionWaitlistResponse,
-    CheckInRequest,
-    WalkInCheckInRequest,
-    WalkInQuickRequest,
-    QueueTicketResponse,
-    CloseTicketRequest,
-    TransferTicketRequest,
-    CloseTicketResponse,
-    CallNextResponse,
-    DoctorQueueBoardResponse,
-    PatientFlowBoardItem,
-    PatientFlowBoardResponse,
-    AppointmentReceptionSearchResult,
-    HourlyCheckInDensityItem,
-    UpcomingAppointmentSummaryItem,
-    LongWaitingTicketItem,
-    ReceptionActivityItem,
-    ShiftDashboardResponse,
-    RoomStatusItem,
-    RoomStatusDashboardResponse,
-    ReceptionAppointmentItem,
-    ReceptionAppointmentsResponse,
-    RosterItem,
-    RoomResourceItem,
-    RosterTemplateItem,
-    PatientPackageItem,
-    PatientPastVisitItem,
-    PatientHistorySummaryResponse,
-    ProcessNoShowResponse,
     ReceptionReportKpiItem,
     DepartmentDistributionItem,
     ReceptionReportSummaryResponse,
@@ -83,15 +55,12 @@ from app.schemas.queue import (
 
 logger = logging.getLogger(__name__)
 
+
 async def get_reception_report_summary(
-    self,
-    query_date: Optional[date],
-    ca_kham: Optional[str],
-    db: AsyncSession
+    self, query_date: Optional[date], ca_kham: Optional[str], db: AsyncSession
 ) -> ReceptionReportSummaryResponse:
     now = clinic_now()
     target_date = query_date or now.date()
-    vn_tz = timezone(timedelta(hours=7))
 
     stmt_queue = (
         select(HangDoiKham)
@@ -118,13 +87,11 @@ async def get_reception_report_summary(
     so_lich_hen = tong_luot - so_vang_lai
 
     so_lich_huy = sum(
-        1 for item_lich in lich_list
+        1
+        for item_lich in lich_list
         if item_lich.trang_thai in (TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value)
     )
-    so_no_show = sum(
-        1 for item_lich in lich_list
-        if item_lich.trang_thai == TrangThaiLichEnum.NO_SHOW.value
-    )
+    so_no_show = sum(1 for item_lich in lich_list if item_lich.trang_thai == TrangThaiLichEnum.NO_SHOW.value)
 
     wait_times: List[float] = []
     specialty_stats: dict = {}
@@ -143,28 +110,19 @@ async def get_reception_report_summary(
 
     for t in tickets:
         ci_dt = t.thoi_gian_xep_hang_lai or t.thoi_gian_check_in or t.created_at
-        if ci_dt and ci_dt.tzinfo:
-            ci_local = ci_dt.astimezone(vn_tz).replace(tzinfo=None)
-        else:
-            ci_local = ci_dt
+        ci_local = to_clinic_naive(ci_dt)
 
         called_dt = t.thoi_gian_goi_kham or t.thoi_gian_bat_dau
-        if called_dt:
-            if called_dt.tzinfo:
-                call_local = called_dt.astimezone(vn_tz).replace(tzinfo=None)
-            else:
-                call_local = called_dt
+        if called_dt and ci_local:
+            call_local = to_clinic_naive(called_dt)
             wait_min = max(0.0, (call_local - ci_local).total_seconds() / 60.0)
-        elif t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value:
+        elif t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value and ci_local:
             now_local = now.replace(tzinfo=None)
             wait_min = max(0.0, (now_local - ci_local).total_seconds() / 60.0)
         else:
             end_dt = t.thoi_gian_ket_thuc or t.updated_at
-            if end_dt:
-                if end_dt.tzinfo:
-                    end_local = end_dt.astimezone(vn_tz).replace(tzinfo=None)
-                else:
-                    end_local = end_dt
+            if end_dt and ci_local:
+                end_local = to_clinic_naive(end_dt)
                 wait_min = max(0.0, (end_local - ci_local).total_seconds() / 60.0)
             else:
                 wait_min = 0.0
@@ -204,9 +162,7 @@ async def get_reception_report_summary(
         if s_data["so_luot"] > 0 or tong_luot == 0:
             pct = round((s_data["so_luot"] / tong_luot * 100), 1) if tong_luot > 0 else 0.0
             spec_avg_wait = (
-                round(s_data["total_wait_minutes"] / s_data["wait_count"], 1)
-                if s_data["wait_count"] > 0
-                else 0.0
+                round(s_data["total_wait_minutes"] / s_data["wait_count"], 1) if s_data["wait_count"] > 0 else 0.0
             )
             phan_bo.append(
                 DepartmentDistributionItem(
@@ -235,6 +191,7 @@ async def get_reception_report_summary(
         phan_bo_chuyen_khoa=phan_bo,
     )
 
+
 async def get_reception_audit_logs(
     self,
     query_date: Optional[date],
@@ -242,11 +199,10 @@ async def get_reception_audit_logs(
     search: Optional[str],
     page: int,
     page_size: int,
-    db: AsyncSession
+    db: AsyncSession,
 ) -> ReceptionAuditLogResponse:
     now = clinic_now()
     target_date = query_date or now.date()
-    vn_tz = timezone(timedelta(hours=7))
 
     stmt_tickets = (
         select(HangDoiKham)
@@ -275,8 +231,12 @@ async def get_reception_audit_logs(
     raw_logs: List[ReceptionAuditLogItem] = []
 
     for t in tickets:
-        patient_name = t.benh_nhan.nguoi_dung.ho_ten if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
-        phone = t.benh_nhan.nguoi_dung.so_dien_thoai if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else ""
+        patient_name = (
+            t.benh_nhan.nguoi_dung.ho_ten if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
+        )
+        phone = (
+            t.benh_nhan.nguoi_dung.so_dien_thoai if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else ""
+        )
         room_name = t.phong_kham.ten_phong if t.phong_kham else ""
         ticket_num = self._generate_queue_code(t)
 
@@ -290,18 +250,26 @@ async def get_reception_audit_logs(
 
         t_dt = t.thoi_gian_check_in or t.created_at
         if t_dt:
-            t_local = t_dt.astimezone(vn_tz) if t_dt.tzinfo else t_dt
+            t_local = to_clinic_aware(t_dt)
             ts_str = t_local.strftime("%Y-%m-%d %H:%M:%S")
         else:
             ts_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
         if t.loai_hang_doi == LoaiHangDoiEnum.VANG_LAI.value:
             act = "WALK_IN_CREATE"
-            desc = f"Tiếp nhận bệnh nhân vãng lai, cấp số {ticket_num} vào {room_name}" if room_name else f"Tiếp nhận vãng lai, cấp số {ticket_num}"
+            desc = (
+                f"Tiếp nhận bệnh nhân vãng lai, cấp số {ticket_num} vào {room_name}"
+                if room_name
+                else f"Tiếp nhận vãng lai, cấp số {ticket_num}"
+            )
         else:
             act = "CHECK_IN"
             ma_lk = t.lich_kham.ma_lich_kham if t.lich_kham else ""
-            desc = f"Tiếp nhận check-in lịch hẹn {ma_lk}, cấp số {ticket_num} vào {room_name}" if room_name else f"Tiếp nhận check-in lịch hẹn {ma_lk}, cấp số {ticket_num}"
+            desc = (
+                f"Tiếp nhận check-in lịch hẹn {ma_lk}, cấp số {ticket_num} vào {room_name}"
+                if room_name
+                else f"Tiếp nhận check-in lịch hẹn {ma_lk}, cấp số {ticket_num}"
+            )
 
         raw_logs.append(
             ReceptionAuditLogItem(
@@ -318,9 +286,12 @@ async def get_reception_audit_logs(
             )
         )
 
-        if t.thoi_gian_goi_kham or t.trang_thai in (TrangThaiHangDoiEnum.DANG_KHAM.value, TrangThaiHangDoiEnum.DA_KHAM.value):
+        if t.thoi_gian_goi_kham or t.trang_thai in (
+            TrangThaiHangDoiEnum.DANG_KHAM.value,
+            TrangThaiHangDoiEnum.DA_KHAM.value,
+        ):
             call_dt = t.thoi_gian_goi_kham or t.thoi_gian_bat_dau or t.updated_at
-            call_local = call_dt.astimezone(vn_tz) if (call_dt and call_dt.tzinfo) else call_dt
+            call_local = to_clinic_aware(call_dt) if call_dt else None
             call_str = call_local.strftime("%Y-%m-%d %H:%M:%S") if call_local else ts_str
 
             raw_logs.append(
@@ -333,14 +304,16 @@ async def get_reception_audit_logs(
                     patient_name=patient_name,
                     phone=phone,
                     room_name=room_name,
-                    description=f"{doctor_name} gọi số {ticket_num} vào khám tại {room_name}" if room_name else f"{doctor_name} gọi số {ticket_num}",
+                    description=f"{doctor_name} gọi số {ticket_num} vào khám tại {room_name}"
+                    if room_name
+                    else f"{doctor_name} gọi số {ticket_num}",
                     metadata={"ticket_id": t.id, "so_lan_goi": t.so_lan_goi},
                 )
             )
 
         if t.ghi_chu_dieu_phoi and any(w in t.ghi_chu_dieu_phoi.lower() for w in ("chuyển", "đổi phòng", "transfer")):
             up_dt = t.updated_at or t.thoi_gian_check_in
-            up_local = up_dt.astimezone(vn_tz) if (up_dt and up_dt.tzinfo) else up_dt
+            up_local = to_clinic_aware(up_dt) if up_dt else None
             up_str = up_local.strftime("%Y-%m-%d %H:%M:%S") if up_local else ts_str
 
             raw_logs.append(
@@ -360,7 +333,7 @@ async def get_reception_audit_logs(
 
         if t.trang_thai == TrangThaiHangDoiEnum.TAM_HOAN.value:
             defer_dt = t.thoi_gian_xep_hang_lai or t.updated_at
-            defer_local = defer_dt.astimezone(vn_tz) if (defer_dt and defer_dt.tzinfo) else defer_dt
+            defer_local = to_clinic_aware(defer_dt) if defer_dt else None
             defer_str = defer_local.strftime("%Y-%m-%d %H:%M:%S") if defer_local else ts_str
 
             raw_logs.append(
@@ -380,7 +353,7 @@ async def get_reception_audit_logs(
 
         if t.trang_thai == TrangThaiHangDoiEnum.BO_KHAM.value:
             leave_dt = t.updated_at or t.thoi_gian_check_in
-            leave_local = leave_dt.astimezone(vn_tz) if (leave_dt and leave_dt.tzinfo) else leave_dt
+            leave_local = to_clinic_aware(leave_dt) if leave_dt else None
             leave_str = leave_local.strftime("%Y-%m-%d %H:%M:%S") if leave_local else ts_str
 
             raw_logs.append(
@@ -400,7 +373,7 @@ async def get_reception_audit_logs(
 
         if t.trang_thai == TrangThaiHangDoiEnum.DA_DONG_VE.value:
             close_dt = t.thoi_gian_ket_thuc or t.updated_at
-            close_local = close_dt.astimezone(vn_tz) if (close_dt and close_dt.tzinfo) else close_dt
+            close_local = to_clinic_aware(close_dt) if close_dt else None
             close_str = close_local.strftime("%Y-%m-%d %H:%M:%S") if close_local else ts_str
 
             raw_logs.append(
@@ -419,12 +392,20 @@ async def get_reception_audit_logs(
             )
 
     for lk in lich_list:
-        patient_name = lk.benh_nhan.nguoi_dung.ho_ten if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
-        phone = lk.benh_nhan.nguoi_dung.so_dien_thoai if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else ""
+        patient_name = (
+            lk.benh_nhan.nguoi_dung.ho_ten
+            if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None))
+            else "Bệnh nhân"
+        )
+        phone = (
+            lk.benh_nhan.nguoi_dung.so_dien_thoai
+            if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None))
+            else ""
+        )
 
         if lk.trang_thai in (TrangThaiLichEnum.DA_HUY.value, TrangThaiLichEnum.TU_DONG_HUY.value):
             c_dt = lk.thoi_gian_huy or lk.updated_at
-            c_local = c_dt.astimezone(vn_tz) if (c_dt and c_dt.tzinfo) else c_dt
+            c_local = to_clinic_aware(c_dt) if c_dt else None
             c_str = c_local.strftime("%Y-%m-%d %H:%M:%S") if c_local else now.strftime("%Y-%m-%d %H:%M:%S")
 
             raw_logs.append(
@@ -444,7 +425,7 @@ async def get_reception_audit_logs(
 
         if lk.thoi_gian_xac_nhan_lai:
             r_dt = lk.thoi_gian_xac_nhan_lai
-            r_local = r_dt.astimezone(vn_tz) if r_dt.tzinfo else r_dt
+            r_local = to_clinic_aware(r_dt)
             r_str = r_local.strftime("%Y-%m-%d %H:%M:%S")
 
             raw_logs.append(
@@ -469,7 +450,8 @@ async def get_reception_audit_logs(
     if search:
         s = search.lower().strip()
         filtered_logs = [
-            log for log in filtered_logs
+            log
+            for log in filtered_logs
             if (s in (log.patient_name or "").lower())
             or (s in (log.phone or "").lower())
             or (s in (log.ticket_number or "").lower())
@@ -511,16 +493,13 @@ async def get_reception_audit_logs(
         pagination=pagination,
     )
 
+
 async def get_shift_pre_close_audit(
-    self,
-    ca_kham: str,
-    query_date: Optional[date],
-    db: AsyncSession
+    self, ca_kham: str, query_date: Optional[date], db: AsyncSession
 ) -> PreCloseShiftAuditResponse:
     now = clinic_now()
     target_date = query_date or now.date()
     target_ca = ca_kham.lower().strip()
-    vn_tz = timezone(timedelta(hours=7))
 
     stmt_tickets = (
         select(HangDoiKham)
@@ -545,14 +524,20 @@ async def get_shift_pre_close_audit(
     now_naive = now.replace(tzinfo=None)
 
     for t in tickets:
-        patient_name = t.benh_nhan.nguoi_dung.ho_ten if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
-        doctor_name = f"BS. {t.bac_si.nguoi_dung.ho_ten}" if (t.bac_si and getattr(t.bac_si, "nguoi_dung", None)) else "Bác sĩ phụ trách"
+        patient_name = (
+            t.benh_nhan.nguoi_dung.ho_ten if (t.benh_nhan and getattr(t.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
+        )
+        doctor_name = (
+            f"BS. {t.bac_si.nguoi_dung.ho_ten}"
+            if (t.bac_si and getattr(t.bac_si, "nguoi_dung", None))
+            else "Bác sĩ phụ trách"
+        )
         room_name = t.phong_kham.ten_phong if t.phong_kham else "Chưa gán phòng"
         t_code = self._generate_queue_code(t)
 
         if t.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
             start_dt = t.thoi_gian_bat_dau or t.thoi_gian_goi_kham or t.thoi_gian_check_in
-            start_local = start_dt.astimezone(vn_tz).replace(tzinfo=None) if (start_dt and start_dt.tzinfo) else start_dt
+            start_local = to_clinic_naive(start_dt)
             start_str = start_local.strftime("%H:%M") if start_local else ""
             dang_kham_list.append(
                 PreCloseExaminingDetailItem(
@@ -567,7 +552,7 @@ async def get_shift_pre_close_audit(
             )
         elif t.trang_thai == TrangThaiHangDoiEnum.CHO_KHAM.value:
             ci_dt = t.thoi_gian_xep_hang_lai or t.thoi_gian_check_in or t.created_at
-            ci_local = ci_dt.astimezone(vn_tz).replace(tzinfo=None) if (ci_dt and ci_dt.tzinfo) else ci_dt
+            ci_local = to_clinic_naive(ci_dt)
             wait_min = int(max(0, (now_naive - ci_local).total_seconds() // 60)) if ci_local else 0
             cho_kham_list.append(
                 PreCloseWaitingDetailItem(
@@ -602,18 +587,30 @@ async def get_shift_pre_close_audit(
         .where(
             LichKham.ngay_kham == target_date,
             LichKham.ca_kham == target_ca,
-            LichKham.trang_thai.in_([
-                TrangThaiLichEnum.DA_XAC_NHAN.value,
-                TrangThaiLichEnum.CHO_XAC_NHAN.value,
-            ])
+            LichKham.trang_thai.in_(
+                [
+                    TrangThaiLichEnum.DA_XAC_NHAN.value,
+                    TrangThaiLichEnum.CHO_XAC_NHAN.value,
+                ]
+            ),
         )
     )
     lich_unattended = (await db.execute(stmt_lich)).scalars().all()
     no_show_list: List[PreCloseNoShowDetailItem] = []
     for lk in lich_unattended:
-        p_name = lk.benh_nhan.nguoi_dung.ho_ten if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
-        p_phone = lk.benh_nhan.nguoi_dung.so_dien_thoai if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None)) else ""
-        bs_name = f"BS. {lk.bac_si.nguoi_dung.ho_ten}" if (lk.bac_si and getattr(lk.bac_si, "nguoi_dung", None)) else "Bác sĩ"
+        p_name = (
+            lk.benh_nhan.nguoi_dung.ho_ten
+            if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None))
+            else "Bệnh nhân"
+        )
+        p_phone = (
+            lk.benh_nhan.nguoi_dung.so_dien_thoai
+            if (lk.benh_nhan and getattr(lk.benh_nhan, "nguoi_dung", None))
+            else ""
+        )
+        bs_name = (
+            f"BS. {lk.bac_si.nguoi_dung.ho_ten}" if (lk.bac_si and getattr(lk.bac_si, "nguoi_dung", None)) else "Bác sĩ"
+        )
         g_kham = lk.gio_kham.strftime("%H:%M") if lk.gio_kham else ""
         no_show_list.append(
             PreCloseNoShowDetailItem(
@@ -635,18 +632,24 @@ async def get_shift_pre_close_audit(
         .where(
             DanhSachCho.ngay_mong_muon == target_date,
             DanhSachCho.ca_mong_muon == target_ca,
-            DanhSachCho.trang_thai.in_([
-                TrangThaiWaitlistEnum.DANG_CHO.value,
-                TrangThaiWaitlistEnum.DA_THONG_BAO.value,
-            ])
+            DanhSachCho.trang_thai.in_(
+                [
+                    TrangThaiWaitlistEnum.DANG_CHO.value,
+                    TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+                ]
+            ),
         )
         .order_by(DanhSachCho.thu_tu_uu_tien.asc())
     )
     wl_entries = (await db.execute(stmt_wl)).scalars().all()
     waitlist_items: List[PreCloseWaitlistDetailItem] = []
     for w in wl_entries:
-        w_name = w.benh_nhan.nguoi_dung.ho_ten if (w.benh_nhan and getattr(w.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
-        w_phone = w.benh_nhan.nguoi_dung.so_dien_thoai if (w.benh_nhan and getattr(w.benh_nhan, "nguoi_dung", None)) else ""
+        w_name = (
+            w.benh_nhan.nguoi_dung.ho_ten if (w.benh_nhan and getattr(w.benh_nhan, "nguoi_dung", None)) else "Bệnh nhân"
+        )
+        w_phone = (
+            w.benh_nhan.nguoi_dung.so_dien_thoai if (w.benh_nhan and getattr(w.benh_nhan, "nguoi_dung", None)) else ""
+        )
         w_bs = f"BS. {w.bac_si.nguoi_dung.ho_ten}" if (w.bac_si and getattr(w.bac_si, "nguoi_dung", None)) else "Bác sĩ"
         waitlist_items.append(
             PreCloseWaitlistDetailItem(
@@ -664,7 +667,7 @@ async def get_shift_pre_close_audit(
         .options(selectinload(KhoaSoCaTruc.thu_ngan_giao))
         .where(
             KhoaSoCaTruc.ngay_khoa_so == target_date,
-            or_(KhoaSoCaTruc.ca_lam_viec == ca_db_str, KhoaSoCaTruc.ca_lam_viec == "CA_NGAY")
+            or_(KhoaSoCaTruc.ca_lam_viec == ca_db_str, KhoaSoCaTruc.ca_lam_viec == "CA_NGAY"),
         )
         .order_by(KhoaSoCaTruc.created_at.desc())
     )
@@ -720,34 +723,40 @@ async def get_shift_pre_close_audit(
         ),
     )
 
+
 async def close_reception_shift(
-    self,
-    payload: CloseReceptionShiftRequest,
-    current_user: TaiKhoan,
-    db: AsyncSession
+    self, payload: CloseReceptionShiftRequest, current_user: TaiKhoan, db: AsyncSession
 ) -> CloseReceptionShiftResponse:
-    now = clinic_now()
-    target_date = payload.ngay or now.date()
+    now_clinic = clinic_now()
+    now_utc = utc_now()
+    target_date = payload.ngay or now_clinic.date()
     target_ca = payload.ca_kham.lower().strip()
 
-    if target_date > now.date():
+    if target_date > now_clinic.date():
         raise BadRequestException("Không thể đóng ca trực cho ngày trong tương lai!")
 
-    if target_date == now.date() and current_user.vai_tro != VaiTroEnum.ADMIN.value:
-        if target_ca == "sang" and now.time() < time(11, 0):
+    if target_date == now_clinic.date() and current_user.vai_tro != VaiTroEnum.ADMIN.value:
+        if target_ca == "sang" and now_clinic.time() < time(11, 0):
             raise BadRequestException("Chưa đến thời điểm đóng ca sáng! Ca sáng chỉ được đóng từ sau 11:00.")
-        if target_ca == "chieu" and now.time() < time(16, 30):
+        if target_ca == "chieu" and now_clinic.time() < time(16, 30):
             raise BadRequestException("Chưa đến thời điểm đóng ca chiều! Ca chiều chỉ được đóng từ sau 16:30.")
 
     stmt_tickets = (
         select(HangDoiKham)
+        .options(
+            selectinload(HangDoiKham.bac_si),
+            selectinload(HangDoiKham.lich_kham),
+            selectinload(HangDoiKham.phong_kham),
+        )
         .where(
             HangDoiKham.ngay_kham == target_date,
             HangDoiKham.ca_kham == target_ca,
-            HangDoiKham.trang_thai.in_([
-                TrangThaiHangDoiEnum.CHO_KHAM.value,
-                TrangThaiHangDoiEnum.TAM_HOAN.value,
-            ])
+            HangDoiKham.trang_thai.in_(
+                [
+                    TrangThaiHangDoiEnum.CHO_KHAM.value,
+                    TrangThaiHangDoiEnum.TAM_HOAN.value,
+                ]
+            ),
         )
         .with_for_update()
     )
@@ -758,22 +767,69 @@ async def close_reception_shift(
 
     if payload.xu_ly_cho_kham == "CHUYEN_CA_TIEP_THEO":
         afternoon_start_local = datetime.combine(target_date, time(13, 30))
-        vn_tz = timezone(timedelta(hours=7))
-        afternoon_start_utc = afternoon_start_local.replace(tzinfo=vn_tz).astimezone(timezone.utc)
+        afternoon_start_utc = afternoon_start_local.replace(tzinfo=clinic_tz()).astimezone(timezone.utc)
+        next_stt_by_doc: dict[int, int] = {}
 
         for t in pending_tickets:
+            target_doc_id = None
+            target_shift_id = None
+            target_room_id = t.phong_kham_id or (t.bac_si.phong_kham_id if t.bac_si else None)
+
+            if t.bac_si_id and not await is_doctor_on_approved_leave(t.bac_si_id, target_date, "chieu", db):
+                stmt_doc_shift = select(LichLamViec).where(
+                    LichLamViec.bac_si_id == t.bac_si_id,
+                    LichLamViec.ngay_lam_viec == target_date,
+                    LichLamViec.ca_lam_viec == "chieu",
+                    LichLamViec.is_active.is_(True),
+                )
+                doc_shift = (await db.execute(stmt_doc_shift)).scalars().first()
+                if doc_shift:
+                    target_doc_id = t.bac_si_id
+                    target_shift_id = doc_shift.id
+                    target_room_id = doc_shift.phong_kham_id or target_room_id
+
+            if not target_doc_id and target_room_id:
+                target_shift_id, target_doc_id = await find_room_shift_doctor(
+                    target_room_id, target_date, "chieu", db
+                )
+
+            if not target_doc_id:
+                room_label = t.phong_kham.ten_phong if t.phong_kham else f"buồng #{target_room_id or '?'}"
+                raise ConflictException(
+                    f"Không thể chuyển vé #{t.id} sang ca chiều: {room_label} chưa có bác sĩ trực hợp lệ "
+                    f"ở ca chiều ngày {target_date.strftime('%d/%m/%Y')}!"
+                )
+
+            if target_doc_id not in next_stt_by_doc:
+                stmt_max_stt = select(func.coalesce(func.max(HangDoiKham.so_thu_tu_kham), 0)).where(
+                    HangDoiKham.bac_si_id == target_doc_id,
+                    HangDoiKham.ngay_kham == target_date,
+                    HangDoiKham.ca_kham == "chieu",
+                )
+                next_stt_by_doc[target_doc_id] = (await db.execute(stmt_max_stt)).scalar() or 0
+            next_stt_by_doc[target_doc_id] += 1
+            new_stt = next_stt_by_doc[target_doc_id]
+
             t.ca_kham = "chieu"
+            t.bac_si_id = target_doc_id
+            t.lich_lam_viec_id = target_shift_id
+            if target_room_id:
+                t.phong_kham_id = target_room_id
+            t.so_thu_tu_kham = new_stt
             t.thoi_gian_xep_hang_lai = afternoon_start_utc
             t.ghi_chu_dieu_phoi = (
-                f"Chuyển tiếp từ ca sáng sang ca chiều. "
+                f"Chuyển tiếp từ ca sáng sang ca chiều (BS #{target_doc_id}, STT #{new_stt}). "
                 f"Nội dung bàn giao: {payload.ghi_chu_ban_giao or 'Chờ khám tiếp theo'}"
             )
+            if t.lich_kham:
+                t.lich_kham.bac_si_id = target_doc_id
+                t.lich_kham.ca_kham = "chieu"
             so_chuyen += 1
     else:
         for t in pending_tickets:
             t.trang_thai = TrangThaiHangDoiEnum.DA_DONG_VE.value
             t.muc_do_uu_tien = 7
-            t.thoi_gian_ket_thuc = now
+            t.thoi_gian_ket_thuc = now_utc
             t.ghi_chu_dieu_phoi = (
                 f"Đóng vé kết thúc ca trực {target_ca}. "
                 f"Lý do: {payload.ghi_chu_ban_giao or 'Hết ca trực/Hết giờ làm việc phòng khám'}"
@@ -785,10 +841,12 @@ async def close_reception_shift(
         .where(
             DanhSachCho.ngay_mong_muon == target_date,
             DanhSachCho.ca_mong_muon == target_ca,
-            DanhSachCho.trang_thai.in_([
-                TrangThaiWaitlistEnum.DANG_CHO.value,
-                TrangThaiWaitlistEnum.DA_THONG_BAO.value,
-            ])
+            DanhSachCho.trang_thai.in_(
+                [
+                    TrangThaiWaitlistEnum.DANG_CHO.value,
+                    TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+                ]
+            ),
         )
         .with_for_update()
     )
@@ -812,10 +870,12 @@ async def close_reception_shift(
             .where(
                 LichKham.ngay_kham == target_date,
                 LichKham.ca_kham == target_ca,
-                LichKham.trang_thai.in_([
-                    TrangThaiLichEnum.DA_XAC_NHAN.value,
-                    TrangThaiLichEnum.CHO_XAC_NHAN.value,
-                ])
+                LichKham.trang_thai.in_(
+                    [
+                        TrangThaiLichEnum.DA_XAC_NHAN.value,
+                        TrangThaiLichEnum.CHO_XAC_NHAN.value,
+                    ]
+                ),
             )
             .with_for_update()
         )
@@ -851,6 +911,6 @@ async def close_reception_shift(
         so_lich_chot_no_show=so_no_show,
         nguoi_dong_ca=user_name,
         nguoi_nhan_ban_giao=receiver_name,
-        thoi_gian_dong_ca=now,
+        thoi_gian_dong_ca=now_utc,
         ghi_chu_ban_giao=payload.ghi_chu_ban_giao,
     )

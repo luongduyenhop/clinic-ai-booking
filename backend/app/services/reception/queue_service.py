@@ -21,7 +21,6 @@ class QueueService:
     _get_ticket_with_relations = queue_checkin_service._get_ticket_with_relations
     check_in_patient = queue_checkin_service.check_in_patient
     check_in_walk_in = queue_checkin_service.check_in_walk_in
-    check_in_walk_in_quick = queue_checkin_service.check_in_walk_in_quick
 
     call_next_patient = queue_call_service.call_next_patient
     _get_ticket_entity = queue_call_service._get_ticket_entity

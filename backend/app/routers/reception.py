@@ -16,7 +16,6 @@ from app.schemas.queue import (
     ReceptionWaitlistResponse,
     CheckInRequest,
     WalkInCheckInRequest,
-    WalkInQuickRequest,
     QueueTicketResponse,
     PostponeTicketRequest,
     TransferTicketRequest,
@@ -85,25 +84,6 @@ async def search_appointments(
     return ResponseEnvelope.success_response(
         data=results,
         message=f"Tìm thấy {len(results)} lịch hẹn phù hợp"
-    )
-
-
-@router.post(
-    "/walk-in-quick",
-    response_model=ResponseEnvelope[QueueTicketResponse],
-    status_code=status.HTTP_201_CREATED,
-    summary="Tiếp nhận nhanh bệnh nhân vãng lai không đặt trước (nhập họ tên, SĐT, chọn bác sĩ)"
-)
-async def check_in_walk_in_quick(
-    payload: WalkInQuickRequest,
-    current_user: TaiKhoan = Depends(require_reception_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await queue_service.check_in_walk_in_quick(payload, current_user, db)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message=f"Tiếp nhận bệnh nhân vãng lai thành công! Số thứ tự #{result.so_thu_tu_kham}.",
-        code=status.HTTP_201_CREATED
     )
 
 

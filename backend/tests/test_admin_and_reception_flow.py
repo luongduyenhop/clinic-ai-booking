@@ -5,7 +5,7 @@ from app.schemas.admin import (
     ShiftCreateRequest,
     ServiceCreateRequest,
 )
-from app.schemas.queue import WalkInQuickRequest
+from app.schemas.queue import WalkInCheckInRequest
 
 
 def test_admin_schemas_and_roles():
@@ -40,7 +40,7 @@ def test_shift_default_hours():
 
 def test_quick_walk_in_schema():
     """Kiểm tra dữ liệu tiếp nhận nhanh vãng lai tại quầy"""
-    walk_req = WalkInQuickRequest(
+    walk_req = WalkInCheckInRequest(
         ho_ten="Bệnh Nhân Vãng Lai",
         so_dien_thoai="0912345678",
         gioi_tinh="Nam",

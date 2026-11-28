@@ -475,17 +475,17 @@ export default function AppointmentsPage() {
                             icon={<ThunderboltOutlined />}
                             onClick={handleProcessUnconfirmed}
                             loading={isProcessingUnconfirmed}
-                            className="medpro-btn-amber !h-8 !px-3 text-xs font-bold"
-                        >
-                            Quét lịch quá hạn
-                        </Button>
+                            title="Quét lịch quá hạn"
+                            aria-label="Quét lịch quá hạn"
+                            className="medpro-btn-amber !w-8 !h-8 !p-0 flex items-center justify-center"
+                        />
                         <Button
                             icon={<SyncOutlined spin={loading} />}
                             onClick={loadAppointments}
-                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
-                        >
-                            Làm mới
-                        </Button>
+                            title="Làm mới"
+                            aria-label="Làm mới"
+                            className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                        />
                         <Segmented
                             value={viewMode}
                             onChange={setViewMode}
@@ -542,8 +542,8 @@ export default function AppointmentsPage() {
                             }}
                             allowClear
                             options={[
-                                { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
-                                { value: 'chieu', label: 'Ca chiều (13:30 - 17:00)' },
+                                { value: 'sang', label: 'Ca sáng' },
+                                { value: 'chieu', label: 'Ca chiều' },
                             ]}
                         />
                     </div>

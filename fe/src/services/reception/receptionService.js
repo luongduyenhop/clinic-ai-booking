@@ -157,12 +157,6 @@ export class ReceptionService extends BaseServices {
 
     getAuditLogs = (params = {}, config = {}) =>
         this.get('/api/v1/reception/reports/audit-logs', { params, __skipGlobalLoading: true, ...config })
-
-    getShiftPreCloseAudit = (params = {}, config = {}) =>
-        this.get('/api/v1/reception/shift/pre-close-audit', { params, __skipGlobalLoading: true, ...config })
-
-    closeShift = (payload, config = {}) =>
-        this.post('/api/v1/reception/shift/close', payload, config)
 }
 
 export const receptionService = new ReceptionService()

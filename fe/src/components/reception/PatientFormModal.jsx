@@ -106,12 +106,14 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                 </span>
             }
             open={open}
+            centered
             onCancel={() => {
                 formik.resetForm()
                 setDuplicateWarning(null)
                 onClose()
             }}
-            width={760}
+            width={840}
+            styles={{ body: { maxHeight: '72vh', overflowY: 'auto', paddingRight: 6 } }}
             footer={
                 <div className="flex justify-end gap-2">
                     <Button onClick={onClose}>Hủy bỏ</Button>
@@ -121,7 +123,7 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                 </div>
             }
         >
-            <form onSubmit={formik.handleSubmit} className="space-y-4 py-2">
+            <form onSubmit={formik.handleSubmit} className="space-y-3 py-1">
                 {duplicateWarning && (
                     <Alert
                         message="Cảnh báo nghi vấn trùng hồ sơ"
@@ -238,32 +240,38 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                         />
                     </div>
 
-                    <div className="md:col-span-3">
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-clinic-border">
+                    <div>
                         <label htmlFor="pf-allergies" className="medpro-label !text-clinic-danger">
                             Tiền sử dị ứng (Thuốc, thức ăn, hóa chất...)
                         </label>
-                        <Input
+                        <Input.TextArea
                             id="pf-allergies"
-                            placeholder="Ví dụ: Dị ứng Penicillin, Aspirin, hải sản (nếu không có thì để trống hoặc ghi 'Không')..."
+                            rows={2}
+                            placeholder="VD: Dị ứng Penicillin, Aspirin, hải sản (hoặc ghi 'Không')..."
                             value={formik.values.allergies}
                             onChange={(e) => formik.setFieldValue('allergies', e.target.value)}
                             className="border-clinic-danger-border focus:border-clinic-danger-solid"
                         />
                     </div>
 
-                    <div className="md:col-span-3">
+                    <div>
                         <label htmlFor="pf-history" className="medpro-label">
                             Tiền sử bệnh lý (Bệnh nền, phẫu thuật trước đây...)
                         </label>
                         <Input.TextArea
                             id="pf-history"
                             rows={2}
-                            placeholder="Ví dụ: Viêm dạ dày Hp (+), Cao huyết áp, Đái tháo đường Type 2..."
+                            placeholder="VD: Viêm dạ dày Hp (+), Cao huyết áp, Đái tháo đường Type 2..."
                             value={formik.values.medicalHistory}
                             onChange={(e) => formik.setFieldValue('medicalHistory', e.target.value)}
                         />
                     </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-clinic-border items-start">
                     <div className="md:col-span-2">
                         <label htmlFor="pf-guardian-name" className="medpro-label">
                             Người đại diện / Người giám hộ (nếu là trẻ em hoặc người cao tuổi)
@@ -287,32 +295,33 @@ export default function PatientFormModal({ open, onClose, editPatient, initialPh
                             onChange={(e) => formik.setFieldValue('guardianPhone', e.target.value)}
                         />
                     </div>
-                </div>
 
-                <div className="pt-2 border-t border-clinic-border">
-                    <span className="medpro-label">
-                        Kiểm tra giấy tờ hành chính còn thiếu
-                    </span>
-                    <Checkbox.Group
-                        value={formik.values.missingDocs}
-                        onChange={(checkedValues) => formik.setFieldValue('missingDocs', checkedValues)}
-                        className="flex flex-wrap gap-4 text-xs"
-                    >
-                        <Checkbox value="CCCD_CHUA_CONG_CHUNG">Chưa có CCCD gắn chip gốc</Checkbox>
-                    </Checkbox.Group>
-                </div>
+                    <div>
+                        <span className="medpro-label">
+                            Giấy tờ hành chính còn thiếu
+                        </span>
+                        <div className="h-8 flex items-center">
+                            <Checkbox.Group
+                                value={formik.values.missingDocs}
+                                onChange={(checkedValues) => formik.setFieldValue('missingDocs', checkedValues)}
+                                className="flex flex-wrap gap-3 text-xs"
+                            >
+                                <Checkbox value="CCCD_CHUA_CONG_CHUNG">Chưa có CCCD gắn chip gốc</Checkbox>
+                            </Checkbox.Group>
+                        </div>
+                    </div>
 
-                <div>
-                    <label htmlFor="pf-note" className="medpro-label">
-                        Ghi chú hành chính / Tiếp đón
-                    </label>
-                    <Input.TextArea
-                        id="pf-note"
-                        rows={2}
-                        placeholder="Cần hỗ trợ xe lăn, phiên dịch viên, ưu tiên người già..."
-                        value={formik.values.note}
-                        onChange={(e) => formik.setFieldValue('note', e.target.value)}
-                    />
+                    <div className="md:col-span-2">
+                        <label htmlFor="pf-note" className="medpro-label">
+                            Ghi chú hành chính / Tiếp đón
+                        </label>
+                        <Input
+                            id="pf-note"
+                            placeholder="Cần hỗ trợ xe lăn, phiên dịch viên, ưu tiên người già..."
+                            value={formik.values.note}
+                            onChange={(e) => formik.setFieldValue('note', e.target.value)}
+                        />
+                    </div>
                 </div>
             </form>
         </Modal>

@@ -65,8 +65,6 @@ import {
     cancelWaitlistAsync,
     fetchReportSummaryAsync,
     fetchAuditLogsAsync,
-    fetchShiftPreCloseAuditAsync,
-    closeReceptionShiftAsync,
 } from '../../actions/reception/receptionAction'
 
 export * from '../../actions/reception/receptionAction'
@@ -120,9 +118,6 @@ const initialState = {
     auditLoading: false,
     reportSummary: null,
     reportLoading: false,
-    shiftAuditData: null,
-    shiftAuditLoading: false,
-    closeShiftSubmitting: false,
     invoices: [],
     resolvedIncidentKeys: loadResolvedIncidents(),
     activeRole: 'RECEPTIONIST',
@@ -498,27 +493,6 @@ const receptionSlice = createSlice({
             })
             .addCase(fetchAuditLogsAsync.rejected, (state) => {
                 state.auditLoading = false
-            })
-
-            .addCase(fetchShiftPreCloseAuditAsync.pending, (state) => {
-                state.shiftAuditLoading = true
-            })
-            .addCase(fetchShiftPreCloseAuditAsync.fulfilled, (state, action) => {
-                state.shiftAuditLoading = false
-                state.shiftAuditData = action.payload || null
-            })
-            .addCase(fetchShiftPreCloseAuditAsync.rejected, (state) => {
-                state.shiftAuditLoading = false
-            })
-
-            .addCase(closeReceptionShiftAsync.pending, (state) => {
-                state.closeShiftSubmitting = true
-            })
-            .addCase(closeReceptionShiftAsync.fulfilled, (state) => {
-                state.closeShiftSubmitting = false
-            })
-            .addCase(closeReceptionShiftAsync.rejected, (state) => {
-                state.closeShiftSubmitting = false
             })
     },
 })

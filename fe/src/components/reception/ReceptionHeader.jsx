@@ -16,7 +16,6 @@ import { readAuthFromStorage } from '../../utils/auth/authStorage'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { isIncidentResolved } from '../../redux/slices/reception/receptionSlice'
 import { getAvatarInitials, stripDemoTag } from '../../utils/helpers/doctorNameHelper'
-import CloseShiftModal from './CloseShiftModal'
 
 const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan & Bàn làm việc Lễ tân',
@@ -48,7 +47,6 @@ export default function ReceptionHeader() {
     const currentUser = authUser || storedAuth?.user
     const role = authRole || storedAuth?.role
 
-    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -209,15 +207,6 @@ export default function ReceptionHeader() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-                <button
-                    type="button"
-                    onClick={() => setIsCloseShiftOpen(true)}
-                    className="h-8 px-3 rounded-[6px] border border-clinic-border-strong bg-clinic-surface hover:border-clinic-danger-border hover:bg-clinic-danger-bg hover:text-clinic-danger text-clinic-navy text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                >
-                    <LockKey size={14} />
-                    <span className="hidden sm:inline">Đóng ca</span>
-                </button>
-
                 <Link
                     to="/reception/tasks"
                     className="relative w-8 h-8 rounded-[6px] border border-clinic-border bg-clinic-surface hover:border-clinic-cta hover:bg-clinic-surface-alt flex items-center justify-center text-clinic-navy hover:text-clinic-cta transition shrink-0"
@@ -294,17 +283,6 @@ export default function ReceptionHeader() {
                                 </Link>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setIsUserMenuOpen(false)
-                                        setIsCloseShiftOpen(true)
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-clinic-danger hover:bg-clinic-danger-bg transition text-left cursor-pointer"
-                                >
-                                    <LockKey size={14} weight="bold" />
-                                    <span>Đóng ca trực &amp; Bàn giao</span>
-                                </button>
-                                <button
-                                    type="button"
                                     onClick={handleLogout}
                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-clinic-text-secondary hover:bg-clinic-bg transition text-left border-t border-clinic-border cursor-pointer"
                                 >
@@ -317,10 +295,6 @@ export default function ReceptionHeader() {
                 </div>
             </div>
 
-            <CloseShiftModal
-                open={isCloseShiftOpen}
-                onCancel={() => setIsCloseShiftOpen(false)}
-            />
         </header>
     )
 }

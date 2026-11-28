@@ -1,14 +1,13 @@
 import logging
 from datetime import date, datetime, timezone
 from typing import List, Optional
-from sqlalchemy import func, select, or_, and_
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import BadRequestException, ConflictException, ForbiddenException, NotFoundException
+from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
 from app.models.appointment import (
     HangDoiKham,
-    LichKham,
     LichLamViec,
     NghiPhepBacSi,
     DanhSachCho,
@@ -16,9 +15,8 @@ from app.models.appointment import (
     TrangThaiNghiPhepEnum,
     TrangThaiLichEnum,
     TrangThaiWaitlistEnum,
-    LoaiHangDoiEnum,
 )
-from app.models.user import BacSi, ChuyenKhoa, TaiKhoan, VaiTroEnum, BenhNhan, NguoiDung, PhongKham
+from app.models.user import BacSi, TaiKhoan, VaiTroEnum, BenhNhan
 from app.schemas.incident import (
     DoctorAbsenceIncidentResponse,
     DoctorAlternativeItem,
@@ -32,13 +30,13 @@ from app.schemas.incident import (
     CancelIncidentTicketsResponse,
 )
 from app.services.appointment.load_balancing_service import load_balancing_service
-from app.services.reception.queue_service import queue_service
+from app.services.reception.queue_service import clinic_now, queue_service
+from app.services.reception.timezone_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
 
 class IncidentService:
-
     async def get_doctor_absences_incidents(
         self,
         query_date: Optional[date],
@@ -48,7 +46,7 @@ class IncidentService:
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
-        target_date = query_date or date.today()
+        target_date = query_date or clinic_now().date()
 
         stmt = (
             select(NghiPhepBacSi)
@@ -59,10 +57,12 @@ class IncidentService:
             .where(
                 NghiPhepBacSi.tu_ngay <= target_date,
                 NghiPhepBacSi.den_ngay >= target_date,
-                NghiPhepBacSi.trang_thai.in_([
-                    TrangThaiNghiPhepEnum.DA_DUYET.value,
-                    TrangThaiNghiPhepEnum.CHO_DUYET.value,
-                ]),
+                NghiPhepBacSi.trang_thai.in_(
+                    [
+                        TrangThaiNghiPhepEnum.DA_DUYET.value,
+                        TrangThaiNghiPhepEnum.CHO_DUYET.value,
+                    ]
+                ),
             )
             .order_by(NghiPhepBacSi.id.desc())
         )
@@ -77,10 +77,12 @@ class IncidentService:
             stmt_queue = select(func.count(HangDoiKham.id)).where(
                 HangDoiKham.bac_si_id == leave.bac_si_id,
                 HangDoiKham.ngay_kham == target_date,
-                HangDoiKham.trang_thai.in_([
-                    TrangThaiHangDoiEnum.CHO_KHAM.value,
-                    TrangThaiHangDoiEnum.TAM_HOAN.value,
-                ]),
+                HangDoiKham.trang_thai.in_(
+                    [
+                        TrangThaiHangDoiEnum.CHO_KHAM.value,
+                        TrangThaiHangDoiEnum.TAM_HOAN.value,
+                    ]
+                ),
             )
             if leave.ca_lam_viec:
                 stmt_queue = stmt_queue.where(HangDoiKham.ca_kham == leave.ca_lam_viec)
@@ -113,14 +115,11 @@ class IncidentService:
                 if alt_rows:
                     alt_doc_ids = [bs_item.id for bs_item, _ in alt_rows]
 
-                    stmt_leaves_check = (
-                        select(NghiPhepBacSi.bac_si_id)
-                        .where(
-                            NghiPhepBacSi.bac_si_id.in_(alt_doc_ids),
-                            NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
-                            NghiPhepBacSi.tu_ngay <= target_date,
-                            NghiPhepBacSi.den_ngay >= target_date,
-                        )
+                    stmt_leaves_check = select(NghiPhepBacSi.bac_si_id).where(
+                        NghiPhepBacSi.bac_si_id.in_(alt_doc_ids),
+                        NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+                        NghiPhepBacSi.tu_ngay <= target_date,
+                        NghiPhepBacSi.den_ngay >= target_date,
                     )
                     if leave.ca_lam_viec:
                         stmt_leaves_check = stmt_leaves_check.where(
@@ -142,10 +141,12 @@ class IncidentService:
                         stmt_ad_load = select(func.count(HangDoiKham.id)).where(
                             HangDoiKham.bac_si_id == ad.id,
                             HangDoiKham.ngay_kham == target_date,
-                            HangDoiKham.trang_thai.in_([
-                                TrangThaiHangDoiEnum.CHO_KHAM.value,
-                                TrangThaiHangDoiEnum.DANG_KHAM.value,
-                            ]),
+                            HangDoiKham.trang_thai.in_(
+                                [
+                                    TrangThaiHangDoiEnum.CHO_KHAM.value,
+                                    TrangThaiHangDoiEnum.DANG_KHAM.value,
+                                ]
+                            ),
                         )
                         if leave.ca_lam_viec:
                             stmt_ad_load = stmt_ad_load.where(HangDoiKham.ca_kham == leave.ca_lam_viec)
@@ -217,7 +218,8 @@ class IncidentService:
             if target_phong_kham_id != user_phong_kham_id:
                 raise ForbiddenException("Bạn không có quyền điều phối hàng đợi của phòng khám này!")
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
+        clinic_time_str = clinic_now().strftime("%H:%M:%S")
 
         stmt_tickets = (
             select(HangDoiKham)
@@ -227,10 +229,12 @@ class IncidentService:
             )
             .where(
                 HangDoiKham.bac_si_id == leave.bac_si_id,
-                HangDoiKham.trang_thai.in_([
-                    TrangThaiHangDoiEnum.CHO_KHAM.value,
-                    TrangThaiHangDoiEnum.TAM_HOAN.value,
-                ]),
+                HangDoiKham.trang_thai.in_(
+                    [
+                        TrangThaiHangDoiEnum.CHO_KHAM.value,
+                        TrangThaiHangDoiEnum.TAM_HOAN.value,
+                    ]
+                ),
             )
             .with_for_update()
         )
@@ -265,11 +269,7 @@ class IncidentService:
 
         specified_doc = None
         if payload.bac_si_nhan_id:
-            stmt_doc = (
-                select(BacSi)
-                .options(selectinload(BacSi.nguoi_dung))
-                .where(BacSi.id == payload.bac_si_nhan_id)
-            )
+            stmt_doc = select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == payload.bac_si_nhan_id)
             specified_doc = (await db.execute(stmt_doc)).scalar_one_or_none()
             if not specified_doc:
                 raise NotFoundException(f"Không tìm thấy bác sĩ nhận ID {payload.bac_si_nhan_id}!")
@@ -286,7 +286,9 @@ class IncidentService:
                 )
                 ticket_doc = (await db.execute(stmt_assign)).scalar_one_or_none()
                 if not ticket_doc:
-                    raise NotFoundException(f"Không tìm thấy bác sĩ nhận ID {assignment_map[old_ticket.id]} cho vé #{old_ticket.id}!")
+                    raise NotFoundException(
+                        f"Không tìm thấy bác sĩ nhận ID {assignment_map[old_ticket.id]} cho vé #{old_ticket.id}!"
+                    )
             elif specified_doc:
                 ticket_doc = specified_doc
 
@@ -308,7 +310,11 @@ class IncidentService:
                     ngay_kham=target_date,
                     db=db,
                 )
-                rec_bs = (await db.execute(select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == rec_doc_id))).scalar_one()
+                rec_bs = (
+                    await db.execute(
+                        select(BacSi).options(selectinload(BacSi.nguoi_dung)).where(BacSi.id == rec_doc_id)
+                    )
+                ).scalar_one()
                 rec_doc_name = rec_bs.nguoi_dung.ho_ten if rec_bs.nguoi_dung else f"BS {rec_doc_id}"
                 fallback_room_id = rec_bs.phong_kham_id
 
@@ -337,13 +343,17 @@ class IncidentService:
             old_ticket.thoi_gian_xep_hang_lai = now
             old_ticket.trang_thai = TrangThaiHangDoiEnum.CHO_KHAM.value
             old_ticket.nguoi_tiep_nhan_id = current_user.id
-            note_transfer = f"Điều phối sự cố từ BS {leave.bac_si_id} sang BS {rec_doc_id} (STT #{new_stt}) lúc {now.strftime('%H:%M:%S')}"
+            note_transfer = f"Điều phối sự cố từ BS {leave.bac_si_id} sang BS {rec_doc_id} (STT #{new_stt}) lúc {clinic_time_str}"
             old_ticket.ghi_chu_dieu_phoi = f"{old_ticket.ghi_chu_dieu_phoi or ''} | {note_transfer}".strip(" | ")
 
             if old_ticket.lich_kham:
                 old_ticket.lich_kham.bac_si_id = rec_doc_id
 
-            bn_name = old_ticket.benh_nhan.nguoi_dung.ho_ten if old_ticket.benh_nhan and old_ticket.benh_nhan.nguoi_dung else f"BN {old_ticket.benh_nhan_id}"
+            bn_name = (
+                old_ticket.benh_nhan.nguoi_dung.ho_ten
+                if old_ticket.benh_nhan and old_ticket.benh_nhan.nguoi_dung
+                else f"BN {old_ticket.benh_nhan_id}"
+            )
             details.append(
                 RebalanceTicketItem(
                     old_ticket_id=old_ticket.id,
@@ -381,12 +391,7 @@ class IncidentService:
         )
 
     async def _validate_target_doctor(
-        self,
-        target_bs: BacSi,
-        absent_bs: BacSi,
-        target_date: date,
-        ca_kham: str,
-        db: AsyncSession
+        self, target_bs: BacSi, absent_bs: BacSi, target_date: date, ca_kham: str, db: AsyncSession
     ) -> None:
         if target_bs.chuyen_khoa_id != absent_bs.chuyen_khoa_id:
             doc_name = target_bs.nguoi_dung.ho_ten if target_bs.nguoi_dung else f"ID {target_bs.id}"
@@ -406,7 +411,9 @@ class IncidentService:
         active_shift = (await db.execute(stmt_shift)).scalars().first()
         if not active_shift:
             doc_name = target_bs.nguoi_dung.ho_ten if target_bs.nguoi_dung else f"ID {target_bs.id}"
-            raise BadRequestException(f"Bác sĩ {doc_name} không có lịch trực hợp lệ trong ca {ca_kham} ngày {target_date}!")
+            raise BadRequestException(
+                f"Bác sĩ {doc_name} không có lịch trực hợp lệ trong ca {ca_kham} ngày {target_date}!"
+            )
 
         stmt_leave = select(NghiPhepBacSi).where(
             NghiPhepBacSi.bac_si_id == target_bs.id,
@@ -424,10 +431,7 @@ class IncidentService:
             raise BadRequestException(f"Bác sĩ {doc_name} đang trong đơn nghỉ phép, không thể tiếp nhận điều phối!")
 
     async def get_affected_patients(
-        self,
-        incident_id: int,
-        current_user: TaiKhoan,
-        db: AsyncSession
+        self, incident_id: int, current_user: TaiKhoan, db: AsyncSession
     ) -> DoctorAbsenceAffectedPatientsResponse:
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
@@ -458,10 +462,12 @@ class IncidentService:
                 HangDoiKham.bac_si_id == leave.bac_si_id,
                 HangDoiKham.ngay_kham >= leave.tu_ngay,
                 HangDoiKham.ngay_kham <= leave.den_ngay,
-                HangDoiKham.trang_thai.in_([
-                    TrangThaiHangDoiEnum.CHO_KHAM.value,
-                    TrangThaiHangDoiEnum.TAM_HOAN.value,
-                ]),
+                HangDoiKham.trang_thai.in_(
+                    [
+                        TrangThaiHangDoiEnum.CHO_KHAM.value,
+                        TrangThaiHangDoiEnum.TAM_HOAN.value,
+                    ]
+                ),
             )
             .order_by(HangDoiKham.so_thu_tu_kham.asc())
         )
@@ -493,17 +499,17 @@ class IncidentService:
 
         stmt_wl = (
             select(DanhSachCho)
-            .options(
-                selectinload(DanhSachCho.benh_nhan).selectinload(BenhNhan.nguoi_dung)
-            )
+            .options(selectinload(DanhSachCho.benh_nhan).selectinload(BenhNhan.nguoi_dung))
             .where(
                 DanhSachCho.bac_si_id == leave.bac_si_id,
                 DanhSachCho.ngay_mong_muon >= leave.tu_ngay,
                 DanhSachCho.ngay_mong_muon <= leave.den_ngay,
-                DanhSachCho.trang_thai.in_([
-                    TrangThaiWaitlistEnum.DANG_CHO.value,
-                    TrangThaiWaitlistEnum.DA_THONG_BAO.value,
-                ]),
+                DanhSachCho.trang_thai.in_(
+                    [
+                        TrangThaiWaitlistEnum.DANG_CHO.value,
+                        TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+                    ]
+                ),
             )
             .order_by(DanhSachCho.thu_tu_uu_tien.asc())
         )
@@ -541,10 +547,7 @@ class IncidentService:
         )
 
     async def cancel_incident_tickets(
-        self,
-        payload: CancelIncidentTicketsRequest,
-        current_user: TaiKhoan,
-        db: AsyncSession
+        self, payload: CancelIncidentTicketsRequest, current_user: TaiKhoan, db: AsyncSession
     ) -> CancelIncidentTicketsResponse:
         if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
             raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
@@ -554,7 +557,7 @@ class IncidentService:
         if not leave:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {payload.nghi_phep_bac_si_id}!")
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         cancel_reason = payload.ly_do or "Bệnh nhân không đồng ý đổi bác sĩ khi có sự cố bác sĩ nghỉ"
 
         so_ve_huy = 0
@@ -580,7 +583,7 @@ class IncidentService:
                 if t.lich_kham and t.lich_kham.trang_thai in (
                     TrangThaiLichEnum.DA_TIEP_NHAN.value,
                     TrangThaiLichEnum.DA_XAC_NHAN.value,
-                    TrangThaiLichEnum.CHO_XAC_NHAN.value
+                    TrangThaiLichEnum.CHO_XAC_NHAN.value,
                 ):
                     t.lich_kham.trang_thai = TrangThaiLichEnum.DA_HUY.value
                     t.lich_kham.ly_do_huy = f"Sự cố bác sĩ nghỉ: {cancel_reason}"

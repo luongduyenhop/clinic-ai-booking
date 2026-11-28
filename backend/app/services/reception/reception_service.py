@@ -1,12 +1,14 @@
 from datetime import date, datetime, timezone
 from typing import List, Optional
-from sqlalchemy import select, or_, func, cast, Date
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BadRequestException, ConflictException, NotFoundException
 from app.models.user import BenhNhan, NguoiDung
 from app.models.production_models import PatientProduction, EncounterProduction
+from app.services.appointment.appointment_service import clinic_now
+from app.services.reception.timezone_utils import clinic_day_start_utc
 from app.schemas.reception import (
     ReceptionPatientCreateRequest,
     ReceptionPatientUpdateRequest,
@@ -63,11 +65,7 @@ class ReceptionService:
         )
 
     async def search_patients(
-        self,
-        db: AsyncSession,
-        search: Optional[str] = None,
-        page: int = 1,
-        page_size: int = 10
+        self, db: AsyncSession, search: Optional[str] = None, page: int = 1, page_size: int = 10
     ) -> List[ReceptionPatientSearchItem]:
         stmt = (
             select(BenhNhan)
@@ -83,7 +81,7 @@ class ReceptionService:
                     func.lower(NguoiDung.so_dien_thoai).like(kw),
                     func.lower(NguoiDung.ho_ten).like(kw),
                     func.lower(NguoiDung.cccd_so).like(kw),
-                    func.lower(BenhNhan.ma_dinh_danh_y_te).like(kw)
+                    func.lower(BenhNhan.ma_dinh_danh_y_te).like(kw),
                 )
             )
 
@@ -94,26 +92,24 @@ class ReceptionService:
         results = []
         for r in rows:
             u = r.nguoi_dung
-            results.append(ReceptionPatientSearchItem(
-                id=r.id,
-                nguoi_dung_id=r.nguoi_dung_id,
-                ma_dinh_danh_y_te=r.ma_dinh_danh_y_te,
-                ho_ten=u.ho_ten if u else "Bệnh nhân",
-                so_dien_thoai=u.so_dien_thoai if u else None,
-                ngay_sinh=u.ngay_sinh if u else None,
-                gioi_tinh=u.gioi_tinh if u else None,
-                dia_chi=u.dia_chi if u else None,
-                di_ung_thuoc=r.di_ung_thuoc,
-                tien_su_benh=r.tien_su_benh,
-                cccd_so=u.cccd_so if u else None,
-            ))
+            results.append(
+                ReceptionPatientSearchItem(
+                    id=r.id,
+                    nguoi_dung_id=r.nguoi_dung_id,
+                    ma_dinh_danh_y_te=r.ma_dinh_danh_y_te,
+                    ho_ten=u.ho_ten if u else "Bệnh nhân",
+                    so_dien_thoai=u.so_dien_thoai if u else None,
+                    ngay_sinh=u.ngay_sinh if u else None,
+                    gioi_tinh=u.gioi_tinh if u else None,
+                    dia_chi=u.dia_chi if u else None,
+                    di_ung_thuoc=r.di_ung_thuoc,
+                    tien_su_benh=r.tien_su_benh,
+                    cccd_so=u.cccd_so if u else None,
+                )
+            )
         return results
 
-    async def get_patient_detail(
-        self,
-        patient_id: int,
-        db: AsyncSession
-    ) -> ReceptionPatientResponse:
+    async def get_patient_detail(self, patient_id: int, db: AsyncSession) -> ReceptionPatientResponse:
         p = await db.get(BenhNhan, patient_id)
         if not p:
             raise NotFoundException(f"Không tìm thấy hồ sơ bệnh nhân ID {patient_id}")
@@ -139,9 +135,7 @@ class ReceptionService:
         )
 
     async def create_patient(
-        self,
-        payload: ReceptionPatientCreateRequest,
-        db: AsyncSession
+        self, payload: ReceptionPatientCreateRequest, db: AsyncSession
     ) -> ReceptionPatientResponse:
         clean_phone = payload.so_dien_thoai.strip()
         clean_cccd = payload.cccd_so.strip() if payload.cccd_so else None
@@ -150,12 +144,16 @@ class ReceptionService:
             stmt_cccd_nd = select(NguoiDung).where(NguoiDung.cccd_so == clean_cccd)
             existing_cccd_nd = (await db.execute(stmt_cccd_nd)).scalar_one_or_none()
             if existing_cccd_nd:
-                raise ConflictException(f"Bệnh nhân với số CCCD {clean_cccd} đã tồn tại trong hệ thống (Invariant PAT-1)")
+                raise ConflictException(
+                    f"Bệnh nhân với số CCCD {clean_cccd} đã tồn tại trong hệ thống (Invariant PAT-1)"
+                )
 
             stmt_cccd_prod = select(PatientProduction).where(PatientProduction.cccd_number == clean_cccd)
             existing_cccd_prod = (await db.execute(stmt_cccd_prod)).scalar_one_or_none()
             if existing_cccd_prod:
-                raise ConflictException(f"Bệnh nhân với số CCCD {clean_cccd} đã tồn tại trong hệ thống (Invariant PAT-1)")
+                raise ConflictException(
+                    f"Bệnh nhân với số CCCD {clean_cccd} đã tồn tại trong hệ thống (Invariant PAT-1)"
+                )
 
         stmt_nd = select(NguoiDung).where(NguoiDung.so_dien_thoai == clean_phone)
         existing_nd = (await db.execute(stmt_nd)).scalar_one_or_none()
@@ -164,7 +162,9 @@ class ReceptionService:
             stmt_bn = select(BenhNhan).where(BenhNhan.nguoi_dung_id == existing_nd.id)
             existing_bn = (await db.execute(stmt_bn)).scalar_one_or_none()
             if existing_bn:
-                raise ConflictException(f"Bệnh nhân với số điện thoại {clean_phone} đã tồn tại trong hệ thống (Mã: {existing_bn.ma_dinh_danh_y_te})")
+                raise ConflictException(
+                    f"Bệnh nhân với số điện thoại {clean_phone} đã tồn tại trong hệ thống (Mã: {existing_bn.ma_dinh_danh_y_te})"
+                )
             nguoi_dung = existing_nd
             nguoi_dung.ho_ten = payload.ho_ten.strip()
             if payload.ngay_sinh:
@@ -192,7 +192,7 @@ class ReceptionService:
             db.add(nguoi_dung)
             await db.flush()
 
-        ma_y_te = f"BN-{datetime.now().strftime('%Y%m')}-{nguoi_dung.id:04d}"
+        ma_y_te = f"BN-{clinic_now().strftime('%Y%m')}-{nguoi_dung.id:04d}"
         benh_nhan = BenhNhan(
             nguoi_dung_id=nguoi_dung.id,
             ma_dinh_danh_y_te=ma_y_te,
@@ -226,10 +226,7 @@ class ReceptionService:
         return await self.get_patient_detail(benh_nhan.id, db)
 
     async def update_patient(
-        self,
-        patient_id: int,
-        payload: ReceptionPatientUpdateRequest,
-        db: AsyncSession
+        self, patient_id: int, payload: ReceptionPatientUpdateRequest, db: AsyncSession
     ) -> ReceptionPatientResponse:
         p = await db.get(BenhNhan, patient_id)
         if not p:
@@ -241,10 +238,7 @@ class ReceptionService:
         if payload.so_dien_thoai and payload.so_dien_thoai.strip():
             clean_phone = payload.so_dien_thoai.strip()
             if clean_phone != u.so_dien_thoai:
-                stmt_nd = select(NguoiDung).where(
-                    NguoiDung.so_dien_thoai == clean_phone,
-                    NguoiDung.id != u.id
-                )
+                stmt_nd = select(NguoiDung).where(NguoiDung.so_dien_thoai == clean_phone, NguoiDung.id != u.id)
                 existing_nd = (await db.execute(stmt_nd)).scalar_one_or_none()
                 if existing_nd:
                     raise ConflictException(f"Số điện thoại {clean_phone} đã được sử dụng bởi người dùng khác")
@@ -253,10 +247,7 @@ class ReceptionService:
         if payload.cccd_so and payload.cccd_so.strip():
             clean_cccd = payload.cccd_so.strip()
             if clean_cccd != u.cccd_so:
-                stmt_cccd = select(NguoiDung).where(
-                    NguoiDung.cccd_so == clean_cccd,
-                    NguoiDung.id != u.id
-                )
+                stmt_cccd = select(NguoiDung).where(NguoiDung.cccd_so == clean_cccd, NguoiDung.id != u.id)
                 existing_cccd = (await db.execute(stmt_cccd)).scalar_one_or_none()
                 if existing_cccd:
                     raise ConflictException(f"Số CCCD {clean_cccd} đã thuộc về bệnh nhân khác")
@@ -285,12 +276,9 @@ class ReceptionService:
         await db.refresh(u)
         return await self.get_patient_detail(p.id, db)
 
-    async def create_encounter(
-        self,
-        payload: EncounterCreateRequest,
-        db: AsyncSession
-    ) -> EncounterResponse:
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    async def create_encounter(self, payload: EncounterCreateRequest, db: AsyncSession) -> EncounterResponse:
+        now_clinic = clinic_now()
+        today_start = clinic_day_start_utc(now_clinic.date())
         stmt_max_q = select(func.coalesce(func.max(EncounterProduction.queue_number), 0)).where(
             EncounterProduction.clinic_room_number == payload.clinic_room_number,
             EncounterProduction.created_at >= today_start,
@@ -299,7 +287,7 @@ class ReceptionService:
         next_queue_num = max_q + 1
 
         room_suffix = payload.clinic_room_number.replace("-", "")[-4:]
-        encounter_code = f"ENC-{datetime.now().strftime('%y%m%d')}-{room_suffix}-{next_queue_num:03d}"[:20]
+        encounter_code = f"ENC-{now_clinic.strftime('%y%m%d')}-{room_suffix}-{next_queue_num:03d}"[:20]
 
         encounter = EncounterProduction(
             encounter_code=encounter_code,

@@ -1,4 +1,6 @@
 import logging
+import re
+import unicodedata
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional, Tuple
@@ -31,30 +33,44 @@ from app.schemas.queue import (
     CheckInRequest,
     QueueTicketResponse,
     WalkInCheckInRequest,
-    WalkInQuickRequest,
+)
+
+from app.services.reception.doctor_schedule_guard import validate_doctor_shift_available
+from app.services.reception.timezone_utils import (
+    clinic_shift_start_utc,
+    clinic_tz,
+    ensure_utc,
+    utc_now,
 )
 
 logger = logging.getLogger(__name__)
 
-SPECIALTY_PREFIX_MAP = {
-    "KHOA_NOI": "NOI",
-    "KHOA_TMH": "TMH",
-    "KHOA_RHM": "RHM",
-    "KHOA_DA_LIEU": "DL",
-    "KHOA_TIM_MACH": "TM",
-    "KHOA_TIEU_HOA": "TH",
-    "KHOA_THAN_KINH": "TK",
-    "KHOA_HO_HAP": "HH",
-    "KHOA_XUONG_KHOP": "XK",
-    "KHOA_MAT": "MAT",
-    "KHOA_NGOAI": "NGOAI",
-    "KHOA_NHI": "NHI",
-    "KHOA_SAN": "SAN",
-}
+
+def _strip_accents(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text.replace("đ", "d").replace("Đ", "D"))
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch)).upper()
 
 
-def _ensure_utc(dt: datetime) -> datetime:
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+def _derive_specialty_prefix(ma_chuyen_khoa: Optional[str], ten_chuyen_khoa: Optional[str]) -> str:
+    ma_clean = (ma_chuyen_khoa or "").upper().strip()
+    if ma_clean:
+        ma_body = re.sub(r"^(KHOA|CK)[_-]+", "", ma_clean)
+        tokens = [t for t in re.split(r"[_-]+", ma_body) if t and t.isalpha()]
+        if len(tokens) == 1:
+            return tokens[0][:5]
+        if len(tokens) > 1:
+            return "".join(t[0] for t in tokens)[:5]
+
+    ten_clean = _strip_accents((ten_chuyen_khoa or "").strip())
+    if ten_clean:
+        ten_body = re.sub(r"^(KHOA|CHUYEN KHOA)\s+", "", ten_clean)
+        words = [w for w in re.split(r"[\s\-_/]+", ten_body) if w]
+        if len(words) == 1:
+            return words[0][:5]
+        if len(words) > 1:
+            return "".join(w[0] for w in words)[:5]
+
+    return "PK"
 
 
 def _determine_shift(self, t: time) -> str:
@@ -92,45 +108,28 @@ def _generate_queue_code(self, ticket: HangDoiKham) -> str:
     prefix = "PK"
     if ticket.bac_si and ticket.bac_si.chuyen_khoa:
         ck = ticket.bac_si.chuyen_khoa
-        ma_ck = (ck.ma_chuyen_khoa or "").upper().strip()
-        ten_ck = (ck.ten_chuyen_khoa or "").lower()
-        if ma_ck in SPECIALTY_PREFIX_MAP:
-            prefix = SPECIALTY_PREFIX_MAP[ma_ck]
-        elif "tai mũi họng" in ten_ck or "tai - mũi - họng" in ten_ck:
-            prefix = "TMH"
-        elif "răng hàm mặt" in ten_ck or "răng - hàm - mặt" in ten_ck:
-            prefix = "RHM"
-        elif "da liễu" in ten_ck:
-            prefix = "DL"
-        elif "nội" in ten_ck:
-            prefix = "NOI"
-        elif "ngoại" in ten_ck:
-            prefix = "NGOAI"
-        elif "mắt" in ten_ck:
-            prefix = "MAT"
-        elif ma_ck:
-            cleaned = ma_ck.replace("KHOA_", "").replace("KHOA-", "").replace("CK_", "").replace("CK-", "")
-            prefix = cleaned[:5] if cleaned else "PK"
+        prefix = _derive_specialty_prefix(ck.ma_chuyen_khoa, ck.ten_chuyen_khoa)
+    elif ticket.lich_kham and ticket.lich_kham.chuyen_khoa:
+        ck = ticket.lich_kham.chuyen_khoa
+        prefix = _derive_specialty_prefix(ck.ma_chuyen_khoa, ck.ten_chuyen_khoa)
     return f"{prefix}-{stt:02d}"
 
 
 def _compute_ticket_durations(ticket: HangDoiKham, now: datetime) -> Tuple[int, int]:
     thoi_gian_cho = 0
     if ticket.thoi_gian_check_in:
-        cin = _ensure_utc(ticket.thoi_gian_check_in)
+        cin = ensure_utc(ticket.thoi_gian_check_in)
         if ticket.thoi_gian_xep_hang_lai:
-            start_wait = _ensure_utc(ticket.thoi_gian_xep_hang_lai)
+            start_wait = ensure_utc(ticket.thoi_gian_xep_hang_lai)
         elif ticket.ngay_kham and cin.date() < ticket.ngay_kham:
-            start_wait = datetime.combine(ticket.ngay_kham, datetime.min.time(), tzinfo=timezone.utc).replace(
-                hour=0, minute=30
-            )
+            start_wait = clinic_shift_start_utc(ticket.ngay_kham)
         else:
             start_wait = cin
 
         if ticket.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value:
-            end_wait = _ensure_utc(ticket.thoi_gian_bat_dau or ticket.thoi_gian_goi_kham or now)
+            end_wait = ensure_utc(ticket.thoi_gian_bat_dau or ticket.thoi_gian_goi_kham or now)
         elif ticket.trang_thai == TrangThaiHangDoiEnum.DA_KHAM.value:
-            end_wait = _ensure_utc(
+            end_wait = ensure_utc(
                 ticket.thoi_gian_bat_dau
                 or ticket.thoi_gian_goi_kham
                 or ticket.thoi_gian_ket_thuc
@@ -138,20 +137,20 @@ def _compute_ticket_durations(ticket: HangDoiKham, now: datetime) -> Tuple[int, 
                 or start_wait
             )
         elif ticket.trang_thai in (TrangThaiHangDoiEnum.BO_KHAM.value, TrangThaiHangDoiEnum.DA_DONG_VE.value):
-            end_wait = _ensure_utc(ticket.updated_at or start_wait)
+            end_wait = ensure_utc(ticket.updated_at or start_wait)
         else:
             end_wait = now
         thoi_gian_cho = max(0, int((end_wait - start_wait).total_seconds() / 60))
 
     if ticket.trang_thai == TrangThaiHangDoiEnum.DANG_KHAM.value and ticket.thoi_gian_bat_dau:
-        thoi_gian_trang_thai = max(0, int((now - _ensure_utc(ticket.thoi_gian_bat_dau)).total_seconds() / 60))
+        thoi_gian_trang_thai = max(0, int((now - ensure_utc(ticket.thoi_gian_bat_dau)).total_seconds() / 60))
     elif ticket.trang_thai in (TrangThaiHangDoiEnum.DA_KHAM.value, TrangThaiHangDoiEnum.BO_KHAM.value):
         thoi_gian_trang_thai = 0
         if ticket.thoi_gian_ket_thuc:
             r_dt = ticket.thoi_gian_bat_dau or ticket.thoi_gian_check_in
             if r_dt:
                 thoi_gian_trang_thai = max(
-                    0, int((_ensure_utc(ticket.thoi_gian_ket_thuc) - _ensure_utc(r_dt)).total_seconds() / 60)
+                    0, int((ensure_utc(ticket.thoi_gian_ket_thuc) - ensure_utc(r_dt)).total_seconds() / 60)
                 )
     else:
         thoi_gian_trang_thai = thoi_gian_cho
@@ -293,7 +292,9 @@ async def check_in_patient(
     )
     existing_ticket = (await db.execute(stmt_check)).scalar_one_or_none()
     if existing_ticket:
-        logger.info(f"Lịch hẹn {lich.ma_lich_kham} đã check-in trước đó, trả về vé STT #{existing_ticket.so_thu_tu_kham}")
+        logger.info(
+            f"Lịch hẹn {lich.ma_lich_kham} đã check-in trước đó, trả về vé STT #{existing_ticket.so_thu_tu_kham}"
+        )
         return await self._get_ticket_with_relations(existing_ticket.id, db)
 
     now = datetime.now(timezone.utc)
@@ -324,16 +325,18 @@ async def check_in_patient(
             if lich.gio_kham
             else (lich.ca_kham or self._determine_shift(queue_service_module.clinic_now().time()))
         )
+        await validate_doctor_shift_available(lich.bac_si_id, lich.ngay_kham, ca_kham, db)
 
     if payload.ly_do_uu_tien:
         muc_do_uu_tien = 1
         loai_hang_doi = LoaiHangDoiEnum.DUNG_HEN.value
-        ly_do_str = payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        ly_do_str = (
+            payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        )
         ghi_chu_priority = f"Ưu tiên ({ly_do_str})"
         ghi_chu = f"{ghi_chu_priority} | {payload.ghi_chu}".strip(" | ") if payload.ghi_chu else ghi_chu_priority
     else:
-        clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
-        now_clinic = queue_service_module.datetime.now(clinic_tz).replace(tzinfo=None)
+        now_clinic = queue_service_module.datetime.now(clinic_tz()).replace(tzinfo=None)
         gio_hen = lich.gio_kham or now_clinic.time()
         appointment_dt = queue_service_module.datetime.combine(lich.ngay_kham, gio_hen)
         diff_minutes = (appointment_dt - now_clinic).total_seconds() / 60
@@ -386,11 +389,7 @@ async def check_in_patient(
 
 async def _resolve_or_create_walkin_patient(payload: WalkInCheckInRequest, db: AsyncSession) -> BenhNhan:
     if payload.benh_nhan_id:
-        stmt_bn = (
-            select(BenhNhan)
-            .options(selectinload(BenhNhan.nguoi_dung))
-            .where(BenhNhan.id == payload.benh_nhan_id)
-        )
+        stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.id == payload.benh_nhan_id)
         bn = (await db.execute(stmt_bn)).scalar_one_or_none()
         if not bn:
             raise NotFoundException("Không tìm thấy thông tin bệnh nhân!")
@@ -400,7 +399,9 @@ async def _resolve_or_create_walkin_patient(payload: WalkInCheckInRequest, db: A
     clean_name = payload.ho_ten.strip()
     dob = date(payload.nam_sinh, 1, 1) if payload.nam_sinh else None
 
-    nguoi_dung = (await db.execute(select(NguoiDung).where(NguoiDung.so_dien_thoai == clean_phone))).scalar_one_or_none()
+    nguoi_dung = (
+        await db.execute(select(NguoiDung).where(NguoiDung.so_dien_thoai == clean_phone))
+    ).scalar_one_or_none()
     if not nguoi_dung:
         nguoi_dung = NguoiDung(
             ho_ten=clean_name,
@@ -419,16 +420,12 @@ async def _resolve_or_create_walkin_patient(payload: WalkInCheckInRequest, db: A
         if payload.gioi_tinh and (not nguoi_dung.gioi_tinh or nguoi_dung.gioi_tinh == "Khác"):
             nguoi_dung.gioi_tinh = payload.gioi_tinh
 
-    stmt_bn = (
-        select(BenhNhan)
-        .options(selectinload(BenhNhan.nguoi_dung))
-        .where(BenhNhan.nguoi_dung_id == nguoi_dung.id)
-    )
+    stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.nguoi_dung_id == nguoi_dung.id)
     bn = (await db.execute(stmt_bn)).scalar_one_or_none()
     if not bn:
         bn = BenhNhan(
             nguoi_dung_id=nguoi_dung.id,
-            ma_dinh_danh_y_te=f"BN-{datetime.now().strftime('%Y%m')}-{nguoi_dung.id:04d}",
+            ma_dinh_danh_y_te=f"BN-{queue_service_module.clinic_now().strftime('%Y%m')}-{nguoi_dung.id:04d}",
         )
         db.add(bn)
         await db.flush()
@@ -462,9 +459,7 @@ async def _check_walkin_shift_overload(
             HangDoiKham.bac_si_id == doctor_id,
             HangDoiKham.ngay_kham == today,
             HangDoiKham.ca_kham == ca_kham,
-            HangDoiKham.trang_thai.notin_(
-                [TrangThaiHangDoiEnum.BO_KHAM.value, TrangThaiHangDoiEnum.DA_DONG_VE.value]
-            ),
+            HangDoiKham.trang_thai.notin_([TrangThaiHangDoiEnum.BO_KHAM.value, TrangThaiHangDoiEnum.DA_DONG_VE.value]),
         )
         count_shift = (await db.execute(stmt_shift)).scalar() or 0
         if count_shift >= shift.gioi_han_ca_kham:
@@ -508,7 +503,9 @@ async def _register_overloaded_walkin_waitlist(
     next_wl = ((await db.execute(stmt_max_wl)).scalar() or 0) + 1
 
     if payload.ly_do_uu_tien:
-        ly_do_val = payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        ly_do_val = (
+            payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        )
         wl_trieu_chung = f"[Ưu tiên: {ly_do_val}] {payload.ly_do_kham or 'Đăng ký chờ slot ca trực'}"
         wl_muc_do_uu_tien = 1
         wl_ghi_chu = f"Đã ghi danh vào Danh sách chờ vị trí #{next_wl} (Ưu tiên: {ly_do_val})"
@@ -593,6 +590,7 @@ async def check_in_walk_in(
         )
     else:
         effective_doctor_id = payload.bac_si_id
+        await validate_doctor_shift_available(effective_doctor_id, today, effective_ca, db)
 
     stmt_bs = (
         select(BacSi)
@@ -616,7 +614,9 @@ async def check_in_walk_in(
     )
     shift = (await db.execute(stmt_shift)).scalar_one_or_none()
 
-    is_overloaded, overload_reason = await _check_walkin_shift_overload(shift, effective_doctor_id, today, effective_ca, db)
+    is_overloaded, overload_reason = await _check_walkin_shift_overload(
+        shift, effective_doctor_id, today, effective_ca, db
+    )
     if is_overloaded:
         if payload.dang_ky_waitlist_neu_het_cho:
             return await _register_overloaded_walkin_waitlist(
@@ -631,7 +631,9 @@ async def check_in_walk_in(
 
     if payload.ly_do_uu_tien:
         muc_do_uu_tien = 1
-        ly_do_str = payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        ly_do_str = (
+            payload.ly_do_uu_tien.value if hasattr(payload.ly_do_uu_tien, "value") else str(payload.ly_do_uu_tien)
+        )
         ghi_chu = f"Ưu tiên ({ly_do_str}): {payload.ly_do_kham or 'Vãng lai ưu tiên'}"
     else:
         muc_do_uu_tien = 5
@@ -688,26 +690,3 @@ async def check_in_walk_in(
     db.add(ticket)
     await db.commit()
     return await self._get_ticket_with_relations(ticket.id, db)
-
-
-async def check_in_walk_in_quick(
-    self,
-    payload: WalkInQuickRequest,
-    receptionist_user: TaiKhoan,
-    db: AsyncSession,
-) -> QueueTicketResponse:
-    walk_in_req = WalkInCheckInRequest(
-        benh_nhan_id=None,
-        ho_ten=payload.ho_ten,
-        so_dien_thoai=payload.so_dien_thoai,
-        gioi_tinh=payload.gioi_tinh,
-        nam_sinh=payload.nam_sinh,
-        bac_si_id=payload.bac_si_id,
-        chuyen_khoa_id=payload.chuyen_khoa_id,
-        ca_kham=payload.ca_kham,
-        ly_do_kham=payload.ly_do_kham,
-        ghi_chu="Tiếp đón vãng lai nhanh tại quầy",
-        ly_do_uu_tien=payload.ly_do_uu_tien,
-        dang_ky_waitlist_neu_het_cho=getattr(payload, "dang_ky_waitlist_neu_het_cho", False),
-    )
-    return await self.check_in_walk_in(walk_in_req, receptionist_user, db)

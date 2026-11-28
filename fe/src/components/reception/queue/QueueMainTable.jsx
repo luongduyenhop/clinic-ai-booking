@@ -83,7 +83,7 @@ export default function QueueMainTable({
                                 </Tag>
                             )}
 
-                            {record.muc_do_uu_tien === 4 && Boolean(record.thoi_gian_xep_hang_lai) && (
+                            {Boolean(record.thoi_gian_xep_hang_lai) && (
                                 <Tag color="warning" className="m-0 text-[10px] font-medium">
                                     Đã xếp hàng lại
                                 </Tag>

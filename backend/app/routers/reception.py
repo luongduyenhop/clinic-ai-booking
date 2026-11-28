@@ -16,7 +16,6 @@ from app.schemas.queue import (
     ReceptionWaitlistResponse,
     CheckInRequest,
     WalkInCheckInRequest,
-    WalkInQuickRequest,
     QueueTicketResponse,
     PostponeTicketRequest,
     TransferTicketRequest,
@@ -31,14 +30,10 @@ from app.schemas.queue import (
     RosterItem,
     RoomResourceItem,
     RosterTemplateItem,
-    PatientPackageItem,
     PatientHistorySummaryResponse,
     ProcessNoShowResponse,
     ReceptionReportSummaryResponse,
     ReceptionAuditLogResponse,
-    PreCloseShiftAuditResponse,
-    CloseReceptionShiftRequest,
-    CloseReceptionShiftResponse,
 )
 from app.schemas.incident import (
     DoctorAbsenceIncidentResponse,
@@ -85,25 +80,6 @@ async def search_appointments(
     return ResponseEnvelope.success_response(
         data=results,
         message=f"Tìm thấy {len(results)} lịch hẹn phù hợp"
-    )
-
-
-@router.post(
-    "/walk-in-quick",
-    response_model=ResponseEnvelope[QueueTicketResponse],
-    status_code=status.HTTP_201_CREATED,
-    summary="Tiếp nhận nhanh bệnh nhân vãng lai không đặt trước (nhập họ tên, SĐT, chọn bác sĩ)"
-)
-async def check_in_walk_in_quick(
-    payload: WalkInQuickRequest,
-    current_user: TaiKhoan = Depends(require_reception_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await queue_service.check_in_walk_in_quick(payload, current_user, db)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message=f"Tiếp nhận bệnh nhân vãng lai thành công! Số thứ tự #{result.so_thu_tu_kham}.",
-        code=status.HTTP_201_CREATED
     )
 
 
@@ -226,10 +202,11 @@ async def transfer_ticket(
 async def get_patient_flow_board(
     doctor_id: Optional[int] = Query(None, description="Lọc theo bác sĩ (tùy chọn)"),
     query_date: Optional[date] = Query(None, description="Ngày cần theo dõi (mặc định hôm nay)"),
+    ca_kham: Optional[str] = Query(None, description="Lọc theo ca khám (sang / chieu / all)"),
     current_user: TaiKhoan = Depends(require_reception_staff),
     db: AsyncSession = Depends(get_db)
 ):
-    result = await queue_service.get_patient_flow_board(doctor_id, query_date, current_user, db)
+    result = await queue_service.get_patient_flow_board(doctor_id, query_date, current_user, db, ca_kham=ca_kham)
     return ResponseEnvelope.success_response(
         data=result,
         message="Lấy dữ liệu Patient Flow Board thành công"
@@ -586,24 +563,6 @@ async def update_patient_reception(
     )
 
 @router.get(
-    "/patients/{benh_nhan_id}/packages",
-    response_model=ResponseEnvelope[List[PatientPackageItem]],
-    summary="Tra cứu danh sách gói khám đã mua của bệnh nhân (FC-17)"
-)
-async def get_patient_packages(
-    benh_nhan_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    await _verify_patient_history_and_package_access(benh_nhan_id, current_user, db)
-    result = await queue_service.get_patient_packages(benh_nhan_id, db)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message=f"Tìm thấy {len(result)} gói khám của bệnh nhân"
-    )
-
-
-@router.get(
     "/patients/{benh_nhan_id}/history-summary",
     response_model=ResponseEnvelope[PatientHistorySummaryResponse],
     summary="Tóm tắt lịch sử khám, tình trạng no-show và gói dịch vụ tại quầy (FC-17)"
@@ -734,42 +693,6 @@ async def get_reception_audit_logs(
     return ResponseEnvelope.success_response(
         data=result,
         message=f"Lấy danh sách nhật ký kiểm toán thành công ({len(result.items)} bản ghi)"
-    )
-
-
-
-@router.get(
-    "/shift/pre-close-audit",
-    response_model=ResponseEnvelope[PreCloseShiftAuditResponse],
-    summary="Đối soát và quét việc chưa xong trước khi đóng ca trực Lễ tân"
-)
-async def get_shift_pre_close_audit(
-    ca_kham: str = Query(..., description="Ca khám: 'sang' hoặc 'chieu'"),
-    query_date: Optional[date] = Query(None, description="Ngày đối soát (mặc định hôm nay)"),
-    current_user: TaiKhoan = Depends(require_reception_staff),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await queue_service.get_shift_pre_close_audit(ca_kham, query_date, db)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message=f"Đối soát trước đóng ca {ca_kham} thành công"
-    )
-
-
-@router.post(
-    "/shift/close",
-    response_model=ResponseEnvelope[CloseReceptionShiftResponse],
-    summary="Thực hiện Đóng ca trực Lễ tân & Bàn giao ca"
-)
-async def close_reception_shift(
-    payload: CloseReceptionShiftRequest,
-    current_user: TaiKhoan = Depends(require_reception_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await queue_service.close_reception_shift(payload, current_user, db)
-    return ResponseEnvelope.success_response(
-        data=result,
-        message=f"Đóng ca trực {result.ca_kham_dong} thành công! Đã chuyển {result.so_ve_chuyen_ca_chieu} vé sang ca chiều, đóng {result.so_ve_dong} vé tồn và chốt {result.so_lich_chot_no_show} lịch No-show."
     )
 
 

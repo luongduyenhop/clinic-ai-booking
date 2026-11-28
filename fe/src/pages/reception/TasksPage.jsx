@@ -248,10 +248,10 @@ export default function TasksPage() {
                         <Button
                             icon={<SyncOutlined />}
                             onClick={handleRefresh}
-                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
-                        >
-                            Làm mới
-                        </Button>
+                            title="Làm mới"
+                            aria-label="Làm mới"
+                            className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                        />
                     </div>
                 </div>
             </div>

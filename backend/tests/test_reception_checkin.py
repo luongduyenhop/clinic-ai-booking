@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 import pytest
+import pytest_asyncio
 from sqlalchemy import select, update
 
 from app.core.config import settings
@@ -14,12 +15,32 @@ from app.models.appointment import (
     TrangThaiLichEnum,
 )
 from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, PhongKham
-from app.schemas.queue import CheckInRequest, WalkInCheckInRequest, WalkInQuickRequest
+from app.schemas.queue import CheckInRequest, WalkInCheckInRequest
 
 
 def _get_clinic_now():
     clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
     return datetime.now(clinic_tz).replace(tzinfo=None)
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def booking(booking, db_session):
+    today = _get_clinic_now().date()
+    for doc in (booking.bs_x, booking.bs_y):
+        for ca, s_t, e_t in (("sang", time(7, 30), time(11, 30)), ("chieu", time(13, 30), time(17, 0))):
+            db_session.add(LichLamViec(
+                bac_si_id=doc.id,
+                ngay_lam_viec=today,
+                ca_lam_viec=ca,
+                gio_bat_dau=s_t,
+                gio_ket_thuc=e_t,
+                gioi_han_ca_kham=20,
+                han_muc_dat_truoc=20,
+                han_muc_vang_lai=20,
+                is_active=True,
+            ))
+    await db_session.flush()
+    return booking
 
 
 # ==============================================================================

@@ -203,10 +203,10 @@ export default function PatientsPage() {
                                 dispatch(fetchAppointmentsAsync({ pageSize: 100 }))
                                 dispatch(fetchFlowBoardAsync())
                             }}
-                            className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
-                        >
-                            Làm mới
-                        </Button>
+                            title="Làm mới"
+                            aria-label="Làm mới"
+                            className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                        />
                         {canMutatePatient && (
                             <Button
                                 type="primary"

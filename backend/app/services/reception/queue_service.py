@@ -21,7 +21,6 @@ class QueueService:
     _get_ticket_with_relations = queue_checkin_service._get_ticket_with_relations
     check_in_patient = queue_checkin_service.check_in_patient
     check_in_walk_in = queue_checkin_service.check_in_walk_in
-    check_in_walk_in_quick = queue_checkin_service.check_in_walk_in_quick
 
     call_next_patient = queue_call_service.call_next_patient
     _get_ticket_entity = queue_call_service._get_ticket_entity
@@ -41,7 +40,6 @@ class QueueService:
     get_roster_resources = queue_resource_service.get_roster_resources
     get_rooms_resources = queue_resource_service.get_rooms_resources
     get_roster_template_resources = queue_resource_service.get_roster_template_resources
-    get_patient_packages = queue_resource_service.get_patient_packages
     get_patient_history_summary = queue_resource_service.get_patient_history_summary
 
     process_no_shows_end_of_shift = queue_waitlist_service.process_no_shows_end_of_shift
@@ -51,8 +49,6 @@ class QueueService:
 
     get_reception_report_summary = queue_shift_audit_service.get_reception_report_summary
     get_reception_audit_logs = queue_shift_audit_service.get_reception_audit_logs
-    get_shift_pre_close_audit = queue_shift_audit_service.get_shift_pre_close_audit
-    close_reception_shift = queue_shift_audit_service.close_reception_shift
 
 
 queue_service = QueueService()

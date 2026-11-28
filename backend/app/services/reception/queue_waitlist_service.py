@@ -1,8 +1,8 @@
 import logging
 import uuid
-from datetime import date, datetime, time, timezone, timedelta
-from typing import List, Optional, Union, Any, Tuple
-from sqlalchemy import func, select, or_, and_
+from datetime import date, datetime, time, timezone
+from typing import List, Optional
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,8 +17,6 @@ from app.models.appointment import (
     HangDoiKham,
     LichKham,
     LichLamViec,
-    LichDinhKyBacSi,
-    CaLamViecEnum,
     LoaiHangDoiEnum,
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
@@ -26,113 +24,50 @@ from app.models.appointment import (
     TrangThaiWaitlistEnum,
     LyDoUuTienEnum,
 )
-from app.models.user import BacSi, BenhNhan, ChuyenKhoa, NguoiDung, TaiKhoan, VaiTroEnum, PhongKham
+from app.models.user import BacSi, BenhNhan, TaiKhoan, VaiTroEnum
 from app.services.appointment.appointment_service import clinic_now
-from app.models.specialized import DangKyGoiKham, GoiDichVu
-from app.models.medical import KhoaSoCaTruc
+from app.services.reception.doctor_schedule_guard import validate_doctor_shift_available
 from app.schemas.queue import (
     ReceptionWaitlistItem,
     ReceptionWaitlistResponse,
-    CheckInRequest,
-    WalkInCheckInRequest,
-    WalkInQuickRequest,
     QueueTicketResponse,
-    CloseTicketRequest,
-    TransferTicketRequest,
-    CloseTicketResponse,
-    CallNextResponse,
-    DoctorQueueBoardResponse,
-    PatientFlowBoardItem,
-    PatientFlowBoardResponse,
-    AppointmentReceptionSearchResult,
-    HourlyCheckInDensityItem,
-    UpcomingAppointmentSummaryItem,
-    LongWaitingTicketItem,
-    ReceptionActivityItem,
-    ShiftDashboardResponse,
-    RoomStatusItem,
-    RoomStatusDashboardResponse,
-    ReceptionAppointmentItem,
-    ReceptionAppointmentsResponse,
-    RosterItem,
-    RoomResourceItem,
-    RosterTemplateItem,
-    PatientPackageItem,
-    PatientPastVisitItem,
-    PatientHistorySummaryResponse,
     ProcessNoShowResponse,
-    ReceptionReportKpiItem,
-    DepartmentDistributionItem,
-    ReceptionReportSummaryResponse,
-    ReceptionAuditLogItem,
-    ReceptionAuditLogPagination,
-    ReceptionAuditLogResponse,
-    PreCloseAuditWarningSummary,
-    PreCloseExaminingDetailItem,
-    PreCloseWaitingDetailItem,
-    PreCloseDeferredDetailItem,
-    PreCloseNoShowDetailItem,
-    PreCloseWaitlistDetailItem,
-    PreCloseCashierAuditDetail,
-    PreCloseAuditDetailGroup,
-    PreCloseActionRecommendation,
-    PreCloseShiftAuditResponse,
-    CloseReceptionShiftRequest,
-    CloseReceptionShiftResponse,
 )
 
 logger = logging.getLogger(__name__)
 
+
 async def process_no_shows_end_of_shift(
-
     self,
-
     query_date: Optional[date],
-
     ca_kham: Optional[str],
-
     current_user: TaiKhoan,
-
     db: AsyncSession,
-
 ) -> ProcessNoShowResponse:
 
     if current_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
-
         raise ForbiddenException("Chức năng chỉ dành cho Lễ tân hoặc Quản trị viên!")
 
     target_date = query_date or clinic_now().date()
 
     stmt = (
-
         select(LichKham)
-
         .options(selectinload(LichKham.benh_nhan))
-
         .where(
-
             and_(
-
                 LichKham.ngay_kham == target_date,
-
-                LichKham.trang_thai.in_([
-
-                    TrangThaiLichEnum.DA_XAC_NHAN.value,
-
-                    TrangThaiLichEnum.CHO_XAC_NHAN.value,
-
-                ]),
-
+                LichKham.trang_thai.in_(
+                    [
+                        TrangThaiLichEnum.DA_XAC_NHAN.value,
+                        TrangThaiLichEnum.CHO_XAC_NHAN.value,
+                    ]
+                ),
             )
-
         )
-
         .with_for_update()
-
     )
 
     if ca_kham:
-
         stmt = stmt.where(LichKham.ca_kham == ca_kham)
 
     apts = (await db.execute(stmt)).scalars().all()
@@ -144,7 +79,6 @@ async def process_no_shows_end_of_shift(
     now = datetime.now(timezone.utc)
 
     for apt in apts:
-
         apt.trang_thai = TrangThaiLichEnum.NO_SHOW.value
 
         apt.thoi_gian_huy = now
@@ -156,11 +90,9 @@ async def process_no_shows_end_of_shift(
         no_show_codes.append(apt.ma_lich_kham)
 
         if apt.benh_nhan:
-
             apt.benh_nhan.so_lan_no_show += 1
 
             if apt.benh_nhan.so_lan_no_show >= 3 and not apt.benh_nhan.is_blocked_booking:
-
                 apt.benh_nhan.is_blocked_booking = True
 
                 blocked_count += 1
@@ -168,18 +100,13 @@ async def process_no_shows_end_of_shift(
     await db.commit()
 
     return ProcessNoShowResponse(
-
         ngay=target_date,
-
         ca_kham=ca_kham,
-
         tong_so_no_show=len(no_show_codes),
-
         danh_sach_ma_lich=no_show_codes,
-
         so_benh_nhan_bi_khoa_moi=blocked_count,
-
     )
+
 
 async def get_reception_waitlist(
     self,
@@ -187,7 +114,7 @@ async def get_reception_waitlist(
     ca_kham: Optional[str],
     bac_si_id: Optional[int],
     chuyen_khoa_id: Optional[int],
-    db: AsyncSession
+    db: AsyncSession,
 ) -> ReceptionWaitlistResponse:
     target_date = query_date or clinic_now().date()
     stmt = (
@@ -201,10 +128,12 @@ async def get_reception_waitlist(
         .where(
             and_(
                 DanhSachCho.ngay_mong_muon == target_date,
-                DanhSachCho.trang_thai.in_([
-                    TrangThaiWaitlistEnum.DANG_CHO.value,
-                    TrangThaiWaitlistEnum.DA_THONG_BAO.value,
-                ])
+                DanhSachCho.trang_thai.in_(
+                    [
+                        TrangThaiWaitlistEnum.DANG_CHO.value,
+                        TrangThaiWaitlistEnum.DA_THONG_BAO.value,
+                    ]
+                ),
             )
         )
     )
@@ -224,7 +153,11 @@ async def get_reception_waitlist(
         ten_bn = r.benh_nhan.nguoi_dung.ho_ten if (r.benh_nhan and r.benh_nhan.nguoi_dung) else "Bệnh nhân"
         sdt_bn = r.benh_nhan.nguoi_dung.so_dien_thoai if (r.benh_nhan and r.benh_nhan.nguoi_dung) else None
         gioi_tinh = r.benh_nhan.nguoi_dung.gioi_tinh if (r.benh_nhan and r.benh_nhan.nguoi_dung) else None
-        nam_sinh = r.benh_nhan.nguoi_dung.ngay_sinh.year if (r.benh_nhan and r.benh_nhan.nguoi_dung and r.benh_nhan.nguoi_dung.ngay_sinh) else None
+        nam_sinh = (
+            r.benh_nhan.nguoi_dung.ngay_sinh.year
+            if (r.benh_nhan and r.benh_nhan.nguoi_dung and r.benh_nhan.nguoi_dung.ngay_sinh)
+            else None
+        )
 
         ten_bs = r.bac_si.nguoi_dung.ho_ten if (r.bac_si and r.bac_si.nguoi_dung) else None
         ck_id = r.bac_si.chuyen_khoa_id if r.bac_si else None
@@ -269,11 +202,9 @@ async def get_reception_waitlist(
 
     return ReceptionWaitlistResponse(total=len(items), items=items)
 
+
 async def check_in_from_waitlist(
-    self,
-    waitlist_id: int,
-    receptionist_user: TaiKhoan,
-    db: AsyncSession
+    self, waitlist_id: int, receptionist_user: TaiKhoan, db: AsyncSession
 ) -> QueueTicketResponse:
     if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
         raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền tiếp nhận bệnh nhân từ danh sách chờ!")
@@ -314,26 +245,32 @@ async def check_in_from_waitlist(
         HangDoiKham.benh_nhan_id == entry.benh_nhan_id,
         HangDoiKham.ngay_kham == today,
         HangDoiKham.ca_kham == ca_kham,
-        HangDoiKham.trang_thai.in_([
-            TrangThaiHangDoiEnum.CHO_KHAM.value,
-            TrangThaiHangDoiEnum.DANG_KHAM.value,
-        ]),
+        HangDoiKham.trang_thai.in_(
+            [
+                TrangThaiHangDoiEnum.CHO_KHAM.value,
+                TrangThaiHangDoiEnum.DANG_KHAM.value,
+            ]
+        ),
     )
     if (await db.execute(stmt_queue_exist)).scalar_one_or_none():
         raise ConflictException("Người bệnh hiện đã có vé đang chờ hoặc đang khám trong ca hôm nay!")
 
     effective_doctor_id = entry.bac_si_id
     if not effective_doctor_id:
-        ck_id = entry.bac_si.chuyen_khoa_id if entry.bac_si else None
+        ck_id = entry.phong_kham.chuyen_khoa_id if getattr(entry, "phong_kham", None) else None
         from app.services.appointment.load_balancing_service import load_balancing_service
-        effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
-            chuyen_khoa_id=ck_id,
-            ca_kham=ca_kham,
-            ngay_kham=today,
-            db=db
-        )
 
-    stmt_bs = select(BacSi).options(selectinload(BacSi.phong_kham), selectinload(BacSi.chuyen_khoa)).where(BacSi.id == effective_doctor_id)
+        effective_doctor_id = await load_balancing_service.assign_optimal_doctor(
+            chuyen_khoa_id=ck_id, ca_kham=ca_kham, ngay_kham=today, db=db
+        )
+    else:
+        await validate_doctor_shift_available(effective_doctor_id, today, ca_kham, db)
+
+    stmt_bs = (
+        select(BacSi)
+        .options(selectinload(BacSi.phong_kham), selectinload(BacSi.chuyen_khoa))
+        .where(BacSi.id == effective_doctor_id)
+    )
     bs = (await db.execute(stmt_bs)).scalar_one_or_none()
     if not bs:
         raise NotFoundException("Không tìm thấy thông tin Bác sĩ tiếp nhận!")
@@ -355,10 +292,12 @@ async def check_in_from_waitlist(
             HangDoiKham.bac_si_id == effective_doctor_id,
             HangDoiKham.ngay_kham == today,
             HangDoiKham.ca_kham == ca_kham,
-            HangDoiKham.trang_thai.notin_([
-                TrangThaiHangDoiEnum.BO_KHAM.value,
-                TrangThaiHangDoiEnum.DA_DONG_VE.value,
-            ]),
+            HangDoiKham.trang_thai.notin_(
+                [
+                    TrangThaiHangDoiEnum.BO_KHAM.value,
+                    TrangThaiHangDoiEnum.DA_DONG_VE.value,
+                ]
+            ),
         )
         count_shift = (await db.execute(stmt_count_shift)).scalar() or 0
         if count_shift >= shift.gioi_han_ca_kham:
@@ -377,10 +316,7 @@ async def check_in_from_waitlist(
 
     base_time = clinic_now().time()
     gio_kham_tai_cho = time(
-        base_time.hour,
-        base_time.minute,
-        (next_stt * 7) % 60,
-        microsecond=min(999999, next_stt * 1000)
+        base_time.hour, base_time.minute, (next_stt * 7) % 60, microsecond=min(999999, next_stt * 1000)
     )
     short_suffix = uuid.uuid4().hex[:4].upper()
     ma_lich = f"LK-{today.strftime('%Y%m%d')}-WLT{effective_doctor_id:02d}{next_stt:03d}-{short_suffix}"
@@ -466,12 +402,8 @@ async def check_in_from_waitlist(
     await db.commit()
     return await self._get_ticket_with_relations(ticket.id, db)
 
-async def cancel_waitlist_entry(
-    self,
-    waitlist_id: int,
-    receptionist_user: TaiKhoan,
-    db: AsyncSession
-) -> dict:
+
+async def cancel_waitlist_entry(self, waitlist_id: int, receptionist_user: TaiKhoan, db: AsyncSession) -> dict:
     if receptionist_user.vai_tro not in (VaiTroEnum.LE_TAN.value, VaiTroEnum.ADMIN.value):
         raise ForbiddenException("Chỉ Lễ tân hoặc Admin mới có quyền hủy bản ghi danh sách chờ!")
 

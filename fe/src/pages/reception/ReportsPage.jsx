@@ -225,8 +225,8 @@ export default function ReportsPage() {
                         className="w-48 rounded-[6px]"
                         options={[
                             { value: '', label: 'Cả ngày (Tất cả ca)' },
-                            { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
-                            { value: 'chieu', label: 'Ca chiều (13:30 - 17:30)' },
+                            { value: 'sang', label: 'Ca sáng' },
+                            { value: 'chieu', label: 'Ca chiều' },
                         ]}
                     />
 
@@ -234,10 +234,10 @@ export default function ReportsPage() {
                         icon={<SyncOutlined spin={reportLoading || auditLoading} />}
                         onClick={handleRefreshAll}
                         loading={reportLoading || auditLoading}
-                        className="medpro-btn-outline !h-8 !px-3 font-semibold text-xs"
-                    >
-                        Làm mới
-                    </Button>
+                        title="Làm mới"
+                        aria-label="Làm mới"
+                        className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                    />
                 </div>
             </div>
 

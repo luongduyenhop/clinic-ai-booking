@@ -2,7 +2,7 @@ import pytest
 from datetime import date, time, timedelta
 from app.services.appointment.appointment_service import clinic_now
 from app.models.appointment import LichLamViec, CaLamViecEnum
-from app.schemas.queue import WalkInQuickRequest
+from app.schemas.queue import WalkInCheckInRequest
 
 
 @pytest.mark.asyncio
@@ -65,42 +65,57 @@ async def test_walk_in_rejected_when_shift_reaches_capacity(api_client, booking,
     today = clinic_now().date()
     token_admin = booking.tokens["admin"]
 
-    # Tạo ca làm việc cho bs_x hôm nay với gioi_han_ca_kham = 1
-    shift = LichLamViec(
-        bac_si_id=booking.bs_x.id,
-        ngay_lam_viec=today,
-        ca_lam_viec=CaLamViecEnum.SANG.value,
-        gio_bat_dau=time(8, 0),
-        gio_ket_thuc=time(12, 0),
-        gioi_han_ca_kham=1,  # Tối đa 1 bệnh nhân
-        is_active=True,
-    )
-    db_session.add(shift)
+    from sqlalchemy import select
+    existing_shift = (
+        await db_session.execute(
+            select(LichLamViec).where(
+                LichLamViec.bac_si_id == booking.bs_x.id,
+                LichLamViec.ngay_lam_viec == today,
+                LichLamViec.ca_lam_viec == CaLamViecEnum.SANG.value,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_shift:
+        existing_shift.gio_bat_dau = time(8, 0)
+        existing_shift.gio_ket_thuc = time(12, 0)
+        existing_shift.gioi_han_ca_kham = 1
+        existing_shift.is_active = True
+    else:
+        shift = LichLamViec(
+            bac_si_id=booking.bs_x.id,
+            ngay_lam_viec=today,
+            ca_lam_viec=CaLamViecEnum.SANG.value,
+            gio_bat_dau=time(8, 0),
+            gio_ket_thuc=time(12, 0),
+            gioi_han_ca_kham=1,
+            is_active=True,
+        )
+        db_session.add(shift)
     await db_session.commit()
 
     # 1. Tiếp nhận người thứ nhất -> Thành công (1/1)
     phone1 = f"091{int(booking.suffix, 16) % 10000000:07d}"
     phone2 = f"092{int(booking.suffix, 16) % 10000000:07d}"
-    req1 = WalkInQuickRequest(
+    req1 = WalkInCheckInRequest(
         ho_ten="Khách Vãng Lai 1",
         so_dien_thoai=phone1,
         gioi_tinh="Nam",
         bac_si_id=booking.bs_x.id,
-        ca_lam_viec="sang",
+        ca_kham="sang",
         ly_do_kham="Đau bụng",
     )
-    res1 = await api_client.post("/api/v1/reception/walk-in-quick", json=req1.model_dump(), headers=token_admin)
+    res1 = await api_client.post("/api/v1/reception/walk-in", json=req1.model_dump(), headers=token_admin)
     assert res1.status_code == 201
 
     # 2. Tiếp nhận người thứ hai -> Bị chặn 409 Conflict
-    req2 = WalkInQuickRequest(
+    req2 = WalkInCheckInRequest(
         ho_ten="Khách Vãng Lai 2",
         so_dien_thoai=phone2,
         gioi_tinh="Nữ",
         bac_si_id=booking.bs_x.id,
-        ca_lam_viec="sang",
+        ca_kham="sang",
         ly_do_kham="Sốt",
     )
-    res2 = await api_client.post("/api/v1/reception/walk-in-quick", json=req2.model_dump(), headers=token_admin)
+    res2 = await api_client.post("/api/v1/reception/walk-in", json=req2.model_dump(), headers=token_admin)
     assert res2.status_code == 409
     assert "đã đạt giới hạn tiếp nhận tối đa" in res2.json()["message"]

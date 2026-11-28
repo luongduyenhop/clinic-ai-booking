@@ -71,32 +71,6 @@ async def test_get_reception_appointments_rbac_allows_staff(api_client, booking,
 
 
 @pytest.mark.asyncio
-async def test_idor_protection_patient_packages(api_client, booking, db_session):
-    bn_a = booking.bn_a
-    bn_b = booking.bn_b
-
-    res_idor = await api_client.get(
-        f"/api/v1/reception/patients/{bn_b.id}/packages",
-        headers=booking.tokens["bn_a"],
-    )
-    assert res_idor.status_code == 403
-    assert "Bạn không có quyền truy cập hồ sơ của bệnh nhân khác" in res_idor.json()["message"]
-
-    res_own = await api_client.get(
-        f"/api/v1/reception/patients/{bn_a.id}/packages",
-        headers=booking.tokens["bn_a"],
-    )
-    assert res_own.status_code == 200
-
-    await booking.tao_tai_khoan("letan_idor_test", VaiTroEnum.LE_TAN.value)
-    res_staff = await api_client.get(
-        f"/api/v1/reception/patients/{bn_b.id}/packages",
-        headers=booking.tokens["letan_idor_test"],
-    )
-    assert res_staff.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_idor_protection_patient_history_summary(api_client, booking, db_session):
     bn_a = booking.bn_a
     bn_b = booking.bn_b

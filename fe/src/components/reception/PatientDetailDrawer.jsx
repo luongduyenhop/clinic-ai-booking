@@ -8,14 +8,12 @@ import {
     EditOutlined,
     PlusOutlined,
     WarningOutlined,
-    MedicineBoxOutlined,
     ClockCircleOutlined,
 } from '../common/ClinicIcon'
 import dayjs from 'dayjs'
 import { APPOINTMENT_STATUS_LABELS, QUEUE_STATUS_LABELS } from '../../utils/constants/receptionConstants'
 import {
     getPatientDetailAsync,
-    fetchPatientPackagesAsync,
     fetchPatientHistorySummaryAsync,
     fetchFlowBoardAsync,
 } from '../../redux/actions/reception/receptionAction'
@@ -34,7 +32,6 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
         departments = [],
         doctors = [],
         services = [],
-        patientPackages = [],
         patientHistorySummary,
     } = useSelector((state) => state.reception)
 
@@ -44,7 +41,6 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
     useEffect(() => {
         if (patientId && open) {
             dispatch(getPatientDetailAsync(patientId))
-            dispatch(fetchPatientPackagesAsync(patientId))
             dispatch(fetchPatientHistorySummaryAsync(patientId))
             dispatch(fetchFlowBoardAsync())
         } else if (!open) {
@@ -248,134 +244,84 @@ export default function PatientDetailDrawer({ patientId, open, onClose, onEditCl
                                 ),
                             },
                             {
-                                key: 'clinical_history',
+                                key: 'appointments_and_history',
                                 label: (
                                     <span>
-                                        <HistoryOutlined /> Lịch sử khám gần đây ({clinicalHistory.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="space-y-2.5">
-                                        {clinicalHistory.length === 0 ? (
-                                            <div className="text-center py-6 text-clinic-text-muted text-xs">
-                                                Chưa có dữ liệu lịch sử khám bệnh trước đây
-                                            </div>
-                                        ) : (
-                                            clinicalHistory.map((item, idx) => (
-                                                <div
-                                                    key={item.lich_kham_id || idx}
-                                                    className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1.5"
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="font-bold text-clinic-navy text-sm">
-                                                            {item.chuyen_khoa || 'Khám chuyên khoa'}
-                                                        </span>
-                                                        <Tag color="cyan">
-                                                            {item.trang_thai || 'Hoàn thành'}
-                                                        </Tag>
-                                                    </div>
-                                                    <div className="text-clinic-text-secondary flex justify-between tabular-nums">
-                                                        <span>Bác sĩ: <strong className="text-clinic-navy">{item.bac_si || 'N/A'}</strong></span>
-                                                        <span className="text-clinic-text-muted">{item.ngay_kham}</span>
-                                                    </div>
-                                                    <div className="pt-1.5 border-t border-clinic-border text-clinic-text">
-                                                        <span className="text-clinic-text-secondary font-medium">Chẩn đoán: </span>
-                                                        <strong className="text-clinic-navy">{item.chan_doan || 'Không có ghi chú chẩn đoán'}</strong>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'packages',
-                                label: (
-                                    <span>
-                                        <MedicineBoxOutlined /> Gói khám ({patientPackages.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="space-y-2.5">
-                                        {patientPackages.length === 0 ? (
-                                            <div className="text-center py-6 text-clinic-text-muted text-xs">
-                                                Bệnh nhân chưa đăng ký gói khám sức khỏe nào
-                                            </div>
-                                        ) : (
-                                            patientPackages.map((pkg, idx) => {
-                                                const packageName = pkg.ten_goi || pkg.ten_goi_kham || 'Gói khám tiêu chuẩn'
-                                                const expiryDate = pkg.han_su_dung || pkg.ngay_het_han || 'Vô thời hạn'
-                                                const buyDate = pkg.ngay_mua || pkg.ngay_dang_ky || 'N/A'
-                                                const remaining = pkg.so_dich_vu_con_lai ?? (pkg.tong_so_dich_vu ? pkg.tong_so_dich_vu - (pkg.so_dich_vu_da_dung || 0) : undefined)
-                                                const total = pkg.so_dich_vu_tong || pkg.tong_so_dich_vu || 0
-                                                const isExpired = pkg.trang_thai === 'HET_HAN' || pkg.trang_thai === 'het_han'
-
-                                                return (
-                                                    <div
-                                                        key={pkg.id || pkg.goi_dich_vu_id || idx}
-                                                        className="p-3.5 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1.5 tabular-nums"
-                                                    >
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="font-bold text-clinic-navy text-sm">
-                                                                {packageName}
-                                                            </span>
-                                                            <Tag color={isExpired ? 'default' : 'success'}>
-                                                                {isExpired ? 'Hết hạn' : 'Đang hiệu lực'}
-                                                            </Tag>
-                                                        </div>
-                                                        <div className="text-clinic-text-secondary text-[11px] flex justify-between">
-                                                            <span>Ngày mua: {buyDate}</span>
-                                                            <span>Hạn dùng: <strong className={isExpired ? 'text-clinic-danger' : 'text-clinic-navy'}>{expiryDate}</strong></span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center pt-1 border-t border-clinic-border font-medium">
-                                                            <span className="text-clinic-text-secondary">Số dịch vụ còn lại:</span>
-                                                            <span className="font-bold text-clinic-cta">
-                                                                {remaining !== undefined ? `${remaining} / ${total}` : `${total} dịch vụ`}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'appointments',
-                                label: (
-                                    <span>
-                                        <CalendarOutlined /> Lịch hẹn ({patientAppointments.length})
+                                        <CalendarOutlined /> Lịch hẹn &amp; Khám ({patientAppointments.length || clinicalHistory.length})
                                     </span>
                                 ),
                                 children: (
                                     <Spin spinning={loadingAppointments}>
-                                        <div className="space-y-2.5">
-                                            {patientAppointments.length === 0 ? (
-                                                <div className="text-center py-6 text-clinic-text-muted text-xs">Chưa có lịch hẹn nào</div>
-                                            ) : (
-                                                patientAppointments.map((app) => {
-                                                    const dep = departments.find((d) => d.id === (app.departmentId || app.chuyen_khoa_id))
-                                                    const doc = doctors.find((d) => d.id === (app.doctorId || app.bac_si_id))
-                                                    const status = APPOINTMENT_STATUS_LABELS[app.status] || {
-                                                        label: app.trang_thai_lich || app.trang_thai || app.status,
-                                                        color: 'default',
-                                                    }
-                                                    return (
-                                                        <div key={app.id} className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1 tabular-nums">
+                                        <div className="space-y-4">
+                                            <div className="space-y-2.5">
+                                                <div className="text-[11px] font-bold uppercase tracking-wider text-clinic-text-secondary">
+                                                    Lịch hẹn ({patientAppointments.length})
+                                                </div>
+                                                {patientAppointments.length === 0 ? (
+                                                    <div className="text-center py-4 text-clinic-text-muted text-xs bg-clinic-bg rounded-[6px] border border-clinic-border">
+                                                        Chưa có lịch hẹn nào
+                                                    </div>
+                                                ) : (
+                                                    patientAppointments.map((app) => {
+                                                        const dep = departments.find((d) => d.id === (app.departmentId || app.chuyen_khoa_id))
+                                                        const doc = doctors.find((d) => d.id === (app.doctorId || app.bac_si_id))
+                                                        const status = APPOINTMENT_STATUS_LABELS[app.status] || {
+                                                            label: app.trang_thai_lich || app.trang_thai || app.status,
+                                                            color: 'default',
+                                                        }
+                                                        return (
+                                                            <div key={app.id} className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1 tabular-nums">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="font-bold text-clinic-navy">
+                                                                        {app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`}
+                                                                    </span>
+                                                                    <Tag color={status.color}>{status.label}</Tag>
+                                                                </div>
+                                                                <div className="text-clinic-text-secondary">
+                                                                    {app.appointmentDate || app.ngay_kham} ({app.timeSlot || app.gio_kham}) · {app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'}
+                                                                </div>
+                                                                <div className="text-clinic-text-muted text-[11px]">Bác sĩ: {app.ten_bac_si || doc?.name}</div>
+                                                            </div>
+                                                        )
+                                                    })
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2.5 pt-2 border-t border-clinic-border">
+                                                <div className="text-[11px] font-bold uppercase tracking-wider text-clinic-text-secondary flex items-center gap-1.5">
+                                                    <HistoryOutlined />
+                                                    <span>Lịch sử khám &amp; Chẩn đoán ({clinicalHistory.length})</span>
+                                                </div>
+                                                {clinicalHistory.length === 0 ? (
+                                                    <div className="text-center py-4 text-clinic-text-muted text-xs bg-clinic-bg rounded-[6px] border border-clinic-border">
+                                                        Chưa có dữ liệu lịch sử khám bệnh trước đây
+                                                    </div>
+                                                ) : (
+                                                    clinicalHistory.map((item, idx) => (
+                                                        <div
+                                                            key={item.lich_kham_id || idx}
+                                                            className="p-3 rounded-[6px] bg-clinic-bg border border-clinic-border text-xs space-y-1.5"
+                                                        >
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-clinic-navy">
-                                                                    {app.appointmentCode || app.ma_lich_kham || `APT-${app.id}`}
+                                                                    {item.chuyen_khoa || 'Khám chuyên khoa'}
                                                                 </span>
-                                                                <Tag color={status.color}>{status.label}</Tag>
+                                                                <Tag color="cyan">
+                                                                    {item.trang_thai || 'Hoàn thành'}
+                                                                </Tag>
                                                             </div>
-                                                            <div className="text-clinic-text-secondary">
-                                                                {app.appointmentDate || app.ngay_kham} ({app.timeSlot || app.gio_kham}) · {app.ten_chuyen_khoa || dep?.name || 'Chuyên khoa'}
+                                                            <div className="text-clinic-text-secondary flex justify-between tabular-nums">
+                                                                <span>Bác sĩ: <strong className="text-clinic-navy">{item.bac_si || 'N/A'}</strong></span>
+                                                                <span className="text-clinic-text-muted">{item.ngay_kham}</span>
                                                             </div>
-                                                            <div className="text-clinic-text-muted text-[11px]">Bác sĩ: {app.ten_bac_si || doc?.name}</div>
+                                                            <div className="pt-1 border-t border-clinic-border text-clinic-text">
+                                                                <span className="text-clinic-text-secondary font-medium">Chẩn đoán: </span>
+                                                                <strong className="text-clinic-navy">{item.chan_doan || 'Không có ghi chú chẩn đoán'}</strong>
+                                                            </div>
                                                         </div>
-                                                    )
-                                                })
-                                            )}
+                                                    ))
+                                                )}
+                                            </div>
                                         </div>
                                     </Spin>
                                 ),

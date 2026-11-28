@@ -136,7 +136,7 @@ export default function QueueManagementPage() {
             </div>
 
             <QueueActionModal
-                entry={actionModal.entry}
+                queueEntry={actionModal.entry}
                 mode={actionModal.mode}
                 open={actionModal.open}
                 onClose={() => setActionModal({ open: false, entry: null, mode: 'DEFER' })}

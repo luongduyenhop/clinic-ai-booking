@@ -420,10 +420,10 @@ export default function ClinicSchedulePage() {
                         icon={<ReloadOutlined />}
                         loading={loading}
                         onClick={handleRefresh}
-                        className="medpro-btn-outline !h-8 !px-3 text-xs font-semibold"
-                    >
-                        Làm mới
-                    </Button>
+                        title="Làm mới"
+                        aria-label="Làm mới"
+                        className="medpro-btn-outline !w-8 !h-8 !p-0 flex items-center justify-center"
+                    />
                 </div>
 
                 <Tabs
@@ -478,8 +478,8 @@ export default function ClinicSchedulePage() {
                                 onChange={setSelectedShift}
                                 options={[
                                     { value: 'all', label: 'Tất cả các ca' },
-                                    { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
-                                    { value: 'chieu', label: 'Ca chiều (13:30 - 16:30)' },
+                                    { value: 'sang', label: 'Ca sáng' },
+                                    { value: 'chieu', label: 'Ca chiều' },
                                 ]}
                             />
                         </div>
@@ -543,9 +543,9 @@ export default function ClinicSchedulePage() {
                                     const roomName = doc.ten_phong || doc.ma_phong || 'Chưa xếp phòng'
                                     const specialtyName = doc.chuyen_khoa || 'Chuyên khoa'
                                     const shiftName = doc.ca_lam_viec === 'sang'
-                                        ? 'Ca sáng (07:30 - 11:30)'
+                                        ? 'Ca sáng'
                                         : doc.ca_lam_viec === 'chieu'
-                                            ? 'Ca chiều (13:30 - 16:30)'
+                                            ? 'Ca chiều'
                                             : doc.ca_lam_viec || 'Cả ngày'
 
                                     const capacity = doc.gioi_han_ca_kham || 30
@@ -826,8 +826,8 @@ export default function ClinicSchedulePage() {
                                     onChange={setTemplateShift}
                                     options={[
                                         { value: 'all', label: 'Tất cả các ca' },
-                                        { value: 'sang', label: 'Ca sáng (07:30 - 11:30)' },
-                                        { value: 'chieu', label: 'Ca chiều (13:30 - 17:00)' },
+                                        { value: 'sang', label: 'Ca sáng' },
+                                        { value: 'chieu', label: 'Ca chiều' },
                                     ]}
                                 />
                             </div>
@@ -854,11 +854,11 @@ export default function ClinicSchedulePage() {
                                 <span className="font-bold text-clinic-navy text-xs">Chú giải:</span>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-warning-bg border border-clinic-warning-border inline-block" />
-                                    <span>Ca Sáng (07:30 - 11:30)</span>
+                                    <span>Ca Sáng</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-3.5 h-3.5 rounded-[4px] bg-clinic-surface-alt border border-clinic-info-border inline-block" />
-                                    <span>Ca Chiều (13:30 - 17:00)</span>
+                                    <span>Ca Chiều</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-3.5 h-3.5 rounded-[4px] border border-dashed border-clinic-border-strong bg-clinic-surface inline-block" />

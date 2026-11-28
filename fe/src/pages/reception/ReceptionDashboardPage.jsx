@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Progress } from 'antd'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
 import AppointmentDetailModal from '../../components/reception/AppointmentDetailModal'
-import CloseShiftModal from '../../components/reception/CloseShiftModal'
 import { APPOINTMENT_STATUS, QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
 import {
@@ -52,7 +51,6 @@ export default function ReceptionDashboardPage() {
 
     const [isCreateAppOpen, setIsCreateAppOpen] = useState(false)
     const [selectedApp, setSelectedApp] = useState(null)
-    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [showAllRooms, setShowAllRooms] = useState(false)
     const [scopeMode, setScopeMode] = useState('all')
     const [currentHour] = useState(() => new Date().getHours())
@@ -242,14 +240,14 @@ export default function ReceptionDashboardPage() {
                         className="medpro-btn-primary rounded-[6px] text-xs inline-flex items-center gap-1.5"
                     >
                         <ClipboardText size={15} weight="bold" />
-                        <span>Tiếp nhận (F2)</span>
+                        <span>Tiếp nhận</span>
                     </Link>
                     <Link
                         to="/reception/queue"
                         className="medpro-btn-outline rounded-[6px] text-xs inline-flex items-center gap-1.5"
                     >
                         <UserList size={15} weight="bold" className="text-clinic-cta" />
-                        <span>Hàng đợi (F4)</span>
+                        <span>Hàng đợi</span>
                     </Link>
                     <button
                         type="button"
@@ -258,14 +256,6 @@ export default function ReceptionDashboardPage() {
                     >
                         <CalendarPlus size={15} weight="bold" className="text-clinic-navy" />
                         <span>Đặt lịch</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsCloseShiftOpen(true)}
-                        className="medpro-btn-danger rounded-[6px] text-xs inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <LockKey size={14} weight="bold" />
-                        <span>Đóng ca trực</span>
                     </button>
                 </div>
             </div>
@@ -603,13 +593,6 @@ export default function ReceptionDashboardPage() {
                             patient: matchedPat,
                         },
                     })
-                }}
-            />
-            <CloseShiftModal
-                open={isCloseShiftOpen}
-                onCancel={() => setIsCloseShiftOpen(false)}
-                onSuccess={() => {
-                    dispatch(fetchShiftDashboardAsync({ caKham: activeCaKham }))
                 }}
             />
         </div>

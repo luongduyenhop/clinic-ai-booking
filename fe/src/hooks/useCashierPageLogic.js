@@ -1,10 +1,16 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import { AppToast } from '../components/common/AppNotification'
 import { getFormDefaults } from '../utils/helpers/clinicConfigHelpers'
 import { cashierService } from '../services/cashierService'
-import { groupVouchersByPatient, resolveInvoicePayableAmount } from '../utils/helpers/cashierInvoiceHelpers'
+import {
+    getDateRangeForPreset,
+    groupVouchersByPatient,
+    matchesVoucherDateAndShift,
+    resolveInvoicePayableAmount,
+    resolveVoucherShift,
+} from '../utils/helpers/cashierInvoiceHelpers'
 
 const METHOD_LABEL_MAP = {
     tien_mat: 'Tiền mặt',
@@ -42,6 +48,10 @@ function mapInvoiceToVoucher(inv, defaultCashier) {
         daThu: inv.trang_thai === 'da_thu',
         trangThai: inv.trang_thai,
         ngayThu: rawTime ? new Date(rawTime).toLocaleString('vi-VN') : '',
+        rawTimestamp: rawTime || null,
+        ngayThanhToan: inv.ngay_thanh_toan || null,
+        createdAt: inv.created_at || null,
+        caThu: resolveVoucherShift(rawTime),
         nguoiThu: defaultCashier || 'Thu ngân phòng khám',
         hinhThuc: METHOD_LABEL_MAP[methodKey] || 'Tiền mặt',
         tenPhieu: inv.luot_kham_id
@@ -107,6 +117,10 @@ export function useCashierPageLogic() {
     )
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
+    const [datePreset, setDatePreset] = useState('ALL')
+    const [fromDate, setFromDate] = useState('')
+    const [toDate, setToDate] = useState('')
+    const [shiftFilter, setShiftFilter] = useState('ALL')
     const [isQrModalOpen, setIsQrModalOpen] = useState(false)
     const [qrInvoice, setQrInvoice] = useState(null)
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
@@ -114,23 +128,72 @@ export function useCashierPageLogic() {
     const [liveInvoices, setLiveInvoices] = useState([])
     const [cashierClosings, setCashierClosings] = useState([])
     const [invoiceViewMode, setInvoiceViewMode] = useState('BY_PATIENT')
+    const fetchSeqRef = useRef(0)
 
     const [form, setForm] = useState(() => buildEmptyVoucher())
     const [newItemName, setNewItemName] = useState(khoanThuCatalog[0]?.ten || 'Thu tiền công khám lâm sàng')
     const [newItemAmount, setNewItemAmount] = useState(khoanThuCatalog[0]?.donGiaMacDinh || 150000)
     const [newItemNote, setNewItemNote] = useState('')
 
+    const handleSelectDatePreset = useCallback((preset) => {
+        setDatePreset(preset)
+        const range = getDateRangeForPreset(preset)
+        setFromDate(range.fromDate)
+        setToDate(range.toDate)
+    }, [])
+
+    const handleFromDateChange = useCallback(
+        (val) => {
+            setDatePreset('CUSTOM')
+            setFromDate(val)
+            if (toDate && val && val > toDate) {
+                setToDate(val)
+            }
+        },
+        [toDate]
+    )
+
+    const handleToDateChange = useCallback(
+        (val) => {
+            setDatePreset('CUSTOM')
+            setToDate(val)
+            if (fromDate && val && val < fromDate) {
+                setFromDate(val)
+            }
+        },
+        [fromDate]
+    )
+
+    const handleResetFilters = useCallback(() => {
+        setSearchText('')
+        setStatusFilter('ALL')
+        setDatePreset('ALL')
+        setFromDate('')
+        setToDate('')
+        setShiftFilter('ALL')
+    }, [])
+
     const fetchLiveCashierData = useCallback(async () => {
+        const reqSeq = ++fetchSeqRef.current
         const [unbilledRes, invoicesRes] = await Promise.allSettled([
             cashierService.getUnbilledEncounters(),
-            cashierService.getInvoices({ page: 1, pageSize: 100 }),
+            cashierService.getInvoices({
+                tuNgay: fromDate || null,
+                denNgay: toDate || null,
+                caKham: shiftFilter !== 'ALL' ? shiftFilter : null,
+                page: 1,
+                pageSize: 200,
+            }),
         ])
+        if (reqSeq !== fetchSeqRef.current) {
+            return { nextUnbilled: null, nextInvoices: null }
+        }
         const nextUnbilled = unbilledRes.status === 'fulfilled' ? unbilledRes.value?.items || [] : []
         const nextInvoices = invoicesRes.status === 'fulfilled' ? invoicesRes.value?.items || [] : []
         setLiveUnbilled(nextUnbilled)
         setLiveInvoices(nextInvoices)
         return { nextUnbilled, nextInvoices }
-    }, [])
+    }, [fromDate, toDate, shiftFilter])
 
     useEffect(() => {
         fetchLiveCashierData()
@@ -190,9 +253,14 @@ export function useCashierPageLogic() {
                 statusFilter === 'ALL' ||
                 (statusFilter === 'PAID' && voucher.daThu) ||
                 (statusFilter === 'PENDING' && !voucher.daThu)
-            return matchText && matchStatus
+            const matchDateAndShift = matchesVoucherDateAndShift(voucher, {
+                fromDate,
+                toDate,
+                shiftFilter,
+            })
+            return matchText && matchStatus && matchDateAndShift
         })
-    }, [allVouchers, searchText, statusFilter])
+    }, [allVouchers, searchText, statusFilter, fromDate, toDate, shiftFilter])
 
     const groupedPatients = useMemo(() => groupVouchersByPatient(filteredVouchers), [filteredVouchers])
 
@@ -228,11 +296,11 @@ export function useCashierPageLogic() {
         else setExpandedPatients(new Set(groupedPatients.map((group) => group.key)))
     }
 
-    const totalThu = allVouchers
+    const totalThu = filteredVouchers
         .filter((voucher) => voucher.daThu)
         .reduce((sum, voucher) => sum + (Number(voucher.tongTien) || 0), 0)
 
-    const paidCount = allVouchers.filter((voucher) => voucher.daThu).length
+    const paidCount = filteredVouchers.filter((voucher) => voucher.daThu).length
 
     const handleSelectUnbilledEncounter = async (enc) => {
         try {
@@ -636,6 +704,15 @@ export function useCashierPageLogic() {
         setSearchText,
         statusFilter,
         setStatusFilter,
+        datePreset,
+        fromDate,
+        toDate,
+        shiftFilter,
+        setShiftFilter,
+        handleSelectDatePreset,
+        handleFromDateChange,
+        handleToDateChange,
+        handleResetFilters,
         invoiceViewMode,
         setInvoiceViewMode,
         liveUnbilled,

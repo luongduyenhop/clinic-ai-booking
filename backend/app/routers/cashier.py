@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, Header, Query, Request, status
@@ -103,6 +104,9 @@ async def preview_invoice(
 async def list_invoices(
     trang_thai: Optional[str] = Query(None, description="Lọc trạng thái: chua_thu, da_thu, tat_ca"),
     tu_khoa: Optional[str] = Query(None, description="Tìm kiếm theo mã hóa đơn, mã BN hoặc họ tên"),
+    tu_ngay: Optional[date] = Query(None, description="Lọc từ ngày (YYYY-MM-DD, giờ phòng khám GMT+7)"),
+    den_ngay: Optional[date] = Query(None, description="Lọc đến ngày (YYYY-MM-DD, giờ phòng khám GMT+7)"),
+    ca_kham: Optional[str] = Query(None, description="Lọc theo ca thu tiền: sang (<12:00), chieu (>=12:00), all"),
     page: int = Query(1, ge=1, description="Số trang"),
     page_size: int = Query(50, ge=1, le=200, description="Kích thước trang"),
     current_user: TaiKhoan = Depends(cashier_role_guard),
@@ -111,6 +115,9 @@ async def list_invoices(
     result = await cashier_service.list_invoices(
         trang_thai=trang_thai,
         ma_kcb=tu_khoa,
+        tu_ngay=tu_ngay,
+        den_ngay=den_ngay,
+        ca_kham=ca_kham,
         page=page,
         page_size=page_size,
         db=db,

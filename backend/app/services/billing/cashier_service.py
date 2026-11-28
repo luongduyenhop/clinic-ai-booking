@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy import and_, func, or_, select
@@ -463,6 +463,9 @@ class CashierService:
         self,
         trang_thai: Optional[str] = None,
         ma_kcb: Optional[str] = None,
+        tu_ngay: Optional[date] = None,
+        den_ngay: Optional[date] = None,
+        ca_kham: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
         db: AsyncSession = None,
@@ -470,6 +473,9 @@ class CashierService:
         return await cashier_list_invoices(
             trang_thai=trang_thai,
             ma_kcb=ma_kcb,
+            tu_ngay=tu_ngay,
+            den_ngay=den_ngay,
+            ca_kham=ca_kham,
             page=page,
             page_size=page_size,
             db=db,

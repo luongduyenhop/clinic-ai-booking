@@ -10,6 +10,7 @@ import ReceiptModal from '../../components/common/ReceiptModal'
 import {
     Plus,
     MagnifyingGlass,
+    Calendar,
 } from '../../components/common/ClinicIcon'
 
 export default function CashierManagementPage() {
@@ -30,6 +31,15 @@ export default function CashierManagementPage() {
         setSearchText,
         statusFilter,
         setStatusFilter,
+        datePreset,
+        fromDate,
+        toDate,
+        shiftFilter,
+        setShiftFilter,
+        handleSelectDatePreset,
+        handleFromDateChange,
+        handleToDateChange,
+        handleResetFilters,
         invoiceViewMode,
         setInvoiceViewMode,
         liveUnbilled,
@@ -71,7 +81,7 @@ export default function CashierManagementPage() {
             <CashierStatsHeader
                 activeCashierTab={activeCashierTab}
                 setActiveCashierTab={setActiveCashierTab}
-                allVouchersCount={allVouchers.length}
+                allVouchersCount={filteredVouchers.length}
                 cashierClosingsCount={cashierClosings.length}
                 onDailyClosing={handleDailyClosing}
             />
@@ -131,6 +141,82 @@ export default function CashierManagementPage() {
                                     </select>
                                 </div>
                             </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="inline-flex items-center gap-0.5 p-0.5 bg-clinic-bg-muted rounded-[6px] border border-clinic-border">
+                                    {[
+                                        { value: 'ALL', label: 'Tất cả' },
+                                        { value: 'TODAY', label: 'Hôm nay' },
+                                        { value: 'THIS_MONTH', label: 'Tháng này' },
+                                    ].map((preset) => (
+                                        <button
+                                            key={preset.value}
+                                            type="button"
+                                            onClick={() => handleSelectDatePreset(preset.value)}
+                                            className={`px-2 py-1 rounded-[4px] font-medium transition cursor-pointer whitespace-nowrap ${
+                                                datePreset === preset.value
+                                                    ? 'bg-clinic-surface text-clinic-navy font-semibold'
+                                                    : 'text-clinic-text-secondary hover:text-clinic-navy'
+                                            }`}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <select
+                                    aria-label="Lọc theo ca thu tiền"
+                                    value={shiftFilter}
+                                    onChange={(e) => setShiftFilter(e.target.value)}
+                                    className="medpro-input !py-0 !w-auto h-7 !px-2 text-xs font-medium"
+                                >
+                                    <option value="ALL">Mọi ca</option>
+                                    <option value="sang">Ca sáng</option>
+                                    <option value="chieu">Ca chiều</option>
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-12 gap-2 items-center">
+                                <label className="col-span-6 relative flex items-center">
+                                    <Calendar
+                                        size={13}
+                                        className="absolute left-2 text-clinic-text-muted pointer-events-none"
+                                    />
+                                    <input
+                                        type="date"
+                                        aria-label="Từ ngày"
+                                        title="Từ ngày"
+                                        value={fromDate}
+                                        onChange={(e) => handleFromDateChange(e.target.value)}
+                                        className="medpro-input !py-0 h-8 !pl-7 !pr-1.5 text-[11px] tabular-nums"
+                                    />
+                                </label>
+                                <label className="col-span-6 relative flex items-center">
+                                    <Calendar
+                                        size={13}
+                                        className="absolute left-2 text-clinic-text-muted pointer-events-none"
+                                    />
+                                    <input
+                                        type="date"
+                                        aria-label="Đến ngày"
+                                        title="Đến ngày"
+                                        value={toDate}
+                                        onChange={(e) => handleToDateChange(e.target.value)}
+                                        className="medpro-input !py-0 h-8 !pl-7 !pr-1.5 text-[11px] tabular-nums"
+                                    />
+                                </label>
+                            </div>
+
+                            {(fromDate || toDate || shiftFilter !== 'ALL' || statusFilter !== 'ALL' || searchText) && (
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={handleResetFilters}
+                                        className="text-[11px] text-clinic-cta hover:underline font-medium cursor-pointer"
+                                    >
+                                        Xóa lọc
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
                                 <div className="inline-flex items-center gap-0.5 p-0.5 bg-clinic-bg-muted rounded-[6px] border border-clinic-border">
@@ -193,7 +279,7 @@ export default function CashierManagementPage() {
 
                         <div className="px-3.5 py-2.5 bg-clinic-bg-muted/70 border-t border-clinic-border flex items-center justify-between gap-2 text-xs tabular-nums">
                             <span className="text-clinic-text-secondary">
-                                Đã thu <strong className="text-clinic-navy">{paidCount}/{allVouchers.length}</strong> phiếu
+                                Đã thu <strong className="text-clinic-navy">{paidCount}/{filteredVouchers.length}</strong> phiếu
                             </span>
                             <span className="font-semibold text-clinic-navy">
                                 Thực thu: <strong className="text-clinic-success">{totalThu.toLocaleString('vi-VN')} đ</strong>

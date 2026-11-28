@@ -13,13 +13,30 @@ class CashierService {
         return response.data?.data
     }
 
-    async getInvoices({ trangThai = null, tuKhoa = null, page = 1, pageSize = 100 } = {}) {
+    async getInvoices({
+        trangThai = null,
+        tuKhoa = null,
+        tuNgay = null,
+        denNgay = null,
+        caKham = null,
+        page = 1,
+        pageSize = 200,
+    } = {}) {
         const params = { page, page_size: pageSize }
         if (trangThai) {
             params.trang_thai = trangThai
         }
         if (tuKhoa) {
             params.tu_khoa = tuKhoa
+        }
+        if (tuNgay) {
+            params.tu_ngay = tuNgay
+        }
+        if (denNgay) {
+            params.den_ngay = denNgay
+        }
+        if (caKham && caKham !== 'ALL') {
+            params.ca_kham = caKham
         }
         const response = await http.get('/api/v1/cashier/invoices', { params })
         return response.data?.data || { items: [], total: 0 }

@@ -618,3 +618,96 @@ async def test_cashier_pay_by_voucher_code_string(api_client, booking, db_sessio
         headers=token_admin
     )
     assert res_missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_invoices_filter_by_date_range_and_shift_gmt7(api_client, booking, db_session):
+    from app.models.medical import HoaDon
+
+    token_admin = booking.tokens["admin"]
+    suffix = booking.suffix
+
+    inv_morning_midnight_vn = HoaDon(
+        ma_hoa_don=f"HD-FLT-AM-{suffix}",
+        benh_nhan_id=booking.bn_a.id,
+        tong_tien=Decimal("200000.00"),
+        mien_giam=Decimal("0.00"),
+        thuc_thu=Decimal("200000.00"),
+        phuong_thuc_thanh_toan="tien_mat",
+        trang_thai="da_thu",
+        ngay_thanh_toan=datetime(2026, 11, 27, 17, 30, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 11, 27, 17, 0, 0, tzinfo=timezone.utc),
+    )
+    inv_afternoon_vn = HoaDon(
+        ma_hoa_don=f"HD-FLT-PM-{suffix}",
+        benh_nhan_id=booking.bn_a.id,
+        tong_tien=Decimal("350000.00"),
+        mien_giam=Decimal("0.00"),
+        thuc_thu=Decimal("350000.00"),
+        phuong_thuc_thanh_toan="chuyen_khoan",
+        trang_thai="da_thu",
+        ngay_thanh_toan=datetime(2026, 11, 28, 6, 30, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 11, 28, 6, 0, 0, tzinfo=timezone.utc),
+    )
+    inv_unpaid_earlier = HoaDon(
+        ma_hoa_don=f"HD-FLT-PEND-{suffix}",
+        benh_nhan_id=booking.bn_a.id,
+        tong_tien=Decimal("150000.00"),
+        mien_giam=Decimal("0.00"),
+        thuc_thu=Decimal("0.00"),
+        phuong_thuc_thanh_toan="tien_mat",
+        trang_thai="chua_thu",
+        ngay_thanh_toan=None,
+        created_at=datetime(2026, 11, 25, 2, 0, 0, tzinfo=timezone.utc),
+    )
+    db_session.add_all([inv_morning_midnight_vn, inv_afternoon_vn, inv_unpaid_earlier])
+    await db_session.commit()
+
+    res_day = await api_client.get(
+        "/api/v1/cashier/invoices?tu_ngay=2026-11-28&den_ngay=2026-11-28",
+        headers=token_admin,
+    )
+    assert res_day.status_code == 200
+    codes_day = {item["ma_hoa_don"] for item in res_day.json()["data"]["items"]}
+    assert inv_morning_midnight_vn.ma_hoa_don in codes_day
+    assert inv_afternoon_vn.ma_hoa_don in codes_day
+    assert inv_unpaid_earlier.ma_hoa_don not in codes_day
+
+    res_am = await api_client.get(
+        "/api/v1/cashier/invoices?tu_ngay=2026-11-28&den_ngay=2026-11-28&ca_kham=sang",
+        headers=token_admin,
+    )
+    assert res_am.status_code == 200
+    codes_am = {item["ma_hoa_don"] for item in res_am.json()["data"]["items"]}
+    assert inv_morning_midnight_vn.ma_hoa_don in codes_am
+    assert inv_afternoon_vn.ma_hoa_don not in codes_am
+
+    res_pm = await api_client.get(
+        "/api/v1/cashier/invoices?tu_ngay=2026-11-28&den_ngay=2026-11-28&ca_kham=chieu",
+        headers=token_admin,
+    )
+    assert res_pm.status_code == 200
+    codes_pm = {item["ma_hoa_don"] for item in res_pm.json()["data"]["items"]}
+    assert inv_afternoon_vn.ma_hoa_don in codes_pm
+    assert inv_morning_midnight_vn.ma_hoa_don not in codes_pm
+
+    res_unpaid = await api_client.get(
+        "/api/v1/cashier/invoices?tu_ngay=2026-11-25&den_ngay=2026-11-25&ca_kham=sang",
+        headers=token_admin,
+    )
+    assert res_unpaid.status_code == 200
+    codes_unpaid = {item["ma_hoa_don"] for item in res_unpaid.json()["data"]["items"]}
+    assert inv_unpaid_earlier.ma_hoa_don in codes_unpaid
+    assert inv_morning_midnight_vn.ma_hoa_don not in codes_unpaid
+
+    res_bad_range = await api_client.get(
+        "/api/v1/cashier/invoices?tu_ngay=2026-11-29&den_ngay=2026-11-28",
+        headers=token_admin,
+    )
+    assert res_bad_range.status_code == 400
+
+    res_bad_shift = await api_client.get(
+        "/api/v1/cashier/invoices?ca_kham=toi",
+        headers=token_admin,
+    )
+    assert res_bad_shift.status_code == 400

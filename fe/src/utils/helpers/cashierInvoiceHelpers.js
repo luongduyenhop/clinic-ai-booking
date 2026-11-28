@@ -174,3 +174,61 @@ export const groupVouchersByPatient = (vouchersList) => {
     })
     return Array.from(map.values())
 }
+
+const CLINIC_OFFSET_MS = 7 * 60 * 60 * 1000
+
+const pad2 = (n) => String(n).padStart(2, '0')
+
+export const toClinicDateParts = (rawTimestamp) => {
+    if (!rawTimestamp) return null
+    const parsed = rawTimestamp instanceof Date ? rawTimestamp : new Date(rawTimestamp)
+    const ms = parsed.getTime()
+    if (Number.isNaN(ms)) return null
+    const shifted = new Date(ms + CLINIC_OFFSET_MS)
+    const year = shifted.getUTCFullYear()
+    const month = pad2(shifted.getUTCMonth() + 1)
+    const day = pad2(shifted.getUTCDate())
+    return {
+        dateKey: `${year}-${month}-${day}`,
+        hour: shifted.getUTCHours(),
+    }
+}
+
+export const resolveVoucherShift = (rawTimestamp) => {
+    const parts = toClinicDateParts(rawTimestamp)
+    if (!parts) return ''
+    return parts.hour < 12 ? 'sang' : 'chieu'
+}
+
+export const getDateRangeForPreset = (preset, now = new Date()) => {
+    if (preset === 'TODAY') {
+        const parts = toClinicDateParts(now)
+        if (!parts) return { fromDate: '', toDate: '' }
+        return { fromDate: parts.dateKey, toDate: parts.dateKey }
+    }
+    if (preset === 'THIS_MONTH') {
+        const parts = toClinicDateParts(now)
+        if (!parts) return { fromDate: '', toDate: '' }
+        return { fromDate: `${parts.dateKey.slice(0, 7)}-01`, toDate: parts.dateKey }
+    }
+    return { fromDate: '', toDate: '' }
+}
+
+export const matchesVoucherDateAndShift = (
+    voucher,
+    { fromDate = '', toDate = '', shiftFilter = 'ALL' } = {}
+) => {
+    const hasShift = Boolean(shiftFilter && shiftFilter !== 'ALL')
+    if (!fromDate && !toDate && !hasShift) return true
+    const rawTs =
+        voucher?.trangThai === 'da_thu' || voucher?.daThu
+            ? voucher?.ngayThanhToan || voucher?.rawTimestamp || voucher?.createdAt
+            : voucher?.rawTimestamp || voucher?.ngayThanhToan || voucher?.createdAt
+    const parts = toClinicDateParts(rawTs)
+    if (!parts) return false
+    if (fromDate && parts.dateKey < fromDate) return false
+    if (toDate && parts.dateKey > toDate) return false
+    if (shiftFilter === 'sang' && parts.hour >= 12) return false
+    if (shiftFilter === 'chieu' && parts.hour < 12) return false
+    return true
+}

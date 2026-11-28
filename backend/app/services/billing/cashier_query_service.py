@@ -1,8 +1,10 @@
+from datetime import date, datetime
 from typing import List, Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import BadRequestException
 from app.models.medical import HoaDon
 from app.models.user import BenhNhan, NguoiDung
 from app.schemas.cashier import (
@@ -11,15 +13,66 @@ from app.schemas.cashier import (
     PendingBillItem,
     PendingBillsListResponse,
 )
+from app.services.reception.timezone_utils import to_clinic_aware
+
+
+def _normalize_shift_filter(ca_kham: Optional[str]) -> Optional[str]:
+    if ca_kham is None:
+        return None
+    normalized = ca_kham.strip().lower()
+    if not normalized or normalized in ("all", "tat_ca"):
+        return None
+    if normalized in ("sang", "chieu"):
+        return normalized
+    raise BadRequestException("Ca làm việc không hợp lệ, chỉ hỗ trợ 'sang' hoặc 'chieu'")
+
+
+def _resolve_invoice_clinic_dt(inv: HoaDon) -> Optional[datetime]:
+    raw_dt = (
+        inv.ngay_thanh_toan
+        if (inv.trang_thai == "da_thu" and inv.ngay_thanh_toan is not None)
+        else (inv.ngay_thanh_toan or inv.created_at)
+    )
+    if raw_dt is None:
+        return None
+    return to_clinic_aware(raw_dt)
+
+
+def _matches_date_and_shift(
+    inv: HoaDon,
+    tu_ngay: Optional[date],
+    den_ngay: Optional[date],
+    shift: Optional[str],
+) -> bool:
+    local_dt = _resolve_invoice_clinic_dt(inv)
+    if local_dt is None:
+        return False
+    local_date = local_dt.date()
+    if tu_ngay and local_date < tu_ngay:
+        return False
+    if den_ngay and local_date > den_ngay:
+        return False
+    if shift == "sang" and local_dt.hour >= 12:
+        return False
+    if shift == "chieu" and local_dt.hour < 12:
+        return False
+    return True
 
 
 async def list_invoices(
     trang_thai: Optional[str] = None,
     ma_kcb: Optional[str] = None,
+    tu_ngay: Optional[date] = None,
+    den_ngay: Optional[date] = None,
+    ca_kham: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
     db: AsyncSession = None,
 ) -> PendingBillsListResponse:
+    if tu_ngay and den_ngay and tu_ngay > den_ngay:
+        raise BadRequestException("Ngày bắt đầu không được lớn hơn ngày kết thúc")
+    normalized_shift = _normalize_shift_filter(ca_kham)
+
     filters = []
     normalized_status = (trang_thai or "").strip().lower()
     if normalized_status and normalized_status != "tat_ca":
@@ -47,27 +100,48 @@ async def list_invoices(
         .outerjoin(BenhNhan.nguoi_dung)
         .where(*filters)
     )
-    count_stmt = (
-        select(func.count(HoaDon.id))
-        .select_from(HoaDon)
-        .outerjoin(HoaDon.benh_nhan)
-        .outerjoin(BenhNhan.nguoi_dung)
-        .where(*filters)
-    )
-    total = (await db.execute(count_stmt)).scalar_one()
 
-    stmt = (
-        base_from
-        .options(
-            selectinload(HoaDon.chi_tiet_hoa_don),
-            selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
-            selectinload(HoaDon.luot_kham),
+    if tu_ngay is None and den_ngay is None and normalized_shift is None:
+        count_stmt = (
+            select(func.count(HoaDon.id))
+            .select_from(HoaDon)
+            .outerjoin(HoaDon.benh_nhan)
+            .outerjoin(BenhNhan.nguoi_dung)
+            .where(*filters)
         )
-        .order_by(HoaDon.id.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
-    page_invoices = (await db.execute(stmt)).scalars().all()
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = (
+            base_from
+            .options(
+                selectinload(HoaDon.chi_tiet_hoa_don),
+                selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HoaDon.luot_kham),
+            )
+            .order_by(HoaDon.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        page_invoices = (await db.execute(stmt)).scalars().all()
+    else:
+        stmt = (
+            base_from
+            .options(
+                selectinload(HoaDon.chi_tiet_hoa_don),
+                selectinload(HoaDon.benh_nhan).selectinload(BenhNhan.nguoi_dung),
+                selectinload(HoaDon.luot_kham),
+            )
+            .order_by(HoaDon.id.desc())
+        )
+        all_candidates = (await db.execute(stmt)).scalars().all()
+        matched_invoices = [
+            inv
+            for inv in all_candidates
+            if _matches_date_and_shift(inv, tu_ngay, den_ngay, normalized_shift)
+        ]
+        total = len(matched_invoices)
+        start_idx = (page - 1) * page_size
+        page_invoices = matched_invoices[start_idx : start_idx + page_size]
 
     items: List[PendingBillItem] = []
     for inv in page_invoices:

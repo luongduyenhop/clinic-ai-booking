@@ -1,8 +1,31 @@
+from datetime import time
 import pytest
+import pytest_asyncio
 from sqlalchemy import select
-from app.models.appointment import HangDoiKham, TrangThaiHangDoiEnum, TrangThaiLichEnum, LichKham
-from app.schemas.queue import WalkInQuickRequest
+from app.models.appointment import HangDoiKham, LichLamViec, TrangThaiHangDoiEnum, TrangThaiLichEnum, LichKham
+from app.schemas.queue import WalkInCheckInRequest
+from app.services.appointment.appointment_service import clinic_now
 from tests.test_clinical_skeleton import _dam_bao_ma_icd10
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def booking(booking, db_session):
+    today = clinic_now().date()
+    for doc in (booking.bs_x, booking.bs_y):
+        for ca, s_t, e_t in (("sang", time(7, 30), time(11, 30)), ("chieu", time(13, 30), time(17, 0))):
+            db_session.add(LichLamViec(
+                bac_si_id=doc.id,
+                ngay_lam_viec=today,
+                ca_lam_viec=ca,
+                gio_bat_dau=s_t,
+                gio_ket_thuc=e_t,
+                gioi_han_ca_kham=20,
+                han_muc_dat_truoc=20,
+                han_muc_vang_lai=20,
+                is_active=True,
+            ))
+    await db_session.flush()
+    return booking
 
 
 @pytest.mark.asyncio
@@ -15,15 +38,15 @@ async def test_walk_in_patient_full_clinical_lifecycle(api_client, booking, db_s
     token_bs = booking.tokens["bs_x"]
 
     # 1. Lễ tân tiếp nhận nhanh bệnh nhân vãng lai
-    req = WalkInQuickRequest(
+    req = WalkInCheckInRequest(
         ho_ten="Võ Văn Vãng Lai",
         so_dien_thoai="0911223344",
         gioi_tinh="Nam",
         bac_si_id=booking.bs_x.id,
-        ca_lam_viec="sang",
+        ca_kham="sang",
         ly_do_kham="Đau họng sốt cao",
     )
-    res_walkin = await api_client.post("/api/v1/reception/walk-in-quick", json=req.model_dump(), headers=token_letan)
+    res_walkin = await api_client.post("/api/v1/reception/walk-in", json=req.model_dump(), headers=token_letan)
     assert res_walkin.status_code == 201
     ticket_data = res_walkin.json()["data"]
     ticket_id = ticket_data["id"]

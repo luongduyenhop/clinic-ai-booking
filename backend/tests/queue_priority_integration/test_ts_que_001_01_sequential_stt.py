@@ -267,6 +267,11 @@ async def test_ts_que_001_01_idempotency_prevents_duplicate_stt(api_client, book
     await db_session.flush()
     bs.chuyen_khoa_id = ck.id
 
+    db_session.add_all([
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="sang", gio_bat_dau=time(7, 30), gio_ket_thuc=time(11, 30), gioi_han_ca_kham=20, han_muc_dat_truoc=20, han_muc_vang_lai=20, is_active=True),
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="chieu", gio_bat_dau=time(13, 30), gio_ket_thuc=time(17, 0), gioi_han_ca_kham=20, han_muc_dat_truoc=20, han_muc_vang_lai=20, is_active=True),
+    ])
+
     now_clinic = clinic_now()
     lich = LichKham(
         ma_lich_kham=f"LK-IDEM-{suffix}",

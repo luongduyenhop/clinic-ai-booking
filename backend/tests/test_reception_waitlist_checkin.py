@@ -38,6 +38,15 @@ async def test_waitlist_checkin_guards_and_priority_tier(db_session):
     bs = BacSi(nguoi_dung_id=nd_bs.id, hoc_vi="BS", chung_chi_hanh_nghe=f"CCHN-WL-{suffix}", gia_kham_mac_dinh=150000)
     db_session.add(bs)
     await db_session.flush()
+    db_session.add(LichLamViec(
+        bac_si_id=bs.id,
+        ngay_lam_viec=today,
+        ca_lam_viec=ca_kham,
+        gio_bat_dau=time(7, 30),
+        gio_ket_thuc=time(11, 30),
+        is_active=True,
+    ))
+    await db_session.flush()
 
     # 2. Tạo Lễ tân thực hiện và lưu vào database
     admin_user = TaiKhoan(nguoi_dung_id=nd_bs.id, email=f"admin.{suffix}@clinic.com", mat_khau_hash="x", vai_tro=VaiTroEnum.LE_TAN.value)

@@ -47,6 +47,13 @@ async def test_transfer_ticket_success_and_invariants(db_session):
     db_session.add_all([bs1, bs2])
     await db_session.flush()
 
+    from app.models.appointment import LichLamViec
+    db_session.add_all([
+        LichLamViec(bac_si_id=bs1.id, phong_kham_id=p1.id, ngay_lam_viec=today, ca_lam_viec=ca_kham, gio_bat_dau=time(7, 30), gio_ket_thuc=time(17, 0), is_active=True),
+        LichLamViec(bac_si_id=bs2.id, phong_kham_id=p2.id, ngay_lam_viec=today, ca_lam_viec=ca_kham, gio_bat_dau=time(7, 30), gio_ket_thuc=time(17, 0), is_active=True),
+    ])
+    await db_session.flush()
+
     # 3. Tạo Lễ tân
     admin_user = TaiKhoan(nguoi_dung_id=nd_bs1.id, email=f"reception.{suffix}@clinic.com", mat_khau_hash="x", vai_tro=VaiTroEnum.LE_TAN.value)
     db_session.add(admin_user)

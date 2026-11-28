@@ -558,7 +558,6 @@ class IncidentService:
             raise NotFoundException(f"Không tìm thấy đơn nghỉ phép ID {payload.nghi_phep_bac_si_id}!")
 
         now = utc_now()
-        clinic_time_str = clinic_now().strftime("%H:%M:%S")
         cancel_reason = payload.ly_do or "Bệnh nhân không đồng ý đổi bác sĩ khi có sự cố bác sĩ nghỉ"
 
         so_ve_huy = 0

@@ -1,5 +1,6 @@
 import pytest
-from datetime import date, datetime, timedelta, timezone
+import pytest_asyncio
+from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -8,6 +9,7 @@ from app.models.appointment import (
     CaLamViecEnum,
     HangDoiKham,
     LichKham,
+    LichLamViec,
     LoaiHangDoiEnum,
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
@@ -18,6 +20,26 @@ from app.models.user import ChuyenKhoa
 def _get_clinic_now():
     clinic_tz = timezone(timedelta(hours=settings.CLINIC_UTC_OFFSET_HOURS))
     return datetime.now(clinic_tz)
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def booking(booking, db_session):
+    today = _get_clinic_now().date()
+    for doc in (booking.bs_x, booking.bs_y):
+        for ca, s_t, e_t in (("sang", time(7, 30), time(11, 30)), ("chieu", time(13, 30), time(17, 0))):
+            db_session.add(LichLamViec(
+                bac_si_id=doc.id,
+                ngay_lam_viec=today,
+                ca_lam_viec=ca,
+                gio_bat_dau=s_t,
+                gio_ket_thuc=e_t,
+                gioi_han_ca_kham=20,
+                han_muc_dat_truoc=20,
+                han_muc_vang_lai=20,
+                is_active=True,
+            ))
+    await db_session.flush()
+    return booking
 
 
 async def _dam_bao_chuyen_khoa(db_session, ma_ck="KHOA_NOI", ten_ck="Khoa Nội", vi_tri_phong="Phòng 102 - Tầng 1"):

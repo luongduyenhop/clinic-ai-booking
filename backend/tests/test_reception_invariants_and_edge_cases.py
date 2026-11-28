@@ -2,8 +2,8 @@ import pytest
 from datetime import date, time, datetime, timedelta
 from app.services.appointment.appointment_service import clinic_now
 from app.models.user import VaiTroEnum, NguoiDung, TaiKhoan, BenhNhan, BacSi
-from app.models.appointment import LichKham, TrangThaiLichEnum
-from app.schemas.queue import CheckInRequest, WalkInQuickRequest
+from app.models.appointment import LichKham, LichLamViec, TrangThaiLichEnum
+from app.schemas.queue import CheckInRequest, WalkInCheckInRequest
 from app.services.reception.queue_service import queue_service
 from app.services.appointment.appointment_service import build_day_slots
 from app.core.exceptions import BadRequestException
@@ -24,6 +24,11 @@ async def test_future_appointment_cannot_check_in_today(db_session):
     await db_session.flush()
     bs = BacSi(nguoi_dung_id=nd_bs.id, hoc_vi="BS", chung_chi_hanh_nghe="CCHN-NGAY", gia_kham_mac_dinh=200000)
     db_session.add(bs)
+    await db_session.flush()
+    db_session.add_all([
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="sang", gio_bat_dau=time(7, 30), gio_ket_thuc=time(11, 30), is_active=True),
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="chieu", gio_bat_dau=time(13, 30), gio_ket_thuc=time(17, 0), is_active=True),
+    ])
     await db_session.flush()
 
     nd_bn = NguoiDung(ho_ten="BN Hẹn Ngày Mai", email="bn.mai@clinic.com", so_dien_thoai="0911223344")
@@ -113,6 +118,11 @@ async def test_queue_scoping_and_no_collision_in_same_queue(db_session):
     bs = BacSi(nguoi_dung_id=nd_bs.id, hoc_vi="BS", chung_chi_hanh_nghe="CCHN-SCOPE", gia_kham_mac_dinh=200000)
     db_session.add(bs)
     await db_session.flush()
+    db_session.add_all([
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="sang", gio_bat_dau=time(7, 30), gio_ket_thuc=time(11, 30), is_active=True),
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today, ca_lam_viec="chieu", gio_bat_dau=time(13, 30), gio_ket_thuc=time(17, 0), is_active=True),
+    ])
+    await db_session.flush()
 
     nd_1 = NguoiDung(ho_ten="Bệnh Nhân 1", email="bn1.scope@clinic.com")
     nd_2 = NguoiDung(ho_ten="Bệnh Nhân 2", email="bn2.scope@clinic.com")
@@ -155,19 +165,25 @@ async def test_walk_in_without_fake_email_and_reuse_profile(db_session):
     bs = BacSi(nguoi_dung_id=nd_bs.id, hoc_vi="BS", chung_chi_hanh_nghe="CCHN-WALK", gia_kham_mac_dinh=200000)
     db_session.add(bs)
     await db_session.flush()
+    today_walk = clinic_now().date()
+    db_session.add_all([
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today_walk, ca_lam_viec="sang", gio_bat_dau=time(7, 30), gio_ket_thuc=time(11, 30), gioi_han_ca_kham=20, han_muc_dat_truoc=20, han_muc_vang_lai=20, is_active=True),
+        LichLamViec(bac_si_id=bs.id, ngay_lam_viec=today_walk, ca_lam_viec="chieu", gio_bat_dau=time(13, 30), gio_ket_thuc=time(17, 0), gioi_han_ca_kham=20, han_muc_dat_truoc=20, han_muc_vang_lai=20, is_active=True),
+    ])
+    await db_session.flush()
 
     admin = TaiKhoan(nguoi_dung_id=nd_bs.id, email="admin@clinic.com", mat_khau_hash="x", vai_tro=VaiTroEnum.ADMIN.value)
 
     # 1. Tiếp nhận người bố
-    req_father = WalkInQuickRequest(
+    req_father = WalkInCheckInRequest(
         ho_ten="Nguyễn Văn Bố",
         so_dien_thoai="0933445566",
         gioi_tinh="Nam",
         bac_si_id=bs.id,
-        ca_lam_viec="sang",
+        ca_kham="sang",
         ly_do_kham="Đau lưng"
     )
-    ticket_father_1 = await queue_service.check_in_walk_in_quick(req_father, admin, db_session)
+    ticket_father_1 = await queue_service.check_in_walk_in(req_father, admin, db_session)
     assert ticket_father_1.so_thu_tu_kham == 1
 
     # Kiểm tra hồ sơ người bố: Email là None (không có placeholder fake email)
@@ -177,20 +193,20 @@ async def test_walk_in_without_fake_email_and_reuse_profile(db_session):
     assert nguoi_dung_father.ho_ten == "Nguyễn Văn Bố"
 
     # 2. Người bố khám lại lần sau (cùng SĐT): Tái sử dụng đúng hồ sơ cũ, không tạo trùng
-    ticket_father_2 = await queue_service.check_in_walk_in_quick(req_father, admin, db_session)
+    ticket_father_2 = await queue_service.check_in_walk_in(req_father, admin, db_session)
     assert ticket_father_2.benh_nhan_id == benh_nhan_father.id
     assert ticket_father_2.so_thu_tu_kham == 2
 
     # 3. Tiếp nhận bệnh nhân vãng lai khác (khác SĐT)
-    req_other = WalkInQuickRequest(
+    req_other = WalkInCheckInRequest(
         ho_ten="Trần Thị Khác",
         so_dien_thoai="0977889900",
         gioi_tinh="Nữ",
         bac_si_id=bs.id,
-        ca_lam_viec="sang",
+        ca_kham="sang",
         ly_do_kham="Sốt nhẹ"
     )
-    ticket_other = await queue_service.check_in_walk_in_quick(req_other, admin, db_session)
+    ticket_other = await queue_service.check_in_walk_in(req_other, admin, db_session)
     assert ticket_other.so_thu_tu_kham == 3
     assert ticket_other.benh_nhan_id != benh_nhan_father.id
 

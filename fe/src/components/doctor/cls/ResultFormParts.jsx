@@ -1,15 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { uploadFileAsync } from '../../../redux/actions/doctor/clinicalAction'
+import { clinicalService } from '../../../services/doctor/ClinicalService'
 import { AppToast } from '../../common/AppNotification'
 import { ClinicIcon } from '../../common/ClinicIcon'
 import { RESULT_CLASS } from '../../../utils/constants/clinical'
 
 const MAX_SIZE = 10 * 1024 * 1024
 
-export function FileAttachField({ label, value, onChange, accept = 'image/*,application/pdf', disabled }) {
+export function FileAttachField({ label, value, onChange, orderId, accept = 'image/jpeg,image/png', disabled }) {
     const dispatch = useDispatch()
     const [uploading, setUploading] = useState(false)
+    const [previewUrl, setPreviewUrl] = useState('')
+
+    useEffect(() => {
+        const rawUrl = value?.url
+        if (!rawUrl || !value?.la_anh || /^blob:/i.test(rawUrl)) {
+            setPreviewUrl('')
+            return undefined
+        }
+        if (/^(data:|https?:)/i.test(rawUrl)) {
+            setPreviewUrl(rawUrl)
+            return undefined
+        }
+        let cancelled = false
+        let objectUrl = ''
+        clinicalService
+            .fetchClsImageBlob(rawUrl)
+            .then((blob) => {
+                if (cancelled) return
+                objectUrl = URL.createObjectURL(blob)
+                setPreviewUrl(objectUrl)
+            })
+            .catch(() => {
+                if (!cancelled) setPreviewUrl('')
+            })
+        return () => {
+            cancelled = true
+            if (objectUrl) URL.revokeObjectURL(objectUrl)
+        }
+    }, [value?.url, value?.la_anh])
 
     const handleFile = async (e) => {
         const file = e.target.files?.[0]
@@ -21,7 +51,7 @@ export function FileAttachField({ label, value, onChange, accept = 'image/*,appl
         }
         setUploading(true)
         try {
-            const res = await dispatch(uploadFileAsync(file)).unwrap()
+            const res = await dispatch(uploadFileAsync({ orderId, file })).unwrap()
             onChange({ url: res.url, ten_tep: res.ten_tep, la_anh: file.type.startsWith('image/') })
         } catch (msg) {
             AppToast.error(msg)
@@ -35,7 +65,14 @@ export function FileAttachField({ label, value, onChange, accept = 'image/*,appl
             <span className="medpro-label !mb-0">{label}</span>
             {value?.url ? (
                 value.la_anh ? (
-                    <img src={value.url} alt={value.ten_tep} className="aspect-[4/3] w-full rounded-[6px] bg-clinic-navy-dark object-contain" />
+                    previewUrl ? (
+                        <img src={previewUrl} alt={value.ten_tep} className="aspect-[4/3] w-full rounded-[6px] bg-clinic-navy-dark object-contain" />
+                    ) : (
+                        <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-[6px] bg-clinic-bg-muted border border-clinic-border text-[12px] text-clinic-text-secondary">
+                            <ClinicIcon name="Scan" size={22} />
+                            <span>{value.ten_tep || 'Ảnh kết quả đã tải lên'}</span>
+                        </div>
+                    )
                 ) : (
                     <a href={value.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[6px] bg-clinic-surface-tint border border-clinic-info-border p-3 text-[13px] font-semibold text-clinic-cta">
                         <ClinicIcon name="FileText" size={18} /> {value.ten_tep}
@@ -51,7 +88,7 @@ export function FileAttachField({ label, value, onChange, accept = 'image/*,appl
                 {uploading ? 'Đang tải lên…' : value?.url ? 'Thay tệp' : 'Chọn tệp'}
                 <input type="file" accept={accept} className="sr-only" onChange={handleFile} disabled={disabled || uploading} />
             </label>
-            <span className="text-[11px] text-clinic-text-secondary">JPG, PNG hoặc PDF · tối đa 10MB</span>
+            <span className="text-[11px] text-clinic-text-secondary">JPG hoặc PNG · tối đa 10MB</span>
         </div>
     )
 }

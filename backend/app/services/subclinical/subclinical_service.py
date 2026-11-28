@@ -246,13 +246,19 @@ class SubclinicalService:
             except Exception:
                 pass
 
-        files = payload.file_dinh_kem_urls or []
+        files = [
+            str(u).strip()
+            for u in (payload.file_dinh_kem_urls or [])
+            if u and not str(u).strip().lower().startswith("blob:")
+        ]
         order.ket_qua_chi_tiet = payload.ket_qua_chi_tiet
         order.ket_qua_phan_loai = payload.ket_qua_phan_loai or "BINH_THUONG"
         order.tri_so_chi_tiet = tri_so
         order.file_dinh_kem_urls = files
-        if files and not order.tep_dinh_kem_url:
+        if files:
             order.tep_dinh_kem_url = files[0]
+        elif str(order.tep_dinh_kem_url or "").strip().lower().startswith("blob:"):
+            order.tep_dinh_kem_url = None
         order.trang_thai = "da_co_ket_qua"
         order.thoi_gian_tra_ket_qua = now
         order.ky_thuat_vien_id = technician_user_id

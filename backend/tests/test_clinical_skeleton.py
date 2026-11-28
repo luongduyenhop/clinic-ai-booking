@@ -324,3 +324,95 @@ async def test_expired_doctor_blocked_from_clinical_exam_http_403(api_client, bo
 async def test_amendments_accept_ticket_prefix_id_and_return_404_when_missing(api_client, booking):
     res = await api_client.get("/api/v1/clinical/encounters/ticket-999999/amendments", headers=booking.tokens["bs_x"])
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_amendments_create_and_list_via_ticket_prefix_id_returns_201(api_client, booking, db_session):
+    from app.models.appointment import HangDoiKham, LoaiHangDoiEnum, TrangThaiHangDoiEnum
+    from app.models.medical import LuotKham
+
+    now = datetime.now(timezone.utc)
+    lich = await booking.tao_lich(booking.bn_a, booking.bs_x, now)
+    ticket = HangDoiKham(
+        lich_kham_id=lich.id,
+        benh_nhan_id=booking.bn_a.id,
+        bac_si_id=booking.bs_x.id,
+        ngay_kham=now.date(),
+        ca_kham="sang",
+        so_thu_tu_kham=88,
+        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
+        muc_do_uu_tien=2,
+        trang_thai=TrangThaiHangDoiEnum.DA_KHAM.value,
+        thoi_gian_check_in=now,
+    )
+    db_session.add(ticket)
+    await db_session.flush()
+
+    luot_kham = LuotKham(
+        lich_kham_id=lich.id,
+        hang_doi_kham_id=ticket.id,
+        benh_nhan_id=booking.bn_a.id,
+        bac_si_id=booking.bs_x.id,
+        ma_kcb=f"KCB-AMEND-{booking.suffix}",
+        thoi_gian_bat_dau=now,
+        thoi_gian_ket_thuc=now,
+        is_locked=True,
+        thoi_gian_khoa=now,
+    )
+    db_session.add(luot_kham)
+    await db_session.flush()
+
+    chan_doan = ChanDoan(
+        luot_kham_id=luot_kham.id,
+        ma_icd10="I10",
+        ten_benh_chan_doan="Tăng huyết áp vô căn",
+        loai_chan_doan="chinh",
+    )
+    db_session.add(chan_doan)
+    await db_session.commit()
+
+    res_create = await api_client.post(
+        f"/api/v1/clinical/encounters/ticket-{ticket.id}/amendments",
+        json={
+            "thuc_the_loai": "CHAN_DOAN",
+            "thuc_the_id": 999999,
+            "ly_do_text": "Bổ sung phân độ tăng huyết áp sau khóa",
+            "noi_dung_moi_json": {"noi_dung": "Tăng huyết áp độ 1 (I10)"},
+            "muc_do_nghiem_trong": "TRUNG_BINH",
+        },
+        headers=booking.tokens["bs_x"],
+    )
+    assert res_create.status_code == 201
+    created = res_create.json()["data"]
+    assert created["luot_kham_id"] == luot_kham.id
+    assert created["thuc_the_id"] == chan_doan.id
+
+    res_list = await api_client.get(
+        f"/api/v1/clinical/encounters/ticket-{ticket.id}/amendments",
+        headers=booking.tokens["bs_x"],
+    )
+    assert res_list.status_code == 200
+    items = res_list.json()["data"]
+    assert any(item["id"] == created["id"] for item in items)
+
+
+def test_extract_order_attachments_strips_ephemeral_blob_urls():
+    from app.models.medical import ChiDinh
+
+    order = ChiDinh(
+        luot_kham_id=1,
+        dich_vu_id=1,
+        so_luong=1,
+        don_gia_tai_thoi_diem=100000,
+        tep_dinh_kem_url="blob:https://clinic-ai.luongduyenhop.me/dead-uuid",
+        file_dinh_kem_urls=[
+            "blob:https://clinic-ai.luongduyenhop.me/another-uuid",
+            "/api/v1/subclinical/orders/1/files/abc123.png",
+            "https://res.cloudinary.com/demo/image/upload/v1/sample.png",
+        ],
+    )
+    urls = clinical_service._extract_order_attachments(order)
+    assert urls == [
+        "/api/v1/subclinical/orders/1/files/abc123.png",
+        "https://res.cloudinary.com/demo/image/upload/v1/sample.png",
+    ]

@@ -66,7 +66,7 @@ export default function EndoscopyResultForm({ order, submitting, onSubmit }) {
             setMerging(true)
             try {
                 const merged = await mergeImagesToGrid(frames, { labels: tpl.sites })
-                const res = await dispatch(uploadFileAsync(merged)).unwrap()
+                const res = await dispatch(uploadFileAsync({ orderId: order.id, file: merged })).unwrap()
                 url = res.url
             } catch (err) {
                 AppToast.error(typeof err === 'string' ? err : err?.message || 'Không ghép được ảnh nội soi')

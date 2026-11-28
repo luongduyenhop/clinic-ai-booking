@@ -286,6 +286,7 @@ def _to_encounter_response(self, lk: LuotKham) -> EncounterResponse:
     for order in (lk.danh_sach_chi_dinh or []):
         kq = order.__dict__.get("ket_qua")
         phieu = order.__dict__.get("phieu_ket_qua")
+        attachments = self._extract_order_attachments(order)
         orders.append(
             OrderResponse(
                 id=order.id,
@@ -301,8 +302,8 @@ def _to_encounter_response(self, lk: LuotKham) -> EncounterResponse:
                     or (kq.ket_qua_chi_tiet if kq else None)
                     or (phieu.ket_luan if phieu else None)
                 ),
-                tep_dinh_kem_url=order.tep_dinh_kem_url,
-                tep_dinh_kem_urls=self._extract_order_attachments(order),
+                tep_dinh_kem_url=attachments[0] if attachments else None,
+                tep_dinh_kem_urls=attachments,
                 thoi_gian_tra_ket_qua=(
                     order.thoi_gian_tra_ket_qua
                     or (kq.thoi_gian_duyet if kq else None)

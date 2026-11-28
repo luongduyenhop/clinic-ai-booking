@@ -1,8 +1,12 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { useDispatch } from 'react-redux'
 import { printPrescriptionDocument, printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocuments'
+import { createAmendmentAsync } from '../../redux/actions/doctor/clinicalAction'
+import { AppToast } from '../common/AppNotification'
 import { ClinicIcon } from '../common/ClinicIcon'
 import ResultAttachments from '../user/patient/ResultAttachments'
+import AmendmentModal from './exam/AmendmentModal'
 
 const getTodayRaw = () => {
     const now = new Date()
@@ -42,11 +46,26 @@ const formatLabOrderSummary = (order) => {
 }
 
 export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = null }) {
+    const dispatch = useDispatch()
     const [searchKeyword, setSearchKeyword] = useState('')
     const [selectedDate, setSelectedDate] = useState('')
     const [selectedRecord, setSelectedRecord] = useState(null)
+    const [amendmentOpen, setAmendmentOpen] = useState(false)
 
     const [todayRaw] = useState(() => getTodayRaw())
+
+    const handleAmendment = async (payload) => {
+        const targetId = selectedRecord?.serverEncounterId || selectedRecord?.encounterId || selectedRecord?.id
+        if (!targetId) return false
+        try {
+            await dispatch(createAmendmentAsync({ encounterId: targetId, payload })).unwrap()
+            AppToast.success('Đã gửi biên bản đính chính, chờ Trưởng khoa duyệt')
+            return true
+        } catch (msg) {
+            AppToast.error(typeof msg === 'string' ? msg : 'Không thể gửi biên bản đính chính')
+            return false
+        }
+    }
 
     const filteredList = useMemo(
         () =>
@@ -330,7 +349,10 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                 <button
                                     type="button"
                                     aria-label="Đóng hồ sơ bệnh án"
-                                    onClick={() => setSelectedRecord(null)}
+                                    onClick={() => {
+                                        setAmendmentOpen(false)
+                                        setSelectedRecord(null)
+                                    }}
                                     className="w-8 h-8 rounded-[6px] bg-clinic-bg-muted hover:bg-clinic-border text-clinic-text-secondary flex items-center justify-center cursor-pointer transition"
                                 >
                                     <ClinicIcon name="X" size={16} weight="bold" />
@@ -503,8 +525,8 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 p-4 px-6 border-t border-clinic-border bg-clinic-bg shrink-0">
-                                <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2 p-4 px-6 border-t border-clinic-border bg-clinic-bg shrink-0">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={() => handlePrintMedicalRecord(selectedRecord)}
@@ -523,10 +545,22 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                         <ClinicIcon name="Printer" size={14} weight="bold" />
                                         <span>In đơn thuốc</span>
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAmendmentOpen(true)}
+                                        className="medpro-btn-amber px-3.5 py-2 rounded-[6px] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5"
+                                        title="Tạo biên bản đính chính bệnh án đã khóa"
+                                    >
+                                        <ClinicIcon name="LockKey" size={14} weight="bold" />
+                                        <span>Biên bản đính chính</span>
+                                    </button>
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedRecord(null)}
+                                    onClick={() => {
+                                        setAmendmentOpen(false)
+                                        setSelectedRecord(null)
+                                    }}
                                     className="medpro-btn-outline px-4 py-2 rounded-[6px] font-bold text-xs cursor-pointer"
                                 >
                                     Đóng
@@ -536,6 +570,11 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                     </div>,
                     document.body
                 )}
+            <AmendmentModal
+                open={amendmentOpen}
+                onClose={() => setAmendmentOpen(false)}
+                onSubmit={handleAmendment}
+            />
         </div>
     )
 }

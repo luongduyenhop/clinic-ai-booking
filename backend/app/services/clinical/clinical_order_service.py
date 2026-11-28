@@ -100,7 +100,13 @@ def _extract_order_attachments(order: ChiDinh) -> List[str]:
     kq = order.__dict__.get("ket_qua")
     if kq is not None and kq.file_dinh_kem_urls:
         urls.extend(kq.file_dinh_kem_urls)
-    return list(dict.fromkeys(str(u) for u in urls if u))
+    return list(
+        dict.fromkeys(
+            str(u).strip()
+            for u in urls
+            if u and not str(u).strip().lower().startswith("blob:")
+        )
+    )
 
 async def add_diagnosis(
     self,

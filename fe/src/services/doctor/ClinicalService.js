@@ -946,8 +946,19 @@ export class ClinicalService extends BaseServices {
         return result
     }
 
-    uploadFile = (file) => {
-        return delay({ url: URL.createObjectURL(file), ten_tep: file.name }, 300)
+    uploadFile = async (payload) => {
+        const file = payload instanceof File || payload instanceof Blob ? payload : payload?.file
+        const orderId = payload?.orderId
+        if (!file) return reject('Không có tệp hợp lệ để tải lên')
+        if (!orderId) return reject('Thiếu mã chỉ định CLS để lưu tệp đính kèm')
+        try {
+            const res = await this.uploadClsImage(orderId, file)
+            const url = res?.data?.data?.url
+            if (!url) return reject('Máy chủ không trả về đường dẫn tệp sau khi tải lên')
+            return { url, ten_tep: file.name || 'tep-ket-qua.png' }
+        } catch (err) {
+            return reject(pickErrorMessage(err, 'Không thể tải tệp kết quả lên máy chủ'))
+        }
     }
 
     getImagingResult = (orderId) =>

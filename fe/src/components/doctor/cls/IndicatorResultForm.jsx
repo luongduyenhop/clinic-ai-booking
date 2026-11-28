@@ -246,7 +246,14 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
             ket_luan: detail.ket_luan || '',
             de_nghi: detail.de_nghi || '',
             ghi_chu: detail.ghi_chu || '',
-            tep: order.tep_dinh_kem_url ? { url: order.tep_dinh_kem_url, ten_tep: 'Tệp đã đính kèm', la_anh: false } : null,
+            tep:
+                order.tep_dinh_kem_url && !/^blob:/i.test(String(order.tep_dinh_kem_url))
+                    ? {
+                          url: order.tep_dinh_kem_url,
+                          ten_tep: 'Tệp đã đính kèm',
+                          la_anh: /\.(jpe?g|png|webp)(\?|$)/i.test(order.tep_dinh_kem_url) || String(order.tep_dinh_kem_url).includes('/files/'),
+                      }
+                    : null,
         },
         validationSchema: Yup.object({
             values: Yup.object().test('has-value', 'Nhập ít nhất một chỉ số', (obj) => Object.values(obj || {}).some((v) => String(v).trim())),
@@ -345,7 +352,7 @@ function FunctionalIndicatorForm({ order, submitting, onSubmit }) {
                     </label>
                 </div>
                 <div className="flex-[1_1_240px]">
-                    <FileAttachField label="Bản ghi đo (1 tệp)" disabled={locked} value={values.tep} onChange={(v) => setFieldValue('tep', v)} />
+                    <FileAttachField label="Bản ghi đo (1 tệp)" orderId={order.id} disabled={locked} value={values.tep} onChange={(v) => setFieldValue('tep', v)} />
                 </div>
             </div>
 

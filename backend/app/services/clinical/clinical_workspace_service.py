@@ -180,7 +180,7 @@ def _serialize_workspace_orders(service, order_rows: List[ChiDinh], encounter_da
                 "ket_qua_chi_tiet": tri_so_obj or ket_qua_text,
                 "tri_so_chi_tiet": tri_so_obj,
                 "ket_qua_phan_loai": phan_loai,
-                "tep_dinh_kem_url": order.tep_dinh_kem_url or (attachments[0] if attachments else None),
+                "tep_dinh_kem_url": attachments[0] if attachments else None,
                 "tep_dinh_kem_urls": attachments,
                 "thoi_gian_tra_ket_qua": (
                     returned_at.isoformat() if returned_at else order_data.get("thoi_gian_tra_ket_qua")

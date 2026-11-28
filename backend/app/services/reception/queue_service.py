@@ -49,8 +49,6 @@ class QueueService:
 
     get_reception_report_summary = queue_shift_audit_service.get_reception_report_summary
     get_reception_audit_logs = queue_shift_audit_service.get_reception_audit_logs
-    get_shift_pre_close_audit = queue_shift_audit_service.get_shift_pre_close_audit
-    close_reception_shift = queue_shift_audit_service.close_reception_shift
 
 
 queue_service = QueueService()

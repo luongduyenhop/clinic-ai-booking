@@ -1016,30 +1016,3 @@ export const fetchAuditLogsAsync = createAsyncThunk(
         }
     }
 )
-
-export const fetchShiftPreCloseAuditAsync = createAsyncThunk(
-    'reception/fetchShiftPreCloseAudit',
-    async ({ caKham, queryDate } = {}, { rejectWithValue }) => {
-        try {
-            const res = await receptionService.getShiftPreCloseAudit({
-                ca_kham: caKham,
-                query_date: queryDate || undefined,
-            })
-            return unwrapApi(res)
-        } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Lỗi đối soát trước đóng ca trực'))
-        }
-    }
-)
-
-export const closeReceptionShiftAsync = createAsyncThunk(
-    'reception/closeReceptionShift',
-    async (payload, { rejectWithValue }) => {
-        try {
-            const res = await receptionService.closeShift(payload)
-            return unwrapApi(res)
-        } catch (e) {
-            return rejectWithValue(pickErrorMessage(e, 'Lỗi thực hiện đóng ca trực'))
-        }
-    }
-)

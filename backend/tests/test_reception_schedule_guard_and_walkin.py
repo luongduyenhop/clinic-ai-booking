@@ -19,7 +19,6 @@ from app.models.appointment import (
 from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham, TaiKhoan, VaiTroEnum
 from app.schemas.queue import (
     CheckInRequest,
-    CloseReceptionShiftRequest,
     TransferTicketRequest,
     WalkInCheckInRequest,
 )
@@ -202,103 +201,5 @@ async def test_transfer_ticket_validates_doctor_shift_and_leave(db_session):
             ticket.id,
             TransferTicketRequest(phong_kham_id=room2.id, bac_si_id=bs2.id, ly_do="Đổi bác sĩ"),
             tk_lt,
-            db_session,
-        )
-
-
-@pytest.mark.asyncio
-async def test_close_shift_transfers_to_afternoon_room_doctor_and_errors_when_none(db_session):
-    today, room1, room2, bs1, bs2, bn, _, tk_admin, _ = await _seed_schedule_actors(db_session)
-
-    # room1: bs1 trực sáng, bs2 trực chiều (đã có 1 vé STT #1 ở ca chiều)
-    shift_bs1_sang = LichLamViec(
-        bac_si_id=bs1.id,
-        phong_kham_id=room1.id,
-        ngay_lam_viec=today,
-        ca_lam_viec="sang",
-        gio_bat_dau=time(7, 30),
-        gio_ket_thuc=time(11, 30),
-        is_active=True,
-    )
-    shift_bs2_chieu = LichLamViec(
-        bac_si_id=bs2.id,
-        phong_kham_id=room1.id,
-        ngay_lam_viec=today,
-        ca_lam_viec="chieu",
-        gio_bat_dau=time(13, 30),
-        gio_ket_thuc=time(17, 0),
-        is_active=True,
-    )
-    t_sang = HangDoiKham(
-        benh_nhan_id=bn.id,
-        bac_si_id=bs1.id,
-        phong_kham_id=room1.id,
-        lich_lam_viec_id=shift_bs1_sang.id,
-        ngay_kham=today,
-        ca_kham="sang",
-        so_thu_tu_kham=1,
-        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
-        muc_do_uu_tien=2,
-        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
-        thoi_gian_check_in=datetime.now(timezone.utc),
-    )
-    t_chieu_existing = HangDoiKham(
-        benh_nhan_id=bn.id,
-        bac_si_id=bs2.id,
-        phong_kham_id=room1.id,
-        ngay_kham=today,
-        ca_kham="chieu",
-        so_thu_tu_kham=1,
-        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
-        muc_do_uu_tien=2,
-        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
-        thoi_gian_check_in=datetime.now(timezone.utc),
-    )
-    db_session.add_all([shift_bs1_sang, shift_bs2_chieu, t_sang, t_chieu_existing])
-    await db_session.commit()
-
-    res = await queue_service.close_reception_shift(
-        CloseReceptionShiftRequest(
-            ca_kham="sang",
-            ngay=today,
-            xu_ly_cho_kham="CHUYEN_CA_TIEP_THEO",
-            tu_dong_chot_no_show=False,
-        ),
-        tk_admin,
-        db_session,
-    )
-    assert res.so_ve_chuyen_ca_chieu == 1
-
-    await db_session.refresh(t_sang)
-    assert t_sang.ca_kham == "chieu"
-    assert t_sang.bac_si_id == bs2.id
-    assert t_sang.lich_lam_viec_id == shift_bs2_chieu.id
-    assert t_sang.so_thu_tu_kham == 2
-
-    # Tạo thêm 1 vé ở room2 ca sáng nhưng room2 không có ai trực ca chiều -> báo lỗi
-    t_room2 = HangDoiKham(
-        benh_nhan_id=bn.id,
-        bac_si_id=bs1.id,
-        phong_kham_id=room2.id,
-        ngay_kham=today,
-        ca_kham="sang",
-        so_thu_tu_kham=2,
-        loai_hang_doi=LoaiHangDoiEnum.DUNG_HEN.value,
-        muc_do_uu_tien=2,
-        trang_thai=TrangThaiHangDoiEnum.CHO_KHAM.value,
-        thoi_gian_check_in=datetime.now(timezone.utc),
-    )
-    db_session.add(t_room2)
-    await db_session.commit()
-
-    with pytest.raises(ConflictException):
-        await queue_service.close_reception_shift(
-            CloseReceptionShiftRequest(
-                ca_kham="sang",
-                ngay=today,
-                xu_ly_cho_kham="CHUYEN_CA_TIEP_THEO",
-                tu_dong_chot_no_show=False,
-            ),
-            tk_admin,
             db_session,
         )

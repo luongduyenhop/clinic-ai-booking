@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Progress } from 'antd'
 import AppointmentFormModal from '../../components/reception/AppointmentFormModal'
 import AppointmentDetailModal from '../../components/reception/AppointmentDetailModal'
-import CloseShiftModal from '../../components/reception/CloseShiftModal'
 import { APPOINTMENT_STATUS, QUEUE_STATUS } from '../../utils/constants/receptionConstants'
 import { formatDoctorName } from '../../utils/doctorHelper'
 import {
@@ -52,7 +51,6 @@ export default function ReceptionDashboardPage() {
 
     const [isCreateAppOpen, setIsCreateAppOpen] = useState(false)
     const [selectedApp, setSelectedApp] = useState(null)
-    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [showAllRooms, setShowAllRooms] = useState(false)
     const [scopeMode, setScopeMode] = useState('all')
     const [currentHour] = useState(() => new Date().getHours())
@@ -595,13 +593,6 @@ export default function ReceptionDashboardPage() {
                             patient: matchedPat,
                         },
                     })
-                }}
-            />
-            <CloseShiftModal
-                open={isCloseShiftOpen}
-                onCancel={() => setIsCloseShiftOpen(false)}
-                onSuccess={() => {
-                    dispatch(fetchShiftDashboardAsync({ caKham: activeCaKham }))
                 }}
             />
         </div>

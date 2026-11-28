@@ -16,7 +16,6 @@ import { readAuthFromStorage } from '../../utils/auth/authStorage'
 import { logoutUserAsync } from '../../redux/actions/user/authAction'
 import { isIncidentResolved } from '../../redux/slices/reception/receptionSlice'
 import { getAvatarInitials, stripDemoTag } from '../../utils/helpers/doctorNameHelper'
-import CloseShiftModal from './CloseShiftModal'
 
 const ROUTE_NAMES = {
     '/reception/dashboard': 'Tổng quan & Bàn làm việc Lễ tân',
@@ -48,7 +47,6 @@ export default function ReceptionHeader() {
     const currentUser = authUser || storedAuth?.user
     const role = authRole || storedAuth?.role
 
-    const [isCloseShiftOpen, setIsCloseShiftOpen] = useState(false)
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -297,10 +295,6 @@ export default function ReceptionHeader() {
                 </div>
             </div>
 
-            <CloseShiftModal
-                open={isCloseShiftOpen}
-                onCancel={() => setIsCloseShiftOpen(false)}
-            />
         </header>
     )
 }

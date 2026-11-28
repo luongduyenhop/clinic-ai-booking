@@ -4,7 +4,7 @@ import logging
 import unicodedata
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_, select, func, and_
 from sqlalchemy.orm import selectinload
@@ -110,14 +110,34 @@ def _to_amendment_response(self, bb: BienBanDinhChinh) -> AmendmentResponse:
         updated_at=bb.updated_at,
     )
 
+def _build_encounter_lookup_stmt(encounter_id: Union[int, str], *, for_update: bool = False):
+    if isinstance(encounter_id, str) and encounter_id.startswith("ticket-"):
+        raw_ticket_id = encounter_id.split("-")[-1]
+        if not raw_ticket_id.isdigit():
+            raise NotFoundException("Không tìm thấy thông tin lượt khám!")
+        stmt = (
+            select(LuotKham)
+            .where(LuotKham.hang_doi_kham_id == int(raw_ticket_id))
+            .order_by(LuotKham.id.desc())
+            .limit(1)
+        )
+    else:
+        try:
+            int_id = int(encounter_id)
+        except (ValueError, TypeError):
+            raise NotFoundException("Không tìm thấy thông tin lượt khám!")
+        stmt = select(LuotKham).where(LuotKham.id == int_id)
+    return stmt.with_for_update() if for_update else stmt
+
+
 async def request_amendment(
     self,
-    encounter_id: int,
+    encounter_id: Union[int, str],
     payload: AmendmentCreateRequest,
     user: TaiKhoan,
     db: AsyncSession
 ) -> AmendmentResponse:
-    stmt = select(LuotKham).where(LuotKham.id == encounter_id).with_for_update()
+    stmt = _build_encounter_lookup_stmt(encounter_id, for_update=True)
     luot_kham = (await db.execute(stmt)).scalar_one_or_none()
     if not luot_kham:
         raise NotFoundException("Không tìm thấy thông tin lượt khám!")
@@ -139,7 +159,16 @@ async def request_amendment(
     if payload.thuc_the_loai == "CHAN_DOAN":
         stmt_cd = select(ChanDoan).where(ChanDoan.id == payload.thuc_the_id)
         cd = (await db.execute(stmt_cd)).scalar_one_or_none()
+        if not cd:
+            stmt_cd_fallback = (
+                select(ChanDoan)
+                .where(ChanDoan.luot_kham_id == luot_kham.id)
+                .order_by(ChanDoan.id.desc())
+                .limit(1)
+            )
+            cd = (await db.execute(stmt_cd_fallback)).scalar_one_or_none()
         if cd:
+            payload.thuc_the_id = cd.id
             noi_dung_cu = {
                 "ma_icd10": cd.ma_icd10,
                 "ten_benh_chan_doan": cd.ten_benh_chan_doan,
@@ -200,7 +229,7 @@ async def request_amendment(
         muc_do = "THAP"
 
     amendment = BienBanDinhChinh(
-        luot_kham_id=encounter_id,
+        luot_kham_id=luot_kham.id,
         thuc_the_loai=payload.thuc_the_loai,
         thuc_the_id=payload.thuc_the_id,
         ly_do_ma=payload.ly_do_ma,
@@ -217,7 +246,7 @@ async def request_amendment(
     await db.refresh(amendment)
 
     logger.info(
-        f"📝 [AMENDMENT REQUESTED] ID: {amendment.id} | LuotKham: {encounter_id} | Người yêu cầu: {user.nguoi_dung_id} | Loại: {payload.thuc_the_loai} | Mức độ: {muc_do}"
+        f"📝 [AMENDMENT REQUESTED] ID: {amendment.id} | LuotKham: {luot_kham.id} | Người yêu cầu: {user.nguoi_dung_id} | Loại: {payload.thuc_the_loai} | Mức độ: {muc_do}"
     )
     return self._to_amendment_response(amendment)
 
@@ -302,15 +331,15 @@ async def reject_amendment(
 
 async def get_amendments(
     self,
-    encounter_id: int,
+    encounter_id: Union[int, str],
     user: TaiKhoan,
     db: AsyncSession
 ) -> list[AmendmentResponse]:
-    stmt_enc = select(LuotKham).where(LuotKham.id == encounter_id)
+    stmt_enc = _build_encounter_lookup_stmt(encounter_id, for_update=False)
     enc = (await db.execute(stmt_enc)).scalar_one_or_none()
     if not enc:
         raise NotFoundException("Không tìm thấy thông tin lượt khám!")
 
-    stmt = select(BienBanDinhChinh).where(BienBanDinhChinh.luot_kham_id == encounter_id).order_by(BienBanDinhChinh.created_at.asc())
+    stmt = select(BienBanDinhChinh).where(BienBanDinhChinh.luot_kham_id == enc.id).order_by(BienBanDinhChinh.created_at.asc())
     amendments = (await db.execute(stmt)).scalars().all()
     return [self._to_amendment_response(a) for a in amendments]

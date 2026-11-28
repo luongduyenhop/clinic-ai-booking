@@ -78,17 +78,17 @@ function DiagnosisRow({ dx, primary, locked, onRemove, onMakePrimary }) {
 
 function formatResultSummary(detail) {
     if (!detail) return null
-    if (typeof detail === 'string') return detail
+    if (typeof detail === 'string') return detail.trim() || null
     if (typeof detail === 'object') {
         if (detail.ket_luan) return String(detail.ket_luan)
         if (detail.mo_ta) return String(detail.mo_ta)
         if (detail.tom_tat) return String(detail.tom_tat)
-        if (Array.isArray(detail.chi_tiet)) {
+        if (Array.isArray(detail.chi_tiet) && detail.chi_tiet.length > 0) {
             return detail.chi_tiet
                 .map((ct) => `${ct.ten_chi_so || ct.ten || ct.ma}: ${ct.gia_tri} ${ct.don_vi || ''}`.trim())
                 .join(', ')
         }
-        if (detail.chi_so && typeof detail.chi_so === 'object') {
+        if (detail.chi_so && typeof detail.chi_so === 'object' && Object.keys(detail.chi_so).length > 0) {
             return Object.entries(detail.chi_so)
                 .map(([k, v]) => {
                     if (v && typeof v === 'object') {
@@ -98,10 +98,12 @@ function formatResultSummary(detail) {
                 })
                 .join(', ')
         }
+        if (Object.keys(detail).length === 0) return null
         try {
-            return JSON.stringify(detail)
+            const str = JSON.stringify(detail)
+            return str === '{}' ? null : str
         } catch {
-            return String(detail)
+            return null
         }
     }
     return String(detail)
@@ -367,17 +369,18 @@ export default function StepDiagnosis({
                             )}
                         </div>
                     ) : clsOrders.length > 0 && (
-                        <div className="flex flex-col divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface max-h-80 overflow-y-auto">
+                        <div className="flex flex-col divide-y divide-clinic-border border border-clinic-border rounded-[6px] bg-clinic-surface max-h-[520px] overflow-y-auto">
                             {clsOrders.map((o) => {
                                 const isDone = o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
                                 const isDoing = o.trang_thai === 'dang_thuc_hien'
                                 const resultDetail = o.ket_qua_chi_tiet || o.tri_so_chi_tiet
+                                const formattedSummary = formatResultSummary(resultDetail) || o.ket_luan || o.ghi_chu || ''
                                 const imageList = (o.tep_dinh_kem_urls && o.tep_dinh_kem_urls.length > 0)
                                     ? o.tep_dinh_kem_urls
                                     : (o.tep_dinh_kem_url ? [o.tep_dinh_kem_url] : [])
 
                                 return (
-                                    <div key={o.id} className="flex flex-col gap-1.5 p-2.5 bg-clinic-surface">
+                                    <div key={o.id} className="flex flex-col gap-1.5 p-3 bg-clinic-surface">
                                         <div className="flex items-center justify-between gap-1">
                                             <span className="text-[12px] font-bold text-clinic-navy truncate">
                                                 {o.ten_dich_vu || services.find((s) => String(s.id) === String(o.dich_vu_id))?.ten_dich_vu || 'Dịch vụ CLS'}
@@ -388,9 +391,13 @@ export default function StepDiagnosis({
                                                 {isDone ? 'Đã có KQ' : isDoing ? 'Đang làm' : 'Chờ làm'}
                                             </span>
                                         </div>
-                                        {isDone && resultDetail && (
-                                            <div className="text-[11px] text-clinic-success bg-clinic-success-bg rounded-[6px] p-2 border border-clinic-success-border leading-relaxed font-medium">
-                                                {formatResultSummary(resultDetail)}
+                                        {isDone && formattedSummary && (
+                                            <div className="text-xs text-clinic-success bg-clinic-success-bg rounded-[6px] p-2.5 border border-clinic-success-border leading-relaxed font-medium space-y-1">
+                                                <div className="text-[11px] font-bold text-clinic-navy flex items-center gap-1">
+                                                    <ClinicIcon name="PushPin" size={12} weight="bold" />
+                                                    <span>Kết quả / Kết luận:</span>
+                                                </div>
+                                                <div>{formattedSummary}</div>
                                             </div>
                                         )}
                                         {isDone && imageList.length > 0 && (

@@ -2,26 +2,70 @@ import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { printPrescriptionDocument, printMedicalRecordDocument } from '../../utils/helpers/printMedicalDocuments'
 import { ClinicIcon } from '../common/ClinicIcon'
+import ResultAttachments from '../user/patient/ResultAttachments'
+
+const getTodayRaw = () => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+
+const normalizeDisplayDateToRaw = (dateStr) => {
+    if (!dateStr) return ''
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+    const parts = String(dateStr).split('/')
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+    }
+    return ''
+}
+
+const formatLabOrderSummary = (order) => {
+    if (!order) return ''
+    if (order.summary) return String(order.summary)
+    const detail = order.detail
+    if (!detail) return ''
+    if (typeof detail === 'string') return detail.trim()
+    if (typeof detail === 'object') {
+        if (detail.ket_luan) return String(detail.ket_luan)
+        if (detail.mo_ta) return String(detail.mo_ta)
+        if (detail.tom_tat) return String(detail.tom_tat)
+        if (Array.isArray(detail.chi_tiet) && detail.chi_tiet.length > 0) {
+            return detail.chi_tiet
+                .map((ct) => `${ct.ten_chi_so || ct.ten || ct.ma}: ${ct.gia_tri} ${ct.don_vi || ''}`.trim())
+                .join(', ')
+        }
+    }
+    return ''
+}
 
 export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = null }) {
     const [searchKeyword, setSearchKeyword] = useState('')
-    const [timeFilter, setTimeFilter] = useState('ALL')
+    const [selectedDate, setSelectedDate] = useState('')
     const [selectedRecord, setSelectedRecord] = useState(null)
 
-    const [todayStr] = useState(() => new Date().toLocaleDateString('vi-VN'))
-    const filteredList = useMemo(() => examinedList.filter((item) => {
-        const matchesSearch =
-            (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
-            (item?.patientCode || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
-            (item?.finalDiagnosis || '').toLowerCase().includes(searchKeyword.toLowerCase())
+    const [todayRaw] = useState(() => getTodayRaw())
 
-        if (!matchesSearch) return false
+    const filteredList = useMemo(
+        () =>
+            examinedList.filter((item) => {
+                const matchesSearch =
+                    (item?.fullName || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
+                    (item?.patientCode || '').toLowerCase().includes(searchKeyword.toLowerCase()) ||
+                    (item?.finalDiagnosis || '').toLowerCase().includes(searchKeyword.toLowerCase())
 
-        if (timeFilter === 'TODAY') {
-            return item.completedDate === todayStr
-        }
-        return true
-    }), [examinedList, searchKeyword, timeFilter, todayStr])
+                if (!matchesSearch) return false
+
+                if (selectedDate) {
+                    const itemRaw = item.completedDateRaw || normalizeDisplayDateToRaw(item.completedDate)
+                    return itemRaw === selectedDate
+                }
+                return true
+            }),
+        [examinedList, searchKeyword, selectedDate]
+    )
 
     const preparePrintPayload = (item) => {
         if (!item) return { encounter: {}, diagnoses: [], prescriptionItems: [], prescriptionNote: '' }
@@ -53,17 +97,21 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
             ket_luan_dieu_tri: enc.ket_luan_dieu_tri || item.doctorNotes || '',
         }
 
-        const diagnoses = (item.diagnoses && item.diagnoses.length > 0)
-            ? item.diagnoses
-            : (item.finalDiagnosis ? [{
-                ma_icd10: item.finalDiagnosis.split(' - ')[0]?.trim(),
-                ten_benh_chan_doan: item.finalDiagnosis.split(' - ')[1]?.trim() || item.finalDiagnosis,
-                loai_chan_doan: 'chinh',
-            }] : [])
+        const diagnoses =
+            item.diagnoses && item.diagnoses.length > 0
+                ? item.diagnoses
+                : item.finalDiagnosis
+                ? [
+                      {
+                          ma_icd10: item.finalDiagnosis.split(' - ')[0]?.trim(),
+                          ten_benh_chan_doan: item.finalDiagnosis.split(' - ')[1]?.trim() || item.finalDiagnosis,
+                          loai_chan_doan: 'chinh',
+                      },
+                  ]
+                : []
 
-        const prescriptionItems = (item.prescriptionItems && item.prescriptionItems.length > 0)
-            ? item.prescriptionItems
-            : (item.prescriptions || [])
+        const prescriptionItems =
+            item.prescriptionItems && item.prescriptionItems.length > 0 ? item.prescriptionItems : item.prescriptions || []
 
         return {
             encounter: mergedEncounter,
@@ -118,12 +166,12 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         <button
                             type="button"
-                            onClick={() => setTimeFilter('ALL')}
+                            onClick={() => setSelectedDate('')}
                             className={`px-3.5 py-2 rounded-[6px] text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
-                                timeFilter === 'ALL'
+                                selectedDate === ''
                                     ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
                                     : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border hover:bg-clinic-surface-tint'
                             }`}
@@ -132,15 +180,25 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                         </button>
                         <button
                             type="button"
-                            onClick={() => setTimeFilter('TODAY')}
+                            onClick={() => setSelectedDate(todayRaw)}
                             className={`px-3.5 py-2 rounded-[6px] text-xs font-bold transition cursor-pointer whitespace-nowrap border ${
-                                timeFilter === 'TODAY'
+                                selectedDate === todayRaw
                                     ? 'bg-clinic-navy text-clinic-surface border-clinic-navy'
                                     : 'bg-clinic-bg text-clinic-text-secondary border-clinic-border hover:bg-clinic-surface-tint'
                             }`}
                         >
                             Hôm nay
                         </button>
+                        <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] border border-clinic-border bg-clinic-bg text-xs font-semibold text-clinic-navy">
+                            <ClinicIcon name="Calendar" size={14} className="text-clinic-cta" />
+                            <input
+                                type="date"
+                                aria-label="Lọc theo ngày khám"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-xs font-semibold text-clinic-navy outline-none tabular-nums cursor-pointer"
+                            />
+                        </label>
                     </div>
                 </div>
             </div>
@@ -166,78 +224,88 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                     </td>
                                 </tr>
                             ) : (
-                                filteredList.map((item) => (
-                                    <tr key={item.id} className="hover:bg-clinic-surface-tint transition">
-                                        <td className="py-3 px-4 font-semibold text-clinic-text whitespace-nowrap tabular-nums">
-                                            <div className="font-bold text-clinic-navy">{item.patientCode}</div>
-                                            <div className="text-[11px] text-clinic-text-secondary">
-                                                {item.completedAt} · {item.completedDate}
-                                            </div>
-                                        </td>
+                                filteredList.map((item) => {
+                                    const labCount = item.labOrders?.length || item.labTests?.length || 0
+                                    return (
+                                        <tr key={item.id} className="hover:bg-clinic-surface-tint transition">
+                                            <td className="py-3 px-4 font-semibold text-clinic-text whitespace-nowrap tabular-nums">
+                                                <div className="font-bold text-clinic-navy">{item.patientCode}</div>
+                                                <div className="text-[11px] text-clinic-text-secondary">
+                                                    {item.completedAt} · {item.completedDate}
+                                                </div>
+                                            </td>
 
-                                        <td className="py-3 px-4 whitespace-nowrap">
-                                            <div className="font-bold text-clinic-navy">{item.fullName}</div>
-                                            <div className="text-[11px] text-clinic-text-secondary flex items-center gap-1 tabular-nums">
-                                                <span>{item.gender} · {item.age} tuổi ·</span>
-                                                <ClinicIcon name="Phone" size={11} />
-                                                <span>{item.phone}</span>
-                                            </div>
-                                        </td>
-
-                                        <td className="py-3 px-4 max-w-xs">
-                                            <div className="font-semibold text-clinic-navy line-clamp-2">
-                                                {item.finalDiagnosis || 'Khám nội tim mạch định kỳ'}
-                                            </div>
-                                            <div className="text-[11px] text-clinic-text-secondary truncate mt-0.5">
-                                                Ghi chú: {item.doctorNotes || 'Tái khám sau 2 tuần'}
-                                            </div>
-                                        </td>
-
-                                        <td className="py-3 px-4">
-                                            <div className="flex flex-wrap gap-1 tabular-nums">
-                                                {item.labTests && item.labTests.length > 0 ? (
-                                                    <span className="medpro-badge-info inline-flex items-center gap-1 text-[10px] font-semibold">
-                                                        <ClinicIcon name="Microscope" size={11} />
-                                                        <span>{item.labTests.length} xét nghiệm</span>
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                                <div className="font-bold text-clinic-navy">{item.fullName}</div>
+                                                <div className="text-[11px] text-clinic-text-secondary flex items-center gap-1 tabular-nums">
+                                                    <span>
+                                                        {item.gender} · {item.age} tuổi ·
                                                     </span>
-                                                ) : null}
-                                                <span className="medpro-badge-success inline-flex items-center gap-1 text-[10px] font-semibold">
-                                                    <ClinicIcon name="Pill" size={11} />
-                                                    <span>{item.prescriptions?.length || 0} loại thuốc</span>
+                                                    <ClinicIcon name="Phone" size={11} />
+                                                    <span>{item.phone}</span>
+                                                </div>
+                                            </td>
+
+                                            <td className="py-3 px-4 max-w-xs">
+                                                <div className="font-semibold text-clinic-navy line-clamp-2">
+                                                    {item.finalDiagnosis || 'Khám nội tim mạch định kỳ'}
+                                                </div>
+                                                <div className="text-[11px] text-clinic-text-secondary truncate mt-0.5">
+                                                    Ghi chú: {item.doctorNotes || 'Tái khám sau 2 tuần'}
+                                                </div>
+                                            </td>
+
+                                            <td className="py-3 px-4">
+                                                <div className="flex flex-wrap gap-1 tabular-nums">
+                                                    {labCount > 0 ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedRecord(item)}
+                                                            className="medpro-badge-info inline-flex items-center gap-1 text-[10px] font-semibold cursor-pointer hover:opacity-85 transition"
+                                                            title="Xem chi tiết kết quả cận lâm sàng"
+                                                        >
+                                                            <ClinicIcon name="Microscope" size={11} />
+                                                            <span>{labCount} KQ dịch vụ</span>
+                                                        </button>
+                                                    ) : null}
+                                                    <span className="medpro-badge-success inline-flex items-center gap-1 text-[10px] font-semibold">
+                                                        <ClinicIcon name="Pill" size={11} />
+                                                        <span>{item.prescriptions?.length || 0} loại thuốc</span>
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                                <span className="medpro-badge-success inline-flex items-center gap-1 font-bold text-[11px]">
+                                                    <ClinicIcon name="Check" size={11} weight="bold" />
+                                                    <span>Đã hoàn thành</span>
                                                 </span>
-                                            </div>
-                                        </td>
+                                            </td>
 
-                                        <td className="py-3 px-4 whitespace-nowrap">
-                                            <span className="medpro-badge-success inline-flex items-center gap-1 font-bold text-[11px]">
-                                                <ClinicIcon name="Check" size={11} weight="bold" />
-                                                <span>Đã hoàn thành</span>
-                                            </span>
-                                        </td>
-
-                                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSelectedRecord(item)}
-                                                    className="medpro-btn-outline px-2.5 py-1.5 rounded-[6px] font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
-                                                >
-                                                    <ClinicIcon name="Eye" size={12} />
-                                                    <span>Chi tiết</span>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handlePrintPrescription(item)}
-                                                    className="medpro-btn-outline px-2.5 py-1.5 rounded-[6px] font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
-                                                    title="In đơn thuốc"
-                                                >
-                                                    <ClinicIcon name="Printer" size={12} />
-                                                    <span>In đơn</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedRecord(item)}
+                                                        className="medpro-btn-outline px-2.5 py-1.5 rounded-[6px] font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
+                                                    >
+                                                        <ClinicIcon name="Eye" size={12} />
+                                                        <span>Chi tiết</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePrintPrescription(item)}
+                                                        className="medpro-btn-outline px-2.5 py-1.5 rounded-[6px] font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
+                                                        title="In đơn thuốc"
+                                                    >
+                                                        <ClinicIcon name="Printer" size={12} />
+                                                        <span>In đơn</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })
                             )}
                         </tbody>
                     </table>
@@ -254,7 +322,9 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                         Hồ Sơ Bệnh Án Điện Tử
                                     </h3>
                                     <p className="text-xs text-clinic-text-secondary tabular-nums">
-                                        Mã bệnh án: <span className="font-bold text-clinic-navy">{selectedRecord.patientCode}</span> | Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
+                                        Mã bệnh án:{' '}
+                                        <span className="font-bold text-clinic-navy">{selectedRecord.patientCode}</span> |
+                                        Khám lúc: {selectedRecord.completedAt} ({selectedRecord.completedDate})
                                     </p>
                                 </div>
                                 <button
@@ -274,29 +344,44 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                         <span className="font-bold text-clinic-navy">{selectedRecord.fullName}</span>
                                     </div>
                                     <div className="tabular-nums">
-                                        <span className="text-clinic-text-secondary block text-[11px]">Giới tính / Tuổi:</span>
-                                        <span className="font-semibold text-clinic-navy">{selectedRecord.gender} · {selectedRecord.age} tuổi</span>
+                                        <span className="text-clinic-text-secondary block text-[11px]">
+                                            Giới tính / Tuổi:
+                                        </span>
+                                        <span className="font-semibold text-clinic-navy">
+                                            {selectedRecord.gender} · {selectedRecord.age} tuổi
+                                        </span>
                                     </div>
                                     <div className="tabular-nums">
-                                        <span className="text-clinic-text-secondary block text-[11px]">Số điện thoại:</span>
+                                        <span className="text-clinic-text-secondary block text-[11px]">
+                                            Số điện thoại:
+                                        </span>
                                         <span className="font-semibold text-clinic-navy">{selectedRecord.phone}</span>
                                     </div>
                                     <div className="tabular-nums">
                                         <span className="text-clinic-text-secondary block text-[11px]">Huyết áp:</span>
                                         <span className="font-bold text-clinic-navy">
-                                            {selectedRecord.vitals?.bloodPressure ? `${selectedRecord.vitals.bloodPressure} mmHg` : 'Chưa đo'}
+                                            {selectedRecord.vitals?.bloodPressure
+                                                ? `${selectedRecord.vitals.bloodPressure} mmHg`
+                                                : 'Chưa đo'}
                                         </span>
                                     </div>
                                     <div className="tabular-nums">
                                         <span className="text-clinic-text-secondary block text-[11px]">Nhịp tim:</span>
                                         <span className="font-bold text-clinic-navy">
-                                            {selectedRecord.vitals?.heartRate ? `${selectedRecord.vitals.heartRate} bpm` : 'Chưa đo'}
+                                            {selectedRecord.vitals?.heartRate
+                                                ? `${selectedRecord.vitals.heartRate} bpm`
+                                                : 'Chưa đo'}
                                         </span>
                                     </div>
                                     <div>
-                                        <span className="text-clinic-text-secondary block text-[11px]">Bác sĩ điều trị:</span>
+                                        <span className="text-clinic-text-secondary block text-[11px]">
+                                            Bác sĩ điều trị:
+                                        </span>
                                         <span className="font-bold text-clinic-cta">
-                                            {selectedRecord.doctorName || doctorInfo?.fullName || doctorInfo?.name || 'Bác sĩ điều trị'}
+                                            {selectedRecord.doctorName ||
+                                                doctorInfo?.fullName ||
+                                                doctorInfo?.name ||
+                                                'Bác sĩ điều trị'}
                                         </span>
                                     </div>
                                 </div>
@@ -310,23 +395,74 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                     </p>
                                 </div>
 
-                                {selectedRecord.labTests && selectedRecord.labTests.length > 0 && (
-                                    <div className="space-y-1.5 text-xs">
+                                {selectedRecord.labOrders && selectedRecord.labOrders.length > 0 ? (
+                                    <div className="space-y-2 text-xs">
                                         <h4 className="font-bold text-clinic-text-secondary text-xs">
-                                            Cận lâm sàng đã chỉ định:
+                                            Kết quả Cận lâm sàng &amp; Dịch vụ đã thực hiện:
                                         </h4>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {selectedRecord.labTests.map((t, i) => (
-                                                <span
-                                                    key={i}
-                                                    className="medpro-badge-info inline-flex items-center gap-1 px-2.5 py-1 font-semibold"
-                                                >
-                                                    <ClinicIcon name="Microscope" size={12} />
-                                                    <span>{t}</span>
-                                                </span>
-                                            ))}
+                                        <div className="space-y-2">
+                                            {selectedRecord.labOrders.map((order, idx) => {
+                                                const isDone =
+                                                    order.status === 'da_co_ket_qua' || order.status === 'da_duyet'
+                                                const summaryText = formatLabOrderSummary(order)
+                                                return (
+                                                    <div
+                                                        key={order.id || idx}
+                                                        className="p-3 rounded-[6px] border border-clinic-border bg-clinic-bg space-y-1.5"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-bold text-clinic-navy inline-flex items-center gap-1.5">
+                                                                <ClinicIcon
+                                                                    name="Microscope"
+                                                                    size={13}
+                                                                    className="text-clinic-cta"
+                                                                />
+                                                                <span>{order.name}</span>
+                                                            </span>
+                                                            <span
+                                                                className={`text-[10px] font-bold ${
+                                                                    isDone ? 'medpro-badge-success' : 'medpro-badge-info'
+                                                                }`}
+                                                            >
+                                                                {isDone ? 'Đã có kết quả' : 'Đang xử lý'}
+                                                            </span>
+                                                        </div>
+                                                        {summaryText && (
+                                                            <div className="text-[11px] text-clinic-success bg-clinic-success-bg border border-clinic-success-border rounded-[6px] p-2 font-medium">
+                                                                {summaryText}
+                                                            </div>
+                                                        )}
+                                                        {order.attachments && order.attachments.length > 0 && (
+                                                            <ResultAttachments
+                                                                files={order.attachments}
+                                                                serviceName={order.name}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     </div>
+                                ) : (
+                                    selectedRecord.labTests &&
+                                    selectedRecord.labTests.length > 0 && (
+                                        <div className="space-y-1.5 text-xs">
+                                            <h4 className="font-bold text-clinic-text-secondary text-xs">
+                                                Cận lâm sàng đã chỉ định:
+                                            </h4>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedRecord.labTests.map((t, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className="medpro-badge-info inline-flex items-center gap-1 px-2.5 py-1 font-semibold"
+                                                    >
+                                                        <ClinicIcon name="Microscope" size={12} />
+                                                        <span>{t}</span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )
                                 )}
 
                                 <div className="space-y-2 text-xs">
@@ -335,10 +471,17 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                     </h4>
                                     <div className="divide-y divide-clinic-border border border-clinic-border rounded-[6px] overflow-hidden">
                                         {selectedRecord.prescriptions?.map((med, i) => (
-                                            <div key={i} className="p-3 flex justify-between items-center bg-clinic-surface">
+                                            <div
+                                                key={i}
+                                                className="p-3 flex justify-between items-center bg-clinic-surface"
+                                            >
                                                 <div>
-                                                    <span className="font-bold text-clinic-navy tabular-nums">{i + 1}. {med.name}</span>
-                                                    <p className="text-[11px] text-clinic-text-secondary">{med.dosage}</p>
+                                                    <span className="font-bold text-clinic-navy tabular-nums">
+                                                        {i + 1}. {med.name}
+                                                    </span>
+                                                    <p className="text-[11px] text-clinic-text-secondary">
+                                                        {med.dosage}
+                                                    </p>
                                                 </div>
                                                 <span className="medpro-badge-neutral text-xs font-semibold tabular-nums">
                                                     {med.quantity}
@@ -353,7 +496,10 @@ export default function ExaminedHistoryTab({ examinedList = [], doctorInfo = nul
                                         <ClinicIcon name="PushPin" size={13} weight="bold" />
                                         <span>Lời dặn của bác sĩ:</span>
                                     </span>
-                                    <p>{selectedRecord.doctorNotes || 'Ăn uống hợp lý, hạn chế mỡ động vật. Tái khám sau 14 ngày.'}</p>
+                                    <p>
+                                        {selectedRecord.doctorNotes ||
+                                            'Ăn uống hợp lý, hạn chế mỡ động vật. Tái khám sau 14 ngày.'}
+                                    </p>
                                 </div>
                             </div>
 

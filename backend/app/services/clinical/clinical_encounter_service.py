@@ -88,6 +88,48 @@ from app.schemas.ai import AiFeedbackRequest, AiFeedbackResponse
 
 logger = logging.getLogger(__name__)
 
+def _assert_doctor_license_valid(bac_si: BacSi) -> None:
+    from app.models.compliance import TrangThaiGiayPhep
+    from app.services.auth.credential_service import DoctorLicenseInvalidException
+
+    doc_name = f"ID {getattr(bac_si, 'id', '')}"
+    status = getattr(bac_si, "trang_thai_giay_phep", "ACTIVE")
+
+    if status == TrangThaiGiayPhep.EXPIRED.value or status == "EXPIRED":
+        raise DoctorLicenseInvalidException(
+            f"Giấy phép hành nghề của Bác sĩ {doc_name} đã HẾT HẠN (EXPIRED). Không thể phân công hoặc tiếp nhận ca khám!"
+        )
+    if status == TrangThaiGiayPhep.SUSPENDED.value or status == "SUSPENDED":
+        raise DoctorLicenseInvalidException(
+            f"Bác sĩ {doc_name} đang bị TẠM ĐÌNH CHỈ hành nghề (SUSPENDED). Mọi hoạt động chuyên môn bị tạm khóa!"
+        )
+    if status == TrangThaiGiayPhep.REVOKED.value or status == "REVOKED":
+        raise DoctorLicenseInvalidException(
+            f"Giấy phép hành nghề của Bác sĩ {doc_name} đã bị THU HỒI (REVOKED). Từ chối thực hiện tác vụ!"
+        )
+
+    ngay_het_han = getattr(bac_si, "ngay_het_han", None)
+    if ngay_het_han:
+        now = datetime.now(timezone.utc)
+        if isinstance(ngay_het_han, datetime):
+            exp_dt = ngay_het_han if ngay_het_han.tzinfo else ngay_het_han.replace(tzinfo=timezone.utc)
+            is_expired = exp_dt < now
+            exp_str = exp_dt.strftime("%Y-%m-%d")
+        else:
+            is_expired = ngay_het_han < now.date()
+            exp_str = ngay_het_han.strftime("%Y-%m-%d")
+
+        if is_expired:
+            bac_si.trang_thai_giay_phep = TrangThaiGiayPhep.EXPIRED.value
+            bac_si.is_active = False
+            raise DoctorLicenseInvalidException(
+                f"Giấy phép hành nghề của Bác sĩ {doc_name} đã hết hạn vào ngày {exp_str}!"
+            )
+
+    if getattr(bac_si, "is_active", None) is False:
+        raise DoctorLicenseInvalidException(f"Hồ sơ Bác sĩ {doc_name} hiện đang ở trạng thái ngừng hoạt động!")
+
+
 async def _get_doctor_from_user(self, user: TaiKhoan, db: AsyncSession) -> BacSi:
     if user.vai_tro not in (VaiTroEnum.BAC_SI.value, VaiTroEnum.ADMIN.value):
         raise ForbiddenException("Chức năng khám bệnh lâm sàng chỉ dành riêng cho Bác sĩ!")
@@ -96,6 +138,8 @@ async def _get_doctor_from_user(self, user: TaiKhoan, db: AsyncSession) -> BacSi
     bac_si = (await db.execute(stmt)).scalar_one_or_none()
     if not bac_si:
         raise ForbiddenException("Tài khoản chưa được liên kết với hồ sơ Bác sĩ hợp lệ!")
+    if user.vai_tro == VaiTroEnum.BAC_SI.value:
+        _assert_doctor_license_valid(bac_si)
     return bac_si
 
 async def enrich_workspace_ai(self, payload: dict, db: AsyncSession) -> dict:

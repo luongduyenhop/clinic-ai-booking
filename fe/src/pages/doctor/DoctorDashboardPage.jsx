@@ -16,20 +16,61 @@ function mapEncounterRecord(enc, fallbackTicket, user, idx) {
         ? `${primaryDx.ma_icd10} - ${primaryDx.ten_benh_chan_doan}`
         : 'Chưa có chẩn đoán'
 
-    const rawAnchorTime = enc?.thoi_gian_khoa || enc?.thoi_gian_ket_thuc || enc?.thoi_gian_bat_dau || null
+    const rawAnchorTime =
+        enc?.thoi_gian_khoa ||
+        enc?.thoi_gian_ket_thuc ||
+        enc?.updated_at ||
+        fallbackTicket?.updated_at ||
+        enc?.thoi_gian_bat_dau ||
+        fallbackTicket?.created_at ||
+        null
     const parsedTime = rawAnchorTime ? new Date(rawAnchorTime) : null
     const validParsed = parsedTime && !Number.isNaN(parsedTime.getTime()) ? parsedTime : null
+    const dateAnchor = validParsed || new Date()
 
     const timeStr = validParsed
         ? validParsed.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         : ''
-    const dateStr = validParsed
-        ? validParsed.toLocaleDateString('vi-VN')
-        : new Date().toLocaleDateString('vi-VN')
+    const dateStr = dateAnchor.toLocaleDateString('vi-VN')
+    const completedDateRaw = `${dateAnchor.getFullYear()}-${String(dateAnchor.getMonth() + 1).padStart(2, '0')}-${String(
+        dateAnchor.getDate()
+    ).padStart(2, '0')}`
 
-    const labTests = (enc?.danh_sach_chi_dinh || [])
+    const labOrders = (enc?.danh_sach_chi_dinh || [])
         .filter((o) => o.trang_thai !== 'da_huy')
-        .map((o) => o.ten_dich_vu)
+        .map((o) => {
+            const resultDetail = o.ket_qua_chi_tiet || o.tri_so_chi_tiet
+            const imageList =
+                o.tep_dinh_kem_urls && o.tep_dinh_kem_urls.length > 0
+                    ? o.tep_dinh_kem_urls
+                    : o.tep_dinh_kem_url
+                    ? [o.tep_dinh_kem_url]
+                    : []
+
+            let summary = o.ket_luan || o.ghi_chu || ''
+            if (typeof resultDetail === 'string' && resultDetail.trim()) {
+                summary = resultDetail.trim()
+            } else if (resultDetail && typeof resultDetail === 'object') {
+                summary = resultDetail.ket_luan || resultDetail.tom_tat || resultDetail.mo_ta || summary
+            }
+
+            return {
+                id: o.id || o.server_order_id,
+                name: o.ten_dich_vu || 'Dịch vụ CLS',
+                status: o.trang_thai,
+                summary:
+                    summary ||
+                    (o.trang_thai === 'da_co_ket_qua' || o.trang_thai === 'da_duyet'
+                        ? 'Đã có kết quả'
+                        : 'Chờ thực hiện'),
+                description: resultDetail?.mo_ta || '',
+                detail: resultDetail,
+                attachments: imageList,
+                performedAt: o.thoi_gian_tra_kq || o.thoi_gian_thuc_hien || o.updated_at || '',
+            }
+        })
+
+    const labTests = labOrders.map((o) => o.name)
 
     const rawRx = (Array.isArray(enc?.danh_sach_thuoc) && enc.danh_sach_thuoc.length > 0)
         ? enc.danh_sach_thuoc
@@ -84,9 +125,11 @@ function mapEncounterRecord(enc, fallbackTicket, user, idx) {
         status: 'COMPLETED',
         completedAt: timeStr,
         completedDate: dateStr,
+        completedDateRaw,
         completedTimestamp: validParsed ? validParsed.getTime() : 0,
         finalDiagnosis,
         labTests,
+        labOrders,
         prescriptions,
         vitals: {
             bloodPressure,

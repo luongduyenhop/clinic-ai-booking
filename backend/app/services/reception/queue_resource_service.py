@@ -12,8 +12,10 @@ from app.models.appointment import (
     HangDoiKham,
     LichKham,
     LichLamViec,
+    NghiPhepBacSi,
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
+    TrangThaiNghiPhepEnum,
 )
 from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham
 from app.services.appointment.appointment_service import clinic_now
@@ -253,7 +255,11 @@ async def get_roster_resources(
             selectinload(LichLamViec.bac_si).selectinload(BacSi.phong_kham),
             selectinload(LichLamViec.phong_kham),
         )
-        .where(LichLamViec.ngay_lam_viec == target_date)
+        .where(
+            LichLamViec.ngay_lam_viec == target_date,
+            LichLamViec.is_active.is_(True),
+            LichLamViec.bac_si.has(BacSi.is_active.is_(True)),
+        )
     )
 
     if ca_kham:
@@ -263,6 +269,25 @@ async def get_roster_resources(
         stmt = stmt.where(LichLamViec.bac_si.has(BacSi.chuyen_khoa_id == chuyen_khoa_id))
 
     rosters = (await db.execute(stmt)).scalars().all()
+
+    doc_ids = list({r.bac_si_id for r in rosters if r.bac_si_id})
+    leaves_by_doc: dict[int, set[Optional[str]]] = {}
+    if doc_ids:
+        stmt_leaves = select(NghiPhepBacSi.bac_si_id, NghiPhepBacSi.ca_lam_viec).where(
+            NghiPhepBacSi.bac_si_id.in_(doc_ids),
+            NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+            NghiPhepBacSi.tu_ngay <= target_date,
+            NghiPhepBacSi.den_ngay >= target_date,
+        )
+        for doc_id, leave_ca in (await db.execute(stmt_leaves)).all():
+            leaves_by_doc.setdefault(doc_id, set()).add(leave_ca)
+
+    rosters = [
+        r
+        for r in rosters
+        if None not in leaves_by_doc.get(r.bac_si_id, set())
+        and r.ca_lam_viec not in leaves_by_doc.get(r.bac_si_id, set())
+    ]
 
     stmt_counts = (
         select(HangDoiKham.bac_si_id, HangDoiKham.ca_kham, func.count(HangDoiKham.id))
@@ -305,10 +330,7 @@ async def get_roster_resources(
 
             ten_phong_display = f"{phong_obj.ten_phong} ({phong_obj.ma_phong})"
 
-        so_da_nhan = count_map.get((r.bac_si_id, r.ca_lam_viec))
-
-        if so_da_nhan is None:
-            so_da_nhan = count_by_doc.get(r.bac_si_id, 0)
+        so_da_nhan = count_map.get((r.bac_si_id, r.ca_lam_viec), 0)
 
         ck_id = r.bac_si.chuyen_khoa_id if r.bac_si else None
 

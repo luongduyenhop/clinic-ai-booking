@@ -13,8 +13,10 @@ from app.models.appointment import (
     LichKham,
     LichLamViec,
     LoaiHangDoiEnum,
+    NghiPhepBacSi,
     TrangThaiHangDoiEnum,
     TrangThaiLichEnum,
+    TrangThaiNghiPhepEnum,
 )
 from app.models.user import BacSi, BenhNhan, TaiKhoan, VaiTroEnum, PhongKham
 from app.services.appointment.appointment_service import clinic_now
@@ -584,12 +586,26 @@ async def get_room_status_dashboard(
 
     rosters = (await db.execute(stmt_llv)).scalars().all()
 
+    stmt_leaves = select(NghiPhepBacSi.bac_si_id, NghiPhepBacSi.ca_lam_viec).where(
+        NghiPhepBacSi.trang_thai == TrangThaiNghiPhepEnum.DA_DUYET.value,
+        NghiPhepBacSi.tu_ngay <= target_date,
+        NghiPhepBacSi.den_ngay >= target_date,
+    )
+    leaves_by_doc: dict[int, set[Optional[str]]] = {}
+    for doc_id, leave_ca in (await db.execute(stmt_leaves)).all():
+        leaves_by_doc.setdefault(doc_id, set()).add(leave_ca)
+
     current_shift = self._determine_shift(now_dt.time())
 
     room_roster_map = {}
 
     for ros in rosters:
         if not ros.phong_kham_id:
+            continue
+        if ros.bac_si and not ros.bac_si.is_active:
+            continue
+        doc_leaves = leaves_by_doc.get(ros.bac_si_id, set())
+        if None in doc_leaves or ros.ca_lam_viec in doc_leaves:
             continue
 
         if ros.phong_kham_id not in room_roster_map or ros.ca_lam_viec == current_shift:
@@ -647,15 +663,15 @@ async def get_room_status_dashboard(
             else (r.chuyen_khoa.ten_chuyen_khoa if r.chuyen_khoa else None)
         )
 
-        if not bac_si_id and r.id in doc_room_map:
+        if not bac_si_id and not rosters and r.id in doc_room_map:
             fallback_doc = doc_room_map[r.id]
-
-            bac_si_id = fallback_doc.id
-
-            ten_bac_si = fallback_doc.nguoi_dung.ho_ten if fallback_doc.nguoi_dung else None
-
-            if not chuyen_khoa_ten and fallback_doc.chuyen_khoa:
-                chuyen_khoa_ten = fallback_doc.chuyen_khoa.ten_chuyen_khoa
+            doc_leaves = leaves_by_doc.get(fallback_doc.id, set())
+            fallback_shift = None if is_all_day else target_ca
+            if None not in doc_leaves and (fallback_shift is None or fallback_shift not in doc_leaves):
+                bac_si_id = fallback_doc.id
+                ten_bac_si = fallback_doc.nguoi_dung.ho_ten if fallback_doc.nguoi_dung else None
+                if not chuyen_khoa_ten and fallback_doc.chuyen_khoa:
+                    chuyen_khoa_ten = fallback_doc.chuyen_khoa.ten_chuyen_khoa
 
         seen_ticket_ids = set()
         b_tickets = []

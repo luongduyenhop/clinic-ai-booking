@@ -397,11 +397,10 @@ export default function StepPrescription({ formik, encounter, locked, onOpenRxMo
                                 type="button"
                                 onClick={handleTemplatesClick}
                                 className="medpro-btn-outline inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[6px] cursor-pointer"
-                                title="Phác đồ điều trị mẫu khuyến nghị (F4)"
+                                title="Phác đồ điều trị mẫu khuyến nghị"
                             >
                                 <ClinicIcon name="BookmarkSimple" size={14} />
                                 <span>Phác đồ mẫu</span>
-                                <span className="text-[10px] bg-clinic-bg-muted border border-clinic-border px-1 rounded-[4px] font-mono">F4</span>
                             </button>
                         )}
                         {!isReadOnly && (

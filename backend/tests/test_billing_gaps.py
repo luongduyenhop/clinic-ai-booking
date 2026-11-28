@@ -242,16 +242,7 @@ async def test_fc17_patient_packages_and_history_summary(db_session):
     db_session.add(past_apt)
     await db_session.flush()
 
-    # 1. Test get_patient_packages
-    packages = await queue_service.get_patient_packages(bn.id, db_session)
-    assert len(packages) == 1
-    pkg_item = packages[0]
-    assert pkg_item.ma_dang_ky == f"DK-{suffix}"
-    assert pkg_item.so_dich_vu_da_dung == 3
-    assert pkg_item.so_dich_vu_con_lai == 7
-    assert pkg_item.is_con_han is True
-
-    # 2. Test get_patient_history_summary
+    # Test get_patient_history_summary
     summary = await queue_service.get_patient_history_summary(bn.id, db_session)
     assert summary.benh_nhan_id == bn.id
     assert summary.so_lan_no_show == 1
@@ -259,7 +250,6 @@ async def test_fc17_patient_packages_and_history_summary(db_session):
     assert summary.so_lan_kham == 1
     assert len(summary.lich_su_kham_gan_day) >= 1
     assert summary.lich_su_kham_gan_day[0].chan_doan == "Đau dạ dày mạn tính"
-    assert len(summary.goi_kham_hien_co) == 1
 
 
 @pytest.mark.asyncio

@@ -43,7 +43,6 @@ export default function ReceptionSidebar() {
                     to: '/reception/queue',
                     label: 'Điều phối hàng đợi',
                     icon: UserList,
-                    badge: waitingCount > 0 ? String(waitingCount) : null,
                 },
                 {
                     to: '/reception/cashier',

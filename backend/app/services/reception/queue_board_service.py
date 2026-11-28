@@ -156,6 +156,7 @@ async def get_patient_flow_board(
     user: TaiKhoan,
     db: AsyncSession,
     room_id: Optional[int] = None,
+    ca_kham: Optional[str] = None,
 ) -> PatientFlowBoardResponse:
     target_date = query_date or clinic_now().date()
     stmt = (
@@ -179,7 +180,14 @@ async def get_patient_flow_board(
         bs = (await db.execute(stmt_bs)).scalar_one_or_none()
         if bs:
             stmt = stmt.where(HangDoiKham.bac_si_id == bs.id)
-    stmt = stmt.order_by(HangDoiKham.muc_do_uu_tien.asc(), HangDoiKham.so_thu_tu_kham.asc())
+    if ca_kham and ca_kham.strip().lower() != "all":
+        stmt = stmt.where(HangDoiKham.ca_kham == ca_kham.strip().lower())
+
+    stmt = stmt.order_by(
+        HangDoiKham.muc_do_uu_tien.asc(),
+        func.coalesce(HangDoiKham.thoi_gian_xep_hang_lai, HangDoiKham.thoi_gian_check_in).asc(),
+        HangDoiKham.so_thu_tu_kham.asc(),
+    )
 
     tickets = (await db.execute(stmt)).scalars().all()
 
@@ -310,6 +318,7 @@ async def get_patient_flow_board(
                 trang_thai=t.trang_thai,
                 gio_hen_du_kien=gio_hen,
                 thoi_gian_check_in=t.thoi_gian_check_in,
+                thoi_gian_xep_hang_lai=t.thoi_gian_xep_hang_lai,
                 thoi_gian_cho_phut=thoi_gian_cho,
                 thoi_gian_o_trang_thai_phut=thoi_gian_trang_thai,
                 so_lan_goi=t.so_lan_goi,

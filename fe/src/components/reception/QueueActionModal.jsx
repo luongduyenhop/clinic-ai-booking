@@ -11,7 +11,7 @@ import {
 
 export default function QueueActionModal({ open, onClose, onSuccess, queueEntry, mode }) {
     const dispatch = useDispatch()
-    const { rooms = [], doctors = [], roomStatus = [], activeRole } = useSelector((state) => state.reception)
+    const { rooms = [], doctors = [], departments = [], roomStatus = [], activeRole } = useSelector((state) => state.reception)
 
     const [reason, setReason] = useState('')
     const [selectedRoomId, setSelectedRoomId] = useState('')
@@ -37,6 +37,57 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
         }
     }, [selectedRoomId, rooms, roomStatus, doctors])
 
+    const currentRoomId = queueEntry?.backendRoomId || queueEntry?.roomId
+    const currentDocId = queueEntry?.doctorId
+    const currentRoomStr = String(queueEntry?.roomName || queueEntry?.phong_kham || '').toLowerCase()
+
+    const availableRooms = useMemo(() => {
+        return rooms.filter((r) => {
+            const roomType = String(r.loai_phong || r.roomType || '').toLowerCase()
+            if ((roomType && roomType !== 'kham_benh') || /^(cdha|lab|tdcn|xn)/i.test(String(r.code || r.ma_phong || ''))) {
+                return false
+            }
+            if (currentRoomId && (String(r.id) === String(currentRoomId) || r.code === currentRoomId)) {
+                return false
+            }
+            if (currentRoomStr && r.name && currentRoomStr.includes(r.name.toLowerCase())) {
+                return false
+            }
+            if (currentRoomStr && r.code && currentRoomStr.includes(String(r.code).toLowerCase())) {
+                return false
+            }
+            if (currentDocId) {
+                const st = roomStatus.find((s) => String(s.phong_kham_id) === String(r.id) || s.ma_phong === r.code)
+                if (st?.bac_si_id && Number(st.bac_si_id) === Number(currentDocId)) return false
+                if (r.doctorId && Number(r.doctorId) === Number(currentDocId)) return false
+            }
+            return true
+        })
+    }, [rooms, currentRoomId, currentRoomStr, currentDocId, roomStatus])
+
+    const groupedRooms = useMemo(() => {
+        const groupsMap = new Map()
+        availableRooms.forEach((r) => {
+            const s = roomStatus.find(
+                (st) => String(st.phong_kham_id) === String(r.id) || st.ma_phong === r.code
+            )
+            const dep = departments.find((d) => String(d.id) === String(r.departmentId || r.chuyen_khoa_id))
+            const depKey = dep ? String(dep.id) : String(r.departmentName || r.ten_chuyen_khoa || s?.chuyen_khoa || 'OTHER')
+            const depLabel = dep?.name || dep?.ten_chuyen_khoa || r.departmentName || r.ten_chuyen_khoa || s?.chuyen_khoa || 'Chuyên khoa khác'
+            const docName = s?.ten_bac_si || (r.doctorId ? doctors.find((d) => d.id === r.doctorId)?.name : null)
+
+            if (!groupsMap.has(depKey)) {
+                groupsMap.set(depKey, { key: depKey, label: depLabel, items: [] })
+            }
+            groupsMap.get(depKey).items.push({ room: r, status: s, docName })
+        })
+
+        return Array.from(groupsMap.values()).map((group) => ({
+            ...group,
+            items: group.items.sort((a, b) => Number(Boolean(b.docName)) - Number(Boolean(a.docName))),
+        }))
+    }, [availableRooms, departments, doctors, roomStatus])
+
     if (!queueEntry) return null
 
     const titles = {
@@ -45,28 +96,6 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
         REORDER: `Điều phối thứ tự & ưu tiên: ${queueEntry.ticketNumber}`,
         CANCEL: `Hủy lượt khám: ${queueEntry.ticketNumber}`,
     }
-
-    const currentRoomId = queueEntry.backendRoomId || queueEntry.roomId
-    const currentDocId = queueEntry.doctorId
-    const currentRoomStr = String(queueEntry.roomName || queueEntry.phong_kham || '').toLowerCase()
-
-    const availableRooms = rooms.filter((r) => {
-        if (currentRoomId && (String(r.id) === String(currentRoomId) || r.code === currentRoomId)) {
-            return false
-        }
-        if (currentRoomStr && r.name && currentRoomStr.includes(r.name.toLowerCase())) {
-            return false
-        }
-        if (currentRoomStr && r.code && currentRoomStr.includes(String(r.code).toLowerCase())) {
-            return false
-        }
-        if (currentDocId) {
-            const st = roomStatus.find((s) => String(s.phong_kham_id) === String(r.id) || s.ma_phong === r.code)
-            if (st?.bac_si_id && Number(st.bac_si_id) === Number(currentDocId)) return false
-            if (r.doctorId && Number(r.doctorId) === Number(currentDocId)) return false
-        }
-        return true
-    })
     const targetTicketId = queueEntry.backendId || queueEntry.id
 
     const handleSubmit = async () => {
@@ -168,56 +197,58 @@ export default function QueueActionModal({ open, onClose, onSuccess, queueEntry,
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="Chọn phòng khám chuyển đến..."
+                                showSearch
+                                optionFilterProp="label"
+                                placeholder="Tìm hoặc chọn phòng khám theo chuyên khoa..."
                                 value={selectedRoomId || undefined}
                                 onChange={(val) => setSelectedRoomId(val)}
-                                listHeight={280}
+                                listHeight={300}
                                 optionLabelProp="label"
                             >
-                                {availableRooms.map((r) => {
-                                    const s = roomStatus.find(
-                                        (st) => String(st.phong_kham_id) === String(r.id) || st.ma_phong === r.code
-                                    )
-                                    const docName = s?.ten_bac_si || (r.doctorId ? doctors.find((d) => d.id === r.doctorId)?.name : null)
-                                    const wait = s?.so_benh_nhan_cho ?? r.currentWaiting ?? 0
-                                    const floor = r.floor || s?.tang || 'Tầng 1'
-                                    const shortLabel = `${r.code ? `[${r.code}] ` : ''}${r.name}${docName ? ` (${docName})` : ''}`
+                                {groupedRooms.map((group) => (
+                                    <Select.OptGroup key={group.key} label={group.label}>
+                                        {group.items.map(({ room: r, status: s, docName }) => {
+                                            const wait = s?.so_benh_nhan_cho ?? r.currentWaiting ?? 0
+                                            const floor = r.floor || s?.tang || 'Tầng 1'
+                                            const shortLabel = `${r.code ? `[${r.code}] ` : ''}${r.name}${docName ? ` (${docName})` : ''}`
 
-                                    return (
-                                        <Select.Option key={r.id} value={r.id} label={shortLabel}>
-                                            <div className="py-1 flex items-center justify-between gap-2 border-b border-clinic-border last:border-0">
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="font-bold text-clinic-navy text-xs flex items-center gap-1.5">
-                                                        {r.code && (
-                                                            <span className="px-1.5 py-0.5 rounded-[4px] bg-clinic-surface-alt text-clinic-navy border border-clinic-info-border font-mono text-[11px]">
-                                                                {r.code}
+                                            return (
+                                                <Select.Option key={r.id} value={r.id} label={shortLabel}>
+                                                    <div className="py-1 flex items-center justify-between gap-2 border-b border-clinic-border last:border-0">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="font-bold text-clinic-navy text-xs flex items-center gap-1.5">
+                                                                {r.code && (
+                                                                    <span className="px-1.5 py-0.5 rounded-[4px] bg-clinic-surface-alt text-clinic-navy border border-clinic-info-border font-mono text-[11px]">
+                                                                        {r.code}
+                                                                    </span>
+                                                                )}
+                                                                <span className="truncate">{r.name}</span>
+                                                            </div>
+                                                            <div className="text-[11px] text-clinic-text-secondary mt-0.5 flex items-center gap-2">
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <Stethoscope size={12} />
+                                                                    <span>{docName || 'Chưa phân công BS'}</span>
+                                                                </span>
+                                                                <span>•</span>
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <MapPin size={12} />
+                                                                    <span>{floor}</span>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="shrink-0 text-right">
+                                                            <span className={`inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-bold tabular-nums ${
+                                                                wait > 3 ? 'bg-clinic-warning-bg text-clinic-warning' : 'bg-clinic-bg-muted text-clinic-text-secondary'
+                                                            }`}>
+                                                                Chờ: {wait}
                                                             </span>
-                                                        )}
-                                                        <span className="truncate">{r.name}</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-[11px] text-clinic-text-secondary mt-0.5 flex items-center gap-2">
-                                                        <span className="inline-flex items-center gap-1">
-                                                            <Stethoscope size={12} />
-                                                            <span>{docName || 'Chưa phân công BS'}</span>
-                                                        </span>
-                                                        <span>•</span>
-                                                        <span className="inline-flex items-center gap-1">
-                                                            <MapPin size={12} />
-                                                            <span>{floor}</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="shrink-0 text-right">
-                                                    <span className={`inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-bold tabular-nums ${
-                                                        wait > 3 ? 'bg-clinic-warning-bg text-clinic-warning' : 'bg-clinic-bg-muted text-clinic-text-secondary'
-                                                    }`}>
-                                                        Chờ: {wait}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </Select.Option>
-                                    )
-                                })}
+                                                </Select.Option>
+                                            )
+                                        })}
+                                    </Select.OptGroup>
+                                ))}
                             </Select>
                         </div>
 

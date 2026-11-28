@@ -19,7 +19,6 @@ from app.models.appointment import (
 )
 from app.models.user import BacSi, BenhNhan, NguoiDung, PhongKham
 from app.services.appointment.appointment_service import clinic_now
-from app.models.specialized import DangKyGoiKham
 from app.schemas.queue import (
     AppointmentReceptionSearchResult,
     ReceptionAppointmentItem,
@@ -27,7 +26,6 @@ from app.schemas.queue import (
     RosterItem,
     RoomResourceItem,
     RosterTemplateItem,
-    PatientPackageItem,
     PatientPastVisitItem,
     PatientHistorySummaryResponse,
 )
@@ -463,52 +461,6 @@ async def get_roster_template_resources(
     return results
 
 
-async def get_patient_packages(self, benh_nhan_id: int, db: AsyncSession) -> List[PatientPackageItem]:
-
-    stmt_bn = select(BenhNhan).where(BenhNhan.id == benh_nhan_id)
-
-    bn = (await db.execute(stmt_bn)).scalar_one_or_none()
-
-    if not bn:
-        raise NotFoundException(f"Không tìm thấy bệnh nhân ID {benh_nhan_id}!")
-
-    stmt = (
-        select(DangKyGoiKham)
-        .options(selectinload(DangKyGoiKham.goi_dich_vu))
-        .where(DangKyGoiKham.benh_nhan_id == benh_nhan_id)
-        .order_by(DangKyGoiKham.created_at.desc())
-    )
-
-    packages = (await db.execute(stmt)).scalars().all()
-
-    today = clinic_now().date()
-
-    results = []
-
-    for pkg in packages:
-        is_con_han = (pkg.han_su_dung >= today) and (pkg.trang_thai == "DANG_SU_DUNG")
-
-        so_con_lai = max(0, pkg.tong_so_dich_vu - pkg.so_dich_vu_da_dung)
-
-        results.append(
-            PatientPackageItem(
-                id=pkg.id,
-                ma_dang_ky=pkg.ma_dang_ky,
-                ten_goi=pkg.goi_dich_vu.ten_goi if pkg.goi_dich_vu else "N/A",
-                ma_goi=pkg.goi_dich_vu.ma_goi if pkg.goi_dich_vu else "N/A",
-                ngay_dang_ky=pkg.ngay_dang_ky,
-                han_su_dung=pkg.han_su_dung,
-                tong_so_dich_vu=pkg.tong_so_dich_vu,
-                so_dich_vu_da_dung=pkg.so_dich_vu_da_dung,
-                so_dich_vu_con_lai=so_con_lai,
-                trang_thai=pkg.trang_thai,
-                is_con_han=is_con_han,
-            )
-        )
-
-    return results
-
-
 async def get_patient_history_summary(self, benh_nhan_id: int, db: AsyncSession) -> PatientHistorySummaryResponse:
 
     stmt_bn = select(BenhNhan).options(selectinload(BenhNhan.nguoi_dung)).where(BenhNhan.id == benh_nhan_id)
@@ -517,8 +469,6 @@ async def get_patient_history_summary(self, benh_nhan_id: int, db: AsyncSession)
 
     if not bn:
         raise NotFoundException(f"Không tìm thấy bệnh nhân ID {benh_nhan_id}!")
-
-    packages = await self.get_patient_packages(benh_nhan_id, db)
 
     stmt_apts = (
         select(LichKham)
@@ -571,5 +521,5 @@ async def get_patient_history_summary(self, benh_nhan_id: int, db: AsyncSession)
         is_blocked_booking=bn.is_blocked_booking,
         so_lan_kham=so_lan_kham,
         lich_su_kham_gan_day=visits,
-        goi_kham_hien_co=packages,
+        goi_kham_hien_co=[],
     )

@@ -556,10 +556,10 @@ export function useDoctorWorkstationLogic() {
                             Bệnh nhân <strong>{encounter?.benh_nhan?.ho_ten || 'BN'}</strong> đã được chuyển sang danh sách{' '}
                             <strong>"Chờ CLS"</strong> để đi làm xét nghiệm/CĐHA.
                         </p>
-                        <p>Bác sĩ có muốn giải phóng bàn khám để đón bệnh nhân tiếp theo (F2) trong lúc chờ kết quả không?</p>
+                        <p>Bác sĩ có muốn giải phóng bàn khám để đón bệnh nhân tiếp theo trong lúc chờ kết quả không?</p>
                     </div>
                 ),
-                okText: 'Giải phóng & Gọi ca tiếp theo (F2)',
+                okText: 'Giải phóng & Gọi ca tiếp theo',
                 cancelText: 'Ở lại ca này',
                 onOk: () => {
                     selectEncounter(null)

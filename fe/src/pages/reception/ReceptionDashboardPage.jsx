@@ -242,14 +242,14 @@ export default function ReceptionDashboardPage() {
                         className="medpro-btn-primary rounded-[6px] text-xs inline-flex items-center gap-1.5"
                     >
                         <ClipboardText size={15} weight="bold" />
-                        <span>Tiếp nhận (F2)</span>
+                        <span>Tiếp nhận</span>
                     </Link>
                     <Link
                         to="/reception/queue"
                         className="medpro-btn-outline rounded-[6px] text-xs inline-flex items-center gap-1.5"
                     >
                         <UserList size={15} weight="bold" className="text-clinic-cta" />
-                        <span>Hàng đợi (F4)</span>
+                        <span>Hàng đợi</span>
                     </Link>
                     <button
                         type="button"
@@ -258,14 +258,6 @@ export default function ReceptionDashboardPage() {
                     >
                         <CalendarPlus size={15} weight="bold" className="text-clinic-navy" />
                         <span>Đặt lịch</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsCloseShiftOpen(true)}
-                        className="medpro-btn-danger rounded-[6px] text-xs inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <LockKey size={14} weight="bold" />
-                        <span>Đóng ca trực</span>
                     </button>
                 </div>
             </div>

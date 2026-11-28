@@ -62,9 +62,13 @@ export function useQueuePageLogic() {
 
     const displayRooms = useMemo(() => {
         const rawRooms = rooms && rooms.length > 0 ? rooms : []
-        const nonDemoRooms = rawRooms.filter(
-            (room) => !isDemoQueueEntity(room.code || room.ma_phong) && !isDemoQueueEntity(room.name || room.ten_phong)
-        )
+        const nonDemoRooms = rawRooms.filter((room) => {
+            const code = room.code || room.ma_phong
+            const name = room.name || room.ten_phong
+            const roomType = String(room.loai_phong || room.roomType || '').toLowerCase()
+            const isClsRoom = (roomType && roomType !== 'kham_benh') || /^(cdha|lab|tdcn|xn)/i.test(String(code || ''))
+            return !isDemoQueueEntity(code) && !isDemoQueueEntity(name) && !isClsRoom
+        })
         const sourceRooms = nonDemoRooms.length > 0 ? nonDemoRooms : rawRooms
 
         return sourceRooms.map((room) => {
@@ -133,11 +137,6 @@ export function useQueuePageLogic() {
                     code: department.code || department.prefix,
                 })
             }
-        })
-        list.push({
-            id: 'CHUNG',
-            name: 'Phòng chung',
-            code: 'CHUNG',
         })
         return list
     }, [departments])
@@ -440,15 +439,14 @@ export function useQueuePageLogic() {
         }
     }, [activeTab, dispatch])
 
-    const reloadQueueAfterAction = async (record) => {
+    const reloadQueueAfterAction = async () => {
         const currentRoom = selectedRoomId ? displayRooms.find((room) => String(room.id) === String(selectedRoomId)) : null
-        const doctorId = record?.doctorId || currentRoom?.doctorId || 1
         const queryParameters = {
             queryDate: selectedDate,
             caKham: selectedShift === 'all' ? undefined : selectedShift,
         }
-        if (doctorId) {
-            await dispatch(fetchDoctorQueueAsync({ doctorId, ...queryParameters })).unwrap().catch(() => {})
+        if (selectedRoomId && currentRoom?.doctorId) {
+            await dispatch(fetchDoctorQueueAsync({ doctorId: currentRoom.doctorId, ...queryParameters })).unwrap().catch(() => {})
         } else {
             await dispatch(fetchFlowBoardAsync(queryParameters)).unwrap().catch(() => {})
         }

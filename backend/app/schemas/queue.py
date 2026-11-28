@@ -257,6 +257,8 @@ class PatientFlowBoardItem(BaseModel):
 
     thoi_gian_check_in: datetime
 
+    thoi_gian_xep_hang_lai: Optional[datetime] = None
+
     thoi_gian_cho_phut: int
 
     thoi_gian_o_trang_thai_phut: int

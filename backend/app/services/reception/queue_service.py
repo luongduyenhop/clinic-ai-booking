@@ -40,7 +40,6 @@ class QueueService:
     get_roster_resources = queue_resource_service.get_roster_resources
     get_rooms_resources = queue_resource_service.get_rooms_resources
     get_roster_template_resources = queue_resource_service.get_roster_template_resources
-    get_patient_packages = queue_resource_service.get_patient_packages
     get_patient_history_summary = queue_resource_service.get_patient_history_summary
 
     process_no_shows_end_of_shift = queue_waitlist_service.process_no_shows_end_of_shift

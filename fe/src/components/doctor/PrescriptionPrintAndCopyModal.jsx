@@ -1060,7 +1060,7 @@ export default function PrescriptionPrintAndCopyModal({
                                         className="mt-4 px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
                                     >
                                         <BookmarkSimple size={15} weight="bold" />
-                                        <span>Xem phác đồ mẫu khuyến nghị (F4)</span>
+                                        <span>Xem phác đồ mẫu khuyến nghị</span>
                                     </button>
                                 </div>
                             ) : (

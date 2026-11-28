@@ -76,7 +76,7 @@ export default function WorkstationEmptyState({
                             Bàn khám sẵn sàng tiếp nhận
                         </h2>
                         <p className="text-xs text-clinic-text-secondary mt-1">
-                            Chọn một bệnh nhân trong hàng đợi hoặc gọi ca tiếp theo bằng nút bên cạnh hoặc phím F2.
+                            Chọn một bệnh nhân trong hàng đợi hoặc gọi ca tiếp theo bằng nút bên cạnh.
                         </p>
                     </div>
                     {nextPatients.length > 0 && onCallNext && (
@@ -86,7 +86,7 @@ export default function WorkstationEmptyState({
                             disabled={calling}
                             className="medpro-btn-primary text-xs shrink-0 cursor-pointer disabled:opacity-50"
                         >
-                            {calling ? 'Đang gọi số...' : 'Gọi ca tiếp theo (F2)'}
+                            {calling ? 'Đang gọi số...' : 'Gọi ca tiếp theo'}
                         </button>
                     )}
                 </div>

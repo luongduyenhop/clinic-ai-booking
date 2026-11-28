@@ -148,13 +148,12 @@ export default function QueuePanel({
                         onClick={handleCallNextWithVoice}
                         disabled={calling}
                         className="medpro-btn-primary w-full flex items-center justify-between py-2 px-3 rounded-[6px] font-bold text-xs cursor-pointer disabled:opacity-50"
-                        title="Gọi bệnh nhân tiếp theo (Phím tắt: F2 hoặc Alt+N)"
+                        title="Gọi bệnh nhân tiếp theo"
                     >
                         <div className="flex items-center gap-2">
                             <ClinicIcon name="ArrowRight" size={15} weight="bold" />
                             <span>{calling ? 'Đang gọi số…' : 'Gọi số tiếp theo (Ưu tiên)'}</span>
                         </div>
-                        <span className="text-[10px] bg-clinic-navy/25 px-1.5 py-0.5 rounded-[4px] text-clinic-surface font-mono tabular-nums">F2</span>
                     </button>
 
                     <button

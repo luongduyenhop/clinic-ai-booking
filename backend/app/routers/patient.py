@@ -31,17 +31,11 @@ async def get_patient_profile_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> TaiKhoan:
-    """USER-002 profile contract: missing bearer credentials are reported as 403.
-
-    Other endpoints keep the shared authentication contract (401 for missing
-    credentials); an invalid or expired token on this endpoint also remains 401.
-    """
     if not credentials or not credentials.credentials:
         raise ForbiddenException("Truy cập hồ sơ bệnh nhân cần Authorization Bearer Token")
     return await get_current_user(credentials, db)
 
 
-# ── Hồ sơ cá nhân bệnh nhân ──────────────────────────────────────────
 @router.get(
     "/profile",
     response_model=ResponseEnvelope[PatientProfileResponse],
@@ -75,7 +69,6 @@ async def update_patient_profile(
     )
 
 
-# ── Quản lý hồ sơ gia đình (Người thân) ──────────────────────────────
 @router.get(
     "/family-members",
     response_model=ResponseEnvelope[List[FamilyMemberResponse]],
@@ -146,7 +139,6 @@ async def delete_family_member(
     )
 
 
-# ── Sổ khám bệnh điện tử EMR ─────────────────────────────────────────
 @router.get(
     "/medical-records",
     response_model=ResponseEnvelope[List[PatientMedicalRecordSummaryResponse]],
@@ -201,7 +193,6 @@ async def get_patient_lab_results(
     )
 
 
-# ── Khảo sát & Đánh giá chất lượng sau khám ──────────────────────────
 @router.post(
     "/feedback",
     response_model=ResponseEnvelope[ServiceFeedbackResponse],
@@ -256,7 +247,6 @@ async def find_lost_patient_code(
         message=f"Tìm thấy {len(results)} hồ sơ bệnh nhân khớp thông tin"
     )
 
-# Read-only patient billing endpoint. Never allow a patient to mark an invoice paid.
 @router.get(
     "/invoices",
     response_model=ResponseEnvelope[List[dict]],

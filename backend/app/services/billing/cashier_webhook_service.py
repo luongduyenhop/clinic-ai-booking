@@ -70,12 +70,17 @@ async def process_sepay_webhook(
             break
 
     if not invoice:
-        pending_invoices_stmt = select(HoaDon).where(HoaDon.trang_thai == "chua_thu")
+        pending_invoices_stmt = (
+            select(HoaDon)
+            .where(HoaDon.trang_thai == "chua_thu")
+            .order_by(HoaDon.id.desc())
+            .limit(200)
+        )
         pending_invoices = (await db.execute(pending_invoices_stmt)).scalars().all()
         compact_content = re.sub(r"[^A-Za-z0-9]", "", raw_content).upper()
         for cand_inv in pending_invoices:
             cand_code = re.sub(r"[^A-Za-z0-9]", "", cand_inv.ma_hoa_don).upper()
-            if cand_code in compact_content or str(cand_inv.id) in raw_content.split():
+            if cand_code and len(cand_code) >= 6 and cand_code in compact_content:
                 invoice = await find_invoice_by_ref_fn(cand_inv.id, db, lock=True)
                 if invoice:
                     break

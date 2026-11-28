@@ -13,6 +13,7 @@ from app.schemas.cashier import InvoicePayRequest
 from app.schemas.sepay import SepayWebhookPayload, SepayWebhookResponse
 from app.services.billing.cashier_service import cashier_service
 
+
 class SepayService:
     def verify_token(self, authorization_header: Optional[str]) -> bool:
         configured_token = (settings.SEPAY_WEBHOOK_TOKEN or "").strip()
@@ -33,6 +34,8 @@ class SepayService:
         m_hd = re.search(r"HD[-_ ]?([0-9a-zA-Z-]+)", combined, re.IGNORECASE)
         if m_hd:
             raw = m_hd.group(1).strip()
+            if raw.upper().startswith("HD-"):
+                return raw
             if raw.isdigit():
                 return raw
             if len(raw) >= 6:
@@ -40,7 +43,11 @@ class SepayService:
         m_num = re.search(r"(?:CLINIC|TT|HD)[^0-9]*([0-9]+)", combined, re.IGNORECASE)
         if m_num:
             return m_num.group(1).strip()
-        m_single = re.search(r"\b([0-9]{1,8})\b", combined)
+        m_single = re.search(
+            r"(?:vien\s*phi|thanh\s*toan|hoa\s*don|phi\s*kham)\s*#?\s*([0-9]{1,8})\b",
+            combined,
+            re.IGNORECASE,
+        )
         if m_single:
             return m_single.group(1).strip()
         return None
@@ -56,6 +63,12 @@ class SepayService:
 
         if payload.transferType and str(payload.transferType).strip().lower() == "out":
             return SepayWebhookResponse(success=True, message="Bỏ qua giao dịch chuyển tiền đi")
+
+        if payload.transferAmount is None:
+            return SepayWebhookResponse(success=False, message="Số tiền chuyển khoản không hợp lệ")
+        transfer_amount = Decimal(str(payload.transferAmount))
+        if transfer_amount <= Decimal("0"):
+            return SepayWebhookResponse(success=False, message="Số tiền chuyển khoản không hợp lệ")
 
         inv_ref = self.parse_invoice_reference(payload.content, payload.description)
         if not inv_ref and payload.code:
@@ -79,11 +92,16 @@ class SepayService:
                     amount=hoa_don.thuc_thu or hoa_don.so_tien_phai_thu,
                     message="Hóa đơn đã được thanh toán trước đó",
                 )
-            amount_to_pay = hoa_don.thuc_thu or hoa_don.so_tien_phai_thu or Decimal("0")
-            if payload.transferAmount and payload.transferAmount > 0:
-                amount_to_pay = payload.transferAmount
+            due_amount = hoa_don.thuc_thu or hoa_don.so_tien_phai_thu or Decimal("0")
+            if transfer_amount < due_amount:
+                return SepayWebhookResponse(
+                    success=False,
+                    invoice_id=hoa_don.id,
+                    amount=transfer_amount,
+                    message="Số tiền chuyển khoản chưa đủ để thanh toán hóa đơn",
+                )
             pay_req = InvoicePayRequest(
-                so_tien_khach_tra=amount_to_pay,
+                so_tien_khach_tra=transfer_amount,
                 phuong_thuc_thanh_toan="SEPAY",
                 ghi_chu=f"SePay chuyển khoản: {payload.content or payload.referenceCode or ''}".strip(),
             )
@@ -92,7 +110,7 @@ class SepayService:
             return SepayWebhookResponse(
                 success=True,
                 invoice_id=hoa_don.id,
-                amount=amount_to_pay,
+                amount=transfer_amount,
                 message="Xác nhận thanh toán hóa đơn thành công qua SePay",
             )
 
@@ -110,6 +128,14 @@ class SepayService:
                     amount=inv_prod.final_amount,
                     message="Hóa đơn đã được thanh toán trước đó",
                 )
+            due_prod = inv_prod.final_amount or Decimal("0")
+            if transfer_amount < due_prod:
+                return SepayWebhookResponse(
+                    success=False,
+                    invoice_id=inv_prod.id,
+                    amount=transfer_amount,
+                    message="Số tiền chuyển khoản chưa đủ để thanh toán hóa đơn",
+                )
             now = datetime.now(timezone.utc)
             inv_prod.status = "PAID"
             inv_prod.payment_method = "SEPAY"
@@ -120,7 +146,7 @@ class SepayService:
                 transaction_code=f"SEPAY-{payload.referenceCode or payload.id or inv_prod.id}",
                 gateway_provider="SEPAY",
                 bank_transaction_id=str(payload.referenceCode or payload.id or ""),
-                amount=payload.transferAmount or inv_prod.final_amount,
+                amount=transfer_amount,
                 payment_status="SUCCESS",
                 webhook_payload=payload.model_dump(mode="json"),
                 reconciled_at=now,
@@ -135,5 +161,6 @@ class SepayService:
             )
 
         return SepayWebhookResponse(success=False, message=f"Không tìm thấy hóa đơn khớp với mã {inv_ref}")
+
 
 sepay_service = SepayService()

@@ -256,15 +256,45 @@ def build():
     context = {x for values in CONTEXT.values() for x in values}
 
     features = sorted(core_features | optional_features | context)
+    nonspecific_pool = [
+        item
+        for item in [
+            "fatigue",
+            "headache",
+            "nausea",
+            "vomiting",
+            "fever",
+            "mild_fever",
+            "dizziness",
+            "loss_of_appetite",
+            "cough",
+            "abdominal_pain",
+            "blurred_vision",
+            "weight_loss",
+        ]
+        if item in features
+    ]
     rows = []
 
     for key, _, specialty, core, optional in profiles:
         seen = set()
         while len(seen) < SAMPLES_PER_DISEASE:
-            active = {s for s in core if rng.random() < 0.93}
-            active.update(s for s in optional if rng.random() < 0.50)
-            while len(active & set(core)) < min(2, len(core)):
-                active.add(rng.choice(core))
+            incomplete_presentation = rng.random() < 0.35
+            if incomplete_presentation:
+                active = {s for s in core if rng.random() < 0.55}
+                active.update(s for s in optional if rng.random() < 0.30)
+                pool = core + optional
+                if pool and not (active & set(pool)):
+                    active.add(rng.choice(pool))
+            else:
+                active = {s for s in core if rng.random() < 0.88}
+                active.update(s for s in optional if rng.random() < 0.48)
+                while len(active & set(core)) < min(2, len(core)):
+                    active.add(rng.choice(core))
+
+            if nonspecific_pool and rng.random() < 0.30:
+                for extra_symptom in rng.sample(nonspecific_pool, k=rng.choice([1, 2])):
+                    active.add(extra_symptom)
 
             active.add(rng.choices(["age_child", "age_adolescent", "age_adult", "age_older_adult"], [1, 2, 8, 4])[0])
             sex = rng.choice(["sex_female", "sex_male"])

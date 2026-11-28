@@ -12,15 +12,32 @@ import { AppToast } from './AppNotification'
 import { cashierService } from '../../services/cashierService'
 import { resolveInvoicePayableAmount } from '../../utils/helpers/cashierInvoiceHelpers'
 
+const DEFAULT_BANK_BIN = import.meta.env.VITE_SEPAY_BANK_BIN || '970422'
+const DEFAULT_BANK_NAME = import.meta.env.VITE_SEPAY_BANK_NAME || 'MBBank (Ngân hàng TMCP Quân Đội)'
+const DEFAULT_ACCOUNT_NUMBER = import.meta.env.VITE_SEPAY_ACCOUNT_NUMBER || '0901234567'
+const DEFAULT_ACCOUNT_NAME = import.meta.env.VITE_SEPAY_ACCOUNT_NAME || 'PHONG KHAM CLINIC AI'
+
+function resolveSepayBankCode(bankName) {
+    const normalized = String(bankName || '').toLowerCase()
+    if (normalized.includes('vietcombank') || normalized.includes('vcb')) return 'Vietcombank'
+    if (normalized.includes('techcombank') || normalized.includes('tcb')) return 'Techcombank'
+    if (normalized.includes('vietinbank') || normalized.includes('ctg')) return 'VietinBank'
+    if (normalized.includes('bidv')) return 'BIDV'
+    if (normalized.includes('acb')) return 'ACB'
+    if (normalized.includes('tpbank')) return 'TPBank'
+    if (normalized.includes('vpbank')) return 'VPBank'
+    return 'MBBank'
+}
+
 export default function VietQrModal({
     isOpen,
     onClose,
     onConfirmPayment,
     invoice = {},
-    bankBin = '970422',
-    bankName = 'MBBank (Ngân hàng TMCP Quân Đội)',
-    accountNumber = '0901234567',
-    accountName = 'PHONG KHAM CLINIC AI',
+    bankBin = DEFAULT_BANK_BIN,
+    bankName = DEFAULT_BANK_NAME,
+    accountNumber = DEFAULT_ACCOUNT_NUMBER,
+    accountName = DEFAULT_ACCOUNT_NAME,
 }) {
     const [copiedContent, setCopiedContent] = useState(false)
     const [copiedAccount, setCopiedAccount] = useState(false)
@@ -34,7 +51,7 @@ export default function VietQrModal({
 
     const transferContent = `CLINIC HD ${invoiceId} ${patientCode}`.toUpperCase().replace(/[^A-Z0-9 ]/g, '')
 
-    const sepayBank = bankName.toLowerCase().includes('mb') ? 'MBBank' : 'MBBank'
+    const sepayBank = resolveSepayBankCode(bankName)
     const vietQrUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
         transferContent
     )}&accountName=${encodeURIComponent(accountName)}`

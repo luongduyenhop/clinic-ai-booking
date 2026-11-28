@@ -7,7 +7,6 @@ OTP_PENDING_MESSAGE = "Tài khoản chưa được kích hoạt OTP. Vui lòng x
 
 
 def ensure_account_active(user: TaiKhoan) -> None:
-    """Staff are activated by administrators, not by the patient OTP flow."""
     if user.is_active:
         return
     if user.vai_tro == VaiTroEnum.BENH_NHAN.value and user.otp_code and user.otp_expired_at:

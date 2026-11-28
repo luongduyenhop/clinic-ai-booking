@@ -1,13 +1,14 @@
 import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.exceptions import ForbiddenException
 from app.core.response import ResponseEnvelope
-from app.models.user import TaiKhoan, VaiTroEnum
+from app.models.user import BenhNhan, TaiKhoan, VaiTroEnum
 from app.schemas.compliance import (
     ComplianceDashboardResponse,
     DoctorLicenseResponse,
@@ -35,6 +36,12 @@ def _require_admin(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKho
     return current_user
 
 
+def _require_staff(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKhoan:
+    if current_user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+        raise ForbiddenException("Chức năng này chỉ dành cho nhân sự nội bộ phòng khám")
+    return current_user
+
+
 @router.get(
     "/doctors/{doctor_id}/license",
     response_model=ResponseEnvelope[DoctorLicenseResponse],
@@ -42,7 +49,7 @@ def _require_admin(current_user: TaiKhoan = Depends(get_current_user)) -> TaiKho
 )
 async def get_doctor_license(
     doctor_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await credential_service.get_doctor_license(db, doctor_id)
@@ -95,7 +102,7 @@ async def update_doctor_license_status(
 )
 async def get_doctor_license_history(
     doctor_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await credential_service.get_doctor_license_history(db, doctor_id)
@@ -111,7 +118,7 @@ async def get_doctor_license_history(
     summary="Báo cáo cảnh báo giấy phép sắp hết hạn 90, 60, 30 ngày (INT-05)",
 )
 async def get_license_expiry_alerts(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await credential_service.get_license_expiry_alerts(db)
@@ -148,7 +155,7 @@ async def create_facility_license(
 async def list_facility_licenses(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await credential_service.list_facility_licenses(db, skip=skip, limit=limit)
@@ -165,7 +172,7 @@ async def list_facility_licenses(
 )
 async def get_facility_license(
     license_id: int,
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await credential_service.get_facility_license(db, license_id)
@@ -221,6 +228,14 @@ async def log_health_data_access(
     current_user: TaiKhoan = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if current_user.vai_tro == VaiTroEnum.BENH_NHAN.value:
+        bn = (
+            await db.execute(
+                select(BenhNhan).where(BenhNhan.nguoi_dung_id == current_user.nguoi_dung_id)
+            )
+        ).scalar_one_or_none()
+        if not bn or bn.id != payload.patient_id:
+            raise ForbiddenException("Bạn chỉ được phép ghi nhận truy cập cho hồ sơ của chính mình")
     entry = await audit_trail_service.log_access(
         db=db,
         user_id=current_user.id,
@@ -360,7 +375,7 @@ async def list_hssk_records(
     summary="Kiểm tra kết nối thực tế Cổng Đơn thuốc Quốc gia & giấy phép cơ sở",
 )
 async def ping_gateway_health(
-    current_user: TaiKhoan = Depends(get_current_user),
+    current_user: TaiKhoan = Depends(_require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await compliance_gateway_service.ping_gateway_health(db=db, current_user=current_user)

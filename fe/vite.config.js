@@ -36,11 +36,6 @@ export default defineConfig({
                             test: /node_modules[\\/]exceljs[\\/]/,
                             priority: 20,
                         },
-                        {
-                            name: 'vendor-realtime',
-                            test: /node_modules[\\/]@microsoft[\\/]signalr[\\/]/,
-                            priority: 15,
-                        },
                     ],
                 },
             },

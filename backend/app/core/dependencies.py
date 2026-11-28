@@ -20,21 +20,21 @@ async def get_user_by_token(raw_token: str, db: AsyncSession) -> TaiKhoan:
     payload = decode_access_token(token)
     if not payload:
         raise UnauthorizedException("Mã Token không hợp lệ hoặc đã hết hạn sử dụng")
-        
+
     if payload.get("type") == "refresh":
         raise UnauthorizedException("Không thể sử dụng Refresh Token để truy cập tài nguyên")
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise UnauthorizedException("Token không chứa thông tin định danh người dùng")
-    
+
     stmt = select(TaiKhoan).where(TaiKhoan.id == int(user_id))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise UnauthorizedException("Người dùng tương ứng với Token không tồn tại trong hệ thống")
-    
+
     ensure_account_active(user)
     return user
 
@@ -79,15 +79,12 @@ def require_roles(allowed_roles: List[VaiTroEnum]):
 
 
 def require_permission(permission_code: str):
-    """Check the persisted RBAC matrix for API operations; admin remains the system superuser."""
     async def permission_checker(
         current_user: TaiKhoan = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
     ) -> TaiKhoan:
         if current_user.vai_tro == VaiTroEnum.ADMIN.value:
             return current_user
-        # Initialize defaults on first use so persisted permissions are
-        # effective even before an administrator opens the RBAC screen.
         from app.services.admin.admin_rbac_service import admin_rbac_service
         await admin_rbac_service._ensure_catalog(db)
         stmt = (
@@ -117,7 +114,6 @@ def permission_action_for_request(request: Request) -> str:
 
 
 def require_module_permission(module_code: str):
-    """Enforce a module's persisted CRUD permission for the current request."""
     async def module_checker(
         request: Request,
         current_user: TaiKhoan = Depends(get_current_user),

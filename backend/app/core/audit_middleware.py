@@ -1,18 +1,33 @@
+import logging
 import re
 from datetime import datetime, timezone
+from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, get_db
 from app.core.security import decode_access_token
-from app.models.production_models import PhiAuditLog
+from app.models.compliance import HealthDataAccessAction, HealthDataResourceType, NhatKyTruyCapDuLieuYTe
+from app.models.medical import LuotKham
+
+logger = logging.getLogger("clinic_backend")
 
 
 class PhiAuditMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
+        if not (200 <= response.status_code < 400):
+            return response
+
         path = request.url.path
         if not (path.startswith("/api/v1/clinical") or path.startswith("/clinical")):
+            return response
+
+        if get_db in request.app.dependency_overrides:
+            return response
+
+        method = request.method.upper()
+        if method == "GET" and re.fullmatch(r"(/api/v1)?/clinical/encounters/\d+", path):
             return response
 
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
@@ -29,44 +44,54 @@ class PhiAuditMiddleware(BaseHTTPMiddleware):
         except (ValueError, TypeError):
             return response
 
-        method = request.method.upper()
-        action_map = {
-            "GET": "VIEW",
-            "POST": "CREATE",
-            "PUT": "UPDATE",
-            "PATCH": "UPDATE",
-            "DELETE": "DELETE",
-        }
-        action_type = action_map.get(method, "VIEW")
-
+        user_role = str(payload.get("role") or "UNKNOWN")
         encounter_match = re.search(r"/encounters/(\d+)", path)
         patient_match = re.search(r"/patients/(\d+)", path)
 
         encounter_id = int(encounter_match.group(1)) if encounter_match else None
         patient_id = int(patient_match.group(1)) if patient_match else None
+        if patient_id is None and encounter_id is None:
+            return response
 
-        entity_name = "encounter" if encounter_id else ("patient" if patient_id else "clinical_resource")
-        entity_id = encounter_id or patient_id or 0
-
+        action = (
+            HealthDataAccessAction.VIEW.value
+            if method == "GET"
+            else HealthDataAccessAction.EDIT.value
+        )
+        resource_type = (
+            HealthDataResourceType.ENCOUNTER.value
+            if encounter_id
+            else HealthDataResourceType.PATIENT_HISTORY.value
+        )
+        resource_id = encounter_id or patient_id
         client_ip = request.client.host if request.client else "127.0.0.1"
-        user_agent = request.headers.get("user-agent", "")[:500]
 
         try:
             async with AsyncSessionLocal() as session:
-                audit_entry = PhiAuditLog(
+                resolved_patient_id = patient_id
+                if resolved_patient_id is None and encounter_id is not None:
+                    resolved_patient_id = (
+                        await session.execute(
+                            select(LuotKham.benh_nhan_id).where(LuotKham.id == encounter_id)
+                        )
+                    ).scalar_one_or_none()
+                if resolved_patient_id is None:
+                    return response
+
+                audit_entry = NhatKyTruyCapDuLieuYTe(
                     user_id=user_id,
-                    patient_id=patient_id or 1,
-                    encounter_id=encounter_id,
-                    action_type=action_type,
-                    entity_name=entity_name,
-                    entity_id=entity_id,
-                    ip_address=client_ip,
-                    user_agent=user_agent,
-                    created_at=datetime.now(timezone.utc),
+                    user_role=user_role,
+                    patient_id=resolved_patient_id,
+                    action=action,
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    purpose="TRUY_CAP_PHAN_HE_LAM_SANG",
+                    client_ip=client_ip,
+                    timestamp=datetime.now(timezone.utc),
                 )
                 session.add(audit_entry)
                 await session.commit()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("PhiAuditMiddleware failed to record audit entry: %s", exc)
 
         return response

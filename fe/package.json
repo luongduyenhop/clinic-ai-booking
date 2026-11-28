@@ -11,7 +11,6 @@
     "test": "node --test --test-concurrency=1 tests/*.test.mjs tests/test_paraclinical_challenger.mjs tests/test_reception_admin_sync_challenger.mjs"
   },
   "dependencies": {
-    "@microsoft/signalr": "^10.0.11",
     "@phosphor-icons/react": "^2.1.10",
     "@reduxjs/toolkit": "^2.13.0",
     "@tailwindcss/vite": "^4.3.3",
